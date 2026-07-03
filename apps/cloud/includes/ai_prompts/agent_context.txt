@@ -1,0 +1,6 @@
+Context budget (strict):
+- The model context window is at most 200000 tokens total for the whole conversation including tool results.
+- Never load entire huge files into context. For large files use read_file with offset_line and line_count (e.g. 150–250 lines per call).
+- Prefer search_in_files to locate relevant sections before reading.
+- If read_file returns truncated:true, continue with the next offset_line until you have enough context.
+- Keep tool outputs small; do not repeat full file contents in your final answer.

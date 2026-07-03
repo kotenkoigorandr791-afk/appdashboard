@@ -1,0 +1,85 @@
+## Speech & Audio Tools
+
+You have access to speech-related tools that allow you to generate speech from text (TTS) and transcribe audio to text. These tools are protected and require the user to be logged in.
+
+All tools are called via `ai_agent_tool` action with POST parameters `tool` and `args` (JSON-encoded object).
+
+### generate_speech
+Convert text to speech audio.
+
+**Parameters (args):**
+- `text` (string, required): The text content to convert to speech
+- `language` (string, optional): Language code. Supported: `en` (English), `ru` (Russian), `pl` (Polish), etc. Default: `en`
+- `speed` (number, optional): Speech speed multiplier (0.5 - 2.0). Default: 1.0
+
+**Returns:**
+- `progress_id`: Poll this ID with `get_speech_progress` to check completion
+- The generation runs asynchronously — you must poll for the result
+
+**Example:**
+```json
+{
+  "tool": "generate_speech",
+  "args": {
+    "text": "Hello, welcome to the file manager.",
+    "language": "en",
+    "speed": 1.0
+  }
+}
+```
+
+### get_speech_progress
+Check the progress of a TTS generation job.
+
+**Parameters (args):**
+- `progress_id` (string, required): The ID returned by `generate_speech`
+
+**Returns:**
+- `progress` (integer, 0-100): Percentage complete
+- `status` (string): One of `processing`, `completed`, `error`, `not_found`
+- `message` (string): Status message
+- `audio_data` (string|null): Base64-encoded MP3 data when `status` is `completed`
+- `error` (string): Error message if failed
+
+**Note:** Poll every 2-3 seconds until `status` is `completed` or `error`.
+
+### transcribe_audio
+Transcribe an audio file to text.
+
+**Parameters (args):**
+- `audio_path` (string, required): Path to the audio file in the user's workspace (e.g. `recording.mp3`, `folder/audio.wav`)
+- `language` (string, optional): Language code. Supports: `pl` (Polish), `en` (English), `ru` (Russian), etc. Default: `pl`
+
+**Returns:**
+- `progress_id`: Poll this ID with `get_transcription_progress` to check completion
+- The transcription runs asynchronously — you must poll for the result
+
+**Supported formats:** MP3, WAV, OGG, M4A, FLAC, and other common audio formats.
+
+### get_transcription_progress
+Check the progress of a transcription job.
+
+**Parameters (args):**
+- `progress_id` (string, required): The ID returned by `transcribe_audio`
+
+**Returns:**
+- `progress` (integer, 0-100): Percentage complete
+- `status` (string): Current status
+- `message` (string): Status message
+- `transcription` (string): The transcribed text when complete
+- `is_processing` (boolean): Whether the job is still running
+- `is_active` (boolean): Whether the job is active
+
+**Note:** Poll every 2-3 seconds until `transcription` is non-empty or `is_processing` becomes false.
+
+### get_existing_transcription
+Check if a transcription already exists for an audio file (cached results).
+
+**Parameters (args):**
+- `audio_path` (string, required): Path to the audio file
+
+**Returns:**
+- `found` (boolean): Whether a cached transcription exists
+- `transcription` (string): The existing transcription text if found
+
+**Use this before starting a new transcription to avoid redundant processing.**

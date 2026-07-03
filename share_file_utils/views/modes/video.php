@@ -1,0 +1,1 @@
+<div class="video-viewer"><video controls preload="metadata" src="<?php echo htmlspecialchars($videoDisplayUrl); ?>" onerror="handleMediaError(this)"><?php echo htmlspecialchars($translations['file_not_accessible']); ?></video></div>

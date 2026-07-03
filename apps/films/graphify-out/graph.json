@@ -1,0 +1,596 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "translations.php",
+      "file_type": "code",
+      "source_file": "translations.php",
+      "source_location": "L1",
+      "community": 4,
+      "norm_label": "translations.php",
+      "id": "translations_php"
+    },
+    {
+      "label": "index.php",
+      "file_type": "code",
+      "source_file": "index.php",
+      "source_location": "L1",
+      "community": 5,
+      "norm_label": "index.php",
+      "id": "index_php"
+    },
+    {
+      "label": "session.php",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L1",
+      "community": 1,
+      "norm_label": "session.php",
+      "id": "core_session_php"
+    },
+    {
+      "label": "get_current_user_from_sessions()",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L2",
+      "community": 1,
+      "norm_label": "get_current_user_from_sessions()",
+      "id": "core_session_get_current_user_from_sessions"
+    },
+    {
+      "label": "getUserRoleByEmail()",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L48",
+      "community": 1,
+      "norm_label": "getuserrolebyemail()",
+      "id": "core_session_getuserrolebyemail"
+    },
+    {
+      "label": "isUserRoot()",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L68",
+      "community": 1,
+      "norm_label": "isuserroot()",
+      "id": "core_session_isuserroot"
+    },
+    {
+      "label": "get_current_user_data()",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L104",
+      "community": 1,
+      "norm_label": "get_current_user_data()",
+      "id": "core_session_get_current_user_data"
+    },
+    {
+      "label": "db.php",
+      "file_type": "code",
+      "source_file": "core/db.php",
+      "source_location": "L1",
+      "community": 1,
+      "norm_label": "db.php",
+      "id": "core_db_php"
+    },
+    {
+      "label": "getDB()",
+      "file_type": "code",
+      "source_file": "core/db.php",
+      "source_location": "L6",
+      "community": 1,
+      "norm_label": "getdb()",
+      "id": "core_db_getdb"
+    },
+    {
+      "label": "helpers.php",
+      "file_type": "code",
+      "source_file": "core/helpers.php",
+      "source_location": "L1",
+      "community": 2,
+      "norm_label": "helpers.php",
+      "id": "core_helpers_php"
+    },
+    {
+      "label": "streamFile()",
+      "file_type": "code",
+      "source_file": "core/helpers.php",
+      "source_location": "L2",
+      "community": 2,
+      "norm_label": "streamfile()",
+      "id": "core_helpers_streamfile"
+    },
+    {
+      "label": "makeRequest()",
+      "file_type": "code",
+      "source_file": "core/helpers.php",
+      "source_location": "L107",
+      "community": 2,
+      "norm_label": "makerequest()",
+      "id": "core_helpers_makerequest"
+    },
+    {
+      "label": "translate_text()",
+      "file_type": "code",
+      "source_file": "core/helpers.php",
+      "source_location": "L122",
+      "community": 2,
+      "norm_label": "translate_text()",
+      "id": "core_helpers_translate_text"
+    },
+    {
+      "label": "upload_errors.php",
+      "file_type": "code",
+      "source_file": "core/upload_errors.php",
+      "source_location": "L1",
+      "community": 3,
+      "norm_label": "upload_errors.php",
+      "id": "core_upload_errors_php"
+    },
+    {
+      "label": "getUploadErrorMessage()",
+      "file_type": "code",
+      "source_file": "core/upload_errors.php",
+      "source_location": "L2",
+      "community": 3,
+      "norm_label": "getuploaderrormessage()",
+      "id": "core_upload_errors_getuploaderrormessage"
+    },
+    {
+      "label": "MovieModel.php",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L1",
+      "community": 0,
+      "norm_label": "moviemodel.php",
+      "id": "models_moviemodel_php"
+    },
+    {
+      "label": "loadMovies()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L2",
+      "community": 0,
+      "norm_label": "loadmovies()",
+      "id": "models_moviemodel_loadmovies"
+    },
+    {
+      "label": "saveMovies()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L6",
+      "community": 0,
+      "norm_label": "savemovies()",
+      "id": "models_moviemodel_savemovies"
+    },
+    {
+      "label": "loadConfig()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L10",
+      "community": 0,
+      "norm_label": "loadconfig()",
+      "id": "models_moviemodel_loadconfig"
+    },
+    {
+      "label": "saveConfig()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L15",
+      "community": 0,
+      "norm_label": "saveconfig()",
+      "id": "models_moviemodel_saveconfig"
+    },
+    {
+      "label": "getVisibleMovies()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L19",
+      "community": 0,
+      "norm_label": "getvisiblemovies()",
+      "id": "models_moviemodel_getvisiblemovies"
+    },
+    {
+      "label": "loadComments()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L28",
+      "community": 0,
+      "norm_label": "loadcomments()",
+      "id": "models_moviemodel_loadcomments"
+    },
+    {
+      "label": "saveComments()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L33",
+      "community": 0,
+      "norm_label": "savecomments()",
+      "id": "models_moviemodel_savecomments"
+    },
+    {
+      "label": "calculateOverallRating()",
+      "file_type": "code",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L38",
+      "community": 0,
+      "norm_label": "calculateoverallrating()",
+      "id": "models_moviemodel_calculateoverallrating"
+    },
+    {
+      "label": "nav_script.php",
+      "file_type": "code",
+      "source_file": "views/nav_script.php",
+      "source_location": "L1",
+      "community": 6,
+      "norm_label": "nav_script.php",
+      "id": "views_nav_script_php"
+    },
+    {
+      "label": "header.php",
+      "file_type": "code",
+      "source_file": "views/header.php",
+      "source_location": "L1",
+      "community": 7,
+      "norm_label": "header.php",
+      "id": "views_header_php"
+    },
+    {
+      "label": "main_scripts.php",
+      "file_type": "code",
+      "source_file": "views/main_scripts.php",
+      "source_location": "L1",
+      "community": 8,
+      "norm_label": "main_scripts.php",
+      "id": "views_main_scripts_php"
+    },
+    {
+      "label": "modals.php",
+      "file_type": "code",
+      "source_file": "views/modals.php",
+      "source_location": "L1",
+      "community": 9,
+      "norm_label": "modals.php",
+      "id": "views_modals_php"
+    },
+    {
+      "label": "head.php",
+      "file_type": "code",
+      "source_file": "views/head.php",
+      "source_location": "L1",
+      "community": 10,
+      "norm_label": "head.php",
+      "id": "views_head_php"
+    },
+    {
+      "label": "StreamController.php",
+      "file_type": "code",
+      "source_file": "controllers/StreamController.php",
+      "source_location": "L1",
+      "community": 11,
+      "norm_label": "streamcontroller.php",
+      "id": "controllers_streamcontroller_php"
+    },
+    {
+      "label": "ApiController.php",
+      "file_type": "code",
+      "source_file": "controllers/ApiController.php",
+      "source_location": "L1",
+      "community": 12,
+      "norm_label": "apicontroller.php",
+      "id": "controllers_apicontroller_php"
+    },
+    {
+      "label": "films_t()",
+      "file_type": "code",
+      "source_file": "core/helpers.php",
+      "source_location": "L2",
+      "id": "core_helpers_films_t",
+      "community": 2,
+      "norm_label": "films_t()"
+    },
+    {
+      "label": "resolve_user_photo_url()",
+      "file_type": "code",
+      "source_file": "core/helpers.php",
+      "source_location": "L187",
+      "id": "core_helpers_resolve_user_photo_url",
+      "community": 1,
+      "norm_label": "resolve_user_photo_url()"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/session.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_session_php",
+      "target": "core_session_get_current_user_from_sessions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/session.php",
+      "source_location": "L48",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_session_php",
+      "target": "core_session_getuserrolebyemail"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/session.php",
+      "source_location": "L68",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_session_php",
+      "target": "core_session_isuserroot"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/session.php",
+      "source_location": "L104",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_session_php",
+      "target": "core_session_get_current_user_data"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/session.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "core_session_get_current_user_from_sessions",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/session.php",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "core_session_getuserrolebyemail",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/session.php",
+      "source_location": "L69",
+      "weight": 1.0,
+      "source": "core_session_isuserroot",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/session.php",
+      "source_location": "L105",
+      "weight": 1.0,
+      "source": "core_session_get_current_user_data",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/session.php",
+      "source_location": "L129",
+      "weight": 1.0,
+      "source": "core_session_get_current_user_data",
+      "target": "core_helpers_resolve_user_photo_url"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/db.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_db_php",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L14",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_helpers_php",
+      "target": "core_helpers_streamfile"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L119",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_helpers_php",
+      "target": "core_helpers_makerequest"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L134",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_helpers_php",
+      "target": "core_helpers_translate_text"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "source": "core_helpers_php",
+      "target": "core_helpers_films_t",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L187",
+      "weight": 1.0,
+      "source": "core_helpers_php",
+      "target": "core_helpers_resolve_user_photo_url",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "core_helpers_streamfile",
+      "target": "core_helpers_films_t",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/helpers.php",
+      "source_location": "L152",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_helpers_translate_text",
+      "target": "core_helpers_makerequest"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/upload_errors.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_upload_errors_php",
+      "target": "core_upload_errors_getuploaderrormessage"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_loadmovies"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_savemovies"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_loadconfig"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_saveconfig"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L19",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_getvisiblemovies"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L28",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_loadcomments"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L33",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_savecomments"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L38",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_php",
+      "target": "models_moviemodel_calculateoverallrating"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L20",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_getvisiblemovies",
+      "target": "models_moviemodel_loadmovies"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "models/MovieModel.php",
+      "source_location": "L21",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_moviemodel_getvisiblemovies",
+      "target": "models_moviemodel_loadconfig"
+    }
+  ],
+  "hyperedges": []
+}

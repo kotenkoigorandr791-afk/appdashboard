@@ -1,0 +1,17 @@
+[Unit]
+Description=Smart Home WebSocket Service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/AppDashboard/apps/smart_home
+Environment=SMART_HOME_WS_BIND=127.0.0.1
+Environment=SMART_HOME_WS_PORT=8766
+ExecStart=/usr/bin/php /var/www/AppDashboard/apps/smart_home/ws_server.php
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

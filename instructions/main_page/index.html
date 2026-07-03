@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Main Page Instructions</title>
+
+  <style>
+    :root { --sidebar-width: 290px; --radius: 14px; }
+    body.theme-dark {
+      --bg: #0a0a0d; --panel: rgba(20, 20, 24, 0.88); --panel-2: rgba(34, 34, 42, 0.95);
+      --border: rgba(179, 26, 219, 0.75); --text: #f4f1f8; --muted: #c6bdd0;
+      --hover: rgba(179, 26, 219, 0.16); --accent: #b31adb; --scrollbar-track: rgba(30, 30, 40, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.6); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.9);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.35);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 18%, rgba(0, 0, 0, 0) 42%),
+        repeating-linear-gradient(90deg, #07080a 0px, #111216 2px, #050608 4px, #0a0b0e 7px);
+      color: var(--text);
+    }
+    body.theme-light {
+      --bg: #efedf3; --panel: rgba(255, 255, 255, 0.92); --panel-2: rgba(248, 246, 251, 0.98);
+      --border: rgba(179, 26, 219, 0.55); --text: #23182c; --muted: #665c70;
+      --hover: rgba(179, 26, 219, 0.08); --accent: #b31adb; --scrollbar-track: rgba(230, 225, 235, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.5); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.8);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.18);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.18) 22%, rgba(0, 0, 0, 0) 44%),
+        repeating-linear-gradient(90deg, #f4f2f7 0px, #e9e5ed 2px, #f7f5fa 4px, #ece8f0 7px);
+      color: var(--text);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: Arial, sans-serif; line-height: 1.65; min-height: 100vh; background-color: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; transition: background 0.3s ease; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    ::-webkit-scrollbar-thumb:active { background: var(--accent); }
+    .page { max-width: 1480px; margin: 0 auto; padding: 18px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .brand { font-size: 30px; font-weight: bold; letter-spacing: 0.2px; }
+    .topbar-right { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .small-box, .back-link { padding: 8px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 14px; }
+    .small-box.locked { opacity: 0.7; cursor: not-allowed; }
+    .back-link:hover { background: var(--hover); }
+    .layout { display: grid; grid-template-columns: var(--sidebar-width) 1fr; gap: 18px; align-items: start; }
+    .sidebar { position: sticky; top: 18px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 16px; }
+    .sidebar h3 { font-size: 16px; margin-bottom: 12px; }
+    .nav { display: flex; flex-direction: column; gap: 5px; }
+    .nav a { padding: 10px 12px; border-radius: 9px; color: var(--muted); font-size: 15px; transition: 0.2s ease; }
+    .nav a:hover, .nav a.active { background: var(--hover); color: var(--text); }
+    .content { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 30px; min-height: calc(100vh - 90px); }
+    .content h1 { font-size: 34px; margin-bottom: 14px; }
+    .intro { font-size: 16px; color: var(--muted); margin-bottom: 10px; max-width: 920px; }
+    .content h2 { font-size: 25px; margin-top: 34px; margin-bottom: 12px; scroll-margin-top: 24px; }
+    .content p { margin-bottom: 14px; color: var(--muted); font-size: 16px; max-width: 950px; }
+    .content ul { margin: 8px 0 16px 20px; color: var(--muted); max-width: 930px; }
+    .content li { margin-bottom: 8px; }
+    .content img { width: 100%; max-width: 920px; display: block; margin: 18px 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); cursor: zoom-in; transition: transform 0.2s ease; }
+    .content img:hover { transform: scale(1.02); }
+    .caption { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+    .note, .info-box { margin: 16px 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--hover); color: var(--muted); max-width: 920px; }
+    .info-box { background: var(--panel-2); }
+    .info-box strong { color: var(--text); }
+    #minimap-container { position: fixed; right: 12px; top: 50%; transform: translateY(-50%); width: 100px; height: 400px; max-height: 80vh; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; z-index: 9998; overflow: hidden; opacity: 0.9; transition: opacity 0.3s ease, width 0.3s ease; cursor: pointer; }
+    #minimap-container:hover { opacity: 1; width: 120px; }
+    #minimap-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #minimap-viewport { position: absolute; left: 0; right: 0; background: rgba(179, 26, 219, 0.2); border: 2px solid var(--accent); border-radius: 4px; pointer-events: none; transition: top 0.05s ease-out; }
+    .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; flex-direction: column; }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-content { max-width: 90%; max-height: 85vh; position: relative; }
+    .lightbox-content img { max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+    .lightbox-close { position: absolute; top: -40px; right: 0; color: #fff; font-size: 32px; cursor: pointer; padding: 5px 10px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; }
+    .lightbox-close:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: #fff; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; user-select: none; }
+    .lightbox-nav:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-caption { color: #fff; font-size: 16px; margin-top: 15px; text-align: center; padding: 0 20px; }
+    .lightbox-counter { position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; background: rgba(179, 26, 219, 0.8); padding: 5px 15px; border-radius: 20px; }
+    @media (max-width: 950px) { .layout { grid-template-columns: 1fr; } .sidebar { position: relative; top: 0; } #minimap-container { display: none; } }
+  </style>
+</head>
+
+<body class="theme-dark">
+  <div class="page">
+    <div class="topbar">
+      <div class="brand" data-i18n="brand">Main Page</div>
+      <div class="topbar-right">
+        <div class="small-box locked"><span data-i18n="langLabel">Language:</span><strong id="currentLang">EN</strong><span title="Change via URL parameters only">🔒</span></div>
+        <div class="small-box locked"><span data-i18n="themeLabel">Theme:</span><strong id="currentTheme">Dark</strong><span title="Change via URL parameters only">🔒</span></div>
+        <a id="backLink" class="back-link" href="#" data-i18n="backLabel">Back</a>
+      </div>
+    </div>
+    <div class="layout">
+      <aside class="sidebar">
+        <h3 data-i18n="topicsTitle">Topics</h3>
+        <nav class="nav">
+          <a href="#overview" data-i18n="navOverview">Overview</a>
+          <a href="#menu" data-i18n="navMenu">Menu Bar</a>
+          <a href="#profile" data-i18n="navProfile">User Profile</a>
+          <a href="#settings" data-i18n="navSettings">Settings</a>
+          <a href="#bottom-buttons" data-i18n="navBottom">Bottom Buttons</a>
+          <a href="#qr-code" data-i18n="navQR">QR Code</a>
+          <a href="#statistics" data-i18n="navStats">Statistics</a>
+          <a href="#sessions" data-i18n="navSessions">Session Management</a>
+          <a href="#pin-code" data-i18n="navPIN">One-Time PIN</a>
+        </nav>
+      </aside>
+      <main class="content">
+        <h1 data-i18n="pageTitle">Main Page Instructions</h1>
+        <p class="intro" data-i18n="pageIntro">This page explains the main functions of the central hub for all applications on this site.</p>
+
+        <h2 id="overview" data-i18n="overviewTitle">Overview</h2>
+        <p data-i18n="overviewP1">The main page serves as your personal dashboard and central hub for all available applications on the platform. When you first log in, you'll see an intuitive tile-based layout displaying all applications you have permission to access.</p>
+        <p data-i18n="overviewP2">Each tile represents a separate application or service. The tiles are organized in a responsive grid that adapts to your screen size. Click on any tile to launch the corresponding application in the same window. You can return to the main page at any time using the browser's back button or the menu.</p>
+        <p data-i18n="overviewP3">Key features of the main page include:</p>
+        <ul>
+          <li data-i18n="overviewL1"><strong>Responsive grid layout</strong> - Automatically adjusts from 1 to 6 columns based on your screen width</li>
+          <li data-i18n="overviewL2"><strong>Smart app organization</strong> - Apps are sorted by usage frequency and importance</li>
+          <li data-i18n="overviewL3"><strong>Quick access toolbar</strong> - Bottom bar with essential functions always within reach</li>
+          <li data-i18n="overviewL4"><strong>Personalized experience</strong> - Theme, language and accent color persist across sessions</li>
+        </ul>
+        <p data-i18n="overviewP4">In the top-left corner, you'll find the hamburger menu button (three horizontal lines) that opens a sidebar with additional navigation options, search functionality, and user controls.</p>
+
+        <h2 id="menu" data-i18n="menuTitle">Menu Bar</h2>
+        <p data-i18n="menuP1">The menu sidebar is your primary navigation tool, accessible by clicking the hamburger icon (≡) in the top-left corner of the main page. This floating panel slides in smoothly from the left and remains open until you click outside of it or select an option.</p>
+        <a href="main_photos/menu_en.jpg" class="lightbox-trigger" data-title="Menu Bar"><img src="main_photos/menu_en.jpg" alt="Menu bar"></a>
+        <div class="caption" data-i18n="menuCaption">Sidebar menu with app shortcuts, search functionality, and navigation controls.</div>
+        <p data-i18n="menuP2">The sidebar menu is organized into several functional areas:</p>
+        <ul>
+          <li data-i18n="menuL1"><strong>Search functionality</strong> - Located at the top of the sidebar, the search field provides instant filtering of applications. As you type, the app list below updates in real-time to show matching results. The search matches both app names and descriptions. Press Escape or click the X button to clear the search.</li>
+          <li data-i18n="menuL2"><strong>App shortcuts grid</strong> - Below the search, you'll see a scrollable list of all applications you have access to. Each app is represented by its icon and name. Recently used apps appear at the top for quicker access. Click any app to launch it immediately.</li>
+          <li data-i18n="menuL3"><strong>Navigation controls</strong> - At the bottom of the sidebar, you'll find three essential buttons:
+            <ul>
+              <li data-i18n="menuL3a"><strong>Home button</strong> - Returns you to the main dashboard from any application</li>
+              <li data-i18n="menuL3b"><strong>Settings button (gear icon)</strong> - Opens the system settings panel</li>
+              <li data-i18n="menuL3c"><strong>Profile button</strong> - Displays your account information and logout option</li>
+            </ul>
+          </li>
+        </ul>
+        <p data-i18n="menuP3">Pro tip: You can also close the sidebar by pressing the Escape key on your keyboard, or by clicking anywhere outside the panel on the main page. The sidebar automatically closes when you select an app to maintain a clean workspace.</p>
+
+        <h2 id="profile" data-i18n="profileTitle">User Profile</h2>
+        <p data-i18n="profileP1">Access your account details by clicking the profile button (user icon) located at the bottom of the sidebar menu. This opens a sleek modal dialog displaying your personal information and account management options.</p>
+        <a href="main_photos/user_profile_en.jpg" class="lightbox-trigger" data-title="User Profile"><img src="main_photos/user_profile_en.jpg" alt="User profile"></a>
+        <div class="caption" data-i18n="profileCaption">Profile modal showing user photo, name, email, role, and account management options.</div>
+        <p data-i18n="profileP2">The profile modal is divided into several sections displaying your account information:</p>
+        <ul>
+          <li data-i18n="profileL1"><strong>Profile photo/avatar</strong> - Your current profile picture displayed prominently at the top. Click on the avatar to upload a new image. Supported formats include JPG, PNG, and GIF up to 5MB. The system automatically crops and resizes images to fit the circular frame while maintaining aspect ratio.</li>
+          <li data-i18n="profileL2"><strong>Display name</strong> - Your full name as registered in the system. This name appears throughout the platform and in activity logs.</li>
+          <li data-i18n="profileL3"><strong>Email address</strong> - Your registered email used for login and notifications. This is also where password reset instructions would be sent if needed.</li>
+          <li data-i18n="profileL4"><strong>User role & permissions</strong> - Your assigned role (e.g., Administrator, User, Guest) determines what applications you can access and what actions you can perform. Each role has specific permissions outlined by your system administrator.</li>
+          <li data-i18n="profileL5"><strong>Account status</strong> - Indicates whether your account is active, pending verification, or has any restrictions.</li>
+        </ul>
+        <p data-i18n="profileP3">The profile modal also provides account management options:</p>
+        <ul>
+          <li data-i18n="profileL6"><strong>Change password</strong> - Update your password by entering your current password for verification, then your new password twice to confirm. Passwords must be at least 8 characters and include uppercase, lowercase, and numbers.</li>
+          <li data-i18n="profileL7"><strong>Logout</strong> - Securely log out from your current session. This terminates your session on the current device only.</li>
+        </ul>
+        <div class="info-box">
+          <p data-i18n="profileNote"><strong>Security tip:</strong> We recommend using a unique profile photo that helps others recognize you, and changing your password every 90 days. Your password history is maintained to prevent reuse of recent passwords.</p>
+        </div>
+        <p data-i18n="profileP4">Click anywhere outside the modal or the X button to close the profile window. Changes to your profile photo are saved automatically; password changes require confirmation.</p>
+
+        <h2 id="settings" data-i18n="settingsTitle">Settings</h2>
+        <p data-i18n="settingsP1">Customize your platform experience by clicking the gear icon (⚙) at the bottom of the sidebar menu. The settings modal opens as an elegant overlay where you can personalize interface language, visual theme, and accent colors to match your preferences.</p>
+        <a href="main_photos/settings_modal_en.jpg" class="lightbox-trigger" data-title="Settings Modal"><img src="main_photos/settings_modal_en.jpg" alt="Settings modal"></a>
+        <div class="caption" data-i18n="settingsCaption">Settings window with language selector, theme options, and color picker.</div>
+        <p data-i18n="settingsP2">All settings are organized into clear sections and take effect immediately:</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="settingsSection1">Language Settings</h3>
+        <p data-i18n="settingsLangDesc">Choose your preferred interface language from the dropdown menu. The system currently supports four languages:</p>
+        <ul>
+          <li data-i18n="settingsLang1"><strong>English (EN)</strong> - Full interface translation with left-to-right text direction</li>
+          <li data-i18n="settingsLang2"><strong>Russian (RU)</strong> - Complete localization with Cyrillic character support</li>
+          <li data-i18n="settingsLang3"><strong>Ukrainian (UK)</strong> - Native translation for Ukrainian users</li>
+          <li data-i18n="settingsLang4"><strong>Belarusian (BE)</strong> - Full Belarusian language support</li>
+        </ul>
+        <p data-i18n="settingsLangNote">Language selection affects all applications, menus, modals, and system messages throughout the platform. Changes apply immediately without requiring a page reload.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="settingsSection2">Theme Settings</h3>
+        <p data-i18n="settingsThemeDesc">Select your preferred visual theme from three options:</p>
+        <ul>
+          <li data-i18n="settingsTheme1"><strong>Dark theme</strong> - High-contrast dark interface with purple accents, ideal for low-light environments and reducing eye strain during extended use</li>
+          <li data-i18n="settingsTheme2"><strong>Light theme</strong> - Clean light interface with subtle textures, perfect for bright environments and daytime usage</li>
+          <li data-i18n="settingsTheme3"><strong>Device default</strong> - Automatically follows your operating system's theme preference (dark or light mode)</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="settingsSection3">Accent Color</h3>
+        <p data-i18n="settingsColorDesc">Personalize your experience by selecting a custom accent color from the color picker. This color will be used for:</p>
+        <ul>
+          <li data-i18n="settingsColor1">Active navigation elements and selected items</li>
+          <li data-i18n="settingsColor2">Buttons, links, and interactive controls</li>
+          <li data-i18n="settingsColor3">Highlights, borders, and focus indicators</li>
+          <li data-i18n="settingsColor4">Scrollbar elements and minimap viewport</li>
+        </ul>
+        <div class="info-box">
+          <p data-i18n="settingsNote"><strong>Account-wide synchronization:</strong> Accent color changes are permanently saved to your user account and will be applied across all applications, devices, and sessions. This ensures a consistent personalized experience everywhere you log in.</p>
+        </div>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="settingsSection4">Legal Information</h3>
+        <p data-i18n="settingsLegalDesc">At the bottom of the settings modal, you'll find links to important documentation:</p>
+        <ul>
+          <li data-i18n="settingsL4"><strong>Terms of Use</strong> - Complete rules and guidelines for using the platform, including acceptable use policies and user responsibilities</li>
+          <li data-i18n="settingsL5"><strong>Privacy Policy</strong> - Detailed information about how your personal data is collected, stored, processed, and protected in compliance with GDPR and other privacy regulations</li>
+        </ul>
+        <p data-i18n="settingsP3">All settings are automatically saved when you make a selection. Click anywhere outside the modal or the close button to exit. If you access settings from a documentation page (like this one), the back button in the top bar will return you to the main application.</p>
+
+        <h2 id="bottom-buttons" data-i18n="bottomTitle">Bottom Buttons Toolbar</h2>
+        <p data-i18n="bottomP1">The bottom toolbar is a fixed control panel located at the bottom of the main page, providing instant access to essential utility functions. This bar remains visible as you scroll and adapts responsively to different screen sizes, collapsing into a menu on mobile devices.</p>
+        <p data-i18n="bottomP2">The toolbar contains five primary function buttons, each represented by an intuitive icon and label:</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn1">Statistics Button</h3>
+        <p data-i18n="bottomStatsDesc">The chart icon opens comprehensive server and usage statistics. View visit data, server load metrics, and user activity across different time periods (year, month, week). Useful for understanding platform usage patterns and server performance.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn2">QR Code Button</h3>
+        <p data-i18n="bottomQRDesc">The QR code icon generates a scannable code containing the site's URL. Perfect for quickly sharing access to the platform with colleagues or accessing the site from mobile devices without typing the full address.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn3">Public Files Button</h3>
+        <p data-i18n="bottomFilesDesc">The folder icon opens the public files management interface where you can upload, download, and organize files that are accessible to other users. This is your personal shared storage space on the platform.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn4">Session Management Button</h3>
+        <p data-i18n="bottomSessionDesc">The devices icon opens session control where you can view all active login locations, terminate sessions on other devices for security, and manage trusted devices for automatic login.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn5">One-Time PIN Button</h3>
+        <p data-i18n="bottomPINDesc">The key icon generates a temporary, single-use PIN code for quick authentication on other devices without entering your full username and password. Ideal for secure temporary access.</p>
+
+        <div class="note" data-i18n="bottomNote">All bottom toolbar buttons open modal dialogs that can be closed by clicking outside the modal, pressing Escape, or clicking the dedicated close button. Your current work in other applications remains unaffected.</div>
+
+        <h2 id="qr-code" data-i18n="qrTitle">QR Code Generator</h2>
+        <p data-i18n="qrP1">The QR Code feature provides a quick and convenient way to share platform access with others or transfer your current session to a mobile device. Click the QR Code button in the bottom toolbar to open the QR code generation modal.</p>
+        <a href="main_photos/qr_code_modal_en.jpg" class="lightbox-trigger" data-title="QR Code Modal"><img src="main_photos/qr_code_modal_en.jpg" alt="QR code modal"></a>
+        <div class="caption" data-i18n="qrCaption">QR code modal displaying a scannable code with sharing options.</div>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="qrSection1">How It Works</h3>
+        <p data-i18n="qrHowItWorks">The system generates a standard QR code containing the platform's URL encoded with your current theme and language preferences. When scanned, users are directed to the login page with your preferred settings pre-selected.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="qrSection2">Common Use Cases</h3>
+        <ul>
+          <li data-i18n="qrUse1"><strong>Mobile device setup:</strong> Scan the code with your phone to quickly open the site on mobile without typing the long URL</li>
+          <li data-i18n="qrUse2"><strong>Team sharing:</strong> Display the code during meetings so colleagues can quickly join the platform</li>
+          <li data-i18n="qrUse3"><strong>Documentation:</strong> Include in printed materials or presentations for easy digital access</li>
+          <li data-i18n="qrUse4"><strong>Guest access:</strong> Share temporary access with visitors who need to view public content</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="qrSection3">Scanning Instructions</h3>
+        <p data-i18n="qrScanInstructions">To scan the QR code, use your smartphone's built-in camera (iOS 11+ or Android 9+) or any QR code scanning application. Point your camera at the code displayed on screen - your device will automatically detect it and show a notification to open the link. No special apps are required on modern smartphones.</p>
+
+        <p data-i18n="qrP2"><strong>Security note:</strong> The QR code contains only the site's URL and does not include any authentication credentials or session data. Anyone scanning the code will still need to log in with their own credentials. The code expires when you close the modal, and a new code is generated each time you open it.</p>
+
+        <h2 id="statistics" data-i18n="statsTitle">Usage Statistics</h2>
+        <p data-i18n="statsP1">The Statistics feature provides comprehensive insights into platform usage and server performance. Access this tool by clicking the Statistics button (chart icon) in the bottom toolbar. The statistics modal displays interactive data visualizations and detailed metrics.</p>
+        <a href="main_photos/statistic_modal_en.jpg" class="lightbox-trigger" data-title="Statistics Modal"><img src="main_photos/statistic_modal_en.jpg" alt="Statistics modal"></a>
+        <div class="caption" data-i18n="statsCaption">Statistics window with time period selector and data visualization.</div>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="statsSection1">Time Period Selection</h3>
+        <p data-i18n="statsPeriodDesc">The statistics window offers three granular viewing modes to analyze usage patterns:</p>
+        <ul>
+          <li data-i18n="statsL1"><strong>By Year</strong> - View aggregated annual statistics with monthly breakdowns. Ideal for long-term trend analysis and year-over-year comparisons. Shows total visits, unique users, and peak usage months.</li>
+          <li data-i18n="statsL2"><strong>By Month</strong> - Detailed monthly view with daily breakdowns. Perfect for understanding weekly patterns and identifying specific high-traffic days. Includes average daily usage and day-of-week comparisons.</li>
+          <li data-i18n="statsL3"><strong>By Week</strong> - Granular weekly view showing hourly patterns. Best for analyzing daily activity peaks and understanding when different user groups are most active.</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="statsSection2">Key Metrics</h3>
+        <p data-i18n="statsMetricsDesc">The statistics dashboard displays several important metrics:</p>
+        <ul>
+          <li data-i18n="statsM1"><strong>Total Visits</strong> - The total number of page loads and application accesses</li>
+          <li data-i18n="statsM2"><strong>Unique Users</strong> - Count of distinct users who accessed the platform</li>
+          <li data-i18n="statsM3"><strong>Session Duration</strong> - Average time users spend on the platform per session</li>
+          <li data-i18n="statsM4"><strong>Server Load</strong> - CPU and memory usage for different services</li>
+          <li data-i18n="statsM5"><strong>Popular Apps</strong> - Ranking of most frequently used applications</li>
+          <li data-i18n="statsM6"><strong>Error Rates</strong> - System errors and failed requests (administrators only)</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="statsSection3">Navigation Controls</h3>
+        <p data-i18n="statsNavDesc">Use the date picker to select specific time periods. Navigation arrows allow quick switching between consecutive periods (previous/next week, month, or year). The "Today" button instantly jumps to the current period. Data automatically updates when you change the view mode.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="statsSection4">Export and Sharing</h3>
+        <p data-i18n="statsExportDesc">Administrators can export statistics data in CSV or JSON format for further analysis. The export includes raw visit data that can be imported into spreadsheet applications or business intelligence tools. Standard users can view but not export statistical data.</p>
+
+        <div class="info-box">
+          <p data-i18n="statsNote"><strong>Privacy note:</strong> Statistics are aggregated and anonymized. Individual user activities are not tracked or displayed. User IDs are hashed before storage to ensure complete privacy while maintaining accurate unique visitor counts.</p>
+        </div>
+        <p data-i18n="statsP3">Understanding these statistics helps administrators optimize server resources, schedule maintenance during low-usage periods, and make informed decisions about platform improvements.</p>
+
+        <h2 id="sessions" data-i18n="sessionsTitle">Session & Device Management</h2>
+        <p data-i18n="sessionsP1">The Session Management feature gives you complete control over your account security by allowing you to view and manage all active login sessions across your devices. Click the Sessions button (devices icon) in the bottom toolbar to open the session management interface.</p>
+        <a href="main_photos/session_modal_en.jpg" class="lightbox-trigger" data-title="Session Management Modal"><img src="main_photos/session_modal_en.jpg" alt="Session management modal"></a>
+        <div class="caption" data-i18n="sessionsCaption">Session management window showing active sessions with device details.</div>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="sessionsSection1">Active Sessions Tab</h3>
+        <p data-i18n="sessionsActiveDesc">This tab displays all devices currently logged into your account. For each session, you can see:</p>
+        <ul>
+          <li data-i18n="sessionsInfo1"><strong>Device information</strong> - Device type (desktop, mobile, tablet), browser name and version, and operating system</li>
+          <li data-i18n="sessionsInfo2"><strong>Location data</strong> - Approximate geographic location based on IP address (city/country)</li>
+          <li data-i18n="sessionsInfo3"><strong>Session timing</strong> - Login time, last activity timestamp, and session duration</li>
+          <li data-i18n="sessionsInfo4"><strong>Current status</strong> - Which device is your current session (marked with "This Device")</li>
+        </ul>
+        <p data-i18n="sessionsActions">For each session, available actions include:</p>
+        <ul>
+          <li data-i18n="sessionsL2"><strong>End session</strong> - Immediately terminate a session on another device. This logs out that device and requires re-authentication. Use this if you forgot to log out on a public computer or suspect unauthorized access.</li>
+          <li data-i18n="sessionsL3"><strong>Mark as trusted</strong> - Add a device to your trusted devices list for automatic future logins</li>
+          <li data-i18n="sessionsL4"><strong>View details</strong> - See additional technical information about the session</li>
+        </ul>
+        <div class="info-box">
+          <p data-i18n="sessionsNote"><strong>Security warning:</strong> When you end a session remotely, the user on that device will immediately lose access and be redirected to the login page. This action cannot be undone - the user must re-enter their credentials to regain access.</p>
+        </div>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="sessionsSection2">Trusted Devices Tab</h3>
+        <a href="main_photos/trusted_device_en.jpg" class="lightbox-trigger" data-title="Trusted Device"><img src="main_photos/trusted_device_en.jpg" alt="Trusted device"></a>
+        <div class="caption" data-i18n="trustedCaption">Trusted devices configuration panel with device list and trust settings.</div>
+        <p data-i18n="sessionsTrustedDesc">Trusted devices are those you regularly use and want to stay logged into automatically. Benefits of trusted devices:</p>
+        <ul>
+          <li data-i18n="trustedBenefit1">Remain logged in even after standard session expiration (typically 30 days instead of 24 hours)</li>
+          <li data-i18n="trustedBenefit2">Skip two-factor authentication on subsequent visits</li>
+          <li data-i18n="trustedBenefit3">Faster access with reduced security prompts</li>
+          <li data-i18n="trustedBenefit4">Personalized experience with saved preferences</li>
+        </ul>
+        <p data-i18n="sessionsP3">To add a device to the trusted list, check the "Trust this device" option during login, or manually add it from the session management interface. You can revoke trust at any time - the device will then follow standard session expiration rules and may require additional verification.</p>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="sessionsSection3">Security Best Practices</h3>
+        <ul>
+          <li data-i18n="securityTip1">Regularly review your active sessions and terminate any you don't recognize</li>
+          <li data-i18n="securityTip2">Only trust personal devices you control; never trust public or shared computers</li>
+          <li data-i18n="securityTip3">End old sessions after using public computers or networks</li>
+          <li data-i18n="securityTip4">Check the "Last active" timestamp to identify suspicious activity patterns</li>
+        </ul>
+
+        <div class="note" data-i18n="sessionsLimit">You can have up to 10 active sessions simultaneously. If you exceed this limit, the oldest inactive session will be automatically terminated. Trusted devices are limited to 5 per account for security reasons.</div>
+
+        <h2 id="pin-code" data-i18n="pinTitle">One-Time PIN Authentication</h2>
+        <p data-i18n="pinP1">The One-Time PIN feature provides a secure, convenient way to authenticate on secondary devices without manually typing your full username and password. This is particularly useful for mobile devices, smart TVs, or situations where typing complex credentials is inconvenient.</p>
+        <a href="main_photos/one_time_pin_modal_en.jpg" class="lightbox-trigger" data-title="One-Time PIN Modal"><img src="main_photos/one_time_pin_modal_en.jpg" alt="One-time PIN modal"></a>
+        <div class="caption" data-i18n="pinCaption">One-time PIN generation modal showing the generated code with expiration timer.</div>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="pinSection1">How It Works</h3>
+        <p data-i18n="pinHowItWorks">The one-time PIN system uses a temporary credential exchange that maintains security while simplifying the login process:</p>
+        <ul>
+          <li data-i18n="pinL1">Click the One-Time PIN button (key icon) in the bottom toolbar on your already-authenticated device</li>
+          <li data-i18n="pinL2">The system generates a unique 6-digit numeric PIN code displayed prominently in the modal</li>
+          <li data-i18n="pinL3">On your target device (the one you want to log into), navigate to the login page and select "Use PIN Code"</li>
+          <li data-i18n="pinL4">Enter the 6-digit PIN within the validity period (5 minutes from generation)</li>
+          <li data-i18n="pinL5">The target device receives a temporary session with the same permissions as your original session</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="pinSection2">Security Features</h3>
+        <p data-i18n="pinSecurityDesc">Multiple security layers protect the one-time PIN system:</p>
+        <ul>
+          <li data-i18n="pinSecurity1"><strong>Single-use only</strong> - The PIN becomes invalid immediately after successful authentication or when explicitly cancelled</li>
+          <li data-i18n="pinSecurity2"><strong>Time-limited</strong> - PINs expire after 5 minutes regardless of use, preventing stale code attacks</li>
+          <li data-i18n="pinSecurity3"><strong>Source verification</strong> - The system verifies the PIN was generated by an authenticated user with valid credentials</li>
+          <li data-i18n="pinSecurity4"><strong>No credential exposure</strong> - Your actual username and password are never transmitted or displayed</li>
+          <li data-i18n="pinSecurity5"><strong>Rate limiting</strong> - Maximum 3 active PINs per account at any time with 30-second cooldown between generations</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="pinSection3">Using the PIN Modal</h3>
+        <p data-i18n="pinModalDesc">When you click the One-Time PIN button, the modal displays:</p>
+        <ul>
+          <li data-i18n="pinModal1"><strong>6-digit PIN code</strong> - Large, clearly visible digits for easy reading across devices or to another person</li>
+          <li data-i18n="pinModal2"><strong>Expiration timer</strong> - Countdown showing remaining valid time (starts at 5:00)</li>
+          <li data-i18n="pinModal3"><strong>Regenerate button</strong> - Creates a new PIN with a fresh 5-minute timer</li>
+          <li data-i18n="pinModal4"><strong>Copy button</strong> - Copies the PIN to clipboard for easy pasting</li>
+          <li data-i18n="pinModal5"><strong>Cancel button</strong> - Closes modal and invalidates the current PIN</li>
+        </ul>
+
+        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="pinSection4">Recommended Use Cases</h3>
+        <ul>
+          <li data-i18n="pinUseCase1"><strong>Mobile login:</strong> Generate PIN on desktop, enter on smartphone without complex password typing</li>
+          <li data-i18n="pinUseCase2"><strong>Smart TV access:</strong> Use PIN to authenticate on TV browsers where remote keyboards are awkward</li>
+          <li data-i18n="pinUseCase3"><strong>Guest access:</strong> Quickly grant temporary access to colleagues without revealing your password</li>
+          <li data-i18n="pinUseCase4"><strong>Temporary devices:</strong> Securely access your account on borrowed or public devices</li>
+        </ul>
+
+        <div class="note" data-i18n="pinNote"><strong>Important reminders:</strong> This PIN is strictly single-use and expires after 5 minutes. You never need to share your actual account password when using this method. If the PIN expires before use, simply generate a new one. For security, we recommend using PIN authentication only on devices you control or when sharing access with trusted individuals.</div>
+      </main>
+    </div>
+  </div>
+  <div id="minimap-container"><img id="minimap-image" src="main_photos/main_page_minimap_en.jpg" alt="Page minimap"><div id="minimap-viewport"></div></div>
+  <div class="lightbox-overlay" id="lightbox-overlay"><div class="lightbox-content"><span class="lightbox-close" id="lightbox-close">&times;</span><span class="lightbox-nav lightbox-prev" id="lightbox-prev">&#10094;</span><span class="lightbox-nav lightbox-next" id="lightbox-next">&#10095;</span><img src="" alt="" id="lightbox-image"><div class="lightbox-caption" id="lightbox-caption"></div><div class="lightbox-counter" id="lightbox-counter"></div></div></div>
+
+  <script>
+    const translations = {
+      en: {
+        brand: "Main Page", langLabel: "Language:", themeLabel: "Theme:", backLabel: "Back", topicsTitle: "Topics",
+        navOverview: "Overview", navMenu: "Menu Bar", navProfile: "User Profile", navSettings: "Settings",
+        navBottom: "Bottom Buttons", navQR: "QR Code", navStats: "Statistics", navSessions: "Session Management", navPIN: "One-Time PIN",
+        pageTitle: "Main Page Instructions", pageIntro: "This page explains the main functions of the central hub for all applications on this site.",
+        overviewTitle: "Overview", overviewP1: "The main page serves as your personal dashboard and central hub for all available applications on the platform. When you first log in, you'll see an intuitive tile-based layout displaying all applications you have permission to access.",
+        overviewP2: "Each tile represents a separate application or service. The tiles are organized in a responsive grid that adapts to your screen size. Click on any tile to launch the corresponding application in the same window. You can return to the main page at any time using the browser's back button or the menu.",
+        overviewP3: "Key features of the main page include:", overviewL1: "Responsive grid layout - Automatically adjusts from 1 to 6 columns based on your screen width", overviewL2: "Smart app organization - Apps are sorted by usage frequency and importance", overviewL3: "Quick access toolbar - Bottom bar with essential functions always within reach", overviewL4: "Personalized experience - Theme, language and accent color persist across sessions",
+        overviewP4: "In the top-left corner, you'll find the hamburger menu button (three horizontal lines) that opens a sidebar with additional navigation options, search functionality, and user controls.",
+        menuTitle: "Menu Bar", menuP1: "The menu sidebar is your primary navigation tool, accessible by clicking the hamburger icon (≡) in the top-left corner of the main page. This floating panel slides in smoothly from the left and remains open until you click outside of it or select an option.",
+        menuP2: "The sidebar menu is organized into several functional areas:", menuL1: "Search functionality - Located at the top of the sidebar, the search field provides instant filtering of applications. As you type, the app list below updates in real-time to show matching results. The search matches both app names and descriptions. Press Escape or click the X button to clear the search.", menuL2: "App shortcuts grid - Below the search, you'll see a scrollable list of all applications you have access to. Each app is represented by its icon and name. Recently used apps appear at the top for quicker access. Click any app to launch it immediately.", menuL3: "Navigation controls - At the bottom of the sidebar, you'll find three essential buttons:",
+        menuL3a: "Home button - Returns you to the main dashboard from any application", menuL3b: "Settings button (gear icon) - Opens the system settings panel", menuL3c: "Profile button - Displays your account information and logout option",
+        menuP3: "Pro tip: You can also close the sidebar by pressing the Escape key on your keyboard, or by clicking anywhere outside the panel on the main page. The sidebar automatically closes when you select an app to maintain a clean workspace.", menuCaption: "Sidebar menu with app shortcuts, search functionality, and navigation controls.",
+        profileTitle: "User Profile", profileP1: "Access your account details by clicking the profile button (user icon) located at the bottom of the sidebar menu. This opens a sleek modal dialog displaying your personal information and account management options.",
+        profileP2: "The profile modal is divided into several sections displaying your account information:", profileL1: "Profile photo/avatar - Your current profile picture displayed prominently at the top. Click on the avatar to upload a new image. Supported formats include JPG, PNG, and GIF up to 5MB. The system automatically crops and resizes images to fit the circular frame while maintaining aspect ratio.", profileL2: "Display name - Your full name as registered in the system. This name appears throughout the platform and in activity logs.", profileL3: "Email address - Your registered email used for login and notifications. This is also where password reset instructions would be sent if needed.", profileL4: "User role & permissions - Your assigned role (e.g., Administrator, User, Guest) determines what applications you can access and what actions you can perform. Each role has specific permissions outlined by your system administrator.", profileL5: "Account status - Indicates whether your account is active, pending verification, or has any restrictions.",
+        profileP3: "The profile modal also provides account management options:", profileL6: "Change password - Update your password by entering your current password for verification, then your new password twice to confirm. Passwords must be at least 8 characters and include uppercase, lowercase, and numbers.", profileL7: "Logout - Securely log out from your current session. This terminates your session on the current device only.",
+        profileP4: "Click anywhere outside the modal or the X button to close the profile window. Changes to your profile photo are saved automatically; password changes require confirmation.", profileCaption: "Profile modal showing user photo, name, email, role, and account management options.", profileNote: "Security tip: We recommend using a unique profile photo that helps others recognize you, and changing your password every 90 days. Your password history is maintained to prevent reuse of recent passwords.",
+        settingsTitle: "Settings", settingsP1: "Customize your platform experience by clicking the gear icon (⚙) at the bottom of the sidebar menu. The settings modal opens as an elegant overlay where you can personalize interface language, visual theme, and accent colors to match your preferences.",
+        settingsP2: "All settings are organized into clear sections and take effect immediately:", settingsSection1: "Language Settings", settingsLangDesc: "Choose your preferred interface language from the dropdown menu. The system currently supports four languages:", settingsLang1: "English (EN) - Full interface translation with left-to-right text direction", settingsLang2: "Russian (RU) - Complete localization with Cyrillic character support", settingsLang3: "Ukrainian (UK) - Native translation for Ukrainian users", settingsLang4: "Belarusian (BE) - Full Belarusian language support", settingsLangNote: "Language selection affects all applications, menus, modals, and system messages throughout the platform. Changes apply immediately without requiring a page reload.",
+        settingsSection2: "Theme Settings", settingsThemeDesc: "Select your preferred visual theme from three options:", settingsTheme1: "Dark theme - High-contrast dark interface with purple accents, ideal for low-light environments and reducing eye strain during extended use", settingsTheme2: "Light theme - Clean light interface with subtle textures, perfect for bright environments and daytime usage", settingsTheme3: "Device default - Automatically follows your operating system's theme preference (dark or light mode)",
+        settingsSection3: "Accent Color", settingsColorDesc: "Personalize your experience by selecting a custom accent color from the color picker. This color will be used for:", settingsColor1: "Active navigation elements and selected items", settingsColor2: "Buttons, links, and interactive controls", settingsColor3: "Highlights, borders, and focus indicators", settingsColor4: "Scrollbar elements and minimap viewport",
+        settingsSection4: "Legal Information", settingsLegalDesc: "At the bottom of the settings modal, you'll find links to important documentation:", settingsL4: "Terms of Use - Complete rules and guidelines for using the platform, including acceptable use policies and user responsibilities", settingsL5: "Privacy Policy - Detailed information about how your personal data is collected, stored, processed, and protected in compliance with GDPR and other privacy regulations",
+        settingsP3: "All settings are automatically saved when you make a selection. Click anywhere outside the modal or the close button to exit. If you access settings from a documentation page (like this one), the back button in the top bar will return you to the main application.",
+        settingsCaption: "Settings window with language selector, theme options, and color picker.", settingsNote: "Account-wide synchronization: Accent color changes are permanently saved to your user account and will be applied across all applications, devices, and sessions. This ensures a consistent personalized experience everywhere you log in.",
+        bottomTitle: "Bottom Buttons Toolbar", bottomP1: "The bottom toolbar is a fixed control panel located at the bottom of the main page, providing instant access to essential utility functions. This bar remains visible as you scroll and adapts responsively to different screen sizes, collapsing into a menu on mobile devices.",
+        bottomP2: "The toolbar contains five primary function buttons, each represented by an intuitive icon and label:", bottomBtn1: "Statistics Button", bottomStatsDesc: "The chart icon opens comprehensive server and usage statistics. View visit data, server load metrics, and user activity across different time periods (year, month, week). Useful for understanding platform usage patterns and server performance.", bottomBtn2: "QR Code Button", bottomQRDesc: "The QR code icon generates a scannable code containing the site's URL. Perfect for quickly sharing access to the platform with colleagues or accessing the site from mobile devices without typing the full address.", bottomBtn3: "Public Files Button", bottomFilesDesc: "The folder icon opens the public files management interface where you can upload, download, and organize files that are accessible to other users. This is your personal shared storage space on the platform.", bottomBtn4: "Session Management Button", bottomSessionDesc: "The devices icon opens session control where you can view all active login locations, terminate sessions on other devices for security, and manage trusted devices for automatic login.", bottomBtn5: "One-Time PIN Button", bottomPINDesc: "The key icon generates a temporary, single-use PIN code for quick authentication on other devices without entering your full username and password. Ideal for secure temporary access.",
+        bottomNote: "All bottom toolbar buttons open modal dialogs that can be closed by clicking outside the modal, pressing Escape, or clicking the dedicated close button. Your current work in other applications remains unaffected.",
+        qrTitle: "QR Code Generator", qrP1: "The QR Code feature provides a quick and convenient way to share platform access with others or transfer your current session to a mobile device. Click the QR Code button in the bottom toolbar to open the QR code generation modal.",
+        qrP2: "Security note: The QR code contains only the site's URL and does not include any authentication credentials or session data. Anyone scanning the code will still need to log in with their own credentials. The code expires when you close the modal, and a new code is generated each time you open it.", qrCaption: "QR code modal displaying a scannable code with sharing options.",
+        qrSection1: "How It Works", qrHowItWorks: "The system generates a standard QR code containing the platform's URL encoded with your current theme and language preferences. When scanned, users are directed to the login page with your preferred settings pre-selected.",
+        qrSection2: "Common Use Cases", qrUse1: "Mobile device setup: Scan the code with your phone to quickly open the site on mobile without typing the long URL", qrUse2: "Team sharing: Display the code during meetings so colleagues can quickly join the platform", qrUse3: "Documentation: Include in printed materials or presentations for easy digital access", qrUse4: "Guest access: Share temporary access with visitors who need to view public content",
+        qrSection3: "Scanning Instructions", qrScanInstructions: "To scan the QR code, use your smartphone's built-in camera (iOS 11+ or Android 9+) or any QR code scanning application. Point your camera at the code displayed on screen - your device will automatically detect it and show a notification to open the link. No special apps are required on modern smartphones.",
+        statsTitle: "Usage Statistics", statsP1: "The Statistics feature provides comprehensive insights into platform usage and server performance. Access this tool by clicking the Statistics button (chart icon) in the bottom toolbar. The statistics modal displays interactive data visualizations and detailed metrics.",
+        statsP2: "The statistics window offers three granular viewing modes to analyze usage patterns:", statsL1: "By Year - View aggregated annual statistics with monthly breakdowns. Ideal for long-term trend analysis and year-over-year comparisons. Shows total visits, unique users, and peak usage months.", statsL2: "By Month - Detailed monthly view with daily breakdowns. Perfect for understanding weekly patterns and identifying specific high-traffic days. Includes average daily usage and day-of-week comparisons.", statsL3: "By Week - Granular weekly view showing hourly patterns. Best for analyzing daily activity peaks and understanding when different user groups are most active.",
+        statsSection1: "Time Period Selection", statsPeriodDesc: "The statistics window offers three granular viewing modes to analyze usage patterns:",
+        statsSection2: "Key Metrics", statsMetricsDesc: "The statistics dashboard displays several important metrics:", statsM1: "Total Visits - The total number of page loads and application accesses", statsM2: "Unique Users - Count of distinct users who accessed the platform", statsM3: "Session Duration - Average time users spend on the platform per session", statsM4: "Server Load - CPU and memory usage for different services", statsM5: "Popular Apps - Ranking of most frequently used applications", statsM6: "Error Rates - System errors and failed requests (administrators only)",
+        statsSection3: "Navigation Controls", statsNavDesc: "Use the date picker to select specific time periods. Navigation arrows allow quick switching between consecutive periods (previous/next week, month, or year). The \"Today\" button instantly jumps to the current period. Data automatically updates when you change the view mode.",
+        statsSection4: "Export and Sharing", statsExportDesc: "Administrators can export statistics data in CSV or JSON format for further analysis. The export includes raw visit data that can be imported into spreadsheet applications or business intelligence tools. Standard users can view but not export statistical data.",
+        statsNote: "Privacy note: Statistics are aggregated and anonymized. Individual user activities are not tracked or displayed. User IDs are hashed before storage to ensure complete privacy while maintaining accurate unique visitor counts.",
+        statsP3: "Understanding these statistics helps administrators optimize server resources, schedule maintenance during low-usage periods, and make informed decisions about platform improvements.", statsCaption: "Statistics window with time period selector and data visualization.",
+        sessionsTitle: "Session & Device Management", sessionsP1: "The Session Management feature gives you complete control over your account security by allowing you to view and manage all active login sessions across your devices. Click the Sessions button (devices icon) in the bottom toolbar to open the session management interface.",
+        sessionsP2: "This tab displays all devices currently logged into your account. For each session, you can see:", sessionsInfo1: "Device information - Device type (desktop, mobile, tablet), browser name and version, and operating system", sessionsInfo2: "Location data - Approximate geographic location based on IP address (city/country)", sessionsInfo3: "Session timing - Login time, last activity timestamp, and session duration", sessionsInfo4: "Current status - Which device is your current session (marked with \"This Device\")",
+        sessionsActions: "For each session, available actions include:", sessionsL2: "End session - Immediately terminate a session on another device. This logs out that device and requires re-authentication. Use this if you forgot to log out on a public computer or suspect unauthorized access.", sessionsL3: "Mark as trusted - Add a device to your trusted devices list for automatic future logins", sessionsL4: "View details - See additional technical information about the session",
+        sessionsSection1: "Active Sessions Tab", sessionsActiveDesc: "This tab displays all devices currently logged into your account. For each session, you can see:",
+        sessionsSection2: "Trusted Devices Tab", sessionsTrustedDesc: "Trusted devices are those you regularly use and want to stay logged into automatically. Benefits of trusted devices:", trustedBenefit1: "Remain logged in even after standard session expiration (typically 30 days instead of 24 hours)", trustedBenefit2: "Skip two-factor authentication on subsequent visits", trustedBenefit3: "Faster access with reduced security prompts", trustedBenefit4: "Personalized experience with saved preferences",
+        sessionsP3: "To add a device to the trusted list, check the \"Trust this device\" option during login, or manually add it from the session management interface. You can revoke trust at any time - the device will then follow standard session expiration rules and may require additional verification.",
+        sessionsSection3: "Security Best Practices", securityTip1: "Regularly review your active sessions and terminate any you don't recognize", securityTip2: "Only trust personal devices you control; never trust public or shared computers", securityTip3: "End old sessions after using public computers or networks", securityTip4: "Check the \"Last active\" timestamp to identify suspicious activity patterns",
+        sessionsLimit: "You can have up to 10 active sessions simultaneously. If you exceed this limit, the oldest inactive session will be automatically terminated. Trusted devices are limited to 5 per account for security reasons.",
+        sessionsCaption: "Session management window showing active sessions with device details.",
+        sessionsNote: "Security warning: When you end a session remotely, the user on that device will immediately lose access and be redirected to the login page. This action cannot be undone - the user must re-enter their credentials to regain access.", trustedCaption: "Trusted devices configuration panel with device list and trust settings.",
+        pinTitle: "One-Time PIN Authentication", pinP1: "The One-Time PIN feature provides a secure, convenient way to authenticate on secondary devices without manually typing your full username and password. This is particularly useful for mobile devices, smart TVs, or situations where typing complex credentials is inconvenient.",
+        pinP2: "The one-time PIN system uses a temporary credential exchange that maintains security while simplifying the login process:", pinL1: "Click the One-Time PIN button (key icon) in the bottom toolbar on your already-authenticated device", pinL2: "The system generates a unique 6-digit numeric PIN code displayed prominently in the modal", pinL3: "On your target device (the one you want to log into), navigate to the login page and select \"Use PIN Code\"", pinL4: "Enter the 6-digit PIN within the validity period (5 minutes from generation)", pinL5: "The target device receives a temporary session with the same permissions as your original session",
+        pinCaption: "One-time PIN generation modal showing the generated code with expiration timer.",
+        pinSection1: "How It Works", pinHowItWorks: "The one-time PIN system uses a temporary credential exchange that maintains security while simplifying the login process:",
+        pinSection2: "Security Features", pinSecurityDesc: "Multiple security layers protect the one-time PIN system:", pinSecurity1: "Single-use only - The PIN becomes invalid immediately after successful authentication or when explicitly cancelled", pinSecurity2: "Time-limited - PINs expire after 5 minutes regardless of use, preventing stale code attacks", pinSecurity3: "Source verification - The system verifies the PIN was generated by an authenticated user with valid credentials", pinSecurity4: "No credential exposure - Your actual username and password are never transmitted or displayed", pinSecurity5: "Rate limiting - Maximum 3 active PINs per account at any time with 30-second cooldown between generations",
+        pinSection3: "Using the PIN Modal", pinModalDesc: "When you click the One-Time PIN button, the modal displays:", pinModal1: "6-digit PIN code - Large, clearly visible digits for easy reading across devices or to another person", pinModal2: "Expiration timer - Countdown showing remaining valid time (starts at 5:00)", pinModal3: "Regenerate button - Creates a new PIN with a fresh 5-minute timer", pinModal4: "Copy button - Copies the PIN to clipboard for easy pasting", pinModal5: "Cancel button - Closes modal and invalidates the current PIN",
+        pinSection4: "Recommended Use Cases", pinUseCase1: "Mobile login: Generate PIN on desktop, enter on smartphone without complex password typing", pinUseCase2: "Smart TV access: Use PIN to authenticate on TV browsers where remote keyboards are awkward", pinUseCase3: "Guest access: Quickly grant temporary access to colleagues without revealing your password", pinUseCase4: "Temporary devices: Securely access your account on borrowed or public devices",
+        pinNote: "Important reminders: This PIN is strictly single-use and expires after 5 minutes. You never need to share your actual account password when using this method. If the PIN expires before use, simply generate a new one. For security, we recommend using PIN authentication only on devices you control or when sharing access with trusted individuals."
+      },
+      ua: {
+        brand: "Головна сторінка", langLabel: "Мова:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Теми",
+        navOverview: "Огляд", navMenu: "Меню", navProfile: "Профіль користувача", navSettings: "Налаштування",
+        navBottom: "Нижні кнопки", navQR: "QR-код", navStats: "Статистика", navSessions: "Керування сесіями", navPIN: "Одноразовий PIN-код",
+        pageTitle: "Інструкція до головної сторінки", pageIntro: "Ця сторінка пояснює основні функції центрального хабу для всіх застосунків на цьому сайті.",
+        overviewTitle: "Огляд", overviewP1: "Головна сторінка є центральним хабом для всіх доступних застосунків. Ви побачите плиткове розташування всіх застосунків, до яких маєте доступ.",
+        overviewP2: "Кожна плитка представляє окремий застосунок. Натисніть на будь-яку плитку, щоб відкрити відповідний застосунок.",
+        overviewP3: "У верхньому лівому куті є кнопка меню, яка відкриває бічну панель з додатковими параметрами навігації.",
+        menuTitle: "Меню", menuP1: "Натисніть кнопку меню у верхньому лівому куті, щоб відкрити бічну панель навігації.",
+        menuP2: "Бічна панель містить:", menuL1: "Ярлики застосунків - Швидкий доступ до всіх доступних застосунків", menuL2: "Поле пошуку - Пошук конкретних застосунків або функцій", menuL3: "Нижні кнопки - Доступ додому, налаштувань та профілю",
+        menuP3: "Використовуйте поле пошуку, щоб швидко знайти застосунки за назвою.", menuCaption: "Бічна панель з ярликами застосунків та функцією пошуку.",
+        profileTitle: "Профіль користувача", profileP1: "Натисніть кнопку профілю внизу бічної панелі, щоб переглянути інформацію про ваш акаунт.",
+        profileP2: "Вікно профілю відображає:", profileL1: "Фото профілю - Ваше поточне зображення аватара", profileL2: "Ім'я - Назва вашого акаунта", profileL3: "Електронна пошта - Ваша електронна адреса", profileL4: "Роль - Ваша роль користувача та дозволи",
+        profileP3: "Ви також можете змінити пароль, якщо пам'ятаєте поточний пароль для перевірки безпеки.", profileCaption: "Модальне вікно профілю з фото, ім'ям, поштою та роллю.", profileNote: "Примітка: Ви можете змінити фото профілю, натиснувши на нього та завантаживши нове зображення.",
+        settingsTitle: "Налаштування", settingsP1: "Натисніть іконку шестерні в бічній панелі, щоб відкрити вікно налаштувань.",
+        settingsP2: "У вікні налаштувань ви можете налаштувати:", settingsL1: "Мова - Виберіть одну з чотирьох доступних мов (англійська, російська, українська, білоруська)", settingsL2: "Тема - Виберіть темну, світлу або тему за замовчуванням пристрою", settingsL3: "Колір акцентів - Виберіть колір для виділених елементів у всіх застосунках",
+        settingsP3: "Під цими параметрами ви знайдете:", settingsL4: "Правила використання - Правила використання сайту", settingsL5: "Політика конфіденційності - Рекомендації щодо обробки даних та конфіденційності",
+        settingsCaption: "Вікно налаштувань з параметрами мови, теми та кольору акцентів.", settingsNote: "Важливо: Зміни кольору акцентів будуть застосовані до вашого акаунта у всіх застосунках на цьому сайті.",
+        bottomTitle: "Нижні кнопки", bottomP1: "Внизу сторінки розташовано п'ять кнопок для швидкого доступу до додаткових функцій:",
+        bottomL1: "Статистика - Перегляд статистики використання сервера", bottomL2: "QR-код - Поділіться цим сайтом з іншими через QR-код", bottomL3: "Публічні файли - Керування загальнодоступними файлами", bottomL4: "Сесії - Керування активними сесіями та довіреними пристроями", bottomL5: "Одноразовий PIN-код - Генерація PIN-коду для швидкого входу на інших пристроях",
+        qrTitle: "QR-код", qrP1: "Натисніть кнопку QR-коду, щоб згенерувати код для сканування та поширення цього сайту.",
+        qrP2: "Інші можуть сканувати цей QR-код, щоб швидко отримати доступ до цього сайту без введення URL. Це зручно для поширення на мобільних пристроях.", qrCaption: "Модальне вікно QR-коду для швидкого поширення сайту.",
+        statsTitle: "Статистика", statsP1: "Натисніть кнопку Статистика, щоб переглянути статистику використання сервера.",
+        statsP2: "Вікно статистики пропонує три режими перегляду:", statsL1: "За рік - Перегляд статистики за весь рік", statsL2: "За місяць - Перегляд статистики за конкретний місяць", statsL3: "За тиждень - Перегляд статистики за конкретний тиждень",
+        statsP3: "Це допомагає зрозуміти, наскільки часто використовуються різні сервери.", statsCaption: "Вікно статистики з даними відвідувань сервера.",
+        sessionsTitle: "Керування сесіями", sessionsP1: "Натисніть кнопку Сесії, щоб керувати активними сесіями входу на різних пристроях.",
+        sessionsP2: "У цьому вікні ви можете:", sessionsL1: "Переглядати активні сесії - Бачити всі пристрої, де ви зараз увійшли", sessionsL2: "Завершувати сесії віддалено - Завершити сесію на іншому пристрої", sessionsL3: "Керувати довіреними пристроями - Додати або видалити довірені пристрої",
+        sessionsP3: "Довірені пристрої автоматично запам'ятовують ваші облікові дані та залишаються увійденими навіть після завершення сесії.", sessionsCaption: "Вікно керування сесіями для контролю активних сесій.",
+        sessionsNote: "Важливо: Коли ви завершуєте сесію, користувач на цьому пристрої відразу втратить доступ.", trustedCaption: "Розділ довірених пристроїв для автоматичного керування входом.",
+        pinTitle: "Одноразовий PIN-код", pinP1: "Згенеруйте одноразовий PIN-код для швидкого входу на інших пристроях без введення повних облікових даних.",
+        pinP2: "Щоб використати цю функцію:", pinL1: "Натисніть кнопку одноразового PIN-коду на головній сторінці", pinL2: "Буде згенеровано унікальний PIN-код", pinL3: "Введіть цей PIN-код на іншому пристрої для швидкого входу",
+        pinCaption: "Генерація одноразового PIN-коду для швидкого входу на інших пристроях.", pinNote: "Цей PIN-код є одноразовим і закінчується через короткий час. Вам не потрібно ділитися паролем акаунта при використанні цього методу."
+      }
+    };
+
+    function getParam(name, fallback) { const params = new URLSearchParams(window.location.search); return params.get(name) || fallback; }
+    function normalizeLang(lang) { return ["en", "ua"].includes(lang) ? lang : "en"; }
+    function normalizeTheme(theme) { return theme === "light" ? "light" : "dark"; }
+    function applyTranslations(lang) {
+      const dict = translations[lang] || translations.en;
+      document.documentElement.lang = lang;
+      document.getElementById("currentLang").textContent = lang.toUpperCase();
+      document.querySelectorAll("[data-i18n]").forEach(el => { const key = el.getAttribute("data-i18n"); if (dict[key]) el.textContent = dict[key]; });
+      const photoFolder = lang === 'ua' ? 'main_photos' : 'main_photos';
+      document.querySelectorAll('.content img').forEach(img => {
+        const src = img.getAttribute('src');
+        if (src && src.includes('_en.')) { img.src = src.replace(/_en\./, `_${lang}.`); }
+      });
+      document.querySelectorAll('.lightbox-trigger').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href.includes('_en.')) { link.href = href.replace(/_en\./, `_${lang}.`); }
+      });
+      const minimapImg = document.getElementById('minimap-image');
+      if (minimapImg) { const src = minimapImg.getAttribute('src'); if (src && src.includes('_en.')) { minimapImg.src = src.replace(/_en\./, `_${lang}.`); } }
+    }
+    function applyTheme(theme) {
+      document.body.classList.remove("theme-dark", "theme-light");
+      document.body.classList.add("theme-" + theme);
+      document.getElementById("currentTheme").textContent = theme === "light" ? "Light" : "Dark";
+    }
+    function setupNavHighlight() {
+      const links = document.querySelectorAll(".nav a");
+      const sections = Array.from(links).map(link => document.querySelector(link.getAttribute("href")));
+      function updateActive() {
+        let current = "";
+        sections.forEach(section => { if (section && window.scrollY >= section.offsetTop - 140) current = section.id; });
+        links.forEach(link => { link.classList.toggle("active", link.getAttribute("href") === "#" + current); });
+      }
+      window.addEventListener("scroll", updateActive); updateActive();
+    }
+    function updateBackLink() {
+      const lang = normalizeLang(getParam("lang", "en"));
+      const theme = normalizeTheme(getParam("theme", "dark"));
+      const color = getParam("color", "#b31adb");
+      document.getElementById("backLink").href = `/main?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+    }
+    function setupMinimap() {
+      const container = document.getElementById('minimap-container'), viewport = document.getElementById('minimap-viewport'), content = document.querySelector('.content');
+      if (!content) return;
+      function updateViewport() {
+        const contentTop = content.offsetTop, contentHeight = content.offsetHeight, scrollTop = window.scrollY, viewportHeight = window.innerHeight;
+        const scrollPercent = Math.max(0, Math.min((scrollTop - contentTop) / contentHeight, 1));
+        const viewportPercent = viewportHeight / contentHeight;
+        const minimapHeight = container.offsetHeight;
+        const viewportTop = scrollPercent * minimapHeight;
+        const viewportH = Math.min(viewportPercent * minimapHeight, minimapHeight * 0.15);
+        viewport.style.top = viewportTop + 'px'; viewport.style.height = viewportH + 'px';
+      }
+      container.addEventListener('click', function(e) {
+        const rect = container.getBoundingClientRect(), clickPercent = (e.clientY - rect.top) / rect.height;
+        const targetScroll = content.offsetTop + (clickPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      });
+      let isDragging = false;
+      viewport.addEventListener('mousedown', function(e) { isDragging = true; e.preventDefault(); });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect(), y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+        const scrollPercent = y / rect.height;
+        const targetScroll = content.offsetTop + (scrollPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'auto' });
+      });
+      document.addEventListener('mouseup', function() { isDragging = false; });
+      updateViewport();
+      window.addEventListener('scroll', updateViewport); window.addEventListener('resize', updateViewport);
+    }
+    function setupLightbox() {
+      const overlay = document.getElementById('lightbox-overlay'), imageEl = document.getElementById('lightbox-image'), captionEl = document.getElementById('lightbox-caption'), counterEl = document.getElementById('lightbox-counter'), closeBtn = document.getElementById('lightbox-close'), prevBtn = document.getElementById('lightbox-prev'), nextBtn = document.getElementById('lightbox-next');
+      let lightboxImages = [], currentIndex = 0;
+      document.querySelectorAll('.lightbox-trigger').forEach((trigger, index) => {
+        lightboxImages.push({ src: trigger.getAttribute('href'), title: trigger.getAttribute('data-title') || '' });
+        trigger.addEventListener('click', function(e) { e.preventDefault(); currentIndex = index; showLightbox(); });
+      });
+      function showLightbox() {
+        if (lightboxImages.length === 0) return;
+        const img = lightboxImages[currentIndex];
+        imageEl.src = img.src; imageEl.alt = img.title; captionEl.textContent = img.title;
+        counterEl.textContent = `${currentIndex + 1} / ${lightboxImages.length}`;
+        overlay.classList.add('active'); document.body.style.overflow = 'hidden';
+      }
+      function hideLightbox() { overlay.classList.remove('active'); document.body.style.overflow = ''; }
+      function showPrev() { if (lightboxImages.length > 0) { currentIndex = (currentIndex - 1 + lightboxImages.length) % lightboxImages.length; showLightbox(); } }
+      function showNext() { if (lightboxImages.length > 0) { currentIndex = (currentIndex + 1) % lightboxImages.length; showLightbox(); } }
+      closeBtn.addEventListener('click', hideLightbox); overlay.addEventListener('click', function(e) { if (e.target === overlay) hideLightbox(); });
+      prevBtn.addEventListener('click', showPrev); nextBtn.addEventListener('click', showNext);
+      document.addEventListener('keydown', function(e) {
+        if (!overlay.classList.contains('active')) return;
+        if (e.key === 'Escape') hideLightbox(); else if (e.key === 'ArrowLeft') showPrev(); else if (e.key === 'ArrowRight') showNext();
+      });
+    }
+    function init() {
+      const lang = normalizeLang(getParam("lang", "en"));
+      const theme = normalizeTheme(getParam("theme", "dark"));
+      applyTranslations(lang); applyTheme(theme); updateBackLink(); setupNavHighlight();
+      setupMinimap(); setupLightbox();
+    }
+    window.addEventListener("DOMContentLoaded", init);
+  </script>
+</body>
+
+</html>

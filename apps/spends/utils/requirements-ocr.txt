@@ -1,0 +1,8 @@
+--index-url https://download.pytorch.org/whl/cpu
+--extra-index-url https://pypi.org/simple
+torch
+torchvision
+easyocr>=1.7.0
+pillow>=10.0.0
+numpy>=1.26.0
+psycopg2-binary>=2.9.0

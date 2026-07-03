@@ -1,0 +1,14 @@
+{
+    "en": "TFT Generator",
+    "ru": "Генератор TFT",
+    "uk": "Генератор TFT",
+    "be": "Генератар TFT",
+    "menu_button": {
+        "left": 8,
+        "top": 30,
+        "width": 34,
+        "height": 34
+    },
+    "pl": "Generator TFT",
+    "cs": "Generátor TFT"
+}

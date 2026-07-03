@@ -1,0 +1,26 @@
+<?php
+
+return array (
+  'title' => 'Редактор синтезу мовлення',
+  'generate_audio' => 'Генерувати аудіо',
+  'stop_generation' => 'Зупинити генерацію',
+  'download_audio' => 'Завантажити аудіо',
+  'save_to_server' => 'Зберегти на сервері',
+  'close' => 'Закрити',
+  'text_file' => 'Текстовий файл',
+  'generated_audio' => 'Згенероване аудіо',
+  'file_exists' => '✓ Файл існує',
+  'file_not_found' => '✗ Файл не знайдено',
+  'starting_generation' => 'Запуск генерації аудіо...',
+  'generation_started' => 'Генерацію аудіо запущено!',
+  'generation_completed' => 'Генерацію аудіо завершено!',
+  'generation_stopped' => 'Генерацію зупинено',
+  'waiting_generation' => 'Очікування початку генерації...',
+  'text_placeholder' => 'Текстовий вміст з\'явиться тут...',
+  'select_voice' => 'Вибрати голос',
+  'select_language' => 'Мова',
+  'voice_speed' => 'Швидкість',
+  'no_audio_yet' => 'Аудіо ще не згенеровано',
+  'generating' => 'Генерація...',
+  'error_prefix' => 'Помилка',
+);

@@ -1,0 +1,13 @@
+{
+    "state": "queued",
+    "progress": {
+        "total": 2,
+        "processed": 0,
+        "percent": 0
+    },
+    "records": [],
+    "unresolved": [],
+    "warnings": [],
+    "base_currency": "PLN",
+    "updated_at": "2026-04-18T10:00:52Z"
+}

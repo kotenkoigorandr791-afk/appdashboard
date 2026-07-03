@@ -1,0 +1,3310 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "translate_api.php",
+      "file_type": "code",
+      "source_file": "translate_api.php",
+      "source_location": "L1",
+      "id": "translate_api_php",
+      "community": 12,
+      "norm_label": "translate_api.php"
+    },
+    {
+      "label": "index.php",
+      "file_type": "code",
+      "source_file": "index.php",
+      "source_location": "L1",
+      "id": "index_php",
+      "community": 13,
+      "norm_label": "index.php"
+    },
+    {
+      "label": "bg_remove.py",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L1",
+      "id": "bg_remove_py",
+      "community": 1,
+      "norm_label": "bg_remove.py"
+    },
+    {
+      "label": "rgb_to_hsv_features()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L24",
+      "id": "recipes_bg_remove_rgb_to_hsv_features",
+      "community": 1,
+      "norm_label": "rgb_to_hsv_features()"
+    },
+    {
+      "label": "mahalanobis_map()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L48",
+      "id": "recipes_bg_remove_mahalanobis_map",
+      "community": 1,
+      "norm_label": "mahalanobis_map()"
+    },
+    {
+      "label": "keep_main_components()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L57",
+      "id": "recipes_bg_remove_keep_main_components",
+      "community": 1,
+      "norm_label": "keep_main_components()"
+    },
+    {
+      "label": "border_connected_mask()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L89",
+      "id": "recipes_bg_remove_border_connected_mask",
+      "community": 1,
+      "norm_label": "border_connected_mask()"
+    },
+    {
+      "label": "keep_largest_center_components()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L113",
+      "id": "recipes_bg_remove_keep_largest_center_components",
+      "community": 1,
+      "norm_label": "keep_largest_center_components()"
+    },
+    {
+      "label": "fill_holes()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L162",
+      "id": "recipes_bg_remove_fill_holes",
+      "community": 1,
+      "norm_label": "fill_holes()"
+    },
+    {
+      "label": "build_alpha_mask()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L199",
+      "id": "recipes_bg_remove_build_alpha_mask",
+      "community": 1,
+      "norm_label": "build_alpha_mask()"
+    },
+    {
+      "label": "downscale_for_processing()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L323",
+      "id": "recipes_bg_remove_downscale_for_processing",
+      "community": 1,
+      "norm_label": "downscale_for_processing()"
+    },
+    {
+      "label": "remove_background()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L337",
+      "id": "recipes_bg_remove_remove_background",
+      "community": 1,
+      "norm_label": "remove_background()"
+    },
+    {
+      "label": "remove_background_with_rembg()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L361",
+      "id": "recipes_bg_remove_remove_background_with_rembg",
+      "community": 1,
+      "norm_label": "remove_background_with_rembg()"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "bg_remove.py",
+      "source_location": "L388",
+      "id": "recipes_bg_remove_main",
+      "community": 1,
+      "norm_label": "main()"
+    },
+    {
+      "label": "fetch_image_url.php",
+      "file_type": "code",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L1",
+      "id": "fetch_image_url_php",
+      "community": 4,
+      "norm_label": "fetch_image_url.php"
+    },
+    {
+      "label": "getDB()",
+      "file_type": "code",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L10",
+      "id": "recipes_fetch_image_url_getdb",
+      "community": 4,
+      "norm_label": "getdb()"
+    },
+    {
+      "label": "getUserRoleByEmail()",
+      "file_type": "code",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L22",
+      "id": "recipes_fetch_image_url_getuserrolebyemail",
+      "community": 4,
+      "norm_label": "getuserrolebyemail()"
+    },
+    {
+      "label": "recipes_resolve_session_role()",
+      "file_type": "code",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L40",
+      "id": "recipes_fetch_image_url_recipes_resolve_session_role",
+      "community": 4,
+      "norm_label": "recipes_resolve_session_role()"
+    },
+    {
+      "label": "recipes_url_fetch_safe()",
+      "file_type": "code",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L73",
+      "id": "recipes_fetch_image_url_recipes_url_fetch_safe",
+      "community": 4,
+      "norm_label": "recipes_url_fetch_safe()"
+    },
+    {
+      "label": "remove_background.php",
+      "file_type": "code",
+      "source_file": "remove_background.php",
+      "source_location": "L1",
+      "id": "remove_background_php",
+      "community": 1,
+      "norm_label": "remove_background.php"
+    },
+    {
+      "label": "bg_fail()",
+      "file_type": "code",
+      "source_file": "remove_background.php",
+      "source_location": "L10",
+      "id": "recipes_remove_background_bg_fail",
+      "community": 1,
+      "norm_label": "bg_fail()"
+    },
+    {
+      "label": "styles.php",
+      "file_type": "code",
+      "source_file": "styles.php",
+      "source_location": "L1",
+      "id": "styles_php",
+      "community": 14,
+      "norm_label": "styles.php"
+    },
+    {
+      "label": "recipes_ai.php",
+      "file_type": "code",
+      "source_file": "recipes_ai.php",
+      "source_location": "L1",
+      "id": "recipes_ai_php",
+      "community": 15,
+      "norm_label": "recipes_ai.php"
+    },
+    {
+      "label": "translate.php",
+      "file_type": "code",
+      "source_file": "core/translate.php",
+      "source_location": "L1",
+      "id": "core_translate_php",
+      "community": 0,
+      "norm_label": "translate.php"
+    },
+    {
+      "label": "translate_text()",
+      "file_type": "code",
+      "source_file": "core/translate.php",
+      "source_location": "L2",
+      "id": "core_translate_translate_text",
+      "community": 0,
+      "norm_label": "translate_text()"
+    },
+    {
+      "label": "image.php",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L1",
+      "id": "core_image_php",
+      "community": 0,
+      "norm_label": "image.php"
+    },
+    {
+      "label": "recipes_gd_open_image()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L2",
+      "id": "core_image_recipes_gd_open_image",
+      "community": 0,
+      "norm_label": "recipes_gd_open_image()"
+    },
+    {
+      "label": "recipes_image_resampled_copy()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L15",
+      "id": "core_image_recipes_image_resampled_copy",
+      "community": 0,
+      "norm_label": "recipes_image_resampled_copy()"
+    },
+    {
+      "label": "recipes_image_save_optimized_with_python()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L43",
+      "id": "core_image_recipes_image_save_optimized_with_python",
+      "community": 0,
+      "norm_label": "recipes_image_save_optimized_with_python()"
+    },
+    {
+      "label": "recipes_image_save_optimized_blob()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L76",
+      "id": "core_image_recipes_image_save_optimized_blob",
+      "community": 0,
+      "norm_label": "recipes_image_save_optimized_blob()"
+    },
+    {
+      "label": "recipes_image_save_optimized_upload()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L131",
+      "id": "core_image_recipes_image_save_optimized_upload",
+      "community": 0,
+      "norm_label": "recipes_image_save_optimized_upload()"
+    },
+    {
+      "label": "recipes_write_product_preview_webp()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L143",
+      "id": "core_image_recipes_write_product_preview_webp",
+      "community": 0,
+      "norm_label": "recipes_write_product_preview_webp()"
+    },
+    {
+      "label": "recipes_product_preview_refresh()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L171",
+      "id": "core_image_recipes_product_preview_refresh",
+      "community": 0,
+      "norm_label": "recipes_product_preview_refresh()"
+    },
+    {
+      "label": "recipes_save_product_json()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L182",
+      "id": "core_image_recipes_save_product_json",
+      "community": 0,
+      "norm_label": "recipes_save_product_json()"
+    },
+    {
+      "label": "recipes_load_product_row()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L200",
+      "id": "core_image_recipes_load_product_row",
+      "community": 0,
+      "norm_label": "recipes_load_product_row()"
+    },
+    {
+      "label": "recipes_backfill_product_previews()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L210",
+      "id": "core_image_recipes_backfill_product_previews",
+      "community": 0,
+      "norm_label": "recipes_backfill_product_previews()"
+    },
+    {
+      "label": "recipes_product_thumb_public_path()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L244",
+      "id": "core_image_recipes_product_thumb_public_path",
+      "community": 0,
+      "norm_label": "recipes_product_thumb_public_path()"
+    },
+    {
+      "label": "recipes_normalize_product_name()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L254",
+      "id": "core_image_recipes_normalize_product_name",
+      "community": 2,
+      "norm_label": "recipes_normalize_product_name()"
+    },
+    {
+      "label": "recipes_product_name_exists()",
+      "file_type": "code",
+      "source_file": "core/image.php",
+      "source_location": "L260",
+      "id": "core_image_recipes_product_name_exists",
+      "community": 0,
+      "norm_label": "recipes_product_name_exists()"
+    },
+    {
+      "label": "session.php",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L1",
+      "id": "core_session_php",
+      "community": 4,
+      "norm_label": "session.php"
+    },
+    {
+      "label": "getUserRoleByEmail()",
+      "file_type": "code",
+      "source_file": "core/session.php",
+      "source_location": "L2",
+      "id": "core_session_getuserrolebyemail",
+      "community": 4,
+      "norm_label": "getuserrolebyemail()"
+    },
+    {
+      "label": "db.php",
+      "file_type": "code",
+      "source_file": "core/db.php",
+      "source_location": "L1",
+      "id": "core_db_php",
+      "community": 4,
+      "norm_label": "db.php"
+    },
+    {
+      "label": "getDB()",
+      "file_type": "code",
+      "source_file": "core/db.php",
+      "source_location": "L9",
+      "id": "core_db_getdb",
+      "community": 4,
+      "norm_label": "getdb()"
+    },
+    {
+      "label": "ai.php",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1",
+      "id": "core_ai_php",
+      "community": 3,
+      "norm_label": "ai.php"
+    },
+    {
+      "label": "recipes_ai_json_out()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L21",
+      "id": "core_ai_recipes_ai_json_out",
+      "community": 3,
+      "norm_label": "recipes_ai_json_out()"
+    },
+    {
+      "label": "recipes_ai_require_role()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L29",
+      "id": "core_ai_recipes_ai_require_role",
+      "community": 3,
+      "norm_label": "recipes_ai_require_role()"
+    },
+    {
+      "label": "recipes_ai_public_config()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L62",
+      "id": "core_ai_recipes_ai_public_config",
+      "community": 3,
+      "norm_label": "recipes_ai_public_config()"
+    },
+    {
+      "label": "recipes_ai_chat()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L72",
+      "id": "core_ai_recipes_ai_chat",
+      "community": 6,
+      "norm_label": "recipes_ai_chat()"
+    },
+    {
+      "label": "recipes_ai_extract_json()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L117",
+      "id": "core_ai_recipes_ai_extract_json",
+      "community": 6,
+      "norm_label": "recipes_ai_extract_json()"
+    },
+    {
+      "label": "recipes_ai_search_products_sqlite()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L138",
+      "id": "core_ai_recipes_ai_search_products_sqlite",
+      "community": 2,
+      "norm_label": "recipes_ai_search_products_sqlite()"
+    },
+    {
+      "label": "recipes_ai_find_product_by_name()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L183",
+      "id": "core_ai_recipes_ai_find_product_by_name",
+      "community": 7,
+      "norm_label": "recipes_ai_find_product_by_name()"
+    },
+    {
+      "label": "recipes_ai_url_fetch_safe()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L188",
+      "id": "core_ai_recipes_ai_url_fetch_safe",
+      "community": 0,
+      "norm_label": "recipes_ai_url_fetch_safe()"
+    },
+    {
+      "label": "recipes_ai_download_image()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L211",
+      "id": "core_ai_recipes_ai_download_image",
+      "community": 0,
+      "norm_label": "recipes_ai_download_image()"
+    },
+    {
+      "label": "recipes_ai_wiki_http_get()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L250",
+      "id": "core_ai_recipes_ai_wiki_http_get",
+      "community": 5,
+      "norm_label": "recipes_ai_wiki_http_get()"
+    },
+    {
+      "label": "recipes_ai_image_reject_homonym()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L294",
+      "id": "core_ai_recipes_ai_image_reject_homonym",
+      "community": 3,
+      "norm_label": "recipes_ai_image_reject_homonym()"
+    },
+    {
+      "label": "recipes_ai_image_reject_non_food()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L312",
+      "id": "core_ai_recipes_ai_image_reject_non_food",
+      "community": 3,
+      "norm_label": "recipes_ai_image_reject_non_food()"
+    },
+    {
+      "label": "recipes_ai_image_score_candidate()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L340",
+      "id": "core_ai_recipes_ai_image_score_candidate",
+      "community": 3,
+      "norm_label": "recipes_ai_image_score_candidate()"
+    },
+    {
+      "label": "recipes_ai_wiki_fetch_pages()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L385",
+      "id": "core_ai_recipes_ai_wiki_fetch_pages",
+      "community": 5,
+      "norm_label": "recipes_ai_wiki_fetch_pages()"
+    },
+    {
+      "label": "recipes_ai_commons_food_candidates()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L425",
+      "id": "core_ai_recipes_ai_commons_food_candidates",
+      "community": 5,
+      "norm_label": "recipes_ai_commons_food_candidates()"
+    },
+    {
+      "label": "recipes_ai_product_en_fallback()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L482",
+      "id": "core_ai_recipes_ai_product_en_fallback",
+      "community": 5,
+      "norm_label": "recipes_ai_product_en_fallback()"
+    },
+    {
+      "label": "recipes_ai_recipe_image_searches()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L507",
+      "id": "core_ai_recipes_ai_recipe_image_searches",
+      "community": 5,
+      "norm_label": "recipes_ai_recipe_image_searches()"
+    },
+    {
+      "label": "recipes_ai_wikimedia_product_candidates()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L532",
+      "id": "core_ai_recipes_ai_wikimedia_product_candidates",
+      "community": 5,
+      "norm_label": "recipes_ai_wikimedia_product_candidates()"
+    },
+    {
+      "label": "recipes_ai_product_image_query()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L553",
+      "id": "core_ai_recipes_ai_product_image_query",
+      "community": 0,
+      "norm_label": "recipes_ai_product_image_query()"
+    },
+    {
+      "label": "recipes_ai_gather_image_options()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L572",
+      "id": "core_ai_recipes_ai_gather_image_options",
+      "community": 5,
+      "norm_label": "recipes_ai_gather_image_options()"
+    },
+    {
+      "label": "recipes_ai_search_product_image()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L642",
+      "id": "core_ai_recipes_ai_search_product_image",
+      "community": 6,
+      "norm_label": "recipes_ai_search_product_image()"
+    },
+    {
+      "label": "recipes_ai_wikimedia_candidates()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L671",
+      "id": "core_ai_recipes_ai_wikimedia_candidates",
+      "community": 5,
+      "norm_label": "recipes_ai_wikimedia_candidates()"
+    },
+    {
+      "label": "recipes_ai_verify_image_choice()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L693",
+      "id": "core_ai_recipes_ai_verify_image_choice",
+      "community": 6,
+      "norm_label": "recipes_ai_verify_image_choice()"
+    },
+    {
+      "label": "recipes_ai_search_recipe_image()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L731",
+      "id": "core_ai_recipes_ai_search_recipe_image",
+      "community": 7,
+      "norm_label": "recipes_ai_search_recipe_image()"
+    },
+    {
+      "label": "recipes_ai_search_wikimedia_image()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L770",
+      "id": "core_ai_recipes_ai_search_wikimedia_image",
+      "community": 7,
+      "norm_label": "recipes_ai_search_wikimedia_image()"
+    },
+    {
+      "label": "recipes_ai_search_image()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L776",
+      "id": "core_ai_recipes_ai_search_image",
+      "community": 0,
+      "norm_label": "recipes_ai_search_image()"
+    },
+    {
+      "label": "recipes_ai_make_placeholder_image()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L792",
+      "id": "core_ai_recipes_ai_make_placeholder_image",
+      "community": 0,
+      "norm_label": "recipes_ai_make_placeholder_image()"
+    },
+    {
+      "label": "recipes_ai_create_product()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L809",
+      "id": "core_ai_recipes_ai_create_product",
+      "community": 0,
+      "norm_label": "recipes_ai_create_product()"
+    },
+    {
+      "label": "recipes_ai_tool_definitions()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L883",
+      "id": "core_ai_recipes_ai_tool_definitions",
+      "community": 3,
+      "norm_label": "recipes_ai_tool_definitions()"
+    },
+    {
+      "label": "recipes_ai_execute_tool()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L967",
+      "id": "core_ai_recipes_ai_execute_tool",
+      "community": 0,
+      "norm_label": "recipes_ai_execute_tool()"
+    },
+    {
+      "label": "recipes_ai_normalize_draft()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1001",
+      "id": "core_ai_recipes_ai_normalize_draft",
+      "community": 7,
+      "norm_label": "recipes_ai_normalize_draft()"
+    },
+    {
+      "label": "recipes_ai_message_text()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1066",
+      "id": "core_ai_recipes_ai_message_text",
+      "community": 6,
+      "norm_label": "recipes_ai_message_text()"
+    },
+    {
+      "label": "recipes_ai_json_system_prompt()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1075",
+      "id": "core_ai_recipes_ai_json_system_prompt",
+      "community": 6,
+      "norm_label": "recipes_ai_json_system_prompt()"
+    },
+    {
+      "label": "recipes_ai_generate_json()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1099",
+      "id": "core_ai_recipes_ai_generate_json",
+      "community": 6,
+      "norm_label": "recipes_ai_generate_json()"
+    },
+    {
+      "label": "recipes_ai_build_steps_from_json()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1118",
+      "id": "core_ai_recipes_ai_build_steps_from_json",
+      "community": 3,
+      "norm_label": "recipes_ai_build_steps_from_json()"
+    },
+    {
+      "label": "recipes_ai_json_to_draft()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1154",
+      "id": "core_ai_recipes_ai_json_to_draft",
+      "community": 3,
+      "norm_label": "recipes_ai_json_to_draft()"
+    },
+    {
+      "label": "recipes_ai_save_draft()",
+      "file_type": "code",
+      "source_file": "core/ai.php",
+      "source_location": "L1164",
+      "id": "core_ai_recipes_ai_save_draft",
+      "community": 0,
+      "norm_label": "recipes_ai_save_draft()"
+    },
+    {
+      "label": "init.php",
+      "file_type": "code",
+      "source_file": "core/init.php",
+      "source_location": "L1",
+      "id": "core_init_php",
+      "community": 16,
+      "norm_label": "init.php"
+    },
+    {
+      "label": "ai_agent.php",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L1",
+      "id": "core_ai_agent_php",
+      "community": 2,
+      "norm_label": "ai_agent.php"
+    },
+    {
+      "label": "recipes_ai_stream_headers()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L4",
+      "id": "core_ai_agent_recipes_ai_stream_headers",
+      "community": 2,
+      "norm_label": "recipes_ai_stream_headers()"
+    },
+    {
+      "label": "recipes_ai_stream_event()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L15",
+      "id": "core_ai_agent_recipes_ai_stream_event",
+      "community": 2,
+      "norm_label": "recipes_ai_stream_event()"
+    },
+    {
+      "label": "recipes_ai_search_products_ranked()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L22",
+      "id": "core_ai_agent_recipes_ai_search_products_ranked",
+      "community": 2,
+      "norm_label": "recipes_ai_search_products_ranked()"
+    },
+    {
+      "label": "recipes_ai_agent_system_prompt()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L41",
+      "id": "core_ai_agent_recipes_ai_agent_system_prompt",
+      "community": 2,
+      "norm_label": "recipes_ai_agent_system_prompt()"
+    },
+    {
+      "label": "recipes_ai_agent_tools()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L58",
+      "id": "core_ai_agent_recipes_ai_agent_tools",
+      "community": 2,
+      "norm_label": "recipes_ai_agent_tools()"
+    },
+    {
+      "label": "recipes_ai_submit_args_to_json()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L120",
+      "id": "core_ai_agent_recipes_ai_submit_args_to_json",
+      "community": 2,
+      "norm_label": "recipes_ai_submit_args_to_json()"
+    },
+    {
+      "label": "recipes_ai_build_steps_from_ingredients_json()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L154",
+      "id": "core_ai_agent_recipes_ai_build_steps_from_ingredients_json",
+      "community": 2,
+      "norm_label": "recipes_ai_build_steps_from_ingredients_json()"
+    },
+    {
+      "label": "recipes_ai_match_draft_products()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L189",
+      "id": "core_ai_agent_recipes_ai_match_draft_products",
+      "community": 2,
+      "norm_label": "recipes_ai_match_draft_products()"
+    },
+    {
+      "label": "recipes_ai_find_product_exact()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L250",
+      "id": "core_ai_agent_recipes_ai_find_product_exact",
+      "community": 2,
+      "norm_label": "recipes_ai_find_product_exact()"
+    },
+    {
+      "label": "recipes_ai_apply_product_decisions()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L264",
+      "id": "core_ai_agent_recipes_ai_apply_product_decisions",
+      "community": 0,
+      "norm_label": "recipes_ai_apply_product_decisions()"
+    },
+    {
+      "label": "recipes_ai_run_agent()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L324",
+      "id": "core_ai_agent_recipes_ai_run_agent",
+      "community": 2,
+      "norm_label": "recipes_ai_run_agent()"
+    },
+    {
+      "label": "recipes_ai_run_agent_stream()",
+      "file_type": "code",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L445",
+      "id": "core_ai_agent_recipes_ai_run_agent_stream",
+      "community": 2,
+      "norm_label": "recipes_ai_run_agent_stream()"
+    },
+    {
+      "label": "post_init.php",
+      "file_type": "code",
+      "source_file": "core/post_init.php",
+      "source_location": "L1",
+      "id": "core_post_init_php",
+      "community": 17,
+      "norm_label": "post_init.php"
+    },
+    {
+      "label": "image_optimize.py",
+      "file_type": "code",
+      "source_file": "core/image_optimize.py",
+      "source_location": "L1",
+      "id": "core_image_optimize_py",
+      "community": 10,
+      "norm_label": "image_optimize.py"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "core/image_optimize.py",
+      "source_location": "L7",
+      "id": "core_image_optimize_main",
+      "community": 10,
+      "norm_label": "main()"
+    },
+    {
+      "label": "schema.php",
+      "file_type": "code",
+      "source_file": "core/schema.php",
+      "source_location": "L1",
+      "id": "core_schema_php",
+      "community": 8,
+      "norm_label": "schema.php"
+    },
+    {
+      "label": "recipes_ensure_products_image_preview_column()",
+      "file_type": "code",
+      "source_file": "core/schema.php",
+      "source_location": "L2",
+      "id": "core_schema_recipes_ensure_products_image_preview_column",
+      "community": 8,
+      "norm_label": "recipes_ensure_products_image_preview_column()"
+    },
+    {
+      "label": "recipes_ensure_steps_table()",
+      "file_type": "code",
+      "source_file": "core/schema.php",
+      "source_location": "L18",
+      "id": "core_schema_recipes_ensure_steps_table",
+      "community": 8,
+      "norm_label": "recipes_ensure_steps_table()"
+    },
+    {
+      "label": "migrateJSONToSQLite()",
+      "file_type": "code",
+      "source_file": "core/schema.php",
+      "source_location": "L53",
+      "id": "core_schema_migratejsontosqlite",
+      "community": 8,
+      "norm_label": "migratejsontosqlite()"
+    },
+    {
+      "label": "Recipe.php",
+      "file_type": "code",
+      "source_file": "models/Recipe.php",
+      "source_location": "L1",
+      "id": "models_recipe_php",
+      "community": 9,
+      "norm_label": "recipe.php"
+    },
+    {
+      "label": "getRecipeFromDB()",
+      "file_type": "code",
+      "source_file": "models/Recipe.php",
+      "source_location": "L2",
+      "id": "models_recipe_getrecipefromdb",
+      "community": 9,
+      "norm_label": "getrecipefromdb()"
+    },
+    {
+      "label": "getAllRecipesFromDB()",
+      "file_type": "code",
+      "source_file": "models/Recipe.php",
+      "source_location": "L71",
+      "id": "models_recipe_getallrecipesfromdb",
+      "community": 9,
+      "norm_label": "getallrecipesfromdb()"
+    },
+    {
+      "label": "getAllProductsFromDB()",
+      "file_type": "code",
+      "source_file": "models/Recipe.php",
+      "source_location": "L108",
+      "id": "models_recipe_getallproductsfromdb",
+      "community": 9,
+      "norm_label": "getallproductsfromdb()"
+    },
+    {
+      "label": "body.php",
+      "file_type": "code",
+      "source_file": "views/body.php",
+      "source_location": "L1",
+      "id": "views_body_php",
+      "community": 18,
+      "norm_label": "body.php"
+    },
+    {
+      "label": "scripts.php",
+      "file_type": "code",
+      "source_file": "views/scripts.php",
+      "source_location": "L1",
+      "id": "views_scripts_php",
+      "community": 19,
+      "norm_label": "scripts.php"
+    },
+    {
+      "label": "head.php",
+      "file_type": "code",
+      "source_file": "views/head.php",
+      "source_location": "L1",
+      "id": "views_head_php",
+      "community": 20,
+      "norm_label": "head.php"
+    },
+    {
+      "label": "post_handlers.php",
+      "file_type": "code",
+      "source_file": "controllers/post_handlers.php",
+      "source_location": "L1",
+      "id": "controllers_post_handlers_php",
+      "community": 21,
+      "norm_label": "post_handlers.php"
+    },
+    {
+      "label": "get_handlers.php",
+      "file_type": "code",
+      "source_file": "controllers/get_handlers.php",
+      "source_location": "L1",
+      "id": "controllers_get_handlers_php",
+      "community": 22,
+      "norm_label": "get_handlers.php"
+    },
+    {
+      "label": "CLAUDE.md",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L1",
+      "id": "claude_md",
+      "community": 11,
+      "norm_label": "claude.md"
+    },
+    {
+      "label": "graphify",
+      "file_type": "document",
+      "source_file": "CLAUDE.md",
+      "source_location": "L1",
+      "id": "recipes_claude_graphify",
+      "community": 11,
+      "norm_label": "graphify"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_rgb_to_hsv_features"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_mahalanobis_map"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L57",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_keep_main_components"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L89",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_border_connected_mask"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L113",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_keep_largest_center_components"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_fill_holes"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L199",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_build_alpha_mask"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L323",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_downscale_for_processing"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L337",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_remove_background"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L361",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_remove_background_with_rembg"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L388",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "recipes_bg_remove_main"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L361",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "bg_remove_py",
+      "target": "remove_background_php"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L249",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_build_alpha_mask",
+      "target": "recipes_bg_remove_rgb_to_hsv_features"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L271",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_build_alpha_mask",
+      "target": "recipes_bg_remove_mahalanobis_map"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L289",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_build_alpha_mask",
+      "target": "recipes_bg_remove_keep_main_components"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L223",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_build_alpha_mask",
+      "target": "recipes_bg_remove_border_connected_mask"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L235",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_build_alpha_mask",
+      "target": "recipes_bg_remove_keep_largest_center_components"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L236",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_build_alpha_mask",
+      "target": "recipes_bg_remove_fill_holes"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L342",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_remove_background",
+      "target": "recipes_bg_remove_build_alpha_mask"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L342",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "remove_background_php",
+      "target": "recipes_bg_remove_build_alpha_mask"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L341",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_remove_background",
+      "target": "recipes_bg_remove_downscale_for_processing"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L341",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "remove_background_php",
+      "target": "recipes_bg_remove_downscale_for_processing"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L339",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_remove_background",
+      "target": "recipes_bg_remove_remove_background_with_rembg"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L396",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_main",
+      "target": "recipes_bg_remove_remove_background"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "bg_remove.py",
+      "source_location": "L396",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_bg_remove_main",
+      "target": "remove_background_php"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "fetch_image_url_php",
+      "target": "recipes_fetch_image_url_getdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L22",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "fetch_image_url_php",
+      "target": "recipes_fetch_image_url_getuserrolebyemail"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L40",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "fetch_image_url_php",
+      "target": "recipes_fetch_image_url_recipes_resolve_session_role"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L73",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "fetch_image_url_php",
+      "target": "recipes_fetch_image_url_recipes_url_fetch_safe"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "fetch_image_url_php",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L22",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "fetch_image_url_php",
+      "target": "core_session_getuserrolebyemail"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_fetch_image_url_getuserrolebyemail",
+      "target": "recipes_fetch_image_url_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L41",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_fetch_image_url_recipes_resolve_session_role",
+      "target": "recipes_fetch_image_url_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L53",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_fetch_image_url_recipes_resolve_session_role",
+      "target": "recipes_fetch_image_url_getuserrolebyemail"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L41",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_fetch_image_url_recipes_resolve_session_role",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L53",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "recipes_fetch_image_url_recipes_resolve_session_role",
+      "target": "core_session_getuserrolebyemail"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "remove_background.php",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "remove_background_php",
+      "target": "recipes_remove_background_bg_fail"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/translate.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_translate_php",
+      "target": "core_translate_translate_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L543",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_product_image_query",
+      "target": "core_translate_translate_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L431",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_translate_translate_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L785",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_save_draft",
+      "target": "core_translate_translate_text"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_gd_open_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_image_resampled_copy"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L43",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_image_save_optimized_with_python"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L76",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_image_save_optimized_blob"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L127",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_image_save_optimized_upload"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L14",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_write_product_preview_webp"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L42",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_product_preview_refresh"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L53",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_save_product_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L71",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L81",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_backfill_product_previews"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L115",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_product_thumb_public_path"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L125",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L131",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_php",
+      "target": "core_image_recipes_product_name_exists"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_write_product_preview_webp",
+      "target": "core_image_recipes_gd_open_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L91",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_image_save_optimized_blob",
+      "target": "core_image_recipes_image_resampled_copy"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L115",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_image_save_optimized_blob",
+      "target": "core_image_recipes_image_save_optimized_with_python"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L136",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_image_save_optimized_upload",
+      "target": "core_image_recipes_image_save_optimized_blob"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L840",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_image_recipes_image_save_optimized_blob"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L1233",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_save_draft",
+      "target": "core_image_recipes_image_save_optimized_blob"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_product_preview_refresh",
+      "target": "core_image_recipes_write_product_preview_webp"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L101",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_backfill_product_previews",
+      "target": "core_image_recipes_product_preview_refresh"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L454",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_image_recipes_product_preview_refresh"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L107",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_backfill_product_previews",
+      "target": "core_image_recipes_save_product_json"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L480",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_image_recipes_save_product_json"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L98",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_backfill_product_previews",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L478",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L621",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_normalize_draft",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L806",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_save_draft",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L200",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_match_draft_products",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L289",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_apply_product_decisions",
+      "target": "core_image_recipes_load_product_row"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/image.php",
+      "source_location": "L87",
+      "weight": 1.0,
+      "source": "core_image_recipes_backfill_product_previews",
+      "target": "core_schema_recipes_ensure_products_image_preview_column"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image.php",
+      "source_location": "L135",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_recipes_product_name_exists",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_search_products_sqlite",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L294",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_image_reject_homonym",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L344",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_image_score_candidate",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L489",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_product_en_fallback",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L498",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_recipe_image_searches",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L544",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_product_image_query",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L26",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_search_products_ranked",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L249",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_find_product_exact",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L359",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_image_recipes_normalize_product_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L434",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_image_recipes_product_name_exists"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/session.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_session_php",
+      "target": "core_session_getuserrolebyemail"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "fetch_image_url.php",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_session_getuserrolebyemail",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/db.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_db_php",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L21",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_json_out"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L29",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_require_role"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_public_config"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L72",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_chat"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L117",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_extract_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L138",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L181",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_find_product_by_name"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L186",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_url_fetch_safe"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L209",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_download_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L248",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_wiki_http_get"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L292",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_image_reject_homonym"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L310",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_image_reject_non_food"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L335",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_image_score_candidate"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L371",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_wiki_fetch_pages"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L411",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_commons_food_candidates"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L468",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_product_en_fallback"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L493",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_recipe_image_searches"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L511",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_wikimedia_product_candidates"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L532",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_product_image_query"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L551",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_gather_image_options"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L621",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_search_product_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L246",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_wikimedia_candidates"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L307",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_verify_image_choice"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L345",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_search_recipe_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L749",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_search_wikimedia_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L390",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_search_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L402",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_make_placeholder_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L419",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_create_product"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L492",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_tool_definitions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L576",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_execute_tool"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L610",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_normalize_draft"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L674",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_message_text"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L683",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_json_system_prompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L704",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_generate_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L723",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_build_steps_from_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L759",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_json_to_draft"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L769",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_php",
+      "target": "core_ai_recipes_ai_save_draft"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L58",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_require_role",
+      "target": "core_ai_recipes_ai_json_out"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L326",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_verify_image_choice",
+      "target": "core_ai_recipes_ai_chat"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L713",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_generate_json",
+      "target": "core_ai_recipes_ai_chat"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L336",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_recipes_ai_chat"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L719",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_generate_json",
+      "target": "core_ai_recipes_ai_extract_json"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L375",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_recipes_ai_extract_json"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L580",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_execute_tool",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L34",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_search_products_ranked",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L22",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L222",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_match_draft_products",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L248",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_find_product_exact",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L352",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_recipes_ai_search_products_sqlite"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L435",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_ai_recipes_ai_find_product_by_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L624",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_normalize_draft",
+      "target": "core_ai_recipes_ai_find_product_by_name"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai.php",
+      "source_location": "L183",
+      "weight": 1.0,
+      "source": "core_ai_recipes_ai_find_product_by_name",
+      "target": "core_ai_agent_recipes_ai_find_product_exact"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L212",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_download_image",
+      "target": "core_ai_recipes_ai_url_fetch_safe"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L392",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_image",
+      "target": "core_ai_recipes_ai_url_fetch_safe"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L393",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_image",
+      "target": "core_ai_recipes_ai_download_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L450",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_ai_recipes_ai_download_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L823",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_save_draft",
+      "target": "core_ai_recipes_ai_download_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L387",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_wiki_fetch_pages",
+      "target": "core_ai_recipes_ai_wiki_http_get"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L425",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_commons_food_candidates",
+      "target": "core_ai_recipes_ai_wiki_http_get"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L340",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_image_score_candidate",
+      "target": "core_ai_recipes_ai_image_reject_homonym"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L337",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_image_score_candidate",
+      "target": "core_ai_recipes_ai_image_reject_non_food"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L578",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_gather_image_options",
+      "target": "core_ai_recipes_ai_image_score_candidate"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L518",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_wikimedia_product_candidates",
+      "target": "core_ai_recipes_ai_wiki_fetch_pages"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L662",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_wikimedia_candidates",
+      "target": "core_ai_recipes_ai_wiki_fetch_pages"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L526",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_wikimedia_product_candidates",
+      "target": "core_ai_recipes_ai_commons_food_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L594",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_gather_image_options",
+      "target": "core_ai_recipes_ai_commons_food_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L666",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_wikimedia_candidates",
+      "target": "core_ai_recipes_ai_commons_food_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L538",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_product_image_query",
+      "target": "core_ai_recipes_ai_product_en_fallback"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L568",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_gather_image_options",
+      "target": "core_ai_recipes_ai_product_en_fallback"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L566",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_gather_image_options",
+      "target": "core_ai_recipes_ai_recipe_image_searches"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L572",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_gather_image_options",
+      "target": "core_ai_recipes_ai_wikimedia_product_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L636",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_product_image",
+      "target": "core_ai_recipes_ai_wikimedia_product_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L627",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_product_image",
+      "target": "core_ai_recipes_ai_product_image_query"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L961",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_execute_tool",
+      "target": "core_ai_recipes_ai_product_image_query"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L310",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_apply_product_decisions",
+      "target": "core_ai_recipes_ai_product_image_query"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L573",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_gather_image_options",
+      "target": "core_ai_recipes_ai_wikimedia_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L646",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_product_image",
+      "target": "core_ai_recipes_ai_verify_image_choice"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L763",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_image",
+      "target": "core_ai_recipes_ai_search_product_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L817",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_ai_recipes_ai_search_product_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L356",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_recipe_image",
+      "target": "core_ai_recipes_ai_wikimedia_candidates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L330",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_verify_image_choice",
+      "target": "core_ai_recipes_ai_message_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L372",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_recipe_image",
+      "target": "core_ai_recipes_ai_verify_image_choice"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L751",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_wikimedia_image",
+      "target": "core_ai_recipes_ai_search_recipe_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L398",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_search_image",
+      "target": "core_ai_recipes_ai_search_recipe_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L663",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_normalize_draft",
+      "target": "core_ai_recipes_ai_search_recipe_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L598",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_execute_tool",
+      "target": "core_ai_recipes_ai_search_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L448",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_ai_recipes_ai_search_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L458",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_create_product",
+      "target": "core_ai_recipes_ai_make_placeholder_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L585",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_execute_tool",
+      "target": "core_ai_recipes_ai_create_product"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L305",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_apply_product_decisions",
+      "target": "core_ai_recipes_ai_create_product"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L766",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_json_to_draft",
+      "target": "core_ai_recipes_ai_normalize_draft"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L397",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_recipes_ai_normalize_draft"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L718",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_generate_json",
+      "target": "core_ai_recipes_ai_message_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/ai_agent.php",
+      "source_location": "L373",
+      "weight": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_recipes_ai_message_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L714",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_generate_json",
+      "target": "core_ai_recipes_ai_json_system_prompt"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai.php",
+      "source_location": "L764",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_recipes_ai_json_to_draft",
+      "target": "core_ai_recipes_ai_build_steps_from_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L4",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_stream_headers"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_stream_event"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L22",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_search_products_ranked"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L41",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_agent_system_prompt"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L56",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_agent_tools"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L118",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_submit_args_to_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L152",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_build_steps_from_ingredients_json"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L187",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_match_draft_products"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L246",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_find_product_exact"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L260",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_apply_product_decisions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L319",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_run_agent"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L425",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_php",
+      "target": "core_ai_agent_recipes_ai_run_agent_stream"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L427",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent_stream",
+      "target": "core_ai_agent_recipes_ai_stream_headers"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L430",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent_stream",
+      "target": "core_ai_agent_recipes_ai_stream_event"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L224",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_match_draft_products",
+      "target": "core_ai_agent_recipes_ai_search_products_ranked"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L252",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_find_product_exact",
+      "target": "core_ai_agent_recipes_ai_search_products_ranked"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L357",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_agent_recipes_ai_search_products_ranked"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L327",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_agent_recipes_ai_agent_system_prompt"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L325",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_agent_recipes_ai_agent_tools"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L391",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_agent_recipes_ai_submit_args_to_json"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L395",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_agent_recipes_ai_build_steps_from_ingredients_json"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L211",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_match_draft_products",
+      "target": "core_ai_agent_recipes_ai_find_product_exact"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L399",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent",
+      "target": "core_ai_agent_recipes_ai_match_draft_products"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/ai_agent.php",
+      "source_location": "L429",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_ai_agent_recipes_ai_run_agent_stream",
+      "target": "core_ai_agent_recipes_ai_run_agent"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/image_optimize.py",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_image_optimize_py",
+      "target": "core_image_optimize_main"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/schema.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_schema_php",
+      "target": "core_schema_recipes_ensure_products_image_preview_column"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/schema.php",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_schema_php",
+      "target": "core_schema_recipes_ensure_steps_table"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/schema.php",
+      "source_location": "L53",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_schema_php",
+      "target": "core_schema_migratejsontosqlite"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/schema.php",
+      "source_location": "L74",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_schema_migratejsontosqlite",
+      "target": "core_schema_recipes_ensure_products_image_preview_column"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/schema.php",
+      "source_location": "L75",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_schema_migratejsontosqlite",
+      "target": "core_schema_recipes_ensure_steps_table"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/Recipe.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_recipe_php",
+      "target": "models_recipe_getrecipefromdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/Recipe.php",
+      "source_location": "L71",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_recipe_php",
+      "target": "models_recipe_getallrecipesfromdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "models/Recipe.php",
+      "source_location": "L108",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "models_recipe_php",
+      "target": "models_recipe_getallproductsfromdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "CLAUDE.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "claude_md",
+      "target": "recipes_claude_graphify"
+    }
+  ],
+  "hyperedges": []
+}

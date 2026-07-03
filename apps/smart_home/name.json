@@ -1,0 +1,14 @@
+{
+    "en": "Smart Home",
+    "ru": "Умный дом",
+    "uk": "Розумний дім",
+    "be": "Разумны дом",
+    "menu_button": {
+        "left": 16,
+        "top": 12,
+        "width": 40,
+        "height": 40
+    },
+    "pl": "Inteligentny dom",
+    "cs": "Chytrá domácnost"
+}

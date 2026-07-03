@@ -1,0 +1,28 @@
+<?php
+
+return array (
+  'password_title' => 'PDF защищен паролем',
+  'password_placeholder' => 'Введите пароль',
+  'password_error' => 'Неверный пароль',
+  'password_attempts' => 'Осталось попыток:',
+  'password_max_attempts' => 'Превышено количество попыток',
+  'cancel' => 'Отмена',
+  'ok' => 'OK',
+  'error' => 'Ошибка',
+  'cancelled' => 'Отменено',
+  'prev_page' => 'Предыдущая страница',
+  'next_page' => 'Следующая страница',
+  'zoom_out' => 'Уменьшить',
+  'zoom_in' => 'Увеличить',
+  'fit_width' => 'По ширине',
+  'rotate_left' => 'Повернуть влево',
+  'rotate_right' => 'Повернуть вправо',
+  'page' => 'Страница',
+  'of' => 'из',
+  'draw' => 'Рисовать',
+  'draw_color' => 'Цвет рисования',
+  'draw_size' => 'Размер кисти',
+  'clear_drawings' => 'Очистить рисунки',
+  'undo' => 'Отменить',
+  'eraser' => 'Ластик',
+);

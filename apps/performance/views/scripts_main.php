@@ -1,0 +1,1709 @@
+<script>
+const themeClass = '<?= $theme ?>';
+const primaryColor = '<?= $color ?>';
+const userRole = <?= $userRole ?>;
+const translations = {
+    days: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['days']??['day','days'];}echo json_encode($d,JSON_UNESCAPED_UNICODE); ?>,
+    hours: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['hours']??['hour','hours'];}echo json_encode($d,JSON_UNESCAPED_UNICODE); ?>,
+    minutes: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['minutes']??['minute','minutes'];}echo json_encode($d,JSON_UNESCAPED_UNICODE); ?>,
+    ui: <?php
+    $jsUiKeys = [
+        'loading_from_cache', 'refreshing', 'connection_error', 'connection_unstable',
+        'max_retries_reached', 'retry', 'no_data_available', 'access_denied',
+        'error_loading_phpinfo', 'unknown_interface', 'download', 'upload',
+        'total', 'speed', 'session_break', 'usage', 'network_speed',
+        'time', 'loading_ellipsis', 'error_loading_data', 'unknown'
+    ];
+    $jsUi = [];
+    foreach ($translations as $langCode => $langData) {
+        $jsUi[$langCode] = [];
+        foreach ($jsUiKeys as $key) {
+            $jsUi[$langCode][$key] = $langData[$key] ?? '';
+        }
+    }
+    echo json_encode($jsUi, JSON_UNESCAPED_UNICODE);
+    ?>
+};
+
+const STORAGE_KEY = 'server_monitor_chart_data_v3';
+const DATA_MAX_AGE = 3 * 60 * 60 * 1000;
+const UPDATE_INTERVAL = 120000;
+const SECTION_STORAGE_KEY = 'server_monitor_active_section';
+const MAX_DATA_POINTS = 180;
+const lang = '<?= $lang ?>';
+const serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES) ?>, window.location.origin);
+const serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES) ?>, window.location.origin);
+
+let cpuData = [];
+let memoryData = [];
+let diskData = [];
+let networkData = [];
+let swapData = [];
+let graphChart = null;
+let isFetching = false;
+let fetchQueue = [];
+let retryCount = 0;
+const maxRetries = 3;
+let lastNginxSearch = '';
+let lastPhpSearch = '';
+let lastNginxModules = [];
+let lastPhpModules = [];
+let lastSessionEnd = null;
+let currentSessionStart = null;
+let hoverPreviewChart = null;
+let hoverPreviewEl = null;
+let hoverPreviewCanvas = null;
+let hoverPreviewRequestId = 0;
+// Последние числовые метрики для надёжного сохранения в кэш
+let lastKnownMetrics = {
+    cpu_usage: 0,
+    memory_usage: 0,
+    disk_usage: 0,
+    swap_usage: 0,
+    network_speed: 0,
+    uptime: '-'
+};
+let lastKnownDrives = [];
+let lastKnownNetworkInterfaces = [];
+let lastKnownSmartData = null;
+
+// Auto-zoom state (only for admins)
+let autoZoomEnabled = userRole >= 2;
+let autoZoomScales = {
+    cpu: { min: 0, max: 100 },
+    memory: { min: 0, max: 100 },
+    disk: { min: 0, max: 100 },
+    swap: { min: 0, max: 100 },
+    network: { min: 0, max: 100 }
+};
+
+function drawCircle(c, pct, col) {
+    const ctx = c.getContext('2d'), R = (c.width/2) - 10;
+    const centerX = c.width/2;
+    const centerY = c.height/2;
+    
+    ctx.clearRect(0, 0, c.width, c.height);
+    
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, R, 0, 2*Math.PI);
+    ctx.strokeStyle = themeClass === 'dark' ? '#444' : '#ddd';
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    
+    if (pct > 0) {
+        const startAngle = -Math.PI/2;
+        const endAngle = startAngle + 2*Math.PI*pct/100;
+        
+        function interpolateColor(percent) {
+            const startColor = { r: 33, g: 150, b: 243 };
+            const midColor1 = { r: 76, g: 175, b: 80 };
+            const midColor2 = { r: 255, g: 193, b: 7 };
+            const midColor3 = { r: 255, g: 152, b: 0 };
+            const endColor = { r: 244, g: 67, b: 54 };
+            
+            let r, g, b;
+            
+            if (percent <= 0.25) {
+                const t = percent / 0.25;
+                r = Math.round(startColor.r + (midColor1.r - startColor.r) * t);
+                g = Math.round(startColor.g + (midColor1.g - startColor.g) * t);
+                b = Math.round(startColor.b + (midColor1.b - startColor.b) * t);
+            } else if (percent <= 0.5) {
+                const t = (percent - 0.25) / 0.25;
+                r = Math.round(midColor1.r + (midColor2.r - midColor1.r) * t);
+                g = Math.round(midColor1.g + (midColor2.g - midColor1.g) * t);
+                b = Math.round(midColor1.b + (midColor2.b - midColor1.b) * t);
+            } else if (percent <= 0.75) {
+                const t = (percent - 0.5) / 0.25;
+                r = Math.round(midColor2.r + (midColor3.r - midColor2.r) * t);
+                g = Math.round(midColor2.g + (midColor3.g - midColor2.g) * t);
+                b = Math.round(midColor2.b + (midColor3.b - midColor2.b) * t);
+            } else {
+                const t = (percent - 0.75) / 0.25;
+                r = Math.round(midColor3.r + (endColor.r - midColor3.r) * t);
+                g = Math.round(midColor3.g + (endColor.g - midColor3.g) * t);
+                b = Math.round(midColor3.b + (endColor.b - midColor3.b) * t);
+            }
+            
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+        
+        const progressColor = interpolateColor(pct / 100);
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, R, startAngle, endAngle);
+        ctx.strokeStyle = progressColor;
+        ctx.lineWidth = 8;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+    }
+}
+
+function loadStoredData() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const data = JSON.parse(stored);
+            const now = Date.now();
+            
+            if (data.timestamp && (now - data.timestamp) > DATA_MAX_AGE) {
+                localStorage.removeItem(STORAGE_KEY);
+                return null;
+            }
+            
+            cpuData = data.cpuData || [];
+            memoryData = data.memoryData || [];
+            diskData = data.diskData || [];
+            networkData = data.networkData || [];
+            swapData = data.swapData || [];
+            lastSessionEnd = data.lastSessionEnd || null;
+            
+            if (cpuData.length > MAX_DATA_POINTS) cpuData = cpuData.slice(-MAX_DATA_POINTS);
+            if (memoryData.length > MAX_DATA_POINTS) memoryData = memoryData.slice(-MAX_DATA_POINTS);
+            if (diskData.length > MAX_DATA_POINTS) diskData = diskData.slice(-MAX_DATA_POINTS);
+            if (networkData.length > MAX_DATA_POINTS) networkData = networkData.slice(-MAX_DATA_POINTS);
+            if (swapData.length > MAX_DATA_POINTS) swapData = swapData.slice(-MAX_DATA_POINTS);
+            
+            return true;
+        }
+    } catch (e) {
+        console.error('Error loading stored data:', e);
+    }
+    return false;
+}
+
+function saveStoredData() {
+    try {
+        const data = {
+            cpuData: cpuData,
+            memoryData: memoryData,
+            diskData: diskData,
+            networkData: networkData,
+            swapData: swapData,
+            lastSessionEnd: lastSessionEnd,
+            lastMetrics: lastKnownMetrics,
+            lastNginxModules: lastNginxModules,
+            lastPhpModules: lastPhpModules,
+            lastNetworkData: lastKnownNetworkInterfaces,
+            lastDrivesData: lastKnownDrives,
+            lastSmartData: lastKnownSmartData,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.error('Error saving data to localStorage:', e);
+    }
+}
+
+/**
+ * Calculate auto-zoom scale for a given data array
+ * Returns { min, max } with padding for better visualization
+ */
+function calculateAutoZoomScale(data, type) {
+    if (!data || data.length === 0) {
+        return { min: 0, max: type === 'network' ? 100 : 100 };
+    }
+
+    // Filter out break points and get numeric values
+    const values = data.filter(item => !item.isBreak).map(item => item.y);
+
+    if (values.length === 0) {
+        return { min: 0, max: type === 'network' ? 100 : 100 };
+    }
+
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const range = maxVal - minVal;
+
+    if (type === 'cpu') {
+        const upper = Math.min(100, Math.max(10, Math.ceil((maxVal + Math.max(5, range * 0.25)) / 5) * 5));
+        return { min: 0, max: upper };
+    }
+
+    // If all values are the same or very close, create a reasonable range around the value
+    if (range === 0 || range < 1) {
+        const center = maxVal;
+        const spread = Math.max(center * 0.35, type === 'network' ? 1024 : 15);
+        return {
+            min: Math.max(0, center - spread),
+            max: Math.ceil(center + spread)
+        };
+    }
+
+    // Add extra headroom to avoid clipping on smoothed lines
+    const paddingPercent = 0.22;
+    const padding = range * paddingPercent;
+    let newMin = minVal - padding;
+    let newMax = maxVal + padding;
+
+    // Clamp to valid range
+    newMin = Math.max(0, newMin);
+
+    // Ensure minimum spread so chart doesn't look like a "wall"
+    const minSpread = type === 'network' ? 5120 : 20; // At least 5 KB/s or 20%
+    if ((newMax - newMin) < minSpread) {
+        const center = (newMin + newMax) / 2;
+        const halfSpread = minSpread / 2;
+        newMin = Math.max(0, center - halfSpread);
+        newMax = center + halfSpread;
+    }
+
+    // Round to nice numbers for readability
+    if (type === 'network') {
+        // For network, round to nearest KB
+        newMin = Math.max(0, Math.floor(newMin / 1024) * 1024);
+        newMax = Math.ceil(newMax / 1024) * 1024;
+    } else {
+        // For percentage values, round to nearest 5
+        newMin = Math.max(0, Math.floor(newMin / 5) * 5);
+        newMax = Math.ceil(newMax / 5) * 5;
+    }
+
+    // Final guard: keep extra headroom above real max value
+    const requiredMax = maxVal + (type === 'network' ? Math.max(range * 0.1, 256) : Math.max(range * 0.1, 2));
+    if (newMax < requiredMax) {
+        if (type === 'network') {
+            newMax = Math.ceil(requiredMax / 1024) * 1024;
+        } else {
+            newMax = Math.ceil(requiredMax / 5) * 5;
+        }
+    }
+
+    return { min: newMin, max: newMax };
+}
+
+/**
+ * Update auto-zoom scales for all chart types based on current data
+ */
+function updateAutoZoomScales() {
+    autoZoomScales.cpu = calculateAutoZoomScale(cpuData, 'cpu');
+    autoZoomScales.memory = calculateAutoZoomScale(memoryData, 'memory');
+    autoZoomScales.disk = calculateAutoZoomScale(diskData, 'disk');
+    autoZoomScales.swap = calculateAutoZoomScale(swapData, 'swap');
+    autoZoomScales.network = calculateAutoZoomScale(networkData, 'network');
+}
+
+/**
+ * Toggle auto-zoom on/off
+ */
+function toggleAutoZoom() {
+    if (userRole < 2) {
+        alert(translations.ui[lang].access_denied);
+        return;
+    }
+
+    autoZoomEnabled = !autoZoomEnabled;
+    
+    const toggle = document.getElementById('autoZoomToggle');
+    if (autoZoomEnabled) {
+        toggle.classList.add('active');
+        updateAutoZoomScales();
+        // Refresh current chart if modal is open
+        if (graphChart) {
+            const title = document.getElementById('graphTitle').textContent;
+            const typeMap = {
+                '<?= htmlspecialchars($t['cpu_usage']) ?>': 'cpu',
+                '<?= htmlspecialchars($t['memory_usage']) ?>': 'memory',
+                '<?= htmlspecialchars($t['disk_usage']) ?>': 'disk',
+                '<?= htmlspecialchars($t['swap_usage']) ?>': 'swap',
+                '<?= htmlspecialchars($t['network_usage']) ?>': 'network'
+            };
+            for (const [label, type] of Object.entries(typeMap)) {
+                if (title === label) {
+                    openGraphModal(type);
+                    break;
+                }
+            }
+        }
+    } else {
+        toggle.classList.remove('active');
+        // Refresh current chart with fixed scales
+        if (graphChart) {
+            const title = document.getElementById('graphTitle').textContent;
+            const typeMap = {
+                '<?= htmlspecialchars($t['cpu_usage']) ?>': 'cpu',
+                '<?= htmlspecialchars($t['memory_usage']) ?>': 'memory',
+                '<?= htmlspecialchars($t['disk_usage']) ?>': 'disk',
+                '<?= htmlspecialchars($t['swap_usage']) ?>': 'swap',
+                '<?= htmlspecialchars($t['network_usage']) ?>': 'network'
+            };
+            for (const [label, type] of Object.entries(typeMap)) {
+                if (title === label) {
+                    openGraphModal(type);
+                    break;
+                }
+            }
+        }
+    }
+    
+    // Save preference
+    try {
+        localStorage.setItem('autoZoomEnabled', autoZoomEnabled);
+    } catch (e) {}
+}
+
+/**
+ * Get Y-axis scale configuration based on auto-zoom state
+ */
+function getAutoZoomScaleConfig(type) {
+    if (autoZoomEnabled && autoZoomScales[type]) {
+        return {
+            min: autoZoomScales[type].min,
+            max: autoZoomScales[type].max
+        };
+    }
+    
+    // Default fixed scales
+    return {
+        min: 0,
+        max: type === 'network' ? undefined : 100,
+        suggestedMin: 0,
+        suggestedMax: type === 'network' ? undefined : 100
+    };
+}
+
+// Вспомогательная функция для парсинга размера
+function parseB(str) {
+    if (!str) return 0;
+    const units = { 'B': 1, 'KB': 1024, 'MB': 1048576, 'GB': 1073741824, 'TB': 1099511627776 };
+    const match = str.match(/([\d.]+)\s*([KMGT]?B)/i);
+    if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[2].toUpperCase();
+        return value * (units[unit] || 1);
+    }
+    return 0;
+}
+
+// Вспомогательная функция для парсинга скорости сети
+function parseNetworkSpeed(str) {
+    if (!str) return 0;
+    const units = { 'B/s': 1, 'KB/s': 1024, 'MB/s': 1048576, 'GB/s': 1073741824 };
+    const match = str.match(/([\d.]+)\s*([KMGT]?B\/s)/i);
+    if (match) {
+        const value = parseFloat(match[1]);
+        const unit = match[2].toUpperCase();
+        return value * (units[unit] || 1);
+    }
+    return 0;
+}
+
+function addSessionBreakIfNeeded() {
+    if (lastSessionEnd && currentSessionStart) {
+        const breakDuration = currentSessionStart - lastSessionEnd;
+        if (breakDuration > 30000) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function updateConnectionStatus(status, message = '') {
+    const statusEl = document.getElementById('connectionStatus');
+    const textEl = document.getElementById('statusText');
+    const retryEl = document.getElementById('retryCount');
+    
+    if (status === 'connected') {
+        statusEl.style.display = 'none';
+        statusEl.className = 'connection-status connected';
+        retryCount = 0;
+    } else if (status === 'error') {
+        statusEl.style.display = 'block';
+        statusEl.className = 'connection-status error';
+        textEl.textContent = message || translations.ui[lang].connection_error;
+        retryEl.textContent = retryCount > 0 ? ` (${translations.ui[lang].retry} ${retryCount}/${maxRetries})` : '';
+    } else if (status === 'warning') {
+        statusEl.style.display = 'block';
+        statusEl.className = 'connection-status warning';
+        textEl.textContent = message || translations.ui[lang].connection_unstable;
+    }
+}
+
+function filterTable(inpId, bodyId) {
+    const input = document.getElementById(inpId);
+    const searchValue = input.value.toLowerCase();
+    const body = document.getElementById(bodyId);
+    const rows = body.getElementsByTagName('tr');
+    
+    if (inpId === 'nginxSearch') lastNginxSearch = searchValue;
+    if (inpId === 'phpSearch') lastPhpSearch = searchValue;
+    
+    for (let row of rows) {
+        const firstCell = row.cells[0];
+        if (firstCell) {
+            const cellText = firstCell.textContent.toLowerCase();
+            row.style.display = cellText.includes(searchValue) ? '' : 'none';
+        }
+    }
+}
+
+function restoreTableFilter(inpId, bodyId) {
+    const input = document.getElementById(inpId);
+    const searchValue = input.value;
+    
+    if (searchValue) {
+        filterTable(inpId, bodyId);
+    }
+}
+
+async function loadData(forceRefresh = false) {
+    if (isFetching) {
+        fetchQueue.push(loadData);
+        return;
+    }
+    isFetching = true;
+    let timeoutId = null;
+    try {
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), 60000);
+        const url = new URL(serverMonitorUrl.href);
+        url.searchParams.set('t', Date.now());
+        if (forceRefresh) {
+            url.searchParams.set('force_refresh', '1');
+        }
+        const response = await fetch(url.href, {
+            signal: controller.signal,
+            headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+            credentials: 'same-origin',
+            cache: 'no-store'
+        });
+        if (!response.ok && (response.status === 404 || response.status === 0)) {
+            throw new Error('primary_fetch_failed');
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const d = await response.json();
+        if (!d || typeof d !== 'object') {
+            throw new Error('Invalid response format');
+        }
+        updateConnectionStatus('connected');
+        retryCount = 0;
+        handleData(d);
+        saveStoredData();
+        histDataCache = null;
+    } catch (error) {
+        console.error('Error loading data:', error);
+        retryCount++;
+        const shouldUseFallback = error && (error.message === 'primary_fetch_failed' || (error.name === 'TypeError' && retryCount <= 1));
+        if (shouldUseFallback) {
+            try {
+                const fallbackUrl = new URL(serverMonitorFallbackUrl.href);
+                fallbackUrl.searchParams.set('t', Date.now());
+                if (forceRefresh) {
+                    fallbackUrl.searchParams.set('force_refresh', '1');
+                }
+                const fallbackResponse = await fetch(fallbackUrl.href, { credentials: 'same-origin', cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
+                if (fallbackResponse.ok) {
+                    const d = await fallbackResponse.json();
+                    if (d && typeof d === 'object') {
+                        updateConnectionStatus('connected');
+                        retryCount = 0;
+                        handleData(d);
+                        saveStoredData();
+                        histDataCache = null;
+                        return;
+                    }
+                }
+            } catch (fallbackError) {
+                console.error('Fallback fetch failed:', fallbackError);
+            }
+        }
+        const isAbort = error && (error.name === 'AbortError' || String(error).includes('DOMException'));
+        const isFetchFailure = error && (error.name === 'TypeError' || String(error.message || '').toLowerCase().includes('failed to fetch'));
+        const readableMessage = isAbort ? 'Request timed out (60s), retrying...' : isFetchFailure ? 'Connection failed, retrying...' : (error && error.message ? error.message : 'Unknown error');
+        if (retryCount <= maxRetries) {
+            updateConnectionStatus('error', readableMessage);
+            const statusEl = document.getElementById('connectionStatus');
+            if (!document.getElementById('manualRetryBtn')) {
+                const retryBtn = document.createElement('button');
+                retryBtn.id = 'manualRetryBtn';
+                retryBtn.textContent = translations.ui[lang].retry;
+                retryBtn.className = 'btn-secondary';
+                retryBtn.style.marginLeft = '10px';
+                retryBtn.style.padding = '4px 8px';
+                retryBtn.style.fontSize = '12px';
+                retryBtn.onclick = () => {
+                    retryCount = 0;
+                    refreshData();
+                };
+                statusEl.appendChild(retryBtn);
+            }
+            setTimeout(() => {
+                isFetching = false;
+                if (fetchQueue.length > 0) {
+                    const next = fetchQueue.shift();
+                    next();
+                } else {
+                    refreshData();
+                }
+            }, 2000 * retryCount);
+            return;
+        } else {
+            updateConnectionStatus('error', translations.ui[lang].max_retries_reached);
+            const statusEl = document.getElementById('connectionStatus');
+            if (!document.getElementById('manualRetryBtn')) {
+                const retryBtn = document.createElement('button');
+                retryBtn.id = 'manualRetryBtn';
+                retryBtn.textContent = translations.ui[lang].retry;
+                retryBtn.className = 'btn-primary';
+                retryBtn.style.marginLeft = '10px';
+                retryBtn.onclick = () => {
+                    retryCount = 0;
+                    refreshData();
+                };
+                statusEl.appendChild(retryBtn);
+            }
+        }
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+        isFetching = false;
+        if (fetchQueue.length > 0) {
+            const next = fetchQueue.shift();
+            setTimeout(next, 100);
+        }
+    }
+}
+
+function formatNetworkSpeed(bytesPerSec) {
+    if (bytesPerSec === 0) return '0 B/s';
+    
+    const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+    let value = bytesPerSec;
+    let unitIndex = 0;
+    
+    while (value >= 1024 && unitIndex < units.length - 1) {
+        value /= 1024;
+        unitIndex++;
+    }
+    
+    return value.toFixed(1) + ' ' + units[unitIndex];
+}
+
+function handleData(d, isFallback = false) {
+    drawCircle(cpuChart, d.cpu_usage || 0);
+    drawCircle(memChart, d.memory_usage || 0);
+    drawCircle(diskChart, d.disk_usage || 0);
+    drawCircle(swapChart, d.swap_usage || 0);
+    
+    cpuVal.textContent = (d.cpu_usage || 0).toFixed(1) + '%';
+    memVal.textContent = (d.memory_usage || 0).toFixed(1) + '%';
+    diskVal.textContent = (d.disk_usage || 0).toFixed(1) + '%';
+    swapVal.textContent = (d.swap_usage || 0).toFixed(1) + '%';
+    
+    // Сохраняем числовые значения для кэша
+    lastKnownMetrics.cpu_usage = d.cpu_usage || 0;
+    lastKnownMetrics.memory_usage = d.memory_usage || 0;
+    lastKnownMetrics.disk_usage = d.disk_usage || 0;
+    lastKnownMetrics.swap_usage = d.swap_usage || 0;
+    
+    let totalNetworkSpeed = 0;
+    if (d.network_data && Array.isArray(d.network_data)) {
+        d.network_data.forEach(net => {
+            totalNetworkSpeed += (net.total_rate || 0);
+        });
+    }
+    
+    const networkPercent = Math.min((totalNetworkSpeed / 1048576) * 10, 100);
+    drawCircle(networkChart, networkPercent);
+    networkVal.textContent = formatNetworkSpeed(totalNetworkSpeed);
+    
+    // Сохраняем сетевую скорость
+    lastKnownMetrics.network_speed = totalNetworkSpeed;
+    
+    cpuVal.style.color = isFallback ? 'var(--warning-color)' : '';
+    memVal.style.color = isFallback ? 'var(--warning-color)' : '';
+    diskVal.style.color = isFallback ? 'var(--warning-color)' : '';
+    swapVal.style.color = isFallback ? 'var(--warning-color)' : '';
+    networkVal.style.color = isFallback ? 'var(--warning-color)' : '';
+
+    displaySmartData(d.smart || null);
+    
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'});
+    const timestamp = now.getTime();
+    
+    const hasSessionBreak = addSessionBreakIfNeeded();
+    
+    if (hasSessionBreak) {
+        const breakMarker = { x: '— ' + translations.ui[lang].session_break + ' —', y: null, timestamp: lastSessionEnd, isBreak: true };
+        cpuData.push(breakMarker);
+        memoryData.push(breakMarker);
+        diskData.push(breakMarker);
+        swapData.push(breakMarker);
+        networkData.push(breakMarker);
+    }
+    
+    cpuData.push({ x: timeStr, y: d.cpu_usage || 0, timestamp: timestamp });
+    memoryData.push({ x: timeStr, y: d.memory_usage || 0, timestamp: timestamp });
+    diskData.push({ x: timeStr, y: d.disk_usage || 0, timestamp: timestamp });
+    swapData.push({ x: timeStr, y: d.swap_usage || 0, timestamp: timestamp });
+    networkData.push({ x: timeStr, y: totalNetworkSpeed, timestamp: timestamp });
+    
+    if (cpuData.length > MAX_DATA_POINTS) cpuData.shift();
+    if (memoryData.length > MAX_DATA_POINTS) memoryData.shift();
+    if (diskData.length > MAX_DATA_POINTS) diskData.shift();
+    if (swapData.length > MAX_DATA_POINTS) swapData.shift();
+    if (networkData.length > MAX_DATA_POINTS) networkData.shift();
+
+    // Update auto-zoom scales if enabled
+    if (autoZoomEnabled) {
+        updateAutoZoomScales();
+        
+        // Refresh chart if modal is open to apply new scales
+        if (graphChart) {
+            const title = document.getElementById('graphTitle').textContent;
+            const typeMap = {
+                '<?= htmlspecialchars($t['cpu_usage']) ?>': 'cpu',
+                '<?= htmlspecialchars($t['memory_usage']) ?>': 'memory',
+                '<?= htmlspecialchars($t['disk_usage']) ?>': 'disk',
+                '<?= htmlspecialchars($t['swap_usage']) ?>': 'swap',
+                '<?= htmlspecialchars($t['network_usage']) ?>': 'network'
+            };
+            for (const [label, type] of Object.entries(typeMap)) {
+                if (title === label) {
+                    openGraphModal(type);
+                    break;
+                }
+            }
+        }
+    }
+
+    const days = d.uptime?.days || 0;
+    const hours = d.uptime?.hours || 0;
+    const minutes = d.uptime?.minutes || 0;
+    
+    let uptimeStr = '';
+    if (days > 0) {
+        uptimeStr += days + ' ' + translations.days[lang][days === 1 ? 0 : 1] + ', ';
+    }
+    if (hours > 0 || days > 0) {
+        uptimeStr += hours + ' ' + translations.hours[lang][hours === 1 ? 0 : 1] + ', ';
+    }
+    uptimeStr += minutes + ' ' + translations.minutes[lang][minutes === 1 ? 0 : 1];
+    uptimeVal.textContent = uptimeStr || '-';
+    lastKnownMetrics.uptime = uptimeVal.textContent;
+    
+    networkGrid.innerHTML = '';
+    if (d.network_data && Array.isArray(d.network_data) && d.network_data.length > 0) {
+        lastKnownNetworkInterfaces = d.network_data;
+        d.network_data.forEach(net => {
+            networkGrid.insertAdjacentHTML('beforeend', `
+                <div class="network-card">
+                    <h4>${net.name || translations.ui[lang].unknown_interface}</h4>
+                    <div class="network-stats">
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].download}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.bytes_recv_rate || 0)}</span>
+                        </div>
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].upload}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.bytes_sent_rate || 0)}</span>
+                        </div>
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].total}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.total_rate || 0)}</span>
+                        </div>
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].speed}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.speed || 0)}</span>
+                        </div>
+                    </div>
+                </div>`);
+        });
+    } else {
+        networkGrid.innerHTML = '<p class="no-data"><?= htmlspecialchars($t['no_network_data']) ?></p>';
+    }
+    
+    drivesGrid.innerHTML = '';
+    if (d.drives && Array.isArray(d.drives) && d.drives.length > 0) {
+        lastKnownDrives = d.drives;
+        d.drives.forEach(dr => {
+            drivesGrid.insertAdjacentHTML('beforeend', `
+                <div class="drive-card">
+                    <div class="drive-header">
+                        <h3 class="drive-title">${escapeHtml(dr.letter)}</h3>
+                        <span class="drive-type-badge">${escapeHtml(dr.type || '—')}</span>
+                    </div>
+                    <div class="drive-stats-grid">
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['filesystem']) ?></span>
+                            <span class="drive-stat-value mono">${escapeHtml(dr.fs_type || '—')}</span>
+                        </div>
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['source']) ?></span>
+                            <span class="drive-stat-value mono">${escapeHtml(dr.source || '—')}</span>
+                        </div>
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['total_space']) ?></span>
+                            <span class="drive-stat-value">${formatB(dr.total_space)}</span>
+                        </div>
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['free_space']) ?></span>
+                            <span class="drive-stat-value">${formatB(dr.free_space)}</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar"><div class="progress" style="width:${dr.usage_percent}%"></div></div>
+                    <p class="usage-text"><?= htmlspecialchars($t['used']) ?>: ${dr.usage_percent}%</p>
+                </div>`);
+        });
+    } else {
+        drivesGrid.innerHTML = '<p class="no-data"><?= htmlspecialchars($t['no_drives_found']) ?></p>';
+    }
+    
+    if (d.nginx_modules && Array.isArray(d.nginx_modules)) {
+        lastNginxModules = d.nginx_modules;
+        fillTable('nginxBody', d.nginx_modules, 'name', 'status');
+        restoreTableFilter('nginxSearch', 'nginxBody');
+    }
+    
+    if (d.php_modules && Array.isArray(d.php_modules)) {
+        lastPhpModules = d.php_modules;
+        fillTable('phpBody', d.php_modules, 'name', 'status');
+        restoreTableFilter('phpSearch', 'phpBody');
+    }
+    
+    // Сохраняем данные после обработки
+    saveStoredData();
+}
+
+function formatB(b) {
+    if (b === undefined || b === null) return '0 B';
+    const k = 1024;
+    const s = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = Math.floor(Math.log(b) / Math.log(k));
+    i = Math.min(i, s.length - 1);
+    return (b / Math.pow(k, i)).toFixed(1) + ' ' + s[i];
+}
+function formatSmartDate(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts * 1000);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleString();
+}
+
+function formatSmartHours(hours) {
+    if (hours === undefined || hours === null) return '—';
+    const total = Number(hours);
+    if (!Number.isFinite(total)) return '—';
+    const days = Math.floor(total / 24);
+    const remHours = total % 24;
+    if (days <= 0) return `${total} h`;
+    return `${days} d ${remHours} h`;
+}
+
+function formatSmartValue(value, suffix = '') {
+    if (value === undefined || value === null || value === '') return '—';
+    return `${value}${suffix}`;
+}
+
+function smartStatusText(status) {
+    switch (status) {
+        case 'good': return '<?= htmlspecialchars($t['smart_status_good']) ?>';
+        case 'warning': return '<?= htmlspecialchars($t['smart_status_warning']) ?>';
+        case 'critical': return '<?= htmlspecialchars($t['smart_status_critical']) ?>';
+        default: return '<?= htmlspecialchars($t['smart_status_unknown']) ?>';
+    }
+}
+
+function buildSmartNotes(smart) {
+    const notes = [];
+    if (!smart || !smart.available) {
+        if (smart?.message) {
+            notes.push({ level: 'info', text: `${'<?= htmlspecialchars($t['smart_no_data']) ?>'}: ${escapeHtml(String(smart.message))}` });
+        }
+        return notes;
+    }
+    if (smart.health_passed === false) {
+        notes.push({ level: 'critical', text: '<?= htmlspecialchars($t['smart_hint_health_fail']) ?>' });
+    }
+    if ((smart.crc_error_count || 0) > 0) {
+        notes.push({ level: 'warning', text: `<?= htmlspecialchars($t['smart_hint_crc']) ?> (${smart.crc_error_count})` });
+    }
+    if ((smart.error_log_count || 0) > 0) {
+        notes.push({ level: 'critical', text: `<?= htmlspecialchars($t['smart_hint_errors_logged']) ?> (${smart.error_log_count})` });
+    }
+    if ((smart.temperature_c || 0) >= 50) {
+        notes.push({ level: 'warning', text: `<?= htmlspecialchars($t['smart_hint_temp_high']) ?> (${smart.temperature_c}°C)` });
+    }
+    if (smart.life_remaining_percent !== undefined && smart.life_remaining_percent !== null && smart.life_remaining_percent <= 25) {
+        notes.push({ level: smart.life_remaining_percent <= 10 ? 'critical' : 'warning', text: `<?= htmlspecialchars($t['smart_hint_wear_high']) ?> (${smart.life_remaining_percent}%)` });
+    }
+    return notes;
+}
+
+function buildSmartDeviceCard(device) {
+    const notes = buildSmartNotes(device);
+    const tests = Array.isArray(device.self_tests) ? device.self_tests : [];
+    const notesHtml = notes.length > 0 ? `<div class="smart-notes">${notes.map(note => `<div class="smart-note ${note.level}">${note.text}</div>`).join('')}</div>` : '';
+    const testsHtml = tests.length > 0 ? tests.map(test => `
+        <div class="smart-test">
+            <div class="smart-test-top">
+                <span class="smart-test-type">${escapeHtml(test.type || '<?= htmlspecialchars($t['unknown']) ?>')}</span>
+                <span class="smart-test-status">${escapeHtml(test.status || '<?= htmlspecialchars($t['smart_health_unknown']) ?>')}</span>
+            </div>
+            <div class="smart-test-meta">${formatSmartHours(test.lifetime_hours)}${test.remaining_percent !== null && test.remaining_percent !== undefined ? ` • ${test.remaining_percent}% remaining` : ''}</div>
+        </div>`).join('') : `<p class="no-data"><?= htmlspecialchars($t['smart_no_tests']) ?></p>`;
+
+    return `
+        <div class="smart-card">
+            <div class="smart-hero">
+                <div class="smart-meta">
+                    <h3>${escapeHtml(device.model || '<?= htmlspecialchars($t['smart_primary_disk']) ?>')}</h3>
+                    <div class="smart-subtitle">${escapeHtml(device.device || '')}</div>
+                    <div class="smart-subtitle"><?= htmlspecialchars($t['smart_serial']) ?>: ${escapeHtml(device.serial || '—')} • <?= htmlspecialchars($t['smart_firmware']) ?>: ${escapeHtml(device.firmware || '—')}</div>
+                </div>
+                <span class="smart-badge ${escapeHtml(device.status || 'unknown')}">${smartStatusText(device.status)}</span>
+            </div>
+            <div class="smart-updated"><?= htmlspecialchars($t['smart_last_updated']) ?>: ${formatSmartDate(device.updated_at)}</div>
+            <div class="smart-metrics">
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_health']) ?></span><span class="smart-metric-value">${device.health_passed === true ? '<?= htmlspecialchars($t['smart_health_passed']) ?>' : device.health_passed === false ? '<?= htmlspecialchars($t['smart_health_failed']) ?>' : '<?= htmlspecialchars($t['smart_health_unknown']) ?>'}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_wear_used']) ?></span><span class="smart-metric-value">${formatSmartValue(device.wear_used_percent, '%')}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_life_left']) ?></span><span class="smart-metric-value">${formatSmartValue(device.life_remaining_percent, '%')}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_temperature']) ?></span><span class="smart-metric-value">${formatSmartValue(device.temperature_c, '°C')}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_power_on_hours']) ?></span><span class="smart-metric-value">${formatSmartHours(device.power_on_hours)}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_power_cycles']) ?></span><span class="smart-metric-value">${formatSmartValue(device.power_cycle_count)}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_data_written']) ?></span><span class="smart-metric-value">${device.data_written_bytes ? formatB(device.data_written_bytes) : '—'}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_crc_errors']) ?></span><span class="smart-metric-value">${formatSmartValue(device.crc_error_count)}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_error_log']) ?></span><span class="smart-metric-value">${formatSmartValue(device.error_log_count)}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_reallocated']) ?></span><span class="smart-metric-value">${formatSmartValue(device.reallocated_sectors)}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_reserved_blocks']) ?></span><span class="smart-metric-value">${formatSmartValue(device.reserved_block_count)}</span></div>
+                <div class="smart-metric"><span class="smart-metric-label"><?= htmlspecialchars($t['smart_uncorrectable']) ?></span><span class="smart-metric-value">${formatSmartValue(device.uncorrectable_error_count)}</span></div>
+            </div>
+            ${notesHtml}
+            <div class="smart-tests" style="margin-top:16px">
+                <h4><?= htmlspecialchars($t['smart_last_tests']) ?></h4>
+                ${testsHtml}
+            </div>
+        </div>`;
+}
+
+function displaySmartData(smart) {
+    const smartGrid = document.getElementById('smartGrid');
+    if (!smartGrid) return;
+    lastKnownSmartData = smart || null;
+
+    // Determine devices to display
+    let devices = [];
+    let updatedAt = null;
+
+    if (smart && Array.isArray(smart.devices)) {
+        // New format: { devices: [...], updated_at: ... }
+        devices = smart.devices.filter(d => d && d.available);
+        updatedAt = smart.updated_at || null;
+    } else if (smart && smart.available) {
+        // Legacy format: single device object
+        devices = [smart];
+        updatedAt = smart.updated_at || null;
+    }
+
+    if (devices.length === 0) {
+        const updated = updatedAt ? `<div class="smart-updated"><?= htmlspecialchars($t['smart_last_updated']) ?>: ${formatSmartDate(updatedAt)}</div>` : '';
+        smartGrid.innerHTML = `<div class="smart-card"><h3><?= htmlspecialchars($t['smart_primary_disk']) ?></h3><p class="no-data"><?= htmlspecialchars($t['smart_no_data']) ?></p>${updated}</div>`;
+        return;
+    }
+
+    smartGrid.innerHTML = devices.map(device => buildSmartDeviceCard(device)).join('');
+}
+// Функция для отображения последних данных из localStorage при загрузке
+// Функция для отображения последних данных из localStorage при загрузке
+function displayLastKnownData() {
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+            const data = JSON.parse(stored);
+            const now = Date.now();
+            
+            // Проверяем актуальность данных (не старше DATA_MAX_AGE)
+            if (data.timestamp && (now - data.timestamp) <= DATA_MAX_AGE) {
+                // Если есть сохраненные данные, отображаем их
+                if (data.lastMetrics) {
+                    // Обновляем CPU
+                    if (data.lastMetrics.cpu_usage !== undefined) {
+                        const cpuPercent = data.lastMetrics.cpu_usage;
+                        drawCircle(cpuChart, cpuPercent);
+                        cpuVal.textContent = cpuPercent.toFixed(1) + '%';
+                    }
+                    
+                    // Обновляем Memory
+                    if (data.lastMetrics.memory_usage !== undefined) {
+                        const memPercent = data.lastMetrics.memory_usage;
+                        drawCircle(memChart, memPercent);
+                        memVal.textContent = memPercent.toFixed(1) + '%';
+                    }
+                    
+                    // Обновляем Disk
+                    if (data.lastMetrics.disk_usage !== undefined) {
+                        const diskPercent = data.lastMetrics.disk_usage;
+                        drawCircle(diskChart, diskPercent);
+                        diskVal.textContent = diskPercent.toFixed(1) + '%';
+                    }
+                    
+                    // Обновляем Swap
+                    if (data.lastMetrics.swap_usage !== undefined) {
+                        const swapPercent = data.lastMetrics.swap_usage;
+                        drawCircle(swapChart, swapPercent);
+                        swapVal.textContent = swapPercent.toFixed(1) + '%';
+                    }
+                    
+                    // Обновляем Network
+                    if (data.lastMetrics.network_speed !== undefined) {
+                        const networkSpeed = data.lastMetrics.network_speed;
+                        const networkPercent = Math.min((networkSpeed / 1048576) * 10, 100);
+                        drawCircle(networkChart, networkPercent);
+                        networkVal.textContent = formatNetworkSpeed(networkSpeed);
+                    }
+                    
+                    // Обновляем Uptime
+                    if (data.lastMetrics.uptime) {
+                        uptimeVal.textContent = data.lastMetrics.uptime;
+                    }
+                    
+                    // Показываем, что данные загружены из кэша
+                    const statusEl = document.getElementById('connectionStatus');
+                    const textEl = document.getElementById('statusText');
+                    statusEl.style.display = 'block';
+                    statusEl.className = 'connection-status warning';
+                    textEl.textContent = translations.ui[lang].loading_from_cache || 'Loading from cache...';
+                    setTimeout(() => {
+                        if (statusEl.style.display === 'block' && 
+                            statusEl.className === 'connection-status warning' &&
+                            textEl.textContent === (translations.ui[lang].loading_from_cache || 'Loading from cache...')) {
+                            statusEl.style.display = 'none';
+                        }
+                    }, 2000);
+                }
+                
+                // Отображаем сохраненные модули, если они есть
+                const cachedNginxModules = data.lastNginxModules || data.lastApacheModules;
+                if (cachedNginxModules && cachedNginxModules.length > 0) {
+                    lastNginxModules = cachedNginxModules;
+                    fillTable('nginxBody', cachedNginxModules, 'name', 'status');
+                    if (lastNginxSearch) {
+                        filterTable('nginxSearch', 'nginxBody');
+                    }
+                }
+                
+                if (data.lastPhpModules && data.lastPhpModules.length > 0) {
+                    fillTable('phpBody', data.lastPhpModules, 'name', 'status');
+                    if (lastPhpSearch) {
+                        filterTable('phpSearch', 'phpBody');
+                    }
+                }
+                
+                if (data.lastNetworkData && data.lastNetworkData.length > 0) {
+                    displayNetworkData(data.lastNetworkData);
+                }
+                
+                if (data.lastDrivesData && data.lastDrivesData.length > 0) {
+                    displayDrivesData(data.lastDrivesData);
+                }
+
+                if (data.lastSmartData && (data.lastSmartData.available || Array.isArray(data.lastSmartData.devices))) {
+                    displaySmartData(data.lastSmartData);
+                }
+            }
+        }
+    } catch (e) {
+        console.error('Error loading last known data:', e);
+    }
+}
+
+// Функция для отображения сетевых данных
+function displayNetworkData(networkData) {
+    const networkGrid = document.getElementById('networkGrid');
+    networkGrid.innerHTML = '';
+    if (networkData && Array.isArray(networkData) && networkData.length > 0) {
+        networkData.forEach(net => {
+            networkGrid.insertAdjacentHTML('beforeend', `
+                <div class="network-card">
+                    <h4>${escapeHtml(net.name || translations.ui[lang].unknown_interface)}</h4>
+                    <div class="network-stats">
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].download}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.bytes_recv_rate || 0)}</span>
+                        </div>
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].upload}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.bytes_sent_rate || 0)}</span>
+                        </div>
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].total}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.total_rate || 0)}</span>
+                        </div>
+                        <div class="network-stat">
+                            <span class="network-label">${translations.ui[lang].speed}:</span>
+                            <span class="network-value">${formatNetworkSpeed(net.speed || 0)}</span>
+                        </div>
+                    </div>
+                </div>`);
+        });
+    } else {
+        networkGrid.innerHTML = '<p class="no-data"><?= htmlspecialchars($t['no_network_data']) ?></p>';
+    }
+}
+
+// Добавьте вспомогательную функцию для экранирования HTML
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Функция для отображения данных о дисках
+function displayDrivesData(drivesData) {
+    const drivesGrid = document.getElementById('drivesGrid');
+    drivesGrid.innerHTML = '';
+    if (drivesData && Array.isArray(drivesData) && drivesData.length > 0) {
+        drivesData.forEach(dr => {
+            drivesGrid.insertAdjacentHTML('beforeend', `
+                <div class="drive-card">
+                    <div class="drive-header">
+                        <h3 class="drive-title">${escapeHtml(dr.letter)}</h3>
+                        <span class="drive-type-badge">${escapeHtml(dr.type || '—')}</span>
+                    </div>
+                    <div class="drive-stats-grid">
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['filesystem']) ?></span>
+                            <span class="drive-stat-value mono">${escapeHtml(dr.fs_type || '—')}</span>
+                        </div>
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['source']) ?></span>
+                            <span class="drive-stat-value mono">${escapeHtml(dr.source || '—')}</span>
+                        </div>
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['total_space']) ?></span>
+                            <span class="drive-stat-value">${formatB(dr.total_space)}</span>
+                        </div>
+                        <div class="drive-stat-box">
+                            <span class="drive-stat-label"><?= htmlspecialchars($t['free_space']) ?></span>
+                            <span class="drive-stat-value">${formatB(dr.free_space)}</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar"><div class="progress" style="width:${dr.usage_percent}%"></div></div>
+                    <p class="usage-text"><?= htmlspecialchars($t['used']) ?>: ${dr.usage_percent}%</p>
+                </div>`);
+        });
+    } else {
+        drivesGrid.innerHTML = '<p class="no-data"><?= htmlspecialchars($t['no_drives_found']) ?></p>';
+    }
+}
+function fillTable(id, list, nameKey, statusKey) {
+    const body = document.getElementById(id);
+    body.innerHTML = '';
+    
+    if (!Array.isArray(list) || list.length === 0) {
+        body.innerHTML = '<tr><td colspan="2">' + translations.ui[lang].no_data_available + '</td></tr>';
+        return;
+    }
+    
+    list.forEach(m => {
+        const statusClass = m[statusKey] === '<?= $t['loaded'] ?>' ? 'badge' : 'badge badge-not-loaded';
+        const dotClass = m[statusKey] === '<?= $t['loaded'] ?>' ? 'module-status-dot module-status-loaded' : 'module-status-dot module-status-not-loaded';
+        
+        body.insertAdjacentHTML('beforeend', 
+            `<tr><td><span class="${dotClass}"></span>${m[nameKey] || ''}</td>
+             <td><span class="${statusClass}">${m[statusKey] || translations.ui[lang].unknown}</span></td></tr>`);
+    });
+}
+
+function openPhpInfo() {
+    if (userRole < 2) {
+        alert(translations.ui[lang].access_denied);
+        return;
+    }
+    
+    const m = document.getElementById('phpinfoModal'), c = document.getElementById('phpinfoContent');
+    m.style.display = 'block';
+    document.body.classList.add('modal-open');
+    c.innerHTML = '<p style="padding:40px;text-align:center">' + translations.ui[lang].loading_ellipsis + '</p>';
+    
+    fetch('?phpinfo=1&ajax=1').then(r => {
+        if (!r.ok) {
+            throw new Error(translations.ui[lang].access_denied);
+        }
+        return r.json();
+    }).then(d => {
+        c.innerHTML = d.phpinfo || '<p>' + translations.ui[lang].no_data_available + '</p>';
+    }).catch(e => {
+        c.innerHTML = '<p>' + translations.ui[lang].error_loading_phpinfo + ': ' + e.message + '</p>';
+        if (e.message === translations.ui[lang].access_denied) {
+            setTimeout(() => {
+                alert(translations.ui[lang].access_denied + '. ' + 'You do not have permission to view phpinfo.');
+                closePhpInfo();
+            }, 100);
+        }
+    });
+}
+
+function closePhpInfo() {
+    document.getElementById('phpinfoModal').style.display = 'none';
+    document.getElementById('phpinfoContent').innerHTML = '';
+    document.body.classList.remove('modal-open');
+    document.body.classList.remove('light', 'dark');
+    document.body.classList.add(themeClass);
+}
+
+function prepareChartData(data, type, label) {
+    const filteredData = data.filter(item => !item.isBreak);
+    const numericData = filteredData.map(item => item.y);
+    const labels = filteredData.map(item => item.x);
+    
+    const breakIndices = [];
+    data.forEach((item, index) => {
+        if (item.isBreak) {
+            breakIndices.push(index);
+        }
+    });
+    
+    // Создаем основной набор данных
+    const datasets = [{
+        label: type === 'network' ? translations.ui[lang].network_speed : translations.ui[lang].usage,
+        data: numericData,
+        borderColor: primaryColor,
+        backgroundColor: themeClass === 'dark' ? 'rgba(133, 181, 3, 0.2)' : 'rgba(133, 181, 3, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 2,
+        pointHoverRadius: 5
+    }];
+    
+    // Добавляем вертикальные линии для разрывов сессий
+    breakIndices.forEach(breakIndex => {
+        if (breakIndex < filteredData.length) {
+            datasets.push({
+                type: 'line',
+                label: '', // Пустая метка, чтобы не показывать в легенде
+                data: (() => {
+                    // Создаем вертикальную линию
+                    const breakData = [];
+                    for (let i = 0; i < filteredData.length; i++) {
+                        if (i === breakIndex) {
+                            // Добавляем две точки для вертикальной линии
+                            breakData.push({ x: filteredData[i].x, y: 0 });
+                            breakData.push({ x: filteredData[i].x, y: type === 'network' ? Math.max(...numericData) : 100 });
+                            breakData.push({ x: filteredData[i].x, y: null }); // Разрыв
+                        }
+                    }
+                    return breakData;
+                })(),
+                borderColor: 'rgba(255, 0, 0, 0.5)',
+                borderWidth: 1,
+                borderDash: [3, 3],
+                pointRadius: 0,
+                fill: false,
+                spanGaps: true,
+                showLine: true
+            });
+        }
+    });
+    
+    return { labels, datasets };
+}
+
+let histDataCache = null;
+let histDataCacheTime = 0;
+
+async function fetchHistoricalDataIfNeeded() {
+    const now = Date.now();
+    if (histDataCache && (now - histDataCacheTime) < 300000) return histDataCache;
+    try {
+        const url = new URL(window.location.href);
+        url.search = '?monitor_stats=1&period=24h&t=' + now;
+        const resp = await fetch(url.href, { headers: {'Cache-Control': 'no-cache'}, cache: 'no-store', credentials: 'same-origin' });
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.ok) { histDataCache = data; histDataCacheTime = now; }
+        }
+    } catch (e) {}
+    return histDataCache;
+}
+
+async function openGraphModal(type) {
+    if (autoZoomEnabled) {
+        updateAutoZoomScales();
+    }
+
+    const m = document.getElementById('graphModal');
+    const title = document.getElementById('graphTitle');
+    m.style.display = 'block';
+    document.body.classList.add('modal-open');
+
+    const payload = await getGraphPayload(type);
+    if (!payload) {
+        return;
+    }
+    const { data, label, yLabel } = payload;
+    title.textContent = label;
+
+    if (graphChart) {
+        graphChart.destroy();
+        graphChart = null;
+    }
+
+    setTimeout(() => {
+        const canvas = document.getElementById('graphChart');
+        const ctx = canvas.getContext('2d');
+
+        const { labels, datasets } = prepareChartData(data, type, label);
+
+        const textColor = themeClass === 'dark' ? '#f0f0f0' : '#333';
+        const gridColor = themeClass === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+
+        // Get auto-zoom scale config
+        let yScaleConfig;
+        if (autoZoomEnabled && autoZoomScales[type]) {
+            if (type === 'network') {
+                // Network scales are in bytes, convert to KB for display
+                yScaleConfig = {
+                    min: autoZoomScales[type].min / 1024,
+                    max: autoZoomScales[type].max / 1024
+                };
+            } else {
+                // CPU, Memory, Disk, Swap are already in percentage (0-100)
+                yScaleConfig = {
+                    min: autoZoomScales[type].min,
+                    max: autoZoomScales[type].max
+                };
+            }
+        } else {
+            yScaleConfig = {
+                min: 0,
+                max: type === 'network' ? undefined : 100,
+                suggestedMin: 0,
+                suggestedMax: type === 'network' ? undefined : 100
+            };
+        }
+        
+        graphChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: translations.ui[lang].time,
+                            color: textColor,
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: { 
+                            color: textColor,
+                            maxTicksLimit: 12,
+                            maxRotation: 45,
+                            minRotation: 45,
+                            font: { size: 11 }
+                        },
+                        grid: { 
+                            color: gridColor,
+                            drawBorder: false
+                        }
+                    },
+                    y: {
+                        display: true,
+                        beginAtZero: yScaleConfig.min === 0,
+                        title: {
+                            display: true,
+                            text: yLabel,
+                            color: textColor,
+                            font: { size: 14, weight: 'bold' }
+                        },
+                        ticks: {
+                            color: textColor,
+                            callback: function(value) {
+                                if (type === 'network') {
+                                    return value.toFixed(0) + ' KB/s';
+                                }
+                                return value.toFixed(0) + '%';
+                            },
+                            font: { size: 11 }
+                        },
+                        grid: {
+                            color: gridColor,
+                            drawBorder: false
+                        },
+                        min: yScaleConfig.min,
+                        max: yScaleConfig.max
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: { 
+                            color: textColor,
+                            font: { size: 12 },
+                            usePointStyle: true,
+                            filter: function(item, chart) {
+                                // Фильтруем пустые метки (вертикальные линии)
+                                return item.text !== '';
+                            }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: themeClass === 'dark' ? 'rgba(45, 45, 45, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: primaryColor,
+                        borderWidth: 1,
+                        cornerRadius: 6,
+                        callbacks: {
+                            label: function(context) {
+                                if (context.datasetIndex > 0) return null; // Пропускаем вертикальные линии
+                                if (type === 'network') {
+                                    return `${context.dataset.label}: ${formatNetworkSpeed(context.parsed.y * 1024)}`;
+                                }
+                                return `${context.dataset.label}: ${context.parsed.y.toFixed(1)}%`;
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                elements: {
+                    line: {
+                        tension: 0.4
+                    }
+                },
+                animation: {
+                    duration: 750
+                }
+            }
+        });
+    }, 50);
+}
+
+async function getGraphPayload(type) {
+    let data, label, yLabel;
+    if (type === 'cpu') {
+        data = cpuData;
+        label = '<?= htmlspecialchars($t['cpu_usage']) ?>';
+        yLabel = '<?= htmlspecialchars($t['cpu_usage']) ?>';
+    } else if (type === 'memory') {
+        data = memoryData;
+        label = '<?= htmlspecialchars($t['memory_usage']) ?>';
+        yLabel = '<?= htmlspecialchars($t['memory_usage']) ?>';
+    } else if (type === 'disk') {
+        data = diskData;
+        label = '<?= htmlspecialchars($t['disk_usage']) ?>';
+        yLabel = '<?= htmlspecialchars($t['disk_usage']) ?>';
+    } else if (type === 'swap') {
+        data = swapData;
+        label = '<?= htmlspecialchars($t['swap_usage']) ?>';
+        yLabel = '<?= htmlspecialchars($t['swap_usage']) ?>';
+    } else if (type === 'network') {
+        data = networkData.map(item => ({ ...item, y: item.y / 1024 }));
+        label = '<?= htmlspecialchars($t['network_usage']) ?>';
+        yLabel = '<?= htmlspecialchars($t['network_usage']) ?> (KB/s)';
+    } else {
+        return null;
+    }
+    const histData = await fetchHistoricalDataIfNeeded();
+    if (histData && histData.ok && histData.system) {
+        let dbPoints = null;
+        if (type === 'cpu' && (histData.system.cpu_percent || []).length > 0) dbPoints = histData.system.cpu_percent.map(p => ({ x: p.x, y: p.y }));
+        else if (type === 'memory' && (histData.system.memory_percent || []).length > 0) dbPoints = histData.system.memory_percent.map(p => ({ x: p.x, y: p.y }));
+        else if (type === 'disk' && (histData.system.disk_io_percent || []).length > 0) dbPoints = histData.system.disk_io_percent.map(p => ({ x: p.x, y: p.y }));
+        else if (type === 'swap' && (histData.system.swap_percent || []).length > 0) dbPoints = histData.system.swap_percent.map(p => ({ x: p.x, y: p.y }));
+        else if (type === 'network') {
+            const recv = histData.system.network_recv_kbps || [];
+            const sent = histData.system.network_sent_kbps || [];
+            if (recv.length > 0 || sent.length > 0) {
+                const combined = {};
+                recv.forEach(p => { combined[p.x] = (combined[p.x] || 0) + p.y; });
+                sent.forEach(p => { combined[p.x] = (combined[p.x] || 0) + p.y; });
+                dbPoints = Object.entries(combined).map(([x, y]) => ({ x, y }));
+            }
+        }
+        if (dbPoints && dbPoints.length > 0) data = dbPoints;
+    }
+    return { data, label, yLabel };
+}
+
+function createHoverPreview() {
+    if (hoverPreviewEl) return;
+    hoverPreviewEl = document.createElement('div');
+    hoverPreviewEl.className = 'graph-hover-preview';
+    hoverPreviewEl.innerHTML = '<div class="graph-hover-preview-title"></div><div class="graph-hover-preview-canvas-wrap"><canvas id="graphHoverPreviewCanvas"></canvas></div>';
+    document.body.appendChild(hoverPreviewEl);
+    hoverPreviewCanvas = hoverPreviewEl.querySelector('#graphHoverPreviewCanvas');
+}
+
+function moveHoverPreview(clientX, clientY) {
+    if (!hoverPreviewEl) return;
+    const margin = 12;
+    const rect = hoverPreviewEl.getBoundingClientRect();
+    let left = clientX + 16;
+    let top = clientY + 16;
+    if (left + rect.width + margin > window.innerWidth) left = clientX - rect.width - 16;
+    if (top + rect.height + margin > window.innerHeight) top = clientY - rect.height - 16;
+    left = Math.max(margin, left);
+    top = Math.max(margin, top);
+    hoverPreviewEl.style.left = left + 'px';
+    hoverPreviewEl.style.top = top + 'px';
+}
+
+function hideHoverPreview() {
+    if (hoverPreviewChart) {
+        hoverPreviewChart.destroy();
+        hoverPreviewChart = null;
+    }
+    if (hoverPreviewEl) {
+        hoverPreviewEl.classList.remove('visible');
+    }
+}
+
+async function showHoverPreview(type, event) {
+    if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches || window.innerWidth <= 768) return;
+    createHoverPreview();
+    moveHoverPreview(event.clientX, event.clientY);
+    hoverPreviewEl.querySelector('.graph-hover-preview-title').textContent = event.currentTarget.closest('.stat-card')?.querySelector('h3')?.textContent || '';
+    hoverPreviewEl.classList.add('visible');
+    const requestId = ++hoverPreviewRequestId;
+    const payload = await getGraphPayload(type);
+    if (!payload || requestId !== hoverPreviewRequestId || !hoverPreviewEl.classList.contains('visible')) return;
+    const { data } = payload;
+    const chartData = prepareChartData(data, type, '');
+    const textColor = themeClass === 'dark' ? '#f0f0f0' : '#333';
+    const gridColor = themeClass === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)';
+    let yScaleConfig;
+    if (autoZoomEnabled && autoZoomScales[type]) {
+        yScaleConfig = type === 'network' ? { min: autoZoomScales[type].min / 1024, max: autoZoomScales[type].max / 1024 } : { min: autoZoomScales[type].min, max: autoZoomScales[type].max };
+    } else {
+        yScaleConfig = { min: 0, max: type === 'network' ? undefined : 100 };
+    }
+    if (hoverPreviewChart) hoverPreviewChart.destroy();
+    hoverPreviewChart = new Chart(hoverPreviewCanvas.getContext('2d'), {
+        type: 'line',
+        data: { labels: chartData.labels, datasets: chartData.datasets.map((set, idx) => idx === 0 ? set : { ...set, borderWidth: 0.7 }) },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 220 },
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            elements: { point: { radius: 0 } },
+            scales: {
+                x: { ticks: { display: false }, grid: { color: gridColor, drawBorder: false } },
+                y: { ticks: { color: textColor, maxTicksLimit: 4 }, grid: { color: gridColor, drawBorder: false }, min: yScaleConfig.min, max: yScaleConfig.max }
+            }
+        }
+    });
+}
+
+function closeGraphModal() {
+    document.getElementById('graphModal').style.display = 'none';
+    document.body.classList.remove('modal-open');
+    document.body.classList.remove('light', 'dark');
+    document.body.classList.add(themeClass);
+    if (graphChart) {
+        graphChart.destroy();
+        graphChart = null;
+    }
+}
+
+function setActiveMonitorSection(sectionId) {
+    const panels = document.querySelectorAll('[data-section-panel]');
+    const buttons = document.querySelectorAll('[data-section-target]');
+    let resolved = sectionId || 'graphs';
+    const known = new Set(Array.from(panels).map(panel => panel.getAttribute('data-section-panel')));
+    if (!known.has(resolved)) {
+        resolved = 'graphs';
+    }
+    panels.forEach(panel => {
+        panel.classList.toggle('active', panel.getAttribute('data-section-panel') === resolved);
+    });
+    buttons.forEach(button => {
+        const isActive = button.getAttribute('data-section-target') === resolved;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    try {
+        localStorage.setItem(SECTION_STORAGE_KEY, resolved);
+    } catch (e) {}
+}
+
+function restoreActiveMonitorSection() {
+    let sectionId = 'graphs';
+    try {
+        const saved = localStorage.getItem(SECTION_STORAGE_KEY);
+        if (saved) {
+            sectionId = saved;
+        }
+    } catch (e) {}
+    setActiveMonitorSection(sectionId);
+}
+
+function refreshData() {
+    // Сбрасываем счетчик попыток
+    retryCount = 0;
+    
+    // Удаляем кнопку ручного обновления если она есть
+    const manualBtn = document.getElementById('manualRetryBtn');
+    if (manualBtn) {
+        manualBtn.remove();
+    }
+    
+    // Показываем индикатор обновления
+    const statusEl = document.getElementById('connectionStatus');
+    const textEl = document.getElementById('statusText');
+    statusEl.style.display = 'block';
+    statusEl.className = 'connection-status warning';
+    textEl.textContent = translations.ui[lang].refreshing || 'Refreshing...';
+    
+    // Загружаем данные
+    loadData(true);
+}
+function handleBeforeUnload() {
+    lastSessionEnd = Date.now();
+    saveStoredData();
+}
+
+function openSideMenu() {
+    const menu = document.getElementById('sideMenu');
+    const backdrop = document.getElementById('sideMenuBackdrop');
+    menu.classList.add('open');
+    backdrop.classList.add('open');
+    menu.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('side-menu-open');
+}
+
+function closeSideMenu() {
+    const menu = document.getElementById('sideMenu');
+    const backdrop = document.getElementById('sideMenuBackdrop');
+    menu.classList.remove('open');
+    backdrop.classList.remove('open');
+    menu.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('side-menu-open');
+}
+
+document.getElementById('phpinfoModal').addEventListener('click', e => {
+    if (e.target.id === 'phpinfoModal') closePhpInfo();
+});
+
+document.getElementById('graphModal').addEventListener('click', e => {
+    if (e.target.id === 'graphModal') closeGraphModal();
+});
+
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+        closeSideMenu();
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    cpuChart = document.getElementById('cpuChart');
+    memChart = document.getElementById('memChart');
+    diskChart = document.getElementById('diskChart');
+    swapChart = document.getElementById('swapChart');
+    networkChart = document.getElementById('networkChart');
+
+    document.querySelectorAll('[data-section-target]').forEach(button => {
+        button.addEventListener('click', () => setActiveMonitorSection(button.getAttribute('data-section-target')));
+    });
+    restoreActiveMonitorSection();
+
+    // Load auto-zoom preference from localStorage
+    if (userRole >= 2) {
+        try {
+            const savedAutoZoom = localStorage.getItem('autoZoomEnabled');
+            if (savedAutoZoom !== null) {
+                autoZoomEnabled = savedAutoZoom === 'true';
+            }
+        } catch (e) {}
+        
+        // Update toggle button state
+        const toggle = document.getElementById('autoZoomToggle');
+        if (toggle) {
+            if (autoZoomEnabled) {
+                toggle.classList.add('active');
+            } else {
+                toggle.classList.remove('active');
+            }
+        }
+    } else {
+        // Hide toggle for non-admins
+        const toggle = document.getElementById('autoZoomToggle');
+        if (toggle) {
+            toggle.style.display = 'none';
+        }
+    }
+
+    currentSessionStart = Date.now();
+    loadStoredData();
+    
+    // Показываем последние известные данные из кэша
+    displayLastKnownData();
+    
+    drawCircle(cpuChart, 0);
+    drawCircle(memChart, 0);
+    drawCircle(diskChart, 0);
+    drawCircle(swapChart, 0);
+    drawCircle(networkChart, 0);
+    
+    loadData();
+    
+    const intervalId = setInterval(loadData, UPDATE_INTERVAL);
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+    
+    let lastDataCount = {
+        cpu: cpuData.length,
+        memory: memoryData.length,
+        disk: diskData.length,
+        network: networkData.length,
+        swap: swapData.length
+    };
+    
+    setInterval(() => {
+        const changes = {
+            cpu: cpuData.length !== lastDataCount.cpu,
+            memory: memoryData.length !== lastDataCount.memory,
+            disk: diskData.length !== lastDataCount.disk,
+            network: networkData.length !== lastDataCount.network,
+            swap: swapData.length !== lastDataCount.swap
+        };
+        
+        if (changes.cpu || changes.memory || changes.disk || changes.network || changes.swap) {
+            saveStoredData();
+            lastDataCount = {
+                cpu: cpuData.length,
+                memory: memoryData.length,
+                disk: diskData.length,
+                network: networkData.length,
+                swap: swapData.length
+            };
+        }
+    }, 30000);
+    const hoverGraphTargets = [
+        { id: 'cpuChart', type: 'cpu' },
+        { id: 'memChart', type: 'memory' },
+        { id: 'diskChart', type: 'disk' },
+        { id: 'swapChart', type: 'swap' },
+        { id: 'networkChart', type: 'network' }
+    ];
+    hoverGraphTargets.forEach(({ id, type }) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('mouseenter', e => showHoverPreview(type, e));
+        el.addEventListener('mousemove', e => moveHoverPreview(e.clientX, e.clientY));
+        el.addEventListener('mouseleave', hideHoverPreview);
+    });
+    window.addEventListener('scroll', hideHoverPreview, { passive: true });
+    window.addEventListener('resize', hideHoverPreview);
+});
+</script>

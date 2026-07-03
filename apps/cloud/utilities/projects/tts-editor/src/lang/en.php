@@ -1,0 +1,26 @@
+<?php
+
+return array (
+  'title' => 'Text to Speech Editor',
+  'generate_audio' => 'Generate Audio',
+  'stop_generation' => 'Stop Generation',
+  'download_audio' => 'Download Audio',
+  'save_to_server' => 'Save to Server',
+  'close' => 'Close',
+  'text_file' => 'Text File',
+  'generated_audio' => 'Generated Audio',
+  'file_exists' => '✓ File exists',
+  'file_not_found' => '✗ File not found',
+  'starting_generation' => 'Starting audio generation...',
+  'generation_started' => 'Audio generation started!',
+  'generation_completed' => 'Audio generation completed!',
+  'generation_stopped' => 'Audio generation stopped',
+  'waiting_generation' => 'Waiting for generation to start...',
+  'text_placeholder' => 'Text content will appear here...',
+  'select_voice' => 'Select Voice',
+  'select_language' => 'Language',
+  'voice_speed' => 'Speed',
+  'no_audio_yet' => 'No audio generated yet',
+  'generating' => 'Generating...',
+  'error_prefix' => 'Error',
+);

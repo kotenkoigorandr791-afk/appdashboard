@@ -1,0 +1,20 @@
+{
+    "en": "Immich",
+    "ru": "Immich",
+    "uk": "Immich",
+    "be": "Immich",
+    "pl": "Immich",
+    "cs": "Immich",
+    "menu_button": {
+        "left": 7,
+        "top": 12,
+        "width": 36,
+        "height": 36
+    },
+    "menu_button_mobile": {
+        "left": 8,
+        "top": 6,
+        "width": 36,
+        "height": 36
+    }
+}

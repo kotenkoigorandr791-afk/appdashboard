@@ -1,0 +1,28 @@
+<?php
+
+return array (
+  'password_title' => 'PDF is password protected',
+  'password_placeholder' => 'Enter password',
+  'password_error' => 'Incorrect password',
+  'password_attempts' => 'Attempts remaining:',
+  'password_max_attempts' => 'Maximum attempts exceeded',
+  'cancel' => 'Cancel',
+  'ok' => 'OK',
+  'error' => 'Error',
+  'cancelled' => 'Cancelled',
+  'prev_page' => 'Previous page',
+  'next_page' => 'Next page',
+  'zoom_out' => 'Zoom out',
+  'zoom_in' => 'Zoom in',
+  'fit_width' => 'Fit width',
+  'rotate_left' => 'Rotate left',
+  'rotate_right' => 'Rotate right',
+  'page' => 'Page',
+  'of' => 'of',
+  'draw' => 'Draw',
+  'draw_color' => 'Drawing color',
+  'draw_size' => 'Brush size',
+  'clear_drawings' => 'Clear drawings',
+  'undo' => 'Undo',
+  'eraser' => 'Eraser',
+);

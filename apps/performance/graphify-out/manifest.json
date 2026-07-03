@@ -1,0 +1,74 @@
+{
+  "/mnt/server/apps/performance/translations.php": {
+    "mtime": 1782028485.8662667,
+    "hash": "6d69af95f64efae82391ea65b91f50ee"
+  },
+  "/mnt/server/apps/performance/index.php": {
+    "mtime": 1782298418.863054,
+    "hash": "299a98e87c135927db801ac186437db3"
+  },
+  "/mnt/server/apps/performance/monitor_stats.php": {
+    "mtime": 1782298418.984053,
+    "hash": "8ab3e15c411843ac1d82b88af4ac0c4c"
+  },
+  "/mnt/server/apps/performance/server_monitor.php": {
+    "mtime": 1782298418.863054,
+    "hash": "02e141ba62e0c830a6d8e906d3cbc1f1"
+  },
+  "/mnt/server/apps/performance/core/session.php": {
+    "mtime": 1778420143.600379,
+    "hash": "adae5361bf24f846919aa53405b03700"
+  },
+  "/mnt/server/apps/performance/core/db.php": {
+    "mtime": 1782298418.9080536,
+    "hash": "58f293de62ce3fe4cb3bffba0dbce98a"
+  },
+  "/mnt/server/apps/performance/core/monitor_metrics.php": {
+    "mtime": 1782028485.5532691,
+    "hash": "6cf144a58f6249a43bdc8fe483483363"
+  },
+  "/mnt/server/apps/performance/core/helpers.php": {
+    "mtime": 1778420143.602379,
+    "hash": "5313b2c2bc0f472c8af0ec0716f1fd1c"
+  },
+  "/mnt/server/apps/performance/views/scripts_main.php": {
+    "mtime": 1782028485.966266,
+    "hash": "87b17f3c00e8c6286e1ecaae4abf0880"
+  },
+  "/mnt/server/apps/performance/views/scripts_extra.php": {
+    "mtime": 1778420143.596379,
+    "hash": "461e65a788b593db6d9df79221902b4a"
+  },
+  "/mnt/server/apps/performance/views/body.php": {
+    "mtime": 1782028486.304263,
+    "hash": "048510b4dd68a71b33ad60b5af1477fe"
+  },
+  "/mnt/server/apps/performance/views/head.php": {
+    "mtime": 1780427253.1680348,
+    "hash": "d2556ea713435e98a647a25e2f8081d6"
+  },
+  "/mnt/server/apps/performance/controllers/PhpInfoController.php": {
+    "mtime": 1778420143.606379,
+    "hash": "91045ac4d9524cb926fa444077df550f"
+  },
+  "/mnt/server/apps/performance/controllers/MonitorController.php": {
+    "mtime": 1778420143.604379,
+    "hash": "b9e5930ca62915bad9236e0b0e63667e"
+  },
+  "/mnt/server/apps/performance/bin/monitor_collector.php": {
+    "mtime": 1780433758.898563,
+    "hash": "401508d8128be403db268ab575d24619"
+  },
+  "/mnt/server/apps/performance/CLAUDE.md": {
+    "mtime": 1779057626.9930842,
+    "hash": "da79aa9343cd2b362206f03762160abc"
+  },
+  "/mnt/server/apps/performance/icon.svg": {
+    "mtime": 1777886632.1032317,
+    "hash": "41e9e80ed30f2f5bcfd90e59dbe96311"
+  },
+  "/mnt/server/apps/performance/icon.png": {
+    "mtime": 1760873360.0039203,
+    "hash": "4a9952faf980ebfa358ffa62d8721b09"
+  }
+}

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <title>ServerKherson — Secure Cloud Shell</title>
+  <meta name="description" content="ServerKherson is a secure cloud shell platform." />
+  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" href="home.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-left">
+      <button type="button" id="navOpenBtn" class="nav-open-btn" aria-controls="navDrawer" aria-expanded="false" aria-label="Menu">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+      </button>
+      <div class="brand"><h1>ServerKherson</h1></div>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle" id="themeToggle">
+        <button data-theme="dark" class="active">🌙 Dark</button>
+        <button data-theme="light">☀️ Light</button>
+      </div>
+      <div class="lang-selector" id="langSelector">
+        <button class="lang-btn" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="uk">UA</button>
+        <button class="lang-btn" data-lang="ru">RU</button>
+        <button class="lang-btn" data-lang="be">BE</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="heroSection">
+      <h2 data-i18n="hero_title">Secure Cloud Shell Access</h2>
+      <p data-i18n="hero_desc1">ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.</p>
+      <p data-i18n="hero_desc2">We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources.</p>
+      <div class="buttons">
+        <a href="/login" class="btn-primary" id="loginLink" data-i18n="signin">Sign in</a>
+        <a href="/register" class="btn-secondary" id="registerLink" data-i18n="register">Register</a>
+        <a href="/one-time-pin" class="btn-secondary" id="otpLink" data-i18n="otp_button">One Time PIN</a>
+      </div>
+    </section>
+
+    <section class="apps-section" id="appsSection">
+      <h2 class="apps-section-title" data-i18n="features_title">Server applications overview</h2>
+      <div id="portalSpotlight" class="portal-spotlight-host"></div>
+      <p class="apps-sub-heading" data-i18n="apps_heading">Installed applications</p>
+      <div class="features-grid" id="featuresGrid"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <div class="footer-links">
+        <a href="/terms" id="termsLink" data-i18n="terms">Terms of use</a>
+        <span class="dot">•</span>
+        <a href="/privacy" id="privacyLink" data-i18n="privacy">Privacy policy</a>
+      </div>
+      <div>Created by Ihor Kotenko © <span id="year"></span></div>
+      <div class="social-links">
+        <a href="https://www.instagram.com/igor.ktn?igsh=MWdoZjBxenkzZGNkYQ==" target="_blank" class="social-link" title="Instagram">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          Instagram
+        </a>
+        <a href="#" class="social-link" title="Email" id="emailLink">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          Email
+        </a>
+      </div>
+    </div>
+  </footer>
+
+  <div id="navBackdrop" class="nav-backdrop" aria-hidden="true"></div>
+  <aside id="navDrawer" class="nav-drawer" aria-hidden="true" aria-label="Site menu">
+    <div class="nav-drawer-head">
+      <span data-i18n="nav_menu_title">Menu</span>
+      <button type="button" id="navCloseBtn" class="nav-drawer-close" aria-label="Close">&times;</button>
+    </div>
+    <nav class="nav-drawer-links">
+      <button type="button" id="navGoHomeBtn" data-i18n="nav_home">Home</button>
+      <button type="button" id="navGoFeaturesBtn" data-i18n="nav_features">Explore platform capabilities</button>
+    </nav>
+    <div class="nav-drawer-auth">
+      <a href="/login" class="btn-primary" id="drawerLoginLink" data-i18n="signin">Sign in</a>
+      <a href="/register" class="btn-secondary" id="drawerRegisterLink" data-i18n="register">Register</a>
+      <a href="/one-time-pin" class="btn-secondary" id="drawerOtpLink" data-i18n="otp_button">One Time PIN</a>
+    </div>
+  </aside>
+
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+      <h3 id="modalTitle"></h3>
+      <div class="image-gallery" id="modalGallery"></div>
+      <div id="modalDescription"></div>
+    </div>
+  </div>
+
+  <div class="lightbox" id="lightbox">
+    <span class="lightbox-close" id="lightboxClose">&times;</span>
+    <button class="lightbox-prev" id="lightboxPrev">&#10094;</button>
+    <button class="lightbox-next" id="lightboxNext">&#10095;</button>
+    <div class="lightbox-content">
+      <img class="lightbox-img" id="lightboxImg" src="" alt="">
+    </div>
+    <div class="lightbox-counter" id="lightboxCounter"></div>
+  </div>
+
+  <script src="home.js"></script>
+</body>
+</html>

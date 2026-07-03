@@ -1,0 +1,172 @@
+{
+  "communities": {
+    "0": [
+      "core_php",
+      "project_core_ap_i18n_lang_exists",
+      "project_core_ap_sanitize_hex_color",
+      "project_core_clientauthsessionok",
+      "project_core_clientbrowserauthmatches",
+      "project_core_detectdeviceandbrowser",
+      "project_core_formatbytes",
+      "project_core_generateverificationtoken",
+      "project_core_getdevicetheme",
+      "project_core_json_out",
+      "project_core_loginusersession",
+      "project_core_normalizeclientauthcallbackurl",
+      "project_core_removebom",
+      "project_core_setpostloginredirect",
+      "project_core_takepostloginredirect"
+    ],
+    "1": [
+      "bootstrap_php",
+      "project_bootstrap_apsecconvertimagetowebp",
+      "project_bootstrap_apseccsrfcheck",
+      "project_bootstrap_apseccsrftoken",
+      "project_bootstrap_apsecdetectmimefromfile",
+      "project_bootstrap_apsecexpectedhosts",
+      "project_bootstrap_apsecrandomfilename",
+      "project_bootstrap_apsecrequiresameorigin",
+      "project_bootstrap_apsecsafefileext",
+      "project_bootstrap_apsecsameorigin",
+      "project_bootstrap_apsecstoresupportchatmedia"
+    ],
+    "2": [
+      "project_core_buildtelegraminlinekeyboard",
+      "project_core_gettelegramdomain",
+      "project_core_loadauthorizedchats",
+      "project_core_my_htmlspecialchars",
+      "project_core_notifytelegramemailverified",
+      "project_core_notifytelegramfailedauth",
+      "project_core_notifytelegramnewuser",
+      "project_core_sendtelegrammessage",
+      "project_core_sendtelegramphoto"
+    ],
+    "3": [
+      "project_core_collectuserstoragetargets",
+      "project_core_countuserfiles",
+      "project_core_deletedirectory",
+      "project_core_deleteuserfolders",
+      "project_core_getuserfoldervariants",
+      "project_core_scanfilesrecursive",
+      "project_core_scanuserfiles",
+      "project_core_scanuserfilesprogressive"
+    ],
+    "4": [
+      "project_core_createclientbrowserauthrequest",
+      "project_core_ensureclientbrowserauthschema",
+      "project_core_getclientbrowserauthrequest",
+      "project_core_purgeclientbrowserauthrequests"
+    ],
+    "5": [
+      "project_core_sendemailwithlogo",
+      "project_core_sendpasswordresetemail",
+      "project_core_sendverificationemail"
+    ],
+    "6": [
+      "project_core_collectserversecuritymeta",
+      "project_core_failedauthnotifypayload",
+      "project_core_parsejsonclientcontext"
+    ],
+    "7": [
+      "project_core_getactualdisplaytheme",
+      "project_core_getthemeforlinks"
+    ],
+    "8": [
+      "project_core_ap_load_i18n_lang",
+      "project_core_ap_merge_i18n"
+    ],
+    "9": [
+      "project_core_createclientauthtoken",
+      "project_core_ensureclientauthtokensschema"
+    ],
+    "10": [
+      "index_php"
+    ],
+    "11": [
+      "runtime_php"
+    ],
+    "12": [
+      "post_handlers_php"
+    ],
+    "13": [
+      "routes_php"
+    ],
+    "14": [
+      "views_main_php"
+    ]
+  },
+  "cohesion": {
+    "0": 0.13,
+    "1": 0.27,
+    "2": 0.42,
+    "3": 0.29,
+    "4": 0.5,
+    "5": 0.67,
+    "6": 0.67,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0
+  },
+  "gods": [
+    {
+      "id": "project_core_sendtelegrammessage",
+      "label": "sendTelegramMessage()",
+      "degree": 6
+    },
+    {
+      "id": "project_core_collectuserstoragetargets",
+      "label": "collectUserStorageTargets()",
+      "degree": 6
+    },
+    {
+      "id": "project_core_gettelegramdomain",
+      "label": "getTelegramDomain()",
+      "degree": 5
+    },
+    {
+      "id": "project_core_sendtelegramphoto",
+      "label": "sendTelegramPhoto()",
+      "degree": 5
+    },
+    {
+      "id": "project_core_notifytelegramnewuser",
+      "label": "notifyTelegramNewUser()",
+      "degree": 5
+    },
+    {
+      "id": "project_core_my_htmlspecialchars",
+      "label": "my_htmlspecialchars()",
+      "degree": 4
+    },
+    {
+      "id": "project_core_notifytelegramemailverified",
+      "label": "notifyTelegramEmailVerified()",
+      "degree": 4
+    },
+    {
+      "id": "project_core_notifytelegramfailedauth",
+      "label": "notifyTelegramFailedAuth()",
+      "degree": 4
+    },
+    {
+      "id": "project_core_ensureclientbrowserauthschema",
+      "label": "ensureClientBrowserAuthSchema()",
+      "degree": 3
+    },
+    {
+      "id": "project_core_purgeclientbrowserauthrequests",
+      "label": "purgeClientBrowserAuthRequests()",
+      "degree": 3
+    }
+  ],
+  "surprises": [],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

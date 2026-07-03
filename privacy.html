@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <title>Privacy Policy - Shell App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        :root {
+            --bg-light: #f5f5f5; --text-light: #111111;
+            --bg-dark: #121212; --text-dark: #f5f5f5;
+            --accent: #007bff; --card-bg-light: #ffffff;
+            --card-bg-dark: #1e1e1e; --border-light: #dddddd;
+            --border-dark: #333333;
+        }
+        html[data-theme="light"] body {background-color: var(--bg-light); color: var(--text-light);}
+        html[data-theme="dark"] body {background-color: var(--bg-dark); color: var(--text-dark);}
+        html[data-theme="light"] .card {background-color: var(--card-bg-light); border-color: var(--border-light);}
+        html[data-theme="dark"] .card {background-color: var(--card-bg-dark); border-color: var(--border-dark);}
+        body {margin: 0; font-family: system-ui, sans-serif; line-height: 1.6;}
+        header {display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.08); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;}
+        .title {font-size: 1.1rem; font-weight: 600;}
+        .controls {display: flex; gap: 10px; align-items: center;}
+        select, button {border-radius: 999px; border: 1px solid rgba(0,0,0,0.15); padding: 6px 10px; font-size: 0.9rem; background: transparent; color: inherit; cursor: pointer;}
+        button {display: inline-flex; align-items: center; gap: 8px;}
+        button .dot {width: 10px; height: 10px; border-radius: 50%;}
+        .back-home-btn svg {flex-shrink: 0; width: 18px; height: 18px;}
+        .back-home-btn {
+            border: none;
+            color: #fff;
+            background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #000));
+            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+            padding: 7px 14px;
+            font-weight: 600;
+        }
+        .back-home-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+        }
+        main {max-width: 900px; margin: 0 auto; padding: 16px;}
+        .card {border: 1px solid; border-radius: 12px; padding: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); margin-bottom: 20px;}
+        h1 {font-size: 1.6rem; margin-top: 0;}
+        h2 {font-size: 1.1rem; margin-top: 1.8rem; margin-bottom: 12px;}
+        h3 {font-size: 1rem; margin-top: 1.2rem; color: var(--accent);}
+        a {color: var(--accent); text-decoration: none;}
+        a:hover {text-decoration: underline;}
+        ul {padding-left: 20px;}
+        .muted {opacity: 0.7; font-size: 0.85rem;}
+        .feature-list {background: rgba(0,123,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--accent);}
+        html[data-theme="dark"] select {
+            background-color: var(--card-bg-dark);
+            color: var(--text-dark);
+            border-color: var(--border-dark);
+        }
+
+        html[data-theme="dark"] select option {
+            background-color: var(--card-bg-dark);
+            color: var(--text-dark);
+        }
+    </style>
+<link rel="icon" href="privacy-terms.png" type="image/png">
+<link rel="shortcut icon" href="privacy-terms.png" type="image/png">
+<link rel="apple-touch-icon" href="privacy-terms.png">
+</head>
+<body>
+<header>
+    <div class="title" data-i18n="docTitle"></div>
+    <div class="controls">
+        <button type="button" id="backHomeBtn" class="back-home-btn" aria-label="Home">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            <span data-i18n="backHome">Home</span>
+        </button>
+        <select id="languageSelect">
+            <option value="en">EN</option>
+            <option value="ru">RU</option>
+            <option value="uk">UK</option>
+            <option value="be">BE</option>
+        </select>
+        <button type="button" id="themeToggle">
+            <span id="themeLabel"></span>
+            <span class="dot" id="themeDot"></span>
+        </button>
+    </div>
+</header>
+
+<main>
+    <article class="card">
+        <h1 data-i18n="mainTitle"></h1>
+        <p class="muted" data-i18n="lastUpdated"></p>
+
+        <h2 data-i18n="section1Title"></h2>
+        <p data-i18n="section1Text"></p>
+
+        <h2 data-i18n="section2Title"></h2>
+        <p data-i18n="section2Text"></p>
+        <ul>
+            <li data-i18n="section2Item1"></li>
+            <li data-i18n="section2Item2"></li>
+            <li data-i18n="section2Item3"></li>
+            <li data-i18n="section2Item4"></li>
+            <li data-i18n="section2Item5"></li>
+            <li data-i18n="section2Item6"></li>
+        </ul>
+
+        <h2 data-i18n="section3Title"></h2>
+        <div class="feature-list">
+            <h3 data-i18n="section3Sub1"></h3>
+            <p data-i18n="section3Text1"></p>
+            <h3 data-i18n="section3Sub2"></h3>
+            <p data-i18n="section3Text2"></p>
+            <h3 data-i18n="section3Sub3"></h3>
+            <p data-i18n="section3Text3"></p>
+        </div>
+
+        <h2 data-i18n="section4Title"></h2>
+        <p data-i18n="section4Text"></p>
+
+        <h2 data-i18n="section5Title"></h2>
+        <p data-i18n="section5Text"></p>
+
+        <h2 data-i18n="section6Title"></h2>
+        <p data-i18n="section6Text"></p>
+
+        <h2 data-i18n="section7Title"></h2>
+        <p data-i18n="section7Text"></p>
+
+        <p data-i18n="contactText"></p>
+        <p><strong><a href="mailto:home260khersonserver@gmail.com">home260khersonserver@gmail.com</a></strong></p>
+    </article>
+</main>
+
+<script>
+const translations = {
+    en: {
+        docTitle: "Privacy Policy - Shell App",
+        mainTitle: "Privacy Policy",
+        lastUpdated: "Last updated: December 6, 2025",
+        section1Title: "1. Information we collect",
+        section1Text: "Shell App collects personal data to provide secure multi-user access, advanced authentication, comprehensive app management, and personalized user experience.",
+        section2Title: "2. Types of data collected",
+        section2Text: "The service processes the following categories of data for functionality:",
+        section2Item1: "Account information: email address, hashed password, display name, profile photo, user role (root/admin/manager/guest).",
+        section2Item2: "Authentication data: session tokens, Google OAuth tokens, email verification codes, password reset codes.",
+        section2Item3: "Technical data: IP addresses, browser information, device characteristics, connection details.",
+        section2Item4: "Usage statistics: application visit counts, active session tracking, user activity timestamps.",
+        section2Item5: "Personalization settings: preferred language (EN/RU/UK/BE), theme preference (light/dark), custom color scheme.",
+        section2Item6: "Administrative data: blocked applications per user, app access restrictions, session management records.",
+        section3Title: "3. Service features and data usage",
+        section3Sub1: "Multi-user management with role-based access control",
+        section3Text1: "Root users can manage all accounts, sessions, and service settings. Admin/Manager users have limited administrative capabilities. Guest users access only permitted applications.",
+        section3Sub2: "Advanced personalization system",
+        section3Text2: "Users can customize interface with 4 languages, light/dark themes, and custom accent colors. Theme and language preferences saved per user.",
+        section3Sub3: "Comprehensive session management",
+        section3Text3: "Active sessions tracked with real-time activity. Users can terminate their own sessions. Root users can manage all active sessions across the platform.",
+        section4Title: "4. Data processing purposes",
+        section4Text: "All data processed for authentication, authorization, personalization, security, service improvement, statistics collection, and email notifications (verification, password reset).",
+        section5Title: "5. Data security measures",
+        section5Text: "Passwords stored with strong hashing. Sessions use secure tokens with activity tracking. Profile photos processed securely. Access strictly controlled by user roles.",
+        section6Title: "6. Third-party integrations",
+        section6Text: "Google OAuth for alternative authentication. SMTP services for email verification and password recovery. No advertising trackers or analytics services used.",
+        section7Title: "7. User rights and controls",
+        section7Text: "Users can update profile information, change passwords, customize theme/color settings, manage own sessions. Root users control all accounts. Account deletion available (root cannot delete own account).",
+        contactText: "For data access, correction, deletion requests, or privacy questions, contact:",
+        backHome: "Home"
+    },
+    ru: {
+        docTitle: "Политика конфиденциальности - Shell App",
+        mainTitle: "Политика конфиденциальности",
+        lastUpdated: "Дата обновления: 6 декабря 2025",
+        section1Title: "1. Собираемая информация",
+        section1Text: "Shell App собирает персональные данные для обеспечения безопасного многопользовательского доступа, расширенной авторизации, комплексного управления приложениями и персонализированного пользовательского опыта.",
+        section2Title: "2. Типы собираемых данных",
+        section2Text: "Сервис обрабатывает следующие категории данных для обеспечения функциональности:",
+        section2Item1: "Информация аккаунта: адрес email, хеш пароля, отображаемое имя, фото профиля, роль пользователя (root/админ/менеджер/гость).",
+        section2Item2: "Данные авторизации: токены сессий, Google OAuth токены, коды верификации email, коды сброса пароля.",
+        section2Item3: "Технические данные: IP-адреса, информация о браузере, характеристики устройства, данные подключения.",
+        section2Item4: "Статистика использования: количество посещений приложений, отслеживание активных сессий, временные метки активности.",
+        section2Item5: "Настройки персонализации: предпочитаемый язык (EN/RU/UK/BE), выбор темы (светлая/темная), пользовательская цветовая схема.",
+        section2Item6: "Административные данные: заблокированные приложения для каждого пользователя, ограничения доступа к приложениям, записи управления сессиями.",
+        section3Title: "3. Функции сервиса и использование данных",
+        section3Sub1: "Многопользовательское управление с контролем доступа по ролям",
+        section3Text1: "Root-пользователи управляют всеми аккаунтами, сессиями и настройками сервиса. Админы/менеджеры имеют ограниченные административные возможности. Гости получают доступ только к разрешенным приложениям.",
+        section3Sub2: "Расширенная система персонализации",
+        section3Text2: "Пользователи могут настраивать интерфейс с 4 языками, светлой/темной темой и пользовательскими цветовыми акцентами. Предпочтения темы и языка сохраняются индивидуально для каждого пользователя.",
+        section3Sub3: "Комплексное управление сессиями",
+        section3Text3: "Активные сессии отслеживаются в реальном времени с фиксацией активности. Пользователи могут завершать свои сессии. Root-пользователи управляют всеми активными сессиями платформы.",
+        section4Title: "4. Цели обработки данных",
+        section4Text: "Все данные обрабатываются для авторизации, персонализации, обеспечения безопасности, улучшения сервиса, сбора статистики и отправки email-уведомлений (верификация, сброс пароля).",
+        section5Title: "5. Меры безопасности данных",
+        section5Text: "Пароли хранятся с сильным хешированием. Сессии используют защищенные токены с отслеживанием активности. Фото профилей обрабатываются безопасно. Доступ строго контролируется ролями пользователей.",
+        section6Title: "6. Интеграции с третьими сторонами",
+        section6Text: "Google OAuth для альтернативной авторизации. SMTP-сервисы для верификации email и восстановления пароля. Рекламные трекеры и аналитические сервисы не используются.",
+        section7Title: "7. Права и возможности пользователей",
+        section7Text: "Пользователи могут обновлять профиль, менять пароли, настраивать тему/цвета, управлять своими сессиями. Root-пользователи контролируют все аккаунты. Удаление аккаунта доступно (root не может удалить свой).",
+        contactText: "Для запросов на доступ, исправление, удаление данных или вопросов конфиденциальности обращайтесь:",
+        backHome: "← На главную"
+    },
+    uk: {
+        docTitle: "Політика конфіденційності - Shell App",
+        mainTitle: "Політика конфіденційності",
+        lastUpdated: "Дата оновлення: 6 грудня 2025",
+        section1Title: "1. Збирана інформація",
+        section1Text: "Shell App збирає персональні дані для безпечного багатопользовательського доступу, розширеної авторизації, комплексного керування додатками та персоналізованого досвіду.",
+        section2Title: "2. Типи даних",
+        section2Text: "Сервіс обробляє такі категорії даних:",
+        section2Item1: "Дані акаунту: email, хеш пароля, ім'я, фото профілю, роль (root/адмін/менеджер/гість).",
+        section2Item2: "Дані авторизації: токени сесій, Google OAuth, коди верифікації/скидання.",
+        section2Item3: "Технічні дані: IP, браузер, пристрій, підключення.",
+        section2Item4: "Статистика: відвідування додатків, активні сесії, активність.",
+        section2Item5: "Персоналізація: мова (EN/RU/UK/BE), тема (світла/темна), кольори.",
+        section2Item6: "Адмін: заблоковані додатки, обмеження, сесії.",
+        section3Title: "3. Функції та дані",
+        section3Sub1: "Багатопользовательське керування ролями",
+        section3Text1: "Root керує всім. Адмін/менеджер - обмежено. Гість - тільки додатки.",
+        section3Sub2: "Персоналізація інтерфейсу",
+        section3Text2: "4 мови, світла/темна тема, кольори. Налаштування зберігаються.",
+        section3Sub3: "Керування сесіями",
+        section3Text3: "Реальний час активності. Користувачі керують своїми сесіями. Root - всі.",
+        section4Title: "4. Мети обробки",
+        section4Text: "Авторизація, персоналізація, безпека, статистика, email-сповіщення.",
+        section5Title: "5. Безпека",
+        section5Text: "Хешування паролів, захищені токени, контроль ролей.",
+        section6Title: "6. Треті сторони",
+        section6Text: "Google OAuth, SMTP. Без реклами/аналітики.",
+        section7Title: "7. Права користувачів",
+        section7Text: "Профіль, пароль, тема, сесії. Root контролює все. Видалення акаунтів.",
+        contactText: "Запити на доступ/видалення даних:",
+        backHome: "← На головну"
+    },
+    be: {
+        docTitle: "Палітыка канфідэнцыяльнасці - Shell App",
+        mainTitle: "Палітыка канфідэнцыяльнасці",
+        lastUpdated: "Дата абнаўлення: 6 снежня 2025",
+        section1Title: "1. Збіраемая інфармацыя",
+        section1Text: "Shell App збірае дадзеныя для бяспечнага мнагакарыстальніцкага доступу, аўтарызацыі, ўправання прыкладамі і персаналізацыі.",
+        section2Title: "2. Тыпы дадзеных",
+        section2Text: "Сэрвіс апрацоўвае наступныя катэгорыі:",
+        section2Item1: "Дадзеныя ўліку: email, хэш пароля, імя, фота, роля.",
+        section2Item2: "Аўтарызацыя: токены, Google OAuth, коды.",
+        section2Item3: "Тэхніка: IP, браўзэр, прылад.",
+        section2Item4: "Статыстыка: наведанні, сэсіі, актыўнасць.",
+        section2Item5: "Перасоналізацыя: моўа, тэма, колер.",
+        section2Item6: "Адмін: блакаванне, абмежаванні, сэсіі.",
+        section3Title: "3. Функцыі сэрвісу",
+        section3Sub1: "Мнагакарыстальніцкае ўправанне",
+        section3Text1: "Root - усе правы. Адмін/менеджэр - абмежавана. Гашч - прыклады.",
+        section3Sub2: "Перасоналізацыя",
+        section3Text2: "4 моўы, тэмы, колеры. Налады змархоўваюцца.",
+        section3Sub3: "Сэсіі",
+        section3Text3: "Актыўнасць у рэальным часе. Карыстальнікі - свае сэсіі. Root - усе.",
+        section4Title: "4. Мэты апрацоўкі",
+        section4Text: "Аўтарызацыя, бяспека, статыстыка, спавешчанні.",
+        section5Title: "5. Бяспека",
+        section5Text: "Хэшаванне, токены, кантроль роляў.",
+        section6Title: "6. Стороннія сэрвісы",
+        section6Text: "Google OAuth, SMTP. Без рэкламы.",
+        section7Title: "7. Правы карыстальнікаў",
+        section7Text: "Профіль, пароль, тэма, сэсіі. Root кантралюе ўсё.",
+        contactText: "Запрасы па дадзеных:",
+        backHome: "← На галоўную"
+    }
+};
+const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}};
+const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), themeLabel = document.getElementById("themeLabel"), themeDot = document.getElementById("themeDot"), backHomeBtn = document.getElementById("backHomeBtn");
+
+// Функция проверки валидности цвета
+function isValidColor(color) {
+    if (!color) return false;
+    // Проверка HEX цвета (#RGB или #RRGGBB)
+    const hexPattern = /^#([A-Fa-f0-9]{3}){1,2}$/;
+    return hexPattern.test(color);
+}
+
+// Функция получения параметров из URL
+function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    return {
+        lang: params.get('lang'),
+        theme: params.get('theme'),
+        color: params.get('color')
+    };
+}
+
+// Функция определения языка (приоритет: URL > localStorage > default)
+function getInitialLanguage(urlLang) {
+    if (urlLang && ['en', 'ru', 'uk', 'be'].includes(urlLang)) {
+        localStorage.setItem("doc_lang", urlLang);
+        return urlLang;
+    }
+    return localStorage.getItem("doc_lang") || "en";
+}
+
+// Функция определения темы (приоритет: URL > localStorage > default)
+function getInitialTheme(urlTheme) {
+    if (urlTheme && ['light', 'dark'].includes(urlTheme)) {
+        localStorage.setItem("doc_theme", urlTheme);
+        return urlTheme;
+    }
+    return localStorage.getItem("doc_theme") || "light";
+}
+
+// Функция определения цвета (приоритет: URL > localStorage)
+function getInitialColor(urlColor) {
+    if (urlColor && isValidColor(urlColor)) {
+        localStorage.setItem("doc_color", urlColor);
+        return urlColor;
+    }
+    return localStorage.getItem("doc_color") || "#007bff";
+}
+
+// Функция применения цвета
+function applyColor(color) {
+    document.documentElement.style.setProperty('--accent', color);
+    // Обновляем цвет в feature-list background (rgba версия)
+    const rgb = hexToRgb(color);
+    if (rgb) {
+        document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
+        // Обновляем background для feature-list если нужно
+        const featureLists = document.querySelectorAll('.feature-list');
+        featureLists.forEach(el => {
+            el.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`;
+        });
+    }
+}
+
+// Функция конвертации HEX в RGB
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+// Функция обновления URL с текущими параметрами
+function updateUrlParams(lang, theme, color) {
+    const url = new URL(window.location);
+    url.searchParams.set('lang', lang);
+    url.searchParams.set('theme', theme);
+    if (color) {
+        url.searchParams.set('color', color);
+    }
+    window.history.replaceState({}, '', url);
+}
+
+// Обновленная функция загрузки настроек
+function loadSettings() {
+    const urlParams = getUrlParams();
+    const initialLang = getInitialLanguage(urlParams.lang);
+    const initialTheme = getInitialTheme(urlParams.theme);
+    const initialColor = getInitialColor(urlParams.color);
+    
+    document.documentElement.lang = initialLang;
+    document.documentElement.setAttribute("data-theme", initialTheme);
+    languageSelect.value = initialLang;
+    
+    applyTranslations(initialLang);
+    applyThemeLabel(initialLang, initialTheme);
+    themeDot.style.backgroundColor = initialTheme === "dark" ? "#ffd54f" : "#222222";
+    applyColor(initialColor);
+    
+    // Обновляем URL, если параметры не совпадают или отсутствуют
+    if (urlParams.lang !== initialLang || urlParams.theme !== initialTheme || urlParams.color !== initialColor) {
+        updateUrlParams(initialLang, initialTheme, initialColor);
+    }
+}
+
+// Функции переводов
+function applyTranslations(lang) {
+    const dict = translations[lang] || translations.en;
+    document.querySelectorAll("[data-i18n]").forEach(el => {
+        const key = el.getAttribute("data-i18n");
+        if (dict[key]) el.textContent = dict[key];
+    });
+}
+
+function applyThemeLabel(lang, theme) {
+    const labels = themeLabels[lang] || themeLabels.en;
+    themeLabel.textContent = labels[theme];
+}
+
+// Обработчик языка
+languageSelect.addEventListener("change", () => {
+    const lang = languageSelect.value;
+    const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
+    const currentColor = localStorage.getItem("doc_color") || "#007bff";
+    
+    localStorage.setItem("doc_lang", lang);
+    document.documentElement.lang = lang;
+    applyTranslations(lang);
+    applyThemeLabel(lang, currentTheme);
+    updateUrlParams(lang, currentTheme, currentColor);
+});
+
+// Обработчик темы
+themeToggle.addEventListener("click", () => {
+    const current = document.documentElement.getAttribute("data-theme") || "light";
+    const next = current === "light" ? "dark" : "light";
+    const currentLang = languageSelect.value;
+    const currentColor = localStorage.getItem("doc_color") || "#007bff";
+    
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("doc_theme", next);
+    applyThemeLabel(currentLang, next);
+    themeDot.style.backgroundColor = next === "dark" ? "#ffd54f" : "#222222";
+    updateUrlParams(currentLang, next, currentColor);
+});
+
+backHomeBtn.addEventListener("click", () => {
+    const urlParams = getUrlParams();
+    const lang = getInitialLanguage(urlParams.lang);
+    const theme = getInitialTheme(urlParams.theme);
+    const color = getInitialColor(urlParams.color);
+    window.location.href = `/home.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+});
+
+loadSettings();
+</script>
+</body>
+</html>

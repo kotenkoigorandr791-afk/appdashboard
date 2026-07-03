@@ -1,0 +1,7 @@
+Code compilation rules (Python, C, C++, Java, MATLAB):
+
+1. Edit the file first with write_file, search_replace, or apply_editor_patch. compile_and_check does not save changes by itself.
+2. After every edit to .py, .c, .cpp, or .java, call verify_syntax (local syntax check, no full run) then compile_and_check when execution is needed.
+3. If verify_syntax reports blocked_security, remove all dangerous constructs from the file before any compile.
+4. If verify_syntax or compile_and_check returns errors, fix the file and repeat until success or you need user input.
+5. Never ignore compiler or interpreter errors. Quote the relevant error lines when explaining fixes.

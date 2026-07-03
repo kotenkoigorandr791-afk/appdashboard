@@ -1,0 +1,10 @@
+@media (max-width:768px),(pointer:coarse){
+html.mobile-browser-chrome-active.mobile-browser-chrome-top-level,
+html.mobile-browser-chrome-active.mobile-browser-chrome-top-level body{
+overflow:hidden!important;height:100%!important;max-height:100dvh!important;position:fixed!important;width:100%!important;touch-action:manipulation;overscroll-behavior:none;}
+html.mobile-browser-chrome-active.mobile-browser-chrome-top-level .mobile-vv-fill{
+position:fixed!important;box-sizing:border-box;top:var(--visual-viewport-offset-top,0px)!important;
+left:var(--visual-viewport-offset-left,0px)!important;width:var(--visual-viewport-width,100%)!important;
+height:var(--visual-viewport-height,100dvh)!important;max-height:var(--visual-viewport-height,100dvh)!important;min-height:0!important;}
+html.mobile-browser-chrome-active.mobile-browser-chrome-top-level body.shell-app-open #content.mobile-vv-shell{overflow:hidden;}
+}

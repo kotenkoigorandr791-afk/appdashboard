@@ -1,0 +1,14 @@
+{
+    "user_info": "User Info",
+    "current_user": "Current User",
+    "role": "Role",
+    "access_level": "Access Level",
+    "full_access": "Full Access",
+    "manager_access": "Manager Access",
+    "read_only": "Read Only",
+    "guest": "Guest",
+    "manager": "Manager",
+    "admin": "Administrator",
+    "clipboard_error": "Error pasting from clipboard. Please try using file upload.",
+    "session_id": "Session ID"
+}

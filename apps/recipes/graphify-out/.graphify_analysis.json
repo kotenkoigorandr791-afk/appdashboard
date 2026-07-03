@@ -1,0 +1,260 @@
+{
+  "communities": {
+    "0": [
+      "core_ai_php",
+      "core_ai_recipes_ai_build_steps_from_json",
+      "core_ai_recipes_ai_chat",
+      "core_ai_recipes_ai_download_image",
+      "core_ai_recipes_ai_execute_tool",
+      "core_ai_recipes_ai_extract_json",
+      "core_ai_recipes_ai_find_product_by_name",
+      "core_ai_recipes_ai_generate_json",
+      "core_ai_recipes_ai_json_out",
+      "core_ai_recipes_ai_json_system_prompt",
+      "core_ai_recipes_ai_json_to_draft",
+      "core_ai_recipes_ai_message_text",
+      "core_ai_recipes_ai_normalize_draft",
+      "core_ai_recipes_ai_public_config",
+      "core_ai_recipes_ai_require_role",
+      "core_ai_recipes_ai_search_image",
+      "core_ai_recipes_ai_search_recipe_image",
+      "core_ai_recipes_ai_tool_definitions",
+      "core_ai_recipes_ai_url_fetch_safe",
+      "core_ai_recipes_ai_verify_image_choice",
+      "core_ai_recipes_ai_wikimedia_candidates"
+    ],
+    "1": [
+      "core_ai_agent_recipes_ai_apply_product_decisions",
+      "core_ai_recipes_ai_create_product",
+      "core_ai_recipes_ai_make_placeholder_image",
+      "core_ai_recipes_ai_save_draft",
+      "core_image_php",
+      "core_image_recipes_backfill_product_previews",
+      "core_image_recipes_gd_open_image",
+      "core_image_recipes_load_product_row",
+      "core_image_recipes_product_preview_refresh",
+      "core_image_recipes_product_thumb_public_path",
+      "core_image_recipes_save_product_json",
+      "core_image_recipes_write_product_preview_webp",
+      "core_translate_php",
+      "core_translate_translate_text"
+    ],
+    "2": [
+      "core_ai_agent_php",
+      "core_ai_agent_recipes_ai_agent_system_prompt",
+      "core_ai_agent_recipes_ai_agent_tools",
+      "core_ai_agent_recipes_ai_build_steps_from_ingredients_json",
+      "core_ai_agent_recipes_ai_find_product_exact",
+      "core_ai_agent_recipes_ai_match_draft_products",
+      "core_ai_agent_recipes_ai_run_agent",
+      "core_ai_agent_recipes_ai_run_agent_stream",
+      "core_ai_agent_recipes_ai_stream_event",
+      "core_ai_agent_recipes_ai_stream_headers",
+      "core_ai_agent_recipes_ai_submit_args_to_json",
+      "core_ai_recipes_ai_search_products_sqlite",
+      "core_image_recipes_normalize_product_name",
+      "core_image_recipes_product_name_exists"
+    ],
+    "3": [
+      "bg_remove_py",
+      "recipes_bg_remove_border_connected_mask",
+      "recipes_bg_remove_build_alpha_mask",
+      "recipes_bg_remove_downscale_for_processing",
+      "recipes_bg_remove_fill_holes",
+      "recipes_bg_remove_keep_largest_center_components",
+      "recipes_bg_remove_keep_main_components",
+      "recipes_bg_remove_mahalanobis_map",
+      "recipes_bg_remove_main",
+      "recipes_bg_remove_rgb_to_hsv_features",
+      "recipes_remove_background_bg_fail",
+      "remove_background_php"
+    ],
+    "4": [
+      "core_db_getdb",
+      "core_db_php",
+      "core_session_getuserrolebyemail",
+      "core_session_php",
+      "fetch_image_url_php",
+      "recipes_fetch_image_url_recipes_resolve_session_role",
+      "recipes_fetch_image_url_recipes_url_fetch_safe"
+    ],
+    "5": [
+      "core_schema_migratejsontosqlite",
+      "core_schema_php",
+      "core_schema_recipes_ensure_products_image_preview_column",
+      "core_schema_recipes_ensure_steps_table"
+    ],
+    "6": [
+      "models_recipe_getallproductsfromdb",
+      "models_recipe_getallrecipesfromdb",
+      "models_recipe_getrecipefromdb",
+      "models_recipe_php"
+    ],
+    "7": [
+      "translate_api_php"
+    ],
+    "8": [
+      "index_php"
+    ],
+    "9": [
+      "styles_php"
+    ],
+    "10": [
+      "recipes_ai_php"
+    ],
+    "11": [
+      "core_init_php"
+    ],
+    "12": [
+      "core_post_init_php"
+    ],
+    "13": [
+      "views_body_php"
+    ],
+    "14": [
+      "views_scripts_php"
+    ],
+    "15": [
+      "views_head_php"
+    ],
+    "16": [
+      "controllers_post_handlers_php"
+    ],
+    "17": [
+      "controllers_get_handlers_php"
+    ]
+  },
+  "cohesion": {
+    "0": 0.18,
+    "1": 0.24,
+    "2": 0.29,
+    "3": 0.3,
+    "4": 0.43,
+    "5": 0.83,
+    "6": 0.5,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0
+  },
+  "gods": [
+    {
+      "id": "core_ai_recipes_ai_create_product",
+      "label": "recipes_ai_create_product()",
+      "degree": 12
+    },
+    {
+      "id": "core_ai_agent_recipes_ai_run_agent",
+      "label": "recipes_ai_run_agent()",
+      "degree": 12
+    },
+    {
+      "id": "recipes_bg_remove_build_alpha_mask",
+      "label": "build_alpha_mask()",
+      "degree": 8
+    },
+    {
+      "id": "core_image_recipes_load_product_row",
+      "label": "recipes_load_product_row()",
+      "degree": 7
+    },
+    {
+      "id": "core_ai_recipes_ai_search_products_sqlite",
+      "label": "recipes_ai_search_products_sqlite()",
+      "degree": 7
+    },
+    {
+      "id": "core_ai_recipes_ai_search_image",
+      "label": "recipes_ai_search_image()",
+      "degree": 6
+    },
+    {
+      "id": "core_ai_recipes_ai_normalize_draft",
+      "label": "recipes_ai_normalize_draft()",
+      "degree": 6
+    },
+    {
+      "id": "core_image_recipes_backfill_product_previews",
+      "label": "recipes_backfill_product_previews()",
+      "degree": 5
+    },
+    {
+      "id": "core_ai_recipes_ai_download_image",
+      "label": "recipes_ai_download_image()",
+      "degree": 5
+    },
+    {
+      "id": "core_ai_recipes_ai_search_recipe_image",
+      "label": "recipes_ai_search_recipe_image()",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "recipes_resolve_session_role()",
+      "target": "getDB()",
+      "source_files": [
+        "fetch_image_url.php",
+        "core/db.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "recipes_resolve_session_role()",
+      "target": "getUserRoleByEmail()",
+      "source_files": [
+        "fetch_image_url.php",
+        "core/session.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "why": "connects across different repos/directories"
+    },
+    {
+      "source": "recipes_ai_normalize_draft()",
+      "target": "recipes_load_product_row()",
+      "source_files": [
+        "core/ai.php",
+        "core/image.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "recipes_ai_match_draft_products()",
+      "target": "recipes_load_product_row()",
+      "source_files": [
+        "core/ai_agent.php",
+        "core/image.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "recipes_backfill_product_previews()",
+      "target": "recipes_ensure_products_image_preview_column()",
+      "source_files": [
+        "core/image.php",
+        "core/schema.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

@@ -1,0 +1,5 @@
+Markdown workspace:
+
+1. Use standard Markdown headings, lists, and code fences consistent with the file.
+2. For PDF export on the server, use export_markdown_pdf after saving if the user asks.
+3. Do not apply LaTeX-only or compiled-language rules unless editing a different file type.

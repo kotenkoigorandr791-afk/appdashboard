@@ -1,0 +1,7 @@
+Server safety for executable code (Python, C, C++, Java, MATLAB):
+
+1. Never write code that can harm the server or leave the user's project directory: no shell commands, no killing processes, no deleting arbitrary paths, no network servers, no eval/exec of untrusted strings.
+2. Forbidden patterns include: os.system, subprocess, popen, system(), exec*, fork, Runtime.exec, ProcessBuilder, shutil.rmtree, os.remove/unlink on paths outside the project, signal kills, raw sockets for servers.
+3. If the user asks for such behavior, refuse and offer a safe alternative inside the project sandbox.
+4. Before compile_and_check on code files, call verify_syntax. If verify_syntax reports blocked_security or syntax errors, fix the file with an edit tool and run verify_syntax again.
+5. compile_and_check will refuse to run if dangerous patterns remain — remove them from the file; do not try to compile until clean.

@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recipes Instructions</title>
+
+  <style>
+    :root { --sidebar-width: 290px; --radius: 14px; }
+
+    body.theme-dark {
+      --bg: #0a0a0d; --panel: rgba(20, 20, 24, 0.88); --panel-2: rgba(34, 34, 42, 0.95);
+      --border: rgba(179, 26, 219, 0.75); --text: #f4f1f8; --muted: #c6bdd0;
+      --hover: rgba(179, 26, 219, 0.16); --accent: #b31adb; --scrollbar-track: rgba(30, 30, 40, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.6); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.9);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.35);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 18%, rgba(0, 0, 0, 0) 42%),
+        repeating-linear-gradient(90deg, #07080a 0px, #111216 2px, #050608 4px, #0a0b0e 7px);
+      color: var(--text);
+    }
+
+    body.theme-light {
+      --bg: #efedf3; --panel: rgba(255, 255, 255, 0.92); --panel-2: rgba(248, 246, 251, 0.98);
+      --border: rgba(179, 26, 219, 0.55); --text: #23182c; --muted: #665c70;
+      --hover: rgba(179, 26, 219, 0.08); --accent: #b31adb; --scrollbar-track: rgba(230, 225, 235, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.5); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.8);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.18);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.18) 22%, rgba(0, 0, 0, 0) 44%),
+        repeating-linear-gradient(90deg, #f4f2f7 0px, #e9e5ed 2px, #f7f5fa 4px, #ece8f0 7px);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: Arial, sans-serif; line-height: 1.65; min-height: 100vh; background-color: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; transition: background 0.3s ease; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    ::-webkit-scrollbar-thumb:active { background: var(--accent); }
+
+    .page { max-width: 1480px; margin: 0 auto; padding: 18px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .brand { font-size: 30px; font-weight: bold; letter-spacing: 0.2px; }
+    .topbar-right { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .small-box, .back-link { padding: 8px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 14px; }
+    .small-box.locked { opacity: 0.7; cursor: not-allowed; }
+    .back-link:hover { background: var(--hover); }
+    .layout { display: grid; grid-template-columns: var(--sidebar-width) 1fr; gap: 18px; align-items: start; }
+    .sidebar { position: sticky; top: 18px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 16px; }
+    .sidebar h3 { font-size: 16px; margin-bottom: 12px; }
+    .nav { display: flex; flex-direction: column; gap: 5px; }
+    .nav a { padding: 10px 12px; border-radius: 9px; color: var(--muted); font-size: 15px; transition: 0.2s ease; }
+    .nav a:hover, .nav a.active { background: var(--hover); color: var(--text); }
+    .content { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 30px; min-height: calc(100vh - 90px); }
+    .content h1 { font-size: 34px; margin-bottom: 14px; }
+    .intro { font-size: 16px; color: var(--muted); margin-bottom: 10px; max-width: 920px; }
+    .content h2 { font-size: 25px; margin-top: 34px; margin-bottom: 12px; scroll-margin-top: 24px; }
+    .content p { margin-bottom: 14px; color: var(--muted); font-size: 16px; max-width: 950px; }
+    .content ul { margin: 8px 0 16px 20px; color: var(--muted); max-width: 930px; }
+    .content li { margin-bottom: 8px; }
+    .content img { width: 100%; max-width: 920px; display: block; margin: 18px 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); cursor: zoom-in; transition: transform 0.2s ease; }
+    .content img:hover { transform: scale(1.02); }
+    .caption { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+    .note { margin: 16px 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--hover); color: var(--muted); max-width: 920px; }
+    .sharing-info { margin: 20px 0; padding: 16px 18px; border-radius: 12px; border: 2px solid var(--border); background: var(--panel-2); color: var(--muted); max-width: 920px; }
+    .sharing-info h4 { color: var(--text); font-size: 17px; margin-bottom: 10px; }
+    .sharing-info ul { margin: 8px 0 8px 18px; max-width: 100%; }
+
+    #minimap-container {
+      position: fixed; right: 12px; top: 50%; transform: translateY(-50%);
+      width: 100px; height: 400px; max-height: 80vh;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      z-index: 9998; overflow: hidden; opacity: 0.9;
+      transition: opacity 0.3s ease, width 0.3s ease; cursor: pointer;
+    }
+    #minimap-container:hover { opacity: 1; width: 120px; }
+    
+    #minimap-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    
+    #minimap-viewport {
+      position: absolute; left: 0; right: 0;
+      background: rgba(179, 26, 219, 0.2);
+      border: 2px solid var(--accent); border-radius: 4px;
+      pointer-events: none;
+      transition: top 0.05s ease-out;
+    }
+
+    .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; flex-direction: column; }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-content { max-width: 90%; max-height: 85vh; position: relative; }
+    .lightbox-content img { max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+    .lightbox-close { position: absolute; top: -40px; right: 0; color: #fff; font-size: 32px; cursor: pointer; padding: 5px 10px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; }
+    .lightbox-close:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: #fff; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; user-select: none; }
+    .lightbox-nav:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-caption { color: #fff; font-size: 16px; margin-top: 15px; text-align: center; padding: 0 20px; }
+    .lightbox-counter { position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; background: rgba(179, 26, 219, 0.8); padding: 5px 15px; border-radius: 20px; }
+
+    @media (max-width: 950px) { .layout { grid-template-columns: 1fr; } .sidebar { position: relative; top: 0; } #minimap-container { display: none; } }
+  </style>
+</head>
+
+<body class="theme-dark">
+  <div class="page">
+    <div class="topbar">
+      <div class="brand" data-i18n="brand">Recipes</div>
+      <div class="topbar-right">
+        <div class="small-box locked"><span data-i18n="langLabel">Language:</span><strong id="currentLang">EN</strong><span title="Change via URL parameters only">🔒</span></div>
+        <div class="small-box locked"><span data-i18n="themeLabel">Theme:</span><strong id="currentTheme">Dark</strong><span title="Change via URL parameters only">🔒</span></div>
+        <a id="backLink" class="back-link" href="#" data-i18n="backLabel">Back</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <h3 data-i18n="topicsTitle">Topics</h3>
+        <nav class="nav">
+          <a href="#use" data-i18n="navUse">How to use the recipe</a>
+          <a href="#create" data-i18n="navCreate">Creating new recipe</a>
+          <a href="#products" data-i18n="navProducts">Products management</a>
+          <a href="#available" data-i18n="navAvailable">Recipe with products you already have</a>
+          <a href="#sharing" data-i18n="navSharing">Sharing recipes</a>
+          <a href="#continue" data-i18n="navContinue">Continue to the last recipe</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <h1 data-i18n="pageTitle">Recipes Instructions</h1>
+        <p class="intro" data-i18n="pageIntro">This page explains the main functions of the Recipes application.</p>
+
+        <a href="inst_photos/recipes/main_page.png" class="lightbox-trigger" data-title="Main Page"><img src="inst_photos/recipes/main_page.png" alt="Main view"></a>
+        <div class="caption" data-i18n="mainCaption">Main view of the Recipes application.</div>
+
+        <h2 id="use" data-i18n="useTitle">How to use the recipe</h2>
+        <p data-i18n="useP1">To open a recipe, select any recipe card from the main view.</p>
+        <p data-i18n="useP2">After opening a recipe, the user can review the ingredients, preparation steps, and other related information.</p>
+        <a href="inst_photos/recipes/view_recipe.png" class="lightbox-trigger" data-title="View Recipe"><img src="inst_photos/recipes/view_recipe.png" alt="View recipe"></a>
+        <div class="caption" data-i18n="viewRecipeCaption">Recipe details view - click to enlarge.</div>
+        <a href="inst_photos/recipes/view_recipe_second_example.png" class="lightbox-trigger" data-title="View Recipe Example"><img src="inst_photos/recipes/view_recipe_second_example.png" alt="Second example"></a>
+        <div class="caption" data-i18n="viewRecipeSecondCaption">Another example of recipe view.</div>
+        <div class="note" data-i18n="useNote">You can replace this text with a more detailed explanation.</div>
+
+        <h2 id="create" data-i18n="createTitle">Creating new recipe</h2>
+        <p data-i18n="createP1">To create a new recipe, use the add button in the Recipes application.</p>
+        <p data-i18n="createP2">Fill in all required fields and save the form.</p>
+        <a href="inst_photos/recipes/add_recipe.png" class="lightbox-trigger" data-title="Add Recipe"><img src="inst_photos/recipes/add_recipe.png" alt="Add recipe"></a>
+        <div class="caption" data-i18n="addRecipeCaption">Add new recipe form - click to enlarge.</div>
+        <ul><li data-i18n="createL1">Enter the recipe title.</li><li data-i18n="createL2">Add the preparation description.</li><li data-i18n="createL3">Attach ingredients and optional image.</li><li data-i18n="createL4">Save the recipe.</li></ul>
+
+        <h2 id="products" data-i18n="productsTitle">Products management</h2>
+        <p data-i18n="productsP1">The product management tools are used to maintain the list of ingredients.</p>
+        <p data-i18n="productsP2">This makes it easier to keep recipe data organized.</p>
+        <a href="inst_photos/recipes/product_menager.png" class="lightbox-trigger" data-title="Product Manager"><img src="inst_photos/recipes/product_menager.png" alt="Product manager"></a>
+        <div class="caption" data-i18n="productManagerCaption">Product management interface.</div>
+        <a href="inst_photos/recipes/produt_search.png" class="lightbox-trigger" data-title="Product Search"><img src="inst_photos/recipes/produt_search.png" alt="Product search"></a>
+        <div class="caption" data-i18n="productSearchCaption">Product search functionality.</div>
+
+        <h2 id="available" data-i18n="availableTitle">Recipe with products you already have</h2>
+        <p data-i18n="availableP1">This function helps the user find recipes based on available products.</p>
+        <p data-i18n="availableP2">This feature is useful for quickly deciding what can be prepared.</p>
+        <a href="inst_photos/recipes/advanced_search.png" class="lightbox-trigger" data-title="Advanced Search"><img src="inst_photos/recipes/advanced_search.png" alt="Advanced search"></a>
+        <div class="caption" data-i18n="advancedSearchCaption">Advanced search by available products.</div>
+
+        <h2 id="sharing" data-i18n="sharingTitle">Sharing recipes</h2>
+        <p data-i18n="sharingP1">Recipes can be shared with other users through the sharing function.</p>
+        <p data-i18n="sharingP2">Depending on the system configuration, sharing may include a direct link.</p>
+        <a href="inst_photos/recipes/share_recipe.png" class="lightbox-trigger" data-title="Share Recipe"><img src="inst_photos/recipes/share_recipe.png" alt="Share recipe"></a>
+        <div class="caption" data-i18n="shareRecipeCaption">Share recipe interface.</div>
+
+        <div class="sharing-info">
+          <h4 data-i18n="sharingInfoTitle">📤 Sharing Recipe Photos</h4>
+          <p data-i18n="sharingInfoDesc">You can share recipe photos in two formats:</p>
+          <ul><li data-i18n="sharingInfoImg"><strong>Image format (PNG, JPG)</strong> - Quick preview on any device</li><li data-i18n="sharingInfoPdf"><strong>PDF format</strong> - Professional document format</li></ul>
+          <p data-i18n="sharingInfoSelect">Before sharing, select:</p>
+          <ul><li data-i18n="sharingInfoRecipe"><strong>Recipe</strong> - Choose which recipe to share</li><li data-i18n="sharingInfoTheme"><strong>Theme</strong> - Light or dark theme</li><li data-i18n="sharingInfoLang"><strong>Language</strong> - Choose the language</li></ul>
+        </div>
+
+        <h2 id="continue" data-i18n="continueTitle">Continue to the last recipe</h2>
+        <p data-i18n="continueP1">The continue function allows returning to the most recently opened recipe.</p>
+        <p data-i18n="continueP2">The application remembers the last active recipe.</p>
+      </main>
+    </div>
+  </div>
+
+  <div id="minimap-container">
+    <img id="minimap-image" src="inst_photos/recipes/recipes_minimap.png" alt="Page minimap">
+    <div id="minimap-viewport"></div>
+  </div>
+
+  <div class="lightbox-overlay" id="lightbox-overlay">
+    <div class="lightbox-content">
+      <span class="lightbox-close" id="lightbox-close">&times;</span>
+      <span class="lightbox-nav lightbox-prev" id="lightbox-prev">&#10094;</span>
+      <span class="lightbox-nav lightbox-next" id="lightbox-next">&#10095;</span>
+      <img src="" alt="" id="lightbox-image">
+      <div class="lightbox-caption" id="lightbox-caption"></div>
+      <div class="lightbox-counter" id="lightbox-counter"></div>
+    </div>
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        brand: "Recipes", langLabel: "Language:", themeLabel: "Theme:", backLabel: "Back", topicsTitle: "Topics",
+        navUse: "How to use the recipe", navCreate: "Creating new recipe", navProducts: "Products management",
+        navAvailable: "Recipe with products you already have", navSharing: "Sharing recipes", navContinue: "Continue to the last recipe",
+        pageTitle: "Recipes Instructions", pageIntro: "This page explains the main functions of the Recipes application.",
+        mainCaption: "Main view of the Recipes application.",
+        useTitle: "How to use the recipe", useP1: "To open a recipe, select any recipe card from the main view.", useP2: "After opening a recipe, the user can review the ingredients, preparation steps, and other related information.", useNote: "You can replace this text with a more detailed explanation.",
+        viewRecipeCaption: "Recipe details view - click to enlarge.", viewRecipeSecondCaption: "Another example of recipe view.",
+        createTitle: "Creating new recipe", createP1: "To create a new recipe, use the add button in the Recipes application.", createP2: "Fill in all required fields and save the form.",
+        createL1: "Enter the recipe title.", createL2: "Add the preparation description.", createL3: "Attach ingredients and optional image.", createL4: "Save the recipe.",
+        addRecipeCaption: "Add new recipe form - click to enlarge.",
+        productsTitle: "Products management", productsP1: "The product management tools are used to maintain the list of ingredients.", productsP2: "This makes it easier to keep recipe data organized.",
+        productManagerCaption: "Product management interface.", productSearchCaption: "Product search functionality.",
+        availableTitle: "Recipe with products you already have", availableP1: "This function helps the user find recipes based on available products.", availableP2: "This feature is useful for quickly deciding what can be prepared.",
+        advancedSearchCaption: "Advanced search by available products.",
+        sharingTitle: "Sharing recipes", sharingP1: "Recipes can be shared with other users through the sharing function.", sharingP2: "Depending on the system configuration, sharing may include a direct link.",
+        shareRecipeCaption: "Share recipe interface.",
+        sharingInfoTitle: "📤 Sharing Recipe Photos", sharingInfoDesc: "You can share recipe photos in two formats:",
+        sharingInfoImg: "Image format (PNG, JPG) - Quick preview on any device",
+        sharingInfoPdf: "PDF format - Professional document format",
+        sharingInfoSelect: "Before sharing, select:",
+        sharingInfoRecipe: "Recipe - Choose which recipe to share",
+        sharingInfoTheme: "Theme - Light or dark theme",
+        sharingInfoLang: "Language - Choose the language",
+        continueTitle: "Continue to the last recipe", continueP1: "The continue function allows returning to the most recently opened recipe.", continueP2: "The application remembers the last active recipe."
+      },
+      ua: {
+        brand: "Рецепти", langLabel: "Мова:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Теми",
+        navUse: "Як користуватися рецептом", navCreate: "Створення нового рецепта", navProducts: "Керування продуктами",
+        navAvailable: "Рецепт із продуктів, які у вас уже є", navSharing: "Поширення рецептів", navContinue: "Продовжити з останнього рецепта",
+        pageTitle: "Інструкція до Recipes", pageIntro: "Ця сторінка пояснює основні функції застосунку Recipes.",
+        mainCaption: "Головний вигляд застосунку Recipes.",
+        useTitle: "Як користуватися рецептом", useP1: "Щоб відкрити рецепт, виберіть будь-яку картку рецепта на головному екрані.", useP2: "Після відкриття рецепта користувач може переглянути інгредієнти, кроки приготування та іншу пов'язану інформацію.", useNote: "За потреби ви можете замінити цей текст детальнішим поясненням.",
+        viewRecipeCaption: "Перегляд рецепта - натисніть, щоб збільшити.", viewRecipeSecondCaption: "Інший приклад перегляду рецепта.",
+        createTitle: "Створення нового рецепта", createP1: "Щоб створити новий рецепт, використайте кнопку додавання в застосунку Recipes.", createP2: "Заповніть усі обов'язкові поля та збережіть форму.",
+        createL1: "Введіть назву рецепта.", createL2: "Додайте опис приготування.", createL3: "Додайте інгредієнти та зображення.", createL4: "Збережіть рецепт.",
+        addRecipeCaption: "Форма додавання нового рецепта.",
+        productsTitle: "Керування продуктами", productsP1: "Інструменти керування продуктами використовуються для підтримки списку інгредієнтів.", productsP2: "Це допомагає краще організувати дані рецептів.",
+        productManagerCaption: "Інтерфейс керування продуктами.", productSearchCaption: "Функціонал пошуку продуктів.",
+        availableTitle: "Рецепт із продуктів, які у вас уже є", availableP1: "Ця функція допомагає знаходити рецепти на основі доступних продуктів.", availableP2: "Корисно для швидкого вибору страви.",
+        advancedSearchCaption: "Розширений пошук за продуктами.",
+        sharingTitle: "Поширення рецептів", sharingP1: "Рецепти можна поширювати серед інших користувачів.", sharingP2: "Поширення може здійснюватися через пряме посилання.",
+        shareRecipeCaption: "Інтерфейс поширення рецепта.",
+        sharingInfoTitle: "📤 Поширення фотографій рецептів", sharingInfoDesc: "Ви можете ділитися фотографіями рецептів у двох форматах:",
+        sharingInfoImg: "Формат зображення (PNG, JPG) - Швидкий перегляд на будь-якому пристрої",
+        sharingInfoPdf: "Формат PDF - Професійний формат документа",
+        sharingInfoSelect: "Перед поширенням виберіть:",
+        sharingInfoRecipe: "Рецепт - Виберіть, яким рецептом поділитися",
+        sharingInfoTheme: "Тема - Світла або темна тема",
+        sharingInfoLang: "Мова - Виберіть мову",
+        continueTitle: "Продовжити з останнього рецепта", continueP1: "Функція продовження дозволяє повернутися до останнього відкритого рецепта.", continueP2: "Застосунок запам'ятовує останній активний рецепт."
+      },
+      ru: {
+        brand: "Рецепты", langLabel: "Язык:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Темы",
+        navUse: "Как пользоваться рецептом", navCreate: "Создание нового рецепта", navProducts: "Управление продуктами",
+        navAvailable: "Рецепт из продуктов, которые у вас уже есть", navSharing: "Поделиться рецептами", navContinue: "Продолжить с последнего рецепта",
+        pageTitle: "Инструкция для Recipes", pageIntro: "Эта страница объясняет основные функции приложения Recipes.",
+        mainCaption: "Главный вид приложения Recipes.",
+        useTitle: "Как пользоваться рецептом", useP1: "Чтобы открыть рецепт, выберите любую карточку рецепта на главном экране.", useP2: "После открытия рецепта пользователь может просмотреть ингредиенты, шаги приготовления и другую информацию.", useNote: "При необходимости вы можете заменить этот текст более подробным описанием.",
+        viewRecipeCaption: "Просмотр рецепта - нажмите, чтобы увеличить.", viewRecipeSecondCaption: "Другой пример просмотра рецепта.",
+        createTitle: "Создание нового рецепта", createP1: "Чтобы создать новый рецепт, используйте кнопку добавления в приложении Recipes.", createP2: "Заполните все обязательные поля и сохраните форму.",
+        createL1: "Введите название рецепта.", createL2: "Добавьте описание приготовления.", createL3: "Добавьте ингредиенты и изображение.", createL4: "Сохраните рецепт.",
+        addRecipeCaption: "Форма добавления нового рецепта.",
+        productsTitle: "Управление продуктами", productsP1: "Инструменты управления продуктами используются для поддержки списка ингредиентов.", productsP2: "Это помогает лучше организовать данные рецептов.",
+        productManagerCaption: "Интерфейс управления продуктами.", productSearchCaption: "Функционал поиска продуктов.",
+        availableTitle: "Рецепт из продуктов, которые у вас уже есть", availableP1: "Эта функция помогает находить рецепты на основе доступных продуктов.", availableP2: "Полезно для быстрого выбора блюда.",
+        advancedSearchCaption: "Расширенный поиск по продуктам.",
+        sharingTitle: "Поделиться рецептами", sharingP1: "Рецепты можно отправлять другим пользователям.", sharingP2: "Обмен может включать прямую ссылку.",
+        shareRecipeCaption: "Интерфейс обмена рецептами.",
+        sharingInfoTitle: "📤 Публикация фотографий рецептов", sharingInfoDesc: "Вы можете делиться фотографиями рецептов в двух форматах:",
+        sharingInfoImg: "Формат изображения (PNG, JPG) - Быстрый просмотр на любом устройстве",
+        sharingInfoPdf: "Формат PDF - Профессиональный формат документа",
+        sharingInfoSelect: "Перед публикацией выберите:",
+        sharingInfoRecipe: "Рецепт - Выберите, каким рецептом поделиться",
+        sharingInfoTheme: "Тема - Светлая или темная тема",
+        sharingInfoLang: "Язык - Выберите язык",
+        continueTitle: "Продолжить с последнего рецепта", continueP1: "Функция продолжения позволяет вернуться к последнему открытому рецепту.", continueP2: "Приложение запоминает последний активный рецепт."
+      }
+    };
+
+    function getParam(name, fallback) { const params = new URLSearchParams(window.location.search); return params.get(name) || fallback; }
+    function normalizeLang(lang) { return ["en", "ua", "ru"].includes(lang) ? lang : "en"; }
+    function normalizeTheme(theme) { return theme === "light" ? "light" : "dark"; }
+    function applyTranslations(lang) {
+      const dict = translations[lang] || translations.en;
+      document.documentElement.lang = lang;
+      document.getElementById("currentLang").textContent = lang.toUpperCase();
+      document.querySelectorAll("[data-i18n]").forEach(el => { const key = el.getAttribute("data-i18n"); if (dict[key]) el.textContent = dict[key]; });
+    }
+    function applyTheme(theme) {
+      document.body.classList.remove("theme-dark", "theme-light");
+      document.body.classList.add("theme-" + theme);
+      document.getElementById("currentTheme").textContent = theme === "light" ? "Light" : "Dark";
+    }
+    function setupNavHighlight() {
+      const links = document.querySelectorAll(".nav a");
+      const sections = Array.from(links).map(link => document.querySelector(link.getAttribute("href")));
+      function updateActive() {
+        let current = "";
+        sections.forEach(section => { if (section && window.scrollY >= section.offsetTop - 140) current = section.id; });
+        links.forEach(link => { link.classList.toggle("active", link.getAttribute("href") === "#" + current); });
+      }
+      window.addEventListener("scroll", updateActive); updateActive();
+    }
+    function updateBackLink() {
+      const lang = normalizeLang(getParam("lang", "en"));
+      const theme = normalizeTheme(getParam("theme", "dark"));
+      const color = getParam("color", "#b31adb");
+      document.getElementById("backLink").href = `/main?app=recipes&lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+    }
+
+    // Minimap with screenshot image background
+    function setupMinimap() {
+      const container = document.getElementById('minimap-container');
+      const viewport = document.getElementById('minimap-viewport');
+      const content = document.querySelector('.content');
+      
+      if (!content) return;
+
+      function updateViewport() {
+        const contentTop = content.offsetTop;
+        const contentHeight = content.offsetHeight;
+        const scrollTop = window.scrollY;
+        const viewportHeight = window.innerHeight;
+        
+        const scrollPercent = Math.max(0, Math.min((scrollTop - contentTop) / contentHeight, 1));
+        const viewportPercent = viewportHeight / contentHeight;
+        
+        const minimapHeight = container.offsetHeight;
+        const viewportTop = scrollPercent * minimapHeight;
+        const viewportH = Math.min(viewportPercent * minimapHeight, minimapHeight * 0.15);
+        
+        viewport.style.top = viewportTop + 'px';
+        viewport.style.height = viewportH + 'px';
+      }
+
+      // Click to scroll
+      container.addEventListener('click', function(e) {
+        const rect = container.getBoundingClientRect();
+        const clickPercent = (e.clientY - rect.top) / rect.height;
+        const targetScroll = content.offsetTop + (clickPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      });
+
+      // Drag viewport
+      let isDragging = false;
+      viewport.addEventListener('mousedown', function(e) { isDragging = true; e.preventDefault(); });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect();
+        const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+        const scrollPercent = y / rect.height;
+        const targetScroll = content.offsetTop + (scrollPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'auto' });
+      });
+      document.addEventListener('mouseup', function() { isDragging = false; });
+
+      updateViewport();
+      window.addEventListener('scroll', updateViewport);
+      window.addEventListener('resize', updateViewport);
+    }
+
+    function setupLightbox() {
+      const overlay = document.getElementById('lightbox-overlay'), imageEl = document.getElementById('lightbox-image'),
+        captionEl = document.getElementById('lightbox-caption'), counterEl = document.getElementById('lightbox-counter'),
+        closeBtn = document.getElementById('lightbox-close'), prevBtn = document.getElementById('lightbox-prev'), nextBtn = document.getElementById('lightbox-next');
+      let lightboxImages = [], currentIndex = 0;
+      document.querySelectorAll('.lightbox-trigger').forEach((trigger, index) => {
+        lightboxImages.push({ src: trigger.getAttribute('href'), title: trigger.getAttribute('data-title') || '' });
+        trigger.addEventListener('click', function(e) { e.preventDefault(); currentIndex = index; showLightbox(); });
+      });
+      function showLightbox() {
+        if (lightboxImages.length === 0) return;
+        const img = lightboxImages[currentIndex];
+        imageEl.src = img.src; imageEl.alt = img.title; captionEl.textContent = img.title;
+        counterEl.textContent = `${currentIndex + 1} / ${lightboxImages.length}`;
+        overlay.classList.add('active'); document.body.style.overflow = 'hidden';
+      }
+      function hideLightbox() { overlay.classList.remove('active'); document.body.style.overflow = ''; }
+      function showPrev() { currentIndex = (currentIndex - 1 + lightboxImages.length) % lightboxImages.length; showLightbox(); }
+      function showNext() { currentIndex = (currentIndex + 1) % lightboxImages.length; showLightbox(); }
+      closeBtn.addEventListener('click', hideLightbox); prevBtn.addEventListener('click', showPrev); nextBtn.addEventListener('click', showNext);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideLightbox(); });
+      document.addEventListener('keydown', function(e) {
+        if (!overlay.classList.contains('active')) return;
+        if (e.key === 'Escape') hideLightbox(); else if (e.key === 'ArrowLeft') showPrev(); else if (e.key === 'ArrowRight') showNext();
+      });
+    }
+    const lang = normalizeLang(getParam("lang", "en")), theme = normalizeTheme(getParam("theme", "dark"));
+    applyTranslations(lang); applyTheme(theme); updateBackLink(); setupNavHighlight(); setupMinimap(); setupLightbox();
+  </script>
+</body>
+</html>

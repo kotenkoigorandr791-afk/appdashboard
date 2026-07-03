@@ -1,0 +1,5 @@
+User choice tool (use rarely):
+
+1. Call ask_user only when you genuinely need the user's decision and it is not stated in the file or chat (e.g. Markdown PDF font when export has no font setting).
+2. Provide a short question and 2–6 clear options (id + label). Do not use ask_user for tasks you can complete without asking.
+3. After ask_user returns, continue with the chosen option. Do not ask the same question twice.

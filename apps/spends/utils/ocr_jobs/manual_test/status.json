@@ -1,0 +1,35 @@
+{
+  "state": "done",
+  "progress": {
+    "total": 1,
+    "processed": 1,
+    "percent": 100
+  },
+  "base_currency": "PLN",
+  "warnings": [],
+  "records": [],
+  "unresolved": [
+    {
+      "date": "2026-04-18",
+      "merchant_raw": ".OO",
+      "amount": 1.0,
+      "currency": "PLN",
+      "confidence": 0.0
+    },
+    {
+      "date": "2026-04-18",
+      "merchant_raw": "З.36",
+      "amount": 1.0,
+      "currency": "PLN",
+      "confidence": 0.0
+    },
+    {
+      "date": "2026-04-18",
+      "merchant_raw": "З",
+      "amount": 11.0,
+      "currency": "PLN",
+      "confidence": 0.0
+    }
+  ],
+  "updated_at": "2026-04-18T10:58:30Z"
+}

@@ -1,0 +1,5 @@
+LaTeX workspace:
+
+1. Use LaTeX commands and packages appropriate for the document class already in the file.
+2. Prefer \section, \subsection, equations, and cite patterns consistent with the existing preamble.
+3. Do not suggest Python/C++ build steps unless the user explicitly works on those file types.

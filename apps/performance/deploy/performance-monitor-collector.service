@@ -1,0 +1,20 @@
+[Unit]
+Description=AppDashboard performance metrics collector
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/AppDashboard/apps/performance
+ExecStart=/usr/bin/php /var/www/AppDashboard/apps/performance/bin/monitor_collector.php --loop
+Restart=always
+RestartSec=30
+Nice=19
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

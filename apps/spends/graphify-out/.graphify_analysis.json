@@ -1,0 +1,238 @@
+{
+  "communities": {
+    "0": [
+      "utils_expense_ocr_app_ensureschema",
+      "utils_expense_ocr_worker_best_store_match",
+      "utils_expense_ocr_worker_canonical_merchant",
+      "utils_expense_ocr_worker_convert_to_base",
+      "utils_expense_ocr_worker_ensure_store",
+      "utils_expense_ocr_worker_fetch_rates",
+      "utils_expense_ocr_worker_latinize_homoglyphs",
+      "utils_expense_ocr_worker_load_existing_stores",
+      "utils_expense_ocr_worker_main",
+      "utils_expense_ocr_worker_now_iso",
+      "utils_expense_ocr_worker_ocr_image",
+      "utils_expense_ocr_worker_parse_date",
+      "utils_expense_ocr_worker_process",
+      "utils_expense_ocr_worker_py",
+      "utils_expense_ocr_worker_strip_diacritics",
+      "utils_expense_ocr_worker_upsert_expense",
+      "utils_expense_ocr_worker_write_status"
+    ],
+    "1": [
+      "utils_expense_ocr_app_currentuser",
+      "utils_expense_ocr_app_getsetting",
+      "utils_expense_ocr_app_isimage",
+      "utils_expense_ocr_app_jobpath",
+      "utils_expense_ocr_app_out",
+      "utils_expense_ocr_app_php",
+      "utils_expense_ocr_app_pythonbin",
+      "utils_expense_ocr_app_ratesbybase",
+      "utils_expense_ocr_app_rrmdir",
+      "utils_expense_ocr_app_safefolder",
+      "utils_expense_ocr_app_setsetting",
+      "utils_expense_ocr_app_startworker",
+      "utils_expense_ocr_app_storenames",
+      "utils_expense_ocr_app_usercurrency",
+      "utils_expense_ocr_app_userdbpath",
+      "utils_expense_ocr_app_userjobsdir"
+    ],
+    "2": [
+      "core_auth_getsafefoldername",
+      "core_user_db_dbgetsetting",
+      "core_user_db_dbgetstores",
+      "core_user_db_dbsetsetting",
+      "core_user_db_dbsettablesetting",
+      "core_user_db_getuserdbpath",
+      "core_user_db_getusersqlite",
+      "core_user_db_migrateexistingfiles",
+      "core_user_db_php",
+      "core_user_state_exportexpensestocsv",
+      "core_user_state_getuserbackupdir",
+      "core_user_state_getuserphoto",
+      "core_user_state_listcalendardaysinclusive",
+      "core_user_state_php"
+    ],
+    "3": [
+      "utils_expense_ocr_worker_extract_wallet_transactions",
+      "utils_expense_ocr_worker_find_merchant_back",
+      "utils_expense_ocr_worker_is_noise_line",
+      "utils_expense_ocr_worker_is_valid_merchant_line",
+      "utils_expense_ocr_worker_normalize_ocr_amount_str",
+      "utils_expense_ocr_worker_normalize_space",
+      "utils_expense_ocr_worker_normalize_us_thousands_amount_substrings",
+      "utils_expense_ocr_worker_parse_amount_and_currency",
+      "utils_expense_ocr_worker_parse_amount_line_only",
+      "utils_expense_ocr_worker_parse_month_day_line",
+      "utils_expense_ocr_worker_parse_wallet_amount_decimal"
+    ],
+    "4": [
+      "utils_background_expense_ocr_collect_text_from_images",
+      "utils_background_expense_ocr_normalize_amount",
+      "utils_background_expense_ocr_normalize_merchant",
+      "utils_background_expense_ocr_ocr_image_tesseract",
+      "utils_background_expense_ocr_parse_from_text",
+      "utils_background_expense_ocr_parse_records_from_lines",
+      "utils_background_expense_ocr_py",
+      "utils_background_expense_ocr_run_background",
+      "utils_background_expense_ocr_run_once",
+      "utils_background_expense_ocr_unique_records",
+      "utils_background_expense_ocr_write_report"
+    ],
+    "5": [
+      "core_auth_checkdirectory",
+      "core_auth_getcurrentuserfromactivesessions",
+      "core_auth_getuserrolebyemail",
+      "core_auth_isuserroot",
+      "core_auth_logerror",
+      "core_auth_php",
+      "core_db_getdb",
+      "core_db_php"
+    ],
+    "6": [
+      "index_php"
+    ],
+    "7": [
+      "core_locale_php"
+    ],
+    "8": [
+      "views_body_php"
+    ],
+    "9": [
+      "views_scripts_php"
+    ],
+    "10": [
+      "views_head_php"
+    ],
+    "11": [
+      "controllers_handlers_php"
+    ]
+  },
+  "cohesion": {
+    "0": 0.23,
+    "1": 0.16,
+    "2": 0.23,
+    "3": 0.38,
+    "4": 0.35,
+    "5": 0.36,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0
+  },
+  "gods": [
+    {
+      "id": "utils_expense_ocr_worker_process",
+      "label": "process()",
+      "degree": 13
+    },
+    {
+      "id": "utils_expense_ocr_worker_normalize_space",
+      "label": "normalize_space()",
+      "degree": 7
+    },
+    {
+      "id": "utils_expense_ocr_worker_parse_amount_line_only",
+      "label": "parse_amount_line_only()",
+      "degree": 7
+    },
+    {
+      "id": "utils_expense_ocr_worker_is_valid_merchant_line",
+      "label": "is_valid_merchant_line()",
+      "degree": 7
+    },
+    {
+      "id": "utils_expense_ocr_worker_extract_wallet_transactions",
+      "label": "extract_wallet_transactions()",
+      "degree": 7
+    },
+    {
+      "id": "utils_expense_ocr_worker_main",
+      "label": "main()",
+      "degree": 7
+    },
+    {
+      "id": "core_auth_getsafefoldername",
+      "label": "getSafeFolderName()",
+      "degree": 6
+    },
+    {
+      "id": "utils_expense_ocr_worker_find_merchant_back",
+      "label": "find_merchant_back()",
+      "degree": 6
+    },
+    {
+      "id": "utils_background_expense_ocr_run_once",
+      "label": "run_once()",
+      "degree": 6
+    },
+    {
+      "id": "core_db_getdb",
+      "label": "getDB()",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "getCurrentUserFromActiveSessions()",
+      "target": "getDB()",
+      "source_files": [
+        "core/auth.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `getCurrentUserFromActiveSessions()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "getUserRoleByEmail()",
+      "target": "getDB()",
+      "source_files": [
+        "core/auth.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `getUserRoleByEmail()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "isUserRoot()",
+      "target": "getDB()",
+      "source_files": [
+        "core/auth.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `isUserRoot()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "getUserPhoto()",
+      "target": "getDB()",
+      "source_files": [
+        "core/user_state.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "getUserBackupDir()",
+      "target": "getSafeFolderName()",
+      "source_files": [
+        "core/user_state.php",
+        "core/auth.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `getUserBackupDir()` unexpectedly reaches hub `getSafeFolderName()`"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

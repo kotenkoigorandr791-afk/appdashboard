@@ -1,0 +1,191 @@
+{
+  "communities": {
+    "0": [
+      "models_moviemodel_calculateoverallrating",
+      "models_moviemodel_getvisiblemovies",
+      "models_moviemodel_loadcomments",
+      "models_moviemodel_loadconfig",
+      "models_moviemodel_loadmovies",
+      "models_moviemodel_php",
+      "models_moviemodel_savecomments",
+      "models_moviemodel_saveconfig",
+      "models_moviemodel_savemovies"
+    ],
+    "1": [
+      "core_db_getdb",
+      "core_db_php",
+      "core_helpers_resolve_user_photo_url",
+      "core_session_get_current_user_data",
+      "core_session_get_current_user_from_sessions",
+      "core_session_getuserrolebyemail",
+      "core_session_isuserroot",
+      "core_session_php"
+    ],
+    "2": [
+      "core_helpers_films_t",
+      "core_helpers_makerequest",
+      "core_helpers_php",
+      "core_helpers_streamfile",
+      "core_helpers_translate_text"
+    ],
+    "3": [
+      "core_upload_errors_getuploaderrormessage",
+      "core_upload_errors_php"
+    ],
+    "4": [
+      "translations_php"
+    ],
+    "5": [
+      "index_php"
+    ],
+    "6": [
+      "views_nav_script_php"
+    ],
+    "7": [
+      "views_header_php"
+    ],
+    "8": [
+      "views_main_scripts_php"
+    ],
+    "9": [
+      "views_modals_php"
+    ],
+    "10": [
+      "views_head_php"
+    ],
+    "11": [
+      "controllers_streamcontroller_php"
+    ],
+    "12": [
+      "controllers_apicontroller_php"
+    ]
+  },
+  "cohesion": {
+    "0": 0.28,
+    "1": 0.36,
+    "2": 0.6,
+    "3": 1.0,
+    "4": 1.0,
+    "5": 1.0,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0
+  },
+  "gods": [
+    {
+      "id": "core_db_getdb",
+      "label": "getDB()",
+      "degree": 5
+    },
+    {
+      "id": "core_session_get_current_user_data",
+      "label": "get_current_user_data()",
+      "degree": 3
+    },
+    {
+      "id": "models_moviemodel_getvisiblemovies",
+      "label": "getVisibleMovies()",
+      "degree": 3
+    },
+    {
+      "id": "core_session_get_current_user_from_sessions",
+      "label": "get_current_user_from_sessions()",
+      "degree": 2
+    },
+    {
+      "id": "core_session_getuserrolebyemail",
+      "label": "getUserRoleByEmail()",
+      "degree": 2
+    },
+    {
+      "id": "core_session_isuserroot",
+      "label": "isUserRoot()",
+      "degree": 2
+    },
+    {
+      "id": "core_helpers_streamfile",
+      "label": "streamFile()",
+      "degree": 2
+    },
+    {
+      "id": "core_helpers_makerequest",
+      "label": "makeRequest()",
+      "degree": 2
+    },
+    {
+      "id": "core_helpers_translate_text",
+      "label": "translate_text()",
+      "degree": 2
+    },
+    {
+      "id": "models_moviemodel_loadmovies",
+      "label": "loadMovies()",
+      "degree": 2
+    }
+  ],
+  "surprises": [
+    {
+      "source": "get_current_user_from_sessions()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `get_current_user_from_sessions()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "getUserRoleByEmail()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `getUserRoleByEmail()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "isUserRoot()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `isUserRoot()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "get_current_user_data()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "get_current_user_data()",
+      "target": "resolve_user_photo_url()",
+      "source_files": [
+        "core/session.php",
+        "core/helpers.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

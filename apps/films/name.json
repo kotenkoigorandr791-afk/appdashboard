@@ -1,0 +1,14 @@
+{
+    "en": "Movie Manager",
+    "ru": "Менеджер фильмов",
+    "uk": "Менеджер фільмів",
+    "be": "Менеджар фільмаў",
+    "menu_button": {
+        "left": 16,
+        "top": 12,
+        "width": 34,
+        "height": 34
+    },
+    "pl": "Menedżer filmów",
+    "cs": "Správce filmů"
+}

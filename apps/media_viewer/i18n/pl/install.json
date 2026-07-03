@@ -1,0 +1,17 @@
+{
+    "install_app": "Pobierz naszą aplikację mobilną!",
+    "download_app": "Pobierz aplikację Immich",
+    "ios_desc": "Pobierz z App Store, aby zainstalować na iPhonie lub iPadzie.",
+    "android_desc": "Zainstaluj APK na dowolnym urządzeniu z Androidem.",
+    "win_installer_desc": "Standardowy instalator Windows z kreatorem konfiguracji.",
+    "win_portable_desc": "Wersja przenośna — uruchom bezpośrednio z dysku USB.",
+    "linux_archive_desc": "Wypakuj i uruchom na dowolnej dystrybucji Linuksa.",
+    "download": "Pobierz",
+    "ios_title": "iOS",
+    "android_title": "Android",
+    "win_installer_title": "Windows (instalator)",
+    "win_portable_title": "Windows (przenośna)",
+    "linux_archive_title": "Linux (archiwum)",
+    "install_instructions": "Instrukcje instalacji",
+    "back_to_list": "Powrót do listy"
+}

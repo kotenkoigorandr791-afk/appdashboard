@@ -1,0 +1,17 @@
+{
+    "install_app": "Získejte naši mobilní aplikaci!",
+    "download_app": "Stáhnout Immich aplikaci",
+    "ios_desc": "Stáhněte z App Store pro iPhone nebo iPad.",
+    "android_desc": "Nainstalujte APK na zařízení s Androidem.",
+    "win_installer_desc": "Standardní Windows instalátor s průvodcem nastavením.",
+    "win_portable_desc": "Přenosná verze — spusťte přímo z USB disku.",
+    "linux_archive_desc": "Rozbalte a spusťte na libovolné Linux distribuci.",
+    "download": "Stáhnout",
+    "ios_title": "iOS",
+    "android_title": "Android",
+    "win_installer_title": "Windows (instalátor)",
+    "win_portable_title": "Windows (přenosná)",
+    "linux_archive_title": "Linux (archiv)",
+    "install_instructions": "Instrukce k instalaci",
+    "back_to_list": "Zpět na seznam"
+}

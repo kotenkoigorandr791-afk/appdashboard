@@ -1,0 +1,326 @@
+{
+  "/mnt/server/apps/steps/index.php": {
+    "mtime": 1782376941.799368,
+    "hash": "dbccb656dce78e5033b8ac564dea3395"
+  },
+  "/mnt/server/apps/steps/video_job_sqlite.php": {
+    "mtime": 1782376941.799368,
+    "hash": "f5429e823fb73073b78ac57970c9f2d8"
+  },
+  "/mnt/server/apps/steps/auth_common.php": {
+    "mtime": 1782028486.1072648,
+    "hash": "fe447741532c7f5e5a872d1e6fd84de9"
+  },
+  "/mnt/server/apps/steps/core/date_utils.php": {
+    "mtime": 1778420649.3389513,
+    "hash": "72f6557dfe44531c2d97cd4aea86a6bf"
+  },
+  "/mnt/server/apps/steps/core/settings.php": {
+    "mtime": 1781333721.406147,
+    "hash": "e275778c5e25dc9606a194e94aa9c8ab"
+  },
+  "/mnt/server/apps/steps/core/bootstrap.php": {
+    "mtime": 1782298418.6830559,
+    "hash": "00934baa880a3a8ac25f8b56f7e7decb"
+  },
+  "/mnt/server/apps/steps/core/init.php": {
+    "mtime": 1782298418.8170545,
+    "hash": "dd9965956a89725adcc1bdbfcbf4db98"
+  },
+  "/mnt/server/apps/steps/core/user_helpers.php": {
+    "mtime": 1778420649.3459513,
+    "hash": "941fb29b85e90d5e6c7de0faa738a67a"
+  },
+  "/mnt/server/apps/steps/core/db_helpers.php": {
+    "mtime": 1782376941.799368,
+    "hash": "33c5bc722fdc568897ad40a594a2f0ba"
+  },
+  "/mnt/server/apps/steps/models/StepsModel.php": {
+    "mtime": 1782028485.825267,
+    "hash": "df4053d4d10cfe978fc4af26efd9dced"
+  },
+  "/mnt/server/apps/steps/views/preview.php": {
+    "mtime": 1782298418.7290554,
+    "hash": "f378190e5e0bb6fdf988aca087ffa674"
+  },
+  "/mnt/server/apps/steps/views/body.php": {
+    "mtime": 1782376941.7663682,
+    "hash": "78e39edbf140bacab7b0ff6124cc0241"
+  },
+  "/mnt/server/apps/steps/views/scripts.php": {
+    "mtime": 1782376941.764368,
+    "hash": "8a35dad65d9304b178c8aa71930ecbac"
+  },
+  "/mnt/server/apps/steps/views/head.php": {
+    "mtime": 1782376941.783368,
+    "hash": "055df6686e00438fb387364202a4dae7"
+  },
+  "/mnt/server/apps/steps/controllers/VideoBootstrap.php": {
+    "mtime": 1778420649.3509512,
+    "hash": "8a905f5ae63e0c1d352c09020151a75b"
+  },
+  "/mnt/server/apps/steps/controllers/PostHandlers.php": {
+    "mtime": 1778420649.3539512,
+    "hash": "122ff85537d56c64102d57445be65f93"
+  },
+  "/mnt/server/apps/steps/utils/video_steps_worker.py": {
+    "mtime": 1782376941.783368,
+    "hash": "fad9811fbf0a113c9fcfff96a5adcc9d"
+  },
+  "/mnt/server/apps/steps/utils/t_cv.py": {
+    "mtime": 1777248648.0,
+    "hash": "66163812ae0833f7fdca8b50079b48f0"
+  },
+  "/mnt/server/apps/steps/utils/diag_steps_report.py": {
+    "mtime": 1782298418.8560543,
+    "hash": "2e886a9406e73901094e3b094250e525"
+  },
+  "/mnt/server/apps/steps/utils/analize.php": {
+    "mtime": 1782376941.774368,
+    "hash": "593d596d1f81a655c49943df11d6a871"
+  },
+  "/mnt/server/apps/steps/utils/run_ocr_diag.py": {
+    "mtime": 1782298418.6950557,
+    "hash": "d0151d6319c1ad1fecdb18e99b107f57"
+  },
+  "/mnt/server/apps/steps/utils/zeep_life/zeep_import_worker.py": {
+    "mtime": 1782376941.799368,
+    "hash": "3e34d9522f2914cae262feedef85e270"
+  },
+  "/mnt/server/apps/steps/utils/zeep_life/zeep_state.php": {
+    "mtime": 1782376941.783368,
+    "hash": "080d88a4faa964f9ac7adbec166ecb0f"
+  },
+  "/mnt/server/apps/steps/utils/google_fit_takeout/takeout_import_worker.py": {
+    "mtime": 1777248648.0,
+    "hash": "908ddd1fc47c63d53084f41da0be154a"
+  },
+  "/mnt/server/apps/steps/utils/google_fit_takeout/takeout_api.php": {
+    "mtime": 1782298418.898054,
+    "hash": "9f866356ffe1d85429896f054b1a0fac"
+  },
+  "/mnt/server/apps/steps/utils/google_fit_takeout/fit_takeout_state.php": {
+    "mtime": 1781333721.424147,
+    "hash": "560df72dc9c3ae46843c889cbca7879e"
+  },
+  "/mnt/server/apps/steps/CLAUDE.md": {
+    "mtime": 1778575274.553259,
+    "hash": "da79aa9343cd2b362206f03762160abc"
+  },
+  "/mnt/server/apps/steps/instruction/takeout_guide.html": {
+    "mtime": 1778582185.1446753,
+    "hash": "d56aef721aa1e304ab6606d3ffcbb8dd"
+  },
+  "/mnt/server/apps/steps/instruction/zeep_life_guide.html": {
+    "mtime": 1782376941.783368,
+    "hash": "5c0d0c3d847c969bd5396a94de9b6db8"
+  },
+  "/mnt/server/apps/steps/instruction/video_phone_steps_guide.html": {
+    "mtime": 1782298418.8330543,
+    "hash": "d2668b156b531ea0cf122c4306dd03e4"
+  },
+  "/mnt/server/apps/steps/utils/requirements.txt": {
+    "mtime": 1782376941.799368,
+    "hash": "3fb4d60f4ea70179e738eef5deca223a"
+  },
+  "/mnt/server/apps/steps/utils/python_interpreter.txt": {
+    "mtime": 1782302303.8413696,
+    "hash": "278f9c6baa6b343c5f02912faad84ae9"
+  },
+  "/mnt/server/apps/steps/utils/bin/unicharset_extractor.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "80d8793c79fad44eabdce71c6d2909e2"
+  },
+  "/mnt/server/apps/steps/utils/bin/wordlist2dawg.1.html": {
+    "mtime": 1731317148.0,
+    "hash": "531355ca6b05220053715e73f94b8cb1"
+  },
+  "/mnt/server/apps/steps/utils/bin/unicharset.5.html": {
+    "mtime": 1731317146.0,
+    "hash": "add858b22059097884e051b23d6804c8"
+  },
+  "/mnt/server/apps/steps/utils/bin/lstmeval.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "6954b701b8bb4151c78f4be98346da45"
+  },
+  "/mnt/server/apps/steps/utils/bin/set_unicharset_properties.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "740f854f25912f1da00d2519ae41adf4"
+  },
+  "/mnt/server/apps/steps/utils/bin/shapeclustering.1.html": {
+    "mtime": 1731317148.0,
+    "hash": "351555f81844b4f43729b9ba2234c0bf"
+  },
+  "/mnt/server/apps/steps/utils/bin/lstmtraining.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "364b1705b63e30c11ac96363c94dd56d"
+  },
+  "/mnt/server/apps/steps/utils/bin/tesseract.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "2f3e9258df15e5c341a9dea90c80d269"
+  },
+  "/mnt/server/apps/steps/utils/bin/unicharambigs.5.html": {
+    "mtime": 1731317148.0,
+    "hash": "4c77efa9d9157125f4ca8a47b1e2fab1"
+  },
+  "/mnt/server/apps/steps/utils/bin/merge_unicharsets.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "aca9061c4448ea6b1c8bf573f8caf8f0"
+  },
+  "/mnt/server/apps/steps/utils/bin/text2image.1.html": {
+    "mtime": 1731317146.0,
+    "hash": "20d6fb679e0ef7d899a31f6ce677ceae"
+  },
+  "/mnt/server/apps/steps/utils/bin/mftraining.1.html": {
+    "mtime": 1731317148.0,
+    "hash": "40c84f34def693213ad5dd1bf7995592"
+  },
+  "/mnt/server/apps/steps/background_light_thumb.jpg": {
+    "mtime": 1782029586.5686095,
+    "hash": "7b07b7bdff1ec86a78511450f0ab2d5a"
+  },
+  "/mnt/server/apps/steps/kkal.webp": {
+    "mtime": 1778580350.6727555,
+    "hash": "ebbf2a520abd8e092e04408d235632c0"
+  },
+  "/mnt/server/apps/steps/goal.webp": {
+    "mtime": 1778582036.1442192,
+    "hash": "e1db9a7440c0109b8941099a98d26b61"
+  },
+  "/mnt/server/apps/steps/icon.svg": {
+    "mtime": 1777886632.1032317,
+    "hash": "7991f38223e14eadb75bccd0d348f96f"
+  },
+  "/mnt/server/apps/steps/background_dark.jpg": {
+    "mtime": 1782029267.974178,
+    "hash": "16dc40c9b539d133a1e7ba6e37d9b224"
+  },
+  "/mnt/server/apps/steps/distance.webp": {
+    "mtime": 1778580350.5465882,
+    "hash": "7294ba94e9242adf2f0d1149b982c607"
+  },
+  "/mnt/server/apps/steps/goal.png": {
+    "mtime": 1756332020.0,
+    "hash": "36a9f9e34db1d93591ae268412cdb983"
+  },
+  "/mnt/server/apps/steps/background_dark_thumb.jpg": {
+    "mtime": 1782029585.735186,
+    "hash": "1bb2970a8827501772f9e9c5031b7b04"
+  },
+  "/mnt/server/apps/steps/background_light.jpg": {
+    "mtime": 1782029268.9988923,
+    "hash": "e751a9e6919c16abed049b1235a3d1a7"
+  },
+  "/mnt/server/apps/steps/default_profile.jpg": {
+    "mtime": 1757106542.0,
+    "hash": "2a56ff604c4055003e3d0297751db01b"
+  },
+  "/mnt/server/apps/steps/steps.webp": {
+    "mtime": 1778580350.4167073,
+    "hash": "eaff242a8993f12b492cbce0ce192fa4"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/8_enter_mail.png": {
+    "mtime": 1782297939.0,
+    "hash": "a42e71986895475f663ec347f5efbda9"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/9_recipe_mail.png": {
+    "mtime": 1782297444.0,
+    "hash": "92a28a73d546c966f9996995e18550ad"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/10_download_zip_archive_pass.png": {
+    "mtime": 1782297442.0,
+    "hash": "68e9673fed83c0def68917c737109d6c"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/2_open_settings.png": {
+    "mtime": 1782297939.0,
+    "hash": "631aa7b6ff2d9bb3c6a3be97e75c236c"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/3_choose_exircing_user_rights.png": {
+    "mtime": 1782297939.0,
+    "hash": "1b9eee686b4386bdb4cede3a79edc2b3"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/4_choose_activity.png": {
+    "mtime": 1782297939.0,
+    "hash": "c8309dc1e186a00f4f094a16b09c7917"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/7_select_date.png": {
+    "mtime": 1782297939.0,
+    "hash": "1d4f853a064fc8e732b69220263c7999"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/6_confirm_export.png": {
+    "mtime": 1782297939.0,
+    "hash": "83f5ba4f2bad56fd5a5454947d748cd8"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/1_choose_profil.png": {
+    "mtime": 1782297939.0,
+    "hash": "d7ace7ffd5614ca3240869c72e87627c"
+  },
+  "/mnt/server/apps/steps/instruction/photos_from_video/5_export_data.png": {
+    "mtime": 1782297939.0,
+    "hash": "21148ee173e2b5ac2d515f16a60b2824"
+  },
+  "/mnt/server/apps/steps/instruction/photos/select_fit.webp": {
+    "mtime": 1778582038.127021,
+    "hash": "91ee830e9954d888ea2413212825da68"
+  },
+  "/mnt/server/apps/steps/instruction/photos/done.webp": {
+    "mtime": 1778582037.3578763,
+    "hash": "74d53c51dcbf2f3342a9cad44f19d47a"
+  },
+  "/mnt/server/apps/steps/instruction/photos/download_vie_meil.jpg": {
+    "mtime": 1777109382.931306,
+    "hash": "b38a7552abdf03a012536797d22eb27f"
+  },
+  "/mnt/server/apps/steps/instruction/photos/select_fit.jpg": {
+    "mtime": 1777109330.1271229,
+    "hash": "1750b9709c65b07c6dfdbb486c90bfb3"
+  },
+  "/mnt/server/apps/steps/instruction/photos/choose_fit.jpg": {
+    "mtime": 1777109308.7071714,
+    "hash": "92d54f4637fd50a59ee56011c78323ca"
+  },
+  "/mnt/server/apps/steps/instruction/photos/download_vie_meil.webp": {
+    "mtime": 1778582037.6138887,
+    "hash": "d2441bf33c37651f21d147a805b80282"
+  },
+  "/mnt/server/apps/steps/instruction/photos/choose_fit.webp": {
+    "mtime": 1778582036.462782,
+    "hash": "6383315549e8feba9f0b40d6af074b8d"
+  },
+  "/mnt/server/apps/steps/instruction/photos/choose_type_zip.webp": {
+    "mtime": 1778582036.7188158,
+    "hash": "2b23c600f352c8e5a45552d6ef33ebe5"
+  },
+  "/mnt/server/apps/steps/instruction/photos/scroll_down_click_next.webp": {
+    "mtime": 1778582037.87001,
+    "hash": "d9b60b9390821e8a494be7d2ce646abb"
+  },
+  "/mnt/server/apps/steps/instruction/photos/done.jpg": {
+    "mtime": 1777109478.7116,
+    "hash": "5e436e17e2ec424d780f958a13754f4d"
+  },
+  "/mnt/server/apps/steps/instruction/photos/scroll_down_click_next.jpg": {
+    "mtime": 1777109355.4959745,
+    "hash": "36b64ad828513fbfb3b85aedf32c5a81"
+  },
+  "/mnt/server/apps/steps/instruction/photos/create_export.webp": {
+    "mtime": 1778582037.046523,
+    "hash": "511a6d4433cabffd6f6376efe9c8750b"
+  },
+  "/mnt/server/apps/steps/instruction/photos/takeout_deselect_all.webp": {
+    "mtime": 1778582038.445863,
+    "hash": "67b7d99f04702152e37e47db3ab1a596"
+  },
+  "/mnt/server/apps/steps/instruction/photos/create_export.jpg": {
+    "mtime": 1777109447.0358098,
+    "hash": "5b2838d8fa4d224c090791d134ad6153"
+  },
+  "/mnt/server/apps/steps/instruction/photos/takeout_deselect_all.jpg": {
+    "mtime": 1777109268.3752728,
+    "hash": "f9ed27b150059c0c5272a47c01527b92"
+  },
+  "/mnt/server/apps/steps/instruction/photos/choose_type_zip.jpg": {
+    "mtime": 1777109427.6782558,
+    "hash": "f8ce7c461e86fad69710987d70120f96"
+  }
+}

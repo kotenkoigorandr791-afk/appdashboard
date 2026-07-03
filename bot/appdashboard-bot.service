@@ -1,0 +1,20 @@
+[Unit]
+Description=AppDashboard Telegram Bot
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/AppDashboard/bot
+ExecStart=/usr/bin/python3 /var/www/AppDashboard/bot/bot.py
+Restart=always
+RestartSec=15
+Nice=10
+IOSchedulingClass=idle
+CPUSchedulingPolicy=idle
+StandardOutput=append:/var/www/AppDashboard/bot/bot.log
+StandardError=append:/var/www/AppDashboard/bot/bot.log
+
+[Install]
+WantedBy=multi-user.target

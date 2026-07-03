@@ -1,0 +1,12 @@
+{
+    "require": {
+        "phpmailer/phpmailer": "^7.0",
+        "google/apiclient": "^2.18",
+        "firebase/php-jwt": "^6.11"
+    },
+    "config": {
+        "audit": {
+            "ignore": ["true"]
+        }
+    }
+}

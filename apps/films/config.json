@@ -1,0 +1,7 @@
+{
+    "hidden_movies": [],
+    "video_settings": {
+        "seek_step": 10,
+        "volume_step": 5
+    }
+}

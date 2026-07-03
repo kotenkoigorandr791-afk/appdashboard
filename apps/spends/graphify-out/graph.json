@@ -1,0 +1,2236 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "label": "index.php",
+      "file_type": "code",
+      "source_file": "index.php",
+      "source_location": "L1",
+      "community": 6,
+      "norm_label": "index.php",
+      "id": "index_php"
+    },
+    {
+      "label": "db.php",
+      "file_type": "code",
+      "source_file": "core/db.php",
+      "source_location": "L1",
+      "community": 5,
+      "norm_label": "db.php",
+      "id": "core_db_php"
+    },
+    {
+      "label": "getDB()",
+      "file_type": "code",
+      "source_file": "core/db.php",
+      "source_location": "L7",
+      "community": 5,
+      "norm_label": "getdb()",
+      "id": "core_db_getdb"
+    },
+    {
+      "label": "auth.php",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L1",
+      "community": 5,
+      "norm_label": "auth.php",
+      "id": "core_auth_php"
+    },
+    {
+      "label": "getCurrentUserFromActiveSessions()",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L2",
+      "community": 5,
+      "norm_label": "getcurrentuserfromactivesessions()",
+      "id": "core_auth_getcurrentuserfromactivesessions"
+    },
+    {
+      "label": "getSafeFolderName()",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L19",
+      "community": 2,
+      "norm_label": "getsafefoldername()",
+      "id": "core_auth_getsafefoldername"
+    },
+    {
+      "label": "getUserRoleByEmail()",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L24",
+      "community": 5,
+      "norm_label": "getuserrolebyemail()",
+      "id": "core_auth_getuserrolebyemail"
+    },
+    {
+      "label": "isUserRoot()",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L36",
+      "community": 5,
+      "norm_label": "isuserroot()",
+      "id": "core_auth_isuserroot"
+    },
+    {
+      "label": "logError()",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L54",
+      "community": 5,
+      "norm_label": "logerror()",
+      "id": "core_auth_logerror"
+    },
+    {
+      "label": "checkDirectory()",
+      "file_type": "code",
+      "source_file": "core/auth.php",
+      "source_location": "L55",
+      "community": 5,
+      "norm_label": "checkdirectory()",
+      "id": "core_auth_checkdirectory"
+    },
+    {
+      "label": "user_db.php",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L1",
+      "community": 2,
+      "norm_label": "user_db.php",
+      "id": "core_user_db_php"
+    },
+    {
+      "label": "getUserDBPath()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L2",
+      "community": 2,
+      "norm_label": "getuserdbpath()",
+      "id": "core_user_db_getuserdbpath"
+    },
+    {
+      "label": "getUserSQLite()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L9",
+      "community": 2,
+      "norm_label": "getusersqlite()",
+      "id": "core_user_db_getusersqlite"
+    },
+    {
+      "label": "migrateExistingFiles()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L73",
+      "community": 2,
+      "norm_label": "migrateexistingfiles()",
+      "id": "core_user_db_migrateexistingfiles"
+    },
+    {
+      "label": "dbSetSetting()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L152",
+      "community": 2,
+      "norm_label": "dbsetsetting()",
+      "id": "core_user_db_dbsetsetting"
+    },
+    {
+      "label": "dbGetSetting()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L159",
+      "community": 2,
+      "norm_label": "dbgetsetting()",
+      "id": "core_user_db_dbgetsetting"
+    },
+    {
+      "label": "dbSetTableSetting()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L166",
+      "community": 2,
+      "norm_label": "dbsettablesetting()",
+      "id": "core_user_db_dbsettablesetting"
+    },
+    {
+      "label": "dbGetStores()",
+      "file_type": "code",
+      "source_file": "core/user_db.php",
+      "source_location": "L180",
+      "community": 2,
+      "norm_label": "dbgetstores()",
+      "id": "core_user_db_dbgetstores"
+    },
+    {
+      "label": "locale.php",
+      "file_type": "code",
+      "source_file": "core/locale.php",
+      "source_location": "L1",
+      "community": 7,
+      "norm_label": "locale.php",
+      "id": "core_locale_php"
+    },
+    {
+      "label": "user_state.php",
+      "file_type": "code",
+      "source_file": "core/user_state.php",
+      "source_location": "L1",
+      "community": 2,
+      "norm_label": "user_state.php",
+      "id": "core_user_state_php"
+    },
+    {
+      "label": "getUserPhoto()",
+      "file_type": "code",
+      "source_file": "core/user_state.php",
+      "source_location": "L31",
+      "community": 2,
+      "norm_label": "getuserphoto()",
+      "id": "core_user_state_getuserphoto"
+    },
+    {
+      "label": "getUserBackupDir()",
+      "file_type": "code",
+      "source_file": "core/user_state.php",
+      "source_location": "L82",
+      "community": 2,
+      "norm_label": "getuserbackupdir()",
+      "id": "core_user_state_getuserbackupdir"
+    },
+    {
+      "label": "exportExpensesToCSV()",
+      "file_type": "code",
+      "source_file": "core/user_state.php",
+      "source_location": "L89",
+      "community": 2,
+      "norm_label": "exportexpensestocsv()",
+      "id": "core_user_state_exportexpensestocsv"
+    },
+    {
+      "label": "listCalendarDaysInclusive()",
+      "file_type": "code",
+      "source_file": "core/user_state.php",
+      "source_location": "L108",
+      "community": 2,
+      "norm_label": "listcalendardaysinclusive()",
+      "id": "core_user_state_listcalendardaysinclusive"
+    },
+    {
+      "label": "body.php",
+      "file_type": "code",
+      "source_file": "views/body.php",
+      "source_location": "L1",
+      "community": 8,
+      "norm_label": "body.php",
+      "id": "views_body_php"
+    },
+    {
+      "label": "scripts.php",
+      "file_type": "code",
+      "source_file": "views/scripts.php",
+      "source_location": "L1",
+      "community": 9,
+      "norm_label": "scripts.php",
+      "id": "views_scripts_php"
+    },
+    {
+      "label": "head.php",
+      "file_type": "code",
+      "source_file": "views/head.php",
+      "source_location": "L1",
+      "community": 10,
+      "norm_label": "head.php",
+      "id": "views_head_php"
+    },
+    {
+      "label": "Handlers.php",
+      "file_type": "code",
+      "source_file": "controllers/Handlers.php",
+      "source_location": "L1",
+      "community": 11,
+      "norm_label": "handlers.php",
+      "id": "controllers_handlers_php"
+    },
+    {
+      "label": "expense_ocr_worker.py",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L1",
+      "community": 0,
+      "norm_label": "expense_ocr_worker.py",
+      "id": "utils_expense_ocr_worker_py"
+    },
+    {
+      "label": "now_iso()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L23",
+      "community": 0,
+      "norm_label": "now_iso()",
+      "id": "utils_expense_ocr_worker_now_iso"
+    },
+    {
+      "label": "write_status()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L25",
+      "community": 0,
+      "norm_label": "write_status()",
+      "id": "utils_expense_ocr_worker_write_status"
+    },
+    {
+      "label": "normalize_space()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L27",
+      "community": 3,
+      "norm_label": "normalize_space()",
+      "id": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "label": "strip_diacritics()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L29",
+      "community": 0,
+      "norm_label": "strip_diacritics()",
+      "id": "utils_expense_ocr_worker_strip_diacritics"
+    },
+    {
+      "label": "latinize_homoglyphs()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L31",
+      "community": 0,
+      "norm_label": "latinize_homoglyphs()",
+      "id": "utils_expense_ocr_worker_latinize_homoglyphs"
+    },
+    {
+      "label": "canonical_merchant()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L34",
+      "community": 0,
+      "norm_label": "canonical_merchant()",
+      "id": "utils_expense_ocr_worker_canonical_merchant"
+    },
+    {
+      "label": "normalize_ocr_amount_str()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L39",
+      "community": 3,
+      "norm_label": "normalize_ocr_amount_str()",
+      "id": "utils_expense_ocr_worker_normalize_ocr_amount_str"
+    },
+    {
+      "label": "parse_wallet_amount_decimal()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L43",
+      "community": 3,
+      "norm_label": "parse_wallet_amount_decimal()",
+      "id": "utils_expense_ocr_worker_parse_wallet_amount_decimal"
+    },
+    {
+      "label": "normalize_us_thousands_amount_substrings()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L64",
+      "community": 3,
+      "norm_label": "normalize_us_thousands_amount_substrings()",
+      "id": "utils_expense_ocr_worker_normalize_us_thousands_amount_substrings"
+    },
+    {
+      "label": "parse_amount_and_currency()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L66",
+      "community": 3,
+      "norm_label": "parse_amount_and_currency()",
+      "id": "utils_expense_ocr_worker_parse_amount_and_currency"
+    },
+    {
+      "label": "parse_amount_line_only()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L80",
+      "community": 3,
+      "norm_label": "parse_amount_line_only()",
+      "id": "utils_expense_ocr_worker_parse_amount_line_only"
+    },
+    {
+      "label": "parse_month_day_line()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L92",
+      "community": 3,
+      "norm_label": "parse_month_day_line()",
+      "id": "utils_expense_ocr_worker_parse_month_day_line"
+    },
+    {
+      "label": "is_noise_line()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L105",
+      "community": 3,
+      "norm_label": "is_noise_line()",
+      "id": "utils_expense_ocr_worker_is_noise_line"
+    },
+    {
+      "label": "is_valid_merchant_line()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L116",
+      "community": 3,
+      "norm_label": "is_valid_merchant_line()",
+      "id": "utils_expense_ocr_worker_is_valid_merchant_line"
+    },
+    {
+      "label": "find_merchant_back()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L138",
+      "community": 3,
+      "norm_label": "find_merchant_back()",
+      "id": "utils_expense_ocr_worker_find_merchant_back"
+    },
+    {
+      "label": "extract_wallet_transactions()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L150",
+      "community": 3,
+      "norm_label": "extract_wallet_transactions()",
+      "id": "utils_expense_ocr_worker_extract_wallet_transactions"
+    },
+    {
+      "label": "parse_date()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L202",
+      "community": 0,
+      "norm_label": "parse_date()",
+      "id": "utils_expense_ocr_worker_parse_date"
+    },
+    {
+      "label": "ocr_image()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L229",
+      "community": 0,
+      "norm_label": "ocr_image()",
+      "id": "utils_expense_ocr_worker_ocr_image"
+    },
+    {
+      "label": "best_store_match()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L263",
+      "community": 0,
+      "norm_label": "best_store_match()",
+      "id": "utils_expense_ocr_worker_best_store_match"
+    },
+    {
+      "label": "fetch_rates()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L280",
+      "community": 0,
+      "norm_label": "fetch_rates()",
+      "id": "utils_expense_ocr_worker_fetch_rates"
+    },
+    {
+      "label": "convert_to_base()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L284",
+      "community": 0,
+      "norm_label": "convert_to_base()",
+      "id": "utils_expense_ocr_worker_convert_to_base"
+    },
+    {
+      "label": "ensure_store()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L290",
+      "community": 0,
+      "norm_label": "ensure_store()",
+      "id": "utils_expense_ocr_worker_ensure_store"
+    },
+    {
+      "label": "upsert_expense()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L297",
+      "community": 0,
+      "norm_label": "upsert_expense()",
+      "id": "utils_expense_ocr_worker_upsert_expense"
+    },
+    {
+      "label": "load_existing_stores()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L299",
+      "community": 0,
+      "norm_label": "load_existing_stores()",
+      "id": "utils_expense_ocr_worker_load_existing_stores"
+    },
+    {
+      "label": "process()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L308",
+      "community": 0,
+      "norm_label": "process()",
+      "id": "utils_expense_ocr_worker_process"
+    },
+    {
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L369",
+      "community": 0,
+      "norm_label": "main()",
+      "id": "utils_expense_ocr_worker_main"
+    },
+    {
+      "label": "background_expense_ocr.py",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L1",
+      "community": 4,
+      "norm_label": "background_expense_ocr.py",
+      "id": "utils_background_expense_ocr_py"
+    },
+    {
+      "label": "normalize_merchant()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L6",
+      "community": 4,
+      "norm_label": "normalize_merchant()",
+      "id": "utils_background_expense_ocr_normalize_merchant"
+    },
+    {
+      "label": "normalize_amount()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L8",
+      "community": 4,
+      "norm_label": "normalize_amount()",
+      "id": "utils_background_expense_ocr_normalize_amount"
+    },
+    {
+      "label": "parse_records_from_lines()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L10",
+      "community": 4,
+      "norm_label": "parse_records_from_lines()",
+      "id": "utils_background_expense_ocr_parse_records_from_lines"
+    },
+    {
+      "label": "unique_records()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L29",
+      "community": 4,
+      "norm_label": "unique_records()",
+      "id": "utils_background_expense_ocr_unique_records"
+    },
+    {
+      "label": "ocr_image_tesseract()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L37",
+      "community": 4,
+      "norm_label": "ocr_image_tesseract()",
+      "id": "utils_background_expense_ocr_ocr_image_tesseract"
+    },
+    {
+      "label": "collect_text_from_images()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L43",
+      "community": 4,
+      "norm_label": "collect_text_from_images()",
+      "id": "utils_background_expense_ocr_collect_text_from_images"
+    },
+    {
+      "label": "parse_from_text()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L48",
+      "community": 4,
+      "norm_label": "parse_from_text()",
+      "id": "utils_background_expense_ocr_parse_from_text"
+    },
+    {
+      "label": "write_report()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L51",
+      "community": 4,
+      "norm_label": "write_report()",
+      "id": "utils_background_expense_ocr_write_report"
+    },
+    {
+      "label": "run_once()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L54",
+      "community": 4,
+      "norm_label": "run_once()",
+      "id": "utils_background_expense_ocr_run_once"
+    },
+    {
+      "label": "run_background()",
+      "file_type": "code",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L59",
+      "community": 4,
+      "norm_label": "run_background()",
+      "id": "utils_background_expense_ocr_run_background"
+    },
+    {
+      "label": "expense_ocr_app.php",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L1",
+      "community": 1,
+      "norm_label": "expense_ocr_app.php",
+      "id": "utils_expense_ocr_app_php"
+    },
+    {
+      "label": "out()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L11",
+      "community": 1,
+      "norm_label": "out()",
+      "id": "utils_expense_ocr_app_out"
+    },
+    {
+      "label": "safeFolder()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L12",
+      "community": 1,
+      "norm_label": "safefolder()",
+      "id": "utils_expense_ocr_app_safefolder"
+    },
+    {
+      "label": "currentUser()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L13",
+      "community": 1,
+      "norm_label": "currentuser()",
+      "id": "utils_expense_ocr_app_currentuser"
+    },
+    {
+      "label": "userDbPath()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L14",
+      "community": 1,
+      "norm_label": "userdbpath()",
+      "id": "utils_expense_ocr_app_userdbpath"
+    },
+    {
+      "label": "userJobsDir()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L15",
+      "community": 1,
+      "norm_label": "userjobsdir()",
+      "id": "utils_expense_ocr_app_userjobsdir"
+    },
+    {
+      "label": "rrmdir()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L16",
+      "community": 1,
+      "norm_label": "rrmdir()",
+      "id": "utils_expense_ocr_app_rrmdir"
+    },
+    {
+      "label": "ensureSchema()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L17",
+      "community": 0,
+      "norm_label": "ensureschema()",
+      "id": "utils_expense_ocr_app_ensureschema"
+    },
+    {
+      "label": "getSetting()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L18",
+      "community": 1,
+      "norm_label": "getsetting()",
+      "id": "utils_expense_ocr_app_getsetting"
+    },
+    {
+      "label": "setSetting()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L19",
+      "community": 1,
+      "norm_label": "setsetting()",
+      "id": "utils_expense_ocr_app_setsetting"
+    },
+    {
+      "label": "userCurrency()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L20",
+      "community": 1,
+      "norm_label": "usercurrency()",
+      "id": "utils_expense_ocr_app_usercurrency"
+    },
+    {
+      "label": "storeNames()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L21",
+      "community": 1,
+      "norm_label": "storenames()",
+      "id": "utils_expense_ocr_app_storenames"
+    },
+    {
+      "label": "isImage()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L22",
+      "community": 1,
+      "norm_label": "isimage()",
+      "id": "utils_expense_ocr_app_isimage"
+    },
+    {
+      "label": "ratesByBase()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L23",
+      "community": 1,
+      "norm_label": "ratesbybase()",
+      "id": "utils_expense_ocr_app_ratesbybase"
+    },
+    {
+      "label": "pythonBin()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L24",
+      "community": 1,
+      "norm_label": "pythonbin()",
+      "id": "utils_expense_ocr_app_pythonbin"
+    },
+    {
+      "label": "startWorker()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L25",
+      "community": 1,
+      "norm_label": "startworker()",
+      "id": "utils_expense_ocr_app_startworker"
+    },
+    {
+      "label": "jobPath()",
+      "file_type": "code",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L26",
+      "community": 1,
+      "norm_label": "jobpath()",
+      "id": "utils_expense_ocr_app_jobpath"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/db.php",
+      "source_location": "L7",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_db_php",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/auth.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "core_auth_getcurrentuserfromactivesessions",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/auth.php",
+      "source_location": "L25",
+      "weight": 1.0,
+      "source": "core_auth_getuserrolebyemail",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/auth.php",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "core_auth_isuserroot",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/user_state.php",
+      "source_location": "L37",
+      "weight": 1.0,
+      "source": "core_user_state_getuserphoto",
+      "target": "core_db_getdb"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_php",
+      "target": "core_auth_getcurrentuserfromactivesessions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L19",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_php",
+      "target": "core_auth_getsafefoldername"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_php",
+      "target": "core_auth_getuserrolebyemail"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L36",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_php",
+      "target": "core_auth_isuserroot"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L54",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_php",
+      "target": "core_auth_logerror"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L55",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_php",
+      "target": "core_auth_checkdirectory"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/user_db.php",
+      "source_location": "L3",
+      "weight": 1.0,
+      "source": "core_user_db_getuserdbpath",
+      "target": "core_auth_getsafefoldername"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/user_db.php",
+      "source_location": "L58",
+      "weight": 1.0,
+      "source": "core_user_db_getusersqlite",
+      "target": "core_auth_getsafefoldername"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/user_db.php",
+      "source_location": "L74",
+      "weight": 1.0,
+      "source": "core_user_db_migrateexistingfiles",
+      "target": "core_auth_getsafefoldername"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/user_state.php",
+      "source_location": "L32",
+      "weight": 1.0,
+      "source": "core_user_state_getuserphoto",
+      "target": "core_auth_getsafefoldername"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "INFERRED",
+      "confidence_score": 0.8,
+      "source_file": "core/user_state.php",
+      "source_location": "L83",
+      "weight": 1.0,
+      "source": "core_user_state_getuserbackupdir",
+      "target": "core_auth_getsafefoldername"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/auth.php",
+      "source_location": "L57",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_auth_checkdirectory",
+      "target": "core_auth_logerror"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L2",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_getuserdbpath"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L9",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_getusersqlite"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L73",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_migrateexistingfiles"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L152",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_dbsetsetting"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L159",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_dbgetsetting"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L173",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_dbsettablesetting"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L180",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_php",
+      "target": "core_user_db_dbgetstores"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L13",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_getusersqlite",
+      "target": "core_user_db_getuserdbpath"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L65",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_getusersqlite",
+      "target": "core_user_db_migrateexistingfiles"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L81",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_migrateexistingfiles",
+      "target": "core_user_db_dbsetsetting"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_db.php",
+      "source_location": "L109",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_db_migrateexistingfiles",
+      "target": "core_user_db_dbsettablesetting"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_state.php",
+      "source_location": "L31",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_state_php",
+      "target": "core_user_state_getuserphoto"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_state.php",
+      "source_location": "L82",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_state_php",
+      "target": "core_user_state_getuserbackupdir"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_state.php",
+      "source_location": "L89",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_state_php",
+      "target": "core_user_state_exportexpensestocsv"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_state.php",
+      "source_location": "L108",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_state_php",
+      "target": "core_user_state_listcalendardaysinclusive"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "core/user_state.php",
+      "source_location": "L95",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "core_user_state_exportexpensestocsv",
+      "target": "core_user_state_listcalendardaysinclusive"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_now_iso"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L25",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_write_status"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L27",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_strip_diacritics"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_latinize_homoglyphs"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L34",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_canonical_merchant"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L39",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_normalize_ocr_amount_str"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_parse_wallet_amount_decimal"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L64",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_normalize_us_thousands_amount_substrings"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L66",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_parse_amount_and_currency"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L80",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_parse_amount_line_only"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L92",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_parse_month_day_line"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L105",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_is_noise_line"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L116",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_is_valid_merchant_line"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L138",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_find_merchant_back"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L150",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_extract_wallet_transactions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L202",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_parse_date"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L229",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_ocr_image"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L263",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_best_store_match"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L280",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_fetch_rates"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L284",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_convert_to_base"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L290",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_ensure_store"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L297",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_upsert_expense"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L299",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_load_existing_stores"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L304",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_app_ensureschema"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L308",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_process"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L369",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_py",
+      "target": "utils_expense_ocr_worker_main"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L315",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_now_iso"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L380",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_main",
+      "target": "utils_expense_ocr_worker_now_iso"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L316",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_write_status"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L380",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_main",
+      "target": "utils_expense_ocr_worker_write_status"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_canonical_merchant",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_amount_line_only",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L93",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_month_day_line",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L106",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_is_noise_line",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L117",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_is_valid_merchant_line",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L332",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_normalize_space"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L220",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_date",
+      "target": "utils_expense_ocr_worker_strip_diacritics"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_canonical_merchant",
+      "target": "utils_expense_ocr_worker_latinize_homoglyphs"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L266",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_best_store_match",
+      "target": "utils_expense_ocr_worker_canonical_merchant"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_wallet_amount_decimal",
+      "target": "utils_expense_ocr_worker_normalize_ocr_amount_str"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L126",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_is_valid_merchant_line",
+      "target": "utils_expense_ocr_worker_normalize_ocr_amount_str"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L72",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_amount_and_currency",
+      "target": "utils_expense_ocr_worker_parse_wallet_amount_decimal"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_amount_line_only",
+      "target": "utils_expense_ocr_worker_parse_wallet_amount_decimal"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L67",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_amount_and_currency",
+      "target": "utils_expense_ocr_worker_normalize_us_thousands_amount_substrings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L81",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_parse_amount_line_only",
+      "target": "utils_expense_ocr_worker_normalize_us_thousands_amount_substrings"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L179",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_extract_wallet_transactions",
+      "target": "utils_expense_ocr_worker_parse_amount_and_currency"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L122",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_is_valid_merchant_line",
+      "target": "utils_expense_ocr_worker_parse_amount_line_only"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L145",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_find_merchant_back",
+      "target": "utils_expense_ocr_worker_parse_amount_line_only"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L163",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_extract_wallet_transactions",
+      "target": "utils_expense_ocr_worker_parse_amount_line_only"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L120",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_is_valid_merchant_line",
+      "target": "utils_expense_ocr_worker_parse_month_day_line"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L143",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_find_merchant_back",
+      "target": "utils_expense_ocr_worker_parse_month_day_line"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L158",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_extract_wallet_transactions",
+      "target": "utils_expense_ocr_worker_parse_month_day_line"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L141",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_find_merchant_back",
+      "target": "utils_expense_ocr_worker_is_noise_line"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L147",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_find_merchant_back",
+      "target": "utils_expense_ocr_worker_is_valid_merchant_line"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L167",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_extract_wallet_transactions",
+      "target": "utils_expense_ocr_worker_is_valid_merchant_line"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L166",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_extract_wallet_transactions",
+      "target": "utils_expense_ocr_worker_find_merchant_back"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L334",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_extract_wallet_transactions"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L330",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_ocr_image"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L337",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_best_store_match"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L319",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_fetch_rates"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L342",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_convert_to_base"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L362",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_upsert_expense"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L325",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_worker_load_existing_stores"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L324",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_process",
+      "target": "utils_expense_ocr_app_ensureschema"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_worker.py",
+      "source_location": "L378",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_main",
+      "target": "utils_expense_ocr_worker_process"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L66",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_expense_ocr_worker_main"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_main",
+      "target": "utils_background_expense_ocr_run_background"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L76",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_worker_main",
+      "target": "utils_background_expense_ocr_run_once"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L6",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_normalize_merchant"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L8",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_normalize_amount"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_parse_records_from_lines"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_unique_records"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_ocr_image_tesseract"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_collect_text_from_images"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L48",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_parse_from_text"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L51",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_write_report"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L54",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_run_once"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L59",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_py",
+      "target": "utils_background_expense_ocr_run_background"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_parse_records_from_lines",
+      "target": "utils_background_expense_ocr_normalize_merchant"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_parse_records_from_lines",
+      "target": "utils_background_expense_ocr_normalize_amount"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_parse_from_text",
+      "target": "utils_background_expense_ocr_parse_records_from_lines"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L50",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_parse_from_text",
+      "target": "utils_background_expense_ocr_unique_records"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L46",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_collect_text_from_images",
+      "target": "utils_background_expense_ocr_ocr_image_tesseract"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L55",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_run_once",
+      "target": "utils_background_expense_ocr_collect_text_from_images"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L56",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_run_once",
+      "target": "utils_background_expense_ocr_parse_from_text"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L57",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_run_once",
+      "target": "utils_background_expense_ocr_write_report"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/background_expense_ocr.py",
+      "source_location": "L62",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_background_expense_ocr_run_background",
+      "target": "utils_background_expense_ocr_run_once"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L11",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_out"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L12",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_safefolder"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L13",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_currentuser"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L14",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_userdbpath"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_userjobsdir"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L16",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_rrmdir"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L17",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_ensureschema"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L18",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_getsetting"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L19",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_setsetting"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L20",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_usercurrency"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L21",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_storenames"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L22",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_isimage"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L23",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_ratesbybase"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L24",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_pythonbin"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L25",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_startworker"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L26",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_php",
+      "target": "utils_expense_ocr_app_jobpath"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L14",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_userdbpath",
+      "target": "utils_expense_ocr_app_safefolder"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L15",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_userjobsdir",
+      "target": "utils_expense_ocr_app_safefolder"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L20",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_usercurrency",
+      "target": "utils_expense_ocr_app_getsetting"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "utils/expense_ocr_app.php",
+      "source_location": "L25",
+      "weight": 1.0,
+      "confidence_score": 1.0,
+      "source": "utils_expense_ocr_app_startworker",
+      "target": "utils_expense_ocr_app_pythonbin"
+    }
+  ],
+  "hyperedges": []
+}

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3 \"Z:/app_data.sqlite3\" \".schema users\")"
+    ]
+  }
+}

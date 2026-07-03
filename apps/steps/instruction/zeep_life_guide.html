@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Zeep Life export guide</title>
+<style>
+:root{--primary:#6f7a8a;--bg:#f4f5f7;--text:#1f2328;--muted:#5f6670;--card:#fff;--border:rgba(31,35,40,.14);--shadow:0 14px 28px rgba(0,0,0,.08);--scroll-track:#e7eaee;--scroll-thumb:#a1a8b3}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;scroll-behavior:smooth;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) var(--scroll-track)}
+body{background:linear-gradient(180deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 88%,#d7dce2) 100%)}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:var(--scroll-track)}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--scroll-thumb) 82%,#000)}
+.layout{max-width:1260px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:14px}
+.content{min-width:0}
+.hero{padding:18px 20px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,color-mix(in srgb,var(--card) 78%,#e5e8ed) 0%,var(--card) 68%);box-shadow:var(--shadow);margin-bottom:12px}
+.hero h1{margin:0 0 8px;font-size:clamp(20px,3vw,30px)}
+.hero p{margin:0;color:var(--muted);line-height:1.5}
+.step{border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 10px 24px rgba(0,0,0,.06);padding:12px;margin-bottom:12px;transition:transform .22s ease,box-shadow .22s ease,border-color .22s ease}
+.step:hover{transform:translateY(-2px);box-shadow:0 14px 28px rgba(0,0,0,.11);border-color:color-mix(in srgb,var(--primary) 42%,var(--border))}
+.step-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.badge{flex:0 0 auto;width:30px;height:30px;border-radius:999px;display:grid;place-items:center;font-weight:700;color:#fff;background:linear-gradient(145deg,#7f8794,#5d6674)}
+.step h2{margin:0;font-size:18px}
+.step p{margin:0 0 10px;color:var(--muted);line-height:1.45}
+.img-wrap{overflow:hidden;border-radius:10px;border:1px solid var(--border);background:color-mix(in srgb,var(--card) 85%,var(--bg))}
+.img-wrap img{display:block;width:100%;height:auto;cursor:zoom-in;transition:transform .35s ease,filter .25s ease}
+.img-wrap img:hover{filter:saturate(1.04)}
+.step:hover .img-wrap img{transform:scale(1.008)}
+.map{position:sticky;top:12px;align-self:start;border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 10px 24px rgba(0,0,0,.07);padding:12px}
+.map h3{margin:2px 0 10px;font-size:14px}
+.map a{display:block;text-decoration:none;color:var(--text);font-size:13px;line-height:1.3;padding:8px 10px;border-radius:10px;margin-bottom:5px;border:1px solid transparent;transition:all .2s ease}
+.map a:hover,.map a.active{background:color-mix(in srgb,var(--primary) 18%,transparent);border-color:color-mix(in srgb,var(--primary) 30%,transparent)}
+.end{margin:4px 0 0;color:var(--muted);font-size:13px}
+.viewer{position:fixed;inset:0;background:rgba(8,10,13,.84);display:none;align-items:center;justify-content:center;padding:3vh 2vw;z-index:9999;opacity:0;transition:opacity .2s ease}
+.viewer.open{display:flex;opacity:1}
+.viewer img{max-width:94vw;max-height:94vh;width:auto;height:auto;border-radius:14px;border:1px solid rgba(255,255,255,.2);box-shadow:0 24px 50px rgba(0,0,0,.45);cursor:zoom-out}
+.viewer-close{position:absolute;top:12px;right:12px;width:38px;height:38px;border:1px solid rgba(255,255,255,.3);border-radius:999px;background:rgba(0,0,0,.5);color:#fff;font-size:20px;line-height:1;display:grid;place-items:center;cursor:pointer}
+[data-theme=dark]{--primary:#6f7a8a;--bg:#121417;--text:#e7ebf0;--muted:#a1a8b3;--card:#1d2128;--border:rgba(255,255,255,.11);--shadow:0 18px 38px rgba(0,0,0,.38);--scroll-track:#1a1e25;--scroll-thumb:#575f6d}
+[data-theme=dark] body{background:linear-gradient(180deg,#121417 0%,#171b21 100%)}
+@media (max-width:980px){.layout{grid-template-columns:1fr}.map{position:relative;top:0;order:-1}}
+</style>
+</head>
+<body>
+<div class="layout">
+<main class="content">
+<section class="hero">
+<h1 id="title"></h1>
+<p id="subtitle"></p>
+</section>
+<section id="s1" class="step"><div class="step-h"><div class="badge">1</div><h2 data-k="s1t"></h2></div><p data-k="s1d"></p><div class="img-wrap"><img src="photos_from_video/1_choose_profil.png" alt="" loading="lazy"></div></section>
+<section id="s2" class="step"><div class="step-h"><div class="badge">2</div><h2 data-k="s2t"></h2></div><p data-k="s2d"></p><div class="img-wrap"><img src="photos_from_video/2_open_settings.png" alt="" loading="lazy"></div></section>
+<section id="s3" class="step"><div class="step-h"><div class="badge">3</div><h2 data-k="s3t"></h2></div><p data-k="s3d"></p><div class="img-wrap"><img src="photos_from_video/3_choose_exircing_user_rights.png" alt="" loading="lazy"></div></section>
+<section id="s4" class="step"><div class="step-h"><div class="badge">4</div><h2 data-k="s4t"></h2></div><p data-k="s4d"></p><div class="img-wrap"><img src="photos_from_video/4_choose_activity.png" alt="" loading="lazy"></div></section>
+<section id="s5" class="step"><div class="step-h"><div class="badge">5</div><h2 data-k="s5t"></h2></div><p data-k="s5d"></p><div class="img-wrap"><img src="photos_from_video/5_export_data.png" alt="" loading="lazy"></div></section>
+<section id="s6" class="step"><div class="step-h"><div class="badge">6</div><h2 data-k="s6t"></h2></div><p data-k="s6d"></p><div class="img-wrap"><img src="photos_from_video/6_confirm_export.png" alt="" loading="lazy"></div></section>
+<section id="s7" class="step"><div class="step-h"><div class="badge">7</div><h2 data-k="s7t"></h2></div><p data-k="s7d"></p><div class="img-wrap"><img src="photos_from_video/7_select_date.png" alt="" loading="lazy"></div></section>
+<section id="s8" class="step"><div class="step-h"><div class="badge">8</div><h2 data-k="s8t"></h2></div><p data-k="s8d"></p><div class="img-wrap"><img src="photos_from_video/8_enter_mail.png" alt="" loading="lazy"></div></section>
+<section id="s9" class="step"><div class="step-h"><div class="badge">9</div><h2 data-k="s9t"></h2></div><p data-k="s9d"></p><div class="img-wrap"><img src="photos_from_video/9_recipe_mail.png" alt="" loading="lazy"></div></section>
+<section id="s10" class="step"><div class="step-h"><div class="badge">10</div><h2 data-k="s10t"></h2></div><p data-k="s10d"></p><div class="img-wrap"><img src="photos_from_video/10_download_zip_archive_pass.png" alt="" loading="lazy"></div></section>
+<p class="end" id="end"></p>
+</main>
+<aside class="map">
+<h3 id="mapTitle"></h3>
+<a href="#s1" data-k="m1"></a>
+<a href="#s2" data-k="m2"></a>
+<a href="#s3" data-k="m3"></a>
+<a href="#s4" data-k="m4"></a>
+<a href="#s5" data-k="m5"></a>
+<a href="#s6" data-k="m6"></a>
+<a href="#s7" data-k="m7"></a>
+<a href="#s8" data-k="m8"></a>
+<a href="#s9" data-k="m9"></a>
+<a href="#s10" data-k="m10"></a>
+</aside>
+</div>
+<div class="viewer" id="imgViewer" aria-hidden="true"><button class="viewer-close" id="imgViewerClose" type="button" aria-label="Close">×</button><img id="imgViewerImage" src="" alt=""></div>
+<script>
+const i18n={en:{title:"How to export Zeep Life data",subtitle:"Follow these steps in the Zeep Life app, then upload the ZIP archive and password in the Zeep Life tab above.",mapTitle:"Mini map",end:"After download, select the ZIP file, enter the archive password from the email, and start import.",s1t:"Open your profile",s1d:"In Zeep Life, open the profile section from the bottom bar.",s2t:"Open settings",s2d:"Tap the settings icon in the profile screen.",s3t:"User rights / privacy",s3d:"Open the section for exercising user rights (data export).",s4t:"Choose Activity",s4d:"Select Activity as the data type to export.",s5t:"Export data",s5d:"Start the data export request.",s6t:"Confirm export",s6d:"Confirm the export on the next screen.",s7t:"Select date range",s7d:"Pick the period that covers the days you need.",s8t:"Enter email",s8d:"Enter the email address where the archive link will be sent.",s9t:"Check your inbox",s9d:"Open the email from Zeep Life with the download link.",s10t:"Download ZIP and save password",s10d:"Download the ZIP archive. The email also contains the archive password — you will need it when importing.",m1:"1. Profile",m2:"2. Settings",m3:"3. User rights",m4:"4. Activity",m5:"5. Export",m6:"6. Confirm",m7:"7. Dates",m8:"8. Email",m9:"9. Inbox",m10:"10. ZIP + password"},
+ru:{title:"Как выгрузить данные Zeep Life",subtitle:"Выполните шаги в приложении Zeep Life, затем загрузите ZIP-архив и пароль во вкладке «Zeep Life» выше.",mapTitle:"Мини-карта",end:"После скачивания выберите ZIP, введите пароль из письма и нажмите импорт.",s1t:"Откройте профиль",s1d:"В Zeep Life откройте раздел профиля в нижней панели.",s2t:"Откройте настройки",s2d:"Нажмите значок настроек на экране профиля.",s3t:"Права пользователя",s3d:"Откройте раздел реализации прав пользователя (экспорт данных).",s4t:"Выберите Activity",s4d:"Выберите тип данных Activity для выгрузки.",s5t:"Экспорт данных",s5d:"Запустите запрос на экспорт данных.",s6t:"Подтвердите экспорт",s6d:"Подтвердите экспорт на следующем экране.",s7t:"Выберите период",s7d:"Укажите диапазон дат, который покрывает нужные дни.",s8t:"Введите email",s8d:"Укажите адрес, на который придёт ссылка на архив.",s9t:"Проверьте почту",s9d:"Откройте письмо от Zeep Life со ссылкой на скачивание.",s10t:"Скачайте ZIP и сохраните пароль",s10d:"Скачайте ZIP-архив. В письме также указан пароль архива — он понадобится при импорте.",m1:"1. Профиль",m2:"2. Настройки",m3:"3. Права",m4:"4. Activity",m5:"5. Экспорт",m6:"6. Подтверждение",m7:"7. Даты",m8:"8. Email",m9:"9. Письмо",m10:"10. ZIP и пароль"},
+uk:{title:"Як експортувати дані Zeep Life",subtitle:"Виконайте кроки в застосунку Zeep Life, потім завантажте ZIP-архів і пароль у вкладці «Zeep Life» вище.",mapTitle:"Міні-мапа",end:"Після завантаження оберіть ZIP, введіть пароль з листа та натисніть імпорт.",s1t:"Відкрийте профіль",s1d:"У Zeep Life відкрийте розділ профілю в нижній панелі.",s2t:"Відкрийте налаштування",s2d:"Натисніть значок налаштувань на екрані профілю.",s3t:"Права користувача",s3d:"Відкрийте розділ реалізації прав користувача (експорт даних).",s4t:"Оберіть Activity",s4d:"Оберіть тип даних Activity для вивантаження.",s5t:"Експорт даних",s5d:"Запустіть запит на експорт даних.",s6t:"Підтвердіть експорт",s6d:"Підтвердіть експорт на наступному екрані.",s7t:"Оберіть період",s7d:"Вкажіть діапазон дат, який покриває потрібні дні.",s8t:"Введіть email",s8d:"Вкажіть адресу, на яку надійде посилання на архів.",s9t:"Перевірте пошту",s9d:"Відкрийте лист від Zeep Life із посиланням на завантаження.",s10t:"Завантажте ZIP і збережіть пароль",s10d:"Завантажте ZIP-архів. У листі також вказано пароль архіву — він знадобиться під час імпорту.",m1:"1. Профіль",m2:"2. Налаштування",m3:"3. Права",m4:"4. Activity",m5:"5. Експорт",m6:"6. Підтвердження",m7:"7. Дати",m8:"8. Email",m9:"9. Лист",m10:"10. ZIP і пароль"},
+be:{title:"Як выгрузіць дадзеныя Zeep Life",subtitle:"Выканайце крокі ў праграме Zeep Life, затым загрузіце ZIP-архіў і пароль у ўкладцы «Zeep Life» вышэй.",mapTitle:"Міні-карта",end:"Пасля загрузкі абярыце ZIP, увядзіце пароль з ліста і націсніце імпарт.",s1t:"Адкрыйце профіль",s1d:"У Zeep Life адкрыйце раздзел профілю ў ніжняй панэлі.",s2t:"Адкрыйце налады",s2d:"Націсніце значок налад на экране профілю.",s3t:"Правы карыстальника",s3d:"Адкрыйце раздзел рэалізацыі правоў карыстальника (экспарт дадзеных).",s4t:"Абярыце Activity",s4d:"Абярыце тып дадзеных Activity для выгрузкі.",s5t:"Экспарт дадзеных",s5d:"Запусціце запыт на экспарт дадзеных.",s6t:"Пацвердзіце экспарт",s6d:"Пацвердзіце экспарт на наступным экране.",s7t:"Абярыце перыяд",s7d:"Пакажыце дыяпазон дат, які пакрывае патрэбныя дні.",s8t:"Увядзіце email",s8d:"Пакажыце адрас, на які прыйдзе спасылка на архіў.",s9t:"Праверце пошту",s9d:"Адкрыйце ліст ад Zeep Life са спасылкай на загрузку.",s10t:"Спампуйце ZIP і захавайце пароль",s10d:"Спампуйце ZIP-архіў. У лісте таксама ўказаны пароль архіва — ён спатрэбіцца пры імпарце.",m1:"1. Профіль",m2:"2. Налады",m3:"3. Правы",m4:"4. Activity",m5:"5. Экспарт",m6:"6. Пацверджанне",m7:"7. Даты",m8:"8. Email",m9:"9. Ліст",m10:"10. ZIP і пароль"}};
+const q=new URLSearchParams(location.search);
+const lang=(q.get("lang")||"en").toLowerCase();
+const theme=(q.get("theme")||"light").toLowerCase();
+const color=q.get("color")||"#007bff";
+document.documentElement.setAttribute("data-theme",theme==="dark"?"dark":"light");
+document.documentElement.style.setProperty("--primary",color);
+const t=i18n[lang]||i18n.en;
+document.documentElement.lang=lang;
+document.getElementById("title").textContent=t.title;
+document.getElementById("subtitle").textContent=t.subtitle;
+document.getElementById("mapTitle").textContent=t.mapTitle;
+document.getElementById("end").textContent=t.end;
+document.querySelectorAll("[data-k]").forEach(el=>{const k=el.getAttribute("data-k");if(t[k])el.textContent=t[k];});
+document.querySelectorAll(".img-wrap img").forEach((img,i)=>{const k="m"+(i+1);if(t[k])img.alt=t[k];});
+const navLinks=[...document.querySelectorAll(".map a")];
+const obs=new IntersectionObserver((entries)=>{entries.forEach(en=>{if(en.isIntersecting){const id=en.target.id;navLinks.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+id));}})},{rootMargin:"-40% 0px -50% 0px",threshold:.01});
+document.querySelectorAll(".step").forEach(s=>obs.observe(s));
+const viewer=document.getElementById("imgViewer");
+const viewerImg=document.getElementById("imgViewerImage");
+const viewerClose=document.getElementById("imgViewerClose");
+const closeViewer=()=>{viewer.classList.remove("open");viewer.setAttribute("aria-hidden","true");viewerImg.src="";};
+const postOpenToParent=(src,alt)=>{try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"takeout-guide-image-open",src,alt:alt||""},"*");return true}}catch(e){}return false};
+const postCloseToParent=()=>{try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:"takeout-guide-image-close"},"*");return true}}catch(e){}return false};
+document.querySelectorAll(".img-wrap img").forEach(img=>{img.addEventListener("click",()=>{if(postOpenToParent(img.src,img.alt||""))return;viewerImg.src=img.src;viewerImg.alt=img.alt||"";viewer.classList.add("open");viewer.setAttribute("aria-hidden","false");});});
+viewerClose.addEventListener("click",()=>{if(!postCloseToParent())closeViewer();});
+viewer.addEventListener("click",e=>{if(e.target===viewer||e.target===viewerImg){if(!postCloseToParent())closeViewer();}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&viewer.classList.contains("open")){if(!postCloseToParent())closeViewer();}});
+</script>
+</body>
+</html>

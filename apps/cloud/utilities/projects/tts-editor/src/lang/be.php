@@ -1,0 +1,26 @@
+<?php
+
+return array (
+  'title' => 'Рэдактар сінтэзу маўлення',
+  'generate_audio' => 'Генераваць аўдыё',
+  'stop_generation' => 'Спыніць генерацыю',
+  'download_audio' => 'Спампаваць аўдыё',
+  'save_to_server' => 'Захаваць на серверы',
+  'close' => 'Закрыць',
+  'text_file' => 'Тэкставы файл',
+  'generated_audio' => 'Згенераванае аўдыё',
+  'file_exists' => '✓ Файл існуе',
+  'file_not_found' => '✗ Файл не знойдзены',
+  'starting_generation' => 'Запуск генерацыі аўдыё...',
+  'generation_started' => 'Генерацыя аўдыё запушчана!',
+  'generation_completed' => 'Генерацыя аўдыё завершана!',
+  'generation_stopped' => 'Генерацыя спынена',
+  'waiting_generation' => 'Чаканне пачатку генерацыі...',
+  'text_placeholder' => 'Тэкставы змест з\'явіцца тут...',
+  'select_voice' => 'Выбраць голас',
+  'select_language' => 'Мова',
+  'voice_speed' => 'Хуткасць',
+  'no_audio_yet' => 'Аўдыё яшчэ не згенеравана',
+  'generating' => 'Генерацыя...',
+  'error_prefix' => 'Памылка',
+);

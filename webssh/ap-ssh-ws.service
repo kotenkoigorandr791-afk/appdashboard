@@ -1,0 +1,17 @@
+[Unit]
+Description=AppDashboard SSH WebSocket terminal
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/AppDashboard
+ExecStart=/usr/bin/php /var/www/AppDashboard/webssh/server.php
+Restart=on-failure
+RestartSec=3
+Environment=SSH_WS_PORT=8765
+Environment=SSH_WS_BIND=127.0.0.1
+
+[Install]
+WantedBy=multi-user.target

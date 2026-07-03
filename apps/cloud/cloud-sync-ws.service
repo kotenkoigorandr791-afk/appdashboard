@@ -1,0 +1,19 @@
+[Unit]
+Description=Cloud Sync WebSocket (virtual folder)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/AppDashboard/apps/cloud
+Environment=CLOUD_SYNC_WS_BIND=127.0.0.1
+Environment=CLOUD_SYNC_WS_PORT=8770
+Environment=CLOUD_SYNC_NOTIFY_PORT=8771
+Environment=CLOUD_SYNC_WS_PUBLIC_PATH=/cloud-sync-ws
+ExecStart=/usr/bin/php /var/www/AppDashboard/apps/cloud/scripts/cloud_sync_ws.php 127.0.0.1 8770
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

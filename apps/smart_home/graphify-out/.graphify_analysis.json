@@ -1,0 +1,281 @@
+{
+  "communities": {
+    "0": [
+      "smart_home_index_sh_apply_device_definition",
+      "smart_home_smarthomewshandler_smarthomewshandler_authdashboard",
+      "smart_home_smarthomewshandler_smarthomewshandler_authdevice",
+      "smart_home_smarthomewshandler_smarthomewshandler_broadcasttodashboards",
+      "smart_home_smarthomewshandler_smarthomewshandler_construct",
+      "smart_home_smarthomewshandler_smarthomewshandler_controlsmap",
+      "smart_home_smarthomewshandler_smarthomewshandler_db",
+      "smart_home_smarthomewshandler_smarthomewshandler_ensuredir",
+      "smart_home_smarthomewshandler_smarthomewshandler_handleauth",
+      "smart_home_smarthomewshandler_smarthomewshandler_handledashboardcontrol",
+      "smart_home_smarthomewshandler_smarthomewshandler_handledevicestate",
+      "smart_home_smarthomewshandler_smarthomewshandler_loaddevice",
+      "smart_home_smarthomewshandler_smarthomewshandler_loadjson",
+      "smart_home_smarthomewshandler_smarthomewshandler_monitorlog",
+      "smart_home_smarthomewshandler_smarthomewshandler_onclose",
+      "smart_home_smarthomewshandler_smarthomewshandler_onerror",
+      "smart_home_smarthomewshandler_smarthomewshandler_onmessage",
+      "smart_home_smarthomewshandler_smarthomewshandler_onopen",
+      "smart_home_smarthomewshandler_smarthomewshandler_pendingcontrolids",
+      "smart_home_smarthomewshandler_smarthomewshandler_persistdevice",
+      "smart_home_smarthomewshandler_smarthomewshandler_processcontrolqueue",
+      "smart_home_smarthomewshandler_smarthomewshandler_rowtoarray",
+      "smart_home_smarthomewshandler_smarthomewshandler_sanitizedevice",
+      "smart_home_smarthomewshandler_smarthomewshandler_savejsonfile",
+      "smart_home_smarthomewshandler_smarthomewshandler_sendjson",
+      "smart_home_smarthomewshandler_smarthomewshandler_storecontrolresult",
+      "smart_home_smarthomewshandler_smarthomewshandler_tick",
+      "smart_home_smarthomewshandler_smarthomewshandler_writejson",
+      "smarthomewshandler_php"
+    ],
+    "1": [
+      "index_php",
+      "smart_home_index_sh_api_docs_markdown",
+      "smart_home_index_sh_controls_to_map",
+      "smart_home_index_sh_enrich_groups_list",
+      "smart_home_index_sh_fetch_floor_plan",
+      "smart_home_index_sh_h",
+      "smart_home_index_sh_load_user_settings",
+      "smart_home_index_sh_migrate_json_runtime_data",
+      "smart_home_index_sh_normalize_control_value",
+      "smart_home_index_sh_pending_control_ids_for_device",
+      "smart_home_index_sh_settings_defaults",
+      "smart_home_index_sh_slug",
+      "smart_home_index_sh_ws_decode_frame",
+      "smart_home_index_sh_ws_read_exact",
+      "smart_home_index_sh_ws_wait_for_data",
+      "smart_home_index_smart_home_current_user_email",
+      "smart_home_index_smart_home_default_settings",
+      "smart_home_index_smart_home_h"
+    ],
+    "2": [
+      "smart_home_index_sh_auto_mqtt",
+      "smart_home_index_sh_can_edit_endpoints",
+      "smart_home_index_sh_control_queue_file",
+      "smart_home_index_sh_control_results_file",
+      "smart_home_index_sh_db",
+      "smart_home_index_sh_enqueue_control_request",
+      "smart_home_index_sh_ensure_column",
+      "smart_home_index_sh_init_tables",
+      "smart_home_index_sh_load_json_file",
+      "smart_home_index_sh_migrate_from_json",
+      "smart_home_index_sh_monitor_log",
+      "smart_home_index_sh_save_json_file",
+      "smart_home_index_sh_templates",
+      "smart_home_index_sh_user_email",
+      "smart_home_index_sh_user_service_role",
+      "smart_home_index_sh_wait_for_control_result"
+    ],
+    "3": [
+      "smart_home_index_smart_home_data_paths",
+      "smart_home_index_smart_home_ensure_dir",
+      "smart_home_index_smart_home_find_device",
+      "smart_home_index_smart_home_issue_dashboard_ws_token",
+      "smart_home_index_smart_home_load_json",
+      "smart_home_index_smart_home_load_token_index",
+      "smart_home_index_smart_home_materialize_files",
+      "smart_home_index_smart_home_remove_token_index",
+      "smart_home_index_smart_home_safe_user_key",
+      "smart_home_index_smart_home_sync_endpoint",
+      "smart_home_index_smart_home_upsert_token_index",
+      "smart_home_index_smart_home_write_json",
+      "smart_home_index_smart_home_ws_tokens_file"
+    ],
+    "4": [
+      "smart_home_index_sh_control_supports_local_gp",
+      "smart_home_index_sh_device_row_decode",
+      "smart_home_index_sh_fetch_my_devices",
+      "smart_home_index_sh_fetch_scoped_devices",
+      "smart_home_index_sh_gp_encode_value",
+      "smart_home_index_sh_gp_hardware_name",
+      "smart_home_index_sh_json_field",
+      "smart_home_index_sh_push_local_gp",
+      "smart_home_index_sh_update_device_control"
+    ],
+    "5": [
+      "smart_home_index_sh_local_ws_host",
+      "smart_home_index_sh_local_ws_port",
+      "smart_home_index_sh_store_dashboard_ws_token",
+      "smart_home_index_sh_token",
+      "smart_home_index_sh_ws_dispatch_control",
+      "smart_home_index_sh_ws_encode_frame",
+      "smart_home_index_sh_ws_extract_frame_from_buffer",
+      "smart_home_index_sh_ws_send_json"
+    ],
+    "6": [
+      "smart_home_index_sh_group_access",
+      "smart_home_index_sh_group_member_role",
+      "smart_home_index_sh_group_row",
+      "smart_home_index_sh_resolve_home_context",
+      "smart_home_index_sh_user_can_assign_group"
+    ],
+    "7": [
+      "smart_home_ws_control_bridge_shb_frame",
+      "smart_home_ws_control_bridge_shb_pull_frame",
+      "smart_home_ws_control_bridge_shb_store_dashboard_token",
+      "smart_home_ws_control_bridge_shb_token",
+      "ws_control_bridge_php"
+    ],
+    "8": [
+      "smart_home_index_sh_device_can_configure",
+      "smart_home_index_sh_device_row_for_user",
+      "smart_home_index_sh_user_in_group",
+      "smart_home_index_sh_user_is_member_of_owner"
+    ],
+    "9": [
+      "smart_home_index_smart_home_create_device",
+      "smart_home_index_smart_home_generate_token",
+      "smart_home_index_smart_home_slug",
+      "smart_home_index_smart_home_template"
+    ],
+    "10": [
+      "smart_home_index_sh_clear_control_queue_for_device",
+      "smart_home_index_sh_deliver_control",
+      "smart_home_index_sh_trigger_ws_dispatch"
+    ],
+    "11": [
+      "claude_md",
+      "smart_home_claude_graphify"
+    ],
+    "12": [
+      "device_emulator_py",
+      "smart_home_device_emulator_main"
+    ],
+    "13": [
+      "icon_php"
+    ],
+    "14": [
+      "ws_server_php"
+    ],
+    "15": [
+      "ws_dispatch_tick_php"
+    ],
+    "16": [
+      "fix_api_css2_py"
+    ]
+  },
+  "cohesion": {
+    "0": 0.23,
+    "1": 0.13,
+    "2": 0.15,
+    "3": 0.22,
+    "4": 0.28,
+    "5": 0.29,
+    "6": 0.4,
+    "7": 0.5,
+    "8": 0.5,
+    "9": 0.5,
+    "10": 0.67,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0
+  },
+  "gods": [
+    {
+      "id": "smart_home_index_sh_db",
+      "label": "sh_db()",
+      "degree": 9
+    },
+    {
+      "id": "smart_home_index_sh_ws_dispatch_control",
+      "label": "sh_ws_dispatch_control()",
+      "degree": 7
+    },
+    {
+      "id": "smart_home_index_smart_home_load_token_index",
+      "label": "smart_home_load_token_index()",
+      "degree": 7
+    },
+    {
+      "id": "smart_home_index_sh_group_access",
+      "label": "sh_group_access()",
+      "degree": 6
+    },
+    {
+      "id": "smart_home_index_sh_enqueue_control_request",
+      "label": "sh_enqueue_control_request()",
+      "degree": 6
+    },
+    {
+      "id": "smart_home_index_sh_push_local_gp",
+      "label": "sh_push_local_gp()",
+      "degree": 6
+    },
+    {
+      "id": "smart_home_index_smart_home_issue_dashboard_ws_token",
+      "label": "smart_home_issue_dashboard_ws_token()",
+      "degree": 6
+    },
+    {
+      "id": "smart_home_index_sh_wait_for_control_result",
+      "label": "sh_wait_for_control_result()",
+      "degree": 5
+    },
+    {
+      "id": "smart_home_index_sh_json_field",
+      "label": "sh_json_field()",
+      "degree": 5
+    },
+    {
+      "id": "smart_home_index_sh_device_row_decode",
+      "label": "sh_device_row_decode()",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "sh_store_dashboard_ws_token()",
+      "target": "sh_db()",
+      "source_files": [
+        "index.php",
+        "index.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 2 \u2192 community 5"
+    },
+    {
+      "source": "sh_user_in_group()",
+      "target": "sh_group_access()",
+      "source_files": [
+        "index.php",
+        "index.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 6 \u2192 community 8"
+    },
+    {
+      "source": "sh_deliver_control()",
+      "target": "sh_push_local_gp()",
+      "source_files": [
+        "index.php",
+        "index.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 4 \u2192 community 10"
+    },
+    {
+      "source": "smart_home_issue_dashboard_ws_token()",
+      "target": "smart_home_generate_token()",
+      "source_files": [
+        "index.php",
+        "index.php"
+      ],
+      "confidence": "EXTRACTED",
+      "relation": "calls",
+      "note": "Bridges community 9 \u2192 community 3"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

@@ -1,0 +1,14 @@
+{
+    "en": "Recipes",
+    "ru": "Рецепты",
+    "uk": "Рецепти",
+    "be": "Рэцэпты",
+    "menu_button": {
+        "left": 16,
+        "top": 16,
+        "width": 45,
+        "height": 45
+    },
+    "pl": "Przepisy",
+    "cs": "Recepty"
+}

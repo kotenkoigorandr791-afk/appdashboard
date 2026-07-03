@@ -1,0 +1,16 @@
+{
+  "state": "done",
+  "progress": {
+    "total": 1,
+    "processed": 1,
+    "percent": 100
+  },
+  "base_currency": "PLN",
+  "warnings": [
+    "0000.jpg: too many values to unpack (expected 2)"
+  ],
+  "records": [],
+  "unresolved": [],
+  "ocr_text": "=== 0000.jpg ===\n10:49\n#R\nLidl Stiftung & Cо. KG\nPLN2.85\nApr 18\nAuchan\nPLN26.56\nApr 17\nLidl Stiftung & Cо. KG\nPLN15.78\nApr 17\nMARCIN TROJAN COPYKRAK\nPLN1.OO\nApr 17\nLidl Stiftung & Co. KG\nPLN1З.36\nApr 11\nAuchan\nPLN25.23\n10\nZabka Polska\nPLN798\nApr 5\nLidl Stiftung & Co: KG\nPLN13.52\nApr 4\nOBI\nPLN11З\nApr 2\nApr 7\n\n=== 0000.jpg ===\n[error] too many values to unpack (expected 2)",
+  "updated_at": "2026-04-18T11:16:58Z"
+}

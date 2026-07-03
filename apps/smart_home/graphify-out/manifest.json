@@ -1,0 +1,102 @@
+{
+  "/mnt/server/apps/smart_home/icon.php": {
+    "mtime": 1779469614.921068,
+    "hash": "0baf983711b9667dbc187e40f110cc8b"
+  },
+  "/mnt/server/apps/smart_home/index.php": {
+    "mtime": 1779708103.9576437,
+    "hash": "8f4b237ecd16966e835ed5169ef732b2"
+  },
+  "/mnt/server/apps/smart_home/ws_server.php": {
+    "mtime": 1779470646.599622,
+    "hash": "2bfc8b905961fde532d403139c43a91c"
+  },
+  "/mnt/server/apps/smart_home/ws_dispatch_tick.php": {
+    "mtime": 1779573025.3004303,
+    "hash": "298593e136e19dcdfaf06546e40a1b5b"
+  },
+  "/mnt/server/apps/smart_home/fix_api_css2.py": {
+    "mtime": 1779536554.8632102,
+    "hash": "8df86f67c65bfffd6cf0edc47cad3773"
+  },
+  "/mnt/server/apps/smart_home/SmartHomeWsHandler.php": {
+    "mtime": 1779632494.0094545,
+    "hash": "d3a7f57bb36e454102bc355eb5e62dde"
+  },
+  "/mnt/server/apps/smart_home/ws_control_bridge.php": {
+    "mtime": 1779470535.6961126,
+    "hash": "6e2838e3ef888bdc7b6468ee921648d8"
+  },
+  "/mnt/server/apps/smart_home/CLAUDE.md": {
+    "mtime": 1779465290.382818,
+    "hash": "da79aa9343cd2b362206f03762160abc"
+  },
+  "/mnt/server/apps/smart_home/background_dark_opt.jpg": {
+    "mtime": 1779489004.0726683,
+    "hash": "b7b67115dcd741a83295325aaf9648c0"
+  },
+  "/mnt/server/apps/smart_home/icon.svg": {
+    "mtime": 1779457280.3531253,
+    "hash": "2f0f27887949c8365024fe6d2ef27bc3"
+  },
+  "/mnt/server/apps/smart_home/background_light_opt.jpg": {
+    "mtime": 1779489004.4216654,
+    "hash": "28f979708484207876c02069b6091749"
+  },
+  "/mnt/server/apps/smart_home/background_dark.jpg": {
+    "mtime": 1631089352.0,
+    "hash": "329900453536446f15164b898a477fc0"
+  },
+  "/mnt/server/apps/smart_home/background_light.jpg": {
+    "mtime": 1632325598.0,
+    "hash": "f1e21b7680f545b1f12e0fcb126c216a"
+  },
+  "/mnt/server/apps/smart_home/icons/lamp.svg": {
+    "mtime": 1779465782.559998,
+    "hash": "1a9a03ca52303e08967c7b6a3afce140"
+  },
+  "/mnt/server/apps/smart_home/icons/torch.svg": {
+    "mtime": 1779465782.3709974,
+    "hash": "07286c18f2062bb7039a78144b11c840"
+  },
+  "/mnt/server/apps/smart_home/icons/camera.svg": {
+    "mtime": 1779487921.083792,
+    "hash": "eadb6c6f47edc30c7faeb3238866f83c"
+  },
+  "/mnt/server/apps/smart_home/icons/climate.svg": {
+    "mtime": 1779465782.4429977,
+    "hash": "82eea5594bb9a6ed3b635b33cd96360a"
+  },
+  "/mnt/server/apps/smart_home/icons/fan.svg": {
+    "mtime": 1779465782.4909978,
+    "hash": "86cc594f1e5d4fab64a437381a190774"
+  },
+  "/mnt/server/apps/smart_home/icons/sensor.svg": {
+    "mtime": 1779465782.3949976,
+    "hash": "ebd9d2c0e4b678ff77242ce396f59c72"
+  },
+  "/mnt/server/apps/smart_home/icons/kettle.svg": {
+    "mtime": 1779465782.5879982,
+    "hash": "e24d0e297caab38c31e8eba272b8f00a"
+  },
+  "/mnt/server/apps/smart_home/icons/alarm-panel.svg": {
+    "mtime": 1779487921.083632,
+    "hash": "843adebba0c6d90ee392465789e638b2"
+  },
+  "/mnt/server/apps/smart_home/icons/security.svg": {
+    "mtime": 1779465782.6359985,
+    "hash": "312a26569475560993af1c3e13c965cd"
+  },
+  "/mnt/server/apps/smart_home/icons/smart-plug.svg": {
+    "mtime": 1779465782.3489974,
+    "hash": "158233c2a06e93ebff956c50043dc64f"
+  },
+  "/mnt/server/apps/smart_home/icons/smart-device.svg": {
+    "mtime": 1779465782.4689977,
+    "hash": "122bc7d1a04cb69c106ee67c1fe975f1"
+  },
+  "/mnt/server/apps/smart_home/icons/light-bulb.svg": {
+    "mtime": 1779465782.3249972,
+    "hash": "84a1b82b22ccf2fdd0d2783f37952171"
+  }
+}

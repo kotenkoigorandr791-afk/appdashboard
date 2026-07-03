@@ -1,0 +1,231 @@
+{
+  "communities": {
+    "0": [
+      "core_db_getdb",
+      "core_db_php",
+      "core_monitor_metrics_monitoremptydisplaypayload",
+      "core_monitor_metrics_monitorfetchdisplaypayloadfromdb",
+      "core_monitor_metrics_monitorloaddrivesfromdb",
+      "core_monitor_metrics_monitorloadmodulesfromdb",
+      "core_monitor_metrics_monitorloadsmartfromdb",
+      "core_monitor_metrics_monitornetworkfromaggregate",
+      "core_monitor_metrics_monitorsavedrivestodb",
+      "core_monitor_metrics_monitorsavesmarttodb",
+      "core_monitor_metrics_monitoruptimefromseconds",
+      "core_session_get_current_user_from_sessions",
+      "core_session_getuserrolebyemail",
+      "core_session_isuserroot",
+      "core_session_php"
+    ],
+    "1": [
+      "core_monitor_metrics_getcpuusage",
+      "core_monitor_metrics_getdiskio",
+      "core_monitor_metrics_getmemoryusage",
+      "core_monitor_metrics_getnetworkdata",
+      "core_monitor_metrics_getswapusage",
+      "core_monitor_metrics_getuptime",
+      "core_monitor_metrics_isprimarynetworkiface",
+      "core_monitor_metrics_monitorcollectmetricspayload",
+      "core_monitor_metrics_runpowershell",
+      "core_monitor_metrics_smartfindprimarydiskbymount",
+      "core_monitor_metrics_smartresolverootdevice",
+      "performance_server_monitor_getcacheddata",
+      "performance_server_monitor_isdrivescachevalid",
+      "server_monitor_php"
+    ],
+    "2": [
+      "core_monitor_metrics_classifyblockdrivetypelabel",
+      "core_monitor_metrics_classifydrivetypelabel",
+      "core_monitor_metrics_drivesortorder",
+      "core_monitor_metrics_getdrives",
+      "core_monitor_metrics_isdrivemountvisible",
+      "core_monitor_metrics_isignoreddrivedevicetype",
+      "core_monitor_metrics_isignoreddrivefstype",
+      "core_monitor_metrics_isnetworkdrivefstype",
+      "core_monitor_metrics_monitorcollectblockdevicemeta",
+      "core_monitor_metrics_php"
+    ],
+    "3": [
+      "core_monitor_metrics_getsmartdiagnostics",
+      "core_monitor_metrics_smartattributerow",
+      "core_monitor_metrics_smartattributevalue",
+      "core_monitor_metrics_smartcollectphysicaldisks",
+      "core_monitor_metrics_smartnormalizestatus",
+      "core_monitor_metrics_smartparsesmartctloutput"
+    ],
+    "4": [
+      "core_monitor_metrics_monitorcollectmoduleslists",
+      "core_monitor_metrics_monitorcollectnginxmodules",
+      "core_monitor_metrics_monitorensuresmarttable",
+      "core_monitor_metrics_monitorruncollectorcycle",
+      "core_monitor_metrics_monitorsavemodulestodb",
+      "core_monitor_metrics_monitorstoresmartsnapshots"
+    ],
+    "5": [
+      "core_helpers_monitor_format_time_label",
+      "core_helpers_monitor_json_response",
+      "core_helpers_php"
+    ],
+    "6": [
+      "translations_php"
+    ],
+    "7": [
+      "index_php"
+    ],
+    "8": [
+      "monitor_stats_php"
+    ],
+    "9": [
+      "views_scripts_main_php"
+    ],
+    "10": [
+      "views_scripts_extra_php"
+    ],
+    "11": [
+      "views_body_php"
+    ],
+    "12": [
+      "views_head_php"
+    ],
+    "13": [
+      "controllers_phpinfocontroller_php"
+    ],
+    "14": [
+      "controllers_monitorcontroller_php"
+    ],
+    "15": [
+      "bin_monitor_collector_php"
+    ]
+  },
+  "cohesion": {
+    "0": 0.19,
+    "1": 0.22,
+    "2": 0.4,
+    "3": 0.6,
+    "4": 0.33,
+    "5": 0.67,
+    "6": 1.0,
+    "7": 1.0,
+    "8": 1.0,
+    "9": 1.0,
+    "10": 1.0,
+    "11": 1.0,
+    "12": 1.0,
+    "13": 1.0,
+    "14": 1.0,
+    "15": 1.0
+  },
+  "gods": [
+    {
+      "id": "core_monitor_metrics_monitorcollectmetricspayload",
+      "label": "monitorCollectMetricsPayload()",
+      "degree": 14
+    },
+    {
+      "id": "core_db_getdb",
+      "label": "getDB()",
+      "degree": 13
+    },
+    {
+      "id": "core_monitor_metrics_getdrives",
+      "label": "getDrives()",
+      "degree": 11
+    },
+    {
+      "id": "core_monitor_metrics_getsmartdiagnostics",
+      "label": "getSmartDiagnostics()",
+      "degree": 9
+    },
+    {
+      "id": "core_monitor_metrics_monitorfetchdisplaypayloadfromdb",
+      "label": "monitorFetchDisplayPayloadFromDb()",
+      "degree": 8
+    },
+    {
+      "id": "core_monitor_metrics_smartattributerow",
+      "label": "smartAttributeRow()",
+      "degree": 5
+    },
+    {
+      "id": "core_monitor_metrics_smartattributevalue",
+      "label": "smartAttributeValue()",
+      "degree": 5
+    },
+    {
+      "id": "core_monitor_metrics_smartparsesmartctloutput",
+      "label": "smartParseSmartctlOutput()",
+      "degree": 5
+    },
+    {
+      "id": "core_monitor_metrics_monitorloadmodulesfromdb",
+      "label": "monitorLoadModulesFromDb()",
+      "degree": 5
+    },
+    {
+      "id": "core_monitor_metrics_monitorruncollectorcycle",
+      "label": "monitorRunCollectorCycle()",
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "get_current_user_from_sessions()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `get_current_user_from_sessions()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "getUserRoleByEmail()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `getUserRoleByEmail()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "isUserRoot()",
+      "target": "getDB()",
+      "source_files": [
+        "core/session.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; peripheral node `isUserRoot()` unexpectedly reaches hub `getDB()`"
+    },
+    {
+      "source": "monitorEnsureSmartTable()",
+      "target": "getDB()",
+      "source_files": [
+        "core/monitor_metrics.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    },
+    {
+      "source": "monitorStoreSmartSnapshots()",
+      "target": "getDB()",
+      "source_files": [
+        "core/monitor_metrics.php",
+        "core/db.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; bridges separate communities"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

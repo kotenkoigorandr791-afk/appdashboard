@@ -1,0 +1,14 @@
+{
+    "en": "Steps Counter",
+    "ru": "Счетчик шагов",
+    "uk": "Лічильник кроків",
+    "be": "Лічыльнік крокаў",
+    "menu_button": {
+        "left": 16,
+        "top": 16,
+        "width": 40,
+        "height": 40
+    },
+    "pl": "Licznik kroków",
+    "cs": "Počítadlo kroků"
+}

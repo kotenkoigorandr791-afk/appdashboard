@@ -1,0 +1,14 @@
+{
+    "user_info": "Informace o uživateli",
+    "current_user": "Aktuální uživatel",
+    "role": "Role",
+    "access_level": "Úroveň přístupu",
+    "full_access": "Plný přístup",
+    "manager_access": "Přístup managera",
+    "read_only": "Pouze pro čtení",
+    "guest": "Host",
+    "manager": "Manager",
+    "admin": "Administrátor",
+    "clipboard_error": "Chyba vkládání ze schránky. Zkuste nahrát soubor.",
+    "session_id": "ID relace"
+}

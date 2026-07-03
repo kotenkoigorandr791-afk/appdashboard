@@ -1,0 +1,50 @@
+{
+  "/mnt/server/project/i18n_helpers.php": {
+    "mtime": 1782028485.9302661,
+    "hash": "bee77b0730add80c18de11f4dc53346f"
+  },
+  "/mnt/server/project/mobile_chrome.php": {
+    "mtime": 1782374132.9950998,
+    "hash": "f401f19132da34dc84acdf141bf6f2be"
+  },
+  "/mnt/server/project/main.php": {
+    "mtime": 1782510455.3306587,
+    "hash": "9661da098cc6f950c2c86590a7d50af3"
+  },
+  "/mnt/server/project/core.php": {
+    "mtime": 1782510454.4486668,
+    "hash": "c889b8e78a421f13e83aa6f67e0dc616"
+  },
+  "/mnt/server/project/index.php": {
+    "mtime": 1778440225.796739,
+    "hash": "f676ab340faea593ae866d76520b6c1a"
+  },
+  "/mnt/server/project/runtime.php": {
+    "mtime": 1782510455.503657,
+    "hash": "c6eeeef1009af69396baaefb23a6382b"
+  },
+  "/mnt/server/project/post_handlers.php": {
+    "mtime": 1782510455.4786572,
+    "hash": "f912ea33bfe72349ddaf868fe84f9966"
+  },
+  "/mnt/server/project/bootstrap.php": {
+    "mtime": 1778439883.060739,
+    "hash": "d2ecfdfcbda5fbf2406e5984f657d66b"
+  },
+  "/mnt/server/project/routes.php": {
+    "mtime": 1781772646.4588516,
+    "hash": "65a2f85ca1639c827436b512a42fda30"
+  },
+  "/mnt/server/project/views/main.php": {
+    "mtime": 1782549989.2454686,
+    "hash": "aec5370144b1b0fab57cc57a404db86d"
+  },
+  "/mnt/server/project/assets/mobile-browser-chrome.js": {
+    "mtime": 1782374132.946058,
+    "hash": "30e9016bd8a88eb3f68a179b3af436e8"
+  },
+  "/mnt/server/project/CLAUDE.md": {
+    "mtime": 1778573744.006112,
+    "hash": "da79aa9343cd2b362206f03762160abc"
+  }
+}

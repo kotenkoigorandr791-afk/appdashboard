@@ -1,0 +1,14 @@
+{
+    "en": "Server Monitor",
+    "ru": "Монитор Сервера",
+    "uk": "Монітор Сервера",
+    "be": "Манітор Сервера",
+    "menu_button": {
+        "left": 16,
+        "top": 16,
+        "width": 45,
+        "height": 45
+    },
+    "pl": "Monitor serwera",
+    "cs": "Monitor serveru"
+}

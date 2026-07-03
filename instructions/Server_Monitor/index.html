@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Server Monitor Instructions</title>
+
+  <style>
+    :root { --sidebar-width: 290px; --radius: 14px; }
+    body.theme-dark {
+      --bg: #0a0a0d; --panel: rgba(20, 20, 24, 0.88); --panel-2: rgba(34, 34, 42, 0.95);
+      --border: rgba(179, 26, 219, 0.75); --text: #f4f1f8; --muted: #c6bdd0;
+      --hover: rgba(179, 26, 219, 0.16); --accent: #b31adb; --scrollbar-track: rgba(30, 30, 40, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.6); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.9);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.35);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 18%, rgba(0, 0, 0, 0) 42%),
+        repeating-linear-gradient(90deg, #07080a 0px, #111216 2px, #050608 4px, #0a0b0e 7px);
+      color: var(--text);
+    }
+    body.theme-light {
+      --bg: #efedf3; --panel: rgba(255, 255, 255, 0.92); --panel-2: rgba(248, 246, 251, 0.98);
+      --border: rgba(179, 26, 219, 0.55); --text: #23182c; --muted: #665c70;
+      --hover: rgba(179, 26, 219, 0.08); --accent: #b31adb; --scrollbar-track: rgba(230, 225, 235, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.5); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.8);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.18);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.18) 22%, rgba(0, 0, 0, 0) 44%),
+        repeating-linear-gradient(90deg, #f4f2f7 0px, #e9e5ed 2px, #f7f5fa 4px, #ece8f0 7px);
+      color: var(--text);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: Arial, sans-serif; line-height: 1.65; min-height: 100vh; background-color: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; transition: background 0.3s ease; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    ::-webkit-scrollbar-thumb:active { background: var(--accent); }
+    .page { max-width: 1480px; margin: 0 auto; padding: 18px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .brand { font-size: 30px; font-weight: bold; letter-spacing: 0.2px; }
+    .topbar-right { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .small-box, .back-link { padding: 8px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 14px; }
+    .small-box.locked { opacity: 0.7; cursor: not-allowed; }
+    .back-link:hover { background: var(--hover); }
+    .layout { display: grid; grid-template-columns: var(--sidebar-width) 1fr; gap: 18px; align-items: start; }
+    .sidebar { position: sticky; top: 18px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 16px; }
+    .sidebar h3 { font-size: 16px; margin-bottom: 12px; }
+    .nav { display: flex; flex-direction: column; gap: 5px; }
+    .nav a { padding: 10px 12px; border-radius: 9px; color: var(--muted); font-size: 15px; transition: 0.2s ease; }
+    .nav a:hover, .nav a.active { background: var(--hover); color: var(--text); }
+    .content { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 30px; min-height: calc(100vh - 90px); }
+    .content h1 { font-size: 34px; margin-bottom: 14px; }
+    .intro { font-size: 16px; color: var(--muted); margin-bottom: 10px; max-width: 920px; }
+    .content h2 { font-size: 25px; margin-top: 34px; margin-bottom: 12px; scroll-margin-top: 24px; }
+    .content p { margin-bottom: 14px; color: var(--muted); font-size: 16px; max-width: 950px; }
+    .content ul { margin: 8px 0 16px 20px; color: var(--muted); max-width: 930px; }
+    .content li { margin-bottom: 8px; }
+    .content img { width: 100%; max-width: 920px; display: block; margin: 18px 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); cursor: zoom-in; transition: transform 0.2s ease; }
+    .content img:hover { transform: scale(1.02); }
+    .caption { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+    .note { margin: 16px 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--hover); color: var(--muted); max-width: 920px; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; margin: 2px 0; }
+    .status-loaded { background: rgba(179, 26, 219, 0.3); color: #d946ef; border: 1px solid var(--accent); }
+    .status-not-loaded { background: rgba(239, 68, 68, 0.3); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); }
+    #minimap-container { position: fixed; right: 12px; top: 50%; transform: translateY(-50%); width: 100px; height: 400px; max-height: 80vh; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; z-index: 9998; overflow: hidden; opacity: 0.9; transition: opacity 0.3s ease, width 0.3s ease; cursor: pointer; }
+    #minimap-container:hover { opacity: 1; width: 120px; }
+    #minimap-image { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #minimap-viewport { position: absolute; left: 0; right: 0; background: rgba(179, 26, 219, 0.2); border: 2px solid var(--accent); border-radius: 4px; pointer-events: none; transition: top 0.05s ease-out; }
+    .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; flex-direction: column; }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-content { max-width: 90%; max-height: 85vh; position: relative; }
+    .lightbox-content img { max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+    .lightbox-close { position: absolute; top: -40px; right: 0; color: #fff; font-size: 32px; cursor: pointer; padding: 5px 10px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; }
+    .lightbox-close:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: #fff; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; user-select: none; }
+    .lightbox-nav:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-caption { color: #fff; font-size: 16px; margin-top: 15px; text-align: center; padding: 0 20px; }
+    .lightbox-counter { position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; background: rgba(179, 26, 219, 0.8); padding: 5px 15px; border-radius: 20px; }
+    @media (max-width: 950px) { .layout { grid-template-columns: 1fr; } .sidebar { position: relative; top: 0; } #minimap-container { display: none; } }
+  </style>
+</head>
+
+<body class="theme-dark">
+  <div class="page">
+    <div class="topbar">
+      <div class="brand" data-i18n="brand">Server Monitor</div>
+      <div class="topbar-right">
+        <div class="small-box locked"><span data-i18n="langLabel">Language:</span><strong id="currentLang">EN</strong><span title="Change via URL parameters only">🔒</span></div>
+        <div class="small-box locked"><span data-i18n="themeLabel">Theme:</span><strong id="currentTheme">Dark</strong><span title="Change via URL parameters only">🔒</span></div>
+        <a id="backLink" class="back-link" href="#" data-i18n="backLabel">Back</a>
+      </div>
+    </div>
+    <div class="layout">
+      <aside class="sidebar">
+        <h3 data-i18n="topicsTitle">Topics</h3>
+        <nav class="nav">
+          <a href="#overview" data-i18n="navOverview">Overview</a>
+          <a href="#network" data-i18n="navNetwork">Network Interfaces</a>
+          <a href="#drives" data-i18n="navDrives">Connected Drives</a>
+          <a href="#apache" data-i18n="navApache">Apache Modules</a>
+          <a href="#php" data-i18n="navPhp">PHP Extensions</a>
+        </nav>
+      </aside>
+      <main class="content">
+        <h1 data-i18n="pageTitle">Server Monitor Instructions</h1>
+        <p class="intro" data-i18n="pageIntro">Server Monitor provides real-time monitoring of your server's resources, network activity, and installed modules.</p>
+        
+        <h2 id="overview" data-i18n="overviewTitle">Overview</h2>
+        <p data-i18n="overviewP1">Server Monitor displays comprehensive information about your server's current state, including network activity, disk usage, and loaded modules.</p>
+        
+        <a href="photos_en/server_resources.png" class="lightbox-trigger" data-title="Server Resources Overview"><img src="photos_en/server_resources.png" alt="Server resources visualization"></a>
+        <div class="caption" data-i18n="overviewCaption">Server Resources - visual representation of CPU, memory, and overall server health.</div>
+        
+        <p data-i18n="overviewP2">Use this tool to monitor server performance, check available disk space, and verify that required Apache modules and PHP extensions are loaded.</p>
+        <div class="note" data-i18n="overviewNote">Note: Data refreshes automatically. Green/purple indicators show active/loaded components, red indicates inactive/not loaded.</div>
+
+        <h2 id="network" data-i18n="networkTitle">Network Interfaces</h2>
+        <p data-i18n="networkP1">The Network Interfaces section displays real-time traffic for all network adapters on your server.</p>
+        <ul>
+          <li data-i18n="networkL1"><strong>Download</strong> - Incoming data rate (bytes per second)</li>
+          <li data-i18n="networkL2"><strong>Upload</strong> - Outgoing data rate (bytes per second)</li>
+          <li data-i18n="networkL3"><strong>Total</strong> - Combined upload and download traffic</li>
+          <li data-i18n="networkL4"><strong>Speed</strong> - Current connection speed</li>
+        </ul>
+
+        <a href="photos_en/network_drives.png" class="lightbox-trigger" data-title="Network Interfaces and Drives"><img src="photos_en/network_drives.png" alt="Network interfaces and connected drives"></a>
+        <div class="caption" data-i18n="networkCaption">Network Interfaces showing real-time traffic for each adapter.</div>
+
+        <h2 id="drives" data-i18n="drivesTitle">Connected Drives</h2>
+        <p data-i18n="drivesP1">The Connected Drives section shows disk space usage for all drives mounted on your server.</p>
+        <ul>
+          <li data-i18n="drivesL1"><strong>Total Space</strong> - Total capacity of the drive</li>
+          <li data-i18n="drivesL2"><strong>Free Space</strong> - Available space remaining</li>
+          <li data-i18n="drivesL3"><strong>Usage Bar</strong> - Visual indicator (purple = used, green = free)</li>
+          <li data-i18n="drivesL4"><strong>Percentage</strong> - Percentage of disk space used</li>
+        </ul>
+        <p data-i18n="drivesP2">Monitor disk usage to prevent storage issues. Consider cleaning up or expanding drives that exceed 80% capacity.</p>
+
+        <h2 id="apache" data-i18n="apacheTitle">Apache Modules</h2>
+        <p data-i18n="apacheP1">The Apache Modules section lists all Apache web server modules and their current status.</p>
+
+        <a href="photos_en/apache_modules.png" class="lightbox-trigger" data-title="Apache Modules"><img src="photos_en/apache_modules.png" alt="Apache modules status"></a>
+        <div class="caption" data-i18n="apacheCaption">Apache Modules - purple badges indicate loaded modules, red indicates not loaded.</div>
+
+        <p data-i18n="apacheP2">Module status indicators:</p>
+        <ul>
+          <li data-i18n="apacheL1"><span class="status-badge status-loaded">Loaded</span> - Module is active and available</li>
+          <li data-i18n="apacheL2"><span class="status-badge status-not-loaded">Not Loaded</span> - Module is not currently active</li>
+        </ul>
+        <p data-i18n="apacheP3">Use the search box to quickly find specific modules by name.</p>
+
+        <h2 id="php" data-i18n="phpTitle">PHP Extensions</h2>
+        <p data-i18n="phpP1">The PHP Extensions section displays all installed PHP extensions and their loading status.</p>
+
+        <a href="photos_en/php_extensions.png" class="lightbox-trigger" data-title="PHP Extensions"><img src="photos_en/php_extensions.png" alt="PHP extensions status"></a>
+        <div class="caption" data-i18n="phpCaption">PHP Extensions - all extensions shown with their current status.</div>
+
+        <p data-i18n="phpP2">Common PHP extensions include:</p>
+        <ul>
+          <li data-i18n="phpL1"><strong>PDO</strong> - Database connectivity</li>
+          <li data-i18n="phpL2"><strong>cURL</strong> - HTTP requests</li>
+          <li data-i18n="phpL3"><strong>SimpleXML</strong> - XML parsing</li>
+          <li data-i18n="phpL4"><strong>Reflection</strong> - Code introspection</li>
+        </ul>
+        <p data-i18n="phpP3">Most extensions should show <span class="status-badge status-loaded">Loaded</span> for proper application functionality.</p>
+      </main>
+    </div>
+  </div>
+  <div id="minimap-container"><img id="minimap-image" src="photos_en/server_monitor_minimap.png" alt="Page minimap"><div id="minimap-viewport"></div></div>
+  <div class="lightbox-overlay" id="lightbox-overlay"><div class="lightbox-content"><span class="lightbox-close" id="lightbox-close">&times;</span><span class="lightbox-nav lightbox-prev" id="lightbox-prev">&#10094;</span><span class="lightbox-nav lightbox-next" id="lightbox-next">&#10095;</span><img src="" alt="" id="lightbox-image"><div class="lightbox-caption" id="lightbox-caption"></div><div class="lightbox-counter" id="lightbox-counter"></div></div></div>
+
+  <script>
+    const translations = {
+      en: {
+        brand: "Server Monitor", langLabel: "Language:", themeLabel: "Theme:", backLabel: "Back", topicsTitle: "Topics",
+        navOverview: "Overview", navNetwork: "Network Interfaces", navDrives: "Connected Drives", navApache: "Apache Modules", navPhp: "PHP Extensions",
+        pageTitle: "Server Monitor Instructions", pageIntro: "Server Monitor provides real-time monitoring of your server's resources, network activity, and installed modules.",
+        overviewTitle: "Overview", overviewP1: "Server Monitor displays comprehensive information about your server's current state, including network activity, disk usage, and loaded modules.",
+        overviewCaption: "Server Resources - visual representation of CPU, memory, and overall server health.",
+        overviewP2: "Use this tool to monitor server performance, check available disk space, and verify that required Apache modules and PHP extensions are loaded.",
+        overviewNote: "Note: Data refreshes automatically. Green/purple indicators show active/loaded components, red indicates inactive/not loaded.",
+        networkTitle: "Network Interfaces", networkP1: "The Network Interfaces section displays real-time traffic for all network adapters on your server.",
+        networkL1: "Download - Incoming data rate (bytes per second)", networkL2: "Upload - Outgoing data rate (bytes per second)",
+        networkL3: "Total - Combined upload and download traffic", networkL4: "Speed - Current connection speed",
+        networkCaption: "Network Interfaces showing real-time traffic for each adapter.",
+        drivesTitle: "Connected Drives", drivesP1: "The Connected Drives section shows disk space usage for all drives mounted on your server.",
+        drivesL1: "Total Space - Total capacity of the drive", drivesL2: "Free Space - Available space remaining",
+        drivesL3: "Usage Bar - Visual indicator (purple = used, green = free)", drivesL4: "Percentage - Percentage of disk space used",
+        drivesP2: "Monitor disk usage to prevent storage issues. Consider cleaning up or expanding drives that exceed 80% capacity.",
+        apacheTitle: "Apache Modules", apacheP1: "The Apache Modules section lists all Apache web server modules and their current status.",
+        apacheCaption: "Apache Modules - purple badges indicate loaded modules, red indicates not loaded.",
+        apacheP2: "Module status indicators:", apacheL1: "Loaded - Module is active and available", apacheL2: "Not Loaded - Module is not currently active",
+        apacheP3: "Use the search box to quickly find specific modules by name.",
+        phpTitle: "PHP Extensions", phpP1: "The PHP Extensions section displays all installed PHP extensions and their loading status.",
+        phpCaption: "PHP Extensions - all extensions shown with their current status.",
+        phpP2: "Common PHP extensions include:", phpL1: "PDO - Database connectivity", phpL2: "cURL - HTTP requests",
+        phpL3: "SimpleXML - XML parsing", phpL4: "Reflection - Code introspection",
+        phpP3: "Most extensions should show Loaded for proper application functionality."
+      },
+      ua: {
+        brand: "Server Monitor", langLabel: "Мова:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Теми",
+        navOverview: "Огляд", navNetwork: "Мережеві інтерфейси", navDrives: "Підключені диски", navApache: "Модулі Apache", navPhp: "Розширення PHP",
+        pageTitle: "Інструкція до Server Monitor", pageIntro: "Server Monitor надає моніторинг ресурсів вашого сервера, мережевої активності та встановлених модулів у реальному часі.",
+        overviewTitle: "Огляд", overviewP1: "Server Monitor відображає комплексну інформацію про поточний стан вашого сервера, включаючи мережеву активність, використання диску та завантажені модулі.",
+        overviewCaption: "Ресурси сервера - візуальне представлення CPU, пам'яті та загального стану сервера.",
+        overviewP2: "Використовуйте цей інструмент для моніторингу продуктивності сервера, перевірки вільного місця на диску та підтвердження, що необхідні модулі Apache та розширення PHP завантажені.",
+        overviewNote: "Примітка: Дані оновлюються автоматично. Зелені/фіолетові індикатори показують активні/завантажені компоненти, червоний - неактивні/не завантажені.",
+        networkTitle: "Мережеві інтерфейси", networkP1: "Розділ Мережеві інтерфейси відображає трафік у реальному часі для всіх мережевих адаптерів на вашому сервері.",
+        networkL1: "Download - Вхідний потік даних (байт за секунду)", networkL2: "Upload - Вихідний потік даних (байт за секунду)",
+        networkL3: "Total - Комбінований вхідний та вихідний трафік", networkL4: "Speed - Поточна швидкість з'єднання",
+        networkCaption: "Мережеві інтерфейси показують трафік у реальному часі для кожного адаптера.",
+        drivesTitle: "Підключені диски", drivesP1: "Розділ Підключені диски показує використання дискового простору для всіх дисків, підключених до вашого сервера.",
+        drivesL1: "Total Space - Загальна ємність диску", drivesL2: "Free Space - Вільне місце, що залишилося",
+        drivesL3: "Usage Bar - Візуальний індикатор (фіолетовий = використано, зелений = вільно)", drivesL4: "Percentage - Відсоток використаного дискового простору",
+        drivesP2: "Слідкуйте за використанням диску, щоб запобігти проблемам зі зберіганням. Розгляньте очищення або розширення дисків, які перевищують 80% ємності.",
+        apacheTitle: "Модулі Apache", apacheP1: "Розділ Модулі Apache перелічує всі модулі веб-сервера Apache та їх поточний статус.",
+        apacheCaption: "Модулі Apache - фіолетові значки вказують на завантажені модулі, червоний - не завантажені.",
+        apacheP2: "Індикатори статусу модулів:", apacheL1: "Loaded - Модуль активний і доступний", apacheL2: "Not Loaded - Модуль наразі не активний",
+        apacheP3: "Використовуйте поле пошуку для швидкого пошуку конкретних модулів за назвою.",
+        phpTitle: "Розширення PHP", phpP1: "Розділ Розширення PHP відображає всі встановлені розширення PHP та їх статус завантаження.",
+        phpCaption: "Розширення PHP - всі розширення показані з їх поточним статусом.",
+        phpP2: "Поширені розширення PHP включають:", phpL1: "PDO - Підключення до бази даних", phpL2: "cURL - HTTP запити",
+        phpL3: "SimpleXML - Парсинг XML", phpL4: "Reflection - Інспекція коду",
+        phpP3: "Більшість розширень повинні показувати Loaded для правильної роботи додатка."
+      }
+    };
+
+    function getParam(name, fallback) { const params = new URLSearchParams(window.location.search); return params.get(name) || fallback; }
+    function normalizeLang(lang) { return ["en", "ua"].includes(lang) ? lang : "en"; }
+    function normalizeTheme(theme) { return theme === "light" ? "light" : "dark"; }
+    function applyTranslations(lang) {
+      const dict = translations[lang] || translations.en;
+      document.documentElement.lang = lang;
+      document.getElementById("currentLang").textContent = lang.toUpperCase();
+      document.querySelectorAll("[data-i18n]").forEach(el => { const key = el.getAttribute("data-i18n"); if (dict[key]) el.textContent = dict[key]; });
+      const photoFolder = lang === 'ua' ? 'photos_ua' : 'photos_en';
+      document.querySelectorAll('.content img').forEach(img => { const src = img.getAttribute('src'); if (src && src.includes('photos_')) { img.src = src.replace(/photos_(en|ua)/, photoFolder); } });
+      document.querySelectorAll('.lightbox-trigger').forEach(link => { const href = link.getAttribute('href'); if (href && href.includes('photos_')) { link.href = href.replace(/photos_(en|ua)/, photoFolder); } });
+      const minimapImg = document.getElementById('minimap-image');
+      if (minimapImg) { const src = minimapImg.getAttribute('src'); if (src && src.includes('photos_')) { minimapImg.src = src.replace(/photos_(en|ua)/, photoFolder); } }
+    }
+    function applyTheme(theme) {
+      document.body.classList.remove("theme-dark", "theme-light");
+      document.body.classList.add("theme-" + theme);
+      document.getElementById("currentTheme").textContent = theme === "light" ? "Light" : "Dark";
+    }
+    function setupNavHighlight() {
+      const links = document.querySelectorAll(".nav a");
+      const sections = Array.from(links).map(link => document.querySelector(link.getAttribute("href")));
+      function updateActive() {
+        let current = "";
+        sections.forEach(section => { if (section && window.scrollY >= section.offsetTop - 140) current = section.id; });
+        links.forEach(link => { link.classList.toggle("active", link.getAttribute("href") === "#" + current); });
+      }
+      window.addEventListener("scroll", updateActive); updateActive();
+    }
+    function updateBackLink() {
+      const lang = normalizeLang(getParam("lang", "en"));
+      const theme = normalizeTheme(getParam("theme", "dark"));
+      const color = getParam("color", "#b31adb");
+      document.getElementById("backLink").href = `/main?app=server&lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+    }
+    function setupMinimap() {
+      const container = document.getElementById('minimap-container'), viewport = document.getElementById('minimap-viewport'), content = document.querySelector('.content');
+      if (!content) return;
+      function updateViewport() {
+        const contentTop = content.offsetTop, contentHeight = content.offsetHeight, scrollTop = window.scrollY, viewportHeight = window.innerHeight;
+        const scrollPercent = Math.max(0, Math.min((scrollTop - contentTop) / contentHeight, 1));
+        const viewportPercent = viewportHeight / contentHeight;
+        const minimapHeight = container.offsetHeight;
+        const viewportTop = scrollPercent * minimapHeight;
+        const viewportH = Math.min(viewportPercent * minimapHeight, minimapHeight * 0.15);
+        viewport.style.top = viewportTop + 'px'; viewport.style.height = viewportH + 'px';
+      }
+      container.addEventListener('click', function(e) {
+        const rect = container.getBoundingClientRect(), clickPercent = (e.clientY - rect.top) / rect.height;
+        const targetScroll = content.offsetTop + (clickPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      });
+      let isDragging = false;
+      viewport.addEventListener('mousedown', function(e) { isDragging = true; e.preventDefault(); });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect(), y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+        const scrollPercent = y / rect.height;
+        const targetScroll = content.offsetTop + (scrollPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'auto' });
+      });
+      document.addEventListener('mouseup', function() { isDragging = false; });
+      updateViewport();
+      window.addEventListener('scroll', updateViewport); window.addEventListener('resize', updateViewport);
+    }
+    function setupLightbox() {
+      const overlay = document.getElementById('lightbox-overlay'), imageEl = document.getElementById('lightbox-image'), captionEl = document.getElementById('lightbox-caption'), counterEl = document.getElementById('lightbox-counter'), closeBtn = document.getElementById('lightbox-close'), prevBtn = document.getElementById('lightbox-prev'), nextBtn = document.getElementById('lightbox-next');
+      let lightboxImages = [], currentIndex = 0;
+      document.querySelectorAll('.lightbox-trigger').forEach((trigger, index) => {
+        lightboxImages.push({ src: trigger.getAttribute('href'), title: trigger.getAttribute('data-title') || '' });
+        trigger.addEventListener('click', function(e) { e.preventDefault(); currentIndex = index; showLightbox(); });
+      });
+      function showLightbox() {
+        if (lightboxImages.length === 0) return;
+        const img = lightboxImages[currentIndex];
+        imageEl.src = img.src; imageEl.alt = img.title; captionEl.textContent = img.title;
+        counterEl.textContent = `${currentIndex + 1} / ${lightboxImages.length}`;
+        overlay.classList.add('active'); document.body.style.overflow = 'hidden';
+      }
+      function hideLightbox() { overlay.classList.remove('active'); document.body.style.overflow = ''; }
+      function showPrev() { currentIndex = (currentIndex - 1 + lightboxImages.length) % lightboxImages.length; showLightbox(); }
+      function showNext() { currentIndex = (currentIndex + 1) % lightboxImages.length; showLightbox(); }
+      closeBtn.addEventListener('click', hideLightbox); prevBtn.addEventListener('click', showPrev); nextBtn.addEventListener('click', showNext);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideLightbox(); });
+      document.addEventListener('keydown', function(e) {
+        if (!overlay.classList.contains('active')) return;
+        if (e.key === 'Escape') hideLightbox(); else if (e.key === 'ArrowLeft') showPrev(); else if (e.key === 'ArrowRight') showNext();
+      });
+    }
+    const lang = normalizeLang(getParam("lang", "en")), theme = normalizeTheme(getParam("theme", "dark"));
+    applyTranslations(lang); applyTheme(theme); updateBackLink(); setupNavHighlight(); setupMinimap(); setupLightbox();
+  </script>
+</body>
+</html>

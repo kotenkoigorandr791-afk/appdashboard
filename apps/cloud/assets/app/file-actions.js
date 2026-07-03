@@ -1,0 +1,2335 @@
+function newFolder(basePath) {
+  // Guard: ensure basePath is always a string
+  if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
+  newFolderState.basePath = (typeof basePath === 'string') ? basePath : '';
+  const modal = document.getElementById('new-folder-modal');
+  const folderNameInput = document.getElementById('new-folder-name');
+  folderNameInput.value = '';
+  translateModalElements(modal);
+  modal.classList.remove('hidden');
+  folderNameInput.focus();
+}
+function createNewFolder() {
+  const folderNameInput = document.getElementById('new-folder-name');
+  const name = folderNameInput.value.trim();
+  if (!name) {
+    flashStatus(t(i18n, 'enterFolderName'));
+    folderNameInput.focus();
+    return;
+  }
+  const forbiddenChars = /[\\/:*?"<>|]/;
+  if (forbiddenChars.test(name)) {
+    flashStatus(t(i18n, 'invalidFolderName'));
+    folderNameInput.focus();
+    folderNameInput.select();
+    return;
+  }
+  const path = newFolderState.basePath ? `${String(newFolderState.basePath)}/${name}` : name;
+  document.getElementById('new-folder-modal').classList.add('hidden');
+  const mkdirRoot = getCurrentCloudRoot();
+  api('mkdir', { path, root: mkdirRoot }).then(async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const newItem = { name, path, type: 'dir', size: null, mtime: now };
+    await insertTreeItem(newItem, mkdirRoot);
+    flashStatus(t(i18n, 'folderCreated', {name}));
+  }).catch(err => {
+    if (err.message.includes('exists')) {
+      flashStatus(t(i18n, 'folderExists'));
+    } else {
+      flashStatus(t(i18n, 'errorPrefix') + err.message);
+    }
+  });
+}
+function initCreateFolderModal() {
+  const newFolderModal = document.getElementById('new-folder-modal');
+  const newFolderNameInput = document.getElementById('new-folder-name');
+  const btnCancelNewFolder = document.getElementById('btn-cancel-new-folder');
+  const btnCreateFolder = document.getElementById('btn-create-folder');
+  btnCancelNewFolder.addEventListener('click', () => {
+    newFolderModal.classList.add('hidden');
+  });
+  btnCreateFolder.addEventListener('click', createNewFolder);
+  newFolderNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      createNewFolder();
+    }
+  });
+  newFolderModal.addEventListener('click', (e) => {
+    if (e.target === newFolderModal) {
+      newFolderModal.classList.add('hidden');
+    }
+  });
+  newFolderModal.querySelector('.close-btn').addEventListener('click', () => {
+    newFolderModal.classList.add('hidden');
+  });
+}
+function newFile(basePath) {
+  // Guard: ensure basePath is always a string
+  if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
+  newFileState.basePath = (typeof basePath === 'string') ? basePath : '';
+  const modal = document.getElementById('new-file-modal');
+  const fileNameInput = document.getElementById('new-file-name');
+  const extensionSelect = document.getElementById('file-extension-select');
+  const customExtensionInput = document.getElementById('custom-extension-input');
+  fileNameInput.value = '';
+  customExtensionInput.value = '';
+  customExtensionInput.classList.add('hidden');
+  translateModalElements(modal);
+  modal.classList.remove('hidden');
+  fileNameInput.focus();
+}
+async function deletePath(path, type = 'file', name = '') {
+    if (path !== null && typeof path === 'object') { type = path.type || type; name = path.name || name; path = path.path || ''; }
+    path = String(path || '');
+    if (!path) return;
+    if (!name) {
+        name = path.split('/').pop();
+    }
+    showDeleteModal(path, type, name);
+    clearSelection(); 
+}
+let inlineRenameState = null;
+function cancelInlineTreeRename() {
+  if (!inlineRenameState) return;
+  const { node, label, input, originalName } = inlineRenameState;
+  if (input && input.parentNode) input.remove();
+  if (label) {
+    label.textContent = originalName;
+    label.classList.remove('hidden');
+  }
+  if (node) node.classList.remove('tree-renaming');
+  inlineRenameState = null;
+}
+async function commitInlineTreeRename() {
+  if (!inlineRenameState) return;
+  const { path, input, originalName, node, label } = inlineRenameState;
+  const newFullFileName = (input?.value || '').trim();
+  if (!newFullFileName) {
+    flashStatus(t(i18n, 'enterNewName'));
+    input?.focus();
+    return;
+  }
+  if (newFullFileName === originalName) {
+    cancelInlineTreeRename();
+    return;
+  }
+  const forbiddenChars = /[\\/:*?"<>|]/;
+  if (forbiddenChars.test(newFullFileName)) {
+    flashStatus(t(i18n, 'invalidFolderName'));
+    input?.focus();
+    input?.select();
+    return;
+  }
+  const oldPath = path;
+  const directory = oldPath.includes('/') ? oldPath.substring(0, oldPath.lastIndexOf('/') + 1) : '';
+  const newPath = directory + newFullFileName;
+  const cleanupInput = () => {
+    if (node) node.classList.remove('tree-renaming');
+    if (input?.parentNode) input.remove();
+    if (label) label.classList.remove('hidden');
+  };
+  inlineRenameState = null;
+  try {
+    await api('rename', { old_path: oldPath, new_name: newFullFileName });
+    const currentRoot = getCurrentCloudRoot();
+    if (typeof patchTreeCacheForRoot === 'function') {
+      await patchTreeCacheForRoot([{ op: 'rename', old_path: oldPath, new_path: newPath, new_name: newFullFileName }], currentRoot);
+    } else if (currentRoot === 'main') {
+      await patchTreeCache([{ op: 'rename', old_path: oldPath, new_path: newPath, new_name: newFullFileName }]);
+    }
+    if (currentRoot === 'main') {
+      treeNodeRename(oldPath, newPath, newFullFileName);
+    } else {
+      await buildTree('');
+    }
+    const viewer = document.getElementById('viewer');
+    if (viewer?.dataset?.path === oldPath) {
+      const activeTab = tabsState.tabs.find(tab => tab.path === oldPath);
+      if (activeTab) {
+        activeTab.path = newPath;
+        activeTab.title = newFullFileName;
+        renderTabs();
+        saveTabsState();
+      }
+    }
+    cleanupInput();
+    flashStatus(t(i18n, 'fileRenamed'));
+  } catch (err) {
+    flashStatus(t(i18n, 'errorPrefix') + err.message);
+    startInlineTreeRename(oldPath);
+  }
+}
+function startInlineTreeRename(path) {
+  if (!path) return;
+  if (typeof path === 'object') path = path.path || '';
+  if (!path || typeof path !== 'string') return;
+  if (inlineRenameState?.path === path) return;
+  cancelInlineTreeRename();
+  const esc = CSS.escape(path);
+  const node = document.querySelector(`#tree .node[data-path="${esc}"]`);
+  if (!node) {
+    renamePathModal(path);
+    return;
+  }
+  const label = node.querySelector('.label');
+  if (!label || label.classList.contains('hidden')) return;
+  const originalName = label.textContent || path.split('/').pop();
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tree-rename-input';
+  input.value = originalName;
+  input.setAttribute('aria-label', t(i18n, 'rename') || 'Rename');
+  label.classList.add('hidden');
+  node.classList.add('tree-renaming');
+  node.insertBefore(input, label.nextSibling);
+  inlineRenameState = { path, node, label, input, originalName };
+  const finish = (commit) => {
+    if (!inlineRenameState || inlineRenameState.input !== input) return;
+    if (commit) commitInlineTreeRename();
+    else cancelInlineTreeRename();
+  };
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finish(true);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      finish(false);
+    }
+  });
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+  requestAnimationFrame(() => {
+    input.focus();
+    const dot = originalName.lastIndexOf('.');
+    if (dot > 0) input.setSelectionRange(0, dot);
+    else input.select();
+  });
+}
+function renamePathModal(path) {
+  if (!path) return;
+  if (typeof path === 'object') path = path.path || '';
+  if (!path || typeof path !== 'string') return;
+  renameState.oldPath = path;
+  const fileName = path.split('/').pop();
+  const lastDotIndex = fileName.lastIndexOf('.');
+  let nameWithoutExt = fileName;
+  let currentExt = '';
+  if (lastDotIndex > 0) {
+    nameWithoutExt = fileName.substring(0, lastDotIndex);
+    currentExt = fileName.substring(lastDotIndex);
+    renameState.currentExt = currentExt;
+  }
+  const modal = document.getElementById('rename-modal');
+  const fileNameInput = document.getElementById('rename-file-name');
+  const extensionSelect = document.getElementById('rename-extension-select');
+  const customExtensionInput = document.getElementById('rename-custom-extension-input');
+  const currentFileName = document.getElementById('current-file-name');
+  fileNameInput.value = nameWithoutExt;
+  extensionSelect.value = 'keep';
+  customExtensionInput.value = '';
+  customExtensionInput.classList.add('hidden');
+  currentFileName.textContent = fileName;
+  translateModalElements(modal);
+  modal.classList.remove('hidden');
+  fileNameInput.focus();
+  fileNameInput.select();
+}
+function renamePath(path) {
+  startInlineTreeRename(path);
+}
+window.startInlineTreeRename = startInlineTreeRename;
+window.cancelInlineTreeRename = cancelInlineTreeRename;
+function translateModalElements(modal) {
+  const i18n = window.i18n;
+  modal.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (i18n[key]) {
+      if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+        el.placeholder = i18n[key];
+      } else {
+        el.textContent = i18n[key];
+      }
+    }
+  });
+  modal.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(i18n, el.dataset.i18nPlaceholder);
+  });
+}
+function initFileModals() {
+  const newFileModal = document.getElementById('new-file-modal');
+  const newFileNameInput = document.getElementById('new-file-name');
+  const newFileExtensionSelect = document.getElementById('file-extension-select');
+  const newFileCustomExtension = document.getElementById('custom-extension-input');
+  const btnCancelNewFile = document.getElementById('btn-cancel-new-file');
+  const btnCreateFile = document.getElementById('btn-create-file');
+  const renameModal = document.getElementById('rename-modal');
+  const renameExtensionSelect = document.getElementById('rename-extension-select');
+  const renameCustomExtension = document.getElementById('rename-custom-extension-input');
+  const btnCancelRename = document.getElementById('btn-cancel-rename');
+  const btnConfirmRename = document.getElementById('btn-confirm-rename');
+  newFileExtensionSelect.addEventListener('change', function() {
+    if (this.value === 'custom') {
+      newFileCustomExtension.classList.remove('hidden');
+      newFileCustomExtension.focus();
+    } else {
+      newFileCustomExtension.classList.add('hidden');
+      newFileCustomExtension.value = '';
+    }
+  });
+  btnCancelNewFile.addEventListener('click', () => {
+    newFileModal.classList.add('hidden');
+  });
+  btnCreateFile.addEventListener('click', createNewFile);
+  newFileNameInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      createNewFile();
+    }
+  });
+  renameExtensionSelect.addEventListener('change', function() {
+    if (this.value === 'custom') {
+      renameCustomExtension.classList.remove('hidden');
+      renameCustomExtension.focus();
+    } else {
+      renameCustomExtension.classList.add('hidden');
+      renameCustomExtension.value = '';
+    }
+  });
+  btnCancelRename.addEventListener('click', () => {
+    renameModal.classList.add('hidden');
+  });
+  btnConfirmRename.addEventListener('click', confirmRenameFile);
+  document.getElementById('rename-file-name').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      confirmRenameFile();
+    }
+  });
+  [newFileModal, renameModal].forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
+    modal.querySelector('.close-btn').addEventListener('click', () => {
+      modal.classList.add('hidden');
+    });
+  });
+  initFileExtensionHighlighting();
+}
+function confirmRenameFile() {
+  const fileNameInput = document.getElementById('rename-file-name');
+  const extensionSelect = document.getElementById('rename-extension-select');
+  const customExtensionInput = document.getElementById('rename-custom-extension-input');
+  const newName = fileNameInput.value.trim();
+  if (!newName) {
+    flashStatus(t(i18n, 'enterNewName'));
+    fileNameInput.focus();
+    return;
+  }
+  let newExtension = '';
+  if (extensionSelect.value === 'custom') {
+    newExtension = customExtensionInput.value.trim();
+    if (newExtension && !newExtension.startsWith('.')) {
+      newExtension = '.' + newExtension;
+    }
+  } else if (extensionSelect.value === 'keep') {
+    newExtension = renameState.currentExt;
+  } else {
+    newExtension = extensionSelect.value;
+  }
+  const newFullFileName = newName + newExtension;
+  const oldPath = renameState.oldPath;
+  const directory = oldPath.substring(0, oldPath.lastIndexOf('/') + 1);
+  const newPath = directory + newFullFileName;
+  document.getElementById('rename-modal').classList.add('hidden');
+  api('rename', { old_path: oldPath, new_name: newFullFileName }).then(async () => {
+    const currentRoot = getCurrentCloudRoot();
+    if (typeof patchTreeCacheForRoot === 'function') {
+      await patchTreeCacheForRoot([{ op: 'rename', old_path: oldPath, new_path: newPath, new_name: newFullFileName }], currentRoot);
+    } else if (currentRoot === 'main') {
+      await patchTreeCache([{ op: 'rename', old_path: oldPath, new_path: newPath, new_name: newFullFileName }]);
+    }
+    if (currentRoot === 'main') {
+      treeNodeRename(oldPath, newPath, newFullFileName);
+    } else {
+      await buildTree('');
+    }
+    const viewer = document.getElementById('viewer');
+    if (viewer.dataset.path === oldPath) {
+      const activeTab = tabsState.tabs.find(tab => tab.path === oldPath);
+      if (activeTab) {
+        activeTab.path = newPath;
+        activeTab.title = newFullFileName;
+        renderTabs();
+        saveTabsState();
+      }
+    }
+    flashStatus(t(i18n, 'fileRenamed'));
+  }).catch(err => {
+    flashStatus(t(i18n, 'errorPrefix') + err.message);
+  });
+}
+function createNewFile() {
+  const fileNameInput = document.getElementById('new-file-name');
+  const extensionSelect = document.getElementById('file-extension-select');
+  const customExtensionInput = document.getElementById('custom-extension-input');
+  const name = fileNameInput.value.trim();
+  if (!name) {
+    flashStatus(t(i18n, 'enterFileName'));
+    fileNameInput.focus();
+    return;
+  }
+  let extension = '.txt'; // значение по умолчанию
+  if (extensionSelect.value === 'custom') {
+    extension = customExtensionInput.value.trim();
+    if (extension && !extension.startsWith('.')) {
+      extension = '.' + extension;
+    }
+    if (!extension) {
+      extension = '.txt';
+    }
+  } else if (extensionSelect.value && extensionSelect.value !== 'custom') {
+    extension = extensionSelect.value;
+  }
+  if (!extension) {
+    extension = '.txt';
+  }
+  const fullFileName = name + extension;
+  const path = newFileState.basePath ? `${String(newFileState.basePath)}/${fullFileName}` : fullFileName;
+  document.getElementById('new-file-modal').classList.add('hidden');
+  const createRoot = getCurrentCloudRoot();
+  api('create_file', { path, root: createRoot }).then(async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const newItem = { name: fullFileName, path, type: 'file', size: 0, mtime: now };
+    await insertTreeItem(newItem, createRoot);
+    const fileExt = fullFileName.split('.').pop().toLowerCase();
+    if (fileExt === 'tex' || fileExt === 'latex') {
+      openLatexEditor(path);
+    } else if (isMarkdownFile(fullFileName)) {
+      openMarkdownEditor(path);
+    } else if (typeof isHtmlFile === 'function' && isHtmlFile(fullFileName)) {
+      if (typeof openHtmlEditor === 'function') openHtmlEditor(path);
+    } else if (isOfficeFile(fullFileName)) {
+      openOnlyOfficeEditor(path);
+    } else if (isTextFile(fullFileName)) {
+      openFileInTab(path, true);
+    }
+    flashStatus(t(i18n, 'fileCreated', {name: fullFileName}));
+  }).catch(err => {
+    if (err.message.includes('exists')) {
+      flashStatus(t(i18n, 'fileExists'));
+    } else {
+      flashStatus(t(i18n, 'errorPrefix') + err.message);
+    }
+  });
+}
+function downloadPath(path) {
+  const root = getCurrentCloudRoot();
+  const url = `api.php?action=download&path=${encodeURIComponent(path)}&root=${root}`;
+  const a = document.createElement('a');
+  a.href = url; a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function closeAllContextMenus() {
+    document.querySelectorAll('.context-menu-submenu').forEach((el) => el.remove());
+    document.getElementById('context-menu')?.remove();
+}
+window.closeAllContextMenus = closeAllContextMenus;
+function isContextMenuUiElement(el) {
+    return !!(el && (el.closest?.('.context-menu') || el.closest?.('.context-menu-submenu')));
+}
+function attachContextMenuDismiss(removeMenu) {
+    const ac = new AbortController();
+    const { signal } = ac;
+    const dismiss = () => {
+        if (dismiss._done) return;
+        dismiss._done = true;
+        ac.abort();
+        removeMenu();
+    };
+    window.addEventListener('blur', dismiss, { signal });
+    document.addEventListener('pointerdown', (ev) => {
+        if (!isContextMenuUiElement(ev.target)) dismiss();
+    }, { signal, capture: true });
+    document.addEventListener('pointermove', (ev) => {
+        if (!document.getElementById('context-menu')) return;
+        const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+        if (!hit || isContextMenuUiElement(hit)) return;
+        if (hit.tagName === 'IFRAME' || hit.closest?.('#viewer')) dismiss();
+    }, { signal, capture: true, passive: true });
+    return dismiss;
+}
+function renderContextMenuOptions(menu, options, hooks = {}) {
+    const isTouchMenu = !window.matchMedia('(hover: hover)').matches;
+    const submenuClickGuardMs = 400;
+    const submenus = [];
+    let hideSubmenuTimer = null;
+    const cancelHideSubmenu = () => {
+        if (hideSubmenuTimer) clearTimeout(hideSubmenuTimer);
+        hideSubmenuTimer = null;
+    };
+    const hideSubmenuEl = (submenu) => {
+        submenu.classList.remove('visible');
+        submenu.style.visibility = 'hidden';
+        submenu.style.opacity = '0';
+        submenu.style.pointerEvents = 'none';
+        if (submenu.parentNode) submenu.parentNode.removeChild(submenu);
+    };
+    const hideAllSubmenus = () => {
+        cancelHideSubmenu();
+        submenus.forEach(hideSubmenuEl);
+    };
+    const positionSubmenu = (submenu, trigger) => {
+        hideAllSubmenus();
+        document.body.appendChild(submenu);
+        submenu.style.visibility = 'hidden';
+        submenu.style.opacity = '0';
+        submenu.style.pointerEvents = 'none';
+        submenu.classList.add('visible');
+        const tr = trigger.getBoundingClientRect();
+        const sr = submenu.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        let left;
+        let top;
+        if (isTouchMenu) {
+            left = tr.left;
+            top = tr.bottom + 2;
+            if (top + sr.height > vh - 5) top = Math.max(5, tr.top - sr.height - 2);
+            if (left + sr.width > vw - 5) left = Math.max(5, vw - sr.width - 5);
+        } else {
+            left = tr.right + 2;
+            top = tr.top;
+            if (left + sr.width > vw - 5) left = Math.max(5, tr.left - sr.width - 2);
+            if (top + sr.height > vh - 5) top = Math.max(5, vh - sr.height - 5);
+        }
+        submenu.style.left = `${left}px`;
+        submenu.style.top = `${top}px`;
+        submenu.style.visibility = 'visible';
+        submenu.style.opacity = '1';
+        if (isTouchMenu) {
+            submenu.dataset.openedAt = String(Date.now());
+            setTimeout(() => {
+                if (submenu.parentNode) submenu.style.pointerEvents = 'auto';
+            }, submenuClickGuardMs);
+        } else {
+            submenu.style.pointerEvents = 'auto';
+        }
+    };
+    const scheduleHideSubmenu = (submenu, trigger) => {
+        cancelHideSubmenu();
+        hideSubmenuTimer = setTimeout(() => {
+            if (!submenu.matches(':hover') && !trigger.matches(':hover')) hideSubmenuEl(submenu);
+        }, 160);
+    };
+    const bindItem = (item, opt) => {
+        if (hooks.isItemDisabled?.(opt, item)) {
+            item.style.opacity = '0.5';
+            item.style.cursor = 'not-allowed';
+            return;
+        }
+        if (!opt.action) {
+            item.style.cursor = 'default';
+            item.style.color = 'var(--muted)';
+            return;
+        }
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const parentSubmenu = item.closest('.context-menu-submenu');
+            if (parentSubmenu?.dataset.openedAt) {
+                const elapsed = Date.now() - parseInt(parentSubmenu.dataset.openedAt, 10);
+                if (elapsed < submenuClickGuardMs) return;
+            }
+            opt.action();
+            hooks.onItemClick?.(opt);
+            document.querySelectorAll('.context-menu, .context-menu-submenu').forEach((m) => m.remove());
+        });
+    };
+    const appendOption = (container, opt) => {
+        if (opt.label === '---' || opt.type === 'separator') {
+            const separator = document.createElement('div');
+            separator.className = 'context-menu-separator';
+            container.appendChild(separator);
+            return;
+        }
+        if (opt.type === 'group' && opt.items?.length) {
+            const group = document.createElement('div');
+            group.className = 'context-menu-group';
+            const trigger = document.createElement('div');
+            trigger.className = 'context-menu-item context-menu-group-trigger';
+            trigger.innerHTML = `${getContextMenuIconSvg(opt.icon)}<span class="context-menu-item-label">${escapeHtml(opt.label || '')}</span>${getContextMenuIconSvg('chevron-right')}`;
+            const submenu = document.createElement('div');
+            submenu.className = 'context-menu-submenu';
+            opt.items.forEach((sub) => appendOption(submenu, sub));
+            submenus.push(submenu);
+            menu.appendChild(group);
+            group.appendChild(trigger);
+            const openSubmenu = () => {
+                positionSubmenu(submenu, trigger);
+            };
+            if (!isTouchMenu) trigger.addEventListener('mouseenter', openSubmenu);
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (isTouchMenu) e.preventDefault();
+                if (submenu.classList.contains('visible') && submenu.parentNode) hideSubmenuEl(submenu);
+                else openSubmenu();
+            });
+            trigger.addEventListener('mouseleave', () => scheduleHideSubmenu(submenu, trigger));
+            submenu.addEventListener('mouseenter', cancelHideSubmenu);
+            submenu.addEventListener('mouseleave', () => scheduleHideSubmenu(submenu, trigger));
+            return;
+        }
+        const item = document.createElement('div');
+        item.className = 'context-menu-item';
+        item.innerHTML = `${getContextMenuIconSvg(opt.icon)}<span class="context-menu-item-label">${escapeHtml(opt.label || '')}</span>`;
+        bindItem(item, opt);
+        container.appendChild(item);
+    };
+    options.forEach((opt) => appendOption(menu, opt));
+    menu._hideContextSubmenus = hideAllSubmenus;
+}
+window.renderContextMenuOptions = renderContextMenuOptions;
+
+function showContextMenu(e, path, type, name) {
+    // Guard: if path is an object (item was passed instead of item.path), extract fields
+    if (path !== null && typeof path === 'object') {
+        name = path.name || '';
+        type = path.type || 'file';
+        path = path.path || '';
+    }
+    // Ensure path is always a string
+    path = (path === null || path === undefined) ? '' : String(path);
+    type = type || 'file';
+    name = name || path.split('/').pop() || '';
+
+    const existing = document.getElementById('context-menu');
+    if (existing) existing.remove();
+    document.querySelectorAll('.context-menu-submenu').forEach((el) => el.remove());
+    const menu = document.createElement('div');
+    menu.id = 'context-menu';
+    menu.className = 'context-menu';
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '1000';
+    menu.style.visibility = 'hidden';
+    menu.style.opacity = '0';
+    const basePath = path || '';
+    const hasMultipleSelection = selectionState.selectedItems.size > 1;
+    const options = [];
+    if (isTrashRoot()) {
+        const targetPaths = hasMultipleSelection
+            ? Array.from(selectionState.selectedItems)
+            : (path ? [path] : []);
+        options.push(
+            {
+                label: t(window.i18n, 'restoreSelected', { count: targetPaths.length || 1 }),
+                icon: 'move',
+                action: () => restoreTrashItems(targetPaths)
+            },
+            {
+                label: t(window.i18n, 'deleteSelected', { count: targetPaths.length || 1 }),
+                icon: 'delete',
+                action: () => showDeleteConfirmationModal(targetPaths, { permanent: true, fromTrash: true })
+            }
+        );
+    } else if (hasMultipleSelection) {
+        options.push(
+            { 
+                label: t(window.i18n, 'deselect'), 
+                icon: 'deselect',
+                action: () => {
+                    toggleSelectionMode();
+                    menu.remove(); // Закрываем меню после выбора
+                }
+            },
+            { 
+                label: t(window.i18n, 'moveSelected', { count: selectionState.selectedItems.size }), 
+                icon: 'move',
+                action: () => {
+                    moveSelectedItems();
+                    menu.remove();
+                }
+            },
+            { 
+                label: t(window.i18n, 'deleteSelected', { count: selectionState.selectedItems.size }), 
+                icon: 'delete',
+                action: () => {
+                    deleteSelectedItems();
+                    menu.remove();
+                }
+            }
+        );
+    } else {
+        options.push(
+            ...(type !== 'file' ? [{
+                label: selectionState.active ? t(window.i18n, 'deselect') : t(window.i18n, 'select'),
+                icon: selectionState.active ? 'deselect' : 'select',
+                action: () => {
+                    toggleSelectionMode();
+                    menu.remove();
+                }
+            }] : []),
+            ...(selectionState.active && selectionState.selectedItems.size > 0 ? [
+                { label: '---', action: null }
+            ] : []),
+            ...(selectionState.active && selectionState.selectedItems.size > 0 ? [
+                { 
+                    label: t(window.i18n, 'deleteSelected', { count: selectionState.selectedItems.size }), 
+                    icon: 'delete',
+                    action: () => deleteSelectedItems() 
+                },
+                { 
+                    label: t(window.i18n, 'moveSelected', { count: selectionState.selectedItems.size }), 
+                    icon: 'move',
+                    action: () => moveSelectedItems() 
+                },
+                { label: '---', action: null }
+            ] : []),
+            ...(type !== 'file' ? (() => {
+                const createItems = [
+                    { label: t(window.i18n, 'newFolder'), icon: 'new-folder', action: () => newFolder(basePath) },
+                    { label: t(window.i18n, 'newFile'), icon: 'new-file', action: () => newFile(basePath) }
+                ];
+                return [{ type: 'group', label: t(window.i18n, 'create'), icon: 'circle-plus', items: createItems }];
+            })() : []),
+            ...(type !== 'file' ? [
+                { label: t(window.i18n, 'upload'), icon: 'upload', action: () => openUploadDialog(basePath) },
+            ] : []),
+            ...((() => {
+                const actionItems = [];
+                if (type === 'file') {
+                    actionItems.push({
+                        label: selectionState.active ? t(window.i18n, 'deselect') : t(window.i18n, 'select'),
+                        icon: selectionState.active ? 'deselect' : 'select',
+                        action: () => toggleSelectionMode()
+                    });
+                }
+                if (path) actionItems.push({ label: t(window.i18n, 'rename'), icon: 'rename', action: () => renamePath(path) });
+                if (path) actionItems.push({ label: t(window.i18n, 'move'), icon: 'move', action: () => showMoveDialog(path, type) });
+                if (path) actionItems.push({ label: t(window.i18n, 'copy'), icon: 'copy', action: () => showCopyDialog(path, type) });
+                if (type === 'file' && path && !shouldHideEditMenuOption(path) && (isMonacoEditFile(path) || isEditableImage(path) || isEditableAudio(path) || (typeof isOfficeFile === 'function' && isOfficeFile(path)))) {
+                    actionItems.push({ label: t(window.i18n, 'edit'), icon: 'edit', action: () => {
+                        if (isMonacoEditFile(path)) openFileInTab(path, true);
+                        else if (isEditableImage(path)) openPhotoEditor(path);
+                        else if (isEditableAudio(path)) openTranscriptionEditor(path);
+                        else if (typeof openOnlyOfficeEditor === 'function') openOnlyOfficeEditor(path);
+                    }});
+                }
+                if (type === 'file' && path && isConvertibleFile(path)) {
+                    actionItems.push({ label: t(window.i18n, 'convert'), icon: 'convert', action: () => showConvertDialog(path) });
+                }
+                if (path && type === 'dir') {
+                    actionItems.push({ label: t(window.i18n, 'archiveFolder'), icon: 'archive-folder', action: () => archiveFolder(path) });
+                }
+                return actionItems.length ? [{ type: 'group', label: t(window.i18n, 'actions'), icon: 'layout-panel-top', items: actionItems }] : [];
+            })()),
+            ...(type === 'file' && path.toLowerCase().endsWith('.txt') ? [
+                { label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) }
+            ] : []),
+            ...(type === 'file' && isZipFile(path) ? [
+                { label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') }
+            ] : []),
+            ...(path ? [{ label: t(window.i18n, 'share'), icon: 'share', action: () => shareItem(path, type) }] : []),
+            ...(path ? [{ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) }] : []),
+            ...(path ? [{ label: t(window.i18n, 'delete'), icon: 'delete', action: () => deletePath(path) }] : [])
+        );
+    }
+    if (options.length === 0) {
+        options.push({ label: t(window.i18n, 'noActions'), action: () => {} });
+    }
+    renderContextMenuOptions(menu, options);
+    document.body.appendChild(menu);
+    adjustContextMenuPosition(menu, e.clientX, e.clientY);
+    menu.style.visibility = 'visible';
+    menu.style.opacity = '1';
+    const removeMenu = () => {
+        if (removeMenu._done) return;
+        removeMenu._done = true;
+        menu._hideContextSubmenus?.();
+        closeAllContextMenus();
+        document.removeEventListener('click', closeMenu);
+        document.removeEventListener('keydown', closeOnEscape);
+        document.removeEventListener('mousemove', closeOnDistance);
+    };
+    attachContextMenuDismiss(removeMenu);
+    const closeMenu = (event) => {
+        if (!isContextMenuUiElement(event.target)) removeMenu();
+    };
+    const closeOnEscape = (event) => {
+        if (event.key === 'Escape') removeMenu();
+    };
+    const closeOnDistance = (event) => {
+        const r = menu.getBoundingClientRect();
+        const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
+        const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
+        if (Math.sqrt(dx * dx + dy * dy) > 150) removeMenu();
+    };
+    setTimeout(() => {
+        document.addEventListener('click', closeMenu);
+        document.addEventListener('keydown', closeOnEscape);
+        if (window.matchMedia('(hover: hover)').matches) {
+            document.addEventListener('mousemove', closeOnDistance);
+        }
+    }, 10);
+}
+
+function getContextMenuIconSvg(iconName) {
+    const icons = {
+        edit: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>',
+        refresh: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><polyline points="21 3 21 9 15 9"/></svg>',
+        extract: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="m12 11 0 6"/><path d="m9 14 3 3 3-3"/></svg>',
+        convert: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="7 7 3 7 3 3"/><polyline points="17 17 21 17 21 21"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>',
+        office: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 8h6"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>',
+        speech: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8.8 20v-4.1l1.9.2a2.3 2.3 0 0 0 2.164-2.1V8.3A5.37 5.37 0 0 0 2 8.25c0 2.8.656 3.054 1 4.55a5.77 5.77 0 0 1 .029 2.758L2 20"/><path d="M19.8 17.8a7.5 7.5 0 0 0 .003-10.603"/><path d="M17 15a3.5 3.5 0 0 0-.025-4.975"/></svg>',
+        properties: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>',
+        rename: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>',
+        move: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/></svg>',
+        copy: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+        delete: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>',
+        close: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+        'close-others': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" x2="18" y1="12" y2="18"/><line x1="12" x2="18" y1="18" y2="12"/><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
+        'close-all': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>',
+        select: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><polyline points="8 12 11 15 16 9"/></svg>',
+        deselect: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="8" x2="16" y2="16"/><line x1="16" y1="8" x2="8" y2="16"/></svg>',
+        upload: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V6"/><polyline points="8 10 12 6 16 10"/><path d="M4 18h16"/></svg>',
+        'new-folder': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
+        'new-file': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
+        'archive-folder': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><rect x="2" y="2" width="20" height="5"/><path d="M10 12h4"/></svg>',
+        share: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>',
+        'circle-plus': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>',
+        'layout-panel-top': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/></svg>',
+        'chevron-right': '<svg class="context-menu-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>'
+    };
+    return icons[iconName] || '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/></svg>';
+}
+function isZipFile(path) {
+    const ext = path.split('.').pop().toLowerCase();
+    return ext === 'zip';
+}
+async function extractArchive(filePath, extractToPath = null) {
+    if (!isZipFile(filePath)) {
+        flashStatus(t(i18n, 'notAZipFile'));
+        return;
+    }
+    try {
+        flashStatus(t(i18n, 'extractingArchive'));
+        const response = await api('extract_archive', {
+            archive_path: filePath,
+            extract_to: extractToPath || ''
+        }, 'POST');
+        if (response.success) {
+            flashStatus(t(i18n, 'archiveExtracted'));
+            // Unknown number of extracted files — full rebuild needed here
+            cachedFileTree = null;
+            try { await api('invalidate_file_tree', {}, 'POST'); } catch(_) {}
+            await buildTree('');
+        } else {
+            flashStatus(t(i18n, 'extractError') + ': ' + response.error);
+        }
+    } catch (err) {
+        console.error('Extraction error:', err);
+        flashStatus(t(i18n, 'extractError') + ': ' + err.message);
+    }
+}
+function showExtractDialog(filePath) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>${t(i18n, 'selectExtractDestination')}</h3>
+                <button class="icon-btn close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>${t(i18n, 'extractingArchive')} <strong>${filePath}</strong></p>
+                <div class="folder-selector">
+                    <label>${t(i18n, 'selectTargetFolder')}</label>
+                    <div id="extract-folder-tree" class="folder-tree" style="
+                        border: 1px solid var(--border);
+                        border-radius: 4px;
+                        padding: 10px;
+                        margin: 10px 0;
+                        max-height: 300px;
+                        overflow-y: auto;
+                        background: var(--panel);
+                    "></div>
+                </div>
+                <div class="current-folder" style="margin: 10px 0; padding: 10px; background: var(--panel); border-radius: 4px;">
+                    ${t(i18n, 'selectedFolder')} <span id="current-folder-path">/</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-extract-here" class="btn secondary">${t(i18n, 'extractHere')}</button>
+                <button id="btn-cancel-extract" class="btn secondary">${t(i18n, 'cancel')}</button>
+                <button id="btn-confirm-extract" class="btn primary">${t(i18n, 'extractToFolder')}</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    loadFolderTreeForExtract();
+    document.getElementById('btn-cancel-extract').addEventListener('click', () => modal.remove());
+    document.getElementById('btn-extract-here').addEventListener('click', () => {
+        modal.remove();
+        extractArchive(filePath, '');
+    });
+    document.getElementById('btn-confirm-extract').addEventListener('click', () => {
+        const targetDir = window.selectedExtractFolder || '';
+        modal.remove();
+        extractArchive(filePath, targetDir);
+    });
+    modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+async function loadFolderTreeForExtract() {
+    try {
+        const treeContainer = document.getElementById('extract-folder-tree');
+        treeContainer.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--muted);">${t(i18n, 'loading')}</div>`;
+        
+        const rootItems = await api('list', { path: '' }, 'GET');
+        const folders = rootItems.items.filter(item => item.type === 'dir');
+        
+        treeContainer.innerHTML = '';
+        
+        if (folders.length === 0) {
+            treeContainer.innerHTML = `<div style="padding: 10px; text-align: center; color: var(--muted);">${t(i18n, 'foldersNotFound')}</div>`;
+            return;
+        }
+        
+        const container = renderExtractFolderNodes(folders, '', 0);
+        treeContainer.appendChild(container);
+    } catch (err) {
+        console.error('Failed to load folder tree:', err);
+        const treeContainer = document.getElementById('extract-folder-tree');
+        treeContainer.innerHTML = `<div style="padding: 10px; text-align: center; color: #e74c3c;">${t(i18n, 'loadError', { message: err.message })}</div>`;
+    }
+}
+function renderExtractFolderNodes(items, basePath = '', depth = 0) {
+    const container = document.createElement('div');
+    container.className = 'extract-tree-container';
+    items.forEach(item => {
+        const node = document.createElement('div');
+        node.className = 'extract-tree-node';
+        node.style.paddingLeft = `${depth * 20}px`;
+        node.dataset.path = item.path;
+        node.dataset.type = item.type;
+        const toggle = document.createElement('span');
+        toggle.className = 'extract-tree-toggle';
+        toggle.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+        toggle.style.cursor = 'pointer';
+        toggle.style.marginRight = '5px';
+        toggle.style.display = 'inline-block';
+        toggle.style.verticalAlign = 'middle';
+        const label = document.createElement('span');
+        label.className = 'extract-tree-label';
+        label.innerHTML = `
+            <span style="margin-right: 6px; display: inline-flex;">${getFolderIconMarkup()}</span>
+            <span>${item.name}</span>
+        `;
+        label.style.cursor = 'pointer';
+        label.style.padding = '4px 8px';
+        label.style.borderRadius = '3px';
+        label.style.display = 'inline-block';
+        label.style.verticalAlign = 'middle';
+        label.style.flex = '1';
+        const nodeContent = document.createElement('div');
+        nodeContent.style.display = 'flex';
+        nodeContent.style.alignItems = 'center';
+        nodeContent.style.margin = '2px 0';
+        nodeContent.appendChild(toggle);
+        nodeContent.appendChild(label);
+        node.appendChild(nodeContent);
+        const children = document.createElement('div');
+        children.className = 'extract-tree-children';
+        children.style.display = 'none';
+        children.dataset.loaded = 'false';
+        label.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectFolderForExtract(item.path);
+        });
+        toggle.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const isOpen = children.style.display !== 'none';
+            toggle.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
+            toggle.style.transition = 'transform 0.2s ease';
+            children.style.display = isOpen ? 'none' : 'block';
+            if (!isOpen && children.dataset.loaded === 'false') {
+                try {
+                    const res = await api('list', { path: item.path }, 'GET');
+                    const childFolders = res.items.filter(child => child.type === 'dir');
+                    if (childFolders.length > 0) {
+                        const childNodes = renderExtractFolderNodes(childFolders, item.path, depth + 1);
+                        children.appendChild(childNodes);
+                    } else {
+                        const emptyMsg = document.createElement('div');
+                        emptyMsg.style.padding = '8px 20px';
+                        emptyMsg.style.color = 'var(--muted)';
+                        emptyMsg.style.fontSize = '12px';
+                        emptyMsg.textContent = t(i18n, 'noSubfolders');
+                        children.appendChild(emptyMsg);
+                    }
+                    children.dataset.loaded = 'true';
+                } catch (err) {
+                    console.error('Failed to load folder contents:', err);
+                }
+            }
+        });
+        container.appendChild(node);
+        container.appendChild(children);
+    });
+    return container;
+}
+function selectFolderForExtract(folderPath) {
+    document.querySelectorAll('.extract-tree-label').forEach(label => {
+        label.style.background = 'transparent';
+        label.style.color = 'var(--fg)';
+    });
+    const selectedLabel = document.querySelector(`.extract-tree-node[data-path="${folderPath}"] .extract-tree-label`);
+    if (selectedLabel) {
+        selectedLabel.style.background = 'var(--accent)';
+        selectedLabel.style.color = 'white';
+    }
+    const pathDisplay = document.getElementById('current-folder-path');
+    pathDisplay.textContent = folderPath || '/';
+    window.selectedExtractFolder = folderPath;
+}
+async function archiveFolder(folderPath) {
+  if (!folderPath) {
+    flashStatus(t(i18n, 'selectFolderToArchive'));
+    return;
+  }
+  try {
+    const loadingModal = showLoadingModal(t(i18n, 'archivingFolder'));
+    const result = await api('archive_folder', { 
+      folder_path: folderPath 
+    }, 'POST');
+    loadingModal.remove();
+    if (result.success) {
+      // Add created archive to tree incrementally
+      const archiveName = result.archive_name || (result.archive_path && result.archive_path.split('/').pop()) || (folderPath.split('/').pop() + '.zip');
+      const archiveDir = folderPath.includes('/') ? folderPath.substring(0, folderPath.lastIndexOf('/')) : '';
+      const archivePath = archiveDir ? archiveDir + '/' + archiveName : archiveName;
+      const now = Math.floor(Date.now() / 1000);
+      const newItem = { name: archiveName, path: archivePath, type: 'file', size: result.size || 0, mtime: now };
+      await insertTreeItem(newItem, getCurrentCloudRoot());
+      showArchiveResultDialog(result, folderPath);
+    } else {
+      flashStatus(t(i18n, 'archiveError') + ': ' + result.error);
+    }
+  } catch (err) {
+    if (typeof loadingModal !== 'undefined' && loadingModal.remove) {
+      loadingModal.remove();
+    }
+    flashStatus(t(i18n, 'archiveError') + ': ' + err.message);
+  }
+}
+function showArchiveResultDialog(result, originalFolderPath) {
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.style.display = 'flex';
+  const archiveName = result.archive_name || result.archive_path.split('/').pop();
+  modal.innerHTML = `
+    <div class="modal-content" style="max-width: 500px;">
+      <div class="modal-header">
+        <h3 style="color: #27ae60;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <path d="M16 13H8"></path>
+            <path d="M16 17H8"></path>
+            <path d="M10 9H9H8"></path>
+          </svg>
+          ${t(i18n, 'archiveCreated')}
+        </h3>
+        <button class="icon-btn close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#27ae60" stroke-width="2" style="margin-bottom: 10px;">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <p><strong>${t(i18n, 'archiveReady')}</strong></p>
+        </div>
+        <div style="background: var(--panel); padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+          <div class="property-row">
+            <span class="property-label">${t(i18n, 'originalFolder')}:</span>
+            <span class="property-value">${originalFolderPath}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">${t(i18n, 'archiveFile')}:</span>
+            <span class="property-value">${archiveName}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">${t(i18n, 'fileSize')}:</span>
+            <span class="property-value">${result.size ? formatBytes(result.size) : t(i18n, 'unknown')}</span>
+          </div>
+          <div class="property-row">
+            <span class="property-label">${t(i18n, 'location')}:</span>
+            <span class="property-value">${t(i18n, 'currentFolder')}</span>
+          </div>
+        </div>
+        <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px; padding: 12px; color: #155724; margin-top: 15px;">
+          <strong>${t(i18n, 'success')}:</strong> 
+          ${t(i18n, 'archiveCreatedInCurrentFolder')}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-ok-archive" class="btn primary">
+          ${t(i18n, 'ok')}
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  const closeModal = () => modal.remove();
+  modal.querySelector('.close-btn').addEventListener('click', closeModal);
+  modal.querySelector('#btn-ok-archive').addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+  refreshTreeAfterOperation();
+}
+async function getArchiveSize(archivePath) {
+  try {
+    const properties = await api('get_properties', { path: archivePath }, 'GET');
+    const sizeElement = document.getElementById('archive-size');
+    if (sizeElement) {
+      sizeElement.textContent = formatFileSize(properties.size);
+    }
+  } catch (err) {
+    const sizeElement = document.getElementById('archive-size');
+    if (sizeElement) {
+      sizeElement.textContent = t(i18n, 'unknown');
+    }
+  }
+}
+function showLoadingModal(message) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.style.zIndex = '10000';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 300px; text-align: center;">
+            <div class="modal-body">
+                <div class="spinner" style="
+                    width: 40px;
+                    height: 40px;
+                    margin: 0 auto 15px;
+                    animation: spin 1s linear infinite;
+                ">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" stroke="var(--border)" stroke-width="4" opacity="0.3"/>
+                        <path d="M20 2a18 18 0 0 1 18 18" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
+                    </svg>
+                </div>
+                <div style="color: var(--muted);">${message}</div>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+async function shareItem(path, type) {
+    if (!path) {
+        flashStatus(t(i18n, 'noPathSelected'));
+        return;
+    }
+
+    try {
+        shareState.currentPath = path;
+        const displayName = path.split('/').pop();
+        if (typeof window.renderShareModalForPath === 'function') {
+            await window.renderShareModalForPath(path, displayName, shareState.currentExpiresOption || 'never');
+        } else {
+            const result = await api('share_file', { path, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            if (!result.key) flashStatus(t(i18n, 'shareError'));
+        }
+    } catch (err) {
+        flashStatus(t(i18n, 'shareError') + ': ' + err.message);
+    }
+}
+
+
+
+// Добавьте эту функцию для получения иконок в preview
+function getFileIconForPreview(item) {
+    return getItemIconMarkup(item);
+}
+
+// Также добавьте функцию для получения цвета иконки по расширению (опционально)
+function getFileIconColor(ext) {
+    const colorMap = {
+        // Изображения
+        'jpg': '#e67e22',
+        'jpeg': '#e67e22',
+        'png': '#e67e22',
+        'gif': '#9b59b6',
+        'svg': '#f1c40f',
+        
+        // Документы
+        'pdf': '#e74c3c',
+        'doc': '#2980b9',
+        'docx': '#2980b9',
+        'txt': '#7f8c8d',
+        'md': '#2ecc71',
+        
+        // Таблицы
+        'xls': '#27ae60',
+        'xlsx': '#27ae60',
+        'csv': '#2ecc71',
+        
+        // Презентации
+        'ppt': '#e67e22',
+        'pptx': '#e67e22',
+        
+        // Архивы
+        'zip': '#95a5a6',
+        'rar': '#95a5a6',
+        
+        // Аудио
+        'mp3': '#3498db',
+        'wav': '#3498db',
+        
+        // Видео
+        'mp4': '#9b59b6',
+        'avi': '#9b59b6',
+        
+        // Код
+        'js': '#f1c40f',
+        'html': '#e34c26',
+        'css': '#264de4',
+        'php': '#8892bf',
+        'py': '#3572A5',
+        'java': '#b07219',
+        'json': '#f1c40f'
+    };
+    
+    return colorMap[ext] || 'var(--muted)';
+}
+
+
+
+
+
+function getDetailsTabTitle(properties) {
+    if (properties.type && properties.type.includes('image')) return 'Image';
+    if (properties.type && properties.type.includes('audio')) return 'Audio';
+    if (properties.type && properties.type.includes('video')) return 'Video';
+    if (properties.type && properties.type.includes('document')) return 'Document';
+    return 'Details';
+}
+function showPropertiesModal(properties, filePath) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    const fileName = filePath.split('/').pop();
+    const fileExt = fileName.split('.').pop().toLowerCase();
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff'].includes(fileExt);
+    modal.innerHTML = `
+        <div class="modal-content properties-modal">
+            <div class="modal-header">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10 9 9 9 8 9"></polyline>
+                    </svg>
+                    ${t(i18n, 'properties')}: ${fileName}
+                </h3>
+                <button class="icon-btn close-btn">&times;</button>
+            </div>
+            <div class="modal-body properties-body">
+                <div class="properties-block">
+                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        ${t(i18n, 'generalProperties')}
+                    </h4>
+                    ${renderGeneralProperties(properties, filePath)}
+                </div>
+                ${isImage && properties.details ? `
+                <div class="properties-block">
+                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                        ${getDetailsTabTitle(properties)}
+                    </h4>
+                    ${renderDetailsProperties(properties)}
+                </div>
+                ` : ''}
+                ${properties.security ? `
+                <div class="properties-block">
+                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent);">
+                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        ${t(i18n, 'security')}
+                    </h4>
+                    ${renderSecurityProperties(properties)}
+                </div>
+                ` : ''}
+            </div>
+            <div class="modal-footer">
+                <button class="btn primary" id="btn-close-properties">${t(i18n, 'close')}</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+    modal.querySelector('#btn-close-properties').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.remove();
+    });
+}
+function renderGeneralProperties(properties, filePath) {
+    return `
+        <div class="property-row">
+            <span class="property-label">${t(i18n, 'fileType')}:</span>
+            <span class="property-value">${properties.type || 'Unknown'}</span>
+        </div>
+        <div class="property-row">
+            <span class="property-label">${t(i18n, 'filePath')}:</span>
+            <span class="property-value" title="${filePath}">${filePath}</span>
+        </div>
+        <div class="property-row">
+            <span class="property-label">${t(i18n, 'fileSize')}:</span>
+            <span class="property-value">${formatFileSize(properties.size)} (${properties.size} ${t(i18n, 'bytes')})</span>
+        </div>
+        ${properties.created ? `
+        <div class="property-row">
+            <span class="property-label">${t(i18n, 'createdDate')}:</span>
+            <span class="property-value">${formatDate(properties.created)}</span>
+        </div>
+        ` : ''}
+        ${properties.modified ? `
+        <div class="property-row">
+            <span class="property-label">${t(i18n, 'modifiedDate')}:</span>
+            <span class="property-value">${formatDate(properties.modified)}</span>
+        </div>
+        ` : ''}
+        ${properties.accessed ? `
+        <div class="property-row">
+            <span class="property-label">${t(i18n, 'accessedDate')}:</span>
+            <span class="property-value">${formatDate(properties.accessed)}</span>
+        </div>
+        ` : ''}
+        ${properties.attributes ? `
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border);">
+            <h5 style="margin: 0 0 10px 0; color: var(--muted);">${t(i18n, 'fileAttributes')}</h5>
+            ${renderAttributes(properties.attributes)}
+        </div>
+        ` : ''}
+    `;
+}
+function formatExifKey(key) {
+    const parts = key.split(':');
+    const cleanKey = parts.length > 1 ? parts[1] : parts[0];
+    return cleanKey
+        .replace(/([A-Z])/g, ' $1')
+        .replace(/^./, str => str.toUpperCase())
+        .trim();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleString();
+}
+function formatDuration(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    } else {
+        return `${minutes}:${secs.toString().padStart(2, '0')}`;
+    }
+}
+function isLatexFile(path) {
+  const ext = path.split('.').pop().toLowerCase();
+  return ext === 'tex' || ext === 'latex';
+}
+function isMonacoEditFile(path) {
+  if (!path || !isTextFile(path)) return false;
+  if (isMarkdownFile(path) || isLatexFile(path) || (typeof isHtmlFile === 'function' && isHtmlFile(path))) return false;
+  if (typeof isOfficeFile === 'function' && isOfficeFile(path)) return false;
+  return true;
+}
+function opensDirectInEditor(path) {
+  if (!path) return false;
+  if (isMarkdownFile(path) || isLatexFile(path)) return true;
+  if (typeof isHtmlFile === 'function' && isHtmlFile(path)) return true;
+  return isMonacoEditFile(path);
+}
+function shouldHideEditMenuOption(path) {
+  return opensDirectInEditor(path);
+}
+function shouldRenameOnTreeDblClick(path) {
+  if (!path) return false;
+  if (typeof isEditableImage === 'function' && isEditableImage(path)) return false;
+  if (typeof isEditableAudio === 'function' && isEditableAudio(path)) return false;
+  return true;
+}
+function openFileFromTree(path, root = null) {
+  if (!path) return;
+  if (isMarkdownFile(path)) {
+    if (typeof openMarkdownEditor === 'function') openMarkdownEditor(path, root);
+    return;
+  }
+  if (typeof isHtmlFile === 'function' && isHtmlFile(path)) {
+    if (typeof openHtmlEditor === 'function') openHtmlEditor(path, root);
+    return;
+  }
+  if (isLatexFile(path)) {
+    openLatexEditor(path, root);
+    return;
+  }
+  if (isMonacoEditFile(path)) {
+    openFileInTab(path, true, root);
+    return;
+  }
+  openFileInTab(path, false, root);
+}
+window.isLatexFile = isLatexFile;
+window.isMonacoEditFile = isMonacoEditFile;
+window.opensDirectInEditor = opensDirectInEditor;
+window.shouldHideEditMenuOption = shouldHideEditMenuOption;
+window.shouldRenameOnTreeDblClick = shouldRenameOnTreeDblClick;
+window.openFileFromTree = openFileFromTree;
+function isTextFile(path) {
+  const ext = path.split('.').pop().toLowerCase();
+  const textExts = ['txt', 'md', 'js', 'ts', 'json', 'html', 'css', 'php', 'py', 'rb', 'go', 'java', 'cs', 'cpp', 'c', 'h', 'hpp', 'sh', 'yml', 'yaml', 'sql', 'kt', 'swift', 'rs', 'lua', 'pl', 'r', 'toml', 'ini', 'dockerfile', 'vue', 'm','tex', 'latex'];
+  const binaryExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 
+                     'mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv',  // видео
+                     'mp3', 'wav', 'ogg', 'm4a', 'flac'];        // аудио
+  if (binaryExts.includes(ext)) {
+    return false;
+  }
+  return textExts.includes(ext);
+}
+function isEditableImage(path) {
+    const ext = path.split('.').pop().toLowerCase();
+    const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff'];
+    return imageExts.includes(ext);
+}
+function flashStatus(text) {
+  const footer = document.querySelector('.statusbar');
+  const flashEl = document.getElementById('status-flash');
+  const isMobileFooterFlash = window.matchMedia('(max-width: 768px)').matches;
+  const getStatusKind = (value) => {
+    const raw = String(value || '').trim();
+    const lower = raw.toLowerCase();
+    if (/^(✓|✔)/.test(raw) || /(success|successful|completed|ready|saved|created|updated|copied|renamed|uploaded|downloaded|restored|extracted|converted|applied|cleared|успеш|готов|готово|сохран|создан|создано|обнов|скопирован|переимен|загружен|скачив|восстанов|извлеч|примен|очищ|заверш|завершено|створ|оновл|збереж|завантаж|адноў|выкан)/i.test(raw)) return 'success';
+    if (/^(✗|✕|×)/.test(raw) || /(error|failed|failure|cannot|could not|invalid|denied|blocked|not found|ошиб|не удалось|нельзя|невозможно|некоррект|заблок|відмов|помил|не вдалося|неможливо|няправ|памыл)/i.test(raw)) return 'error';
+    if (/(warning|warn|confirm|attention|quota|limit|skipped|предупреж|вниман|подтверд|лимит|квот|пропущ|уваг|поперед|підтверд|ліміт|квота|прапушч|увага)/i.test(raw)) return 'warning';
+    if (/(creating|loading|processing|searching|extracting|uploading|downloading|moving|deleting|recognizing|scan|tool|step|создан|создание|загрузка|обработка|поиск|перемещ|удален|распозна|скан|инструмент|шаг|створення|оброб|пошук|переміщ|видален|інструмент|крок)/i.test(raw)) return 'info';
+    return 'neutral';
+  };
+  const renderStatusText = (el, value) => {
+    if (!el) return;
+    const raw = String(value || '');
+    const escape = (s) => s.replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const content = /^\s*(?:Tool|Step|Инструмент|Шаг)\s*:/i.test(raw)
+      ? `<span class="status-tool-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.8 6.8a2.1 2.1 0 0 1-3-3l6.8-6.8a6 6 0 0 1 7.9-7.9l-3.8 3.8z"/></svg></span><span class="status-tool-text">${escape(raw)}</span>`
+      : escape(raw);
+    if (/^\s*(?:Tool|Step|Инструмент|Шаг)\s*:/i.test(raw)) {
+      el.innerHTML = content;
+    } else {
+      el.textContent = raw;
+    }
+  };
+  if (!footer || !flashEl) {
+    const fallbackEl = document.getElementById('status-right-content') || document.getElementById('status-right');
+    if (!fallbackEl) return;
+    renderStatusText(fallbackEl, text);
+    setTimeout(() => {
+      if (fallbackEl.textContent === String(text || '')) fallbackEl.textContent = '';
+    }, 7000);
+    return;
+  }
+  if (window.flashStatusTimer) {
+    clearTimeout(window.flashStatusTimer);
+    window.flashStatusTimer = null;
+  }
+  if (window.flashStatusCleanupTimer) {
+    clearTimeout(window.flashStatusCleanupTimer);
+    window.flashStatusCleanupTimer = null;
+  }
+  const statusKind = getStatusKind(text);
+  flashEl.className = `status-kind-${statusKind}`;
+  const raw = String(text || '');
+  const escape = (s) => s.replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  const toolContent = /^\s*(?:Tool|Step|Инструмент|Шаг)\s*:/i.test(raw)
+    ? `<span class="status-tool-icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.8 6.8a2.1 2.1 0 0 1-3-3l6.8-6.8a6 6 0 0 1 7.9-7.9l-3.8 3.8z"/></svg></span><span class="status-tool-text">${escape(raw)}</span>`
+    : escape(raw);
+  flashEl.innerHTML = `<span class="status-flash-text">${toolContent}</span><span class="status-flash-led" aria-hidden="true"></span>`;
+  footer.classList.remove('is-flash-visible', 'is-flash-inline-visible');
+  footer.classList.add(isMobileFooterFlash ? 'is-flash-visible' : 'is-flash-inline-visible');
+  window.flashStatusTimer = setTimeout(() => {
+    footer.classList.remove('is-flash-visible', 'is-flash-inline-visible');
+    window.flashStatusCleanupTimer = setTimeout(() => {
+      if (!footer.classList.contains('is-flash-visible') && !footer.classList.contains('is-flash-inline-visible')) {
+        flashEl.textContent = '';
+      }
+      window.flashStatusCleanupTimer = null;
+    }, 240);
+    window.flashStatusTimer = null;
+  }, 7000);
+}
+function showSuccessCheck(button,text='') {
+  if (!button) return;
+  if (button.__successTimer) clearTimeout(button.__successTimer);
+  if (!button.dataset.successOriginalHtml) button.dataset.successOriginalHtml = button.innerHTML;
+  const textPart = text ? `<span>${text}</span>` : '';
+  button.innerHTML = `<svg class="success-check-icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>${textPart}`;
+  button.classList.add('success-check-active');
+  button.disabled = true;
+  button.__successTimer = setTimeout(() => {
+    button.innerHTML = button.dataset.successOriginalHtml;
+    button.classList.remove('success-check-active');
+    button.disabled = false;
+    button.__successTimer = null;
+  }, 1300);
+}
+function isConvertibleFile(path) {
+    const ext = path.split('.').pop().toLowerCase();
+    const convertibleExts = [
+        'docx', 'doc', 'pdf', 'odt', 'txt', 'html',
+        'jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif'
+    ];
+    return convertibleExts.includes(ext);
+}
+function showConvertDialog(filePath) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>
+                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
+                        <path d="M8 17l4 4 4-4"></path>
+                        <path d="M12 12v9"></path>
+                        <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+                    </svg>
+                    ${t(i18n, 'convertFile')}: ${filePath.split('/').pop()}
+                </h3>
+                <button class="icon-btn close-btn">
+                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>
+                        <span style="vertical-align: middle; margin-right: 6px; display: inline-flex;">${getFileIcon(filePath)}</span>
+                        ${t(i18n, 'selectTargetFormat')}
+                    </label>
+                    <select id="target-format-select" style="width: 100%; padding: 8px; margin: 10px 0;">
+                        <option value="">-- ${t(i18n, 'selectTargetFormat')} --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                        ${t(i18n, 'outputPath')}
+                    </label>
+                    <select id="output-folder-select" style="width: 100%; padding: 8px; margin: 10px 0;">
+                        <option value="">${t(i18n, 'sameFolder')}</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="delete-original-checkbox">
+                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                        ${t(i18n, 'deleteOriginal')}
+                    </label>
+                </div>
+                <div id="convert-supported-formats" class="supported-formats" style="margin-top: 15px; padding: 10px; background: var(--panel); border-radius: 4px;">
+                    <strong>
+                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                        ${t(i18n, 'supportedFormats')}
+                    </strong>
+                    <div id="format-list" style="margin-top: 8px;"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-cancel-convert" class="btn secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                    ${t(i18n, 'cancel')}
+                </button>
+                <button id="btn-confirm-convert" class="btn primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 6px;">
+                        <path d="M8 17l4 4 4-4"></path>
+                        <path d="M12 12v9"></path>
+                        <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"></path>
+                    </svg>
+                    ${t(i18n, 'convert')}
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    loadSupportedFormats(filePath, modal);
+    loadFoldersForConversion(filePath, modal);
+    document.getElementById('btn-cancel-convert').addEventListener('click', () => modal.remove());
+    document.getElementById('btn-confirm-convert').addEventListener('click', () => confirmConversion(filePath, modal));
+    modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
+async function loadFoldersForConversion(filePath, modal) {
+    try {
+        const allFolders = await getAllFoldersRecursive('');
+        const select = document.getElementById('output-folder-select');
+        const sourceDir = dirname(filePath);
+        while (select.children.length > 1) {
+            select.removeChild(select.lastChild);
+        }
+        const rootOption = document.createElement('option');
+        rootOption.value = '';
+        rootOption.textContent = '/ (root)';
+        if (sourceDir === '') {
+            rootOption.selected = true;
+        }
+        select.appendChild(rootOption);
+        allFolders.forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder.path;
+            option.textContent = '/' + folder.path;
+            if (folder.path === sourceDir) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+    } catch (err) {
+        console.error('Failed to load folders:', err);
+        flashStatus(t(i18n, 'folderListError'));
+    }
+}
+function openLatexEditor(filePath, root = null) {
+    const requestedRoot = root || null;
+    const existingViewTab = tabsState.tabs.find(tab => tab.path === filePath && !tab.latexEditor && (!requestedRoot || getTabRoot(tab) === requestedRoot));
+    const inheritedRoot = requestedRoot || (existingViewTab ? existingViewTab.root : null);
+    if (existingViewTab) {
+        closeTab(existingViewTab.id);
+    }
+    const existingEditorTab = tabsState.tabs.find(tab => tab.path === filePath && tab.latexEditor && (!requestedRoot || getTabRoot(tab) === requestedRoot));
+    if (existingEditorTab) {
+        switchToTab(existingEditorTab.id);
+        return;
+    }
+    if (tabsState.tabs.length >= tabsState.maxTabs) {
+        const lastTab = tabsState.tabs[tabsState.tabs.length - 1];
+        closeTab(lastTab.id);
+        flashStatus(t(i18n, 'tabLimitReached', { max: tabsState.maxTabs }));
+    }
+    const tabId = tabsState.nextTabId++;
+    const newTab = {
+        id: tabId,
+        path: filePath,
+        editMode: true,
+        latexEditor: true,
+        root: inheritedRoot || getCurrentCloudRoot(),
+        title: filePath.split('/').pop(),
+        modified: false,
+        content: null
+    };
+    if (tabsState.activeTabId) {
+    const activeIndex = tabsState.tabs.findIndex(tab => tab.id === tabsState.activeTabId);
+    if (activeIndex !== -1) {
+        tabsState.tabs.splice(activeIndex + 1, 0, newTab);
+    } else {
+        tabsState.tabs.push(newTab);
+    }
+} else {
+    tabsState.tabs.push(newTab);
+}
+    tabsState.activeTabId = tabId;
+    renderTabs();
+    loadLatexEditorToTab(newTab);
+    saveTabsState();
+}
+function loadLatexEditorToTab(tab) {
+    const viewer = document.getElementById('viewer');
+    const fileName = document.getElementById('file-name');
+    const fileContainers = viewer.querySelectorAll('.file-content-container');
+    fileContainers.forEach(container => {
+        container.style.display = 'none';
+    });
+    viewer.style.cssText = `
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    `;
+    document.getElementById('file-view').classList.remove('hidden');
+    fileName.textContent = tab.title;
+    viewer.dataset.path = tab.path;
+    viewer.dataset.editMode = 'true';
+    viewer.dataset.latexEditor = 'true';
+    updateToolbarForLatexEditor();
+    let iframe = viewer.querySelector('iframe[data-tab-id="' + tab.id + '"]');
+    if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.setAttribute('data-tab-id', tab.id);
+        const urlParams = new URLSearchParams(window.location.search);
+        const lang = urlParams.get('lang') || 'en';
+        const theme = urlParams.get('theme') || 'dark';
+        const color = urlParams.get('color') || '#85b503';
+        
+        // ИЗМЕНЕНИЕ ЗДЕСЬ - используем сохраненный fullPath если есть
+        let currentUser;
+        let filePath;
+        
+        if (tab.fullPath) {
+            // Извлекаем пользователя и путь из fullPath
+            const parts = tab.fullPath.split('/');
+            if (parts.length >= 3 && parts[0] === 'storage') {
+                currentUser = parts[1];
+                filePath = parts.slice(2).join('/');
+            } else {
+                // Fallback на стандартный метод
+                currentUser = currentUserState.user || 'default';
+                currentUser = currentUser.replace(/\s+/g, '_');
+                filePath = tab.path;
+            }
+        } else {
+            currentUser = currentUserState.user || 'default';
+            currentUser = currentUser.replace(/\s+/g, '_');
+            filePath = tab.path;
+        }
+        
+        const latexEditorUrl = `utilities/projects/latex-editor/public/index.php?path=${encodeURIComponent(filePath)}&user=${encodeURIComponent(currentUser)}&lang=${lang}&theme=${theme}&color=${encodeURIComponent(color)}&root=${getResolvedTabRoot(tab)}`;
+        iframe.src = latexEditorUrl;
+        applyFullScreenStyles(iframe);
+        viewer.appendChild(iframe);
+        
+        // Сохраняем fullPath для будущего использования
+        tab.fullPath = buildEditorStoragePath(currentUser, filePath, getResolvedTabRoot(tab));
+    } else {
+        applyFullScreenStyles(iframe);
+        iframe.style.display = 'block';
+    }
+}
+function updateToolbarForLatexEditor() {
+    const saveBtn = document.getElementById('btn-save');
+    const codeActionsBtn = document.getElementById('btn-code-actions');
+    const copyBtn = document.getElementById('btn-copy');
+    saveBtn.classList.add('hidden');
+    codeActionsBtn.classList.add('hidden');
+    if (copyBtn) copyBtn.classList.add('hidden');
+}
+function updateToolbarForZipViewer() {
+    const saveBtn = document.getElementById('btn-save');
+    const codeActionsBtn = document.getElementById('btn-code-actions');
+    const copyBtn = document.getElementById('btn-copy');
+    saveBtn.classList.add('hidden');
+    codeActionsBtn.classList.add('hidden');
+    if (copyBtn) copyBtn.classList.add('hidden');
+}
+function initDeleteModal() {
+    const modal = document.getElementById('delete-modal');
+    const cancelBtn = document.getElementById('btn-cancel-delete');
+    const confirmBtn = document.getElementById('btn-confirm-delete');
+    const closeBtn = document.getElementById('btn-close-delete-modal');
+    const permanentCheckbox = document.getElementById('delete-permanently-checkbox');
+    document.getElementById('btn-delete-selected')?.addEventListener('click', deleteSelectedItems);
+    cancelBtn.addEventListener('click', closeDeleteModal);
+    closeBtn.addEventListener('click', closeDeleteModal);
+    confirmBtn.addEventListener('click', confirmDelete);
+    permanentCheckbox?.addEventListener('change', () => {
+        deleteState.permanent = !!permanentCheckbox.checked;
+    });
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeDeleteModal();
+        }
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeDeleteModal();
+        }
+    });
+}
+function showDeleteModal(path, type, name) {
+    const inTrash = isTrashRoot();
+    const permanentCheckbox = document.getElementById('delete-permanently-checkbox');
+    const permanentOption = document.getElementById('delete-permanent-option');
+    const warningText = document.getElementById('delete-warning-text');
+    const permanent = inTrash;
+    deleteState = { path, type, name, permanent };
+    const modal = document.getElementById('delete-modal');
+    const title = document.getElementById('delete-modal-title');
+    const text = document.getElementById('delete-confirmation-text');
+    if (title) {
+        title.textContent = inTrash ? t(i18n, 'deletePermanently') : t(i18n, 'deleteConfirmation');
+    }
+    if (type === 'file') {
+        text.textContent = inTrash ? t(i18n, 'deleteFilePermanentlyConfirmation', { name }) : t(i18n, 'deleteFileConfirmation', { name });
+    } else if (type === 'dir') {
+        text.textContent = inTrash ? t(i18n, 'deleteFolderPermanentlyConfirmation', { name }) : t(i18n, 'deleteFolderConfirmation', { name });
+    } else {
+        text.textContent = t(i18n, 'deleteItemConfirmation', { name });
+    }
+    if (permanentCheckbox) permanentCheckbox.checked = permanent;
+    if (permanentOption) permanentOption.classList.toggle('hidden', inTrash);
+    if (warningText) {
+        warningText.textContent = inTrash ? t(i18n, 'trashPermanentDeleteWarning') : t(i18n, 'trashMoveWarning');
+    }
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        document.getElementById('btn-cancel-delete').focus();
+    }, 100);
+}
+function closeDeleteModal() {
+    document.getElementById('delete-modal').classList.add('hidden');
+    deleteState = { path: '', type: '', name: '', permanent: false };
+}
+async function confirmDelete() {
+    const { path, type, permanent } = deleteState;
+    if (!path) {
+        closeDeleteModal();
+        return;
+    }
+    const confirmBtn = document.getElementById('btn-confirm-delete');
+    const originalText = confirmBtn.textContent;
+    try {
+        confirmBtn.textContent = t(i18n, 'deleting');
+        confirmBtn.disabled = true;
+        if (isTrashRoot() || permanent) {
+            await api('delete', { path });
+            await cleanupDeletedAudioTranscriptions([path]);
+        } else {
+            await api('move_to_trash', { path });
+        }
+        closeTabsByPath(path);
+        if (type === 'file') {
+            flashStatus(isTrashRoot() || permanent ? t(i18n, 'fileDeleted') : t(i18n, 'fileMovedToTrash'));
+        } else {
+            flashStatus(isTrashRoot() || permanent ? t(i18n, 'folderDeleted') : t(i18n, 'folderMovedToTrash'));
+        }
+        confirmBtn.textContent = originalText;
+        confirmBtn.disabled = false;
+        closeDeleteModal();
+        if (isTrashRoot()) {
+          await renderTrashView();
+        } else {
+          const currentRoot = getCurrentCloudRoot();
+          if (typeof patchTreeCacheForRoot === 'function') {
+            await patchTreeCacheForRoot([{ op: 'remove', path }], currentRoot);
+          } else if (currentRoot === 'main') {
+            await patchTreeCache([{ op: 'remove', path }]);
+          }
+          if (currentRoot === 'main') {
+            treeNodeRemove(path);
+          } else {
+            await buildTree('');
+          }
+        }
+        removeAdvancedSearchResult(path);
+        updateSelectionUI();
+        if (document.getElementById('viewer').dataset.path === path) {
+            closeViewer();
+        }
+    } catch (err) {
+        flashStatus(t(i18n, 'errorPrefix') + err.message);
+        confirmBtn.textContent = originalText;
+        confirmBtn.disabled = false;
+    }
+}
+function dirname(path) {
+    const lastSlash = path.lastIndexOf('/');
+    return lastSlash === -1 ? '' : path.substring(0, lastSlash);
+}
+function loadSupportedFormats(filePath, modal) {
+    const fileExt = filePath.split('.').pop().toLowerCase();
+    const formatSelect = document.getElementById('target-format-select');
+    const formatList = document.getElementById('format-list');
+    const supportedConversions = {
+        'docx': ['pdf', 'txt', 'odt', 'html'],
+        'doc': ['pdf', 'txt', 'odt', 'html'],
+        'pdf': ['docx', 'txt', 'html'],
+        'odt': ['pdf', 'docx', 'txt', 'html'],
+        'jpg': ['png', 'webp', 'bmp', 'gif'],
+        'jpeg': ['png', 'webp', 'bmp', 'gif'],
+        'png': ['jpg', 'webp', 'bmp', 'gif'],
+        'webp': ['jpg', 'png', 'bmp', 'gif'],
+        'bmp': ['jpg', 'png', 'webp', 'gif'],
+        'gif': ['jpg', 'png', 'webp', 'bmp']
+    };
+    const formats = supportedConversions[fileExt] || [];
+    formatSelect.innerHTML = '<option value="">-- ' + t(i18n, 'selectTargetFormat') + ' --</option>';
+    formats.forEach(format => {
+        const option = document.createElement('option');
+        option.value = format;
+        option.textContent = '.' + format;
+        formatSelect.appendChild(option);
+    });
+    if (formats.length > 0) {
+        formatList.innerHTML = formats.map(format => 
+            `<span class="format-tag">.${format}</span>`
+        ).join('');
+    } else {
+        formatList.innerHTML = `<span style="color: var(--muted);">${t(i18n, 'unsupportedConversion')}</span>`;
+        document.getElementById('btn-confirm-convert').disabled = true;
+    }
+}
+async function confirmConversion(filePath, modal) {
+    const formatSelect = document.getElementById('target-format-select');
+    const folderSelect = document.getElementById('output-folder-select');
+    const deleteOriginal = document.getElementById('delete-original-checkbox').checked;
+    const targetFormat = formatSelect.value;
+    if (!targetFormat) {
+        flashStatus(t(i18n, 'selectTargetFormat'));
+        return;
+    }
+    const confirmBtn = document.getElementById('btn-confirm-convert');
+    const originalText = confirmBtn.textContent;
+    try {
+        confirmBtn.textContent = t(i18n, 'convertingFile');
+        confirmBtn.disabled = true;
+        const sourceDir = dirname(filePath);
+        const sourceFilename = pathinfo(filePath, 'filename');
+        const selectedFolder = folderSelect.value;
+        let outputPath = '';
+        if (selectedFolder === '') {
+            outputPath = sourceFilename + '.' + targetFormat;
+        } else {
+            outputPath = selectedFolder + '/' + sourceFilename + '.' + targetFormat;
+        }
+        if (!deleteOriginal) {
+            let counter = 1;
+            let testPath = outputPath;
+            const pathParts = outputPath.split('/');
+            const fileName = pathParts.pop();
+            const fileExt = fileName.split('.').pop();
+            const baseName = fileName.substring(0, fileName.lastIndexOf('.'));
+            const folderPath = pathParts.join('/');
+            while (await fileExists(testPath)) {
+                const newFileName = baseName + '_' + counter + '.' + fileExt;
+                testPath = folderPath ? folderPath + '/' + newFileName : newFileName;
+                counter++;
+            }
+            outputPath = testPath;
+        }
+        const result = await api('convert_file', {
+            source_path: filePath,
+            target_format: targetFormat,
+            output_path: outputPath,
+            delete_original: deleteOriginal
+        });
+        flashStatus(t(i18n, 'conversionSuccess'));
+        modal.remove();
+        // Incremental update: add output file, optionally remove original
+        const now = Math.floor(Date.now() / 1000);
+        const ops = [{ op: 'add', item: { name: outputPath.split('/').pop(), path: outputPath, type: 'file', size: 0, mtime: now } }];
+        if (deleteOriginal) ops.push({ op: 'remove', path: filePath });
+        await patchTreeCache(ops);
+        ops.forEach(op => { if (op.op === 'add') treeNodeAdd(op.item); else treeNodeRemove(op.path); });
+        if (deleteOriginal && document.getElementById('viewer').dataset.path === filePath) {
+            closeViewer();
+        }
+    } catch (err) {
+        flashStatus(t(i18n, 'conversionFailed') + ': ' + err.message);
+        confirmBtn.textContent = originalText;
+        confirmBtn.disabled = false;
+    }
+}
+function pathinfo(path, options) {
+    const lastDot = path.lastIndexOf('.');
+    const lastSlash = path.lastIndexOf('/');
+    const filename = lastSlash === -1 ? path : path.substring(lastSlash + 1);
+    if (lastDot === -1 || lastDot < lastSlash) {
+        if (options === 'filename') {
+            return filename;
+        }
+        return { filename: filename, extension: '', basename: filename };
+    }
+    const basename = filename.substring(0, filename.lastIndexOf('.'));
+    const extension = path.substring(lastDot + 1);
+    if (options === 'filename') {
+        return basename;
+    }
+    return {
+        filename: filename,
+        extension: extension,
+        basename: basename
+    };
+}
+async function fileExists(filePath) {
+    try {
+        await api('open', { path: filePath }, 'GET');
+        return true;
+    } catch (err) {
+        return false;
+    }
+}
+function switchInputLanguage() {
+    const langOptions = document.querySelectorAll('.lang-option');
+    const currentActive = document.querySelector('.lang-option.active');
+    const currentIndex = Array.from(langOptions).indexOf(currentActive);
+    const nextIndex = (currentIndex + 1) % langOptions.length;
+    langOptions.forEach(opt => opt.classList.remove('active'));
+    langOptions[nextIndex].classList.add('active');
+    const newLang = langOptions[nextIndex].dataset.lang;
+    localStorage.setItem('preferredLang', newLang);
+}
+function switchToNextTab() {
+    if (tabsState.tabs.length === 0) return;
+    const currentIndex = tabsState.tabs.findIndex(tab => tab.id === tabsState.activeTabId);
+    if (currentIndex === -1) {
+        const firstTab = tabsState.tabs[0];
+        if (firstTab) {
+            switchToTab(firstTab.id);
+        }
+        return;
+    }
+    const nextIndex = (currentIndex + 1) % tabsState.tabs.length;
+    const nextTab = tabsState.tabs[nextIndex];
+    switchToTab(nextTab.id);
+    flashStatus(t(i18n, 'switchedToTab', { title: nextTab.title }));
+}
+function switchToPrevTab() {
+    if (tabsState.tabs.length === 0) return;
+    const currentIndex = tabsState.tabs.findIndex(tab => tab.id === tabsState.activeTabId);
+    if (currentIndex === -1) {
+        const lastTab = tabsState.tabs[tabsState.tabs.length - 1];
+        if (lastTab) {
+            switchToTab(lastTab.id);
+        }
+        return;
+    }
+    const prevIndex = (currentIndex - 1 + tabsState.tabs.length) % tabsState.tabs.length;
+    const prevTab = tabsState.tabs[prevIndex];
+    switchToTab(prevTab.id);
+    flashStatus(t(i18n, 'switchedToTab', { title: prevTab.title }));
+}
+function handleHotkeys(e, i18n) {
+  const mac = navigator.platform.toUpperCase().includes('MAC');
+  const mod = mac ? e.metaKey : e.ctrlKey;
+  const isInput = e.target.matches('input, textarea, [contenteditable="true"]');
+  const isCodeMirror = e.target.closest('.CodeMirror');
+
+  // Функциональные клавиши и глобальные комбинации работают ВСЕГДА,
+  // независимо от того, где находится фокус (input, textarea, editor и т.д.)
+  const isGlobalHotkey = (
+    e.key === 'F9' ||
+    e.key === 'F8' ||
+    e.key === 'F5' ||
+    (mod && e.key.toLowerCase() === 's') ||
+    (mod && e.shiftKey && e.key.toLowerCase() === 'a') ||
+    (e.shiftKey && mod && e.key === 'ArrowRight') ||
+    (e.shiftKey && mod && e.key === 'ArrowLeft')
+  );
+
+  // Блокируем ранний выход только для НЕ-глобальных хоткеев в обычных полях ввода
+  if (isInput && !isCodeMirror && !isGlobalHotkey) {
+    return;
+  }
+
+  if (isTrashRoot()) {
+    if (mod && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      selectionState.active = true;
+      setTrashSelection(trashState.items.map((item) => item.path), trashState.items.length ? 0 : -1);
+      focusTrashItem(0);
+      return;
+    }
+    if (mod && e.key.toLowerCase() === 'r') {
+      e.preventDefault();
+      restoreSelectedTrashItems();
+      return;
+    }
+    if (e.key === 'Delete' && selectionState.selectedItems.size > 0) {
+      e.preventDefault();
+      deleteSelectedItems();
+      return;
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      clearSelection();
+      return;
+    }
+    if (e.key === ' ' && trashState.focusedIndex !== -1) {
+      e.preventDefault();
+      toggleTrashItemSelection(trashState.focusedIndex, true, false);
+      return;
+    }
+    if (e.key === 'Enter' && trashState.focusedIndex !== -1) {
+      e.preventDefault();
+      const item = trashState.items[trashState.focusedIndex];
+      if (item) restoreTrashItems([item.path]);
+      return;
+    }
+    const navigationKeys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+    if (navigationKeys.includes(e.key) && trashState.items.length) {
+      e.preventDefault();
+      const cols = getTrashGridColumnCount();
+      const current = trashState.focusedIndex === -1 ? 0 : trashState.focusedIndex;
+      let next = current;
+      if (e.key === 'ArrowLeft') next = current - 1;
+      if (e.key === 'ArrowRight') next = current + 1;
+      if (e.key === 'ArrowUp') next = current - cols;
+      if (e.key === 'ArrowDown') next = current + cols;
+      if (e.key === 'Home') next = 0;
+      if (e.key === 'End') next = trashState.items.length - 1;
+      focusTrashItem(next, e.shiftKey);
+      if (!e.shiftKey && !mod) {
+        toggleTrashItemSelection(Math.max(0, Math.min(next, trashState.items.length - 1)), false, false);
+      }
+      return;
+    }
+  }
+
+  // Глобальные горячие клавиши для режима выделения (работают всегда)
+  if (selectionState.active && selectionState.selectedItems.size > 0) {
+    // Escape - отменить выделение
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      clearSelection();
+      flashStatus(t(i18n, 'selectionCleared'));
+      return;
+    }
+
+    // Delete - удалить выбранные файлы
+    if (e.key === 'Delete') {
+      e.preventDefault();
+      e.stopPropagation();
+      deleteSelectedItems();
+      return;
+    }
+
+    // D - скачать выбранные файлы
+    if (e.key.toLowerCase() === 'd' && !mod && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      downloadSelectedItems();
+      return;
+    }
+  }
+
+  // Escape - закрыть лассо если активно
+  if (e.key === 'Escape' && lassoState.active) {
+    e.preventDefault();
+    e.stopPropagation();
+    lassoState.active = false;
+    lassoState.element.style.display = 'none';
+    document.body.style.userSelect = '';
+    return;
+  }
+
+  if (e.shiftKey && mod && e.key === 'ArrowRight') {
+    e.preventDefault();
+    e.stopPropagation();
+    switchToNextTab();
+    return;
+  }
+  if (e.shiftKey && mod && e.key === 'ArrowLeft') {
+    e.preventDefault();
+    e.stopPropagation();
+    switchToPrevTab();
+    return;
+  }
+
+  if (e.key === 'F9') {
+    e.preventDefault();
+    e.stopPropagation();
+    switchInputLanguage();
+    return;
+  }
+  if (e.key === 'F8') {
+    e.preventDefault();
+    e.stopPropagation();
+    const viewer = document.getElementById('viewer');
+    const path = viewer.dataset.path;
+    if (path) {
+      const ext = path.split('.').pop().toLowerCase();
+      const supportedLangs = ['java', 'c', 'cpp', 'py', 'm'];
+      if (supportedLangs.includes(ext)) {
+        compileAndRun();
+      } else {
+        flashStatus(t(i18n, 'fileTypeNotCompilable'));
+      }
+    } else {
+      flashStatus(t(i18n, 'noFileOpen'));
+    }
+    return;
+  }
+  if (e.key === 'F5') {
+    e.preventDefault();
+    e.stopPropagation();
+    document.getElementById('btn-refresh-tree')?.click();
+    return;
+  }
+  if (mod && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    flashStatus(t(i18n, 'searchHint'));
+  }
+  if (mod && e.key.toLowerCase() === 's') {
+    e.preventDefault();
+    e.stopPropagation();
+    saveFile();
+    return;
+  }
+  if (e.key === 'Escape' && searchState.active) {
+    e.preventDefault();
+    closeSearchPanel();
+  }
+  if (mod && e.shiftKey && e.key.toLowerCase() === 'a') {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleAIModal();
+    return;
+  }
+  if (mod && e.key === ' ') {
+    e.preventDefault();
+    editor.showHint({
+      hint: getHintFunction(fileExt),
+      completeSingle: false
+    });
+    return;
+  }
+}
+function loadZipViewerToTab(tab) {
+    const viewer = document.getElementById('viewer');
+    const fileName = document.getElementById('file-name');
+    
+    document.getElementById('file-view').classList.remove('hidden');
+    fileName.textContent = tab.title;
+    viewer.dataset.path = tab.path;
+    viewer.dataset.editMode = 'false';
+    viewer.dataset.zipViewer = 'true';
+    
+    updateToolbarForZipViewer();
+    
+    // Сначала скрываем все iframe
+    const allIframes = viewer.querySelectorAll('iframe');
+    allIframes.forEach(iframe => {
+        iframe.style.display = 'none';
+    });
+    
+    // Проверяем, есть ли уже закешированный iframe для этой вкладки
+    let iframe = tabsState.iframeCache.get(tab.id);
+    
+    if (!iframe || !iframe.parentNode) {
+        // Если нет в кеше или он был удален, создаем новый
+        iframe = document.createElement('iframe');
+        iframe.setAttribute('data-tab-id', tab.id);
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const lang = urlParams.get('lang') || 'en';
+        const theme = document.body.getAttribute('data-theme') || 'dark';
+        const folderColor = window.APP_CONFIG.color || '#85b503';
+        
+        let currentUser = currentUserState.user || 'default';
+        currentUser = currentUser.replace(/\s+/g, '_');
+        const root = getResolvedTabRoot(tab);
+        const fullPath = buildEditorStoragePath(currentUser, tab.path, root);
+        const zipPath = encodeURIComponent(fullPath);
+        tab.fullPath = fullPath;
+        
+        const zipViewerUrl = `utilities/projects/zip-viewer/public/index.php?archive=${zipPath}&path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&root=${encodeURIComponent(root)}&lang=${lang}&theme=${theme}&folderColor=${encodeURIComponent(folderColor)}`;
+        iframe.src = zipViewerUrl;
+        tab.iframeSrc = zipViewerUrl;
+        
+        iframe.onerror = function() {
+            console.error('Failed to load ZIP viewer');
+            const errorDiv = document.createElement('div');
+            errorDiv.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: var(--muted);
+                text-align: center;
+                z-index: 100;
+            `;
+            errorDiv.innerHTML = `
+                <i class="fa-solid fa-circle-exclamation" style="font-size: 48px; margin-bottom: 16px; color: #e74c3c;"></i>
+                <p>Failed to load archive. Please try again.</p>
+                <button onclick="location.reload()" class="btn primary" style="margin-top: 16px;">Reload</button>
+            `;
+            iframe.parentNode.appendChild(errorDiv);
+        };
+        
+        applyFullScreenStyles(iframe);
+        viewer.appendChild(iframe);
+        
+        // Сохраняем в кеш
+        tabsState.iframeCache.set(tab.id, iframe);
+    } else {
+        // Если есть в кеше, просто показываем его
+        applyFullScreenStyles(iframe);
+        iframe.style.display = 'block';
+    }
+    
+    // Убеждаемся, что все остальные iframe скрыты
+    viewer.querySelectorAll('iframe').forEach(f => {
+        if (parseInt(f.getAttribute('data-tab-id')) !== tab.id) {
+            f.style.display = 'none';
+        }
+    });
+}
+
+
+
+
+// Download progress state
+let downloadState = {
+    active: false,
+    items: new Map(), // downloadId -> { filename, path, progress, speed, totalSize, loaded, chunks, ... }
+    nextId: 1,
+    panelVisible: false
+};
+
+// Initialize floating download button

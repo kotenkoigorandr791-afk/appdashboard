@@ -1,0 +1,26 @@
+<?php
+
+return array (
+  'title' => 'Редактор синтеза речи',
+  'generate_audio' => 'Генерировать аудио',
+  'stop_generation' => 'Остановить генерацию',
+  'download_audio' => 'Скачать аудио',
+  'save_to_server' => 'Сохранить на сервере',
+  'close' => 'Закрыть',
+  'text_file' => 'Текстовый файл',
+  'generated_audio' => 'Сгенерированное аудио',
+  'file_exists' => '✓ Файл существует',
+  'file_not_found' => '✗ Файл не найден',
+  'starting_generation' => 'Запуск генерации аудио...',
+  'generation_started' => 'Генерация аудио запущена!',
+  'generation_completed' => 'Генерация аудио завершена!',
+  'generation_stopped' => 'Генерация остановлена',
+  'waiting_generation' => 'Ожидание начала генерации...',
+  'text_placeholder' => 'Текстовое содержимое появится здесь...',
+  'select_voice' => 'Выбрать голос',
+  'select_language' => 'Язык',
+  'voice_speed' => 'Скорость',
+  'no_audio_yet' => 'Аудио еще не сгенерировано',
+  'generating' => 'Генерация...',
+  'error_prefix' => 'Ошибка',
+);

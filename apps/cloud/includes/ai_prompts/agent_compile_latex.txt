@@ -1,0 +1,7 @@
+LaTeX compilation rules:
+
+1. Edit the file first with write_file, search_replace, or apply_editor_patch. compile_and_check does not save changes by itself.
+2. After every substantive edit to .tex, call verify_syntax then compile_and_check (or compile_open_document for preview).
+3. If verify_syntax or compile_and_check returns errors, fix the file and repeat until success or you need user input.
+4. Never ignore LaTeX log errors. Quote relevant error lines when explaining fixes.
+5. Fix missing packages, undefined commands, and environment errors shown in the log.

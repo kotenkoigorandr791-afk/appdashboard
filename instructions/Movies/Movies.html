@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Movie Manager Instructions</title>
+
+  <style>
+    :root { --sidebar-width: 290px; --radius: 14px; }
+
+    body.theme-dark {
+      --bg: #0a0a0d; --panel: rgba(20, 20, 24, 0.88); --panel-2: rgba(34, 34, 42, 0.95);
+      --border: rgba(179, 26, 219, 0.75); --text: #f4f1f8; --muted: #c6bdd0;
+      --hover: rgba(179, 26, 219, 0.16); --accent: #b31adb; --scrollbar-track: rgba(30, 30, 40, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.6); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.9);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.35);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 18%, rgba(0, 0, 0, 0) 42%),
+        repeating-linear-gradient(90deg, #07080a 0px, #111216 2px, #050608 4px, #0a0b0e 7px);
+      color: var(--text);
+    }
+
+    body.theme-light {
+      --bg: #efedf3; --panel: rgba(255, 255, 255, 0.92); --panel-2: rgba(248, 246, 251, 0.98);
+      --border: rgba(179, 26, 219, 0.55); --text: #23182c; --muted: #665c70;
+      --hover: rgba(179, 26, 219, 0.08); --accent: #b31adb; --scrollbar-track: rgba(230, 225, 235, 0.5);
+      --scrollbar-thumb: rgba(179, 26, 219, 0.5); --scrollbar-thumb-hover: rgba(179, 26, 219, 0.8);
+      --shadow: 0 0 0 1px rgba(179, 26, 219, 0.18);
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.18) 22%, rgba(0, 0, 0, 0) 44%),
+        repeating-linear-gradient(90deg, #f4f2f7 0px, #e9e5ed 2px, #f7f5fa 4px, #ece8f0 7px);
+      color: var(--text);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: Arial, sans-serif; line-height: 1.65; min-height: 100vh; background-color: var(--bg); }
+    a { color: inherit; text-decoration: none; }
+
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: var(--scrollbar-track); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 10px; border: 2px solid transparent; background-clip: padding-box; transition: background 0.3s ease; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+    ::-webkit-scrollbar-thumb:active { background: var(--accent); }
+
+    .page { max-width: 1480px; margin: 0 auto; padding: 18px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px; flex-wrap: wrap; }
+    .brand { font-size: 30px; font-weight: bold; letter-spacing: 0.2px; }
+    .topbar-right { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .small-box, .back-link { padding: 8px 12px; border-radius: 999px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); font-size: 14px; }
+    .small-box.locked { opacity: 0.7; cursor: not-allowed; }
+    .back-link:hover { background: var(--hover); }
+    .layout { display: grid; grid-template-columns: var(--sidebar-width) 1fr; gap: 18px; align-items: start; }
+    .sidebar { position: sticky; top: 18px; background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 16px; }
+    .sidebar h3 { font-size: 16px; margin-bottom: 12px; }
+    .nav { display: flex; flex-direction: column; gap: 5px; }
+    .nav a { padding: 10px 12px; border-radius: 9px; color: var(--muted); font-size: 15px; transition: 0.2s ease; }
+    .nav a:hover, .nav a.active { background: var(--hover); color: var(--text); }
+    .content { background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow); border-radius: var(--radius); padding: 30px; min-height: calc(100vh - 90px); }
+    .content h1 { font-size: 34px; margin-bottom: 14px; }
+    .intro { font-size: 16px; color: var(--muted); margin-bottom: 10px; max-width: 920px; }
+    .content h2 { font-size: 25px; margin-top: 34px; margin-bottom: 12px; scroll-margin-top: 24px; }
+    .content p { margin-bottom: 14px; color: var(--muted); font-size: 16px; max-width: 950px; }
+    .content ul { margin: 8px 0 16px 20px; color: var(--muted); max-width: 930px; }
+    .content li { margin-bottom: 8px; }
+    .content img { width: 100%; max-width: 920px; display: block; margin: 18px 0 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2); cursor: zoom-in; transition: transform 0.2s ease; }
+    .content img:hover { transform: scale(1.02); }
+    .caption { font-size: 14px; color: var(--muted); margin-bottom: 16px; }
+    .note, .info-box { margin: 16px 0; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--hover); color: var(--muted); max-width: 920px; }
+    .info-box { background: var(--panel-2); }
+    .info-box strong { color: var(--text); }
+
+    #minimap-container {
+      position: fixed; right: 12px; top: 50%; transform: translateY(-50%);
+      width: 100px; height: 400px; max-height: 80vh;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+      z-index: 9998; overflow: hidden; opacity: 0.9;
+      transition: opacity 0.3s ease, width 0.3s ease; cursor: pointer;
+    }
+    #minimap-container:hover { opacity: 1; width: 120px; }
+    
+    #minimap-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: crisp-edges;
+    }
+    
+    #minimap-viewport {
+      position: absolute; left: 0; right: 0;
+      background: rgba(179, 26, 219, 0.2);
+      border: 2px solid var(--accent); border-radius: 4px;
+      pointer-events: none;
+      transition: top 0.05s ease-out;
+    }
+
+    .lightbox-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); z-index: 10000; justify-content: center; align-items: center; flex-direction: column; }
+    .lightbox-overlay.active { display: flex; }
+    .lightbox-content { max-width: 90%; max-height: 85vh; position: relative; }
+    .lightbox-content img { max-width: 100%; max-height: 85vh; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.5); }
+    .lightbox-close { position: absolute; top: -40px; right: 0; color: #fff; font-size: 32px; cursor: pointer; padding: 5px 10px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; }
+    .lightbox-close:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); color: #fff; font-size: 40px; cursor: pointer; padding: 20px; background: rgba(179, 26, 219, 0.8); border-radius: 8px; user-select: none; }
+    .lightbox-nav:hover { background: rgba(179, 26, 219, 1); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-caption { color: #fff; font-size: 16px; margin-top: 15px; text-align: center; padding: 0 20px; }
+    .lightbox-counter { position: absolute; bottom: -30px; left: 50%; transform: translateX(-50%); color: #fff; font-size: 14px; background: rgba(179, 26, 219, 0.8); padding: 5px 15px; border-radius: 20px; }
+
+    @media (max-width: 950px) { .layout { grid-template-columns: 1fr; } .sidebar { position: relative; top: 0; } #minimap-container { display: none; } }
+  </style>
+</head>
+
+<body class="theme-dark">
+  <div class="page">
+    <div class="topbar">
+      <div class="brand" data-i18n="brand">Movie Manager</div>
+      <div class="topbar-right">
+        <div class="small-box locked"><span data-i18n="langLabel">Language:</span><strong id="currentLang">EN</strong><span title="Change via URL parameters only">🔒</span></div>
+        <div class="small-box locked"><span data-i18n="themeLabel">Theme:</span><strong id="currentTheme">Dark</strong><span title="Change via URL parameters only">🔒</span></div>
+        <a id="backLink" class="back-link" href="#" data-i18n="backLabel">Back</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside class="sidebar">
+        <h3 data-i18n="topicsTitle">Topics</h3>
+        <nav class="nav">
+          <a href="#main" data-i18n="navMain">Main Page</a>
+          <a href="#search" data-i18n="navSearch">Search & Filter</a>
+          <a href="#watch" data-i18n="navWatch">Watch Button</a>
+          <a href="#local" data-i18n="navLocal">Local vs Non-Local</a>
+          <a href="#share" data-i18n="navShare">Share Link</a>
+          <a href="#comments" data-i18n="navComments">Comments</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <h1 data-i18n="pageTitle">Movie Manager Instructions</h1>
+        <p class="intro" data-i18n="pageIntro">This page explains the main functions of the Movie Manager application.</p>
+
+        <a href="inst_photos/movie_menager/main_page.png" class="lightbox-trigger" data-title="Main Page"><img src="inst_photos/movie_menager/main_page.png" alt="Main page"></a>
+        <div class="caption" data-i18n="mainCaption">Main view of the Movie Manager application with movie cards.</div>
+
+        <h2 id="main" data-i18n="mainTitle">Main Page</h2>
+        <p data-i18n="mainP1">The main page displays movie cards with essential information about each film. Each card shows:</p>
+        <ul>
+          <li data-i18n="mainL1"><strong>Movie Title</strong> - The name of the film</li>
+          <li data-i18n="mainL2"><strong>Rating</strong> - User rating score</li>
+          <li data-i18n="mainL3"><strong>Genre</strong> - Category of the movie</li>
+          <li data-i18n="mainL4"><strong>Release Year</strong> - When the movie was released</li>
+          <li data-i18n="mainL5"><strong>Cover Image</strong> - Visual preview</li>
+        </ul>
+        <p data-i18n="mainP2">This layout helps you quickly browse your movie collection.</p>
+
+        <h2 id="search" data-i18n="searchTitle">Search & Filter</h2>
+        <p data-i18n="searchP1">To find a specific movie, use the search box in the top-right corner. Type the movie title to filter results instantly.</p>
+        <a href="inst_photos/movie_menager/filters_by_genre.png" class="lightbox-trigger" data-title="Filter by Genre"><img src="inst_photos/movie_menager/filters_by_genre.png" alt="Filter by genre"></a>
+        <div class="caption" data-i18n="filterCaption">Genre filter - select genres to narrow down your list.</div>
+        <p data-i18n="searchP2">You can also filter movies by genre using the genre filter button.</p>
+
+        <h2 id="watch" data-i18n="watchTitle">Watch Button</h2>
+        <p data-i18n="watchP1">The Watch button is the main feature. Click it to start playing the movie.</p>
+        <a href="inst_photos/movie_menager/watch_button.png" class="lightbox-trigger" data-title="Watch Button"><img src="inst_photos/movie_menager/watch_button.png" alt="Watch button"></a>
+        <div class="caption" data-i18n="watchCaption">Watch button - click to play the movie.</div>
+        <div class="info-box"><p data-i18n="watchNote"><strong>Note:</strong> Playback depends on whether the movie is local or external.</p></div>
+
+        <h2 id="local" data-i18n="localTitle">Local vs Non-Local Movies</h2>
+        <p data-i18n="localP1">Movies can be local (stored on your server) or non-local (from external sources).</p>
+        <a href="inst_photos/movie_menager/local.png" class="lightbox-trigger" data-title="Local Movie"><img src="inst_photos/movie_menager/local.png" alt="Local movie"></a>
+        <div class="caption" data-i18n="localCaption">Local movie - stored on your server.</div>
+        <p data-i18n="localP2"><strong>Local movies</strong> open immediately without redirecting.</p>
+        <a href="inst_photos/movie_menager/not_local.png" class="lightbox-trigger" data-title="Non-Local Movie"><img src="inst_photos/movie_menager/not_local.png" alt="Non-local movie"></a>
+        <div class="caption" data-i18n="notLocalCaption">Non-local movie - opens on external page.</div>
+        <p data-i18n="localP3"><strong>Non-local movies</strong> redirect to an external page for viewing.</p>
+
+        <h2 id="share" data-i18n="shareTitle">Share Link</h2>
+        <div class="info-box"><p data-i18n="shareNote"><strong>Important:</strong> Share Link is only available for non-local movies.</p></div>
+        <p data-i18n="shareP1">For non-local movies, share a link to the external page.</p>
+        <a href="inst_photos/movie_menager/Copy_link_button.png" class="lightbox-trigger" data-title="Share Link Button"><img src="inst_photos/movie_menager/Copy_link_button.png" alt="Share link"></a>
+        <div class="caption" data-i18n="shareCaption">Share Link - copies URL to clipboard.</div>
+        <p data-i18n="shareP2">Click Share Link to copy the URL. Paste it anywhere.</p>
+        <div class="note" data-i18n="shareInfo">Note: Non-local movies redirect to external pages. This is normal.</div>
+
+        <h2 id="comments" data-i18n="commentsTitle">Comments</h2>
+        <p data-i18n="commentsP1">Leave comments to share your thoughts about movies.</p>
+        <a href="inst_photos/movie_menager/Comments.png" class="lightbox-trigger" data-title="Comments Section"><img src="inst_photos/movie_menager/Comments.png" alt="Comments"></a>
+        <div class="caption" data-i18n="commentsCaption">Comments section.</div>
+        <p data-i18n="commentsP2">The comments section allows you to:</p>
+        <ul>
+          <li data-i18n="commentsL1">Write your review</li>
+          <li data-i18n="commentsL2">Read other comments</li>
+          <li data-i18n="commentsL3">Discuss the movie</li>
+        </ul>
+      </main>
+    </div>
+  </div>
+
+  <div id="minimap-container">
+    <img id="minimap-image" src="inst_photos/movie_menager/movies_minimap.png" alt="Page minimap">
+    <div id="minimap-viewport"></div>
+  </div>
+
+  <div class="lightbox-overlay" id="lightbox-overlay">
+    <div class="lightbox-content">
+      <span class="lightbox-close" id="lightbox-close">&times;</span>
+      <span class="lightbox-nav lightbox-prev" id="lightbox-prev">&#10094;</span>
+      <span class="lightbox-nav lightbox-next" id="lightbox-next">&#10095;</span>
+      <img src="" alt="" id="lightbox-image">
+      <div class="lightbox-caption" id="lightbox-caption"></div>
+      <div class="lightbox-counter" id="lightbox-counter"></div>
+    </div>
+  </div>
+
+  <script>
+    const translations = {
+      en: {
+        brand: "Movie Manager", langLabel: "Language:", themeLabel: "Theme:", backLabel: "Back", topicsTitle: "Topics",
+        navMain: "Main Page", navSearch: "Search & Filter", navWatch: "Watch Button", navLocal: "Local vs Non-Local", navShare: "Share Link", navComments: "Comments",
+        pageTitle: "Movie Manager Instructions", pageIntro: "This page explains the main functions of the Movie Manager application.",
+        mainCaption: "Main view of the Movie Manager application with movie cards.",
+        mainTitle: "Main Page", mainP1: "The main page displays movie cards with essential information about each film. Each card shows:",
+        mainL1: "Movie Title - The name of the film", mainL2: "Rating - User rating score", mainL3: "Genre - Category of the movie", mainL4: "Release Year - When the movie was released", mainL5: "Cover Image - Visual preview", mainP2: "This layout helps you quickly browse your movie collection.",
+        searchTitle: "Search & Filter", searchP1: "To find a specific movie, use the search box in the top-right corner. Type the movie title to filter results instantly.",
+        searchP2: "You can also filter movies by genre using the genre filter button.", filterCaption: "Genre filter - select genres to narrow down your list.",
+        watchTitle: "Watch Button", watchP1: "The Watch button is the main feature. Click it to start playing the movie.", watchCaption: "Watch button - click to play the movie.", watchNote: "Note: Playback depends on whether the movie is local or external.",
+        localTitle: "Local vs Non-Local Movies", localP1: "Movies can be local (stored on your server) or non-local (from external sources).", localP2: "Local movies open immediately without redirecting.", localP3: "Non-local movies redirect to an external page for viewing.",
+        localCaption: "Local movie - stored on your server.", notLocalCaption: "Non-local movie - opens on external page.",
+        shareTitle: "Share Link", shareNote: "Important: Share Link is only available for non-local movies.", shareP1: "For non-local movies, share a link to the external page.", shareP2: "Click Share Link to copy the URL. Paste it anywhere.", shareCaption: "Share Link - copies URL to clipboard.", shareInfo: "Note: Non-local movies redirect to external pages. This is normal.",
+        commentsTitle: "Comments", commentsP1: "Leave comments to share your thoughts about movies.", commentsP2: "The comments section allows you to:",
+        commentsL1: "Write your review", commentsL2: "Read other comments", commentsL3: "Discuss the movie", commentsCaption: "Comments section."
+      },
+      ua: {
+        brand: "Movie Manager", langLabel: "Мова:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Теми",
+        navMain: "Головна сторінка", navSearch: "Пошук і фільтр", navWatch: "Кнопка «Дивитися»", navLocal: "Локальні та нелокальні", navShare: "Поділитися посиланням", navComments: "Коментарі",
+        pageTitle: "Інструкція до Movie Manager", pageIntro: "Ця сторінка пояснює основні функції застосунку Movie Manager.",
+        mainCaption: "Головний вигляд застосунку Movie Manager з картками фільмів.",
+        mainTitle: "Головна сторінка", mainP1: "На головній сторінці відображаються картки фільмів з основною інформацією. Кожна картка показує:",
+        mainL1: "Назва фільму - назва фільму", mainL2: "Рейтинг - оцінка користувачів", mainL3: "Жанр - категорія фільму", mainL4: "Рік випуску - коли фільм був випущений", mainL5: "Зображення обкладинки - візуальний перегляд", mainP2: "Цей макет допомагає швидко переглянути вашу колекцію фільмів.",
+        searchTitle: "Пошук і фільтр", searchP1: "Щоб знайти фільм, використайте поле пошуку в правому верхньому куті. Введіть назву фільму для фільтрації.", searchP2: "Ви також можете фільтрувати фільми за жанром.", filterCaption: "Фільтр за жанром - виберіть жанри.",
+        watchTitle: "Кнопка «Дивитися»", watchP1: "Кнопка «Дивитися» є основною функцією. Натисніть, щоб почати відтворення.", watchCaption: "Кнопка «Дивитися» - натисніть для відтворення.", watchNote: "Примітка: відтворення залежить від того, чи фільм локальний.",
+        localTitle: "Локальні та нелокальні фільми", localP1: "Фільми можуть бути локальними (на сервері) або нелокальними (із зовнішніх джерел).", localP2: "Локальні фільми відкриваються миттєво.", localP3: "Нелокальні фільми перенаправляють на зовнішню сторінку.",
+        localCaption: "Локальний фільм - на сервері.", notLocalCaption: "Нелокальний фільм - зовнішня сторінка.",
+        shareTitle: "Поділитися посиланням", shareNote: "Важливо: Функція доступна тільки для нелокальних фільмів.", shareP1: "Для нелокальних фільмів поділіться посиланням на зовнішню сторінку.", shareP2: "Натисніть, щоб скопіювати URL.", shareCaption: "Поділитися - копіює URL.", shareInfo: "Примітка: нелокальні фільми перенаправляють на зовнішні сторінки.",
+        commentsTitle: "Коментарі", commentsP1: "Залишайте коментарі, щоб поділитися думками.", commentsP2: "Розділ коментарів дозволяє:",
+        commentsL1: "Написати відгук", commentsL2: "Прочитати коментарі", commentsL3: "Обговорити фільм", commentsCaption: "Розділ коментарів."
+      },
+      ru: {
+        brand: "Movie Manager", langLabel: "Язык:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Темы",
+        navMain: "Главная страница", navSearch: "Поиск и фильтр", navWatch: "Кнопка «Смотреть»", navLocal: "Локальные и нелокальные", navShare: "Поделиться ссылкой", navComments: "Комментарии",
+        pageTitle: "Инструкция для Movie Manager", pageIntro: "Эта страница объясняет основные функции приложения Movie Manager.",
+        mainCaption: "Главный вид приложения Movie Manager с карточками фильмов.",
+        mainTitle: "Главная страница", mainP1: "На главной странице отображаются карточки фильмов с основной информацией. Каждая карточка показывает:",
+        mainL1: "Название фильма - название фильма", mainL2: "Рейтинг - оценка пользователей", mainL3: "Жанр - категория фильма", mainL4: "Год выпуска - когда фильм был выпущен", mainL5: "Изображение обложки - визуальный просмотр", mainP2: "Этот макет помогает быстро просмотреть коллекцию фильмов.",
+        searchTitle: "Поиск и фильтр", searchP1: "Чтобы найти фильм, используйте поле поиска в правом верхнем углу. Введите название для фильтрации.", searchP2: "Вы также можете фильтровать фильмы по жанру.", filterCaption: "Фильтр по жанру - выберите жанры.",
+        watchTitle: "Кнопка «Смотреть»", watchP1: "Кнопка «Смотреть» является основной функцией. Нажмите для воспроизведения.", watchCaption: "Кнопка «Смотреть» - нажмите для воспроизведения.", watchNote: "Примечание: воспроизведение зависит от того, локальный ли фильм.",
+        localTitle: "Локальные и нелокальные фильмы", localP1: "Фильмы могут быть локальными (на сервере) или нелокальными (из внешних источников).", localP2: "Локальные фильмы открываются мгновенно.", localP3: "Нелокальные фильмы перенаправляют на внешнюю страницу.",
+        localCaption: "Локальный фильм - на сервере.", notLocalCaption: "Нелокальный фильм - внешняя страница.",
+        shareTitle: "Поделиться ссылкой", shareNote: "Важно: Функция доступна только для нелокальных фильмов.", shareP1: "Для нелокальных фильмов поделитесь ссылкой на внешнюю страницу.", shareP2: "Нажмите, чтобы скопировать URL.", shareCaption: "Поделиться - копирует URL.", shareInfo: "Примечание: нелокальные фильмы перенаправляют на внешние страницы.",
+        commentsTitle: "Комментарии", commentsP1: "Оставляйте комментарии, чтобы поделиться мыслями.", commentsP2: "Раздел комментариев позволяет:",
+        commentsL1: "Написать отзыв", commentsL2: "Прочитать комментарии", commentsL3: "Обсудить фильм", commentsCaption: "Раздел комментариев."
+      }
+    };
+
+    function getParam(name, fallback) { const params = new URLSearchParams(window.location.search); return params.get(name) || fallback; }
+    function normalizeLang(lang) { return ["en", "ua", "ru"].includes(lang) ? lang : "en"; }
+    function normalizeTheme(theme) { return theme === "light" ? "light" : "dark"; }
+    function applyTranslations(lang) {
+      const dict = translations[lang] || translations.en;
+      document.documentElement.lang = lang;
+      document.getElementById("currentLang").textContent = lang.toUpperCase();
+      document.querySelectorAll("[data-i18n]").forEach(el => { const key = el.getAttribute("data-i18n"); if (dict[key]) el.textContent = dict[key]; });
+    }
+    function applyTheme(theme) {
+      document.body.classList.remove("theme-dark", "theme-light");
+      document.body.classList.add("theme-" + theme);
+      document.getElementById("currentTheme").textContent = theme === "light" ? "Light" : "Dark";
+    }
+    function setupNavHighlight() {
+      const links = document.querySelectorAll(".nav a");
+      const sections = Array.from(links).map(link => document.querySelector(link.getAttribute("href")));
+      function updateActive() {
+        let current = "";
+        sections.forEach(section => { if (section && window.scrollY >= section.offsetTop - 140) current = section.id; });
+        links.forEach(link => { link.classList.toggle("active", link.getAttribute("href") === "#" + current); });
+      }
+      window.addEventListener("scroll", updateActive); updateActive();
+    }
+    function updateBackLink() {
+      const lang = normalizeLang(getParam("lang", "en"));
+      const theme = normalizeTheme(getParam("theme", "dark"));
+      const color = getParam("color", "#b31adb");
+      document.getElementById("backLink").href = `/main?app=movie&lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+    }
+
+    // Minimap with screenshot image background
+    function setupMinimap() {
+      const container = document.getElementById('minimap-container');
+      const viewport = document.getElementById('minimap-viewport');
+      const content = document.querySelector('.content');
+      
+      if (!content) return;
+
+      function updateViewport() {
+        const contentTop = content.offsetTop;
+        const contentHeight = content.offsetHeight;
+        const scrollTop = window.scrollY;
+        const viewportHeight = window.innerHeight;
+        
+        const scrollPercent = Math.max(0, Math.min((scrollTop - contentTop) / contentHeight, 1));
+        const viewportPercent = viewportHeight / contentHeight;
+        
+        const minimapHeight = container.offsetHeight;
+        const viewportTop = scrollPercent * minimapHeight;
+        const viewportH = Math.min(viewportPercent * minimapHeight, minimapHeight * 0.15);
+        
+        viewport.style.top = viewportTop + 'px';
+        viewport.style.height = viewportH + 'px';
+      }
+
+      // Click to scroll
+      container.addEventListener('click', function(e) {
+        const rect = container.getBoundingClientRect();
+        const clickPercent = (e.clientY - rect.top) / rect.height;
+        const targetScroll = content.offsetTop + (clickPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'smooth' });
+      });
+
+      // Drag viewport
+      let isDragging = false;
+      viewport.addEventListener('mousedown', function(e) { isDragging = true; e.preventDefault(); });
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        const rect = container.getBoundingClientRect();
+        const y = Math.max(0, Math.min(e.clientY - rect.top, rect.height));
+        const scrollPercent = y / rect.height;
+        const targetScroll = content.offsetTop + (scrollPercent * content.offsetHeight) - (window.innerHeight / 2);
+        window.scrollTo({ top: targetScroll, behavior: 'auto' });
+      });
+      document.addEventListener('mouseup', function() { isDragging = false; });
+
+      updateViewport();
+      window.addEventListener('scroll', updateViewport);
+      window.addEventListener('resize', updateViewport);
+    }
+
+    function setupLightbox() {
+      const overlay = document.getElementById('lightbox-overlay'), imageEl = document.getElementById('lightbox-image'),
+        captionEl = document.getElementById('lightbox-caption'), counterEl = document.getElementById('lightbox-counter'),
+        closeBtn = document.getElementById('lightbox-close'), prevBtn = document.getElementById('lightbox-prev'), nextBtn = document.getElementById('lightbox-next');
+      let lightboxImages = [], currentIndex = 0;
+      document.querySelectorAll('.lightbox-trigger').forEach((trigger, index) => {
+        lightboxImages.push({ src: trigger.getAttribute('href'), title: trigger.getAttribute('data-title') || '' });
+        trigger.addEventListener('click', function(e) { e.preventDefault(); currentIndex = index; showLightbox(); });
+      });
+      function showLightbox() {
+        if (lightboxImages.length === 0) return;
+        const img = lightboxImages[currentIndex];
+        imageEl.src = img.src; imageEl.alt = img.title; captionEl.textContent = img.title;
+        counterEl.textContent = `${currentIndex + 1} / ${lightboxImages.length}`;
+        overlay.classList.add('active'); document.body.style.overflow = 'hidden';
+      }
+      function hideLightbox() { overlay.classList.remove('active'); document.body.style.overflow = ''; }
+      function showPrev() { currentIndex = (currentIndex - 1 + lightboxImages.length) % lightboxImages.length; showLightbox(); }
+      function showNext() { currentIndex = (currentIndex + 1) % lightboxImages.length; showLightbox(); }
+      closeBtn.addEventListener('click', hideLightbox); prevBtn.addEventListener('click', showPrev); nextBtn.addEventListener('click', showNext);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideLightbox(); });
+      document.addEventListener('keydown', function(e) {
+        if (!overlay.classList.contains('active')) return;
+        if (e.key === 'Escape') hideLightbox(); else if (e.key === 'ArrowLeft') showPrev(); else if (e.key === 'ArrowRight') showNext();
+      });
+    }
+    const lang = normalizeLang(getParam("lang", "en")), theme = normalizeTheme(getParam("theme", "dark"));
+    applyTranslations(lang); applyTheme(theme); updateBackLink(); setupNavHighlight(); setupMinimap(); setupLightbox();
+  </script>
+</body>
+</html>

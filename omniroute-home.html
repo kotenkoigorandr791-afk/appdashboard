@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OmniRoute Gateway</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Inter, Arial, sans-serif;
+      background: linear-gradient(135deg, #0b1020 0%, #1a1f3a 100%);
+      color: #e8ecf8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      justify-content: flex-end;
+      padding: 16px 24px;
+    }
+    .lang-selector {
+      display: flex;
+      gap: 8px;
+      background: rgba(255,255,255,0.05);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .lang-selector button {
+      background: transparent;
+      border: none;
+      color: #8b9bbf;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .lang-selector button:hover {
+      color: #fff;
+    }
+    .lang-selector button.active {
+      background: #4f7cff;
+      color: #fff;
+    }
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      flex: 1;
+    }
+    h1 {
+      font-size: 42px;
+      font-weight: 700;
+      margin: 0 0 16px;
+      background: linear-gradient(90deg, #fff 0%, #8b9bbf 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      font-size: 16px;
+      line-height: 1.6;
+      color: #8b9bbf;
+      margin-bottom: 32px;
+    }
+    section {
+      background: rgba(18, 26, 51, 0.6);
+      border: 1px solid rgba(45, 58, 100, 0.6);
+      border-radius: 16px;
+      padding: 28px;
+      backdrop-filter: blur(10px);
+    }
+    section p {
+      line-height: 1.7;
+      color: #c6d0ea;
+      margin: 0 0 24px;
+    }
+    section p:last-of-type {
+      margin-bottom: 0;
+    }
+    .btns {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 24px;
+    }
+    a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+    a.login {
+      background: linear-gradient(135deg, #4f7cff 0%, #3a5fd9 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(79, 124, 255, 0.3);
+    }
+    a.login:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79, 124, 255, 0.4);
+    }
+    a.privacy, a.terms {
+      background: rgba(27, 38, 72, 0.6);
+      color: #dfe8ff;
+      border: 1px solid rgba(58, 79, 134, 0.6);
+    }
+    a.privacy:hover, a.terms:hover {
+      background: rgba(27, 38, 72, 0.8);
+      border-color: #4f7cff;
+    }
+    footer {
+      text-align: center;
+      padding: 24px;
+      color: #5a6a99;
+      font-size: 13px;
+    }
+    @media (max-width: 600px) {
+      h1 { font-size: 32px; }
+      section { padding: 20px; }
+      .btns { flex-direction: column; }
+      a { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="lang-selector">
+      <button data-lang="en" onclick="setLang('en')">EN</button>
+      <button data-lang="ru" onclick="setLang('ru')">RU</button>
+      <button data-lang="uk" onclick="setLang('uk')">UK</button>
+      <button data-lang="be" onclick="setLang('be')">BE</button>
+    </div>
+  </header>
+
+  <main>
+    <h1 data-i18n="title">OmniRoute Gateway</h1>
+    <p class="subtitle" data-i18n="subtitle">Public entry point for the application domain and Google domain verification.</p>
+
+    <section>
+      <p data-i18n="description">
+        Google authentication is not used to collect data, but to verify app ownership, securely access the dashboard, and meet Google requirements when publishing an OAuth application and verifying the consent screen.
+      </p>
+      <div class="btns">
+        <a class="login" href="https://ai.serverkherson.xyz/login" data-i18n="login">Login</a>
+        <a class="privacy" href="https://ai.serverkherson.xyz/privacy" data-i18n="privacy">Privacy Policy</a>
+        <a class="terms" href="https://ai.serverkherson.xyz/terms" data-i18n="terms">Terms of Service</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span data-i18n="footer">OmniRoute &copy; 2025</span>
+  </footer>
+
+  <script>
+    const translations = {
+      en: {
+        title: "OmniRoute Gateway",
+        subtitle: "Public entry point for the application domain and Google domain verification.",
+        description: "Google authentication is not used to collect data, but to verify app ownership, securely access the dashboard, and meet Google requirements when publishing an OAuth application and verifying the consent screen.",
+        login: "Login",
+        privacy: "Privacy Policy",
+        terms: "Terms of Service",
+        footer: "OmniRoute © 2025"
+      },
+      ru: {
+        title: "OmniRoute Gateway",
+        subtitle: "Публичная точка входа для домена приложения и проверки домена в Google.",
+        description: "Google-аутентификация используется не для сбора данных, а чтобы подтвердить владение приложением, безопасно входить в панель и пройти требования Google при публикации OAuth-приложения и верификации экрана согласия.",
+        login: "Войти",
+        privacy: "Конфиденциальность",
+        terms: "Условия использования",
+        footer: "OmniRoute © 2025"
+      },
+      uk: {
+        title: "OmniRoute Gateway",
+        subtitle: "Публічна точка входу для домену додатку та верифікації домену в Google.",
+        description: "Google-аутентифікація використовується не для збору даних, а щоб підтвердити володіння додатком, безпечно входити в панель та пройти вимоги Google при публікації OAuth-додатку та верифікації екрану згоди.",
+        login: "Увійти",
+        privacy: "Політика конфіденційності",
+        terms: "Умови використання",
+        footer: "OmniRoute © 2025"
+      },
+      be: {
+        title: "OmniRoute Gateway",
+        subtitle: "Публічная кропка ўваходу для дамена дадатку і праверкі дамена ў Google.",
+        description: "Google-аўтэнтыфікацыя выкарыстоўваецца не для збору дадзеных, а каб пацвердзіць валоданне дадаткам, бяспечна ўваходзіць у панэль і прайсці патрабаванні Google пры публікацыі OAuth-дадатку і верыфікацыі экрана згоды.",
+        login: "Увайсці",
+        privacy: "Палітыка прыватнасці",
+        terms: "Умовы выкарыстання",
+        footer: "OmniRoute © 2025"
+      }
+    };
+
+    function setLang(lang) {
+      document.documentElement.lang = lang;
+      localStorage.setItem('lang', lang);
+
+      document.querySelectorAll('.lang-selector button').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.lang === lang);
+      });
+
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        if (translations[lang][key]) {
+          el.textContent = translations[lang][key];
+        }
+      });
+    }
+
+    const savedLang = localStorage.getItem('lang');
+    const browserLang = navigator.language.slice(0, 2);
+    const defaultLang = savedLang || (translations[browserLang] ? browserLang : 'en');
+    setLang(defaultLang);
+  </script>
+</body>
+</html>

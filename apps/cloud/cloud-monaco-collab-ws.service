@@ -1,0 +1,15 @@
+[Unit]
+Description=Cloud Monaco Collaboration WebSocket
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/AppDashboard/apps/cloud
+ExecStart=/usr/bin/php /var/www/AppDashboard/apps/cloud/scripts/monaco_collab_ws.php 127.0.0.1 8767
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
