@@ -1,0 +1,47 @@
+name: Deploy AppDashboard
+on:
+  push:
+    branches:
+      - main
+      - develop
+jobs:
+  deploy-main:
+    if: gitea.ref == 'refs/heads/main'
+    runs-on: appdashboard-deploy
+    steps:
+      - name: Deploy main
+        run: |
+          set -euo pipefail
+          cd /opt/docker/appdashboard/code
+          git fetch origin main
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            echo "Working tree is dirty; commit or stash server changes before deploy."
+            exit 1
+          fi
+          if [ "$(git branch --show-current)" != "main" ]; then
+            git checkout main
+          fi
+          git merge --ff-only origin/main
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+  deploy-develop:
+    if: gitea.ref == 'refs/heads/develop'
+    runs-on: appdashboard-dev-deploy
+    steps:
+      - name: Deploy develop
+        run: |
+          set -euo pipefail
+          cd /opt/docker/appdashboard/code
+          git fetch origin develop
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            echo "Working tree is dirty; commit or stash server changes before deploy."
+            exit 1
+          fi
+          if git show-ref --verify --quiet refs/heads/develop; then
+            git checkout develop
+          else
+            git checkout -b develop --track origin/develop
+          fi
+          git merge --ff-only origin/develop
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
