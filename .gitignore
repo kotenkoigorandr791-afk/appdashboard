@@ -6,6 +6,8 @@
 /apps/steps/utils/.venv/
 /apps/steps/utils/venv/
 /bot/.venv/
+graphify-out/
+**/graphify-out/
 /backups/
 /data/.ssh/
 /data/ssh_ws_tokens/

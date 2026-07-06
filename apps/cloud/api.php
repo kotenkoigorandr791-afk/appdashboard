@@ -8,7 +8,12 @@ require_once __DIR__ . '/includes/cloud_group_chat.php';
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
 use PhpOffice\PhpPresentation\IOFactory as PresentationIOFactory;
-if (!defined('CLOUD_SYNC_WS_BOOT')) {
+if (PHP_SAPI === 'cli' && isset($argv[1])) {
+    $_POST['action'] = (string)$argv[1];
+    if (isset($argv[2])) $_POST['job_id'] = (string)$argv[2];
+    if (isset($argv[3])) $_POST['worker_token'] = (string)$argv[3];
+}
+if (!defined('CLOUD_SYNC_WS_BOOT') && PHP_SAPI !== 'cli') {
 session_start();
 $__cloudOrigin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
 $__cloudAllowedOrigins = array_filter(array_map('trim', explode(',', (string)getenv('APP_CORS_ORIGINS'))));

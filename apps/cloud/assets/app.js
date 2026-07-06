@@ -1194,12 +1194,6 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     document.querySelector('#share-modal .modal-header h3').textContent =
         t(i18n, 'shareModalTitle') + ': ' + displayName;
 
-    const copyButton = document.getElementById('btn-copy-share-link');
-    if (copyButton.parentNode) {
-        copyButton.parentNode.removeChild(copyButton);
-    }
-    qrContainer.parentNode.insertBefore(copyButton, qrContainer.nextSibling);
-
     if (!document.head.querySelector('style[data-share-modal]')) {
         const style = document.createElement('style');
         style.setAttribute('data-share-modal', '1');
@@ -1207,6 +1201,19 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
             @keyframes fadeIn {
                 from { opacity: 0; transform: scale(0.9); }
                 to { opacity: 1; transform: scale(1); }
+            }
+            @media (max-width: 640px) {
+                #share-modal-actions {
+                    flex-direction: row !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    width: 100% !important;
+                }
+                #share-modal-actions .btn {
+                    width: auto !important;
+                    min-width: 0 !important;
+                    flex: 0 1 auto !important;
+                }
             }
         `;
         document.head.appendChild(style);
@@ -7524,6 +7531,126 @@ async function cleanupDeletedAudioTranscriptions(paths) {
         console.warn(t(window.i18n || {}, 'transcriptionCleanupFailed'), error);
     }
 }
+const archiveJobState = { items: new Map(), nextId: 1, panelVisible: false };
+function updateFloatingActionPositions() {
+    const ids = ['floating-download-btn', 'floating-upload-btn', 'floating-compile-btn', 'floating-archive-btn'];
+    let offset = 30;
+    ids.forEach((id) => {
+        const btn = document.getElementById(id);
+        if (!btn || btn.classList.contains('hidden')) return;
+        btn.style.bottom = `${offset}px`;
+        btn.style.right = '30px';
+        offset += 58;
+    });
+}
+document.addEventListener('DOMContentLoaded', () => {
+    ['floating-download-btn', 'floating-upload-btn', 'floating-compile-btn', 'floating-archive-btn'].forEach((id) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        new MutationObserver(updateFloatingActionPositions).observe(btn, { attributes: true, attributeFilter: ['class'] });
+    });
+    updateFloatingActionPositions();
+});
+function initArchiveJobsPanel() {
+    const btn = document.getElementById('floating-archive-btn');
+    const panel = document.getElementById('archive-progress-panel');
+    if (!btn || !panel || btn.dataset.bound === '1') return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.toggle('hidden');
+        archiveJobState.panelVisible = !panel.classList.contains('hidden');
+    });
+    document.addEventListener('click', (e) => {
+        if (!panel.contains(e.target) && !btn.contains(e.target) && !panel.classList.contains('hidden')) {
+            panel.classList.add('hidden');
+            archiveJobState.panelVisible = false;
+        }
+    });
+}
+function showArchiveJobsButton() {
+    initArchiveJobsPanel();
+    document.getElementById('floating-archive-btn')?.classList.remove('hidden');
+    updateFloatingActionPositions();
+}
+function hideArchiveJobsButtonIfIdle() {
+    if (archiveJobState.items.size > 0) return;
+    document.getElementById('floating-archive-btn')?.classList.add('hidden');
+    document.getElementById('archive-progress-panel')?.classList.add('hidden');
+    updateFloatingActionPositions();
+}
+function updateArchiveCircularProgress() {
+    const circle = document.querySelector('#floating-archive-btn .circular-progress circle');
+    if (!circle || archiveJobState.items.size === 0) return;
+    const progress = Array.from(archiveJobState.items.values()).reduce((sum, item) => sum + item.progress, 0) / archiveJobState.items.size;
+    circle.style.strokeDashoffset = 183 - (progress / 100) * 183;
+}
+function addArchiveJobItem(label) {
+    showArchiveJobsButton();
+    const container = document.getElementById('archive-items-container');
+    const localId = archiveJobState.nextId++;
+    const item = document.createElement('div');
+    item.className = 'download-item';
+    item.id = `archive-job-item-${localId}`;
+    item.innerHTML = `
+        <div class="download-filename" title="${escapeHtml(label)}">${escapeHtml(label)}</div>
+        <div class="download-progress-bar"><div class="download-progress-fill" style="width: 0%"></div></div>
+        <div class="download-info"><span class="archive-job-status">0%</span><span class="download-percent">0%</span></div>
+        <div class="download-actions"><button class="btn danger small archive-cancel-job" type="button">${escapeHtml(t(window.i18n || {}, 'cancel') || 'Cancel')}</button></div>
+    `;
+    container?.appendChild(item);
+    archiveJobState.items.set(localId, { progress: 0, cancelled: false });
+    return localId;
+}
+function updateArchiveJobItem(localId, job) {
+    const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+    const state = archiveJobState.items.get(localId);
+    if (state) state.progress = progress;
+    const item = document.getElementById(`archive-job-item-${localId}`);
+    if (item) {
+        const fill = item.querySelector('.download-progress-fill');
+        const percent = item.querySelector('.download-percent');
+        const status = item.querySelector('.archive-job-status');
+        if (fill) fill.style.width = `${progress}%`;
+        if (percent) percent.textContent = `${Math.round(progress)}%`;
+        if (status) status.textContent = job.status === 'error' ? (job.error || 'Error') : `${job.processed || 0}/${job.total || 0}`;
+    }
+    updateArchiveCircularProgress();
+}
+async function waitForArchiveJob(jobId, label) {
+    const localId = addArchiveJobItem(label);
+    const cancelBtn = document.querySelector(`#archive-job-item-${localId} .archive-cancel-job`);
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', async () => {
+            const state = archiveJobState.items.get(localId);
+            if (state) state.cancelled = true;
+            cancelBtn.disabled = true;
+            try { await api('archive_job_cancel', { job_id: jobId }, 'POST'); } catch (_) {}
+        });
+    }
+    while (true) {
+        const job = await api('archive_job_status', { job_id: jobId }, 'GET');
+        updateArchiveJobItem(localId, job);
+        if (job.status === 'cancelled') {
+            setTimeout(() => {
+                document.getElementById(`archive-job-item-${localId}`)?.remove();
+                archiveJobState.items.delete(localId);
+                hideArchiveJobsButtonIfIdle();
+            }, 1200);
+            return { success: false, cancelled: true };
+        }
+        if (job.status === 'done') {
+            setTimeout(() => {
+                document.getElementById(`archive-job-item-${localId}`)?.remove();
+                archiveJobState.items.delete(localId);
+                hideArchiveJobsButtonIfIdle();
+            }, 2500);
+            return job;
+        }
+        if (job.status === 'error') throw new Error(job.error || 'Archive job failed');
+        await new Promise(resolve => setTimeout(resolve, 900));
+    }
+}
 async function downloadSelectedItems() {
     const selectedItems = Array.from(selectionState.selectedItems);
     if (selectedItems.length === 0) {
@@ -7531,20 +7658,17 @@ async function downloadSelectedItems() {
         return;
     }
 
-    // Показываем индикатор загрузки
-    const loadingModal = showLoadingModal(t(window.i18n, 'creatingArchive'));
-
     try {
-        // Отправляем запрос на создание архива
         const response = await api('create_archive', {
-            items: JSON.stringify(selectedItems), // Важно: преобразуем в JSON строку
-            archive_name: `selected_${Date.now()}.zip`
+            items: JSON.stringify(selectedItems),
+            archive_name: `selected_${Date.now()}.zip`,
+            async: '1'
         }, 'POST');
-
-        loadingModal.remove();
-
-        if (response.success && response.archive_path) {
-            const archivePath = response.archive_path;
+        const result = response.job_id ? await waitForArchiveJob(response.job_id, t(window.i18n, 'creatingArchive')) : response;
+        if (result.cancelled) {
+            flashStatus(t(window.i18n, 'cancelled') || 'Cancelled');
+        } else if (result.success !== false && result.archive_path) {
+            const archivePath = result.archive_path;
             // Запускаем скачивание созданного архива
             downloadPath(archivePath);
             flashStatus(t(window.i18n, 'archiveCreatedAndDownloading'));
@@ -7556,10 +7680,9 @@ async function downloadSelectedItems() {
                 await buildTree('');
             }, 1000);
         } else {
-            flashStatus(t(window.i18n, 'archiveCreationFailed') + ': ' + (response.error || 'Unknown error'));
+            flashStatus(t(window.i18n, 'archiveCreationFailed') + ': ' + (result.error || 'Unknown error'));
         }
     } catch (err) {
-        loadingModal.remove();
         console.error('Archive creation error:', err);
         flashStatus(t(window.i18n, 'archiveCreationError') + ': ' + err.message);
     }
@@ -9056,11 +9179,23 @@ async function api(action, params={}, method='POST') {
     });
     const res = await fetch(url);
     if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
-    return res.headers.get('content-type')?.includes('application/json') ? res.json() : res.text();
+    const text = await res.text();
+    if (!res.headers.get('content-type')?.includes('application/json')) return text;
+    try {
+      return text ? JSON.parse(text) : {};
+    } catch (_) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
   } else {
     const body = new URLSearchParams({ action, ...scopedParams });
     const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Device-Id': ensureCloudDeviceId()}, body });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (_) {
+      throw new Error(`API error: ${res.status} ${res.statusText}`);
+    }
     if (!res.ok || data.error) throw new Error(data.error || `API error: ${res.status} ${res.statusText}`);
     if (USER_USAGE_REFRESH_ACTIONS.has(action)) {
       scheduleUserUsageStatusRefresh();

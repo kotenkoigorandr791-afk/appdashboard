@@ -826,10 +826,10 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 .search-extension-suggestion .app-file-icon{width:20px;height:20px;flex:0 0 20px}
 .search-extension-suggestion:hover,.search-extension-suggestion.active{background:rgba(var(--accent-rgb),0.14)}
 .search-extension-dot{color:var(--accent);font-weight:600}
-.floating-download-btn{position:fixed;bottom:40px;right:20px;width:56px;height:56px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);z-index:10000;transition:all 0.3s ease;animation:slideIn 0.3s ease-out;padding:0}
+.floating-download-btn{position:fixed;bottom:30px;right:30px;width:48px;height:48px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);z-index:10000;transition:all 0.3s ease;animation:slideIn 0.3s ease-out;padding:0}
 .floating-download-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,0,0,0.4)}
-.floating-download-btn svg:first-child{width:24px;height:24px;stroke:white;stroke-width:2;fill:none;z-index:2}
-.floating-download-btn .circular-progress{position:absolute;top:-3px;left:-3px;width:62px;height:62px;transform:rotate(-90deg);z-index:1}
+.floating-download-btn svg:first-child{width:20px;height:20px;stroke:white;stroke-width:2;fill:none;z-index:2}
+.floating-download-btn .circular-progress{position:absolute;top:-3px;left:-3px;width:54px;height:54px;transform:rotate(-90deg);z-index:1}
 .floating-download-btn .circular-progress circle{stroke-dasharray:183;stroke-dashoffset:183;transition:stroke-dashoffset 0.3s linear;stroke:var(--accent);stroke-width:3;fill:none;filter:drop-shadow(0 0 3px var(--accent));stroke-linecap:round}
 .download-progress-panel{position:fixed;bottom:150px;right:20px;width:300px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:9999;overflow:hidden;animation:slideUp 0.3s ease-out;backdrop-filter:blur(10px)}
 .download-progress-panel.hidden{display:none}
@@ -847,21 +847,24 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 @keyframes slideIn{from{transform:translateY(100px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
 @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-#floating-upload-btn{position:fixed;bottom:100px;right:30px;width:56px;height:56px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);z-index:10000;transition:all 0.3s ease;animation:slideIn 0.3s ease-out;padding:0}
+#floating-upload-btn{position:fixed;bottom:88px;right:30px;width:48px;height:48px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 15px rgba(0,0,0,0.3);z-index:10000;transition:all 0.3s ease;animation:slideIn 0.3s ease-out;padding:0}
 #floating-upload-btn.hidden{display:none!important}
 #floating-upload-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,0,0,0.4)}
-#floating-upload-btn svg:first-child{width:24px;height:24px;stroke:white;stroke-width:2;fill:none;z-index:2}
-#floating-upload-btn .circular-progress{position:absolute;top:-3px;left:-3px;width:62px;height:62px;transform:rotate(-90deg);z-index:1}
+#floating-upload-btn svg:first-child{width:20px;height:20px;stroke:white;stroke-width:2;fill:none;z-index:2}
+#floating-upload-btn .circular-progress{position:absolute;top:-3px;left:-3px;width:54px;height:54px;transform:rotate(-90deg);z-index:1}
 #floating-upload-btn .circular-progress circle{stroke-dasharray:183;stroke-dashoffset:183;transition:stroke-dashoffset 0.3s linear;stroke:var(--accent);stroke-width:3;fill:none;filter:drop-shadow(0 0 3px var(--accent));stroke-linecap:round}
 #upload-progress-panel{position:fixed;bottom:180px;right:20px;width:300px;background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);z-index:9999;overflow:hidden;animation:slideUp 0.3s ease-out;backdrop-filter:blur(10px)}
 #upload-progress-panel.hidden{display:none!important}
-@media (max-width:768px){#floating-upload-btn{bottom:90px;right:20px;width:48px;height:48px}#floating-upload-btn .circular-progress{top:-2px;left:-2px;width:52px;height:52px}#upload-progress-panel{bottom:160px;right:10px;left:10px;width:auto;max-width:300px;margin:0 auto}}
+@media (max-width:768px){.floating-download-btn,#floating-upload-btn{right:20px;width:44px;height:44px}.floating-download-btn .circular-progress,#floating-upload-btn .circular-progress{top:-2px;left:-2px;width:48px;height:48px}#upload-progress-panel{bottom:160px;right:10px;left:10px;width:auto;max-width:300px;margin:0 auto}}
 #floating-download-btn.hidden + #floating-upload-btn,#floating-upload-btn:only-child{bottom:30px!important}
-#floating-download-btn:not(.hidden) ~ #floating-upload-btn{bottom:100px}
+#floating-download-btn:not(.hidden) ~ #floating-upload-btn{bottom:88px}
 #floating-upload-btn,#floating-download-btn{position:fixed;z-index:10000}
 #floating-download-btn{bottom:30px;right:30px}
 #floating-download-btn.hidden{display:none!important}
 body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!important}
+#floating-archive-btn{bottom:30px;right:30px}
+#floating-archive-btn.hidden{display:none!important}
+@media (max-width:768px){:root{--topbar-height:96px}.topbar{height:auto;min-height:96px;flex-wrap:wrap;align-content:flex-start;gap:6px 8px;padding:8px 8px 8px var(--menu-button-mobile-reserve,60px);overflow:visible;white-space:normal}.topbar .brand{min-width:0;max-width:calc(100vw - var(--menu-button-mobile-reserve,60px) - 16px);overflow:hidden}.topbar .actions{margin-left:auto;max-width:100%;overflow-x:auto}.topbar-search-host{order:3;flex:1 0 100%;min-width:0}.topbar .search-container{max-width:none;width:100%;min-width:0}.search-input-wrapper{width:100%}}
 .compile-timer{font-family:'Courier New',monospace;font-size:16px;font-weight:600;color:var(--accent);background:var(--bg);padding:4px 12px;border-radius:20px;border:1px solid var(--border);display:flex;align-items:center;gap:6px;transition:all 0.3s ease;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
 .compile-timer svg{width:16px;height:16px;stroke:currentColor;animation:timerPulse 2s ease-in-out infinite}
 .compile-timer.running{background:var(--accent);color:white;border-color:var(--accent);box-shadow:0 0 15px rgba(var(--accent-rgb),0.5)}

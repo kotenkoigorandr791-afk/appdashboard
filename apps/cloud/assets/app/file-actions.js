@@ -818,16 +818,20 @@ async function extractArchive(filePath, extractToPath = null) {
         flashStatus(t(i18n, 'extractingArchive'));
         const response = await api('extract_archive', {
             archive_path: filePath,
-            extract_to: extractToPath || ''
+            extract_to: extractToPath || '',
+            async: '1'
         }, 'POST');
-        if (response.success) {
+        const result = response.job_id ? await waitForArchiveJob(response.job_id, t(i18n, 'extractingArchive')) : response;
+        if (result.cancelled) {
+            flashStatus(t(i18n, 'cancelled') || 'Cancelled');
+        } else if (result.success !== false) {
             flashStatus(t(i18n, 'archiveExtracted'));
             // Unknown number of extracted files — full rebuild needed here
             cachedFileTree = null;
             try { await api('invalidate_file_tree', {}, 'POST'); } catch(_) {}
             await buildTree('');
         } else {
-            flashStatus(t(i18n, 'extractError') + ': ' + response.error);
+            flashStatus(t(i18n, 'extractError') + ': ' + result.error);
         }
     } catch (err) {
         console.error('Extraction error:', err);
@@ -1006,27 +1010,26 @@ async function archiveFolder(folderPath) {
     return;
   }
   try {
-    const loadingModal = showLoadingModal(t(i18n, 'archivingFolder'));
     const result = await api('archive_folder', { 
-      folder_path: folderPath 
+      folder_path: folderPath,
+      async: '1'
     }, 'POST');
-    loadingModal.remove();
-    if (result.success) {
+    const completed = result.job_id ? await waitForArchiveJob(result.job_id, t(i18n, 'archivingFolder')) : result;
+    if (completed.cancelled) {
+      flashStatus(t(i18n, 'cancelled') || 'Cancelled');
+    } else if (completed.success !== false) {
       // Add created archive to tree incrementally
-      const archiveName = result.archive_name || (result.archive_path && result.archive_path.split('/').pop()) || (folderPath.split('/').pop() + '.zip');
+      const archiveName = completed.archive_name || (completed.archive_path && completed.archive_path.split('/').pop()) || (folderPath.split('/').pop() + '.zip');
       const archiveDir = folderPath.includes('/') ? folderPath.substring(0, folderPath.lastIndexOf('/')) : '';
       const archivePath = archiveDir ? archiveDir + '/' + archiveName : archiveName;
       const now = Math.floor(Date.now() / 1000);
-      const newItem = { name: archiveName, path: archivePath, type: 'file', size: result.size || 0, mtime: now };
+      const newItem = { name: archiveName, path: archivePath, type: 'file', size: completed.size || 0, mtime: now };
       await insertTreeItem(newItem, getCurrentCloudRoot());
-      showArchiveResultDialog(result, folderPath);
+      showArchiveResultDialog(completed, folderPath);
     } else {
-      flashStatus(t(i18n, 'archiveError') + ': ' + result.error);
+      flashStatus(t(i18n, 'archiveError') + ': ' + completed.error);
     }
   } catch (err) {
-    if (typeof loadingModal !== 'undefined' && loadingModal.remove) {
-      loadingModal.remove();
-    }
     flashStatus(t(i18n, 'archiveError') + ': ' + err.message);
   }
 }

@@ -1145,6 +1145,7 @@ if ($action === 'list') {
   foreach (scandir($dir) as $it) {
     if ($it === '.' || $it === '..') continue;
     if ($rootKey === 'main' && str_starts_with($it, '.')) continue;
+    if (preg_match('/\.zip\.[A-Za-z0-9]{6,}$/', $it)) continue;
     $full = $dir . '/' . $it;
     $isDir = is_dir($full);
     if ($rootKey === 'clientsync' && should_hide_clientsync_virtual_entry($it, $isDir)) continue;
@@ -1794,6 +1795,253 @@ if ($action === 'view_pdf') {
   exit;
 }
 
+function cloud_archive_jobs_dir(): string {
+    $dir = UPLOAD_SESSIONS_DIR . '/archive_jobs';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir;
+}
+function cloud_archive_tmp_dir(): string {
+    $dir = UPLOAD_SESSIONS_DIR . '/archive_tmp';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir;
+}
+function cloud_archive_job_file(string $jobId): string {
+    return cloud_archive_jobs_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '.json';
+}
+function cloud_archive_write_job(string $jobId, array $data): void {
+    $file = cloud_archive_job_file($jobId);
+    $current = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+    $data['updated_at'] = time();
+    file_put_contents($file, json_encode(array_merge($current, $data), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+}
+function cloud_archive_start_job(string $type, array $payload, callable $runner): void {
+    $jobId = bin2hex(random_bytes(16));
+    $token = bin2hex(random_bytes(16));
+    cloud_archive_write_job($jobId, ['id' => $jobId, 'type' => $type, 'status' => 'queued', 'progress' => 0, 'created_at' => time(), 'payload' => $payload, 'worker_token' => $token]);
+    $command = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__, 2) . '/api.php') . ' archive_worker_run ' . escapeshellarg($jobId) . ' ' . escapeshellarg($token) . ' > /dev/null 2>&1 &';
+    @exec($command);
+    json_out(['success' => true, 'async' => true, 'job_id' => $jobId]);
+}
+function cloud_archive_error_job(string $jobId, string $message): void {
+    cloud_archive_write_job($jobId, ['status' => 'error', 'progress' => 100, 'error' => $message]);
+}
+function cloud_archive_job_cancelled(string $jobId): bool {
+    $file = cloud_archive_job_file($jobId);
+    $job = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+    return !empty($job['cancel_requested']);
+}
+function cloud_archive_cancelled_job(string $jobId, ?string $path = null): void {
+    if ($path && is_file($path)) @unlink($path);
+    foreach (glob(cloud_archive_tmp_dir() . '/' . $jobId . '*') ?: [] as $tmp) {
+        if (is_file($tmp)) @unlink($tmp);
+    }
+    cloud_archive_write_job($jobId, ['status' => 'cancelled', 'progress' => 100]);
+}
+function cloud_archive_safe_extract_path(string $base, string $name): ?string {
+    $name = str_replace('\\', '/', $name);
+    $name = ltrim($name, '/');
+    if ($name === '' || preg_match('#(^|/)\.\.(/|$)#', $name)) return null;
+    $target = $base . '/' . $name;
+    $dir = dirname($target);
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    $realBase = realpath($base);
+    $realDir = realpath($dir);
+    if (!$realBase || !$realDir || strpos($realDir, $realBase) !== 0) return null;
+    return $target;
+}
+function cloud_archive_create_selected_job(string $jobId, array $payload): void {
+    try {
+        $user = $payload['user'];
+        $rootKey = $payload['root'];
+        $base = user_root($user, $rootKey);
+        $items = $payload['items'];
+        $archive_name = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', (string)$payload['archive_name']);
+        if ($archive_name === '') $archive_name = 'selected_' . date('Y-m-d_H-i-s') . '.zip';
+        if (!str_ends_with(strtolower($archive_name), '.zip')) $archive_name .= '.zip';
+        $archive_path = $base . '/' . $archive_name;
+        if (file_exists($archive_path)) {
+            $path_info = pathinfo($archive_name);
+            $archive_name = $path_info['filename'] . '_' . time() . '.' . $path_info['extension'];
+            $archive_path = $base . '/' . $archive_name;
+        }
+        if (!class_exists('ZipArchive')) throw new RuntimeException('Zip extension not available');
+        $paths = [];
+        foreach ($items as $item) {
+            $item = safe_path((string)$item);
+            if ($item === '') continue;
+            $full_path = $base . '/' . $item;
+            if (!file_exists($full_path)) continue;
+            if (is_dir($full_path)) {
+                $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($full_path, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+                foreach ($iterator as $file) $paths[] = [$file->getPathname(), $item . '/' . substr($file->getPathname(), strlen($full_path) + 1), $file->isDir()];
+            } else {
+                $paths[] = [$full_path, $item, false];
+            }
+        }
+        $total = max(1, count($paths));
+        $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.zip';
+        $zip = new ZipArchive();
+        if ($zip->open($tmp_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) throw new RuntimeException('Failed to create archive');
+        $added = 0;
+        foreach ($paths as $idx => $entry) {
+            if (cloud_archive_job_cancelled($jobId)) {
+                $zip->close();
+                cloud_archive_cancelled_job($jobId, $tmp_path);
+                return;
+            }
+            [$file_path, $relative_path, $is_dir] = $entry;
+            $relative_path = str_replace('\\', '/', $relative_path);
+            if ($is_dir) $zip->addEmptyDir($relative_path);
+            elseif ($zip->addFile($file_path, $relative_path)) $added++;
+            cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => min(98, (int)floor((($idx + 1) / $total) * 98)), 'processed' => $idx + 1, 'total' => $total]);
+        }
+        cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 99, 'processed' => $total, 'total' => $total]);
+        $zip->close();
+        if (cloud_archive_job_cancelled($jobId)) {
+            cloud_archive_cancelled_job($jobId, $tmp_path);
+            return;
+        }
+        if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
+        if (!file_exists($archive_path) || filesize($archive_path) <= 0) throw new RuntimeException('Failed to create archive');
+        $email = get_session_email();
+        if ($email && $rootKey === 'main') invalidate_file_tree($email);
+        if ($email) append_sync_log($email, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
+        cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'archive_path' => $archive_name, 'archive_name' => $archive_name, 'items_count' => $added, 'size' => filesize($archive_path)]);
+    } catch (Throwable $e) {
+        cloud_archive_error_job($jobId, $e->getMessage());
+    }
+}
+function cloud_archive_folder_job(string $jobId, array $payload): void {
+    try {
+        $user = $payload['user'];
+        $rootKey = $payload['root'];
+        $base = user_root($user, $rootKey);
+        $folder_path = safe_path((string)$payload['folder_path']);
+        $full_path = $base . '/' . $folder_path;
+        if (!is_dir($full_path)) throw new RuntimeException('Folder not found');
+        if (!class_exists('ZipArchive')) throw new RuntimeException('Zip extension not available');
+        $folder_name = basename($folder_path);
+        $archive_name = $folder_name . '_' . date('Y-m-d_H-i-s') . '.zip';
+        $archive_path = dirname($full_path) . '/' . $archive_name;
+        if (file_exists($archive_path)) throw new RuntimeException('Archive already exists');
+        $entries = iterator_to_array(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($full_path, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST), false);
+        $total = max(1, count($entries));
+        $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.zip';
+        $zip = new ZipArchive();
+        if ($zip->open($tmp_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) throw new RuntimeException('Failed to create archive');
+        $added = 0;
+        foreach ($entries as $idx => $item) {
+            if (cloud_archive_job_cancelled($jobId)) {
+                $zip->close();
+                cloud_archive_cancelled_job($jobId, $tmp_path);
+                return;
+            }
+            $item_path = $item->getPathname();
+            $relative_path = str_replace('\\', '/', substr($item_path, strlen($full_path) + 1));
+            if ($item->isDir()) $zip->addEmptyDir($relative_path);
+            elseif ($zip->addFile($item_path, $relative_path)) $added++;
+            cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => min(98, (int)floor((($idx + 1) / $total) * 98)), 'processed' => $idx + 1, 'total' => $total]);
+        }
+        cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 99, 'processed' => $total, 'total' => $total]);
+        $zip->close();
+        if (cloud_archive_job_cancelled($jobId)) {
+            cloud_archive_cancelled_job($jobId, $tmp_path);
+            return;
+        }
+        if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
+        if (!file_exists($archive_path) || filesize($archive_path) <= 0) throw new RuntimeException('Failed to create archive file');
+        $email = get_session_email();
+        if ($email && $rootKey === 'main') invalidate_file_tree($email);
+        if ($email) append_sync_log($email, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
+        $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
+        cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'archive_path' => $result_path, 'archive_name' => $archive_name, 'size' => filesize($archive_path), 'files_count' => $added]);
+    } catch (Throwable $e) {
+        cloud_archive_error_job($jobId, $e->getMessage());
+    }
+}
+function cloud_archive_extract_job(string $jobId, array $payload): void {
+    try {
+        $user = $payload['user'];
+        $rootKey = $payload['root'];
+        $base = user_root($user, $rootKey);
+        $archive_path = safe_path((string)$payload['archive_path']);
+        $extract_to = safe_path((string)$payload['extract_to']);
+        $full_archive_path = $base . '/' . $archive_path;
+        if (!is_file($full_archive_path)) throw new RuntimeException('Archive not found');
+        if (strtolower(pathinfo($full_archive_path, PATHINFO_EXTENSION)) !== 'zip') throw new RuntimeException('Not a ZIP file');
+        if (!class_exists('ZipArchive')) throw new RuntimeException('Zip extension not available');
+        $extract_full_path = $extract_to === '' ? dirname($full_archive_path) : $base . '/' . $extract_to;
+        if (!is_dir($extract_full_path)) @mkdir($extract_full_path, 0775, true);
+        if (!is_dir($extract_full_path) || !is_writable($extract_full_path)) throw new RuntimeException('Extraction directory not writable');
+        $zip = new ZipArchive();
+        if ($zip->open($full_archive_path) !== TRUE) throw new RuntimeException('Cannot open archive file');
+        $total = max(1, $zip->numFiles);
+        $extracted = 0;
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            if (cloud_archive_job_cancelled($jobId)) {
+                $zip->close();
+                cloud_archive_cancelled_job($jobId);
+                return;
+            }
+            $name = $zip->getNameIndex($i);
+            if (!$name) continue;
+            if (str_ends_with($name, '/')) {
+                $dir = cloud_archive_safe_extract_path($extract_full_path, $name);
+                if ($dir && !is_dir($dir)) @mkdir($dir, 0775, true);
+            } else {
+                $target = cloud_archive_safe_extract_path($extract_full_path, $name);
+                if ($target) {
+                    $in = $zip->getStream($name);
+                    if ($in) {
+                        $out = fopen($target, 'wb');
+                        if ($out) {
+                            stream_copy_to_stream($in, $out);
+                            fclose($out);
+                            $extracted++;
+                        }
+                        fclose($in);
+                    }
+                }
+            }
+            cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => min(99, (int)floor((($i + 1) / $total) * 99)), 'processed' => $i + 1, 'total' => $total]);
+        }
+        $zip->close();
+        $email = get_session_email();
+        if ($email && $rootKey === 'main') invalidate_file_tree($email);
+        if ($email) append_sync_log($email, $rootKey, 'extract_archive', $archive_path, 'INFO', 'Archive extracted');
+        cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'extracted_to' => $extract_to === '' ? dirname($archive_path) : $extract_to, 'extracted_files_count' => $extracted]);
+    } catch (Throwable $e) {
+        cloud_archive_error_job($jobId, $e->getMessage());
+    }
+}
+if ($action === 'archive_job_status') {
+    $jobId = preg_replace('/[^a-f0-9]/', '', (string)($_GET['job_id'] ?? $_POST['job_id'] ?? ''));
+    $file = cloud_archive_job_file($jobId);
+    if ($jobId === '' || !is_file($file)) json_out(['error' => 'Job not found'], 404);
+    $job = json_decode((string)file_get_contents($file), true) ?: ['error' => 'Invalid job'];
+    unset($job['payload'], $job['worker_token']);
+    json_out($job);
+}
+if ($action === 'archive_job_cancel') {
+    $jobId = preg_replace('/[^a-f0-9]/', '', (string)($_POST['job_id'] ?? ''));
+    $file = cloud_archive_job_file($jobId);
+    if ($jobId === '' || !is_file($file)) json_out(['error' => 'Job not found'], 404);
+    cloud_archive_write_job($jobId, ['cancel_requested' => true]);
+    json_out(['success' => true]);
+}
+if ($action === 'archive_worker_run') {
+    $jobId = preg_replace('/[^a-f0-9]/', '', (string)($_POST['job_id'] ?? ''));
+    $token = (string)($_POST['worker_token'] ?? '');
+    $file = cloud_archive_job_file($jobId);
+    $job = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+    if ($jobId === '' || !$job || !hash_equals((string)($job['worker_token'] ?? ''), $token)) exit;
+    cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => max(1, (int)($job['progress'] ?? 0))]);
+    $payload = $job['payload'] ?? [];
+    if (($job['type'] ?? '') === 'create_archive') cloud_archive_create_selected_job($jobId, $payload);
+    elseif (($job['type'] ?? '') === 'archive_folder') cloud_archive_folder_job($jobId, $payload);
+    elseif (($job['type'] ?? '') === 'extract_archive') cloud_archive_extract_job($jobId, $payload);
+    exit;
+}
 if ($action === 'create_archive') {
     $user = get_current_user_from_sessions();
     $rootKey = get_requested_root_key();
@@ -1811,6 +2059,9 @@ if ($action === 'create_archive') {
     // Проверяем, что items это массив и не пустой
     if (!is_array($items) || empty($items)) {
         json_out(['error' => 'No items selected'], 400);
+    }
+    if ((string)($_POST['async'] ?? '') === '1') {
+        cloud_archive_start_job('create_archive', ['user' => $user, 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name], 'cloud_archive_create_selected_job');
     }
     
     // Санитайзим имя архива
@@ -2258,6 +2509,9 @@ if ($action === 'extract_archive') {
     if ($archive_path === '') {
         json_out(['error' => 'archive_path is required'], 400);
     }
+    if ((string)($_POST['async'] ?? '') === '1') {
+        cloud_archive_start_job('extract_archive', ['user' => $user, 'root' => $rootKey, 'archive_path' => $archive_path, 'extract_to' => $extract_to], 'cloud_archive_extract_job');
+    }
     
     $full_archive_path = $base . '/' . $archive_path;
     
@@ -2344,6 +2598,9 @@ if ($action === 'archive_folder') {
     
     if ($folder_path === '') {
         json_out(['error' => 'folder_path is required'], 400);
+    }
+    if ((string)($_POST['async'] ?? '') === '1') {
+        cloud_archive_start_job('archive_folder', ['user' => $user, 'root' => $rootKey, 'folder_path' => $folder_path], 'cloud_archive_folder_job');
     }
     
     $full_path = $base . '/' . $folder_path;
@@ -2509,6 +2766,338 @@ if ($action === 'convert_file') {
 }
 }
 
+function cloud_pdf_utf16_hex(string $text): string {
+    $utf16 = "\xFE\xFF" . iconv('UTF-8', 'UTF-16BE//IGNORE', $text);
+    return strtoupper(bin2hex($utf16));
+}
+
+function cloud_pdf_chars(string $text): array {
+    if (preg_match_all('/./us', $text, $m)) return $m[0];
+    return str_split($text);
+}
+
+function cloud_pdf_wrap_text(string $text, int $limit): array {
+    $out = [];
+    foreach (preg_split('/\r\n|\r|\n/', $text) as $line) {
+        $line = trim((string)$line);
+        if ($line === '') {
+            $out[] = '';
+            continue;
+        }
+        $words = preg_split('/\s+/u', $line) ?: [];
+        $current = '';
+        foreach ($words as $word) {
+            $candidate = $current === '' ? $word : $current . ' ' . $word;
+            if (count(cloud_pdf_chars($candidate)) <= $limit) {
+                $current = $candidate;
+                continue;
+            }
+            if ($current !== '') $out[] = $current;
+            $chars = cloud_pdf_chars($word);
+            while (count($chars) > $limit) {
+                $out[] = implode('', array_splice($chars, 0, $limit));
+            }
+            $current = implode('', $chars);
+        }
+        if ($current !== '') $out[] = $current;
+    }
+    return $out;
+}
+
+function cloud_markdown_to_pdf_text(string $markdown): string {
+    $text = str_replace(["\r\n", "\r"], "\n", $markdown);
+    $text = preg_replace('/```[\s\S]*?```/', '', $text);
+    $text = preg_replace('/`([^`]*)`/', '$1', $text);
+    $text = preg_replace('/!\[([^\]]*)\]\([^)]+\)/u', '$1', $text);
+    $text = preg_replace('/\[([^\]]+)\]\([^)]+\)/u', '$1', $text);
+    $text = preg_replace('/^\s{0,3}#{1,6}\s*/m', '', $text);
+    $text = preg_replace('/^\s{0,3}>\s?/m', '', $text);
+    $text = preg_replace('/^\s*[-*+]\s+/m', '- ', $text);
+    $text = preg_replace('/^\s*\d+\.\s+/m', '', $text);
+    $text = preg_replace('/[*_~]{1,3}([^*_~]+)[*_~]{1,3}/u', '$1', $text);
+    $text = preg_replace('/^\s*\|?[-:\s|]+\|?\s*$/m', '', $text);
+    return trim($text);
+}
+
+function cloud_generate_simple_markdown_pdf(string $markdown, string $pdfPath): bool {
+    if (cloud_generate_markdown_pdf_image($markdown, $pdfPath)) return true;
+    $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+    if (!is_file($fontPath)) return false;
+    $font = file_get_contents($fontPath);
+    if ($font === false) return false;
+    $lines = cloud_pdf_wrap_text(cloud_markdown_to_pdf_text($markdown), 86);
+    if (!$lines) $lines = [''];
+    $perPage = 48;
+    $pages = array_chunk($lines, $perPage);
+    $objects = [];
+    $objects[1] = '<< /Type /Catalog /Pages 2 0 R >>';
+    $fontObj = 3 + count($pages) * 2;
+    $descObj = $fontObj + 1;
+    $fontDescriptorObj = $fontObj + 2;
+    $fileObj = $fontObj + 3;
+    $pageRefs = [];
+    foreach ($pages as $i => $pageLines) {
+        $pageObj = 3 + $i * 2;
+        $contentObj = $pageObj + 1;
+        $pageRefs[] = $pageObj . ' 0 R';
+        $stream = "BT\n/F1 11 Tf\n50 790 Td\n14 TL\n";
+        foreach ($pageLines as $line) {
+            $stream .= '<' . cloud_pdf_utf16_hex($line) . "> Tj\nT*\n";
+        }
+        $stream .= "ET\n";
+        $objects[$pageObj] = '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ' . $fontObj . ' 0 R >> >> /Contents ' . $contentObj . ' 0 R >>';
+        $objects[$contentObj] = "<< /Length " . strlen($stream) . " >>\nstream\n" . $stream . "endstream";
+    }
+    $objects[2] = '<< /Type /Pages /Kids [' . implode(' ', $pageRefs) . '] /Count ' . count($pages) . ' >>';
+    $objects[$fontObj] = '<< /Type /Font /Subtype /Type0 /BaseFont /DejaVuSans /Encoding /Identity-H /DescendantFonts [' . $descObj . ' 0 R] >>';
+    $objects[$descObj] = '<< /Type /Font /Subtype /CIDFontType2 /BaseFont /DejaVuSans /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ' . $fontDescriptorObj . ' 0 R /DW 600 /CIDToGIDMap /Identity >>';
+    $objects[$fontDescriptorObj] = '<< /Type /FontDescriptor /FontName /DejaVuSans /Flags 4 /FontBBox [-1021 -463 1794 1233] /ItalicAngle 0 /Ascent 928 /Descent -236 /CapHeight 928 /StemV 80 /FontFile2 ' . $fileObj . ' 0 R >>';
+    $objects[$fileObj] = "<< /Length " . strlen($font) . " /Length1 " . strlen($font) . " >>\nstream\n" . $font . "\nendstream";
+    ksort($objects);
+    $pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+    $offsets = [0];
+    foreach ($objects as $num => $body) {
+        $offsets[$num] = strlen($pdf);
+        $pdf .= $num . " 0 obj\n" . $body . "\nendobj\n";
+    }
+    $xref = strlen($pdf);
+    $max = max(array_keys($objects));
+    $pdf .= "xref\n0 " . ($max + 1) . "\n0000000000 65535 f \n";
+    for ($i = 1; $i <= $max; $i++) {
+        $pdf .= sprintf("%010d 00000 n \n", $offsets[$i] ?? 0);
+    }
+    $pdf .= "trailer\n<< /Size " . ($max + 1) . " /Root 1 0 R >>\nstartxref\n$xref\n%%EOF";
+    return file_put_contents($pdfPath, $pdf) !== false && is_file($pdfPath) && filesize($pdfPath) > 0;
+}
+
+function cloud_generate_markdown_pdf_image(string $markdown, string $pdfPath): bool {
+    $fontPath = '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf';
+    if (!is_file($fontPath)) return false;
+    $input = tempnam(sys_get_temp_dir(), 'cloud_md_pdf_');
+    if ($input === false) return false;
+    file_put_contents($input, $markdown);
+    $py = <<<'PY'
+import re, sys
+from PIL import Image, ImageDraw, ImageFont
+src, out, font_path = sys.argv[1], sys.argv[2], sys.argv[3]
+markdown = open(src, 'r', encoding='utf-8', errors='replace').read().replace('\r\n', '\n').replace('\r', '\n')
+bold_path = font_path.replace('DejaVuSans.ttf', 'DejaVuSans-Bold.ttf')
+mono_path = font_path.replace('DejaVuSans.ttf', 'DejaVuSansMono.ttf')
+font = ImageFont.truetype(font_path, 28)
+bold = ImageFont.truetype(bold_path, 28)
+mono = ImageFont.truetype(mono_path, 24)
+fonts = {
+    'p': font,
+    'bold': bold,
+    'h1': ImageFont.truetype(bold_path, 46),
+    'h2': ImageFont.truetype(bold_path, 38),
+    'h3': ImageFont.truetype(bold_path, 32),
+    'code': mono,
+}
+width, height = 1240, 1754
+margin = 90
+max_w = width - margin * 2
+pages = []
+img = Image.new('RGB', (width, height), 'white')
+draw = ImageDraw.Draw(img)
+y = margin
+def text_width(s, f):
+    return draw.textlength(s, font=f)
+def strip_inline(s):
+    s = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', s)
+    s = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', s)
+    s = re.sub(r'`([^`]*)`', r'\1', s)
+    s = re.sub(r'(\*\*|__)(.*?)\1', r'\2', s)
+    s = re.sub(r'(\*|_)(.*?)\1', r'\2', s)
+    s = re.sub(r'~~(.*?)~~', r'\1', s)
+    return s
+def wrap_line(line, f, max_width=max_w):
+    line = strip_inline(line).strip()
+    if not line:
+        return ['']
+    words = line.split()
+    out = []
+    cur = ''
+    for word in words:
+        cand = word if not cur else cur + ' ' + word
+        if text_width(cand, f) <= max_width:
+            cur = cand
+            continue
+        if cur:
+            out.append(cur)
+        cur = word
+        while cur and text_width(cur, f) > max_width:
+            lo, hi = 1, len(cur)
+            while lo < hi:
+                mid = (lo + hi + 1) // 2
+                if text_width(cur[:mid], f) <= max_width:
+                    lo = mid
+                else:
+                    hi = mid - 1
+            out.append(cur[:lo])
+            cur = cur[lo:]
+    if cur:
+        out.append(cur)
+    return out
+def new_page():
+    global img, draw, y
+    pages.append(img)
+    img = Image.new('RGB', (width, height), 'white')
+    draw = ImageDraw.Draw(img)
+    y = margin
+def ensure(h):
+    if y + h > height - margin:
+        new_page()
+def draw_lines(lines, f, x=margin, fill=(20, 20, 20), line_h=None, before=0, after=12):
+    global y
+    if line_h is None:
+        line_h = int(f.size * 1.45)
+    if before:
+        ensure(before)
+        y += before
+    for line in lines:
+        ensure(line_h)
+        draw.text((x, y), line, fill=fill, font=f)
+        y += line_h
+    y += after
+def parse_table_row(row):
+    row = row.strip()
+    if row.startswith('|'):
+        row = row[1:]
+    if row.endswith('|'):
+        row = row[:-1]
+    return [strip_inline(c.strip()) for c in row.split('|')]
+def is_table_sep(line):
+    return bool(re.match(r'^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$', line))
+def draw_table(rows):
+    global y
+    if not rows:
+        return
+    cols = max(len(r) for r in rows)
+    col_w = max_w / cols
+    pad = 10
+    for ri, row in enumerate(rows):
+        f = fonts['bold'] if ri == 0 else fonts['p']
+        wrapped = [wrap_line(row[ci] if ci < len(row) else '', f, int(col_w - pad * 2)) for ci in range(cols)]
+        row_h = max(44, max(len(c) for c in wrapped) * int(f.size * 1.35) + pad * 2)
+        ensure(row_h)
+        if ri == 0:
+            draw.rectangle([margin, y, margin + max_w, y + row_h], fill=(238, 240, 243))
+        for ci, cell_lines in enumerate(wrapped):
+            x0 = int(margin + ci * col_w)
+            x1 = int(margin + (ci + 1) * col_w)
+            draw.rectangle([x0, y, x1, y + row_h], outline=(150, 150, 150), width=2)
+            ty = y + pad
+            for line in cell_lines:
+                draw.text((x0 + pad, ty), line, font=f, fill=(20, 20, 20))
+                ty += int(f.size * 1.35)
+        y += row_h
+    y += 18
+def flush_paragraph(buf):
+    if buf:
+        draw_lines(wrap_line(' '.join(buf), fonts['p']), fonts['p'], after=14)
+lines = markdown.split('\n')
+i = 0
+para = []
+in_code = False
+code_lines = []
+while i < len(lines):
+    raw = lines[i]
+    if raw.strip().startswith('```'):
+        flush_paragraph(para)
+        para = []
+        if in_code:
+            for code in code_lines or ['']:
+                draw_lines(wrap_line(code, fonts['code'], max_w - 24), fonts['code'], x=margin + 12, fill=(45, 45, 45), line_h=34, after=0)
+            y += 14
+            code_lines = []
+            in_code = False
+        else:
+            in_code = True
+        i += 1
+        continue
+    if in_code:
+        code_lines.append(raw)
+        i += 1
+        continue
+    if raw.strip() == '':
+        flush_paragraph(para)
+        para = []
+        y += 8
+        i += 1
+        continue
+    if re.match(r'^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$', raw):
+        flush_paragraph(para)
+        para = []
+        ensure(24)
+        draw.line([margin, y + 10, margin + max_w, y + 10], fill=(180, 180, 180), width=2)
+        y += 28
+        i += 1
+        continue
+    if i + 1 < len(lines) and '|' in raw and is_table_sep(lines[i + 1]):
+        flush_paragraph(para)
+        para = []
+        table = [parse_table_row(raw)]
+        i += 2
+        while i < len(lines) and '|' in lines[i] and lines[i].strip():
+            table.append(parse_table_row(lines[i]))
+            i += 1
+        draw_table(table)
+        continue
+    m = re.match(r'^\s{0,3}(#{1,6})\s+(.+?)\s*#*\s*$', raw)
+    if m:
+        flush_paragraph(para)
+        para = []
+        level = len(m.group(1))
+        f = fonts['h1'] if level == 1 else fonts['h2'] if level == 2 else fonts['h3']
+        draw_lines(wrap_line(m.group(2), f), f, before=8 if y > margin else 0, after=16)
+        i += 1
+        continue
+    m = re.match(r'^(\s*)([-*+])\s+(.+)$', raw)
+    if m:
+        flush_paragraph(para)
+        para = []
+        indent = min(90, len(m.group(1)) * 12)
+        wrapped = wrap_line('• ' + m.group(3), fonts['p'], max_w - indent)
+        draw_lines(wrapped, fonts['p'], x=margin + indent, after=2)
+        i += 1
+        continue
+    m = re.match(r'^(\s*)(\d+)[.)]\s+(.+)$', raw)
+    if m:
+        flush_paragraph(para)
+        para = []
+        indent = min(90, len(m.group(1)) * 12)
+        wrapped = wrap_line(m.group(2) + '. ' + m.group(3), fonts['p'], max_w - indent)
+        draw_lines(wrapped, fonts['p'], x=margin + indent, after=2)
+        i += 1
+        continue
+    m = re.match(r'^\s{0,3}>\s?(.*)$', raw)
+    if m:
+        flush_paragraph(para)
+        para = []
+        wrapped = wrap_line(m.group(1), fonts['p'], max_w - 30)
+        draw.line([margin, y, margin, y + max(40, len(wrapped) * 40)], fill=(160, 160, 160), width=4)
+        draw_lines(wrapped, fonts['p'], x=margin + 22, fill=(70, 70, 70), after=10)
+        i += 1
+        continue
+    para.append(raw.strip())
+    i += 1
+flush_paragraph(para)
+if in_code and code_lines:
+    for code in code_lines:
+        draw_lines(wrap_line(code, fonts['code'], max_w - 24), fonts['code'], x=margin + 12, fill=(45, 45, 45), line_h=34, after=0)
+if not pages or y > margin:
+    pages.append(img)
+pages[0].save(out, 'PDF', resolution=150, save_all=True, append_images=pages[1:])
+PY;
+    $cmd = 'python3 -c ' . escapeshellarg($py) . ' ' . escapeshellarg($input) . ' ' . escapeshellarg($pdfPath) . ' ' . escapeshellarg($fontPath);
+    $output = [];
+    $code = 1;
+    exec($cmd . ' 2>&1', $output, $code);
+    @unlink($input);
+    return $code === 0 && is_file($pdfPath) && filesize($pdfPath) > 0;
+}
+
 if ($action === 'export_pdf') {
     // Ensure clean JSON output - clear any previous output
     while (ob_get_level()) {
@@ -2576,13 +3165,24 @@ if ($action === 'export_pdf') {
     $output = [];
     $errorMessage = '';
 
-    $command = '/usr/bin/pandoc ' . escapeshellarg($fullPath) . ' -o ' . escapeshellarg($pdfPath) . ' --pdf-engine=/usr/bin/xelatex -V mainfont="Liberation Serif" -V papersize=a4';
-    exec($command . ' 2>&1', $output, $returnCode);
-
-    if ($returnCode !== 0 || !file_exists($pdfPath)) {
-        $output = [];
-        $command = '/usr/bin/pandoc ' . escapeshellarg($fullPath) . ' -o ' . escapeshellarg($pdfPath) . ' --pdf-engine=/usr/bin/xelatex -V mainfont="Liberation Serif" -V papersize=a4 --variable=CJKmainfont:"Noto Sans CJK SC"';
+    $pandocPath = is_executable('/usr/bin/pandoc') ? '/usr/bin/pandoc' : '';
+    if ($pandocPath !== '') {
+        $command = $pandocPath . ' ' . escapeshellarg($fullPath) . ' -o ' . escapeshellarg($pdfPath) . ' --pdf-engine=/usr/bin/xelatex -V mainfont="Liberation Serif" -V papersize=a4';
         exec($command . ' 2>&1', $output, $returnCode);
+    }
+
+    if ($pandocPath !== '' && ($returnCode !== 0 || !file_exists($pdfPath))) {
+        $output = [];
+        $command = $pandocPath . ' ' . escapeshellarg($fullPath) . ' -o ' . escapeshellarg($pdfPath) . ' --pdf-engine=/usr/bin/xelatex -V mainfont="Liberation Serif" -V papersize=a4 --variable=CJKmainfont:"Noto Sans CJK SC"';
+        exec($command . ' 2>&1', $output, $returnCode);
+    }
+
+    if (($pandocPath === '' || $returnCode !== 0 || !file_exists($pdfPath)) && is_readable($fullPath)) {
+        $fallbackOk = cloud_generate_simple_markdown_pdf((string)file_get_contents($fullPath), $pdfPath);
+        if ($fallbackOk) {
+            $returnCode = 0;
+            $output = [];
+        }
     }
 
     // Ensure clean output buffer before sending JSON response
@@ -2618,7 +3218,7 @@ if ($action === 'export_pdf') {
                 'warning' => 'Process returned code ' . $returnCode
             ]);
         } else {
-            $errorMessage = 'Pandoc failed with return code ' . $returnCode;
+            $errorMessage = $pandocPath === '' ? 'PDF export failed: pandoc is not installed and fallback generation failed' : 'Pandoc failed with return code ' . $returnCode;
             if (!empty($output)) {
                 $errorMessage .= ': ' . implode(' | ', array_slice($output, 0, 5));
             }
@@ -2626,7 +3226,6 @@ if ($action === 'export_pdf') {
                 'success' => false,
                 'error' => $errorMessage,
                 'details' => [
-                    'last_command' => $command,
                     'return_code' => $returnCode,
                     'output' => array_slice($output, 0, 10)
                 ]

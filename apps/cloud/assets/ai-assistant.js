@@ -8,13 +8,14 @@
     const AI_CONFIG = {
         apiEndpoint: window.APP_CONFIG?.aiApiBase || 'ai.php',
         fileApiEndpoint: window.APP_CONFIG?.apiBase || 'api.php',
-        defaultModel: 'nvidia/openai/gpt-oss-120b',
+        defaultModel: 'github/gpt-4o-mini',
         defaultRole: 'general',
         configuredModels: null,
         directApi: {
             configured: false
         }
     };
+    const LOCAL_HISTORY_KEY = 'cloud_ai_chat_history_v2';
 
     const CONTEXT_LIMITS = {
         maxMentionedFiles: 8,
@@ -487,7 +488,7 @@
     }
     function getPreferredModelCandidates() {
         const fromCfg = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels : [];
-        return [AI_CONFIG.defaultModel, ...fromCfg, 'nvidia/openai/gpt-oss-120b', 'kc/anthropic/claude-sonnet-4.6'].filter(Boolean);
+        return [AI_CONFIG.defaultModel, ...fromCfg, 'github/gpt-4o-mini', 'github/gpt-4o'].filter(Boolean);
     }
     function resolveModelForRequest() {
         if (!elements.modelSelect) return AI_CONFIG.defaultModel;
@@ -578,7 +579,7 @@
     }
     function shouldMarkModelUnavailable(errorText) {
         const text = String(errorText || '').toLowerCase();
-        return text.includes('insufficient') || text.includes('quota') || text.includes('balance') || text.includes('not enough') || text.includes('model is not available') || text.includes('model not available') || text.includes('invalid model') || text.includes('model not found') || text.includes('does not exist') || text.includes('unavailable');
+        return text.includes('insufficient') || text.includes('quota') || text.includes('balance') || text.includes('not enough') || text.includes('model is not available') || text.includes('model not available') || text.includes('invalid model') || text.includes('model not found') || text.includes('does not exist') || text.includes('unavailable') || text.includes('rate-limit') || text.includes('queue budget') || text.includes('maximum combo retry');
     }
     function initCustomModelDropdown() {
         if (!elements.modelSelect) return;
@@ -941,6 +942,8 @@
                 overflow-x: auto !important;
                 overflow-y: hidden !important;
                 white-space: nowrap !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
             }
 
             /* Sidebar animation for AI panel */
@@ -1029,7 +1032,7 @@
                 }
                 #ai-modal .ai-input {
                     flex-shrink: 0 !important;
-                    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+                    padding-bottom: 8px !important;
                 }
             }
             #ai-modal .ai-resize-handle {
@@ -1500,11 +1503,14 @@
                 flex: 0 0 auto !important;
                 align-items: center !important;
                 gap: 6px !important;
-                padding: 4px 8px !important;
-                border: 1px solid rgba(133, 181, 3, 0.18) !important;
+                min-height: 30px !important;
+                padding: 5px 10px !important;
+                border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--border)) !important;
                 border-radius: 999px !important;
-                background: rgba(133, 181, 3, 0.08) !important;
+                background: color-mix(in srgb, var(--accent) 16%, var(--panel)) !important;
+                color: var(--fg) !important;
                 max-width: 100% !important;
+                box-shadow: 0 1px 6px rgba(0,0,0,.12) !important;
             }
 
             .attached-file-info .attached-filename {
@@ -2079,23 +2085,6 @@
             }
             .ai-chat .action-button span {
                 white-space: nowrap;
-            }
-            .ai-chat .message-header .user-header-copy {
-                margin-left: 6px;
-                padding: 4px !important;
-                width: 26px;
-                height: 26px;
-                justify-content: center;
-                opacity: 0;
-                visibility: hidden;
-                pointer-events: none;
-                transition: opacity 0.15s ease;
-            }
-            .ai-chat .user-message:hover .message-header .user-header-copy,
-            .ai-chat .user-message:focus-within .message-header .user-header-copy {
-                opacity: 1;
-                visibility: visible;
-                pointer-events: auto;
             }
             
             /* Live think indicator */
@@ -3184,13 +3173,23 @@
     }
 
     function getTreeFilePathFromDragEvent(event) {
+        return getTreeFilePathsFromDragEvent(event)[0] || '';
+    }
+
+    function getTreeFilePathsFromDragEvent(event) {
         const dt = event?.dataTransfer;
-        if (!dt) return '';
+        if (!dt) return [];
         const hasCloudType = Array.from(dt.types || []).includes('application/x-cloud-file-path');
-        if (!hasCloudType) return '';
+        if (!hasCloudType) return [];
         const type = dt.getData('application/x-cloud-file-type');
-        if (type && type !== 'file') return '';
-        return normalizeMentionedFilePath(dt.getData('application/x-cloud-file-path'));
+        if (type && type !== 'file') return [];
+        const paths = [];
+        try {
+            const many = JSON.parse(dt.getData('application/x-cloud-file-paths') || '[]');
+            if (Array.isArray(many)) many.forEach(path => paths.push(path));
+        } catch (_) {}
+        paths.push(dt.getData('application/x-cloud-file-path') || dt.getData('text/plain'));
+        return Array.from(new Set(paths.map(normalizeMentionedFilePath).filter(path => path && !path.includes('..'))));
     }
 
     function setupAiTreeDropZone() {
@@ -3200,12 +3199,12 @@
 
         const clear = () => dropTarget.classList.remove('ai-tree-drop-active');
         dropTarget.addEventListener('dragenter', (event) => {
-            if (!getTreeFilePathFromDragEvent(event)) return;
+            if (getTreeFilePathsFromDragEvent(event).length === 0) return;
             event.preventDefault();
             dropTarget.classList.add('ai-tree-drop-active');
         });
         dropTarget.addEventListener('dragover', (event) => {
-            if (!getTreeFilePathFromDragEvent(event)) return;
+            if (getTreeFilePathsFromDragEvent(event).length === 0) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = 'copy';
             dropTarget.classList.add('ai-tree-drop-active');
@@ -3215,14 +3214,14 @@
             clear();
         });
         dropTarget.addEventListener('drop', (event) => {
-            const path = getTreeFilePathFromDragEvent(event);
-            if (!path) return;
+            const paths = getTreeFilePathsFromDragEvent(event);
+            if (paths.length === 0) return;
             event.preventDefault();
             event.stopPropagation();
             clear();
-            if (addMentionedFileAttachment(path)) {
-                flashStatus(tr('aiFilesAdded', 'Added {count} @file(s) to context', { count: 1 }));
-            }
+            let added = 0;
+            paths.forEach(path => { if (addMentionedFileAttachment(path)) added++; });
+            if (added > 0) flashStatus(tr('aiFilesAdded', 'Added {count} @file(s) to context', { count: added }));
         });
     }
 
@@ -5421,7 +5420,7 @@
                     const choice = parsed.choices?.[0];
                     if (choice?.finish_reason) finishReason = choice.finish_reason;
                     const delta = choice?.delta;
-                    const deltaText = delta?.content || delta?.reasoning_content || delta?.reasoning || delta?.text || '';
+                    const deltaText = delta?.content || delta?.text || '';
                     if (deltaText) {
                         content += deltaText;
                         onContentDelta?.(content);
@@ -5557,11 +5556,14 @@
         const mentions = [];
         const seen = new Set();
         const mentionRegex = /(^|\s)@([^\s@]+)/g;
+        const knownExts = '(?:md|markdown|tex|latex|txt|json|csv|xml|html?|css|js|mjs|cjs|ts|tsx|jsx|vue|php|py|rb|go|java|cs|c|cc|cpp|h|hpp|sh|ya?ml|sql|log|ini|toml|cfg|env|rst|pdf|docx?|xlsx?|pptx?)';
         let match;
 
         while ((match = mentionRegex.exec(message)) !== null) {
             let token = (match[2] || '').trim();
-            token = token.replace(/^[("'`\[]+/, '').replace(/[)"'`.,;:!?]+$/, '');
+            token = token.replace(/^[("'`\[]+/, '').replace(/[)"'`\].,;:!?]+$/, '');
+            const extMatch = token.match(new RegExp(`^(.+?\\.${knownExts})(?=[^/._-].*)`, 'i'));
+            if (extMatch) token = extMatch[1];
             if (!token) continue;
 
             // Disallow traversal. Drag-and-drop may provide a safe full tree path with slashes.
@@ -5717,12 +5719,7 @@
     function syncMobileInputKeyboardLift() {
         const aiInput = elements.input?.closest('.ai-input');
         if (!aiInput || !shouldSyncModalKeyboardViewport()) return;
-        if (isMobileKeyboardOpen()) {
-            const lift = Math.round((window.innerHeight || document.documentElement.clientHeight || 0) * MOBILE_INPUT_KEYBOARD_LIFT_RATIO);
-            aiInput.style.setProperty('transform', `translateY(-${lift}px)`, 'important');
-        } else {
-            aiInput.style.removeProperty('transform');
-        }
+        aiInput.style.removeProperty('transform');
     }
     function getVisualViewportRect() {
         const vv = window.visualViewport;
@@ -5997,6 +5994,19 @@
             }
 
             const items = Array.isArray(data.items) ? data.items : [];
+            if (!prepend && offset === 0 && items.length === 0) {
+                const fallback = await loadFallbackChatHistory();
+                if (fallback.length > 0) {
+                    aiState.chatHistory = fallback;
+                    aiState.historyHasMore = false;
+                    aiState.historyOffset = 0;
+                    renderChatHistory();
+                    setTimeout(setupStickyCodeHeaders, 100);
+                    scrollChatToBottom();
+                    attachInfiniteScroll();
+                    return;
+                }
+            }
             aiState.historyHasMore = !!data.has_more;
             aiState.historyOffset = offset + items.length;
 
@@ -6060,6 +6070,45 @@
         }
     }
 
+    async function loadFallbackChatHistory() {
+        const local = loadLocalChatHistory();
+        try {
+            const response = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'load_history' })
+            });
+            const data = await response.json();
+            const serverHistory = Array.isArray(data?.history) ? normalizeHistoryMessages(data.history) : [];
+            return serverHistory.length > 0 ? serverHistory : local;
+        } catch (e) {
+            return local;
+        }
+    }
+
+    function normalizeHistoryMessages(history) {
+        return history
+            .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim() !== '')
+            .map((m, i) => ({
+                id: String(m.id || `legacy_${i}_${Date.now()}`),
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp || new Date().toISOString(),
+                fileName: m.fileName || '',
+                stats: m.stats || null,
+                isAgent: !!m.isAgent,
+                agentMeta: m.agentMeta || null
+            }));
+    }
+
+    function loadLocalChatHistory() {
+        try {
+            return normalizeHistoryMessages(JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY) || '[]'));
+        } catch (e) {
+            return [];
+        }
+    }
+
     function attachInfiniteScroll() {
         const chat = elements.chat;
         if (!chat || chat._aiScrollPaginationAttached) return;
@@ -6075,7 +6124,17 @@
 
     async function saveChatHistory() {
         try {
-            // No-op: DB persistence is done per exchange (Q/A pair).
+            const compact = aiState.chatHistory.slice(-120).map((m) => ({
+                id: m.id,
+                role: m.role,
+                content: m.content,
+                timestamp: m.timestamp,
+                fileName: m.fileName || '',
+                stats: m.stats || null,
+                isAgent: !!m.isAgent,
+                agentMeta: m.agentMeta || null
+            }));
+            localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(compact));
         } catch (err) {
             console.error('Failed to save chat history:', err);
         }
@@ -6101,6 +6160,7 @@
             if (data.success) {
                 aiState.chatHistory = [];
                 aiState.processedMessageIds.clear();
+                localStorage.removeItem(LOCAL_HISTORY_KEY);
                 if (elements.chat) elements.chat.innerHTML = '';
                 elements.settingsModal?.classList.add('hidden');
                 flashStatus(window.i18n?.historyCleared || 'History cleared');
@@ -6317,6 +6377,18 @@
         const actions = document.createElement('div');
         actions.className = 'message-actions';
         actions.appendChild(createCopyButton(copyText || '', true));
+        const regenerateBtn = document.createElement('button');
+        regenerateBtn.className = 'action-button';
+        regenerateBtn.setAttribute('aria-label', tr('regenerateResponse', 'Regenerate response'));
+        regenerateBtn.title = tr('regenerateResponse', 'Regenerate response');
+        regenerateBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6M23 20v-6h-6" fill="none" />
+                <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" fill="none" />
+            </svg>
+        `;
+        regenerateBtn.onclick = () => regenerateResponse(msgEl.id);
+        actions.appendChild(regenerateBtn);
         footer.appendChild(actions);
         msgEl.appendChild(footer);
     }
@@ -6843,9 +6915,6 @@
                 </svg>
                 <span class="message-role">${escapeHtml(getUserLabel())}</span>
             `;
-            const copyBtn = createCopyButton(content, true);
-            copyBtn.classList.add('user-header-copy');
-            header.appendChild(copyBtn);
         } else {
             const modelName = getCurrentModelDisplayName();
             header.innerHTML = `
@@ -6864,6 +6933,17 @@
             contentDiv.className = 'message-content';
             contentDiv.textContent = content;
             messageDiv.appendChild(contentDiv);
+            const footer = document.createElement('div');
+            footer.className = 'message-footer';
+            const statsDiv = document.createElement('div');
+            statsDiv.className = 'message-stats';
+            statsDiv.innerHTML = `<div class="stat-item"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" fill="none" /><polyline points="12 6 12 12 16 14" fill="none" /></svg>${getCurrentTime()}</div>`;
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
+            actions.appendChild(createCopyButton(content, true));
+            footer.appendChild(statsDiv);
+            footer.appendChild(actions);
+            messageDiv.appendChild(footer);
         } else {
             const outer = document.createElement('div');
             outer.className = 'message-content';
@@ -7645,6 +7725,7 @@
                         isAgent: true,
                         agentMeta
                     });
+                    saveChatHistory();
                 } catch (agentErr) {
                     hideAgentStreamShell();
                     removeTypingIndicator();
@@ -7664,6 +7745,7 @@
                     aiState.isGenerating = false;
                     setInputState(false);
                     setSendButtonGenerating(false);
+                    renderAgentPlanInMessage();
                     aiState.abortController = null;
                     maybeShowAiCompletionNotification(completionNotify);
                 }
@@ -7715,6 +7797,7 @@
                         fileName: currentFile,
                         stats
                     });
+                    saveChatHistory();
                 } catch (chatErr) {
                     hideAgentStreamShell();
                     removeTypingIndicator();
@@ -7733,6 +7816,7 @@
                     aiState.isGenerating = false;
                     setInputState(false);
                     setSendButtonGenerating(false);
+                    renderAgentPlanInMessage();
                     aiState.abortController = null;
                     maybeShowAiCompletionNotification(completionNotify);
                 }
@@ -7799,6 +7883,7 @@
             let liveThinkBlocks = new Map();
             let currentThinkDiv = null;
             let gotFirstToken = false;
+            let streamError = null;
             
             while (true) {
                 const { done, value } = await reader.read();
@@ -7816,8 +7901,11 @@
                         
                         try {
                             const parsed = JSON.parse(data);
+                            if (parsed.error) {
+                                throw new Error(parsed.error.message || parsed.error || 'AI request failed');
+                            }
                             const delta = parsed.choices[0]?.delta;
-                            const content = delta?.content || '';
+                            const content = delta?.content || delta?.text || '';
                             
                             if (content) {
                                 if (!gotFirstToken) {
@@ -7865,12 +7953,19 @@
                 try { elements.chat?._stickyHandler?.(); } catch (e) {}
                             }
                         } catch (e) {
+                            streamError = e;
                             console.warn('Failed to parse chunk:', line, e);
                         }
                     }
+                    if (streamError) break;
                 }
+                if (streamError) break;
             }
-            
+            if (streamError) throw streamError;
+            if (!String(fullResponse || '').trim()) {
+                throw new Error('Empty AI response');
+            }
+
             if (isAgentMode) {
                 const ops = parseAgentPatch(fullResponse);
                 if (ops.length > 0) {
@@ -8004,6 +8099,7 @@
             // Keep minimal local history for "remember previous" feature
             aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
             aiState.chatHistory.push({ id: messageId, role: 'assistant', content: fullResponse, timestamp: new Date().toISOString(), fileName: currentFile, stats: stats });
+            saveChatHistory();
             
         } catch (err) {
             removeTypingIndicator();
@@ -8155,6 +8251,7 @@
         
         aiState.chatHistory = aiState.chatHistory.filter(msg => msg.id !== messageId);
         aiState.processedMessageIds.delete(messageId);
+        saveChatHistory();
         
         elements.input.value = userMessage;
         await sendAIMessage();

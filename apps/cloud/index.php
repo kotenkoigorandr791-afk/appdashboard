@@ -77,8 +77,10 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
 .root-toolbar-btn:hover{background:color-mix(in srgb,var(--accent) 10%,var(--bg));border-color:color-mix(in srgb,var(--accent) 45%,var(--border));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 .root-toolbar-btn:active{transform:translateY(1px)}
 .root-toolbar-btn.active{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-.root-toolbar-top-separator{width:100%;height:50px;display:flex;align-items:flex-end}
-.root-toolbar-spacer{margin-top:auto}
+	.root-toolbar-top-separator{width:100%;height:50px;display:flex;align-items:flex-end}
+	#btn-toggle-sidebar{position:fixed;left:<?php echo (int)($menuBtn['left']+$menuBtn['width']); ?>px;top:<?php echo (int)$menuBtn['top']; ?>px;width:<?php echo (int)$menuBtn['width']; ?>px;height:<?php echo (int)$menuBtn['height']; ?>px;border-radius:0 10px 10px 0;background:var(--glass-panel);border:1px solid color-mix(in srgb,var(--border) 70%,transparent);border-left:none;box-shadow:none;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:1200}
+	@media (max-width:768px){#btn-toggle-sidebar{left:<?php echo (int)($menuBtnMobile['left']+$menuBtnMobile['width']); ?>px;top:<?php echo (int)$menuBtnMobile['top']; ?>px;width:<?php echo (int)$menuBtnMobile['width']; ?>px;height:<?php echo (int)$menuBtnMobile['height']; ?>px}}
+	.root-toolbar-spacer{margin-top:auto}
 .root-toolbar-footer{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
 .root-toolbar-separator{width:100%;padding:2px 0 0;margin-top:2px}
 .root-toolbar-top-separator::before,.root-toolbar-separator::before{content:"";display:block;height:1px;margin:0 7px;background:color-mix(in srgb,var(--border) 72%,transparent);width:calc(100% - 14px)}
@@ -235,7 +237,7 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=9"></script>
-<script defer src="assets/ai-assistant.js?v=28"></script>
+<script defer src="assets/ai-assistant.js?v=30"></script>
 <script defer src="assets/monaco-editor.js?v=8"></script>
 
 
@@ -1035,25 +1037,25 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
         <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
-    <div class="modal-body" style="text-align: center; padding: 20px; padding-bottom: 78px; position:relative;">
-      <div style="margin:0;">
-        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; position:absolute; right:20px; bottom:18px;">
+    <div class="modal-body" style="text-align: center; padding: 20px; position:relative;">
+      <div id="share-modal-actions" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:nowrap; margin-top:14px;">
+        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2-icon lucide-settings-2"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
           <span>Link settings</span>
         </button>
-      </div>
-      <div id="share-link-container" style="margin: 15px 0; word-break: break-all; background: var(--panel); padding: 12px; border-radius: 6px; font-family: monospace;">
-        <a id="share-link" href="#" target="_blank"></a>
-      </div>
-      <div id="qrcode-container" style="margin: 20px auto; display: inline-block;"></div>
-      <button id="btn-copy-share-link" class="btn secondary">
+        <button id="btn-copy-share-link" class="btn secondary" style="display:inline-flex; align-items:center; gap:8px;">
         <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
             <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"></path>
             <path d="M16 3h5v5"></path>
             <path d="M21 3l-7.5 7.5"></path>
         </svg>
         <span data-i18n="shareCopyButton">Копировать ссылку</span>
-    </button>
+        </button>
+      </div>
+      <div id="share-link-container" style="margin: 15px 0; word-break: break-all; background: var(--panel); padding: 12px; border-radius: 6px; font-family: monospace;">
+        <a id="share-link" href="#" target="_blank"></a>
+      </div>
+      <div id="qrcode-container" style="margin: 20px auto; display: inline-block;"></div>
     </div>
   </div>
 </div>
@@ -1064,6 +1066,7 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
       <button id="btn-close-share-settings" class="icon-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
+      </div>
     </div>
     <div class="modal-body" style="padding:18px;">
       <div style="display:grid; gap:10px;">
@@ -1807,6 +1810,29 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
     </svg>
     <span class="floating-compile-time"></span>
 </button>
+
+<button id="floating-archive-btn" class="floating-download-btn hidden" title="Archive operations">
+    <svg width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+        <rect width="20" height="5" x="2" y="3" rx="1"></rect>
+        <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path>
+        <path d="M10 12h4"></path>
+    </svg>
+    <svg class="circular-progress" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="29.1" stroke-linecap="round"/>
+    </svg>
+</button>
+
+<div id="archive-progress-panel" class="download-progress-panel hidden">
+    <div class="download-panel-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+            <rect width="20" height="5" x="2" y="3" rx="1"></rect>
+            <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"></path>
+            <path d="M10 12h4"></path>
+        </svg>
+        <span>Archive Progress</span>
+    </div>
+    <div class="download-panel-body" id="archive-items-container"></div>
+</div>
 
 <!-- Upload progress panel -->
 <div id="upload-progress-panel" class="download-progress-panel hidden">
