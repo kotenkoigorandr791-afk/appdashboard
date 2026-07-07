@@ -3547,7 +3547,7 @@ async function fetchFilesystemList(path, onlyFolders = true) {
             const hostList = await fetchHostFilesystemList(p, onlyFolders, false);
             if (Array.isArray(hostList)) return hostList;
         } catch (e) {
-            /* fall through to Duplicati */
+            if (p === '/mnt' || p.startsWith('/mnt/')) throw e;
         }
     }
     const query = `onlyFolders=${onlyFolders ? 'true' : 'false'}&showHidden=false`;

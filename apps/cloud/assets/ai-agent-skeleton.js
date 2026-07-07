@@ -189,12 +189,16 @@ Request: «${String(userTask || '').slice(0, 400)}»`;
         if (!msg || typeof msg !== 'object') return '';
         const c = msg.content;
         if (typeof c === 'string' && c.trim() !== '') return c.trim();
-        const r = msg.reasoning_content ?? msg.reasoning;
-        if (typeof r === 'string' && r.trim() !== '') return r.trim();
         if (Array.isArray(c)) {
             return c.map((p) => (typeof p === 'string' ? p : (p?.text || ''))).join('').trim();
         }
         return '';
+    }
+    function looksLikeToolPlanningText(text) {
+        const s = String(text || '').trim();
+        if (!s) return false;
+        return /(?:^|\n)\s*(?:We need to|Let's|I need to|The assistant should|Нужно|Давайте)\b/i.test(s)
+            && /\b(?:read_file|get_open_file|compile_and_check|export_latex_pdf|export_markdown_pdf|offset_line|line_count|call the tool|call read_file)\b/i.test(s);
     }
     function messagesIncludeToolResults(messages) {
         return Array.isArray(messages) && messages.some((m) => m && m.role === 'tool');
@@ -239,6 +243,30 @@ The user wants the file content changed. User request: «${String(userTask || ''
         if (typeof raw === 'object') return raw;
         try { return JSON.parse(String(raw)); } catch (e) { return {}; }
     }
+    function parseXmlishToolCalls(text) {
+        const out = [];
+        const src = String(text || '');
+        const re = /<tool_call(?:\s+name=["']?([a-zA-Z0-9_:-]+)["']?)?\s*>([\s\S]*?)<\/tool_call>/gi;
+        let m;
+        while ((m = re.exec(src)) !== null) {
+            const body = String(m[2] || '').trim();
+            const firstLine = body.split(/\r?\n/, 1)[0].trim();
+            const name = (m[1] || firstLine || '').replace(/[^a-zA-Z0-9_:-].*$/, '').trim();
+            if (!name) continue;
+            const args = {};
+            const argRe = /<arg_key>([\s\S]*?)<\/arg_key>\s*<arg_value>([\s\S]*?)<\/arg_value>/gi;
+            let a;
+            while ((a = argRe.exec(body)) !== null) {
+                const key = String(a[1] || '').trim();
+                if (key) args[key] = String(a[2] || '').trim();
+            }
+            out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name, args, synthetic: true });
+        }
+        return out;
+    }
+    function stripXmlishToolCalls(text) {
+        return String(text || '').replace(/<tool_call[\s\S]*?<\/tool_call>/gi, '').trim();
+    }
     function collectToolCalls(message) {
         const out = [];
         if (!message) return out;
@@ -247,6 +275,9 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 if (!tc?.function?.name) return;
                 out.push({ id: tc.id || ('tc_' + out.length), name: tc.function.name, args: parseToolArgs(tc.function.arguments) });
             });
+        }
+        if (out.length === 0 && typeof message.content === 'string') {
+            out.push(...parseXmlishToolCalls(message.content));
         }
         return out;
     }
@@ -510,6 +541,15 @@ The user wants the file content changed. User request: «${String(userTask || ''
             const toolCalls = collectToolCalls(msg);
             if (toolCalls.length === 0) {
                 const text = extractAssistantMessageText(msg);
+                if (!useForceAnswer && looksLikeToolPlanningText(text) && answerNudges < 4) {
+                    answerNudges++;
+                    messages.push({ role: 'assistant', content: null });
+                    messages.push({
+                        role: 'user',
+                        content: 'Do not narrate internal steps. If you need a file or compiler result, call the tool now. If the task is complete, give only a short final answer to the user in their language.'
+                    });
+                    continue;
+                }
                 if (ctx.requiresContentEdit && !ctx.hasFileEdit && editNudges < 4) {
                     editNudges++;
                     messages.push({ role: 'assistant', content: msg.content || null });
@@ -519,7 +559,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
                     });
                     continue;
                 }
-                if (readOnly && !text && messagesIncludeToolResults(messages) && answerNudges < 3) {
+                if (!text && messagesIncludeToolResults(messages) && answerNudges < 3) {
                     answerNudges++;
                     forceAnswerOnly = true;
                     messages.push({ role: 'assistant', content: extractAssistantMessageText(msg) || null });
@@ -528,7 +568,15 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 }
                 return { content: text, messages, usage: { ...usageTotals } };
             }
-            messages.push({ role: 'assistant', content: msg.content || null, tool_calls: msg.tool_calls });
+            messages.push({
+                role: 'assistant',
+                content: msg.tool_calls ? (msg.content || null) : (stripXmlishToolCalls(msg.content) || null),
+                tool_calls: msg.tool_calls || toolCalls.map((tc) => ({
+                    id: tc.id,
+                    type: 'function',
+                    function: { name: tc.name, arguments: JSON.stringify(tc.args || {}) }
+                }))
+            });
             for (const tc of toolCalls) {
                 if (!tc.id) tc.id = 'call_' + Math.random().toString(36).slice(2, 14);
                 if (!readOnly && EDIT_TOOLS.has(tc.name)) {
@@ -555,8 +603,11 @@ The user wants the file content changed. User request: «${String(userTask || ''
                             tool_call_id: tc.id,
                             content: JSON.stringify({ ok: false, success: false, error: errText })
                         });
-                        const text = repeatedCompileFailureText(ctx, errText);
-                        return { content: text, messages, usage: { ...usageTotals } };
+                        messages.push({
+                            role: 'user',
+                            content: agentTr(ctx, 'aiAgentRepeatedCompileContinue', 'The same compiler error repeated. Do not stop. Inspect the relevant source around the reported line or search for the real cause, then apply a different fix and compile again.')
+                        });
+                        continue;
                     }
                 }
                 const slim = { ...result };

@@ -1233,9 +1233,16 @@ $defaultTranslations=['search_placeholder'=>'Search apps...','settings_title'=>'
     'apiKeysRequired'=>'Both API key fields are required when changing the key',
     'invalidApiKeyFormat'=>'Invalid API key format. Key should start with sk- or io-v2-',
     'ai_config_saved'=>'AI configuration saved',
+    'github_pull_settings'=>'Pull через GitHub',
+    'github_update'=>'Обновить',
+    'github_refresh'=>'Обновить список',
+    'github_pull_ok'=>'Успешно обновлено',
+    'github_pull_up_to_date'=>'Уже актуальная версия',
+    'github_no_changes'=>'Нет ожидающих изменений',
+    'github_pull_confirm'=>'Подтянуть изменения из main и перезапустить контейнер?',
     'ai_models_label'=>'Models (one per line)',
     'ai_default_model_label'=>'Default model',
-    'ap_settings_subtitle'=>'Configure email, Telegram bot, OnlyOffice, Docker, Backup, and AI assistant integrations.',
+    'ap_settings_subtitle'=>'Configure email, Telegram bot, OnlyOffice, Docker, Backup, AI Assistant, and Pull via GitHub integrations.',
     'docker_manager_subtitle'=>'Manage Docker containers, images, and services.'];
 $defaultTranslations['keyboard_shortcuts'] = 'Keyboard Shortcuts';
 $defaultTranslations['keyboard_shortcuts_desc'] = 'Hotkeys available on the home screen with app tiles.';

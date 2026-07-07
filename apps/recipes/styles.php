@@ -165,7 +165,7 @@ body::-webkit-scrollbar-thumb:hover {
 .recipe-search-container {
     width: 100%;
     max-width: 600px;
-    margin: 0 auto 20px auto;
+    margin: 0 100px 20px auto;
     padding: 0 20px;
 }
 
@@ -2085,6 +2085,11 @@ input[type="file"]:required {
 
 /* ==================== МОБИЛЬНАЯ ВЕРСИЯ ==================== */
 @media (max-width: 768px) {
+    .recipe-search-container {
+        width: auto;
+        margin: 0 74px 16px 0;
+        padding: 0;
+    }
 
     .sidebar {
         width: 65px !important;
@@ -2628,11 +2633,14 @@ input[type="file"]:required {
     }
     
     .share-actions {
-        flex-direction: column;
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: nowrap;
     }
     
     .share-actions button {
-        width: 100%;
+        width: auto;
     }
     
     .share-preview-wrapper {
@@ -2979,7 +2987,7 @@ input[type="file"]:required {
     align-items: center;
     gap: 8px;
     padding: 24px 16px;
-    border: 2px solid var(--border-color);
+    border: 2px solid color-mix(in srgb, var(--primary-color) 72%, var(--border-color));
     border-radius: var(--border-radius);
     background: var(--bg-color);
     color: var(--text-color);

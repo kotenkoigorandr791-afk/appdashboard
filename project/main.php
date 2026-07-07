@@ -6,11 +6,9 @@
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <link rel="icon" href="icon.png" type="image/png">
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
-    <?php require_once __DIR__ . '/browser-icons.php'; ?>
+    <?php require_once __DIR__ . '/../browser-icons.php'; ?>
     <?php if($path==='/main' && !$showLogin): ?>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://unpkg.com/qrcodejs@1.0.0/qrcode.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js" defer></script>
     <?php endif; ?>
     <style>
         :root{--bg-color:<?php echo $config['theme']==='dark'?'#333':'#fff';?>;--text-color:<?php echo $config['theme']==='dark'?'#fff':'#1f2937';?>;--primary-color:<?php echo my_htmlspecialchars($config['color']);?>;--sidebar-bg:<?php echo $config['theme']==='dark'?'#444':'#f0f0f0';?>;--group-block-bg:<?php echo $config['theme']==='dark'?'#555':'#e9e9e9';?>;--app-item-bg:<?php echo $config['theme']==='dark'?'#666':'#d9d9d9';?>;--tooltip-bg:<?php echo $config['theme']==='dark'?'#666':'#333';?>;--modal-bg:<?php echo $config['theme']==='dark'?'#555':'#fff';?>;--border-color:<?php echo $config['theme']==='dark'?'#666':'#ccc';?>;--icon-bg-color:<?php echo $config['theme']==='dark'?'#444':'#f0f0f0';?>;--link-color:<?php echo $config['theme']==='dark'?'#ddd':'#333';?>;--link-hover-color:var(--primary-color);--table-header-bg:<?php echo $config['theme']==='dark'?'#444':'#f0f0f0';?>;--table-row-hover:<?php echo $config['theme']==='dark'?'#555':'#f5f5f5';?>;--scrollbar-track:<?php echo $config['theme']==='dark'?'#222':'#f0f0f0';?>;--scrollbar-thumb:<?php echo $config['theme']==='dark'?'#555':'#c0c0c0';?>;--scrollbar-thumb-hover:<?php echo $config['theme']==='dark'?'#777':'#999';?>;--app-icon-grad-start:<?php echo $config['theme']==='dark'?'color-mix(in srgb,var(--primary-color) 72%,white)':'color-mix(in srgb,var(--primary-color) 84%,black)';?>;--app-icon-grad-end:<?php echo $config['theme']==='dark'?'color-mix(in srgb,var(--primary-color) 88%,black)':'color-mix(in srgb,var(--primary-color) 65%,black)';?>;--shell-menu-button-left:<?php echo (int)($selectedAppMenuButton['left']??20); ?>px;--shell-menu-button-top:<?php echo (int)($selectedAppMenuButton['top']??13); ?>px;--shell-menu-button-width:<?php echo (int)($selectedAppMenuButton['width']??40); ?>px;--shell-menu-button-height:<?php echo (int)($selectedAppMenuButton['height']??40); ?>px;--shell-menu-button-mobile-left:<?php echo (int)($selectedAppMenuButtonMobile['left']??($selectedAppMenuButton['left']??20)); ?>px;--shell-menu-button-mobile-top:<?php echo (int)($selectedAppMenuButtonMobile['top']??($selectedAppMenuButton['top']??13)); ?>px;--shell-menu-button-mobile-width:<?php echo (int)($selectedAppMenuButtonMobile['width']??($selectedAppMenuButton['width']??40)); ?>px;--shell-menu-button-mobile-height:<?php echo (int)($selectedAppMenuButtonMobile['height']??($selectedAppMenuButton['height']??40)); ?>px;}
@@ -95,18 +93,21 @@
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
-        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
-        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
+	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
+	        <?php if(!empty($selectedAppMenuButtonScroll)): ?>#menu-button{position:absolute;}<?php endif; ?>
+	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
+	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
         #menu-button{top:25px;background:none;width:auto;height:auto;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateY(-50%);}
         #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
         #menu-button .menu-button-glyph{width:100%;height:100%;font-size:calc(var(--shell-menu-button-height) * 0.5);transform:translateY(-1px);text-shadow:0 2px 4px rgba(0,0,0,0.16);}
-        @media (max-width:768px){
-            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
-            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
-        }
+	        @media (max-width:768px){
+	            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
+	            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
+	            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
+	        }
         <?php endif; ?>
         #sidebar{position:fixed;top:0;left:-320px;width:320px;height:100%;background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
         #sidebar.open{left:0;}
@@ -282,12 +283,39 @@
         .stats-edit-button{margin-left:auto;}
         #app-iframe{width:100%;height:100vh;border:none;position:fixed;top:0;left:0;z-index:1;box-sizing:border-box;}
         #content{padding-top:0;position:fixed;left:0;width:100%;height:100vh;box-sizing:border-box;overflow:hidden;}
+        #content.has-app-rail{--rail-w:48px;}
+        #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
+        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+        #app-icon-rail::-webkit-scrollbar{display:none;}
+        .app-rail-link{display:flex;align-items:center;justify-content:center;width:var(--rail-icon);height:var(--rail-icon);border-radius:8px;flex-shrink:0;text-decoration:none;color:var(--text-color);background:transparent;transition:background-color 0.2s,transform 0.15s;}
+        .app-rail-link:hover{background:color-mix(in srgb,var(--primary-color) 22%,transparent);transform:translateY(-1px);}
+        .app-rail-link.active{background:color-mix(in srgb,var(--primary-color) 80%,transparent);}
+        .app-rail-icon-svg{display:block;width:62%;height:62%;background-color:currentColor;-webkit-mask-image:var(--icon-src);mask-image:var(--icon-src);-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;}
+        .app-rail-link.active .app-rail-icon-svg{background-color:#fff;}
+        .app-rail-icon{width:62%;height:62%;object-fit:contain;border-radius:4px;}
+        .app-rail-divider{width:60%;height:1px;background:color-mix(in srgb,var(--border-color) 40%,transparent);flex-shrink:0;margin:2px 0;}
+        .app-rail-scroll{display:contents;}
+        .app-rail-service-name{display:none;}
+        @media (max-width:768px){
+            #content.has-app-rail{--rail-w:40px;}
+            #app-icon-rail{--rail-w:40px;--rail-icon:24px;gap:4px;padding-top:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) + 8px);padding-bottom:8px;padding-left:3px;padding-right:3px;}
+            #content.has-app-rail.rail-top-on-mobile{--rail-h:48px;--rail-w:0px;}
+            #content.has-app-rail.rail-top-on-mobile #app-iframe{left:0!important;width:100%!important;top:var(--rail-h);height:calc(100% - var(--rail-h));}
+            #content.has-app-rail.rail-top-on-mobile #app-icon-rail{flex-direction:row;width:100%;height:var(--rail-h);border-right:none;border-bottom:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);padding:0;overflow:hidden;gap:0;position:relative;}
+            #content.has-app-rail.rail-top-on-mobile .app-rail-scroll{display:flex;flex-direction:row;align-items:center;gap:6px;padding:0 8px 0 calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;height:100%;flex:1;}
+            #content.has-app-rail.rail-top-on-mobile .app-rail-scroll::-webkit-scrollbar{display:none;}
+            #content.has-app-rail.rail-top-on-mobile .app-rail-divider{width:1px;height:60%;flex-shrink:0;margin:0 2px;}
+            #content.has-app-rail.rail-top-on-mobile .app-rail-service-name{display:block;writing-mode:horizontal-tb;transform:none;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--text-color);opacity:.7;white-space:nowrap;padding:0 8px;max-width:110px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;user-select:none;}
+        }
         /* border-box: height includes padding — otherwise padding is added outside height and the grid is clipped by #content (last tiles unreachable). */
         #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));}
         /* Fill viewport; use dvh on mobile so iframe/content match visible area (100vh exceeds it when browser chrome is shown). */
         @supports (height:100dvh){
             #content{height:100dvh;min-height:100dvh;max-height:100dvh;}
             #app-iframe{height:100dvh;min-height:100dvh;max-height:100dvh;}
+            @media (max-width:768px){
+                #content.has-app-rail.rail-top-on-mobile #app-iframe{height:calc(100dvh - var(--rail-h));min-height:calc(100dvh - var(--rail-h));max-height:calc(100dvh - var(--rail-h));}
+            }
         }
         #app-grid::-webkit-scrollbar{width:8px;height:8px;}
         #app-grid::-webkit-scrollbar-track{background:var(--group-block-bg);border-radius:4px;}
@@ -1333,7 +1361,7 @@ endif; // showOtpPage
     <div id="sidebar">
         <div id="app-list-container">
             <ul id="app-list">
-                <?php foreach($groupedApps as $letter=>$group):?><div class="group-letter"><?php echo my_htmlspecialchars($letter); ?></div><div class="group-block"><ul><?php foreach($group as $name=>$appData):?><li data-tooltip="<?php echo my_htmlspecialchars($translations['open_app_tooltip'].' '.$name); ?>"><a href="/main?app=<?php echo urlencode($appData['folder']); ?>&lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?>" class="app-tile-link"><span class="sidebar-app-name"><?php echo my_htmlspecialchars($name); ?></span><span class="sidebar-app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="sidebar-app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');" aria-hidden="true"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="" class="sidebar-app-icon"><?php endif; ?></span></a><span class="tooltip"></span></li><?php endforeach;?></ul></div><?php endforeach;?>
+                <?php foreach($groupedApps as $letter=>$group):?><div class="group-letter"><?php echo my_htmlspecialchars($letter); ?></div><div class="group-block"><ul><?php foreach($group as $name=>$appData):?><li data-tooltip="<?php echo my_htmlspecialchars($translations['open_app_tooltip'].' '.$name); ?>"><a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><span class="sidebar-app-name"><?php echo my_htmlspecialchars($name); ?></span><span class="sidebar-app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="sidebar-app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');" aria-hidden="true"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="" class="sidebar-app-icon"><?php endif; ?></span></a><span class="tooltip"></span></li><?php endforeach;?></ul></div><?php endforeach;?>
             </ul>
         </div>
         <div id="bottom-bar">
@@ -1381,12 +1409,14 @@ endif; // showOtpPage
             <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
         </div>
         <div class="settings-buttons-box">
+            <?php if(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 1): ?>
             <div class="settings-button-wrapper">
-                <button id="stats-button" type="button" class="sidebar-button">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-2h2v7h-2v-7zm4 4h2v3h-2v-3z"/></svg>
+                <button id="news-portal-open-btn" type="button" class="sidebar-button" onclick="const sm=document.getElementById('settings-modal');if(sm)sm.style.display='none';if(typeof window.openNewsPortal==='function')window.openNewsPortal()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8"/><path d="M15 18h-5"/><path d="M10 6h8v4h-8V6Z"/></svg>
                 </button>
-                <span class="tooltip" id="stats-tooltip"><?php echo my_htmlspecialchars($translations['stats_graph']); ?></span>
+                <span class="tooltip"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></span>
             </div>
+            <?php endif; ?>
             <div class="settings-button-wrapper">
                 <button id="qr-button" type="button" class="sidebar-button">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M1 1h8v8H1zM3 3v4h4V3zM1 15h8v8H1zM3 17v4h4v-4zM15 1h8v8h-8zM17 3v4h4V3zM15 15h8v8h-8zM17 17v4h4v-4z"/></svg>
@@ -1452,7 +1482,6 @@ endif; // showOtpPage
             <tbody>
                 <tr><td><code>A</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_admin_panel'] ?? 'Open Admin Panel'); ?><?php if(!$isAdmin): ?> <span style="opacity:.6;">(<?php echo my_htmlspecialchars($translations['admin_only'] ?? 'admin only'); ?>)</span><?php endif; ?></td></tr>
                 <tr><td><code>S</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_sessions'] ?? 'Open Session Management'); ?></td></tr>
-                <tr><td><code>T</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_stats'] ?? 'Open Statistics'); ?></td></tr>
                 <tr><td><code>F</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_shared_files'] ?? 'Open Shared Files'); ?></td></tr>
                 <tr><td><code>Q</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_qr'] ?? 'Open QR Code'); ?></td></tr>
                 <tr><td><code>P</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_profile'] ?? 'Open Profile'); ?></td></tr>
@@ -1469,46 +1498,24 @@ endif; // showOtpPage
         </div>
     </div>
 </div>
-<div id="stats-modal">
-    <div id="stats-content">
-        <button id="close-stats" type="button">&times;</button>
-        <div class="stats-header">
-            <h2><?php echo my_htmlspecialchars($translations['stats_graph']); ?></h2>
-
-        </div>
-        <div id="stats-nav-box">
-            <div class="stats-nav-buttons">
-                <div id="stats-controls">
-                    <button id="year-view"><?php echo my_htmlspecialchars($translations['year_view']); ?></button>
-                    <button id="month-view"><?php echo my_htmlspecialchars($translations['month_view']); ?></button>
-                    <button id="week-view"><?php echo my_htmlspecialchars($translations['week_view']); ?></button>
-                </div>
-                <div class="stats-nav-row">
-                    <button id="previous-year" class="stats-nav-btn" title="<?php echo my_htmlspecialchars($translations['previous_year']); ?>">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                        <span class="stats-nav-label"><?php echo my_htmlspecialchars($translations['year']); ?></span>
-                    </button>
-                    <button id="previous-month" class="stats-nav-btn" title="<?php echo my_htmlspecialchars($translations['previous_month']); ?>">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-                        <span class="stats-nav-label"><?php echo my_htmlspecialchars($translations['month']); ?></span>
-                    </button>
-                    <span id="stats-year-month-label" class="stats-year-month-label"></span>
-                    <button id="next-month" class="stats-nav-btn" title="<?php echo my_htmlspecialchars($translations['next_month']); ?>">
-                        <span class="stats-nav-label"><?php echo my_htmlspecialchars($translations['month']); ?></span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-                    </button>
-                    <button id="next-year" class="stats-nav-btn" title="<?php echo my_htmlspecialchars($translations['next_year']); ?>">
-                        <span class="stats-nav-label"><?php echo my_htmlspecialchars($translations['year']); ?></span>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-                    </button>
-                </div>
+<?php require __DIR__ . '/news_portal_modal.php'; ?>
+<?php
+$selectedAppData=null;
+if($selectedApp){foreach($apps as $appData){if($appData['folder']===$selectedApp){$selectedAppData=$appData;break;}}}
+$showAppFrame=$path==='/main'&&$selectedAppData!==null;
+$showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
+?>
+<?php $railTopApps=['immich','gitea']; ?>
+<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell<?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps))?' rail-top-on-mobile':''; ?>"<?php endif;?>>
+    <?php if($showAppFrame):?>
+        <?php if($showAppRail):?>
+        <div id="app-icon-rail">
+            <div class="app-rail-scroll">
+            <a href="/main" class="app-rail-link app-rail-home" title="<?php echo my_htmlspecialchars($translations['home_tooltip'] ?? $translations['home'] ?? 'Home'); ?>"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+            <span class="app-rail-service-name"><?php echo my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)); ?></span>
             </div>
         </div>
-        <div id="stats-canvas-container"><canvas id="stats-canvas"></canvas></div>
-    </div>
-</div>
-<div id="content"<?php if($path==='/main'&&$selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps))):?> class="mobile-vv-shell"<?php endif;?>>
-    <?php if($path==='/main'&&$selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps))):?>
+        <?php endif;?>
         <iframe id="app-iframe" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/index.php?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
     <?php elseif($path==='/main'):?>
         <?php if(!$showTopBarTitle):?>
@@ -1520,7 +1527,7 @@ endif; // showOtpPage
         <div id="app-grid">
             <?php foreach($apps as $name=>$appData):?>
                 <?php $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
-                <a href="/main?app=<?php echo urlencode($appData['folder']); ?>&lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?>" class="app-tile-link"><div class="app-tile"><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div><div class="app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div></div></a>
+                <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><div class="app-tile"><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div><div class="app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div></div></a>
             <?php endforeach;?>
         </div>
     <?php endif;?>
@@ -2028,28 +2035,10 @@ var T=<?php echo json_encode([
         const sidebar=document.getElementById('sidebar');
         const settingsButton=document.getElementById('settings-button');
         const settingsModal=document.getElementById('settings-modal');
-        const statsButton=document.getElementById('stats-button');
-        const statsModal=document.getElementById('stats-modal');
-        const closeStats=document.getElementById('close-stats');
-        const weekView=document.getElementById('week-view');
-        const monthView=document.getElementById('month-view');
-        const yearView=document.getElementById('year-view');
-        const statsYearMonthLabel=document.getElementById('stats-year-month-label');
         const searchBar=document.getElementById('search-bar');
         const clearSearch=document.getElementById('clear-search');
         const appList=document.getElementById('app-list');
         const appItems=appList?appList.querySelectorAll('li'):[];
-        const statsCanvas=document.getElementById('stats-canvas');
-        let chartInstance=null;
-        let currentPeriod='month';
-        let currentDate=new Date();
-        let currentYear=currentDate.getFullYear();
-        let currentMonth=currentDate.getMonth();
-        let statsCurrentYear = new Date().getFullYear();
-        const previousYearBtn=document.getElementById('previous-year');
-        const previousMonthBtn=document.getElementById('previous-month');
-        const nextMonthBtn=document.getElementById('next-month');
-        const nextYearBtn=document.getElementById('next-year');
         const closeSettings=document.getElementById('close-settings');
         let tooltipTimeout;
         let activeTooltip = null;
@@ -2865,11 +2854,10 @@ var T=<?php echo json_encode([
 
         /* bind events on initial static table (PHP-rendered on page load) */
         bindSharedFilesEvents();
-        if(statsButton){statsButton.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();closeAllModals();if(statsModal){statsModal.style.display='flex';renderChart(currentPeriod);}});}
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();if(typeof QRCode==='undefined'){qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_library_not_loaded+'</p><p>'+T.qr_refresh_page+'</p></div>';return;}qrCodeElement.innerHTML='';try{const tempContainer=document.createElement('div');const qr=new QRCode(tempContainer,{text:domain,width:256,height:256,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});setTimeout(()=>{const canvas=tempContainer.querySelector('canvas');if(canvas){qrCodeElement.innerHTML='';qrCodeElement.appendChild(canvas);canvas.style.display='block';canvas.style.margin='0 auto';canvas.style.borderRadius='12px';canvas.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';}else{qrCodeElement.innerHTML='<p style="color: red; text-align: center;">'+T.qr_generation_failed+'</p>';}},100);}catch(error){console.error('QR Code error:',error);qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';}}});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,statsModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal];modals.forEach(modal=>{if(modal){modal.style.display='none';}});}
+        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np)np.classList.remove('active');}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -3306,7 +3294,7 @@ var T=<?php echo json_encode([
             
             // Function to update z-index based on modal state
             function updateNotificationZIndex() {
-                const anyModalOpen = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"], #auth-modal[style*="display: flex"], #auth-modal[style*="display:flex"], #profile-modal[style*="display: flex"], #profile-modal[style*="display:flex"], #settings-modal[style*="display: flex"], #settings-modal[style*="display:flex"], #email-modal[style*="display: flex"], #email-modal[style*="display:flex"], #users-modal[style*="display: flex"], #users-modal[style*="display:flex"], #sessions-modal[style*="display: flex"], #sessions-modal[style*="display:flex"], #stats-modal[style*="display: flex"], #stats-modal[style*="display:flex"], #qr-modal[style*="display: flex"], #qr-modal[style*="display:flex"], #shared-files-modal[style*="display: flex"], #shared-files-modal[style*="display:flex"]');
+                const anyModalOpen = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"], #auth-modal[style*="display: flex"], #auth-modal[style*="display:flex"], #profile-modal[style*="display: flex"], #profile-modal[style*="display:flex"], #settings-modal[style*="display: flex"], #settings-modal[style*="display:flex"], #email-modal[style*="display: flex"], #email-modal[style*="display:flex"], #users-modal[style*="display: flex"], #users-modal[style*="display:flex"], #sessions-modal[style*="display: flex"], #sessions-modal[style*="display:flex"], #qr-modal[style*="display: flex"], #qr-modal[style*="display:flex"], #shared-files-modal[style*="display: flex"], #shared-files-modal[style*="display:flex"], #news-portal-overlay.active');
                 notification.style.zIndex = anyModalOpen ? '9999' : '15000';
             }
             
@@ -3319,7 +3307,7 @@ var T=<?php echo json_encode([
             });
             
             // Watch all modals for display changes
-            const modalIds = ['auth-modal', 'profile-modal', 'settings-modal', 'email-modal', 'users-modal', 'sessions-modal', 'stats-modal', 'qr-modal', 'shared-files-modal'];
+            const modalIds = ['auth-modal', 'profile-modal', 'settings-modal', 'email-modal', 'users-modal', 'sessions-modal', 'qr-modal', 'shared-files-modal'];
             modalIds.forEach(id => {
                 const modal = document.getElementById(id);
                 if (modal) {
@@ -3494,7 +3482,7 @@ var T=<?php echo json_encode([
         if(emailButton){emailButton.addEventListener('click',()=>{closeAllModals();if(emailModal){emailModal.style.display='flex';}});if(closeEmail){closeEmail.addEventListener('click',()=>{if(emailModal){emailModal.style.display='none';}});}if(emailModal){emailModal.addEventListener('click',(e)=>{if(e.target===emailModal){emailModal.style.display='none';}});}}
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
         if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
-        const modalButtons=[qrButton,emailButton,usersButton,statsButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
+        const modalButtons=[qrButton,emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
         if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else sidebar.classList.add('open'); });}
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
@@ -3509,8 +3497,9 @@ var T=<?php echo json_encode([
             return tag === 'input' || tag === 'textarea' || tag === 'select' || !!target.isContentEditable;
         }
         function isAnyBlockingModalOpen(){
-            const modals = [settingsModal, qrModal, emailModal, usersModal, statsModal, profileModal, sessionsModal, sharedFilesModal, authModal, shortcutsModal];
-            return modals.some(modal => modal && modal.style.display === 'flex');
+            const modals = [settingsModal, qrModal, emailModal, usersModal, profileModal, sessionsModal, sharedFilesModal, authModal, shortcutsModal];
+            const np = document.getElementById('news-portal-overlay');
+            return modals.some(modal => modal && modal.style.display === 'flex') || (np && np.classList.contains('active'));
         }
         function openShortcutsModal(){
             if(settingsModal && settingsModal.style.display !== 'flex'){
@@ -3528,7 +3517,6 @@ var T=<?php echo json_encode([
                 'qr-modal',
                 'email-modal',
                 'users-modal',
-                'stats-modal',
                 'profile-modal',
                 'sessions-modal',
                 'shared-files-modal',
@@ -3619,11 +3607,6 @@ var T=<?php echo json_encode([
                 sessionsButton.click();
                 return;
             }
-            if(code === 'KeyT' && statsButton){
-                e.preventDefault();
-                statsButton.click();
-                return;
-            }
             if(code === 'KeyF' && document.getElementById('shared-files-button')){
                 e.preventDefault();
                 document.getElementById('shared-files-button').click();
@@ -3658,53 +3641,7 @@ var T=<?php echo json_encode([
                 if(index >= 0) setSelectedAppTile(index);
             });
         }
-        if(statsButton){statsButton.addEventListener('click',()=>{closeAllModals();if(statsModal){statsModal.style.display='flex';currentPeriod='year';renderChart(currentPeriod);}});}
-        if(closeStats){closeStats.addEventListener('click',()=>{if(statsModal)statsModal.style.display='none';});}
         if(closeQr){closeQr.addEventListener('click',()=>{qrModal.style.display='none';});}
-        if(statsModal){statsModal.addEventListener('click',(e)=>{if(e.target===statsModal){statsModal.style.display='none';}});}
-        if(yearView){yearView.addEventListener('click',()=>{currentPeriod='year';renderChart(currentPeriod);});}
-        if(weekView){weekView.addEventListener('click',()=>{currentPeriod='week';renderChart(currentPeriod);});}
-        if(monthView){monthView.addEventListener('click',()=>{currentPeriod='month';renderChart(currentPeriod);});}
-
-        // Year navigation buttons
-        if(previousYearBtn){
-            previousYearBtn.addEventListener('click',()=>{
-                statsCurrentYear--;
-                currentPeriod='year';
-                renderChart(currentPeriod);
-            });
-        }
-        if(nextYearBtn){
-            nextYearBtn.addEventListener('click',()=>{
-                statsCurrentYear++;
-                currentPeriod='year';
-                renderChart(currentPeriod);
-            });
-        }
-        if(previousMonthBtn){
-            previousMonthBtn.addEventListener('click',()=>{
-                currentMonth--;
-                if(currentMonth<0){
-                    currentMonth=11;
-                    currentYear--;
-                    statsCurrentYear=currentYear;
-                }
-                currentPeriod='month';
-                renderChart(currentPeriod);
-            });
-        }
-        if(nextMonthBtn){
-            nextMonthBtn.addEventListener('click',()=>{
-                currentMonth++;
-                if(currentMonth>11){
-                    currentMonth=0;
-                    currentYear++;
-                    statsCurrentYear=currentYear;
-                }
-                currentPeriod='month';
-                renderChart(currentPeriod);
-            });
-        }
         if(searchBar){
             searchBar.addEventListener('input',(e)=>{
                 const query=e.target.value.toLowerCase();
@@ -3736,75 +3673,14 @@ var T=<?php echo json_encode([
         document.addEventListener('click',(e)=>{
             if(!sidebar || !menuButton) return;
             if(!sidebar.contains(e.target) && !menuButton.contains(e.target) && sidebar.classList.contains('open')){
-                const modals=[settingsModal,qrModal,emailModal,usersModal,statsModal,profileModal,sessionsModal,authModal];
+                const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,authModal];
                 let isModalClick=false;
                 modals.forEach(modal=>{if(modal&&modal.contains(e.target)){isModalClick=true;}});
                 if(!isModalClick){closeSidebarMenu();}
             }
         });
-        function renderChart(period){
-            if(chartInstance){chartInstance.destroy();}
-            const ctx=statsCanvas.getContext('2d');
-            const allStats=<?php echo json_encode($visitStats);?>;
-            
-            // Filter stats by selected year
-            const stats={};
-            Object.keys(allStats).forEach(appId=>{
-                stats[appId]={};
-                Object.keys(allStats[appId]).forEach(date=>{
-                    if(date.startsWith(statsCurrentYear.toString())){
-                        stats[appId][date]=allStats[appId][date];
-                    }
-                });
-            });
-            
-            let labels=[];
-            if(period==='year'){
-                // Show all data for selected year
-                const allDates=new Set();
-                Object.values(stats).forEach(appData=>{Object.keys(appData).forEach(date=>allDates.add(date));});
-                labels=Array.from(allDates).sort();
-            }else{
-                const days=period==='week'?7:30;
-                let startDate;
-                if(period==='week'){startDate=new Date(currentYear,currentMonth,currentDate.getDate()-days+1);}
-                else{startDate=new Date(currentYear,currentMonth,1);}
-                labels=Array.from({length:days},(_,i)=>{const d=new Date(startDate);if(period==='week'){d.setDate(startDate.getDate()+i);}else{d.setDate(i+1);}return d.toISOString().split('T')[0];});
-            }
-            // Only include apps that have at least one non-zero value in the visible range for performance
-            const labelsSet=new Set(labels);
-            const activeAppIds=Object.keys(stats).filter(appId=>{
-                return labels.some(date=>stats[appId][date]>0);
-            });
-            const colors=['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40'];let colorIndex=0;
-            const isDarkTheme=()=>{return document.documentElement.style.getPropertyValue('--bg-color')==='#333'||document.body.classList.contains('dark-theme')||window.matchMedia('(prefers-color-scheme: dark)').matches;};
-            const datasets=activeAppIds.map(appId=>{
-                const appData=stats[appId];
-                const data=labels.map(date=>appData[date]||0);
-                const color=colors[colorIndex%colors.length];colorIndex++;
-                return{label:appId,data:data,borderColor:color,backgroundColor:color+'50',fill:false,tension:0.4};
-            });
-            const container=document.getElementById('stats-canvas-container');
-            const containerWidth=container.clientWidth;const containerHeight=container.clientHeight;
-            statsCanvas.width=containerWidth;statsCanvas.height=containerHeight;
-            
-            // Update year/month label
-            if(statsYearMonthLabel){
-                const monthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
-                if(currentPeriod==='month'){
-                    statsYearMonthLabel.textContent=monthNames[currentMonth]+' '+currentYear;
-                }else if(currentPeriod==='year'){
-                    statsYearMonthLabel.textContent=statsCurrentYear.toString();
-                }else{
-                    statsYearMonthLabel.textContent='Week of '+statsCurrentYear;
-                }
-            }
-            
-            const chartTitleText=period==='week'?<?php echo json_encode($translations['weekly_statistics']??'Weekly Statistics'); ?>:period==='month'?<?php echo json_encode($translations['monthly_statistics']??'Monthly Statistics'); ?>+' ('+(currentMonth+1)+'/'+currentYear+')':<?php echo json_encode($translations['show_year_view']??'Year Statistics'); ?>+' ('+statsCurrentYear+')';
-            chartInstance=new Chart(ctx,{type:'line',data:{labels:labels,datasets:datasets},options:{responsive:true,maintainAspectRatio:false,plugins:{zoom:{pan:{enabled:true,mode:'xy',threshold:10},zoom:{wheel:{enabled:true},pinch:{enabled:true},mode:'xy'}}},scales:{x:{title:{display:true,text:<?php echo json_encode($translations['date_label']??'Date', JSON_UNESCAPED_UNICODE); ?>,color:isDarkTheme()?'#ffffff':'#000000'},ticks:{maxRotation:45,minRotation:45,color:isDarkTheme()?'#ffffff':'#000000'},grid:{color:isDarkTheme()?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)'}},y:{title:{display:true,text:<?php echo json_encode($translations['visits_label']??'Visits', JSON_UNESCAPED_UNICODE); ?>,color:isDarkTheme()?'#ffffff':'#000000'},beginAtZero:true,ticks:{color:isDarkTheme()?'#ffffff':'#000000',maxTicksLimit:8},grid:{color:isDarkTheme()?'rgba(255,255,255,0.1)':'rgba(0,0,0,0.1)'}}},plugins:{legend:{display:true,position:'top',labels:{color:isDarkTheme()?'#ffffff':'#000000',boxWidth:12,font:{size:11}}},title:{display:true,text:chartTitleText,color:isDarkTheme()?'#ffffff':'#000000',font:{size:16}}},elements:{point:{radius:3}}}});
-        }
-        let resizeTimeout;window.addEventListener('resize',()=>{clearTimeout(resizeTimeout);resizeTimeout=setTimeout(()=>{if(statsModal&&statsModal.style.display==='flex'){if(chartInstance){chartInstance.destroy();renderChart(currentPeriod||'year');}}},250);});
     });
+
 
     // звезды 
 
@@ -3991,16 +3867,8 @@ var T=<?php echo json_encode([
 .ap-app-access-icon-svg{display:block;width:40px;height:40px;background:radial-gradient(circle at var(--g-hx,34%) var(--g-hy,30%),color-mix(in srgb,var(--primary-color) 22%,white) 0%,transparent 62%),linear-gradient(145deg,color-mix(in srgb,var(--primary-color) 38%,white) 0%,color-mix(in srgb,var(--primary-color) 78%,black) 100%);-webkit-mask-image:var(--icon-src);mask-image:var(--icon-src);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;}
 .ap-app-access-title{font-size:10px;line-height:1.2;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 .ap-app-access-level{width:100%;font-size:10px;padding:2px 4px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-color);color:var(--text-color);}
-.ap-world-map{position:relative;height:300px;border:1px solid var(--border-color);border-radius:8px;background:linear-gradient(180deg,rgba(59,130,246,.12),rgba(20,184,166,.08));overflow:hidden;margin-bottom:10px;}
-.ap-world-country{position:absolute;border:1px solid color-mix(in srgb,var(--text-color) 34%,transparent);background:color-mix(in srgb,var(--group-block-bg) 84%,var(--primary-color) 16%);color:var(--text-color);font-size:9px;line-height:1.05;padding:2px;border-radius:3px;cursor:pointer;text-align:center;overflow:hidden;text-overflow:ellipsis;transition:.15s;min-width:22px;min-height:14px;}
-.ap-world-country.active{background:#ef4444;color:#fff;border-color:#fecaca;}
-.ap-world-country:hover{transform:scale(1.08);z-index:2;}
-.ap-world-svg{width:100%;height:100%;display:block;}
-.ap-world-shape{fill:color-mix(in srgb,var(--group-block-bg) 82%,var(--primary-color) 18%);stroke:color-mix(in srgb,var(--text-color) 44%,transparent);stroke-width:.55;cursor:pointer;transition:.15s;}
-.ap-world-shape.active{fill:#ef4444;stroke:#fecaca;}
-.ap-world-shape:hover{filter:brightness(1.18);}
-.ap-world-label{font-size:3.1px;fill:var(--text-color);text-anchor:middle;pointer-events:none;font-weight:700;}
-.ap-world-shape.active+.ap-world-label{fill:#fff;}
+.ap-world-map{position:relative;height:360px;border:1px solid var(--border-color);border-radius:8px;background:color-mix(in srgb,var(--group-block-bg) 86%,var(--primary-color) 14%);overflow:hidden;margin-bottom:10px;}
+.ap-world-map canvas,.ap-world-map svg{display:block;}
 .ap-toggle-row{display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0;}
 
 /* Left Sidebar */
@@ -4108,7 +3976,7 @@ var T=<?php echo json_encode([
 #ap-docs.active,
 #ap-db.active,
 #ap-omniroute.active,
-#ap-ssh.active { display: flex; position: relative; }
+#ap-ssh.active { display: flex; position: relative; flex: 1; min-height: 0; height: 100%; width: 100%; }
 #ap-ssh.ap-panel.active {
     flex: 1;
     flex-direction: column;
@@ -4248,7 +4116,7 @@ var T=<?php echo json_encode([
     display: flex;
     align-items: stretch;
     gap: 0;
-    width: fit-content;
+    width: 100%;
     max-width: calc(100% - 40px);
     margin: 18px auto 20px;
     background: var(--bg-color);
@@ -4256,15 +4124,18 @@ var T=<?php echo json_encode([
     border-radius: 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
 }
 .ap-settings-tab {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-width: 0;
-    padding: 9px 14px;
+    flex: 1 1 0;
+    min-width: 72px;
+    max-width: 168px;
+    padding: 9px 12px;
     border: 0;
     border-right: 1px solid var(--border-color);
     border-radius: 0;
@@ -4276,6 +4147,32 @@ var T=<?php echo json_encode([
     white-space: nowrap;
     cursor: pointer;
     opacity: .72;
+}
+.ap-settings-tab span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+.ap-gitea-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    background-color: currentColor;
+    -webkit-mask-image: url('/apps/gitea/icon.svg');
+    mask-image: url('/apps/gitea/icon.svg');
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+.ap-card-title .ap-gitea-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+    vertical-align: middle;
 }
 .ap-settings-tab:last-child { border-right: 0; }
 .ap-settings-tab:hover {
@@ -4949,6 +4846,7 @@ var T=<?php echo json_encode([
     flex: 1;
     min-height: 0;
     width: 100%;
+    height: 100%;
     margin: 0;
     padding: 0;
 }
@@ -4978,6 +4876,11 @@ var T=<?php echo json_encode([
 }
 #ap-content:has(#ap-omniroute.active) {
     padding: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 #ap-omniroute.active {
     margin: 0 !important;
@@ -4991,6 +4894,11 @@ var T=<?php echo json_encode([
 #ap-omniroute.active ~ *,
 #ap-content:has(#ap-omniroute.active) {
     padding: 0 !important;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 </style>
 
@@ -5027,6 +4935,15 @@ var monacoInjected = false;
 
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var OMNIROUTE_URL='/omniroute-bridge';
+function loadOmniRouteIframe(){
+    var frame=document.getElementById('ap-omniroute-frame');
+    if(!frame) return;
+    var target=frame.getAttribute('data-src')||OMNIROUTE_URL;
+    if(frame.dataset.loaded===target) return;
+    frame.dataset.loaded=target;
+    frame.src=target;
+}
 
 var T=<?php echo json_encode([
     'saving'        =>$translations['ap_saving']??'Saving...',
@@ -5037,6 +4954,13 @@ var T=<?php echo json_encode([
     'docker_saved'  =>$translations['docker_saved']??'Docker settings saved',
     'onlyoffice_saved'=>$translations['onlyoffice_saved']??'OnlyOffice token saved',
     'ai_config_saved'=>$translations['ai_config_saved']??'AI configuration saved',
+    'github_pull_settings'=>$translations['github_pull_settings']??'Pull через GitHub',
+    'github_update'=>$translations['github_update']??'Обновить',
+    'github_refresh'=>$translations['github_refresh']??'Refresh',
+    'github_pull_ok'=>$translations['github_pull_ok']??'Updated successfully',
+    'github_pull_up_to_date'=>$translations['github_pull_up_to_date']??'Already up to date',
+    'github_no_changes'=>$translations['github_no_changes']??'No pending changes',
+    'github_pull_confirm'=>$translations['github_pull_confirm']??'Pull changes from main and restart the container?',
     'apiKeysMatch'=>$translations['apiKeysMatch']??'API keys match',
     'apiKeysDoNotMatch'=>$translations['apiKeysDoNotMatch']??'API keys do not match',
     'apiKeysRequired'=>$translations['apiKeysRequired']??'Both API key fields are required when changing the key',
@@ -5168,6 +5092,7 @@ function openPanel(id){
             });
         });
     }
+    if(id==='ap-omniroute') loadOmniRouteIframe();
 }
 
 /* ── Open/close ── */
@@ -6100,7 +6025,6 @@ function wireEvents(){
     /* nav */
     dynRoot.querySelectorAll('.ap-nav-btn').forEach(function(b){b.addEventListener('click',function(ev){
         var pid=this.dataset.panel;
-        if(pid==='ap-omniroute'){ev.preventDefault();openPanel(pid);loadOmniRouteIframe();return;}
         openPanel(pid);
     });});
     (function(){
@@ -6194,6 +6118,7 @@ function wireEvents(){
             cards.forEach(function(card){
                 card.classList.toggle('active', card.dataset.settingsCard === name);
             });
+            if(name==='github'&&typeof window.apGithubLoadStatus==='function'){window.apGithubLoadStatus();}
         }
         tabs.forEach(function(tab){
             tab.addEventListener('click', function(){
@@ -6435,6 +6360,52 @@ function wireEvents(){
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
     });
+    (function(){
+        var ghSt=dynRoot.querySelector('#ap-github-pull-status'),ghRefresh=dynRoot.querySelector('#ap-github-refresh'),ghPull=dynRoot.querySelector('#ap-github-pull'),ghChanges=dynRoot.querySelector('#ap-github-changes'),ghLocal=dynRoot.querySelector('#ap-github-local-head'),ghRemote=dynRoot.querySelector('#ap-github-remote-head');
+        function renderGithubStatus(d){
+            if(!d||!d.success){setStatus(ghSt,'x '+(d&&d.error?d.error:T.error),'error');if(ghChanges&&d&&d.output)ghChanges.textContent=d.output;return;}
+            if(ghLocal)ghLocal.textContent=(d.branch||'main')+' @ '+(d.local_head||'—');
+            if(ghRemote)ghRemote.textContent='origin/main @ '+(d.remote_head||'—');
+            if(ghChanges){
+                if(d.up_to_date){ghChanges.textContent=T.github_no_changes||'No pending changes';}
+                else{
+                    var txt='';
+                    if(d.commits)txt+=d.commits+'\n\n';
+                    if(d.stat)txt+=d.stat;
+                    ghChanges.textContent=txt.trim()||('+'+(d.behind||0)+' commit(s)');
+                }
+            }
+            if(ghPull)ghPull.disabled=!!d.up_to_date;
+            setStatus(ghSt,d.up_to_date?(T.github_pull_up_to_date||'Up to date'):((d.behind||0)+' commit(s) available'),d.up_to_date?'success':'info');
+        }
+        window.apGithubLoadStatus=function(){
+            if(!ghChanges)return;
+            setStatus(ghSt,T.fm_loading||'Loading…','info');
+            var fd=new FormData();fd.append('git_pull_status','1');fd.append('ajax','1');
+            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(renderGithubStatus).catch(function(){setStatus(ghSt,'x '+T.error,'error');});
+        };
+        if(ghRefresh)ghRefresh.addEventListener('click',window.apGithubLoadStatus);
+        if(ghPull)ghPull.addEventListener('click',function(){
+            var msg=T.github_pull_confirm||'Pull changes from main and restart the container?';
+            if(typeof fmConfirm==='function'){fmConfirm(msg,function(){doGithubPull();});return;}
+            if(!confirm(msg))return;
+            doGithubPull();
+        });
+        function doGithubPull(){
+            setStatus(ghSt,T.saving,'info');if(ghPull)ghPull.disabled=true;if(ghRefresh)ghRefresh.disabled=true;
+            var fd=new FormData();fd.append('git_pull_update','1');fd.append('ajax','1');
+            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+                if(d.success){
+                    setStatus(ghSt,'+ '+(d.message||T.github_pull_ok||'Updated'),'success');
+                    if(typeof showTempNotification!=='undefined')showTempNotification(d.message||T.github_pull_ok||'Updated','success');
+                    if(d.restarted){setTimeout(function(){location.reload();},2500);}
+                    else if(typeof window.apGithubLoadStatus==='function')window.apGithubLoadStatus();
+                }else{
+                    setStatus(ghSt,'x '+(d.error||T.error),'error');
+                }
+            }).catch(function(){setStatus(ghSt,'x '+T.error,'error');}).finally(function(){if(ghRefresh)ghRefresh.disabled=false;if(ghPull)ghPull.disabled=false;});
+        }
+    })();
     if(bkSave)bkSave.addEventListener('click',function(){
         var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');
         if(!token){setStatus(bkSt,'x Token is required','error');return;}
@@ -6466,9 +6437,9 @@ function wireEvents(){
     if(accSort) accSort.addEventListener('change',apSortAccessTiles);
     if(accGrid) accGrid.addEventListener('change',function(e){if(e.target&&e.target.classList.contains('ap-app-access-level')){var p=e.target.closest('.ap-app-access-tile');if(p)p.dataset.role=e.target.value;}});
     var worldMap=dynRoot.querySelector('#ap-world-map'),blockedCountries=[],vpnBlock=dynRoot.querySelector('#ap-block-vpn-traffic');
-    function renderWorldMap(){if(!worldMap)return;var countries={};try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}var shapes={US:'34,95 52,88 73,96 78,111 68,124 45,121 31,110',CA:'30,50 71,39 96,55 84,76 49,76 25,63',MX:'44,125 70,129 79,146 66,158 50,147',BR:'112,160 144,154 166,178 156,218 130,225 108,200',AR:'116,219 135,220 139,266 123,278 111,246',GB:'203,80 213,78 218,91 207,96 199,88',IE:'193,84 201,82 202,92 194,95',FR:'211,100 229,97 236,115 224,131 207,122',DE:'233,88 251,87 257,106 242,113 230,101',ES:'197,127 221,125 224,143 203,148 190,137',PT:'187,129 197,127 198,145 188,146',IT:'236,126 251,130 261,154 252,160 240,141',NL:'229,81 239,80 241,90 231,91',BE:'226,92 237,91 238,101 226,101',CH:'229,114 242,112 246,122 232,123',AT:'246,111 263,111 266,121 248,122',PL:'257,88 281,89 284,108 260,110',CZ:'248,105 262,104 264,113 250,114',SK:'264,109 279,109 280,118 265,118',HU:'262,119 280,119 282,131 263,130',RO:'284,119 305,122 306,139 286,141',BG:'290,142 307,142 309,153 289,154',GR:'276,154 296,156 302,174 284,175',SE:'251,48 269,42 278,77 262,86 249,72',NO:'224,45 249,35 253,74 233,82 219,66',FI:'279,43 302,47 300,78 279,80',DK:'241,78 253,78 253,87 241,87',EE:'299,78 312,78 313,88 300,89',LV:'296,88 314,88 315,99 297,99',LT:'291,99 311,100 311,110 292,109',UA:'307,104 346,106 352,128 314,134 299,119',BY:'305,88 332,89 336,104 307,104',RU:'315,42 442,38 469,76 430,112 349,102 333,83',TR:'309,157 348,153 361,166 334,178 304,168',IL:'315,180 322,180 322,191 315,191',SA:'321,190 356,190 370,224 336,234 311,211',AE:'366,213 379,213 380,225 367,226',IN:'383,169 419,176 430,215 404,234 374,207',CN:'414,128 480,126 494,164 464,193 421,176 401,149',JP:'499,137 516,145 513,176 497,169',KR:'485,148 497,148 500,162 487,163',ID:'430,232 490,235 501,253 439,256',TH:'420,191 439,194 441,215 424,214',VN:'443,195 457,202 458,228 446,222',AU:'443,261 506,260 524,294 481,315 437,297',NZ:'527,300 550,312 542,323 519,311',ZA:'257,248 300,250 310,274 279,287 248,271',EG:'286,174 313,176 312,197 284,198',NG:'243,186 274,184 281,207 249,211'};worldMap.innerHTML='<svg class=\"ap-world-svg\" viewBox=\"0 0 560 330\" role=\"img\" aria-label=\"World map\"></svg>';var svg=worldMap.querySelector('svg');Object.keys(countries).forEach(function(code){var points=shapes[code];if(!points)return;var cx=0,cy=0,n=0;points.split(' ').forEach(function(pair){var xy=pair.split(',');cx+=parseFloat(xy[0]);cy+=parseFloat(xy[1]);n++;});cx/=n;cy/=n;var p=document.createElementNS('http://www.w3.org/2000/svg','polygon');p.setAttribute('points',points);p.setAttribute('class','ap-world-shape'+(blockedCountries.indexOf(code)!==-1?' active':''));p.setAttribute('data-code',code);p.setAttribute('tabindex','0');p.setAttribute('aria-label',countries[code]);var t=document.createElementNS('http://www.w3.org/2000/svg','text');t.setAttribute('x',cx);t.setAttribute('y',cy);t.setAttribute('class','ap-world-label');t.textContent=code;svg.appendChild(p);svg.appendChild(t);});}
+    function apLoadAmChartsMaps(){if(window._apAmChartsMapsPromise)return window._apAmChartsMapsPromise;var urls=['https://cdn.amcharts.com/lib/5/index.js','https://cdn.amcharts.com/lib/5/map.js','https://cdn.amcharts.com/lib/5/geodata/worldLow.js','https://cdn.amcharts.com/lib/5/themes/Animated.js'];window._apAmChartsMapsPromise=urls.reduce(function(p,u){return p.then(function(){return new Promise(function(res,rej){if(document.querySelector('script[src="'+u+'"]')){res();return;}var s=document.createElement('script');s.src=u;s.async=false;s.onload=res;s.onerror=function(){rej(new Error('Failed to load: '+u));};document.head.appendChild(s);});});},Promise.resolve());return window._apAmChartsMapsPromise;}
+    function renderWorldMap(){if(!worldMap)return;var countries={};try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}worldMap.innerHTML='';apLoadAmChartsMaps().then(function(){if(!window.am5||!window.am5map||!window.am5geodata_worldLow)return;if(worldMap._apMapRoot)worldMap._apMapRoot.dispose();var root=am5.Root.new(worldMap);worldMap._apMapRoot=root;root.setThemes([am5themes_Animated.new(root)]);var chart=root.container.children.push(am5map.MapChart.new(root,{panX:'translateX',panY:'translateY',wheelX:'zoom',wheelY:'zoom',projection:am5map.geoMercator()}));var series=chart.series.push(am5map.MapPolygonSeries.new(root,{geoJSON:am5geodata_worldLow,exclude:['AQ']}));var normal=am5.color(0x64748b),active=am5.color(0xef4444),stroke=am5.color(0xffffff);function apCountryCode(target){return target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;}function apply(target){var code=apCountryCode(target);target.set('fill',blockedCountries.indexOf(code)!==-1?active:normal);}series.mapPolygons.template.setAll({tooltipText:'{name}',interactive:true,fill:normal,stroke:stroke,strokeWidth:.5});series.mapPolygons.template.adapters.add('tooltipText',function(text,target){var code=target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;return countries[code]||text;});series.mapPolygons.template.events.on('click',function(ev){var target=ev.target,code=target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;if(!code||!countries[code])return;var i=blockedCountries.indexOf(code);if(i===-1)blockedCountries.push(code);else blockedCountries.splice(i,1);apply(target);});series.mapPolygons.template.events.on('pointerover',function(ev){var code=apCountryCode(ev.target);ev.target.set('fill',blockedCountries.indexOf(code)!==-1?active:am5.color(0x3b82f6));});series.mapPolygons.template.events.on('pointerout',function(ev){apply(ev.target);});series.events.on('datavalidated',function(){series.mapPolygons.each(apply);chart.goHome(0);});chart.set('zoomControl',am5map.ZoomControl.new(root,{}));}).catch(function(){worldMap.textContent='Map library failed to load';});}
     renderWorldMap();
-    if(worldMap) worldMap.addEventListener('click',function(e){var b=e.target.closest('.ap-world-shape');if(!b)return;var c=b.dataset.code,i=blockedCountries.indexOf(c);if(i===-1){blockedCountries.push(c);b.classList.add('active');}else{blockedCountries.splice(i,1);b.classList.remove('active');}});
     if(accSav) accSav.addEventListener('click',function(){setStatus(accSt,T.saving,'info');var lv={};if(accGrid) accGrid.querySelectorAll('.ap-app-access-level').forEach(function(s){lv[s.getAttribute('data-folder')]=parseInt(s.value,10);});var fd=new FormData();fd.append('save_app_access_levels','1');fd.append('ajax','1');fd.append('levels_json',JSON.stringify(lv));fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(!d.success)throw new Error(d.error||T.error);var fd2=new FormData();fd2.append('save_app_access_security','1');fd2.append('ajax','1');fd2.append('countries_json',JSON.stringify(blockedCountries));fd2.append('block_vpn',vpnBlock&&vpnBlock.checked?'1':'0');return fetch('/main',{method:'POST',body:fd2}).then(function(r){return r.json();});}).then(function(d){setStatus(accSt,d.success?('+ '+T.app_access_saved):('x '+(d.error||T.error)),d.success?'success':'error');if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.app_access_saved,'success');}).catch(function(e){setStatus(accSt,'x '+(e&&e.message?e.message:T.error),'error');});});
     /* stats save button */
     var ssBtn=dynRoot.querySelector('#ap-save-stats'), sSt=dynRoot.querySelector('#ap-stats-status');
@@ -7898,37 +7869,6 @@ function copyOtpLink(){
         if(typeof showTempNotification==='function')
             showTempNotification(<?php echo json_encode($translations['fm_copied']??'Copied!'); ?>,'success');
     });
-}
-
-/* ── OmniRoute iframe loader ── */
-window.OMNIROUTE_URL='https://ai.serverkherson.xyz/';
-function loadOmniRouteIframe(){
-    var frame=document.getElementById('ap-omniroute-frame');
-    if(frame && !frame.src){frame.src=window.OMNIROUTE_URL;}
-}
-function openOmniRouteWindow(url){
-    var u=url||window.OMNIROUTE_URL;
-    var sw=(window.screen&&screen.availWidth)||window.innerWidth||1280;
-    var sh=(window.screen&&screen.availHeight)||window.innerHeight||800;
-    var w=Math.min(sw-80,1400),h=Math.min(sh-80,900);
-    var l=Math.max(0,Math.floor((sw-w)/2)),t=Math.max(0,Math.floor((sh-h)/2));
-    var feats='popup=yes,resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=yes,status=no,width='+w+',height='+h+',left='+l+',top='+t;
-    var win=null;
-    try{win=window.open(u,'omniroute_window',feats);}catch(e){}
-    if(!win){try{win=window.open(u,'_blank');}catch(e){}}
-    if(win){try{win.focus();}catch(_){}}
-    else if(typeof showTempNotification==='function'){
-        showTempNotification(<?php echo json_encode($translations['omniroute_popup_blocked'] ?? 'Browser blocked the popup. Allow popups for this site to open OmniRoute.'); ?>,'error');
-    }
-    return win;
-}
-function openOmniRouteModal(){return openOmniRouteWindow();}
-function closeOmniRouteModal(){
-    var modal=document.getElementById('omniroute-modal');
-    if(modal) modal.style.display='none';
-    var overlay=document.getElementById('settings-overlay');
-    if(overlay) overlay.classList.remove('active');
-    document.body.style.overflow='';
 }
 
 // Support Chat functionality
@@ -10432,31 +10372,6 @@ function closeOmniRouteModal(){
 })();
 </script>
 
-<!-- OmniRoute Modal -->
-<div id="omniroute-modal" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
-    <div style="position:relative;width:95vw;height:95vh;background:var(--modal-bg,#1a1a1a);border-radius:12px;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,0.5);display:flex;flex-direction:column;">
-        <!-- Header -->
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--group-block-bg,#252525);border-bottom:1px solid var(--border-color,#444);">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                <span style="font-size:16px;font-weight:600;color:var(--text-color,#fff);"><?php echo my_htmlspecialchars($translations['omniroute_title']??'OmniRoute'); ?></span>
-            </div>
-            <button onclick="closeOmniRouteModal()" style="background:transparent;border:none;color:var(--text-color,#fff);cursor:pointer;padding:8px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </div>
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px;box-sizing:border-box;">
-            <div style="max-width:520px;width:100%;text-align:center;">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--primary-color,#4f7cff);margin-bottom:18px;"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                <div style="font-size:13px;line-height:1.55;color:var(--text-color,#e5e7eb);opacity:.75;margin-bottom:22px;"><?php echo my_htmlspecialchars($translations['omniroute_open_hint'] ?? 'OmniRoute server forbids embedding (CSP frame-ancestors). It opens in a separate browser window — like a regular new tab.'); ?></div>
-                <button type="button" onclick="openOmniRouteWindow();closeOmniRouteModal();" style="display:inline-flex;align-items:center;gap:8px;padding:10px 22px;font-size:14px;font-weight:600;background:var(--primary-color,#4f7cff);color:#fff;border:none;border-radius:8px;cursor:pointer;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-                    <?php echo my_htmlspecialchars($translations['omniroute_open_button'] ?? 'Open OmniRoute'); ?>
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
 <script>
 (function(){
 function injectAppMobileChrome(){

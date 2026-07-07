@@ -55,10 +55,9 @@ function cloud_ai_proxy_models(array $config): void
     header('Content-Type: application/json; charset=utf-8');
     $result = cloud_ai_proxy_json($config, cloud_ai_upstream_models_url($config), null, 'GET');
     if (!$result['ok']) {
-        http_response_code($result['http'] > 0 ? $result['http'] : 502);
-        $decoded = json_decode($result['body'], true);
-        if (is_array($decoded)) {
-            echo $result['body'];
+        $models = $config['models'] ?? [];
+        if (is_array($models) && $models) {
+            echo json_encode(['data' => array_map(static fn($id) => ['id' => (string)$id, 'object' => 'model'], $models)], JSON_UNESCAPED_SLASHES);
             return;
         }
         echo json_encode(['error' => ['message' => $result['error'] ?: ('HTTP ' . $result['http'])]]);
@@ -82,6 +81,7 @@ function cloud_ai_proxy_completions(array $config, array $payload): void
         header('Connection: keep-alive');
         header('X-Accel-Buffering: no');
         $ch = curl_init();
+        $status = 0;
         curl_setopt_array($ch, [
             CURLOPT_URL => $config['api_endpoint'],
             CURLOPT_POST => true,
@@ -96,6 +96,12 @@ function cloud_ai_proxy_completions(array $config, array $payload): void
                 }
                 return strlen($chunk);
             },
+            CURLOPT_HEADERFUNCTION => static function ($ch, string $header) use (&$status) {
+                if (preg_match('#^HTTP/\\S+\\s+(\\d+)#', $header, $m)) {
+                    $status = (int)$m[1];
+                }
+                return strlen($header);
+            },
         ]);
         curl_exec($ch);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -103,6 +109,8 @@ function cloud_ai_proxy_completions(array $config, array $payload): void
         curl_close($ch);
         if ($error !== '' && $httpCode === 0) {
             echo "data: " . json_encode(['error' => ['message' => 'CURL error: ' . $error]]) . "\n\n";
+        } elseif (($httpCode >= 400 || $status >= 400) && !headers_sent()) {
+            echo "data: " . json_encode(['error' => ['message' => 'Upstream HTTP ' . ($httpCode ?: $status)]]) . "\n\n";
         }
         return;
     }

@@ -13,8 +13,15 @@ function cloud_ai_latex_needs_lualatex(string $latex): bool
     return (bool)preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{(?:fontspec|polyglossia|luaotfload|unicode-math)\}/', $latex);
 }
 
+function cloud_ai_prepare_latex_for_lualatex(string $latex): string
+{
+    return cloud_ai_latex_escape_texttt($latex);
+}
+
 function cloud_ai_prepare_latex_for_pdflatex(string $latex): string
 {
+    $latex = cloud_ai_latex_escape_texttt($latex);
+    $latex = cloud_ai_latex_replace_unicode_text_symbols($latex);
     if (!preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{fontspec|polyglossia|luaotfload|unicode-math\}/', $latex)
         && preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{babel\}/', $latex)
         && preg_match('/[А-Яа-яЁёІіЇїЄєЎў]/u', $latex)
@@ -27,6 +34,26 @@ function cloud_ai_prepare_latex_for_pdflatex(string $latex): string
         }
     }
     return $latex;
+}
+
+function cloud_ai_latex_escape_texttt(string $latex): string
+{
+    return preg_replace_callback('/\\\\texttt\{([^{}]*)\}/u', static function (array $m): string {
+        $body = preg_replace('/(?<!\\\\)([_#%&])/', '\\\\$1', $m[1]);
+        return '\\texttt{' . $body . '}';
+    }, $latex) ?? $latex;
+}
+
+function cloud_ai_latex_replace_unicode_text_symbols(string $latex): string
+{
+    return strtr($latex, [
+        '→' => '$\\to$',
+        '←' => '$\\leftarrow$',
+        '⇒' => '$\\Rightarrow$',
+        '≤' => '$\\le$',
+        '≥' => '$\\ge$',
+        '≠' => '$\\ne$',
+    ]);
 }
 
 function cloud_ai_latex_insert_after_documentclass(string $latex, string $insert): string
@@ -71,7 +98,7 @@ function cloud_ai_compile_latex(string $latex): array
     $pdf = $dir . DIRECTORY_SEPARATOR . $base . '.pdf';
     $log = $dir . DIRECTORY_SEPARATOR . $base . '.log';
     $needsLua = cloud_ai_latex_needs_lualatex($latex);
-    $source = $needsLua ? $latex : cloud_ai_prepare_latex_for_pdflatex($latex);
+    $source = $needsLua ? cloud_ai_prepare_latex_for_lualatex($latex) : cloud_ai_prepare_latex_for_pdflatex($latex);
     file_put_contents($tex, $source);
     $output = [];
     $code = 1;
@@ -141,7 +168,7 @@ function cloud_ai_compile_latex_to_pdf_file(string $latex, string $pdfTarget): a
     $pdf = $dir . DIRECTORY_SEPARATOR . $base . '.pdf';
     $log = $dir . DIRECTORY_SEPARATOR . $base . '.log';
     $needsLua = cloud_ai_latex_needs_lualatex($latex);
-    $source = $needsLua ? $latex : cloud_ai_prepare_latex_for_pdflatex($latex);
+    $source = $needsLua ? cloud_ai_prepare_latex_for_lualatex($latex) : cloud_ai_prepare_latex_for_pdflatex($latex);
     file_put_contents($tex, $source);
     $output = [];
     $code = 1;

@@ -62,7 +62,7 @@ if (!function_exists('apSecSameOrigin')) {
 }
 if (!function_exists('apSecRequireSameOrigin')) {
     function apSecRequireSameOrigin(): void {
-        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? "GET"));
         if (!in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) return;
         if (apSecSameOrigin()) return;
         if (!headers_sent()) {

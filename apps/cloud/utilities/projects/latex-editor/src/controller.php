@@ -4,7 +4,6 @@ $lang = $_GET['lang'] ?? 'en';
 $theme = $_GET['theme'] ?? 'dark';
 $color = $_GET['color'] ?? '%2385b503';
 $root = $_GET['root'] ?? 'main';
-session_start();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $currentUser = $_SESSION['current_user'] ?? $_GET['user'] ?? 'default';
 $templatesFile = CLOUD_APP_ROOT . '/templates.json';
@@ -283,6 +282,7 @@ function latex_ensure_cache_dir(string $dir): string {
 }
 
 function latex_prepare_source_for_lualatex(string $latex): string {
+    $latex = latex_escape_texttt($latex);
     if (preg_match('/\\\\usepackage(\[[^\]]*\])?\{fontspec\}/', $latex)) return $latex;
     $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{inputenc\}\s*\r?\n/m', '', $latex);
     $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{fontenc\}\s*\r?\n/m', '', $latex);
@@ -311,6 +311,8 @@ function latex_needs_lualatex(string $latex): bool {
 }
 
 function latex_prepare_source_for_pdflatex(string $latex): string {
+    $latex = latex_escape_texttt($latex);
+    $latex = latex_replace_unicode_text_symbols($latex);
     if (!latex_needs_lualatex($latex)
         && preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{babel\}/', $latex)
         && preg_match('/[А-Яа-яЁёІіЇїЄєЎў]/u', $latex)
@@ -323,6 +325,24 @@ function latex_prepare_source_for_pdflatex(string $latex): string {
         }
     }
     return $latex;
+}
+
+function latex_escape_texttt(string $latex): string {
+    return preg_replace_callback('/\\\\texttt\{([^{}]*)\}/u', static function (array $m): string {
+        $body = preg_replace('/(?<!\\\\)([_#%&])/', '\\\\$1', $m[1]);
+        return '\\texttt{' . $body . '}';
+    }, $latex) ?? $latex;
+}
+
+function latex_replace_unicode_text_symbols(string $latex): string {
+    return strtr($latex, [
+        '→' => '$\\to$',
+        '←' => '$\\leftarrow$',
+        '⇒' => '$\\Rightarrow$',
+        '≤' => '$\\le$',
+        '≥' => '$\\ge$',
+        '≠' => '$\\ne$',
+    ]);
 }
 
 function latex_run_compile(string $texfilePath, string $dir, ?string $texInputs = null, bool $needsLua = false): array {
@@ -412,7 +432,6 @@ function latex_remove_compile_dir(string $dir): void {
 
 function latex_respond_compile_error(string $errorText, bool $savePdf): void {
     header('Content-Type: application/json; charset=utf-8');
-    if (!$savePdf) http_response_code(422);
     echo json_encode(['success' => false, 'error' => $errorText]);
     exit;
 }

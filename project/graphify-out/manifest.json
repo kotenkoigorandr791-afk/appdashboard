@@ -4,44 +4,64 @@
     "hash": "bee77b0730add80c18de11f4dc53346f"
   },
   "/mnt/server/project/mobile_chrome.php": {
-    "mtime": 1782374132.9950998,
-    "hash": "f401f19132da34dc84acdf141bf6f2be"
+    "mtime": 1783118374.0451188,
+    "hash": "a702f3e433925893bce9199e7b309673"
   },
   "/mnt/server/project/main.php": {
-    "mtime": 1782510455.3306587,
-    "hash": "9661da098cc6f950c2c86590a7d50af3"
+    "mtime": 1783076112.633908,
+    "hash": "4c8197e86b271ebcfdb4949c11c04846"
   },
   "/mnt/server/project/core.php": {
-    "mtime": 1782510454.4486668,
-    "hash": "c889b8e78a421f13e83aa6f67e0dc616"
+    "mtime": 1783079315.9250655,
+    "hash": "df1329d0c4a4d912660e77a64ef3a325"
   },
   "/mnt/server/project/index.php": {
-    "mtime": 1778440225.796739,
-    "hash": "f676ab340faea593ae866d76520b6c1a"
+    "mtime": 1782941122.150493,
+    "hash": "dd87bf8504d70e993ed36a2e0352506d"
   },
   "/mnt/server/project/runtime.php": {
-    "mtime": 1782510455.503657,
-    "hash": "c6eeeef1009af69396baaefb23a6382b"
+    "mtime": 1783054250.895758,
+    "hash": "352de7f911353bfbb81dffafc570bbd5"
   },
   "/mnt/server/project/post_handlers.php": {
-    "mtime": 1782510455.4786572,
-    "hash": "f912ea33bfe72349ddaf868fe84f9966"
+    "mtime": 1783079315.9330657,
+    "hash": "ea2ea9e0cc23356ace6db88bfc4c5d41"
+  },
+  "/mnt/server/project/browser-icons.php": {
+    "mtime": 1783076111.5449057,
+    "hash": "267a16991a49a35c39496dc621c2327a"
   },
   "/mnt/server/project/bootstrap.php": {
     "mtime": 1778439883.060739,
     "hash": "d2ecfdfcbda5fbf2406e5984f657d66b"
   },
+  "/mnt/server/project/oauth.php": {
+    "mtime": 1783076111.5949056,
+    "hash": "33efe61b86bcc86c7e9982d47194d536"
+  },
   "/mnt/server/project/routes.php": {
-    "mtime": 1781772646.4588516,
-    "hash": "65a2f85ca1639c827436b512a42fda30"
+    "mtime": 1783055142.7849417,
+    "hash": "dfc4f6dc7fc1c689f7c5d5e384e37362"
   },
   "/mnt/server/project/views/main.php": {
-    "mtime": 1782549989.2454686,
-    "hash": "aec5370144b1b0fab57cc57a404db86d"
+    "mtime": 1783079316.0280654,
+    "hash": "922ccc1660dd04330c39fc2ae5e8a873"
+  },
+  "/mnt/server/project/views/news_portal_modal.php": {
+    "mtime": 1783076111.649906,
+    "hash": "a84d9cc1f6ec01ba6b6dfa2e95559efe"
   },
   "/mnt/server/project/assets/mobile-browser-chrome.js": {
-    "mtime": 1782374132.946058,
-    "hash": "30e9016bd8a88eb3f68a179b3af436e8"
+    "mtime": 1783118382.171655,
+    "hash": "26fd0f2ae3b3f3830348cbdd32b7e1e1"
+  },
+  "/mnt/server/project/bin/oauth_setup_gitea.php": {
+    "mtime": 1783076111.4889054,
+    "hash": "d49e7f96878868b72475e08f0541db37"
+  },
+  "/mnt/server/project/bin/oauth_setup_immich.php": {
+    "mtime": 1783076111.5729058,
+    "hash": "a4b37594ea06c9d38c35528c0182e916"
   },
   "/mnt/server/project/CLAUDE.md": {
     "mtime": 1778573744.006112,

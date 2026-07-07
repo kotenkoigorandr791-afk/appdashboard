@@ -515,7 +515,7 @@
     "support_chat_upload": "Upload file",
     "support_chat_file_too_large": "File size must not exceed 20MB",
     "support_chat_unsupported_type": "Only images and videos are allowed",
-    "ap_settings_subtitle": "Configure email, Telegram bot, OnlyOffice, Docker, and Backup integrations.",
+    "ap_settings_subtitle": "Configure email, Telegram bot, OnlyOffice, Docker, Backup, AI Assistant, and Pull via GitHub integrations.",
     "onlyoffice_title": "OnlyOffice",
     "onlyoffice_token_label": "JWT Token",
     "onlyoffice_token_hint": "Stored in the config table with key onlyoffice_jwt_secret.",
@@ -545,5 +545,18 @@
     "share_sort_newest": "Newest",
     "ap_geo_access_title": "Country and VPN restrictions",
     "ap_block_vpn_traffic": "Block VPN\/proxy\/hosting traffic",
-    "ap_geo_access_hint": "Requests from selected countries are blocked when opening apps. VPN detection uses client IP metadata when available."
+    "ap_geo_access_hint": "Requests from selected countries are blocked when opening apps. VPN detection uses client IP metadata when available.",
+    "github_pull_settings": "Pull via GitHub",
+    "github_repo_url": "Repository",
+    "github_local_version": "Local version",
+    "github_remote_version": "Remote version",
+    "github_pending_changes": "Pending changes",
+    "github_loading_changes": "Click Refresh to load changes",
+    "github_refresh": "Refresh",
+    "github_update": "Update",
+    "github_pull_hint": "Pulls main from the repository and restarts the appdashboard container.",
+    "github_pull_ok": "Updated successfully",
+    "github_pull_up_to_date": "Already up to date",
+    "github_no_changes": "No pending changes",
+    "github_pull_confirm": "Pull changes from main and restart the container?"
 }

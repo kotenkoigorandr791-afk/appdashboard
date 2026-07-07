@@ -78,7 +78,7 @@ $apps=[];
 $groupedApps=[];
 // Default shell menu button geometry for app pages.
 $defaultMenuButton=['left'=>20,'top'=>13,'width'=>40,'height'=>40];
-$shellParseMenuButton=function(array $nameData,string $key,array $defaults):array{
+	$shellParseMenuButton=function(array $nameData,string $key,array $defaults):array{
     $button=$defaults;
     if(isset($nameData[$key])&&is_array($nameData[$key])){
         foreach($defaults as $k=>$defaultValue){
@@ -88,8 +88,20 @@ $shellParseMenuButton=function(array $nameData,string $key,array $defaults):arra
             }
         }
     }
-    return $button;
-};
+	    return $button;
+	};
+	$shellParseMenuButtonStyle=function(array $nameData,string $key):array{
+	    $style=[];
+	    if(isset($nameData[$key])&&is_array($nameData[$key])){
+	        foreach($nameData[$key] as $prop=>$value){
+	            $prop=(string)$prop;
+	            if(preg_match('/^[a-zA-Z-]+$/',$prop)&&is_scalar($value)){
+	                $style[$prop]=(string)$value;
+	            }
+	        }
+	    }
+	    return $style;
+	};
 $_shellUserRole=(int)($_SESSION['user']['role']??0);
 if(is_dir($appsDir)){
     $subdirs=array_filter(glob($appsDir.'*'),'is_dir');
@@ -109,7 +121,7 @@ if(is_dir($appsDir)){
             $totalVisits=$visitStatsTotals[$folder]??0;
             $appRailApps=['gitea','immich'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
-            $apps[$name]=['folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true)];
+	            $apps[$name]=['folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true)];
         }
     }
     uasort($apps,function($a,$b){
@@ -129,6 +141,9 @@ $selectedApp=isset($_GET['app'])?$_GET['app']:null;
 $pageTitle="Shell Application";
 $selectedAppMenuButton=$defaultMenuButton;
 $selectedAppMenuButtonMobile=$defaultMenuButton;
+$selectedAppMenuButtonScroll=false;
+$selectedAppMenuButtonStyle=[];
+$selectedAppMenuButtonMobileStyle=[];
 if($selectedApp){
     foreach($apps as $name=>$appData){
         if($appData['folder']===$selectedApp){
@@ -141,6 +156,9 @@ if($selectedApp){
             }else{
                 $selectedAppMenuButtonMobile=$selectedAppMenuButton;
             }
+            $selectedAppMenuButtonScroll=!empty($appData['menu_button_scroll']);
+            $selectedAppMenuButtonStyle=is_array($appData['menu_button_style']??null)?$appData['menu_button_style']:[];
+            $selectedAppMenuButtonMobileStyle=is_array($appData['menu_button_mobile_style']??null)?$appData['menu_button_mobile_style']:[];
             break;
         }
     }

@@ -4,7 +4,6 @@ while (ob_get_level()) {
 }
 ob_start();
 
-session_start();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $filePath = isset($_GET['path']) ? $_GET['path'] : '';
 $user = isset($_GET['user']) ? $_GET['user'] : 'default';

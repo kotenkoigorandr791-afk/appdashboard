@@ -1236,6 +1236,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         ];
         $_apOnlyofficeToken = getConfig('onlyoffice_jwt_secret', '');
         require_once __DIR__ . '/../apps/cloud/includes/ai_config_store.php';
+        require_once __DIR__ . '/../lib/git_deploy.php';
         $_apAiCfg = cloud_ai_load_config();
         $_apChats    = loadAuthorizedChats();
         $_apUList    = loadUsers();
@@ -1373,6 +1374,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                     <span><?php echo my_htmlspecialchars($translations['ai_assistant_settings']??'AI Assistant'); ?></span>
                 </button>
+                <button type="button" class="ap-settings-tab" data-settings-section="github" role="tab" aria-selected="false">
+                    <span class="ap-gitea-icon" aria-hidden="true"></span>
+                    <span><?php echo my_htmlspecialchars($translations['github_pull_settings']??'Pull через GitHub'); ?></span>
+                </button>
             </div>
 
             <!-- Email Settings -->
@@ -1452,6 +1457,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-hint" style="color:#ffc107;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.08);padding:10px;border-radius:6px;"><?php echo my_htmlspecialchars($translations['apiKeyChangeWarning']??'Changing the API key will affect all AI assistant functionality. Make sure you have the correct key.'); ?></div>
                 <div class="ap-btn-row"><button type="button" id="ap-save-ai-config" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button></div>
                 <div class="ap-status" id="ap-ai-config-status"></div>
+            </div>
+            <div class="ap-card ap-settings-card" data-settings-card="github">
+                <div class="ap-card-title"><span class="ap-gitea-icon" aria-hidden="true"></span><?php echo my_htmlspecialchars($translations['github_pull_settings']??'Pull через GitHub'); ?></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_repo_url']??'Repository'); ?></label><input type="text" id="ap-github-repo-url" value="<?php echo my_htmlspecialchars(gitDeployRepoUrl()); ?>" readonly style="font-family:monospace;font-size:12px;opacity:.85;"></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_local_version']??'Local version'); ?></label><div id="ap-github-local-head" class="ap-hint" style="font-family:monospace;">—</div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_remote_version']??'Remote version'); ?></label><div id="ap-github-remote-head" class="ap-hint" style="font-family:monospace;">—</div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_pending_changes']??'Pending changes'); ?></label><pre id="ap-github-changes" style="margin:0;padding:12px;border-radius:8px;background:var(--group-block-bg);border:1px solid var(--border-color);font-family:monospace;font-size:12px;white-space:pre-wrap;max-height:280px;overflow:auto;"><?php echo my_htmlspecialchars($translations['github_loading_changes']??'Click Refresh to load changes'); ?></pre></div>
+                <div class="ap-btn-row">
+                    <button type="button" id="ap-github-refresh" class="ap-btn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg><?php echo my_htmlspecialchars($translations['github_refresh']??'Refresh'); ?></button>
+                    <button type="button" id="ap-github-pull" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg><?php echo my_htmlspecialchars($translations['github_update']??'Обновить'); ?></button>
+                </div>
+                <div class="ap-hint"><?php echo my_htmlspecialchars($translations['github_pull_hint']??'Pulls main from the repository and restarts the appdashboard container.'); ?></div>
+                <div class="ap-status" id="ap-github-pull-status"></div>
             </div>
 
         </div>
@@ -2049,6 +2067,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         } else {
             echo json_encode(['success'=>true,'message'=>$translations['ai_config_saved']??'AI configuration saved','config'=>$result['config'] ?? cloud_ai_load_config()], JSON_UNESCAPED_UNICODE);
         }
+        exit;
+    }
+    if(isset($_POST['git_pull_status']) && isset($_POST['ajax']) && $sessionIsAdmin){
+        require_once __DIR__ . '/../lib/git_deploy.php';
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(gitDeployGetStatus(), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if(isset($_POST['git_pull_update']) && isset($_POST['ajax']) && $sessionIsAdmin){
+        require_once __DIR__ . '/../lib/git_deploy.php';
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(gitDeployPullAndRestart(), JSON_UNESCAPED_UNICODE);
         exit;
     }
     if(isset($_POST['save_onlyoffice_config']) && isset($_POST['ajax']) && $sessionIsAdmin){

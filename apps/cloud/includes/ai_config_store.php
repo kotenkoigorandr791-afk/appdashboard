@@ -16,12 +16,13 @@ const CLOUD_AI_LEGACY_KEYS = [
     'default_model' => 'cloud_ai_default_model',
 ];
 const CLOUD_AI_DEFAULT_ENDPOINT = 'https://ai.serverkherson.xyz/v1/chat/completions';
-const CLOUD_AI_DEFAULT_MODEL = 'nvidia/openai/gpt-oss-120b';
+const CLOUD_AI_DEFAULT_MODEL = 'github/gpt-4o-mini';
 const CLOUD_AI_DEFAULT_MODELS = [
-    'nvidia/qwen/qwen3.5-397b-a17b',
-    'nvidia/openai/gpt-oss-120b',
-    'nvidia/nvidia/nemotron-3-super-120b-a12b',
-    'kc/anthropic/claude-sonnet-4.6',
+    'github/gpt-4o-mini',
+    'github/gpt-4o',
+    'github/gpt-5-mini',
+    'github/gpt-5.4-mini',
+    'github/claude-haiku-4.5',
 ];
 
 function cloud_ai_db(): ?AppDatabase

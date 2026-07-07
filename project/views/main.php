@@ -93,18 +93,21 @@
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
-        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
-        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
+	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
+	        <?php if(!empty($selectedAppMenuButtonScroll)): ?>#menu-button{position:absolute;}<?php endif; ?>
+	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
+	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
         #menu-button{top:25px;background:none;width:auto;height:auto;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateY(-50%);}
         #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
         #menu-button .menu-button-glyph{width:100%;height:100%;font-size:calc(var(--shell-menu-button-height) * 0.5);transform:translateY(-1px);text-shadow:0 2px 4px rgba(0,0,0,0.16);}
-        @media (max-width:768px){
-            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
-            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
-        }
+	        @media (max-width:768px){
+	            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
+	            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
+	            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
+	        }
         <?php endif; ?>
         #sidebar{position:fixed;top:0;left:-320px;width:320px;height:100%;background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
         #sidebar.open{left:0;}
@@ -4113,7 +4116,7 @@ var T=<?php echo json_encode([
     display: flex;
     align-items: stretch;
     gap: 0;
-    width: fit-content;
+    width: 100%;
     max-width: calc(100% - 40px);
     margin: 18px auto 20px;
     background: var(--bg-color);
@@ -4121,15 +4124,18 @@ var T=<?php echo json_encode([
     border-radius: 8px;
     overflow-x: auto;
     overflow-y: hidden;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
 }
 .ap-settings-tab {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
-    min-width: 0;
-    padding: 9px 14px;
+    flex: 1 1 0;
+    min-width: 72px;
+    max-width: 168px;
+    padding: 9px 12px;
     border: 0;
     border-right: 1px solid var(--border-color);
     border-radius: 0;
@@ -4141,6 +4147,32 @@ var T=<?php echo json_encode([
     white-space: nowrap;
     cursor: pointer;
     opacity: .72;
+}
+.ap-settings-tab span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+.ap-gitea-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+    background-color: currentColor;
+    -webkit-mask-image: url('/apps/gitea/icon.svg');
+    mask-image: url('/apps/gitea/icon.svg');
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-size: contain;
+    mask-size: contain;
+}
+.ap-card-title .ap-gitea-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 6px;
+    vertical-align: middle;
 }
 .ap-settings-tab:last-child { border-right: 0; }
 .ap-settings-tab:hover {
@@ -4922,6 +4954,13 @@ var T=<?php echo json_encode([
     'docker_saved'  =>$translations['docker_saved']??'Docker settings saved',
     'onlyoffice_saved'=>$translations['onlyoffice_saved']??'OnlyOffice token saved',
     'ai_config_saved'=>$translations['ai_config_saved']??'AI configuration saved',
+    'github_pull_settings'=>$translations['github_pull_settings']??'Pull через GitHub',
+    'github_update'=>$translations['github_update']??'Обновить',
+    'github_refresh'=>$translations['github_refresh']??'Refresh',
+    'github_pull_ok'=>$translations['github_pull_ok']??'Updated successfully',
+    'github_pull_up_to_date'=>$translations['github_pull_up_to_date']??'Already up to date',
+    'github_no_changes'=>$translations['github_no_changes']??'No pending changes',
+    'github_pull_confirm'=>$translations['github_pull_confirm']??'Pull changes from main and restart the container?',
     'apiKeysMatch'=>$translations['apiKeysMatch']??'API keys match',
     'apiKeysDoNotMatch'=>$translations['apiKeysDoNotMatch']??'API keys do not match',
     'apiKeysRequired'=>$translations['apiKeysRequired']??'Both API key fields are required when changing the key',
@@ -6079,6 +6118,7 @@ function wireEvents(){
             cards.forEach(function(card){
                 card.classList.toggle('active', card.dataset.settingsCard === name);
             });
+            if(name==='github'&&typeof window.apGithubLoadStatus==='function'){window.apGithubLoadStatus();}
         }
         tabs.forEach(function(tab){
             tab.addEventListener('click', function(){
@@ -6320,6 +6360,52 @@ function wireEvents(){
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
     });
+    (function(){
+        var ghSt=dynRoot.querySelector('#ap-github-pull-status'),ghRefresh=dynRoot.querySelector('#ap-github-refresh'),ghPull=dynRoot.querySelector('#ap-github-pull'),ghChanges=dynRoot.querySelector('#ap-github-changes'),ghLocal=dynRoot.querySelector('#ap-github-local-head'),ghRemote=dynRoot.querySelector('#ap-github-remote-head');
+        function renderGithubStatus(d){
+            if(!d||!d.success){setStatus(ghSt,'x '+(d&&d.error?d.error:T.error),'error');if(ghChanges&&d&&d.output)ghChanges.textContent=d.output;return;}
+            if(ghLocal)ghLocal.textContent=(d.branch||'main')+' @ '+(d.local_head||'—');
+            if(ghRemote)ghRemote.textContent='origin/main @ '+(d.remote_head||'—');
+            if(ghChanges){
+                if(d.up_to_date){ghChanges.textContent=T.github_no_changes||'No pending changes';}
+                else{
+                    var txt='';
+                    if(d.commits)txt+=d.commits+'\n\n';
+                    if(d.stat)txt+=d.stat;
+                    ghChanges.textContent=txt.trim()||('+'+(d.behind||0)+' commit(s)');
+                }
+            }
+            if(ghPull)ghPull.disabled=!!d.up_to_date;
+            setStatus(ghSt,d.up_to_date?(T.github_pull_up_to_date||'Up to date'):((d.behind||0)+' commit(s) available'),d.up_to_date?'success':'info');
+        }
+        window.apGithubLoadStatus=function(){
+            if(!ghChanges)return;
+            setStatus(ghSt,T.fm_loading||'Loading…','info');
+            var fd=new FormData();fd.append('git_pull_status','1');fd.append('ajax','1');
+            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(renderGithubStatus).catch(function(){setStatus(ghSt,'x '+T.error,'error');});
+        };
+        if(ghRefresh)ghRefresh.addEventListener('click',window.apGithubLoadStatus);
+        if(ghPull)ghPull.addEventListener('click',function(){
+            var msg=T.github_pull_confirm||'Pull changes from main and restart the container?';
+            if(typeof fmConfirm==='function'){fmConfirm(msg,function(){doGithubPull();});return;}
+            if(!confirm(msg))return;
+            doGithubPull();
+        });
+        function doGithubPull(){
+            setStatus(ghSt,T.saving,'info');if(ghPull)ghPull.disabled=true;if(ghRefresh)ghRefresh.disabled=true;
+            var fd=new FormData();fd.append('git_pull_update','1');fd.append('ajax','1');
+            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+                if(d.success){
+                    setStatus(ghSt,'+ '+(d.message||T.github_pull_ok||'Updated'),'success');
+                    if(typeof showTempNotification!=='undefined')showTempNotification(d.message||T.github_pull_ok||'Updated','success');
+                    if(d.restarted){setTimeout(function(){location.reload();},2500);}
+                    else if(typeof window.apGithubLoadStatus==='function')window.apGithubLoadStatus();
+                }else{
+                    setStatus(ghSt,'x '+(d.error||T.error),'error');
+                }
+            }).catch(function(){setStatus(ghSt,'x '+T.error,'error');}).finally(function(){if(ghRefresh)ghRefresh.disabled=false;if(ghPull)ghPull.disabled=false;});
+        }
+    })();
     if(bkSave)bkSave.addEventListener('click',function(){
         var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');
         if(!token){setStatus(bkSt,'x Token is required','error');return;}

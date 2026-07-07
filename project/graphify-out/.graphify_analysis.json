@@ -2,22 +2,44 @@
   "communities": {
     "0": [
       "core_php",
-      "project_core_ap_i18n_lang_exists",
       "project_core_ap_sanitize_hex_color",
-      "project_core_clientauthsessionok",
       "project_core_clientbrowserauthmatches",
       "project_core_detectdeviceandbrowser",
       "project_core_formatbytes",
+      "project_core_generatesecurepassword",
       "project_core_generateverificationtoken",
+      "project_core_getactualdisplaytheme",
       "project_core_getdevicetheme",
+      "project_core_getthemeforlinks",
       "project_core_json_out",
       "project_core_loginusersession",
+      "project_core_newsloadall",
+      "project_core_newssave",
       "project_core_normalizeclientauthcallbackurl",
       "project_core_removebom",
-      "project_core_setpostloginredirect",
-      "project_core_takepostloginredirect"
+      "project_core_takepostloginredirect",
+      "project_core_validatepasswordpolicy"
     ],
     "1": [
+      "project_core_apemaillogohtml",
+      "project_core_apemailpublicbaseurl",
+      "project_core_buildauthemailbody",
+      "project_core_buildtelegraminlinekeyboard",
+      "project_core_gettelegramdomain",
+      "project_core_loadauthorizedchats",
+      "project_core_my_htmlspecialchars",
+      "project_core_notifytelegramemailverified",
+      "project_core_notifytelegramfailedauth",
+      "project_core_notifytelegramnewuser",
+      "project_core_renderapuseractionscell",
+      "project_core_sendemailwithlogo",
+      "project_core_sendpasswordresetemail",
+      "project_core_sendtelegrammessage",
+      "project_core_sendtelegramphoto",
+      "project_core_sendverificationemail",
+      "project_oauth_oauth_redirect_with_error"
+    ],
+    "2": [
       "bootstrap_php",
       "project_bootstrap_apsecconvertimagetowebp",
       "project_bootstrap_apseccsrfcheck",
@@ -30,18 +52,29 @@
       "project_bootstrap_apsecsameorigin",
       "project_bootstrap_apsecstoresupportchatmedia"
     ],
-    "2": [
-      "project_core_buildtelegraminlinekeyboard",
-      "project_core_gettelegramdomain",
-      "project_core_loadauthorizedchats",
-      "project_core_my_htmlspecialchars",
-      "project_core_notifytelegramemailverified",
-      "project_core_notifytelegramfailedauth",
-      "project_core_notifytelegramnewuser",
-      "project_core_sendtelegrammessage",
-      "project_core_sendtelegramphoto"
-    ],
     "3": [
+      "i18n_helpers_php",
+      "project_core_ap_i18n_lang_exists",
+      "project_i18n_helpers_ap_i18n_supported_langs",
+      "project_i18n_helpers_ap_i18n_t",
+      "project_i18n_helpers_ap_load_i18n_all_langs",
+      "project_i18n_helpers_ap_load_i18n_file",
+      "project_i18n_helpers_ap_load_i18n_from_dir",
+      "project_i18n_helpers_ap_load_i18n_merged_lang",
+      "project_i18n_helpers_ap_normalize_i18n_lang"
+    ],
+    "4": [
+      "oauth_php",
+      "project_oauth_oauth_base64url_encode",
+      "project_oauth_oauth_consume_auth_code",
+      "project_oauth_oauth_consume_bridge_token",
+      "project_oauth_oauth_create_bridge_token",
+      "project_oauth_oauth_ensure_bridge_schema",
+      "project_oauth_oauth_jwk",
+      "project_oauth_oauth_route_bridge",
+      "project_oauth_oauth_route_jwks"
+    ],
+    "5": [
       "project_core_collectuserstoragetargets",
       "project_core_countuserfiles",
       "project_core_deletedirectory",
@@ -51,68 +84,154 @@
       "project_core_scanuserfiles",
       "project_core_scanuserfilesprogressive"
     ],
-    "4": [
+    "6": [
+      "project_oauth_oauth_build_user_claims",
+      "project_oauth_oauth_create_refresh_token",
+      "project_oauth_oauth_issue_tokens",
+      "project_oauth_oauth_issuer",
+      "project_oauth_oauth_route_userinfo",
+      "project_oauth_oauth_sanitize_username",
+      "project_oauth_oauth_signing_keys",
+      "project_oauth_oauth_verify_access_token"
+    ],
+    "7": [
+      "project_core_clientauthsessionok",
+      "project_core_setpostloginredirect",
+      "project_oauth_oauth_create_auth_code",
+      "project_oauth_oauth_redirect_uri_allowed",
+      "project_oauth_oauth_route_authorize",
+      "project_oauth_oauth_route_omniroute_bridge",
+      "project_oauth_omniroute_issue_auth_token",
+      "project_oauth_omniroute_jwt_secret"
+    ],
+    "8": [
+      "project_oauth_ensureoauthproviderschema",
+      "project_oauth_oauth_consume_refresh_token",
+      "project_oauth_oauth_extract_client_credentials",
+      "project_oauth_oauth_find_client",
+      "project_oauth_oauth_route_token",
+      "project_oauth_oauth_upsert_client"
+    ],
+    "9": [
       "project_core_createclientbrowserauthrequest",
       "project_core_ensureclientbrowserauthschema",
       "project_core_getclientbrowserauthrequest",
       "project_core_purgeclientbrowserauthrequests"
     ],
-    "5": [
-      "project_core_sendemailwithlogo",
-      "project_core_sendpasswordresetemail",
-      "project_core_sendverificationemail"
+    "10": [
+      "assets_mobile_browser_chrome_applyviewport",
+      "assets_mobile_browser_chrome_boot",
+      "assets_mobile_browser_chrome_istouchmobile",
+      "assets_mobile_browser_chrome_js"
     ],
-    "6": [
+    "11": [
       "project_core_collectserversecuritymeta",
       "project_core_failedauthnotifypayload",
       "project_core_parsejsonclientcontext"
     ],
-    "7": [
-      "project_core_getactualdisplaytheme",
-      "project_core_getthemeforlinks"
-    ],
-    "8": [
-      "project_core_ap_load_i18n_lang",
-      "project_core_ap_merge_i18n"
-    ],
-    "9": [
+    "12": [
       "project_core_createclientauthtoken",
       "project_core_ensureclientauthtokensschema"
     ],
-    "10": [
-      "index_php"
-    ],
-    "11": [
-      "runtime_php"
-    ],
-    "12": [
-      "post_handlers_php"
-    ],
     "13": [
-      "routes_php"
+      "project_core_ap_load_i18n_lang",
+      "project_core_ap_merge_i18n"
     ],
     "14": [
-      "views_main_php"
+      "project_runtime_apredirecttosetpassword",
+      "runtime_php"
+    ],
+    "15": [
+      "claude_md",
+      "project_claude_graphify"
+    ],
+    "16": [
+      "browser_icons_php",
+      "project_browser_icons_get_browser_icon_svg"
+    ],
+    "17": [
+      "project_oauth_oauth_dispatch",
+      "project_oauth_oauth_route_discovery"
+    ],
+    "18": [
+      "mobile_chrome_php"
+    ],
+    "19": [
+      "main_php"
+    ],
+    "20": [
+      "index_php"
+    ],
+    "21": [
+      "post_handlers_php"
+    ],
+    "22": [
+      "routes_php"
+    ],
+    "23": [
+      "views_news_portal_modal_php"
+    ],
+    "24": [
+      "bin_oauth_setup_gitea_php"
+    ],
+    "25": [
+      "bin_oauth_setup_immich_php"
     ]
   },
   "cohesion": {
-    "0": 0.13,
-    "1": 0.27,
-    "2": 0.42,
-    "3": 0.29,
-    "4": 0.5,
-    "5": 0.67,
-    "6": 0.67,
-    "7": 1.0,
-    "8": 1.0,
-    "9": 1.0,
-    "10": 1.0,
-    "11": 1.0,
+    "0": 0.12,
+    "1": 0.2,
+    "2": 0.27,
+    "3": 0.39,
+    "4": 0.39,
+    "5": 0.29,
+    "6": 0.32,
+    "7": 0.29,
+    "8": 0.33,
+    "9": 0.5,
+    "10": 0.83,
+    "11": 0.67,
     "12": 1.0,
     "13": 1.0,
-    "14": 1.0
+    "14": 1.0,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0,
+    "18": 1.0,
+    "19": 1.0,
+    "20": 1.0,
+    "21": 1.0,
+    "22": 1.0,
+    "23": 1.0,
+    "24": 1.0,
+    "25": 1.0
   },
   "gods": [
+    {
+      "id": "project_core_my_htmlspecialchars",
+      "label": "my_htmlspecialchars()",
+      "degree": 9
+    },
+    {
+      "id": "project_oauth_oauth_route_authorize",
+      "label": "oauth_route_authorize()",
+      "degree": 9
+    },
+    {
+      "id": "project_oauth_oauth_route_token",
+      "label": "oauth_route_token()",
+      "degree": 8
+    },
+    {
+      "id": "project_oauth_oauth_dispatch",
+      "label": "oauth_dispatch()",
+      "degree": 8
+    },
+    {
+      "id": "project_core_buildauthemailbody",
+      "label": "buildAuthEmailBody()",
+      "degree": 6
+    },
     {
       "id": "project_core_sendtelegrammessage",
       "label": "sendTelegramMessage()",
@@ -124,47 +243,78 @@
       "degree": 6
     },
     {
+      "id": "project_oauth_oauth_issue_tokens",
+      "label": "oauth_issue_tokens()",
+      "degree": 6
+    },
+    {
+      "id": "project_core_sendverificationemail",
+      "label": "sendVerificationEmail()",
+      "degree": 5
+    },
+    {
       "id": "project_core_gettelegramdomain",
       "label": "getTelegramDomain()",
       "degree": 5
-    },
-    {
-      "id": "project_core_sendtelegramphoto",
-      "label": "sendTelegramPhoto()",
-      "degree": 5
-    },
-    {
-      "id": "project_core_notifytelegramnewuser",
-      "label": "notifyTelegramNewUser()",
-      "degree": 5
-    },
-    {
-      "id": "project_core_my_htmlspecialchars",
-      "label": "my_htmlspecialchars()",
-      "degree": 4
-    },
-    {
-      "id": "project_core_notifytelegramemailverified",
-      "label": "notifyTelegramEmailVerified()",
-      "degree": 4
-    },
-    {
-      "id": "project_core_notifytelegramfailedauth",
-      "label": "notifyTelegramFailedAuth()",
-      "degree": 4
-    },
-    {
-      "id": "project_core_ensureclientbrowserauthschema",
-      "label": "ensureClientBrowserAuthSchema()",
-      "degree": 3
-    },
-    {
-      "id": "project_core_purgeclientbrowserauthrequests",
-      "label": "purgeClientBrowserAuthRequests()",
-      "degree": 3
     }
   ],
-  "surprises": [],
+  "surprises": [
+    {
+      "source": "ap_load_i18n_lang()",
+      "target": "ap_normalize_i18n_lang()",
+      "source_files": [
+        "core.php",
+        "i18n_helpers.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "oauth_route_bridge()",
+      "target": "clientAuthSessionOk()",
+      "source_files": [
+        "oauth.php",
+        "core.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories; bridges separate communities"
+    },
+    {
+      "source": "ap_i18n_lang_exists()",
+      "target": "ap_normalize_i18n_lang()",
+      "source_files": [
+        "core.php",
+        "i18n_helpers.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "oauth_redirect_with_error()",
+      "target": "my_htmlspecialchars()",
+      "source_files": [
+        "oauth.php",
+        "core.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    },
+    {
+      "source": "oauth_route_authorize()",
+      "target": "clientAuthSessionOk()",
+      "source_files": [
+        "oauth.php",
+        "core.php"
+      ],
+      "confidence": "INFERRED",
+      "relation": "calls",
+      "why": "inferred connection - not explicitly stated in source; connects across different repos/directories"
+    }
+  ],
   "tokens": {
     "input": 0,
     "output": 0

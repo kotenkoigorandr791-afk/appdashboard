@@ -18,11 +18,22 @@ root.style.setProperty('--visual-viewport-offset-top',(vv.offsetTop||0)+'px');
 root.style.setProperty('--visual-viewport-offset-left',(vv.offsetLeft||0)+'px');
 root.style.setProperty('--visual-viewport-width',vv.width+'px');
 document.querySelectorAll('.mobile-vv-fill,[data-mobile-vv-fill]').forEach(function(el){
-el.style.top=(vv.offsetTop||0)+'px';
-el.style.left=(vv.offsetLeft||0)+'px';
-el.style.width=vv.width+'px';
-el.style.height=vv.height+'px';
-el.style.maxHeight=vv.height+'px';
+var topInset=0;
+var leftInset=0;
+var content=el.closest('#content.has-app-rail');
+if(content){
+var rail=content.querySelector('#app-icon-rail');
+var railTop=content.classList.contains('rail-top-on-mobile')&&window.matchMedia('(max-width:768px)').matches;
+if(rail){
+if(railTop)topInset=rail.getBoundingClientRect().height||parseFloat(getComputedStyle(content).getPropertyValue('--rail-h'))||0;
+else leftInset=rail.getBoundingClientRect().width||parseFloat(getComputedStyle(content).getPropertyValue('--rail-w'))||0;
+}
+}
+el.style.setProperty('top',((vv.offsetTop||0)+topInset)+'px','important');
+el.style.setProperty('left',((vv.offsetLeft||0)+leftInset)+'px','important');
+el.style.setProperty('width',Math.max(0,vv.width-leftInset)+'px','important');
+el.style.setProperty('height',Math.max(0,vv.height-topInset)+'px','important');
+el.style.setProperty('max-height',Math.max(0,vv.height-topInset)+'px','important');
 });
 }
 function boot(){
@@ -44,7 +55,7 @@ inject:function(doc){
 if(!doc||doc.getElementById('mobile-browser-chrome-asset'))return;
 var head=doc.head||doc.getElementsByTagName('head')[0];
 if(!head)return;
-var v='3';
+var v='4';
 var link=doc.createElement('link');
 link.id='mobile-browser-chrome-asset';
 link.rel='stylesheet';

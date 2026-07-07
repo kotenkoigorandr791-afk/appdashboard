@@ -518,7 +518,7 @@
     "support_chat_new_title": "Создать новый чат",
     "support_chat_back_list": "Открыть чаты",
     "support_chat_loading": "Загрузка...",
-    "ap_settings_subtitle": "Настройка Email, Telegram-бота, OnlyOffice, Docker и Backup интеграций.",
+    "ap_settings_subtitle": "Настройка Email, Telegram-бота, OnlyOffice, Docker, Backup, AI Assistant и Pull via GitHub.",
     "onlyoffice_title": "OnlyOffice",
     "onlyoffice_token_label": "JWT токен",
     "onlyoffice_token_hint": "Сохраняется в таблицу config с ключом onlyoffice_jwt_secret.",
@@ -536,5 +536,18 @@
     "forbidden": "Доступ запрещён",
     "ap_geo_access_title": "Ограничения по странам и VPN",
     "ap_block_vpn_traffic": "Блокировать VPN\/proxy\/hosting трафик",
-    "ap_geo_access_hint": "Запросы из выбранных стран блокируются при открытии приложений. Определение VPN использует метаданные IP, когда они доступны."
+    "ap_geo_access_hint": "Запросы из выбранных стран блокируются при открытии приложений. Определение VPN использует метаданные IP, когда они доступны.",
+    "github_pull_settings": "Pull через GitHub",
+    "github_repo_url": "Репозиторий",
+    "github_local_version": "Локальная версия",
+    "github_remote_version": "Удалённая версия",
+    "github_pending_changes": "Ожидающие изменения",
+    "github_loading_changes": "Нажмите «Обновить список», чтобы загрузить изменения",
+    "github_refresh": "Обновить список",
+    "github_update": "Обновить",
+    "github_pull_hint": "Подтягивает ветку main из репозитория и перезапускает контейнер appdashboard.",
+    "github_pull_ok": "Успешно обновлено",
+    "github_pull_up_to_date": "Уже актуальная версия",
+    "github_no_changes": "Нет ожидающих изменений",
+    "github_pull_confirm": "Подтянуть изменения из main и перезапустить контейнер?"
 }
