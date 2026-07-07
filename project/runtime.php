@@ -65,6 +65,9 @@ if($needsAuth){
     }
     $showLogin=false;
 }
+if($path==='/main' && !$needsAuth && PHP_SESSION_ACTIVE===session_status()){
+    session_write_close();
+}
 
 if(isset($_GET['app'])&&!empty($_GET['app'])&&!$showLogin&&!$needsAuth&&$path==='/main'){
     incrementVisitStat($_GET['app']);

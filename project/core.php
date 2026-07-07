@@ -18,6 +18,9 @@ function ap_sanitize_hex_color(string $c, string $fallback = '#007bff'): string 
     return $fallback;
 }
 function json_out($data, $status = 200) {
+    if (PHP_SESSION_ACTIVE === session_status()) {
+        session_write_close();
+    }
     if (!headers_sent()) {
         $responseStatus = ($status === 401 && isset($_GET['api'])) ? 200 : $status;
         http_response_code($responseStatus);
@@ -339,6 +342,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
     $action = (string)($input['action'] ?? $_GET['action'] ?? '');
     $deviceId = getConsentDeviceId();
     $email = (string)($_SESSION['user']['email'] ?? '');
+    if (PHP_SESSION_ACTIVE === session_status()) {
+        session_write_close();
+    }
 
     if ($action === 'cookie_consent_status') {
         if ($deviceId === '') json_out(['ok' => false, 'error' => 'missing_device_id'], 400);
@@ -640,6 +646,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     $userEmail = (string)$_SESSION['user']['email'];
     $userRole = (int)($_SESSION['user']['role'] ?? 0);
     $isAdmin = $userRole >= 2;
+    if (PHP_SESSION_ACTIVE === session_status()) {
+        session_write_close();
+    }
 
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
