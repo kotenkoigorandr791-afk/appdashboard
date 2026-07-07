@@ -12,7 +12,16 @@ function getDB(): AppDatabase {
     if ($db === null) {
         $db = AppDatabase::connect();
         $db->enableExceptions(true);
-        initDB($db);
+        if (app_db_is_pgsql()) {
+            $schemaStamp = '/opt/AppDashboard/data/.schema_init_stamp';
+            $schemaKey = hash_file('sha256', __FILE__) . ':' . (is_file(__DIR__ . '/lib/pg_foreign_keys.php') ? hash_file('sha256', __DIR__ . '/lib/pg_foreign_keys.php') : '');
+            if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey) {
+                initDB($db);
+                @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
+            }
+        } else {
+            initDB($db);
+        }
     }
     return $db;
 }
@@ -1378,8 +1387,13 @@ function setConfig(string $key, string $value): void {
 
 function loadAuthConfig(): array {
     $keys = ['google_client_id','google_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'];
-    $out  = [];
-    foreach ($keys as $k) $out[$k] = getConfig($k);
+    $out  = array_fill_keys($keys, '');
+    $db = getDB();
+    $quoted = implode(',', array_map(static fn($k) => "'" . AppDatabase::escapeString($k) . "'", $keys));
+    $res = $db->query("SELECT key,value FROM config WHERE key IN ($quoted)");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $out[(string)$row['key']] = (string)$row['value'];
+    }
     $out['smtp_port'] = (int)($out['smtp_port'] ?: 587);
     return $out;
 }
