@@ -19,7 +19,8 @@ function ap_sanitize_hex_color(string $c, string $fallback = '#007bff'): string 
 }
 function json_out($data, $status = 200) {
     if (!headers_sent()) {
-        http_response_code($status);
+        $responseStatus = ($status === 401 && isset($_GET['api'])) ? 200 : $status;
+        http_response_code($responseStatus);
         header('Content-Type: application/json; charset=utf-8');
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     }
