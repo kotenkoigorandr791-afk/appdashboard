@@ -55,6 +55,14 @@ function app_pg_fk_exists(PDO $pdo, string $name): bool {
     $stmt->execute([$name]);
     return (bool)$stmt->fetchColumn();
 }
+function app_pg_existing_tables(PDO $pdo): array {
+    $rows = $pdo->query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'")->fetchAll(PDO::FETCH_COLUMN);
+    return array_fill_keys($rows ?: [], true);
+}
+function app_pg_existing_fks(PDO $pdo): array {
+    $rows = $pdo->query("SELECT c.conname FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE n.nspname = 'public' AND c.contype = 'f'")->fetchAll(PDO::FETCH_COLUMN);
+    return array_fill_keys($rows ?: [], true);
+}
 function ensure_pg_foreign_keys(AppDatabase $db): void {
     if (!function_exists('app_db_is_pgsql') || !app_db_is_pgsql()) {
         return;
@@ -65,7 +73,9 @@ function ensure_pg_foreign_keys(AppDatabase $db): void {
     }
     $ran = true;
     $pdo = $db->getPdo();
-    if (app_pg_table_exists($pdo, 'map_location_tokens')) {
+    $tables = app_pg_existing_tables($pdo);
+    $constraints = app_pg_existing_fks($pdo);
+    if (isset($tables['map_location_tokens'])) {
         try {
             $pdo->exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_map_location_tokens_token ON map_location_tokens(token)');
         } catch (Throwable $e) {
@@ -77,11 +87,11 @@ function ensure_pg_foreign_keys(AppDatabase $db): void {
         $column = $def['column'];
         $refTable = $def['ref_table'];
         $refColumn = $def['ref_column'];
-        if (!app_pg_table_exists($pdo, $table) || !app_pg_table_exists($pdo, $refTable)) {
+        if (!isset($tables[$table]) || !isset($tables[$refTable])) {
             continue;
         }
         $name = app_pg_fk_constraint_name($table, $column);
-        if (app_pg_fk_exists($pdo, $name)) {
+        if (isset($constraints[$name])) {
             continue;
         }
         $onDelete = strtoupper($def['on_delete']);
