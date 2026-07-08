@@ -45,10 +45,13 @@ function app_db_load_config(): array {
 function app_db_is_pgsql(): bool {
     return app_db_load_config()['driver'] === 'pgsql';
 }
+function app_db_skip_session_init(): bool {
+    return getenv('APP_DB_SKIP_SESSION_INIT') === '1';
+}
 function app_pdo_connect(bool $fresh = false): PDO {
     static $pdo = null;
     if (!$fresh && $pdo instanceof PDO) {
-        $pdo->exec('SET search_path TO public');
+        if (!app_db_skip_session_init()) $pdo->exec('SET search_path TO public');
         return $pdo;
     }
     $c = app_db_load_config();
@@ -58,9 +61,11 @@ function app_pdo_connect(bool $fresh = false): PDO {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
     ]);
-    $new->exec("SET client_encoding TO 'UTF8'");
-    $new->exec("SET timezone TO 'UTC'");
-    $new->exec('SET search_path TO public');
+    if (!app_db_skip_session_init()) {
+        $new->exec("SET client_encoding TO 'UTF8'");
+        $new->exec("SET timezone TO 'UTC'");
+        $new->exec('SET search_path TO public');
+    }
     if (!$fresh) $pdo = $new;
     return $new;
 }
