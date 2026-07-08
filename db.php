@@ -3168,9 +3168,11 @@ function monitorRecordHttpRequest(array $data): void {
         $stmt->bindValue(':context_json', monitorJson($data['context'] ?? []), SQLITE3_TEXT);
         $stmt->execute();
 
-        $since = time() - 300;
-        $serverErrors = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_http_requests WHERE created_at >= $since AND status_code >= 500");
-        monitorEvaluateAlerts(['http.5xx_count_5m' => $serverErrors], ['window_sec' => 300]);
+        if (getenv('APP_MONITOR_SYNC_ALERTS') === '1') {
+            $since = time() - 300;
+            $serverErrors = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_http_requests WHERE created_at >= $since AND status_code >= 500");
+            monitorEvaluateAlerts(['http.5xx_count_5m' => $serverErrors], ['window_sec' => 300]);
+        }
     } catch (Exception $e) {
         error_log('monitorRecordHttpRequest failed: ' . $e->getMessage());
     }
@@ -3199,9 +3201,11 @@ function monitorRecordError(string $message, string $level = 'error', string $fi
         $stmt->bindValue(':context_json', monitorJson($context), SQLITE3_TEXT);
         $stmt->execute();
 
-        $since = time() - 300;
-        $errors = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_errors WHERE created_at >= $since AND level IN ('error','critical')");
-        monitorEvaluateAlerts(['errors.count_5m' => $errors], ['window_sec' => 300]);
+        if (getenv('APP_MONITOR_SYNC_ALERTS') === '1') {
+            $since = time() - 300;
+            $errors = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_errors WHERE created_at >= $since AND level IN ('error','critical')");
+            monitorEvaluateAlerts(['errors.count_5m' => $errors], ['window_sec' => 300]);
+        }
     } catch (Exception $e) {
         error_log('monitorRecordError failed: ' . $e->getMessage());
     }
