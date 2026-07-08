@@ -9,8 +9,9 @@ if (getcwd() !== APP_ROOT) {
 }
 
 $__path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$__pathLower = strtolower($__path);
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
-    if ($__path === '/' || $__path === '') {
+    if ($__path === '/' || $__path === '' || $__pathLower === '/news') {
         header('Content-Type: text/html; charset=UTF-8');
         readfile(APP_ROOT . '/home/home.html');
         exit;

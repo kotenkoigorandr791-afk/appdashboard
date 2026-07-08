@@ -152,6 +152,8 @@
   let ruNotifyTimer = null, engagementScheduled = false;
   const PROMO_KEY = 'sk_home_promo_dismissed';
   const NEWS_SEEN_KEY = 'sk_news_seen_ids';
+  const isNewsRoute = location.pathname.replace(/\/+$/, '').toLowerCase() === '/news';
+  const NEWS_PAGE_SIZE = 9;
 
   const $ = id => document.getElementById(id);
   const grid = $('featuresGrid');
@@ -166,6 +168,8 @@
 
   // ── News state ──────────────────────────────────────────────────────────────
   let newsItems = [];
+  let visibleNewsItems = [];
+  let newsPage = 1;
   let newsSectionVisible = false;
 
   function todayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
@@ -185,6 +189,7 @@
     const now = new Date();
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
   }
+  function todayNews(items) { return items.filter(n => isToday(n.created_at)); }
 
   function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -201,7 +206,14 @@
       .then(data => {
         if (!data.ok) return;
         newsItems = data.items || [];
-        if (newsSectionVisible) renderNewsCards();
+        if (isNewsRoute) {
+          visibleNewsItems = newsItems;
+          showNewsSection();
+        } else {
+          visibleNewsItems = todayNews(newsItems);
+          if (visibleNewsItems.length) showNewsSection();
+          else hideNewsSection();
+        }
         checkTodayToast();
       })
       .catch(() => {});
@@ -226,16 +238,21 @@
     const canvas = $('newsCanvas');
     if (!canvas) return;
     const t = I18N[lang] || I18N.en;
-    if (!newsItems.length) {
+    if (!visibleNewsItems.length) {
       canvas.innerHTML = `<div class="news-empty">${escH(t.news_empty)}</div>`;
+      renderNewsPager();
       return;
     }
     canvas.innerHTML = '';
-    newsItems.forEach(item => {
+    const pages = Math.max(1, Math.ceil(visibleNewsItems.length / NEWS_PAGE_SIZE));
+    newsPage = Math.min(newsPage, pages);
+    const items = isNewsRoute ? visibleNewsItems.slice((newsPage - 1) * NEWS_PAGE_SIZE, newsPage * NEWS_PAGE_SIZE) : visibleNewsItems;
+    items.forEach(item => {
       const card = document.createElement('div');
       card.className = 'news-card';
       card.dataset.id = item.id;
       card.innerHTML = `
+${isToday(item.created_at) ? `<div class="news-new-badge">${escH(t.news_toast_label)}</div>` : ''}
 ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
 <div class="news-card-body">
   <div class="news-card-title">${escH(item.title)}</div>
@@ -245,6 +262,35 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
       card.addEventListener('click', () => openNewsModal(item));
       canvas.appendChild(card);
     });
+    renderNewsPager();
+  }
+
+  function renderNewsPager() {
+    let pager = $('newsPager');
+    if (!pager) {
+      pager = document.createElement('div');
+      pager.id = 'newsPager';
+      pager.className = 'news-pager';
+      $('newsSection')?.appendChild(pager);
+    }
+    if (!isNewsRoute || visibleNewsItems.length <= NEWS_PAGE_SIZE) {
+      pager.innerHTML = '';
+      return;
+    }
+    const pages = Math.ceil(visibleNewsItems.length / NEWS_PAGE_SIZE);
+    pager.innerHTML = '';
+    for (let i = 1; i <= pages; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = i;
+      btn.className = i === newsPage ? 'active' : '';
+      btn.addEventListener('click', () => {
+        newsPage = i;
+        renderNewsCards();
+        $('newsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      pager.appendChild(btn);
+    }
   }
 
   function applyNewsTexts() {
@@ -264,14 +310,23 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
     if (!newsModal || !newsModalBody) return;
     newsModalBody.innerHTML = `
 ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
-<h2>${escH(item.title)}</h2>
-<div class="news-modal-date">${fmtDate(item.created_at)}</div>
-<p>${escH(item.body || '')}</p>`;
+<div class="news-article-surface">
+  <h2>${escH(item.title)}</h2>
+  <div class="news-modal-date">${fmtDate(item.created_at)}</div>
+  <p>${escH(item.body || '')}</p>
+</div>`;
     newsModal.classList.add('active');
   }
 
   if (newsModalClose) newsModalClose.addEventListener('click', () => newsModal.classList.remove('active'));
   if (newsModal) newsModal.addEventListener('click', e => { if (e.target === newsModal) newsModal.classList.remove('active'); });
+  if (newsModal) newsModal.addEventListener('mousemove', e => {
+    const box = newsModal.querySelector('.news-article-surface');
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    box.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    box.style.setProperty('--my', `${e.clientY - r.top}px`);
+  });
 
   // ── Today news star-badge toast ───────────────────────────────────────────
   function checkTodayToast() {
@@ -386,13 +441,17 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
     document.querySelector('[data-i18n="nav_home"]').textContent = t.nav_home;
     document.querySelector('[data-i18n="nav_features"]').textContent = t.nav_features;
     applyNewsTexts();
-    if (newsSectionVisible) renderNewsCards();
+    if (newsSectionVisible) {
+      visibleNewsItems = isNewsRoute ? newsItems : todayNews(newsItems);
+      renderNewsCards();
+    }
     refreshToastI18n();
   }
 
   function setLanguage(l) {
     lang = l;
-    document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active-lang', b.dataset.lang === l));
+    const langSelector = $('langSelector');
+    if (langSelector) langSelector.value = l;
     applyTexts(l);
     renderCards(l);
     if (l === 'ru') {
@@ -492,13 +551,28 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
   $('navOpenBtn').addEventListener('click', openNav);
   $('navCloseBtn').addEventListener('click', closeNav);
   $('navBackdrop').addEventListener('click', closeNav);
-  $('navGoHomeBtn').addEventListener('click', () => { closeNav(); $('heroSection').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  const seenNav = new Set();
+  document.querySelectorAll('.nav-drawer-links button').forEach(btn => {
+    const key = btn.querySelector('[data-i18n]')?.dataset.i18n || btn.id || btn.textContent.trim();
+    if (seenNav.has(key)) btn.remove();
+    else seenNav.add(key);
+  });
+  $('navGoHomeBtn').addEventListener('click', () => {
+    closeNav();
+    if (isNewsRoute) { location.href = '/' + location.search; return; }
+    $('heroSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('navGoNewsBtn').addEventListener('click', () => {
     closeNav();
+    if (!isNewsRoute) { location.href = '/news' + location.search; return; }
     if (!newsSectionVisible) { showNewsSection(); }
     setTimeout(() => $('newsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   });
-  $('navGoFeaturesBtn').addEventListener('click', () => { closeNav(); $('appsSection').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('navGoFeaturesBtn').addEventListener('click', () => {
+    closeNav();
+    if (isNewsRoute) { location.href = '/' + location.search + '#apps'; return; }
+    $('appsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   $('modalClose').addEventListener('click', () => modal.classList.remove('active'));
   window.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
@@ -519,7 +593,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
     }
   });
 
-  document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => setLanguage(b.dataset.lang)));
+  $('langSelector').addEventListener('change', e => setLanguage(e.target.value));
   document.querySelectorAll('#themeToggle button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.theme)));
 
   ['loginLink', 'registerLink', 'otpLink', 'drawerLoginLink', 'drawerRegisterLink', 'drawerOtpLink'].forEach(id => bindAuthLink($(id)));
@@ -535,6 +609,12 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
   const params = new URLSearchParams(location.search);
   setTheme(params.get('theme') || 'dark');
   setLanguage(params.get('lang') || 'en');
-  scheduleEngagement();
+  if (isNewsRoute) {
+    $('heroSection').style.display = 'none';
+    $('appsSection').style.display = 'none';
+  } else {
+    scheduleEngagement();
+    if (location.hash === '#apps') setTimeout(() => $('appsSection')?.scrollIntoView({ block: 'start' }), 80);
+  }
   loadNews();
 })();
