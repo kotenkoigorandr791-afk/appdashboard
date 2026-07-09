@@ -21,7 +21,7 @@ jobs:
           if [ "$(git branch --show-current)" != "main" ]; then
             git checkout main
           fi
-          git merge --ff-only origin/main
+          git reset --hard origin/main
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
   deploy-develop:
     if: gitea.ref == 'refs/heads/develop'
