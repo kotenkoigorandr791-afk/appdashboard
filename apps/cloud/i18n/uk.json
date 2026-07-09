@@ -236,6 +236,7 @@
     "compile": "Компілювати та запустити",
     "noFileToCompile": "Немає файлу для компіляції",
     "noContentToCompile": "Немає вмісту для компіляції",
+    "noPermission": "Немає дозволу на компіляцію",
     "languageNotSupported": "Мова не підтримується для компіляції",
     "compiling": "Компіляція",
     "compilationSuccess": "Компіляція успішна",

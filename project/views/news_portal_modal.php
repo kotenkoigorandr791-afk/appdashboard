@@ -21,11 +21,14 @@ $newsIsAdmin = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0)
 /* Body */
 #npo-body{display:flex;flex:1;min-height:0;overflow:hidden;}
 /* Sidebar – news list */
-#npo-sidebar{width:320px;flex-shrink:0;border-right:1px solid var(--border-color);display:flex;flex-direction:column;overflow:hidden;}
+#npo-sidebar{width:320px;flex-shrink:0;border-right:1px solid var(--border-color);display:flex;flex-direction:column;overflow:hidden;background:color-mix(in srgb,var(--modal-bg) 88%,var(--primary-color) 12%);}
 #npo-sidebar-header{padding:14px 16px 10px;border-bottom:1px solid var(--border-color);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.55;}
 #npo-list{flex:1;overflow-y:auto;padding:10px 12px;}
-.npo-list-item{display:flex;gap:10px;padding:10px 8px;border-radius:10px;cursor:pointer;transition:background .15s;align-items:flex-start;margin-bottom:4px;}
-.npo-list-item:hover,.npo-list-item.selected{background:var(--app-item-bg);}
+.npo-list-item{display:flex;gap:10px;padding:10px 8px;border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s;align-items:flex-start;margin-bottom:6px;border:1px solid color-mix(in srgb,var(--border-color) 72%,transparent);}
+.npo-list-item:nth-child(3n+1){background:color-mix(in srgb,var(--group-block-bg) 82%,var(--primary-color) 18%);}
+.npo-list-item:nth-child(3n+2){background:color-mix(in srgb,var(--group-block-bg) 88%,#22c55e 12%);}
+.npo-list-item:nth-child(3n){background:color-mix(in srgb,var(--group-block-bg) 88%,#f59e0b 12%);}
+.npo-list-item:hover,.npo-list-item.selected{border-color:color-mix(in srgb,var(--primary-color) 65%,var(--border-color));background:color-mix(in srgb,var(--app-item-bg) 76%,var(--primary-color) 24%);}
 .npo-list-thumb{width:56px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--group-block-bg);}
 .npo-list-thumb-ph{width:56px;height:40px;border-radius:6px;flex-shrink:0;background:var(--group-block-bg);display:flex;align-items:center;justify-content:center;opacity:.35;}
 .npo-list-meta{flex:1;min-width:0;}
@@ -41,17 +44,18 @@ $newsIsAdmin = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0)
 .npo-pane{flex:1;min-height:0;overflow-y:auto;padding:28px 32px;display:none;}
 .npo-pane.active{display:block;}
 /* Editor fields */
-.npo-field{margin-bottom:18px;}
-.npo-field label{display:block;font-size:11px;font-weight:700;color:#888;margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
+.npo-field{margin-bottom:18px;padding:14px;border:1px solid color-mix(in srgb,var(--border-color) 74%,transparent);border-radius:12px;background:color-mix(in srgb,var(--modal-bg) 90%,var(--primary-color) 10%);}
+.npo-field:nth-of-type(odd){background:color-mix(in srgb,var(--modal-bg) 92%,#22c55e 8%);}
+.npo-field label{display:block;font-size:11px;font-weight:700;color:color-mix(in srgb,var(--primary-color) 72%,var(--text-color));margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
 .npo-field input,.npo-field textarea{width:100%;padding:10px 13px;border:1px solid var(--border-color);border-radius:10px;background:var(--modal-bg);color:var(--text-color);font-size:14px;box-sizing:border-box;font-family:inherit;resize:vertical;transition:border-color .15s;}
 .npo-field textarea{min-height:160px;}
 .npo-field input:focus,.npo-field textarea:focus{outline:none;border-color:var(--primary-color,#38bdf8);}
 .npo-field-row{display:flex;gap:10px;align-items:flex-start;}
 .npo-field-row .npo-field{flex:1;}
 /* AI prompt */
-#npo-ai-panel{background:var(--group-block-bg);border:1px solid var(--border-color);border-radius:12px;padding:16px;margin-bottom:18px;display:none;}
+#npo-ai-panel{background:color-mix(in srgb,var(--group-block-bg) 78%,#7c3aed 22%);border:1px solid color-mix(in srgb,var(--primary-color) 46%,var(--border-color));border-radius:12px;padding:16px;margin-bottom:18px;display:none;}
 #npo-ai-panel.open{display:block;}
-.npo-ai-label{font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
+.npo-ai-label{font-size:11px;font-weight:700;color:color-mix(in srgb,#7c3aed 74%,var(--text-color));text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;}
 #npo-ai-prompt{width:100%;padding:10px 13px;border:1px solid var(--border-color);border-radius:8px;background:var(--modal-bg);color:var(--text-color);font-size:13px;font-family:inherit;resize:vertical;min-height:72px;box-sizing:border-box;}
 #npo-ai-prompt:focus{outline:none;border-color:var(--primary-color,#38bdf8);}
 .npo-ai-actions{display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap;}
@@ -114,7 +118,6 @@ $newsIsAdmin = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0)
     <div id="npo-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></div>
     <div id="npo-tabs">
       <button class="npo-tab active" data-pane="editor" type="button"><?php echo my_htmlspecialchars($translations['news_add'] ?? 'Editor'); ?></button>
-      <button class="npo-tab" data-pane="layout" type="button"><?php echo my_htmlspecialchars($translations['news_layout_edit'] ?? 'Layout'); ?></button>
     </div>
     <?php if ($newsCanEdit): ?>
     <button id="npo-add-btn" type="button">
@@ -191,16 +194,6 @@ $newsIsAdmin = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0)
             </button>
           </div>
           <div id="npo-status"></div>
-        </div>
-      </div>
-      <!-- Layout pane -->
-      <div id="npo-pane-layout" class="npo-pane">
-        <div id="npo-canvas-toolbar">
-          <button type="button" id="npo-canvas-save-btn"><?php echo my_htmlspecialchars($translations['save_layout'] ?? 'Save layout'); ?></button>
-          <span id="npo-canvas-status"></span>
-        </div>
-        <div id="npo-canvas-container">
-          <div class="npo-canvas-hint"><?php echo my_htmlspecialchars($translations['news_layout_hint'] ?? 'Drag cards to position them. Click Save layout when done.'); ?></div>
         </div>
       </div>
     </div>

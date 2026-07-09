@@ -451,6 +451,7 @@ body[data-theme="dark"] .preview-container embed,body[data-theme="dark"] .previe
 .ai-loading{text-align:center;color:var(--muted);font-style:italic;padding:16px;font-size:12px}
 .code-actions{position:relative;display:inline-block}
 .dropdown-menu{position:absolute;right:0;background:var(--panel);border:1px solid var(--border);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);z-index:1000;min-width:160px;margin-top:4px}
+#code-actions-menu{z-index:40000!important}
 .dropdown-item{padding:8px 12px;cursor:pointer;display:flex;align-items:center;gap:8px;color:var(--fg);transition:background 0.2s ease,color 0.2s ease;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:32px;box-sizing:border-box}
 .dropdown-item span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
 .dropdown-item svg{flex-shrink:0;width:14px;height:14px;transition:transform 0.2s ease}

@@ -1694,18 +1694,20 @@ function saveAppAccessLevelsFromMap(array $levels): void {
 }
 function loadAppAccessSecurityConfig(): array {
     $countries = json_decode(getConfig('app_access_blocked_countries', '[]'), true);
+    $hostCountry = appAccessHostCountry();
     return [
-        'blocked_countries' => is_array($countries) ? array_values(array_unique(array_map('strtoupper', array_filter(array_map('strval', $countries))))) : [],
+        'blocked_countries' => is_array($countries) ? array_values(array_filter(array_unique(array_map('strtoupper', array_filter(array_map('strval', $countries)))), static fn($code) => $code !== $hostCountry)) : [],
         'block_vpn' => getConfig('app_access_block_vpn', '0') === '1',
     ];
 }
 function saveAppAccessSecurityConfig(array $cfg): void {
     $countries = $cfg['blocked_countries'] ?? [];
     if (!is_array($countries)) $countries = [];
+    $hostCountry = appAccessHostCountry();
     $clean = [];
     foreach ($countries as $code) {
         $code = strtoupper(trim((string)$code));
-        if (preg_match('/^[A-Z]{2}$/', $code)) $clean[] = $code;
+        if (preg_match('/^[A-Z]{2}$/', $code) && $code !== $hostCountry) $clean[] = $code;
     }
     setConfig('app_access_blocked_countries', json_encode(array_values(array_unique($clean)), JSON_UNESCAPED_UNICODE));
     setConfig('app_access_block_vpn', !empty($cfg['block_vpn']) ? '1' : '0');
@@ -1714,11 +1716,36 @@ function appAccessLookupIpMeta(string $ip): array {
     if ($ip === '' || $ip === '0.0.0.0' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
         return [];
     }
-    $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,countryCode,proxy,hosting,query';
+    $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,countryCode,proxy,hosting,mobile,query';
     $ctx = stream_context_create(['http' => ['timeout' => 1.5, 'ignore_errors' => true]]);
     $raw = @file_get_contents($url, false, $ctx);
     $data = is_string($raw) ? json_decode($raw, true) : null;
     return is_array($data) && ($data['status'] ?? '') === 'success' ? $data : [];
+}
+function appAccessHostCountry(): string {
+    $forced = strtoupper(trim((string)getenv('APP_HOST_COUNTRY')));
+    if (preg_match('/^[A-Z]{2}$/', $forced)) return $forced;
+    $cache = json_decode(getConfig('app_access_host_country_cache', '{}'), true);
+    if (is_array($cache) && (int)($cache['expires'] ?? 0) > time()) {
+        $country = strtoupper((string)($cache['country'] ?? ''));
+        if (preg_match('/^[A-Z]{2}$/', $country)) return $country;
+    }
+    $ip = (string)($_SERVER['SERVER_ADDR'] ?? '');
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        $host = preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? ''));
+        $resolved = $host !== '' ? gethostbyname($host) : '';
+        if (filter_var($resolved, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) $ip = $resolved;
+    }
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        $ctx = stream_context_create(['http' => ['timeout' => 1.5, 'ignore_errors' => true]]);
+        $raw = @file_get_contents('https://api.ipify.org', false, $ctx);
+        if (is_string($raw) && filter_var(trim($raw), FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false) $ip = trim($raw);
+    }
+    $meta = appAccessLookupIpMeta($ip);
+    $country = strtoupper((string)($meta['countryCode'] ?? ''));
+    if (!preg_match('/^[A-Z]{2}$/', $country)) $country = '';
+    setConfig('app_access_host_country_cache', json_encode(['country' => $country, 'expires' => time() + 86400], JSON_UNESCAPED_UNICODE));
+    return $country;
 }
 function appAccessClientMeta(): array {
     $ip = getClientIp();

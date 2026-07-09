@@ -209,6 +209,18 @@ function loginUserSession(string $email, array $users): bool {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    if (!headers_sent()) {
+        $__secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
+            || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+        setcookie('sk_user_has_account', '1', [
+            'expires' => time() + 365 * 86400,
+            'path' => '/',
+            'secure' => $__secure,
+            'httponly' => false,
+            'samesite' => 'Lax',
+        ]);
+    }
     return true;
 }
 
@@ -2025,6 +2037,21 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     function newsBool($value): bool {
         return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
     }
+    function newsTableColumns(AppDatabase $db, string $table): array {
+        $res = $db->query("PRAGMA table_info($table)");
+        $cols = [];
+        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+            if (isset($row['name'])) $cols[] = (string)$row['name'];
+        }
+        return $cols;
+    }
+    function newsEnsureColumn(AppDatabase $db, array &$cols, string $table, string $column, string $definition): void {
+        if (in_array($column, $cols, true)) return;
+        try {
+            $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+            $cols[] = $column;
+        } catch (Throwable $e) {}
+    }
     function newsEnsureDb(AppDatabase $db, string $newsFile): void {
         $db->exec("CREATE TABLE IF NOT EXISTS app_news (
             id TEXT PRIMARY KEY,
@@ -2036,6 +2063,15 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
             updated_at INTEGER,
             author TEXT NOT NULL DEFAULT ''
         )");
+        $cols = newsTableColumns($db, 'app_news');
+        newsEnsureColumn($db, $cols, 'app_news', 'id', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'title', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'body', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'photo', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'published', "INTEGER NOT NULL DEFAULT 0");
+        newsEnsureColumn($db, $cols, 'app_news', 'created_at', "INTEGER NOT NULL DEFAULT 0");
+        newsEnsureColumn($db, $cols, 'app_news', 'updated_at', "INTEGER");
+        newsEnsureColumn($db, $cols, 'app_news', 'author', "TEXT NOT NULL DEFAULT ''");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_app_news_created_at ON app_news(created_at)");
         if ((int)$db->querySingle("SELECT COUNT(*) FROM app_news") > 0 || !is_file($newsFile)) return;
         $items = json_decode((string)file_get_contents($newsFile), true);
@@ -2089,13 +2125,14 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         if ($prompt === '') { echo json_encode(['ok' => false, 'error' => 'prompt_required']); exit; }
         try {
             require_once APP_ROOT . '/apps/cloud/includes/ai_config_store.php';
+            require_once APP_ROOT . '/apps/cloud/includes/ai_proxy.php';
             $aiCfg = cloud_ai_load_config();
             if (empty($aiCfg['api_key']) || empty($aiCfg['api_endpoint'])) {
                 echo json_encode(['ok' => false, 'error' => 'ai_not_configured']); exit;
             }
             $systemMsg = 'You are a news article writer. Given a topic or prompt, write a short news article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.';
-            $payload = json_encode([
-                'model' => $aiCfg['default_model'],
+            $payload = [
+                'model' => cloud_ai_normalize_model_id((string)($aiCfg['default_model'] ?: ($aiCfg['models'][0] ?? ''))),
                 'messages' => [
                     ['role' => 'system', 'content' => $systemMsg],
                     ['role' => 'user', 'content' => $prompt]
@@ -2103,24 +2140,16 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
                 'max_tokens' => 800,
                 'temperature' => 0.7,
                 'stream' => false
-            ]);
-            $ch = curl_init($aiCfg['api_endpoint']);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $payload,
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $aiCfg['api_key']
-                ],
-                CURLOPT_TIMEOUT => 60,
-                CURLOPT_SSL_VERIFYPEER => false
-            ]);
-            $raw = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            if ($raw === false || $httpCode >= 400) {
-                echo json_encode(['ok' => false, 'error' => 'ai_request_failed']); exit;
+            ];
+            if ($payload['model'] === '') {
+                echo json_encode(['ok' => false, 'error' => 'ai_model_required']); exit;
+            }
+            $result = cloud_ai_proxy_json($aiCfg, $aiCfg['api_endpoint'], $payload, 'POST');
+            $raw = $result['body'];
+            if (!$result['ok']) {
+                $err = json_decode($raw, true);
+                $message = $result['error'] ?: (string)($err['error']['message'] ?? $err['message'] ?? 'ai_request_failed');
+                echo json_encode(['ok' => false, 'error' => $message]); exit;
             }
             $resp = json_decode($raw, true);
             $text = trim((string)($resp['choices'][0]['message']['content'] ?? ''));

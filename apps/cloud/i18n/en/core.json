@@ -152,6 +152,7 @@
     "compile": "Compile & Run",
     "noFileToCompile": "No file to compile",
     "noContentToCompile": "No content to compile",
+    "noPermission": "No permission to compile",
     "languageNotSupported": "Language not supported for compilation",
     "compiling": "Compiling",
     "compilationSuccess": "Compilation successful",

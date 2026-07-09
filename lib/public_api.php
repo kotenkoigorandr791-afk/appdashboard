@@ -116,6 +116,7 @@ function public_api_auth_user(bool $requireDevice = true): array {
 function public_api_check_app(string $app): void {
     $role = (int)($_SESSION['user']['role'] ?? 0);
     if (!userMeetsAppMinRole($role, $app)) public_api_json(['ok' => false, 'error' => 'app_forbidden'], 403);
+    if (appAccessRequestBlocked()) public_api_json(['ok' => false, 'error' => 'app_forbidden'], 403);
 }
 function public_api_parse_path(): array {
     $uri = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');

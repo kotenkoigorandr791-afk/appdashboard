@@ -5271,21 +5271,46 @@ function initCodeActionsMenuIcons() {
 function adjustDropdownPosition() {
     const dropdown = document.getElementById('code-actions-menu');
     const btn = document.getElementById('btn-code-actions');
+    if (!dropdown || !btn || dropdown.classList.contains('hidden')) return;
     const rect = btn.getBoundingClientRect();
     const dropdownHeight = dropdown.offsetHeight;
+    const dropdownWidth = dropdown.offsetWidth;
     const viewportHeight = window.innerHeight;
-    if (rect.bottom + dropdownHeight > viewportHeight) {
-        dropdown.style.top = 'auto';
-        dropdown.style.bottom = '100%';
-        dropdown.style.marginTop = '0';
-        dropdown.style.marginBottom = '4px';
-    } else {
-        dropdown.style.top = '100%';
-        dropdown.style.bottom = 'auto';
-        dropdown.style.marginTop = '4px';
-        dropdown.style.marginBottom = '0';
+    const viewportWidth = window.innerWidth;
+    const gap = 4;
+    const padding = 8;
+    const sideToolbar = !!btn.closest('#file-view.fullscreen-mode .file-toolbar') && window.matchMedia('(min-width: 769px)').matches;
+    let left = sideToolbar && rect.right + gap + dropdownWidth <= viewportWidth - padding
+        ? rect.right + gap
+        : rect.right - dropdownWidth;
+    left = Math.max(padding, Math.min(left, viewportWidth - dropdownWidth - padding));
+    let top = sideToolbar
+        ? rect.top
+        : rect.bottom + gap;
+    if (!sideToolbar && top + dropdownHeight > viewportHeight - padding) {
+        top = rect.top - dropdownHeight - gap;
     }
+    top = Math.max(padding, Math.min(top, viewportHeight - dropdownHeight - padding));
+    dropdown.style.position = 'fixed';
+    dropdown.style.left = `${left}px`;
+    dropdown.style.right = 'auto';
+    dropdown.style.top = `${top}px`;
+    dropdown.style.bottom = 'auto';
+    dropdown.style.marginTop = '0';
+    dropdown.style.marginBottom = '0';
 }
+window.addEventListener('resize', () => {
+    const dropdown = document.getElementById('code-actions-menu');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+        adjustDropdownPosition();
+    }
+});
+window.addEventListener('scroll', () => {
+    const dropdown = document.getElementById('code-actions-menu');
+    if (dropdown && !dropdown.classList.contains('hidden')) {
+        adjustDropdownPosition();
+    }
+}, true);
 async function compactCurrentCode() {
     const activeTabId = tabsState.activeTabId;
     if (!activeTabId) {

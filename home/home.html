@@ -21,14 +21,21 @@
         <button data-theme="dark" class="active">🌙 Dark</button>
         <button data-theme="light">☀️ Light</button>
       </div>
-      <select class="lang-selector" id="langSelector" aria-label="Language">
-        <option value="en">English</option>
-        <option value="uk">Українська</option>
-        <option value="ru">Русский</option>
-        <option value="be">Беларуская</option>
-        <option value="pl">Polski</option>
-        <option value="cs">Čeština</option>
-      </select>
+      <div class="lang-selector" id="langSelector" data-value="en">
+        <button type="button" class="lang-selector-btn" id="langSelectorButton" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <span class="lang-flag lang-flag-en"></span>
+          <span class="lang-selector-label">English</span>
+          <span class="lang-selector-chevron"></span>
+        </button>
+        <div class="lang-selector-menu" id="langSelectorMenu" role="listbox">
+          <button type="button" class="lang-selector-option active" data-lang="en" role="option" aria-selected="true"><span class="lang-flag lang-flag-en"></span><span>English</span></button>
+          <button type="button" class="lang-selector-option" data-lang="uk" role="option" aria-selected="false"><span class="lang-flag lang-flag-uk"></span><span>Українська</span></button>
+          <button type="button" class="lang-selector-option" data-lang="ru" role="option" aria-selected="false"><span class="lang-flag lang-flag-ru"></span><span>Русский</span></button>
+          <button type="button" class="lang-selector-option" data-lang="be" role="option" aria-selected="false"><span class="lang-flag lang-flag-be"></span><span>Беларуская</span></button>
+          <button type="button" class="lang-selector-option" data-lang="pl" role="option" aria-selected="false"><span class="lang-flag lang-flag-pl"></span><span>Polski</span></button>
+          <button type="button" class="lang-selector-option" data-lang="cs" role="option" aria-selected="false"><span class="lang-flag lang-flag-cs"></span><span>Čeština</span></button>
+        </div>
+      </div>
     </div>
   </header>
 

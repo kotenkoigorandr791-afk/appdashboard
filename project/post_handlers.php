@@ -653,6 +653,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_quick_commands_email ON quick_commands(email)");
+        $qcCols = [];
+        $qcRes = $db->query("PRAGMA table_info(quick_commands)");
+        while($qcRes && ($qcRow = $qcRes->fetchArray(SQLITE3_ASSOC))){
+            if(isset($qcRow['name'])) $qcCols[] = (string)$qcRow['name'];
+        }
+        $qcEnsureColumn = static function(string $column, string $definition) use ($db, &$qcCols): void {
+            if(in_array($column, $qcCols, true)) return;
+            try { $db->exec("ALTER TABLE quick_commands ADD COLUMN $column $definition"); $qcCols[] = $column; } catch (Throwable $e) {}
+        };
+        $qcEnsureColumn('email', "TEXT NOT NULL DEFAULT ''");
+        $qcEnsureColumn('name', "TEXT NOT NULL DEFAULT ''");
+        $qcEnsureColumn('command', "TEXT NOT NULL DEFAULT ''");
+        $qcEnsureColumn('directory', "TEXT NOT NULL DEFAULT ''");
+        $qcEnsureColumn('created_at', "INTEGER NOT NULL DEFAULT 0");
+        $qcEnsureColumn('updated_at', "INTEGER NOT NULL DEFAULT 0");
         
         if($action === 'list'){
             $stmt = $db->prepare("SELECT id, name, command, directory, created_at, updated_at FROM quick_commands WHERE email = :email ORDER BY name ASC");
@@ -1231,6 +1246,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $_apDockerCfg= loadDockerConfig();
         $_apOmnirouteCfg = loadOmnirouteOAuthConfig();
         $_apAccessSec = loadAppAccessSecurityConfig();
+        $_apHostCountry = appAccessHostCountry();
         $_apCountries = [
             'US'=>'United States','CA'=>'Canada','MX'=>'Mexico','BR'=>'Brazil','AR'=>'Argentina','GB'=>'United Kingdom','IE'=>'Ireland','FR'=>'France','DE'=>'Germany','ES'=>'Spain','PT'=>'Portugal','IT'=>'Italy','NL'=>'Netherlands','BE'=>'Belgium','CH'=>'Switzerland','AT'=>'Austria','PL'=>'Poland','CZ'=>'Czechia','SK'=>'Slovakia','HU'=>'Hungary','RO'=>'Romania','BG'=>'Bulgaria','GR'=>'Greece','SE'=>'Sweden','NO'=>'Norway','FI'=>'Finland','DK'=>'Denmark','EE'=>'Estonia','LV'=>'Latvia','LT'=>'Lithuania','UA'=>'Ukraine','BY'=>'Belarus','RU'=>'Russia','TR'=>'Turkey','IL'=>'Israel','SA'=>'Saudi Arabia','AE'=>'United Arab Emirates','IN'=>'India','CN'=>'China','JP'=>'Japan','KR'=>'South Korea','ID'=>'Indonesia','TH'=>'Thailand','VN'=>'Vietnam','AU'=>'Australia','NZ'=>'New Zealand','ZA'=>'South Africa','EG'=>'Egypt','NG'=>'Nigeria'
         ];
@@ -1488,7 +1504,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_app_access_subtitle']??'Minimum role required to open each app. Default is Administrator (2).'); ?></div>
             <div class="ap-card">
                 <div class="ap-card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.93 9h-3.02a15.7 15.7 0 0 0-1.12-5A8.03 8.03 0 0 1 19.93 11zM12 4.04c.83 1.2 1.48 3.07 1.77 4.96h-3.54C10.52 7.11 11.17 5.24 12 4.04zM4.07 13h3.02c.15 1.75.55 3.5 1.12 5a8.03 8.03 0 0 1-4.14-5zm3.02-2H4.07a8.03 8.03 0 0 1 4.14-5 15.7 15.7 0 0 0-1.12 5zM12 19.96c-.83-1.2-1.48-3.07-1.77-4.96h3.54c-.29 1.89-.94 3.76-1.77 4.96zM14.18 13H9.82a13.3 13.3 0 0 1 0-2h4.36a13.3 13.3 0 0 1 0 2zm1.61 5c.57-1.5.97-3.25 1.12-5h3.02a8.03 8.03 0 0 1-4.14 5z"/></svg><?php echo my_htmlspecialchars($translations['ap_geo_access_title']??'Country and VPN restrictions'); ?></div>
-                <div class="ap-world-map" id="ap-world-map" data-countries="<?php echo my_htmlspecialchars(json_encode($_apCountries, JSON_UNESCAPED_UNICODE)); ?>" data-selected="<?php echo my_htmlspecialchars(json_encode($_apAccessSec['blocked_countries'], JSON_UNESCAPED_UNICODE)); ?>"></div>
+                <div class="ap-world-map" id="ap-world-map" data-countries="<?php echo my_htmlspecialchars(json_encode($_apCountries, JSON_UNESCAPED_UNICODE)); ?>" data-selected="<?php echo my_htmlspecialchars(json_encode($_apAccessSec['blocked_countries'], JSON_UNESCAPED_UNICODE)); ?>" data-host-country="<?php echo my_htmlspecialchars($_apHostCountry); ?>"></div>
                 <label class="ap-toggle-row"><input type="checkbox" id="ap-block-vpn-traffic" <?php echo !empty($_apAccessSec['block_vpn'])?'checked':''; ?>> <span><?php echo my_htmlspecialchars($translations['ap_block_vpn_traffic']??'Block VPN/proxy/hosting traffic'); ?></span></label>
                 <div class="ap-hint"><?php echo my_htmlspecialchars($translations['ap_geo_access_hint']??'Requests from selected countries are blocked when opening apps. VPN detection uses client IP metadata when available.'); ?></div>
             </div>

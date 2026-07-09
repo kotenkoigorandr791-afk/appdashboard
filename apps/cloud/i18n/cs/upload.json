@@ -34,17 +34,14 @@
     "uploaded": "Nahráno",
     "uploading": "Nahrávání...",
     "uploadProgress": "Průběh nahrávání",
-    "uploadRecommendation": "Upload only documents, images, archives and other safe file types. If you need to upload executable files, contact your system administrator.",
+    "uploadRecommendation": "Nahrávejte pouze dokumenty, obrázky, archivy a další bezpečné typy souborů. Pokud potřebujete nahrát spustitelné soubory, obraťte se na správce systému.",
     "uploadFiles": "Nahrát soubory",
     "uploadingFiles": "Nahrávání souborů...",
     "uploadSummary": "Souhrn nahrávání",
     "uploadCompleted": "Nahrávání dokončeno: úspěšné",
-    "uploadMinimized": "Upload minimized",
-    "uploadMultipleFiles": "Multiple files",
-    "uploadFileExistsPrompt": "File \"{name}\" already exists. Overwrite it? Click Cancel to skip this file.",
+    "uploadMinimized": "Nahrávání minimalizováno",
+    "uploadMultipleFiles": "Více souborů",
+    "uploadFileExistsPrompt": "Soubor \"{name}\" již existuje. Přepsat to? Klepnutím na tlačítko Storno tento soubor přeskočte.",
     "uploadSkippedDuplicate": "Přeskočeno (soubor již existuje)",
-    "uploadCompletedWithErrors": "Completed with {count} errors",
-    "totalFiles": "Celkem souborů",
-    "successful": "Úspěšné",
-    "errors": "Chyby"
+    "uploadCompletedWithErrors": "Dokončeno s chybami {count}"
 }

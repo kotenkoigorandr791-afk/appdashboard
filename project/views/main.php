@@ -98,7 +98,13 @@
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
-        #menu-button{top:25px;background:none;width:auto;height:auto;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateY(-50%);}
+        #top-bar{justify-content:center;}
+        #top-bar-title{flex:0 0 auto;margin-left:0;}
+        #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;}
+        #home-root-button svg{width:21px;height:21px;}
+        #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
+        #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
         #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
@@ -562,6 +568,10 @@
     <canvas id="constellation-bg"></canvas>
 <?php if($showTopBarTitle): ?>
 <div id="top-bar">
+    <?php if($isHomeDashboard): ?>
+    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button>
+    <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+    <?php endif; ?>
     <div id="top-bar-title">Shell Application</div>
     <?php if($path==='/main'&&!($selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps)))):?>
         <button type="button" id="support-chat-btn" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>">
@@ -1357,7 +1367,7 @@ endif; // showOtpPage
     </div>
 </div>
 <?php if($path!=='/login'&&$path!=='/register'):?>
-    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button>
+    <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button><?php endif; ?>
     <div id="sidebar">
         <div id="app-list-container">
             <ul id="app-list">
@@ -1484,6 +1494,7 @@ endif; // showOtpPage
                 <tr><td><code>S</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_sessions'] ?? 'Open Session Management'); ?></td></tr>
                 <tr><td><code>F</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_shared_files'] ?? 'Open Shared Files'); ?></td></tr>
                 <tr><td><code>Q</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_qr'] ?? 'Open QR Code'); ?></td></tr>
+                <tr><td><code>N</code></td><td><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></td></tr>
                 <tr><td><code>P</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_profile'] ?? 'Open Profile'); ?></td></tr>
                 <tr><td><code>H</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_support_chat'] ?? 'Open Support Chat'); ?></td></tr>
                 <tr><td><code>← ↑ ↓ →</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_arrows'] ?? 'Move between app tiles'); ?></td></tr>
@@ -3617,6 +3628,11 @@ var T=<?php echo json_encode([
                 qrButton.click();
                 return;
             }
+            if(code === 'KeyN' && typeof window.openNewsPortal === 'function'){
+                e.preventDefault();
+                window.openNewsPortal();
+                return;
+            }
             if(code === 'KeyP' && userProfile){
                 e.preventDefault();
                 userProfile.click();
@@ -3867,7 +3883,7 @@ var T=<?php echo json_encode([
 .ap-app-access-icon-svg{display:block;width:40px;height:40px;background:radial-gradient(circle at var(--g-hx,34%) var(--g-hy,30%),color-mix(in srgb,var(--primary-color) 22%,white) 0%,transparent 62%),linear-gradient(145deg,color-mix(in srgb,var(--primary-color) 38%,white) 0%,color-mix(in srgb,var(--primary-color) 78%,black) 100%);-webkit-mask-image:var(--icon-src);mask-image:var(--icon-src);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;}
 .ap-app-access-title{font-size:10px;line-height:1.2;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
 .ap-app-access-level{width:100%;font-size:10px;padding:2px 4px;border-radius:4px;border:1px solid var(--border-color);background:var(--bg-color);color:var(--text-color);}
-.ap-world-map{position:relative;height:360px;border:1px solid var(--border-color);border-radius:8px;background:color-mix(in srgb,var(--group-block-bg) 86%,var(--primary-color) 14%);overflow:hidden;margin-bottom:10px;}
+.ap-world-map{position:relative;height:360px;border:1px solid var(--border-color);border-radius:8px;background:color-mix(in srgb,var(--group-block-bg) 86%,var(--primary-color) 14%);overflow:hidden;margin-bottom:10px;touch-action:none;overscroll-behavior:contain;}
 .ap-world-map canvas,.ap-world-map svg{display:block;}
 .ap-toggle-row{display:flex;align-items:center;gap:8px;font-size:12px;margin:8px 0;}
 
@@ -6438,7 +6454,7 @@ function wireEvents(){
     if(accGrid) accGrid.addEventListener('change',function(e){if(e.target&&e.target.classList.contains('ap-app-access-level')){var p=e.target.closest('.ap-app-access-tile');if(p)p.dataset.role=e.target.value;}});
     var worldMap=dynRoot.querySelector('#ap-world-map'),blockedCountries=[],vpnBlock=dynRoot.querySelector('#ap-block-vpn-traffic');
     function apLoadAmChartsMaps(){if(window._apAmChartsMapsPromise)return window._apAmChartsMapsPromise;var urls=['https://cdn.amcharts.com/lib/5/index.js','https://cdn.amcharts.com/lib/5/map.js','https://cdn.amcharts.com/lib/5/geodata/worldLow.js','https://cdn.amcharts.com/lib/5/themes/Animated.js'];window._apAmChartsMapsPromise=urls.reduce(function(p,u){return p.then(function(){return new Promise(function(res,rej){if(document.querySelector('script[src="'+u+'"]')){res();return;}var s=document.createElement('script');s.src=u;s.async=false;s.onload=res;s.onerror=function(){rej(new Error('Failed to load: '+u));};document.head.appendChild(s);});});},Promise.resolve());return window._apAmChartsMapsPromise;}
-    function renderWorldMap(){if(!worldMap)return;var countries={};try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}worldMap.innerHTML='';apLoadAmChartsMaps().then(function(){if(!window.am5||!window.am5map||!window.am5geodata_worldLow)return;if(worldMap._apMapRoot)worldMap._apMapRoot.dispose();var root=am5.Root.new(worldMap);worldMap._apMapRoot=root;root.setThemes([am5themes_Animated.new(root)]);var chart=root.container.children.push(am5map.MapChart.new(root,{panX:'translateX',panY:'translateY',wheelX:'zoom',wheelY:'zoom',projection:am5map.geoMercator()}));var series=chart.series.push(am5map.MapPolygonSeries.new(root,{geoJSON:am5geodata_worldLow,exclude:['AQ']}));var normal=am5.color(0x64748b),active=am5.color(0xef4444),stroke=am5.color(0xffffff);function apCountryCode(target){return target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;}function apply(target){var code=apCountryCode(target);target.set('fill',blockedCountries.indexOf(code)!==-1?active:normal);}series.mapPolygons.template.setAll({tooltipText:'{name}',interactive:true,fill:normal,stroke:stroke,strokeWidth:.5});series.mapPolygons.template.adapters.add('tooltipText',function(text,target){var code=target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;return countries[code]||text;});series.mapPolygons.template.events.on('click',function(ev){var target=ev.target,code=target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;if(!code||!countries[code])return;var i=blockedCountries.indexOf(code);if(i===-1)blockedCountries.push(code);else blockedCountries.splice(i,1);apply(target);});series.mapPolygons.template.events.on('pointerover',function(ev){var code=apCountryCode(ev.target);ev.target.set('fill',blockedCountries.indexOf(code)!==-1?active:am5.color(0x3b82f6));});series.mapPolygons.template.events.on('pointerout',function(ev){apply(ev.target);});series.events.on('datavalidated',function(){series.mapPolygons.each(apply);chart.goHome(0);});chart.set('zoomControl',am5map.ZoomControl.new(root,{}));}).catch(function(){worldMap.textContent='Map library failed to load';});}
+    function renderWorldMap(){if(!worldMap)return;var countries={},hostCountry=(worldMap.dataset.hostCountry||'').toUpperCase();try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}blockedCountries=blockedCountries.filter(function(c){return c!==hostCountry;});worldMap.innerHTML='';apLoadAmChartsMaps().then(function(){if(!window.am5||!window.am5map||!window.am5geodata_worldLow)return;if(worldMap._apMapRoot)worldMap._apMapRoot.dispose();var root=am5.Root.new(worldMap);worldMap._apMapRoot=root;root.setThemes([am5themes_Animated.new(root)]);var chart=root.container.children.push(am5map.MapChart.new(root,{panX:'translateX',panY:'translateY',wheelX:'zoom',wheelY:'zoom',pinchZoom:true,maxZoomLevel:32,maxPanOut:.15,projection:am5map.geoMercator()}));var series=chart.series.push(am5map.MapPolygonSeries.new(root,{geoJSON:am5geodata_worldLow,exclude:['AQ']}));var normal=am5.color(0x64748b),active=am5.color(0xef4444),host=am5.color(0x94a3b8),hover=am5.color(0x3b82f6),stroke=am5.color(0xffffff);function apCountryCode(target){return target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;}function apply(target){var code=apCountryCode(target);target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:normal));target.set('fillOpacity',code===hostCountry ? .45 : 1);}series.mapPolygons.template.setAll({tooltipText:'{name}',interactive:true,fill:normal,stroke:stroke,strokeWidth:.5});series.mapPolygons.template.adapters.add('tooltipText',function(text,target){var code=apCountryCode(target),label=countries[code]||text;return code===hostCountry?label+' (hosting)':label;});series.mapPolygons.template.events.on('click',function(ev){var target=ev.target,code=apCountryCode(target);if(!code||code===hostCountry)return;var i=blockedCountries.indexOf(code);if(i===-1)blockedCountries.push(code);else blockedCountries.splice(i,1);apply(target);});series.mapPolygons.template.events.on('pointerover',function(ev){var code=apCountryCode(ev.target);ev.target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:hover));});series.mapPolygons.template.events.on('pointerout',function(ev){apply(ev.target);});series.events.on('datavalidated',function(){series.mapPolygons.each(apply);chart.goHome(0);});chart.set('zoomControl',am5map.ZoomControl.new(root,{}));}).catch(function(){worldMap.textContent='Map library failed to load';});}
     renderWorldMap();
     if(accSav) accSav.addEventListener('click',function(){setStatus(accSt,T.saving,'info');var lv={};if(accGrid) accGrid.querySelectorAll('.ap-app-access-level').forEach(function(s){lv[s.getAttribute('data-folder')]=parseInt(s.value,10);});var fd=new FormData();fd.append('save_app_access_levels','1');fd.append('ajax','1');fd.append('levels_json',JSON.stringify(lv));fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(!d.success)throw new Error(d.error||T.error);var fd2=new FormData();fd2.append('save_app_access_security','1');fd2.append('ajax','1');fd2.append('countries_json',JSON.stringify(blockedCountries));fd2.append('block_vpn',vpnBlock&&vpnBlock.checked?'1':'0');return fetch('/main',{method:'POST',body:fd2}).then(function(r){return r.json();});}).then(function(d){setStatus(accSt,d.success?('+ '+T.app_access_saved):('x '+(d.error||T.error)),d.success?'success':'error');if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.app_access_saved,'success');}).catch(function(e){setStatus(accSt,'x '+(e&&e.message?e.message:T.error),'error');});});
     /* stats save button */

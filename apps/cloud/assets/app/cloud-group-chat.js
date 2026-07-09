@@ -425,7 +425,7 @@
             const src = el.dataset.audioSrc;
             if (!src || typeof CustomAudioPlayer !== 'function') return;
             try {
-                const player = new CustomAudioPlayer(el, src, { showVolume: false });
+                const player = new CustomAudioPlayer(el, src, { showVolume: false, variant: 'voice', barCount: 64 });
                 el.dataset.audioBound = '1';
                 state.audioPlayers.push(player);
             } catch (_) {}
@@ -930,23 +930,33 @@
         const style = document.createElement('style');
         style.id = 'gchat-audio-styles';
         style.textContent = `
-            .group-chat-media--audio .custom-audio-player {
+            .group-chat-media--audio {
+                max-width: min(300px, 100%);
+            }
+            .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) {
                 padding: 6px 10px;
                 border-radius: 8px;
                 min-height: 40px;
                 gap: 6px;
                 background: color-mix(in srgb, var(--bg, #1a1a1a) 70%, var(--panel, #2a2a2a));
             }
-            .group-chat-media--audio .custom-audio-player .cap-btn {
+            .group-chat-media--audio .cap-voice-message {
+                width: min(300px, calc(100vw - 96px));
+            }
+            .group-chat-row--own .group-chat-media--audio .cap-voice-message {
+                background: color-mix(in srgb, var(--accent, #85b503) 18%, var(--panel, #2a2a2a));
+                box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #85b503) 24%, transparent);
+            }
+            .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) .cap-btn {
                 width: 28px;
                 height: 28px;
                 border-radius: 6px;
             }
-            .group-chat-media--audio .custom-audio-player .cap-time {
+            .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) .cap-time {
                 font-size: 10px;
                 min-width: 28px;
             }
-            .group-chat-media--audio .custom-audio-player .cap-seek-bar {
+            .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) .cap-seek-bar {
                 height: 28px;
                 border-radius: 8px;
             }
