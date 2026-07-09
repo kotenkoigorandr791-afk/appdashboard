@@ -348,6 +348,15 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
 
 // Auth config loaded from SQLite via db.php
 $authConfig=loadAuthConfig();
+
+// ── AI Config API ─────────────────────────────────────────────────────────
+if (isset($_GET['api']) && $_GET['api'] === 'cloud_ai_config') {
+    require_once APP_ROOT . '/apps/cloud/includes/ai_config_store.php';
+    $config = cloud_ai_load_config();
+    echo json_encode(['ok' => true, 'config' => $config]);
+    exit;
+}
+
 if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
     $input = json_decode((string)file_get_contents('php://input'), true);
     if (!is_array($input)) $input = $_POST;
@@ -1296,6 +1305,39 @@ $defaultTranslations['share_expiration_1m'] = '1 month';
 $defaultTranslations['share_expiration_3m'] = '3 months';
 $defaultTranslations['share_expiration_6m'] = 'Half a year';
 $defaultTranslations['share_expiration_1y'] = '1 year';
+$defaultTranslations['shell_application'] = 'Shell Application';
+$defaultTranslations['news_portal_title'] = 'News Portal';
+$defaultTranslations['news_articles'] = 'Articles';
+$defaultTranslations['news_title_label'] = 'Title';
+$defaultTranslations['news_title_placeholder'] = 'Article title...';
+$defaultTranslations['news_body_label'] = 'Content';
+$defaultTranslations['news_body_placeholder'] = 'Article text...';
+$defaultTranslations['news_save_button'] = 'Save article';
+$defaultTranslations['news_title_required'] = 'Title is required';
+$defaultTranslations['news_ai_generate'] = 'Generate with AI';
+$defaultTranslations['news_ai_prompt_ph'] = 'Describe what you want: topic, tone, length...';
+$defaultTranslations['news_ai_fills'] = 'Fills title + content';
+$defaultTranslations['news_photo_label'] = 'Photo';
+$defaultTranslations['news_photo_placeholder'] = 'Photo URL or path...';
+$defaultTranslations['news_published_label'] = 'Published';
+$defaultTranslations['news_draft_label'] = 'Draft';
+$defaultTranslations['news_created_on'] = 'Created on';
+$defaultTranslations['news_updated_on'] = 'Updated on';
+$defaultTranslations['news_delete_confirm'] = 'Are you sure you want to delete this article?';
+$defaultTranslations['news_article_deleted'] = 'Article deleted successfully';
+$defaultTranslations['news_article_saved'] = 'Article saved successfully';
+$defaultTranslations['news_empty_title'] = 'No articles yet';
+$defaultTranslations['news_empty_body'] = 'Click "Add Article" to create your first article.';
+$defaultTranslations['news_valid_until_label'] = 'Valid until';
+$defaultTranslations['news_valid_until_hint'] = 'Leave empty for no expiration';
+$defaultTranslations['news_layout_label'] = 'Layout';
+$defaultTranslations['generate'] = 'Generate';
+$defaultTranslations['select_model_placeholder'] = '-- Select Model --';
+$defaultTranslations['news_editor_tab'] = 'Editor';
+$defaultTranslations['news_settings_tab'] = 'Settings';
+$defaultTranslations['news_draft'] = 'Draft';
+$defaultTranslations['news_published'] = 'Published';
+$defaultTranslations['news_add_button'] = 'Add Article';
 $language = ap_i18n_lang_exists($config['language']) ? $config['language'] : 'en';
 $translations = ap_merge_i18n($defaultTranslations, $language);
 
@@ -2130,9 +2172,22 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
             if (empty($aiCfg['api_key']) || empty($aiCfg['api_endpoint'])) {
                 echo json_encode(['ok' => false, 'error' => 'ai_not_configured']); exit;
             }
-            $systemMsg = 'You are a news article writer. Given a topic or prompt, write a short news article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.';
+            $currentTitle = trim((string)($input['current_title'] ?? ''));
+        $currentBody = trim((string)($input['current_body'] ?? ''));
+        
+        $systemMsg = 'You are a news article writer. ';
+        if ($currentTitle || $currentBody) {
+            $systemMsg .= 'The user is editing an existing article. Current title: "' . $currentTitle . '". Current content: "' . $currentBody . '". ';
+        }
+        $systemMsg .= 'Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.';
+            $selectedModel = trim((string)($input['model'] ?? ''));
+            $model = cloud_ai_normalize_model_id(
+                in_array($selectedModel, $aiCfg['models']) ? $selectedModel : 
+                (string)($aiCfg['default_model'] ?: ($aiCfg['models'][0] ?? ''))
+            );
+            
             $payload = [
-                'model' => cloud_ai_normalize_model_id((string)($aiCfg['default_model'] ?: ($aiCfg['models'][0] ?? ''))),
+                'model' => $model,
                 'messages' => [
                     ['role' => 'system', 'content' => $systemMsg],
                     ['role' => 'user', 'content' => $prompt]

@@ -98,10 +98,10 @@
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
-        #top-bar{justify-content:center;}
-        #top-bar-title{flex:0 0 auto;margin-left:0;}
-        #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;}
-        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;}
+        #top-bar{justify-content:flex-start;}
+        #top-bar-title{flex:0 0 auto;margin-left:12px;}
+        #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-top:0;}
+        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;margin-left:12px;}
         #home-root-button svg{width:21px;height:21px;}
         #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
         #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
@@ -115,7 +115,7 @@
 	            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
 	        }
         <?php endif; ?>
-        #sidebar{position:fixed;top:0;left:-320px;width:320px;height:100%;background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
+        #sidebar{position:fixed;top:50px;left:-320px;width:320px;height:calc(100% - 50px);background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
         #app-list-container::-webkit-scrollbar{display:none;}
@@ -1413,6 +1413,7 @@ endif; // showOtpPage
             <label><?php echo my_htmlspecialchars($translations['color']); ?>:</label>
             <input type="color" name="color" value="<?php echo my_htmlspecialchars($config['color']); ?>">
         </div>
+
         <div class="policy-links">
             <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
             <span class="policy-dot"></span>

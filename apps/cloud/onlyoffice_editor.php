@@ -294,6 +294,14 @@ $docConfig = [
             'mode' => 'fast',
             'change' => true,
         ],
+        'plugins' => [
+            'autostart' => [
+                'asc.{9DC93CDB-B576-4F0C-B55E-FCC9C48DD007}'
+            ],
+            'pluginsData' => [
+                '{9DC93CDB-B576-4F0C-B55E-FCC9C48DD007}/config.json'
+            ],
+        ],
         'user' => [
             'id' => $editorUserId,
             'name' => $editorUserName,
@@ -305,6 +313,7 @@ $docConfig = [
             'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-dark',
             'accentColor' => $color,
             'autosave' => true,
+            'plugins' => true,
             'mobile' => [
                 'forceView' => false
             ],
