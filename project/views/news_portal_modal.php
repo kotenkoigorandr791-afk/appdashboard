@@ -3,6 +3,167 @@ $newsCanEdit = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0)
 $newsIsAdmin = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2;
 ?>
 <!-- ── News Portal Overlay (full-screen workflow) ─────────────────────────── -->
+<script>
+// Track changes in news content
+let hasChanges = false;
+let originalTitle = '';
+let originalBody = '';
+let originalPhoto = '';
+
+// Load AI models from server config
+async function loadAiModels() {
+    const modelSelect = document.getElementById('npo-ai-model');
+    if (!modelSelect) return;
+    
+    try {
+        const response = await fetch('/main?api=cloud_ai_config');
+        const data = await response.json();
+        const models = data.config?.models || [];
+        const savedModel = localStorage.getItem('ai_model_news_ai');
+        
+        modelSelect.innerHTML = '<option value="">-- Select Model --</option>';
+        
+        models.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model;
+            option.textContent = model;
+            if (savedModel === model) option.selected = true;
+            modelSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Failed to load AI models:', error);
+    }
+}
+
+// Save selected model
+function saveSelectedModel() {
+    const modelSelect = document.getElementById('npo-ai-model');
+    if (!modelSelect) return;
+    
+    modelSelect.addEventListener('change', () => {
+        localStorage.setItem('ai_model_news_ai', modelSelect.value);
+        markAsChanged();
+    });
+}
+
+// Generate content with selected AI model
+async function generateWithAi() {
+    const prompt = document.getElementById('npo-ai-prompt').value.trim();
+    const modelSelect = document.getElementById('npo-ai-model');
+    const selectedModel = modelSelect ? modelSelect.value : '';
+    const statusEl = document.getElementById('npo-ai-status');
+    const currentTitle = document.getElementById('npo-edit-title').value.trim();
+    const currentBody = document.getElementById('npo-edit-body').value.trim();
+    
+    if (!prompt) {
+        statusEl.textContent = 'Please enter a prompt';
+        return;
+    }
+    
+    statusEl.textContent = 'Generating...';
+    
+    try {
+        const requestData = {
+            prompt,
+            model: selectedModel,
+            current_title: currentTitle,
+            current_body: currentBody
+        };
+        
+        const response = await fetch('/news?api=news&action=ai_generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+        const data = await response.json();
+        
+        if (data.ok) {
+            document.getElementById('npo-edit-title').value = data.title || currentTitle;
+            document.getElementById('npo-edit-body').value = data.body || currentBody;
+            statusEl.textContent = 'Generated successfully!';
+            markAsChanged();
+        } else {
+            statusEl.textContent = data.error || 'Failed to generate';
+        }
+    } catch (error) {
+        statusEl.textContent = 'Error: ' + error.message;
+    }
+}
+
+// Mark content as changed
+function markAsChanged() {
+    hasChanges = true;
+    const saveBtn = document.getElementById('npo-save-btn');
+    if (saveBtn) saveBtn.style.display = 'block';
+}
+
+// Reset changes after save
+function resetChanges() {
+    hasChanges = false;
+    originalTitle = document.getElementById('npo-edit-title').value.trim();
+    originalBody = document.getElementById('npo-edit-body').value.trim();
+    originalPhoto = document.getElementById('npo-edit-photo').value.trim();
+    
+    const saveBtn = document.getElementById('npo-save-btn');
+    if (saveBtn) saveBtn.style.display = 'none';
+}
+
+// Check if content has changed
+function checkChanges() {
+    const currentTitle = document.getElementById('npo-edit-title').value.trim();
+    const currentBody = document.getElementById('npo-edit-body').value.trim();
+    const currentPhoto = document.getElementById('npo-edit-photo').value.trim();
+    
+    if (currentTitle !== originalTitle || currentBody !== originalBody || currentPhoto !== originalPhoto) {
+        markAsChanged();
+    }
+}
+
+// Initialize news editor
+function initNewsEditor() {
+    const titleEl = document.getElementById('npo-edit-title');
+    const bodyEl = document.getElementById('npo-edit-body');
+    const photoEl = document.getElementById('npo-edit-photo');
+    const saveBtn = document.getElementById('npo-save-btn');
+    
+    if (!titleEl || !bodyEl || !saveBtn) {
+        console.error('News editor elements not found');
+        return;
+    }
+    
+    // Set initial values
+    originalTitle = titleEl.value.trim();
+    originalBody = bodyEl.value.trim();
+    originalPhoto = photoEl ? photoEl.value.trim() : '';
+    
+    // Hide save button initially
+    saveBtn.style.display = 'none';
+    
+    // Add event listeners for changes
+    titleEl.addEventListener('input', checkChanges);
+    bodyEl.addEventListener('input', checkChanges);
+    if (photoEl) photoEl.addEventListener('change', markAsChanged);
+}
+
+// Initialize when news portal modal is opened
+function initializeNewsPortal() {
+    loadAiModels();
+    saveSelectedModel();
+    
+    // Check if news editor elements exist
+    if (document.getElementById('npo-edit-title') && 
+        document.getElementById('npo-edit-body') &&
+        document.getElementById('npo-save-btn')) {
+        initNewsEditor();
+    }
+}
+
+// Initialize when DOM is ready
+document.addEventListener('DOMContentLoaded', initializeNewsPortal);
+
+// Re-initialize when modal is re-opened (e.g., after closing and opening again)
+window.addEventListener('newsPortalOpened', initializeNewsPortal);
+</script>
 <style>
 #news-portal-overlay{display:none;position:fixed;inset:0;z-index:12000;background:var(--modal-bg,#0f172a);color:var(--text-color,#e2e8f0);flex-direction:column;overflow:hidden;}
 #news-portal-overlay.active{display:flex;}
@@ -137,21 +298,26 @@ $newsIsAdmin = isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0)
         <div id="npo-editor-empty"><?php echo my_htmlspecialchars($translations['news_select_or_add'] ?? 'Select an article or click "Add news" to start'); ?></div>
         <div id="npo-editor-form" style="display:none">
           <input type="hidden" id="npo-edit-id">
-          <div id="npo-ai-panel">
-            <div class="npo-ai-label">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:5px"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>
-              <?php echo my_htmlspecialchars($translations['news_ai_generate'] ?? 'Generate with AI'); ?>
-            </div>
-            <textarea id="npo-ai-prompt" placeholder="<?php echo my_htmlspecialchars($translations['news_ai_prompt_ph'] ?? 'Describe what you want: topic, tone, length...'); ?>"></textarea>
-            <div class="npo-ai-actions">
-              <button type="button" id="npo-ai-generate-btn">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>
-                <?php echo my_htmlspecialchars($translations['generate'] ?? 'Generate'); ?>
-              </button>
-              <span id="npo-ai-target"><?php echo my_htmlspecialchars($translations['news_ai_fills'] ?? 'Fills title + content'); ?></span>
-            </div>
-            <div id="npo-ai-status"></div>
-          </div>
+           <div id="npo-ai-panel">
+             <div class="npo-ai-label">
+               <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:5px"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>
+               <?php echo my_htmlspecialchars($translations['news_ai_generate'] ?? 'Generate with AI'); ?>
+             </div>
+             <div style="margin-bottom: 10px;">
+               <select id="npo-ai-model" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--modal-bg); color: var(--text-color); font-size: 13px;">
+                 <option value=""><?php echo my_htmlspecialchars($translations['select_model_placeholder'] ?? '-- Select Model --'); ?></option>
+               </select>
+             </div>
+             <textarea id="npo-ai-prompt" placeholder="<?php echo my_htmlspecialchars($translations['news_ai_prompt_ph'] ?? 'Describe what you want: topic, tone, length...'); ?>"></textarea>
+             <div class="npo-ai-actions">
+               <button type="button" id="npo-ai-generate-btn" onclick="generateWithAi()">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>
+                 <?php echo my_htmlspecialchars($translations['generate'] ?? 'Generate'); ?>
+               </button>
+               <span id="npo-ai-target"><?php echo my_htmlspecialchars($translations['news_ai_fills'] ?? 'Fills title + content'); ?></span>
+             </div>
+             <div id="npo-ai-status"></div>
+           </div>
           <div class="npo-field">
             <label><?php echo my_htmlspecialchars($translations['news_title_label'] ?? 'Title'); ?></label>
             <input type="text" id="npo-edit-title" maxlength="200" placeholder="<?php echo my_htmlspecialchars($translations['news_title_placeholder'] ?? 'Article title...'); ?>">
