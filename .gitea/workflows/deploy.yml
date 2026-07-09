@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - main
-      - develop
 jobs:
   deploy-main:
     if: gitea.ref == 'refs/heads/main'
