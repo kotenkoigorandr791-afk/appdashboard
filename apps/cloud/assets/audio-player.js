@@ -25,6 +25,8 @@ class CustomAudioPlayer {
       autoplay: false,
       showVolume: true,
       showSpeed: false,
+      variant: 'default',
+      barCount: 56,
     }, options);
 
     this._createDOM();
@@ -82,7 +84,7 @@ class CustomAudioPlayer {
     this.container.innerHTML = '';
 
     this.wrapper = document.createElement('div');
-    this.wrapper.className = 'custom-audio-player';
+    this.wrapper.className = 'custom-audio-player' + (this.options.variant === 'voice' ? ' cap-voice-message' : '');
 
     // Play button
     this.btnPlay = document.createElement('button');
@@ -325,6 +327,90 @@ class CustomAudioPlayer {
       .custom-audio-player .cap-wave-bar.is-empty {
         height: 4px !important;
         opacity: 0.35;
+      }
+
+      .custom-audio-player.cap-voice-message {
+        display: grid;
+        grid-template-columns: 34px minmax(128px, 1fr) auto;
+        grid-template-areas: "play wave time";
+        gap: 8px;
+        align-items: center;
+        min-width: 220px;
+        max-width: 320px;
+        min-height: 48px;
+        padding: 7px 10px;
+        border: 0;
+        border-radius: 18px;
+        background: color-mix(in srgb, var(--panel, #2a2a2a) 82%, var(--bg, #1a1a1a));
+        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border, #444) 55%, transparent);
+      }
+
+      .custom-audio-player.cap-voice-message .cap-play-btn {
+        grid-area: play;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--accent, #85b503);
+        color: #fff;
+        box-shadow: 0 6px 18px color-mix(in srgb, var(--accent, #85b503) 28%, transparent);
+      }
+
+      .custom-audio-player.cap-voice-message .cap-play-btn:hover {
+        background: color-mix(in srgb, var(--accent, #85b503) 88%, #fff);
+      }
+
+      .custom-audio-player.cap-voice-message .cap-time-current {
+        display: none;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-time-duration {
+        grid-area: time;
+        min-width: 34px;
+        font-family: inherit;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--muted, #888);
+        text-align: right;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-seek-container {
+        grid-area: wave;
+        padding: 4px 0;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-seek-bar {
+        height: 36px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-seek-progress {
+        display: none;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-seek-thumb {
+        width: 8px;
+        height: 8px;
+        right: -4px;
+        background: var(--accent, #85b503);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel, #2a2a2a) 92%, var(--bg, #1a1a1a));
+      }
+
+      .custom-audio-player.cap-voice-message .cap-waveform {
+        gap: 2px;
+        padding: 4px 0;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-wave-bar {
+        min-width: 2px;
+        background: color-mix(in srgb, var(--fg, #fff) 26%, transparent);
+        opacity: 1;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-wave-bar.is-played {
+        background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #85b503) 78%, #fff), var(--accent, #85b503));
       }
 
       .custom-audio-player .cap-vol-slider {
@@ -677,7 +763,7 @@ class CustomAudioPlayer {
       try {
         const buffer = await context.decodeAudioData(audioBufferRaw.slice(0));
         if (requestId !== this._waveformRequestId) return;
-        const samples = this._extractWaveformSamples(buffer, 56);
+        const samples = this._extractWaveformSamples(buffer, this.options.barCount || 56);
         this._renderWaveform(samples);
       } finally {
         if (context.state !== 'closed') {
@@ -737,7 +823,7 @@ class CustomAudioPlayer {
     this.waveform.innerHTML = '';
     this.waveformBars = [];
     this.waveformReady = false;
-    const fallbackCount = 40;
+    const fallbackCount = this.options.barCount || 40;
     const fragment = document.createDocumentFragment();
     for (let i = 0; i < fallbackCount; i += 1) {
       const bar = document.createElement('span');

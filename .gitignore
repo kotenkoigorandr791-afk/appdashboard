@@ -8,6 +8,7 @@
 /bot/.venv/
 graphify-out/
 **/graphify-out/
+project/graphify-out/
 /backups/
 /data/.ssh/
 /data/ssh_ws_tokens/
@@ -48,3 +49,8 @@ composer.phar
 Thumbs.db
 *.swp
 *.swo
+
+# AI assistant instruction files
+**/*cloud*.md
+**/agents.md
+**/CLAUDE.md

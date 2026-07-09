@@ -152,6 +152,7 @@
     "compile": "Компилировать и запустить",
     "noFileToCompile": "Нет файла для компиляции",
     "noContentToCompile": "Нет содержимого для компиляции",
+    "noPermission": "Нет прав для компиляции",
     "languageNotSupported": "Язык не поддерживается для компиляции",
     "compiling": "Компиляция",
     "compilationSuccess": "Компиляция успешна",

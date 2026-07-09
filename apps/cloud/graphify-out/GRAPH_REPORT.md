@@ -1,13 +1,18 @@
-# Graph Report - cloud  (2026-06-18)
+# Graph Report - cloud  (2026-07-09)
 
 ## Corpus Check
-- 1471 files · ~1,183,927 words
+- 1470 files · ~1,181,911 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 16841 nodes · 37636 edges · 819 communities (453 shown, 366 thin omitted)
-- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 3614 edges (avg confidence: 0.8)
+- 16919 nodes · 38240 edges · 818 communities (428 shown, 390 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 3662 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
+
+## Graph Freshness
+- Built from commit: `7d8b6983`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - [[_COMMUNITY_Community 0|Community 0]]
@@ -188,7 +193,6 @@
 - [[_COMMUNITY_Community 175|Community 175]]
 - [[_COMMUNITY_Community 176|Community 176]]
 - [[_COMMUNITY_Community 177|Community 177]]
-- [[_COMMUNITY_Community 178|Community 178]]
 - [[_COMMUNITY_Community 179|Community 179]]
 - [[_COMMUNITY_Community 180|Community 180]]
 - [[_COMMUNITY_Community 181|Community 181]]
@@ -221,7 +225,6 @@
 - [[_COMMUNITY_Community 208|Community 208]]
 - [[_COMMUNITY_Community 209|Community 209]]
 - [[_COMMUNITY_Community 210|Community 210]]
-- [[_COMMUNITY_Community 211|Community 211]]
 - [[_COMMUNITY_Community 212|Community 212]]
 - [[_COMMUNITY_Community 213|Community 213]]
 - [[_COMMUNITY_Community 214|Community 214]]
@@ -237,11 +240,12 @@
 - [[_COMMUNITY_Community 224|Community 224]]
 - [[_COMMUNITY_Community 225|Community 225]]
 - [[_COMMUNITY_Community 226|Community 226]]
+- [[_COMMUNITY_Community 227|Community 227]]
 - [[_COMMUNITY_Community 228|Community 228]]
 - [[_COMMUNITY_Community 229|Community 229]]
 - [[_COMMUNITY_Community 230|Community 230]]
 - [[_COMMUNITY_Community 231|Community 231]]
-- [[_COMMUNITY_Community 232|Community 232]]
+- [[_COMMUNITY_Community 233|Community 233]]
 - [[_COMMUNITY_Community 234|Community 234]]
 - [[_COMMUNITY_Community 235|Community 235]]
 - [[_COMMUNITY_Community 236|Community 236]]
@@ -346,7 +350,6 @@
 - [[_COMMUNITY_Community 335|Community 335]]
 - [[_COMMUNITY_Community 336|Community 336]]
 - [[_COMMUNITY_Community 337|Community 337]]
-- [[_COMMUNITY_Community 338|Community 338]]
 - [[_COMMUNITY_Community 339|Community 339]]
 - [[_COMMUNITY_Community 340|Community 340]]
 - [[_COMMUNITY_Community 341|Community 341]]
@@ -364,10 +367,9 @@
 - [[_COMMUNITY_Community 353|Community 353]]
 - [[_COMMUNITY_Community 354|Community 354]]
 - [[_COMMUNITY_Community 355|Community 355]]
-- [[_COMMUNITY_Community 356|Community 356]]
 - [[_COMMUNITY_Community 357|Community 357]]
+- [[_COMMUNITY_Community 358|Community 358]]
 - [[_COMMUNITY_Community 359|Community 359]]
-- [[_COMMUNITY_Community 360|Community 360]]
 - [[_COMMUNITY_Community 361|Community 361]]
 - [[_COMMUNITY_Community 362|Community 362]]
 - [[_COMMUNITY_Community 363|Community 363]]
@@ -380,7 +382,6 @@
 - [[_COMMUNITY_Community 370|Community 370]]
 - [[_COMMUNITY_Community 371|Community 371]]
 - [[_COMMUNITY_Community 372|Community 372]]
-- [[_COMMUNITY_Community 373|Community 373]]
 - [[_COMMUNITY_Community 374|Community 374]]
 - [[_COMMUNITY_Community 375|Community 375]]
 - [[_COMMUNITY_Community 376|Community 376]]
@@ -435,7 +436,6 @@
 - [[_COMMUNITY_Community 425|Community 425]]
 - [[_COMMUNITY_Community 426|Community 426]]
 - [[_COMMUNITY_Community 427|Community 427]]
-- [[_COMMUNITY_Community 428|Community 428]]
 - [[_COMMUNITY_Community 429|Community 429]]
 - [[_COMMUNITY_Community 430|Community 430]]
 - [[_COMMUNITY_Community 431|Community 431]]
@@ -456,26 +456,24 @@
 - [[_COMMUNITY_Community 446|Community 446]]
 - [[_COMMUNITY_Community 447|Community 447]]
 - [[_COMMUNITY_Community 448|Community 448]]
-- [[_COMMUNITY_Community 451|Community 451]]
+- [[_COMMUNITY_Community 449|Community 449]]
+- [[_COMMUNITY_Community 450|Community 450]]
 - [[_COMMUNITY_Community 452|Community 452]]
 - [[_COMMUNITY_Community 453|Community 453]]
 - [[_COMMUNITY_Community 454|Community 454]]
-- [[_COMMUNITY_Community 455|Community 455]]
 - [[_COMMUNITY_Community 456|Community 456]]
+- [[_COMMUNITY_Community 457|Community 457]]
 - [[_COMMUNITY_Community 458|Community 458]]
 - [[_COMMUNITY_Community 459|Community 459]]
 - [[_COMMUNITY_Community 460|Community 460]]
-- [[_COMMUNITY_Community 461|Community 461]]
 - [[_COMMUNITY_Community 462|Community 462]]
 - [[_COMMUNITY_Community 463|Community 463]]
 - [[_COMMUNITY_Community 464|Community 464]]
-- [[_COMMUNITY_Community 465|Community 465]]
 - [[_COMMUNITY_Community 466|Community 466]]
 - [[_COMMUNITY_Community 467|Community 467]]
 - [[_COMMUNITY_Community 468|Community 468]]
 - [[_COMMUNITY_Community 469|Community 469]]
 - [[_COMMUNITY_Community 470|Community 470]]
-- [[_COMMUNITY_Community 471|Community 471]]
 - [[_COMMUNITY_Community 472|Community 472]]
 - [[_COMMUNITY_Community 473|Community 473]]
 - [[_COMMUNITY_Community 474|Community 474]]
@@ -497,13 +495,13 @@
 - [[_COMMUNITY_Community 490|Community 490]]
 - [[_COMMUNITY_Community 491|Community 491]]
 - [[_COMMUNITY_Community 492|Community 492]]
-- [[_COMMUNITY_Community 493|Community 493]]
 - [[_COMMUNITY_Community 494|Community 494]]
 - [[_COMMUNITY_Community 495|Community 495]]
 - [[_COMMUNITY_Community 496|Community 496]]
 - [[_COMMUNITY_Community 497|Community 497]]
-- [[_COMMUNITY_Community 499|Community 499]]
+- [[_COMMUNITY_Community 498|Community 498]]
 - [[_COMMUNITY_Community 500|Community 500]]
+- [[_COMMUNITY_Community 501|Community 501]]
 - [[_COMMUNITY_Community 502|Community 502]]
 - [[_COMMUNITY_Community 503|Community 503]]
 - [[_COMMUNITY_Community 504|Community 504]]
@@ -516,7 +514,6 @@
 - [[_COMMUNITY_Community 511|Community 511]]
 - [[_COMMUNITY_Community 512|Community 512]]
 - [[_COMMUNITY_Community 513|Community 513]]
-- [[_COMMUNITY_Community 514|Community 514]]
 - [[_COMMUNITY_Community 515|Community 515]]
 - [[_COMMUNITY_Community 516|Community 516]]
 - [[_COMMUNITY_Community 517|Community 517]]
@@ -524,9 +521,10 @@
 - [[_COMMUNITY_Community 519|Community 519]]
 - [[_COMMUNITY_Community 520|Community 520]]
 - [[_COMMUNITY_Community 521|Community 521]]
+- [[_COMMUNITY_Community 522|Community 522]]
+- [[_COMMUNITY_Community 523|Community 523]]
 - [[_COMMUNITY_Community 524|Community 524]]
 - [[_COMMUNITY_Community 525|Community 525]]
-- [[_COMMUNITY_Community 526|Community 526]]
 - [[_COMMUNITY_Community 527|Community 527]]
 - [[_COMMUNITY_Community 528|Community 528]]
 - [[_COMMUNITY_Community 529|Community 529]]
@@ -534,12 +532,13 @@
 - [[_COMMUNITY_Community 531|Community 531]]
 - [[_COMMUNITY_Community 532|Community 532]]
 - [[_COMMUNITY_Community 533|Community 533]]
+- [[_COMMUNITY_Community 534|Community 534]]
 - [[_COMMUNITY_Community 535|Community 535]]
 - [[_COMMUNITY_Community 536|Community 536]]
 - [[_COMMUNITY_Community 537|Community 537]]
+- [[_COMMUNITY_Community 538|Community 538]]
 - [[_COMMUNITY_Community 539|Community 539]]
 - [[_COMMUNITY_Community 540|Community 540]]
-- [[_COMMUNITY_Community 541|Community 541]]
 - [[_COMMUNITY_Community 542|Community 542]]
 - [[_COMMUNITY_Community 543|Community 543]]
 - [[_COMMUNITY_Community 544|Community 544]]
@@ -552,12 +551,12 @@
 - [[_COMMUNITY_Community 551|Community 551]]
 - [[_COMMUNITY_Community 552|Community 552]]
 - [[_COMMUNITY_Community 553|Community 553]]
+- [[_COMMUNITY_Community 554|Community 554]]
 - [[_COMMUNITY_Community 555|Community 555]]
+- [[_COMMUNITY_Community 556|Community 556]]
 - [[_COMMUNITY_Community 557|Community 557]]
 - [[_COMMUNITY_Community 558|Community 558]]
 - [[_COMMUNITY_Community 559|Community 559]]
-- [[_COMMUNITY_Community 560|Community 560]]
-- [[_COMMUNITY_Community 561|Community 561]]
 - [[_COMMUNITY_Community 562|Community 562]]
 - [[_COMMUNITY_Community 563|Community 563]]
 - [[_COMMUNITY_Community 564|Community 564]]
@@ -586,7 +585,9 @@
 - [[_COMMUNITY_Community 587|Community 587]]
 - [[_COMMUNITY_Community 588|Community 588]]
 - [[_COMMUNITY_Community 589|Community 589]]
-- [[_COMMUNITY_Community 592|Community 592]]
+- [[_COMMUNITY_Community 590|Community 590]]
+- [[_COMMUNITY_Community 591|Community 591]]
+- [[_COMMUNITY_Community 593|Community 593]]
 - [[_COMMUNITY_Community 594|Community 594]]
 - [[_COMMUNITY_Community 596|Community 596]]
 - [[_COMMUNITY_Community 597|Community 597]]
@@ -598,8 +599,6 @@
 - [[_COMMUNITY_Community 603|Community 603]]
 - [[_COMMUNITY_Community 604|Community 604]]
 - [[_COMMUNITY_Community 605|Community 605]]
-- [[_COMMUNITY_Community 606|Community 606]]
-- [[_COMMUNITY_Community 607|Community 607]]
 - [[_COMMUNITY_Community 608|Community 608]]
 - [[_COMMUNITY_Community 609|Community 609]]
 - [[_COMMUNITY_Community 610|Community 610]]
@@ -610,9 +609,11 @@
 - [[_COMMUNITY_Community 615|Community 615]]
 - [[_COMMUNITY_Community 616|Community 616]]
 - [[_COMMUNITY_Community 617|Community 617]]
+- [[_COMMUNITY_Community 618|Community 618]]
 - [[_COMMUNITY_Community 619|Community 619]]
 - [[_COMMUNITY_Community 620|Community 620]]
 - [[_COMMUNITY_Community 621|Community 621]]
+- [[_COMMUNITY_Community 622|Community 622]]
 - [[_COMMUNITY_Community 623|Community 623]]
 - [[_COMMUNITY_Community 624|Community 624]]
 - [[_COMMUNITY_Community 625|Community 625]]
@@ -627,1006 +628,894 @@
 6. `StringHelper` - 252 edges
 7. `Worksheet` - 198 edges
 8. `HTML` - 184 edges
-9. `t()` - 143 edges
+9. `t()` - 145 edges
 10. `set()` - 138 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `resolve_cloud_photo_path_or_fail()` --calls--> `cloud_resolve_file_path()`  [INFERRED]
-  utilities/projects/photo-editor/src/controller.php → includes/cloud_groups.php
-- `getDB()` --calls--> `ensureCloudGroupsSchema()`  [INFERRED]
-  api.php → includes/cloud_groups.php
-- `csws_auth_token()` --calls--> `getDB()`  [INFERRED]
-  /mnt/server/apps/cloud/scripts/cloud_sync_ws.php → api.php
-- `cloud_sync_user_mode()` --calls--> `getDB()`  [INFERRED]
-  /mnt/server/apps/cloud/includes/cloud_sync_engine.php → api.php
-- `cloud_sync_touch_last()` --calls--> `getDB()`  [INFERRED]
-  /mnt/server/apps/cloud/includes/cloud_sync_engine.php → api.php
+- `downloadPath()` --calls--> `getCurrentCloudRoot()`  [INFERRED]
+  /mnt/server/apps/cloud/assets/app/file-actions.js → assets/app.js
+- `showPropertiesModal()` --calls--> `renderSecurityProperties()`  [INFERRED]
+  assets/app.js → /mnt/server/apps/cloud/assets/properties-modal.js
+- `uploadSingleFile()` --calls--> `getCurrentCloudRoot()`  [INFERRED]
+  /mnt/vpn/apps/cloud/assets/upload.js → assets/app.js
+- `monacoT()` --calls--> `t()`  [INFERRED]
+  /mnt/vpn/apps/cloud/assets/monaco-editor.js → assets/app.js
+- `patchContextMenu()` --calls--> `t()`  [INFERRED]
+  /mnt/vpn/apps/cloud/assets/monaco-editor.js → assets/app.js
 
-## Communities (819 total, 366 thin omitted)
+## Communities (818 total, 390 thin omitted)
 
 ### Community 0 - "Community 0"
-Cohesion: 0.02
-Nodes (175): _allocateTargets(), an, _applyPMREM(), ar(), ba, be, bh, bi() (+167 more)
+Cohesion: 0.03
+Nodes (21): translateUI(), as(), ea, ee, eh, _halfBlur(), ht(), je (+13 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.02
-Nodes (3): Validations, Worksheet, Worksheet
+Cohesion: 0.01
+Nodes (47): Marker, ac, ah, ai, al, bo, bt, ca (+39 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.02
-Nodes (36): aa, ac, ah, al, bc, bl, cl, clone() (+28 more)
+Nodes (181): _vA, _allocateTargets(), an, ao(), _applyPMREM(), ar(), ba, be (+173 more)
 
 ### Community 3 - "Community 3"
 Cohesion: 0.02
-Nodes (18): ae, eh, _halfBlur(), ht(), jt(), Lt, makeSafe(), mh (+10 more)
+Nodes (3): Validations, Worksheet, Worksheet
 
 ### Community 4 - "Community 4"
-Cohesion: 0.03
-Nodes (20): translateUI(), ai, as(), bind(), ce, copy(), ee, hh (+12 more)
+Cohesion: 0.02
+Nodes (64): CopyFileException, CreateTemporaryFileException, DosTimeOverflowException, FileNotFoundException, FileNotReadableException, FileSizeIncorrectException, OverflowException, ResourceActionException (+56 more)
 
 ### Community 5 - "Community 5"
 Cohesion: 0.02
-Nodes (143): loadFolderState(), initCreateFolderModal(), initDeleteModal(), initFileModals(), activeTab, addCopyButtonToTerminal(), addTerminalLine(), applyCodeChanges() (+135 more)
+Nodes (159): invalidateTreeCache(), loadFolderState(), initCreateFolderModal(), initDeleteModal(), initFileModals(), activeTab, addArchiveJobItem(), addCopyButtonToTerminal() (+151 more)
 
 ### Community 6 - "Community 6"
-Cohesion: 0.04
-Nodes (172): addMentionedFileAttachment(), addMessageToUI(), addVisualFixes(), agentPlanResultSummary(), agentPlanToolIconMarkup(), agentPlanToolLabel(), AI_CONFIG, AI_EXTRACTABLE_EXT (+164 more)
+Cohesion: 0.03
+Nodes (20): remove, ce, ei, hh, ns(), pi(), qn, rt (+12 more)
 
 ### Community 7 - "Community 7"
 Cohesion: 0.02
-Nodes (27): cloud_create_initial_file(), cloud_write_stored_zip(), cloud_hex_to_rgba(), getFileAttributes(), Autoloader, DatabaseAbstract, Decomposition, ConvertBase (+19 more)
+Nodes (11): AddressHelper, Coordinate, Address, Offset, CellReferenceHelper, ReferenceHelper, ColumnDimension, PageBreak (+3 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.03
-Nodes (138): allocate(), analyzePath(), blue(), calculateAt(), chdir(), checkOpExists(), chown(), closeStream() (+130 more)
+Nodes (136): allocate(), analyzePath(), blue(), calculateAt(), chdir(), checkOpExists(), chown(), closeStream() (+128 more)
 
 ### Community 9 - "Community 9"
 Cohesion: 0.02
-Nodes (3): Chart, Chart, Chart
+Nodes (21): Current, ComplexFunctions, ComplexOperations, ConvertDecimal, ConvertHex, ConvertOctal, Amortization, Coupons (+13 more)
 
 ### Community 10 - "Community 10"
 Cohesion: 0.03
-Nodes (41): b(), c(), k(), W(), _a, At, c, d (+33 more)
+Nodes (12): cloud_hex_to_rgba(), Autoloader, NumberFormatter, PPS, Autoloader, Autoloader, ws_read_frame(), ws_send_frame() (+4 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.02
-Nodes (17): Current, BitWise, ComplexFunctions, ComplexOperations, ExcelError, ChooseRowsEtc, Formula, Hstack (+9 more)
+Cohesion: 0.04
+Nodes (136): addMentionedFileAttachment(), addVisualFixes(), agentPlanToolIconMarkup(), agentPlanToolLabel(), AI_CONFIG, AI_EXTRACTABLE_EXT, AI_MODAL_WIDTH, aiModalResizeState (+128 more)
 
 ### Community 12 - "Community 12"
-Cohesion: 0.03
-Nodes (8): Coordinate, Offset, CellReferenceHelper, ReferenceHelper, PageBreak, RowCellIterator, Biff5, Biff8
+Cohesion: 0.02
+Nodes (18): AdvancedValueBinder, DataType, DefaultValueBinder, bindValue(), StringValueBinder, FormattedNumber, BaseFormatter, DateFormatter (+10 more)
 
 ### Community 13 - "Community 13"
 Cohesion: 0.03
-Nodes (47): enable(), injectCSS(), CopyFileException, CreateTemporaryFileException, DosTimeOverflowException, FileNotFoundException, FileNotReadableException, FileSizeIncorrectException (+39 more)
+Nodes (5): applyTheme(), Font, Font, Font, Font
 
 ### Community 14 - "Community 14"
-Cohesion: 0.03
-Nodes (4): Font, Font, Font, Font
+Cohesion: 0.04
+Nodes (111): animateTreeAutoShift(), applyPinnedTreeSelection(), armPinnedClearOnFirstInteraction(), buildOnlyOfficeEditorUrl(), buildTreeFromFlatItems(), clearPinnedTreeSelection(), confirmMove(), countDirectTreeChildren() (+103 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.03
-Nodes (11): LegendTest, PlotAreaTest, TitleTest, View3DTest, StylesTest, GroupTest, LineTest, AlignmentTest (+3 more)
+Nodes (9): Formula, Formula, PcreException, Preg, Regex, Expression, Parser, FunctionPrefix (+1 more)
 
 ### Community 16 - "Community 16"
-Cohesion: 0.03
-Nodes (19): Beta, Binomial, ChiSquared, DistributionValidations, Exponential, F, Fisher, Gamma (+11 more)
+Cohesion: 0.05
+Nodes (26): compileAndRun(), getEditorContent(), cleanupTempDir(), compile_safe_message(), compile_safe_name(), compileAndRun(), compileCppOnline(), detectFileAndFolderChanges() (+18 more)
 
 ### Community 17 - "Community 17"
 Cohesion: 0.03
-Nodes (11): ec, ke, ns(), Qe(), se, set(), sl, tl (+3 more)
+Nodes (10): getFilter(), getInput(), getOutput(), Ko, lc, nc, removeFilter(), setFilter() (+2 more)
 
 ### Community 18 - "Community 18"
-Cohesion: 0.04
-Nodes (4): Cell, PageBreak, Cell, ColumnDimension
+Cohesion: 0.06
+Nodes (89): activeGroupId(), addMentionFile(), applyLayout(), applyMentionSuggestion(), audioChunks, bindMediaPreviews(), cancelEdit(), clearMentionFiles() (+81 more)
 
 ### Community 19 - "Community 19"
-Cohesion: 0.02
-Nodes (13): BinaryComparison, Time, NewtonRaphson, BesselI, BesselJ, BesselK, BesselY, Compare (+5 more)
+Cohesion: 0.03
+Nodes (19): Beta, Binomial, ChiSquared, DistributionValidations, Exponential, F, Fisher, Gamma (+11 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.05
-Nodes (6): ea, jn(), ls(), sn, wh(), xs
+Cohesion: 0.03
+Nodes (15): aa, bc, bl, clone(), ct(), dc, ec, es() (+7 more)
 
 ### Community 21 - "Community 21"
-Cohesion: 0.04
-Nodes (94): animateTreeAutoShift(), applyPinnedTreeSelection(), armPinnedClearOnFirstInteraction(), buildOnlyOfficeEditorUrl(), clearPinnedTreeSelection(), expandedFolders, expandFolderToPath(), fromMainTreePath() (+86 more)
+Cohesion: 0.02
+Nodes (12): BinaryComparison, NewtonRaphson, BesselI, BesselJ, BesselK, BesselY, Compare, EngineeringValidations (+4 more)
 
 ### Community 22 - "Community 22"
 Cohesion: 0.03
-Nodes (11): AdvancedValueBinder, DataType, DefaultValueBinder, bindValue(), StringValueBinder, FormattedNumber, BaseFormatter, StringHelper (+3 more)
+Nodes (8): LegendTest, PlotAreaTest, TitleTest, View3DTest, ObjectsChartTest, LineTest, AbstractShapeTest, DrawingTest
 
 ### Community 23 - "Community 23"
-Cohesion: 0.04
-Nodes (6): PcreException, Preg, Regex, Expression, Parser, FunctionPrefix
+Cohesion: 0.03
+Nodes (10): ConditionalIconSet, DAverage, DCount, DMax, DMin, DSum, Conditional, Conditional (+2 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.02
-Nodes (19): DGet, DProduct, DStDev, DStDevP, DVar, DVarP, Absolute, Base (+11 more)
+Cohesion: 0.03
+Nodes (100): Added, Fixed, 1.10.0 - 2019-11-18, 1.10.1 - 2019-12-02, 1.11.0 - 2020-03-02, 1.12.0 - 2020-04-27, 1.13.0 - 2020-05-31, 1.14.0 - 2020-06-29 (+92 more)
 
 ### Community 25 - "Community 25"
-Cohesion: 0.06
-Nodes (5): applyTheme(), setColor(), Borders, Fill, Pie
+Cohesion: 0.03
+Nodes (100): 1.0.1 - 2016-08-06, Deprecated, Removed, 1.15.0 - 2020-10-11, 1.16.0 - 2020-12-31, 1.17.1 - 2021-03-01, 1.19.0 - 2021-10-31, 1.20.0 - 2021-11-23 (+92 more)
 
 ### Community 26 - "Community 26"
 Cohesion: 0.05
 Nodes (4): ObjectsChart, Chart, PptCharts, PptChartsTest
 
 ### Community 27 - "Community 27"
-Cohesion: 0.07
-Nodes (85): activeGroupId(), addMentionFile(), applyLayout(), applyMentionSuggestion(), audioChunks, bindMediaPreviews(), cancelEdit(), clearMentionFiles() (+77 more)
+Cohesion: 0.06
+Nodes (5): TableAlignment, setColor(), Borders, Fill, Pie
 
 ### Community 28 - "Community 28"
 Cohesion: 0.03
-Nodes (8): ConditionalIconSet, DAverage, DMax, DSum, Conditional, Conditional, Conditional, ConditionalStyles
+Nodes (13): BreakElementTest, HyperlinkTest, Line, TableTest, AreaTest, Bar3DTest, BarTest, LineTest (+5 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.05
-Nodes (70): advancedSearchState, applyExtensionSuggestion(), btnAdvancedSearch, cancelBtn, closeBtn, closeModal(), COMMON_FILE_EXTENSIONS, convertToBytes() (+62 more)
+Cohesion: 0.07
+Nodes (82): cloud_ai_resolve_user_path_for_write(), append_sync_log(), build_storage_usage_data(), cleanup_old_upload_sessions(), cloud_group_maybe_log(), cloud_is_valid_root_key(), cloud_merge_text_three_way(), cloud_sync_logs_cleanup_legacy_files() (+74 more)
 
 ### Community 30 - "Community 30"
 Cohesion: 0.03
 Nodes (3): ContentTest, PptSlideTest, TransitionTest
 
-### Community 34 - "Community 34"
+### Community 31 - "Community 31"
 Cohesion: 0.04
-Nodes (77): Added, Fixed, 1.11.0 - 2020-03-02, 1.12.0 - 2020-04-27, 1.14.0 - 2020-06-29, 1.1.0 - 2018-01-28, 1.27.1 - 2023-02-08, 1.2.0 - 2018-03-04 (+69 more)
+Nodes (77): Miscellaneous, 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.2.2, 0.2.3, 0.2.4 (+69 more)
 
-### Community 35 - "Community 35"
+### Community 33 - "Community 33"
+Cohesion: 0.05
+Nodes (11): dirname(), dirname(), create_upload_session(), Xlsx, bootstrap(), cloud_app_base_url(), cloud_projects_bootstrap(), cloud_url() (+3 more)
+
+### Community 34 - "Community 34"
 Cohesion: 0.03
-Nodes (5): Title, AbstractLayoutPack, BreakElement, TextElement, getLanguage()
+Nodes (4): Series, View3D, Row, Row
 
 ### Community 36 - "Community 36"
-Cohesion: 0.04
-Nodes (14): CashFlowValidations, Single, Periodic, InterestRate, ExcelArrayPseudoFunctions, Interest, InterestAndPrincipal, Payments (+6 more)
+Cohesion: 0.05
+Nodes (3): Csv, Service, Csv
 
 ### Community 37 - "Community 37"
 Cohesion: 0.03
-Nodes (4): Series, Row, Shading, Row
+Nodes (10): CellsFactory, DatabaseAbstract, Decomposition, ConvertBase, ConvertBinary, Arabic, OLERead, FormulaTranslator (+2 more)
 
 ### Community 38 - "Community 38"
-Cohesion: 0.05
-Nodes (67): updateUserRoleIcon(), updateUserSettingsAvatar(), getAllFoldersRecursive(), invalidateTreeCache(), loadFoldersForMove(), archiveFolder(), cancelInlineTreeRename(), closeAllContextMenus() (+59 more)
+Cohesion: 0.04
+Nodes (3): Calculation, DataValidator, AbstractEnum
 
 ### Community 39 - "Community 39"
-Cohesion: 0.06
-Nodes (67): cloud_ai_resolve_user_file(), cloud_ai_resolve_user_path_for_write(), cloud_ai_sync_file_tree_after_write(), build_storage_usage_data(), cloud_group_maybe_log(), cloud_is_valid_root_key(), cloud_sync_logs_cleanup_legacy_files(), cloud_sync_logs_insert() (+59 more)
-
-### Community 40 - "Community 40"
-Cohesion: 0.1
-Nodes (71): openTextToSpeechEditor(), loadOnlyOfficeEditorToTab(), loadPhotoEditorToTab(), loadTranscriptionEditorToTab(), loadTTSEditorToTab(), openOnlyOfficeEditor(), openPhotoEditor(), openTranscriptionEditor() (+63 more)
+Cohesion: 0.03
+Nodes (6): mt(), st, _t, Floor, Random, Round
 
 ### Community 43 - "Community 43"
-Cohesion: 0.04
-Nodes (70): Miscellaneous, 0.1.0, 0.1.1, 0.2.0, 0.2.1, 0.2.2, 0.2.3, 0.2.4 (+62 more)
-
-### Community 44 - "Community 44"
-Cohesion: 0.06
-Nodes (40): pathinfo(), pathinfo(), convertDocument(), convertFile(), getAudioProperties(), getDocumentProperties(), getFileProperties(), getImageProperties() (+32 more)
+Cohesion: 0.03
+Nodes (15): DGet, DProduct, jo, wo, Absolute, Base, Exp, Gcd (+7 more)
 
 ### Community 45 - "Community 45"
-Cohesion: 0.07
-Nodes (73): buildTreeFromFlatItems(), closeTabsByPath(), confirmMove(), countDirectTreeChildren(), fetchFileTree(), getTreeBrowsePath(), patchTreeCache(), patchTreeCacheForRoot() (+65 more)
-
-### Community 46 - "Community 46"
-Cohesion: 0.09
-Nodes (9): PclZip, PclZipUtilCopyBlock(), PclZipUtilOptionText(), PclZipUtilPathInclusion(), PclZipUtilPathReduction(), PclZipUtilRename(), PclZipUtilTranslateWinPath(), delete() (+1 more)
-
-### Community 48 - "Community 48"
-Cohesion: 0.03
-Nodes (11): Hyperlink, BreakElementTest, Hyperlink, Line, Area, Bar3D, Bar, Pie3D (+3 more)
-
-### Community 50 - "Community 50"
-Cohesion: 0.03
-Nodes (3): Axis, AxisText, Run
-
-### Community 51 - "Community 51"
 Cohesion: 0.05
 Nodes (3): AutoFilter, AutoFilter, AutoFilter
 
+### Community 47 - "Community 47"
+Cohesion: 0.05
+Nodes (8): TimeValue, AbstractDrawingAdapter, Base64, Gd, ZipFile, MemoryDrawing, getPath(), MemoryDrawing
+
+### Community 48 - "Community 48"
+Cohesion: 0.07
+Nodes (64): getExternalDropTargets(), hasExternalFileTransfer(), initCloudTreeUi(), initTreeExternalFileDrop(), initTreeFileDragDrop(), injectTreeUiStyles(), monacoAddCustomEditorActions(), monacoAiEditDecorations (+56 more)
+
+### Community 49 - "Community 49"
+Cohesion: 0.05
+Nodes (54): getAllFoldersRecursive(), loadFoldersForMove(), archiveFolder(), cancelInlineTreeRename(), closeAllContextMenus(), closeDeleteModal(), confirmConversion(), confirmRenameFile() (+46 more)
+
+### Community 50 - "Community 50"
+Cohesion: 0.04
+Nodes (12): Mean, DCountA, Size, IntOrFloat, Confidence, Counts, Minimum, Percentiles (+4 more)
+
 ### Community 52 - "Community 52"
 Cohesion: 0.05
-Nodes (12): MetaInf, NamedExpressions, Thumbnails, Body, FontTable, Manifest, Numbering, RelsDocument (+4 more)
+Nodes (6): BestFit, ExponentialBestFit, LinearBestFit, LogarithmicBestFit, PolynomialBestFit, PowerBestFit
 
-### Community 54 - "Community 54"
-Cohesion: 0.06
-Nodes (4): AbstractPart, AbstractReader, AbstractPart, TableReader
-
-### Community 55 - "Community 55"
-Cohesion: 0.04
-Nodes (7): HyperlinkTest, BordersTest, BorderTest, BulletTest, FontTest, ShadowTest, FontTest
-
-### Community 57 - "Community 57"
-Cohesion: 0.1
-Nodes (17): convertImage(), dwg_dynapi_entity_value(), dwg_dynapi_subclass_value(), dwg_entity_block_header_get_block(), dwg_entity_get_block_name(), dwg_entity_get_dimstyle_name(), dwg_entity_mtext_get_style_name(), dwg_entity_text_get_style_name() (+9 more)
-
-### Community 60 - "Community 60"
-Cohesion: 0.05
-Nodes (4): ClassLoader, InstalledVersions, IOFactory, IOFactory
-
-### Community 61 - "Community 61"
-Cohesion: 0.06
-Nodes (62): $(), a(), b(), clone(), close(), copy(), ct(), delete() (+54 more)
-
-### Community 62 - "Community 62"
+### Community 53 - "Community 53"
 Cohesion: 0.07
 Nodes (5): Style, Style, StyleBase, Style, Style
 
+### Community 54 - "Community 54"
+Cohesion: 0.04
+Nodes (53): Math, code:sh (composer require phpoffice/math), code:sh (composer require phpoffice/math:dev-master), Contributing, Features, Installation, Math, Requirements (+45 more)
+
+### Community 55 - "Community 55"
+Cohesion: 0.1
+Nodes (63): openTextToSpeechEditor(), openOnlyOfficeEditor(), openPhotoEditor(), openTranscriptionEditor(), updateTabPathAfterSave(), openFileFromTree(), openLatexEditor(), closeAllTabs() (+55 more)
+
+### Community 56 - "Community 56"
+Cohesion: 0.1
+Nodes (17): convertImage(), dwg_dynapi_entity_value(), dwg_dynapi_subclass_value(), dwg_entity_block_header_get_block(), dwg_entity_get_block_name(), dwg_entity_get_dimstyle_name(), dwg_entity_mtext_get_style_name(), dwg_entity_text_get_style_name() (+9 more)
+
+### Community 57 - "Community 57"
+Cohesion: 0.05
+Nodes (4): ClassLoader, InstalledVersions, IOFactory, IOFactory
+
+### Community 60 - "Community 60"
+Cohesion: 0.04
+Nodes (19): DateParts, Days360, Days, Difference, YearFrac, Fraction, code:xml (<math display="block">), code:php (<?php) (+11 more)
+
+### Community 61 - "Community 61"
+Cohesion: 0.06
+Nodes (3): Column, Rule, Column
+
+### Community 62 - "Community 62"
+Cohesion: 0.05
+Nodes (7): Date, Date, TimeZone, Date, DateTime, Duration, Time
+
 ### Community 63 - "Community 63"
 Cohesion: 0.04
-Nodes (60): 1.0.1 - 2016-08-06, Deprecated, Removed, 1.15.0 - 2020-10-11, 1.17.1 - 2021-03-01, 1.18.0 - 2021-05-31, 1.19.0 - 2021-10-31, 1.20.0 - 2021-11-23 (+52 more)
+Nodes (59): 0. Развёртывание на сервере (текущая конфигурация), 10. Миграция со старого HTTP API, 11. Безопасность, 12. Переменные окружения (сервер), 13. Чеклист разработки клиента OneDrive-типа, 14. Диаграмма последовательности (открытие файла), 16.1. Получение токена, 16.2. Запуск (+51 more)
 
 ### Community 64 - "Community 64"
-Cohesion: 0.07
-Nodes (12): cloud_ai_persist_file_content(), dirname(), dirname(), create_upload_session(), Xlsx, bootstrap(), cloud_app_base_url(), cloud_projects_bootstrap() (+4 more)
+Cohesion: 0.08
+Nodes (62): addMessageToUI(), addMessageWithFooter(), addRetryButton(), agentPlanResultSummary(), appendChatPairToDb(), appendMessageStatsFooter(), applyOpsToText(), applyToolRunRoleToMessage() (+54 more)
 
 ### Community 65 - "Community 65"
+Cohesion: 0.05
+Nodes (7): Helpers, BitWise, Helpers, Helpers, LookupRefValidations, Helpers, Helpers
+
+### Community 66 - "Community 66"
+Cohesion: 0.09
+Nodes (56): advancedSearchState, applyExtensionSuggestion(), btnAdvancedSearch, cancelBtn, closeBtn, closeModal(), COMMON_FILE_EXTENSIONS, convertToBytes() (+48 more)
+
+### Community 67 - "Community 67"
+Cohesion: 0.08
+Nodes (22): a(), b, c(), d, e, f, g, h (+14 more)
+
+### Community 68 - "Community 68"
+Cohesion: 0.05
+Nodes (4): Color, RgbTint, TableStyle, Color
+
+### Community 69 - "Community 69"
 Cohesion: 0.04
 Nodes (10): MarkerTest, AuthorTest, IdentifierTest, NumericTest, OperatorTest, FillTest, OutlineTest, RowTest (+2 more)
 
-### Community 66 - "Community 66"
-Cohesion: 0.05
-Nodes (5): NamedRange, Table, JcTable, Table, Table
-
-### Community 69 - "Community 69"
-Cohesion: 0.05
-Nodes (6): Amortization, Coupons, Depreciation, Dollar, FinancialValidations, TreasuryBill
-
 ### Community 70 - "Community 70"
-Cohesion: 0.08
-Nodes (4): Styles, Styles, Styles, Styles
+Cohesion: 0.07
+Nodes (7): convert(), dwg_object_get_handle_object(), dwg_object_object_get_handle_object(), dwg_object_object_get_ownerhandle_object(), dwg_to_svg(), ne, Converter
+
+### Community 71 - "Community 71"
+Cohesion: 0.06
+Nodes (57): $(), a(), b(), clone(), copy(), ct(), delete(), destructor() (+49 more)
 
 ### Community 72 - "Community 72"
-Cohesion: 0.05
-Nodes (8): TableTest, AreaTest, Bar3DTest, BarTest, LineTest, Pie3DTest, PieTest, ScatterTest
-
-### Community 73 - "Community 73"
-Cohesion: 0.07
-Nodes (3): DocumentLayout, Converter, DocumentLayoutTest
-
-### Community 74 - "Community 74"
-Cohesion: 0.07
-Nodes (54): adjustContextMenuPosition(), isEditableAudio(), isOfficeFile(), attachContextMenuDismiss(), isEditableImage(), isLatexFile(), isMonacoEditFile(), isTextFile() (+46 more)
-
-### Community 75 - "Community 75"
-Cohesion: 0.09
-Nodes (21): a(), b, c(), d, e, f, g, h (+13 more)
-
-### Community 76 - "Community 76"
 Cohesion: 0.06
 Nodes (9): eof(), getMetadata(), isReadable(), isSeekable(), isWritable(), seek(), tell(), EndlessCycleStream (+1 more)
 
-### Community 81 - "Community 81"
+### Community 74 - "Community 74"
 Cohesion: 0.05
-Nodes (44): Math, code:sh (composer require phpoffice/math), code:sh (composer require phpoffice/math:dev-master), Contributing, Features, Installation, Math, Requirements (+36 more)
+Nodes (13): evaluateArrayArguments(), evaluateArrayArgumentsIgnore(), evaluateArrayArgumentsSubset(), evaluateArrayArgumentsSubsetFrom(), evaluateSingleArgumentArray(), initialiseHelper(), testFalse(), ArrayArgumentProcessor (+5 more)
 
-### Community 82 - "Community 82"
+### Community 75 - "Community 75"
 Cohesion: 0.05
-Nodes (3): Section, VerticalJc, Section
+Nodes (6): BordersTest, BorderTest, BulletTest, FontTest, ShadowTest, FontTest
+
+### Community 76 - "Community 76"
+Cohesion: 0.07
+Nodes (12): ci, constructor(), da, en, ga, mh, na, pa (+4 more)
+
+### Community 77 - "Community 77"
+Cohesion: 0.04
+Nodes (9): DStDev, DStDevP, DVar, DVarP, SumSquares, Averages, Deviations, StandardDeviations (+1 more)
+
+### Community 79 - "Community 79"
+Cohesion: 0.09
+Nodes (30): pathinfo(), pathinfo(), convertDocument(), convertFile(), getAudioProperties(), getDocumentProperties(), getFileProperties(), getImageProperties() (+22 more)
 
 ### Community 84 - "Community 84"
-Cohesion: 0.08
-Nodes (5): code:xml (<math display="block">), XML, Ods, Xml, Ods
+Cohesion: 0.05
+Nodes (9): CashFlowValidations, Single, Periodic, ExcelArrayPseudoFunctions, Interest, InterestAndPrincipal, Payments, Validate (+1 more)
 
-### Community 86 - "Community 86"
-Cohesion: 0.04
-Nodes (5): Gridlines, GridlinesTest, Shadow, Dimension, Dimension
-
-### Community 87 - "Community 87"
-Cohesion: 0.06
-Nodes (33): $(), an(), at(), bt(), ct(), er(), gn(), ht() (+25 more)
-
-### Community 88 - "Community 88"
+### Community 85 - "Community 85"
 Cohesion: 0.07
 Nodes (3): PhpPresentation, PhpPresentationTest, ODPresentationTest
 
+### Community 87 - "Community 87"
+Cohesion: 0.07
+Nodes (51): agentCompileCheck(), applyAllPendingAgentChanges(), buildApiUrl(), cancelAllPendingAgentChanges(), clearEditorHighlights(), compileLatexInIframe(), compileOpenDocument(), compileOpenDocumentForAgent() (+43 more)
+
+### Community 88 - "Community 88"
+Cohesion: 0.06
+Nodes (5): Titles, GammaBase, Dollar, Sample, Logarithms
+
 ### Community 89 - "Community 89"
-Cohesion: 0.04
-Nodes (9): Mean, DCount, DCountA, DMin, Size, Counts, Minimum, Size (+1 more)
+Cohesion: 0.06
+Nodes (33): $(), an(), at(), bt(), ct(), er(), gn(), ht() (+25 more)
 
 ### Community 90 - "Community 90"
-Cohesion: 0.06
-Nodes (6): Helpers, TimeValue, Helpers, Helpers, Helpers, Helpers
+Cohesion: 0.08
+Nodes (49): adjustContextMenuPosition(), isEditableAudio(), isOfficeFile(), attachContextMenuDismiss(), isEditableImage(), isLatexFile(), isMonacoEditFile(), isTextFile() (+41 more)
 
 ### Community 91 - "Community 91"
 Cohesion: 0.06
 Nodes (4): GeometryCalculator, Group, Animation, Note
 
-### Community 93 - "Community 93"
-Cohesion: 0.05
-Nodes (5): jc, nc, setValue(), uh(), unbind()
+### Community 92 - "Community 92"
+Cohesion: 0.09
+Nodes (14): CustomAudioPlayer, db_connection(), ensure_tables(), run_progress_pulse(), save_transcription(), transcribe_audio(), update_progress(), adjust_speed_with_ffmpeg() (+6 more)
 
 ### Community 94 - "Community 94"
-Cohesion: 0.08
-Nodes (3): PowerPoint2007, PowerPoint2007, PowerPoint2007Test
+Cohesion: 0.05
+Nodes (3): XlsBase, OLE, OLERead
 
 ### Community 95 - "Community 95"
-Cohesion: 0.13
-Nodes (44): bindGroupsOverviewEvents(), closeManageModal(), confirmDeleteGroup(), createGroup(), escapeHtml(), formatDeleteTargetLabel(), formatHistoryFilePath(), formatTs() (+36 more)
+Cohesion: 0.12
+Nodes (44): addUsageTotals(), agentPathsMatch(), agentSystemPrompt(), agentTr(), ALL_SERVER_TOOLS, BASE_TOOL_DEFINITIONS, buildStepLimitPrompt(), CHAT_CLIENT_TOOLS (+36 more)
 
 ### Community 96 - "Community 96"
-Cohesion: 0.05
-Nodes (3): WriterPart, AbstractStyle, setParentWriter()
-
-### Community 97 - "Community 97"
-Cohesion: 0.05
-Nodes (14): CentralDirectoryFileHeader, DataDescriptor, EndOfCentralDirectory, LocalFileHeader, PackField, CentralDirectoryFileHeaderTest, DataDescriptorTest, LocalFileHeaderTest (+6 more)
-
-### Community 98 - "Community 98"
 Cohesion: 0.06
 Nodes (4): Iterator, CellIterator, ColumnCellIterator, RowIterator
 
-### Community 103 - "Community 103"
-Cohesion: 0.07
-Nodes (7): BaseLoader, DocPropsCore, Document, Document, read, Document, Numbering
-
-### Community 104 - "Community 104"
+### Community 100 - "Community 100"
 Cohesion: 0.07
 Nodes (3): Text, Text, Text
 
-### Community 107 - "Community 107"
+### Community 101 - "Community 101"
 Cohesion: 0.06
-Nodes (3): Comment, Comment, Comment
+Nodes (9): MetaInf, Thumbnails, FontTable, Head, Manifest, RelsDocument, RelsPart, WebSettings (+1 more)
 
-### Community 109 - "Community 109"
-Cohesion: 0.04
-Nodes (3): SeriesTest, Chart, ChartTest
+### Community 103 - "Community 103"
+Cohesion: 0.09
+Nodes (3): PowerPoint2007, PowerPoint2007, PowerPoint2007Test
 
-### Community 110 - "Community 110"
-Cohesion: 0.14
-Nodes (34): append_sync_log(), cloud_sync_logs_prune(), ensureCloudUserSettingsSchema(), presentationToHtml(), remap_clientsync_path(), cloud_sync_bus_channel(), cloud_sync_bus_dir(), cloud_sync_bus_publish() (+26 more)
+### Community 104 - "Community 104"
+Cohesion: 0.11
+Nodes (39): cloud_onlyoffice_error(), cloud_onlyoffice_find_group_root_for_file(), cloud_onlyoffice_safe_name(), download_remote_content(), jwtBase64Url(), jwtEncode(), require_cloud_onlyoffice_group_access(), resolve_cloud_user_path_or_fail() (+31 more)
 
-### Community 111 - "Community 111"
-Cohesion: 0.07
-Nodes (43): addMessageWithFooter(), addRetryButton(), appendChatPairToDb(), appendMessageStatsFooter(), applyOpsToText(), buildAgentMetaJson(), buildApiUrl(), calculateData() (+35 more)
-
-### Community 113 - "Community 113"
-Cohesion: 0.05
-Nodes (4): Link, OLEObject, PreserveText, TextBreak
-
-### Community 114 - "Community 114"
-Cohesion: 0.05
-Nodes (6): FractionTest, AnimationTest, NoteTest, SlideLayout, SlideMasterTest, SlideTest
-
-### Community 115 - "Community 115"
-Cohesion: 0.05
-Nodes (3): CommentTest, RichTextTest, CellTest
+### Community 105 - "Community 105"
+Cohesion: 0.06
+Nodes (5): from(), CellRange, ColumnRange, RowRange, to()
 
 ### Community 116 - "Community 116"
-Cohesion: 0.09
-Nodes (39): addUsageTotals(), agentPathsMatch(), agentSystemPrompt(), agentTr(), ALL_SERVER_TOOLS, BASE_TOOL_DEFINITIONS, buildStepLimitPrompt(), CHAT_CLIENT_TOOLS (+31 more)
+Cohesion: 0.08
+Nodes (6): BaseLoader, DocPropsCore, Document, Document, read, Document
 
 ### Community 117 - "Community 117"
-Cohesion: 0.08
-Nodes (39): addDownloadItem(), cancelDownload(), continueDownload(), downloadPath(), downloadWithProgress(), ensureDownloadRenderLoop(), finalizeDownloadedFile(), getCookie() (+31 more)
+Cohesion: 0.15
+Nodes (42): bindGroupsOverviewEvents(), closeManageModal(), confirmDeleteGroup(), createGroup(), escapeHtml(), formatDeleteTargetLabel(), formatHistoryFilePath(), formatTs() (+34 more)
 
 ### Community 118 - "Community 118"
 Cohesion: 0.1
-Nodes (43): agentCompileCheck(), applyAllPendingAgentChanges(), buildAssistantToolLoopBase(), cancelAllPendingAgentChanges(), clearEditorHighlights(), compileLatexInIframe(), compileOpenDocument(), compileOpenDocumentForAgent() (+35 more)
+Nodes (6): enable(), injectCSS(), ae, ge, get(), ge
 
 ### Community 119 - "Community 119"
 Cohesion: 0.09
-Nodes (4): getValue(), DocInfo, DocumentPropertiesTest, DocPropsCustom
-
-### Community 120 - "Community 120"
-Cohesion: 0.05
-Nodes (4): AxisTest, ParagraphTest, RunTest, TextElementTest
+Nodes (30): app_path(), buildUrl(), cleanupOldTempFiles(), cloud_relative_input_path(), getBreadcrumbs(), isTablet(), isTrulyEmptyFile(), latex_build_texinputs() (+22 more)
 
 ### Community 121 - "Community 121"
-Cohesion: 0.07
-Nodes (4): Date, Date, Date, DateTime
+Cohesion: 0.05
+Nodes (3): CommentTest, RichTextTest, CellTest
 
-### Community 125 - "Community 125"
-Cohesion: 0.1
-Nodes (9): ci, constructor(), da, en, ga, gn(), pa, ti (+1 more)
+### Community 122 - "Community 122"
+Cohesion: 0.14
+Nodes (38): loadOnlyOfficeEditorToTab(), loadPhotoEditorToTab(), loadTranscriptionEditorToTab(), loadTTSEditorToTab(), loadLatexEditorToTab(), loadZipViewerToTab(), finalizeTabFileLoad(), openFile() (+30 more)
 
-### Community 126 - "Community 126"
-Cohesion: 0.11
-Nodes (35): cloud_onlyoffice_error(), cloud_onlyoffice_find_group_root_for_file(), cloud_onlyoffice_safe_name(), download_remote_content(), jwtBase64Url(), jwtEncode(), require_cloud_onlyoffice_group_access(), resolve_cloud_user_path_or_fail() (+27 more)
+### Community 123 - "Community 123"
+Cohesion: 0.09
+Nodes (31): chmod(), close(), createDataFile(), createNode(), createStandardStreams(), destroyNode(), dwg_read_data(), getPath() (+23 more)
+
+### Community 124 - "Community 124"
+Cohesion: 0.09
+Nodes (4): getValue(), DocInfo, DocumentPropertiesTest, DocPropsCustom
 
 ### Community 127 - "Community 127"
-Cohesion: 0.09
-Nodes (35): getColorFromURL(), load3DModel(), loadOBJModel(), loadScript(), loadSTLModel(), setupCameraForModel(), applyColorToObject(), getColorFromURL() (+27 more)
-
-### Community 128 - "Community 128"
-Cohesion: 0.06
-Nodes (6): remove, bt, ct(), es(), qc, xe
+Cohesion: 0.11
+Nodes (32): body, btnCopy, btnGenerate, btnRegenerate, btnRevoke, btnRevokeAll, closeBtn, copyToken() (+24 more)
 
 ### Community 129 - "Community 129"
-Cohesion: 0.06
-Nodes (3): TOC, TOC, TableStyle
-
-### Community 130 - "Community 130"
-Cohesion: 0.1
-Nodes (28): cloud_ai_remove_path_recursive(), remove_path_recursive(), cloud_group_rmtree(), chmod(), createDataFile(), createNode(), createStandardStreams(), destroyNode() (+20 more)
+Cohesion: 0.07
+Nodes (3): PageBreak, Matrix, Matrix
 
 ### Community 131 - "Community 131"
-Cohesion: 0.08
-Nodes (4): Titles, GammaBase, Sample, Logarithms
+Cohesion: 0.06
+Nodes (4): BreakElement, ParagraphTest, RunTest, TextElementTest
 
 ### Community 132 - "Community 132"
-Cohesion: 0.08
-Nodes (7): jl, kl, kn, ni, pi(), us(), vl()
+Cohesion: 0.1
+Nodes (39): closeTabsByPath(), confirmDelete(), deletePath(), handleHotkeys(), showDeleteModal(), switchInputLanguage(), switchToNextTab(), switchToPrevTab() (+31 more)
 
-### Community 134 - "Community 134"
+### Community 136 - "Community 136"
 Cohesion: 0.09
 Nodes (3): Theme, Theme, Theme
 
-### Community 136 - "Community 136"
-Cohesion: 0.12
-Nodes (4): ae, ge, get(), ge
+### Community 137 - "Community 137"
+Cohesion: 0.07
+Nodes (4): ListItem, Numbering, ListItem, Numbering
 
 ### Community 138 - "Community 138"
 Cohesion: 0.06
-Nodes (5): AddressHelper, Formula, Address, Formula, SharedFormula
+Nodes (5): Comment, Comment, Comments, Comment, Comments
 
 ### Community 139 - "Community 139"
-Cohesion: 0.06
-Nodes (6): ErrorValue, LookupRefValidations, TorowTocol, Sum, Maximum, Concatenate
+Cohesion: 0.05
+Nodes (38): 2024-07-24 - 2.2.0, 2024-08-07 - 2.2.2, 2024-09-29 - 3.3.0 (no 3.0.\*, 3.1.\*, 3.2.\*), 2024-11-22 - 3.5.0, 2024-12-08 - 3.6.0, Added, Added, Added (+30 more)
 
 ### Community 140 - "Community 140"
-Cohesion: 0.07
-Nodes (36): hasExternalFileTransfer(), monacoAiEditDecorations, monacoAiEditZones, monacoAnimateRemoteCollabInserts(), monacoApplyRemoteCollabEdits(), monacoBuildAiPrompt(), monacoCaptureEditorViewState(), monacoClearRemoteCursor() (+28 more)
+Cohesion: 0.16
+Nodes (29): cloud_sync_bus_channel(), cloud_sync_bus_dir(), cloud_sync_bus_publish(), cloud_sync_bus_read_since(), cloud_sync_delete_path(), cloud_sync_entry_from_file(), cloud_sync_full_path(), cloud_sync_manifest_build() (+21 more)
 
-### Community 142 - "Community 142"
-Cohesion: 0.08
-Nodes (35): getExternalDropTargets(), initCloudTreeUi(), initTreeExternalFileDrop(), initTreeFileDragDrop(), injectTreeUiStyles(), isPlainTextTreeFile(), monacoAddCustomEditorActions(), monacoApplySpellcheckDecorations() (+27 more)
+### Community 143 - "Community 143"
+Cohesion: 0.07
+Nodes (4): Blip, Chart, AbstractType, AbstractTypeBar
+
+### Community 145 - "Community 145"
+Cohesion: 0.07
+Nodes (4): AbstractGroupElement, HashTable, GroupTest, HashTableTest
 
 ### Community 146 - "Community 146"
+Cohesion: 0.13
+Nodes (31): applyColorToObject(), formatBytes(), getColorFromURL(), load3DModel(), loadOBJModel(), loadScript(), loadSTLModel(), setupCameraForModel() (+23 more)
+
+### Community 147 - "Community 147"
 Cohesion: 0.06
 Nodes (4): ConditionalFormatValueObject, TblWidth, Extrusion, Tab
 
-### Community 147 - "Community 147"
-Cohesion: 0.08
-Nodes (8): ThumbnailsThumbnail, Mimetype, PptComments, PptMedia, PptSlideLayouts, PptSlideMasters, PptSlideMastersTest, PptViewProps
+### Community 148 - "Community 148"
+Cohesion: 0.07
+Nodes (3): AbstractRenderer, Run, PDF
 
-### Community 149 - "Community 149"
-Cohesion: 0.06
-Nodes (34): 1.10.0 - 2019-11-18, 1.10.1 - 2019-12-02, 1.13.0 - 2020-05-31, 1.14.1 - 2020-07-19, 1.9.0 - 2019-08-17, 2025-03-02 - 4.1.0, 2025-04-16 - 4.2.0, 2025-05-25 - 4.3.0 (+26 more)
-
-### Community 150 - "Community 150"
+### Community 152 - "Community 152"
 Cohesion: 0.06
 Nodes (34): 1.0.0 - 2017-12-25, 1.0.0-beta2 - 2017-11-26, 1.0.0-beta - 2017-08-17, 2025-02-08 - 4.0.0, 2025-08-10 - 5.0.0, 2.0.0 - 2024-01-04, Added, Added (+26 more)
 
-### Community 151 - "Community 151"
-Cohesion: 0.08
-Nodes (3): Chart, AbstractType, AbstractTypeBar
-
-### Community 152 - "Community 152"
-Cohesion: 0.12
-Nodes (33): teardownTabResources(), autoSaveFile(), broadcastMonacoCollabChanges(), broadcastMonacoCollabCursor(), clearAutoSaveTimer(), compactCurrentCode(), ensureMonacoCollabSocket(), flushAutoSave() (+25 more)
-
 ### Community 153 - "Community 153"
 Cohesion: 0.09
-Nodes (3): DefinedNames, DefinedName, DefinedNames
+Nodes (34): applyModalWidth(), applySavedModalWidth(), applyViewportBox(), attachInfiniteScroll(), buildAgentStats(), clampModalWidth(), clearMobileComposerOverrides(), closeAIModal() (+26 more)
 
-### Community 155 - "Community 155"
-Cohesion: 0.12
-Nodes (3): File, File, File
-
-### Community 156 - "Community 156"
-Cohesion: 0.1
-Nodes (6): getFilter(), getInput(), getOutput(), lc, removeFilter(), setFilter()
-
-### Community 158 - "Community 158"
-Cohesion: 0.1
-Nodes (3): Selection, SheetView, SheetViews
+### Community 157 - "Community 157"
+Cohesion: 0.07
+Nodes (3): Link, PreserveText, TextBreak
 
 ### Community 160 - "Community 160"
-Cohesion: 0.06
-Nodes (32): 2024-07-24 - 2.2.0, 2024-09-29 - 3.3.0 (no 3.0.\*, 3.1.\*, 3.2.\*), 2024-11-22 - 3.5.0, 2024-12-08 - 3.6.0, Added, Added, Added, Added (+24 more)
+Cohesion: 0.12
+Nodes (3): File, File, File
 
 ### Community 161 - "Community 161"
 Cohesion: 0.08
 Nodes (30): 1. Getting the body separately, 2. Working directly on response, Adding headers to response:, Append to body, Appending values to headers, Checking if header exists:, code:php ($response->withHeader('My-Custom-Header', 'My Custom Message), code:php ($response->getBody()->write('Hello'); // writing directly) (+22 more)
 
-### Community 162 - "Community 162"
-Cohesion: 0.14
-Nodes (24): cleanupOldTempFiles(), cloud_relative_input_path(), isTablet(), isTrulyEmptyFile(), latex_build_texinputs(), latex_cleanup_compile_files(), latex_collect_error_lines(), latex_ensure_cache_dir() (+16 more)
+### Community 168 - "Community 168"
+Cohesion: 0.07
+Nodes (30): 15. Поддержка и отладка, 5.1. Подключение и auth, 5.2. Manifest (полная или инкрементальная инвентаризация), 5.3. Чтение файла (для виртуальной ФС), 5.4. Запись файла, 5.5. Каталоги и метаданные, 5.6. События в реальном времени, 5.7. Keepalive (+22 more)
 
-### Community 163 - "Community 163"
-Cohesion: 0.08
-Nodes (5): Wizard, WizardAbstract, getCellRange(), getStopIfTrue(), setStopIfTrue()
-
-### Community 167 - "Community 167"
-Cohesion: 0.08
-Nodes (5): Meta, ContentXhtml, Meta, Nav, DocProps
+### Community 169 - "Community 169"
+Cohesion: 0.11
+Nodes (26): addDownloadItem(), cancelDownload(), continueDownload(), downloadPath(), downloadWithProgress(), ensureDownloadRenderLoop(), finalizeDownloadedFile(), getCookie() (+18 more)
 
 ### Community 171 - "Community 171"
-Cohesion: 0.15
-Nodes (5): dwg_object_get_handle_object(), dwg_object_object_get_handle_object(), dwg_object_object_get_ownerhandle_object(), ne, ne
-
-### Community 172 - "Community 172"
-Cohesion: 0.11
-Nodes (30): applyModalWidth(), applySavedModalWidth(), applyViewportBox(), attachInfiniteScroll(), buildAgentStats(), clampModalWidth(), clearMobileComposerOverrides(), closeAIModal() (+22 more)
-
-### Community 175 - "Community 175"
-Cohesion: 0.09
-Nodes (4): TemplateBased, AbstractDecoratorWriter, AbstractDecoratorWriter, AbstractDecoratorWriter
-
-### Community 176 - "Community 176"
 Cohesion: 0.09
 Nodes (6): AbstractEscaper, escape(), RegExp, Rtf, Xml, RTF
 
+### Community 175 - "Community 175"
+Cohesion: 0.08
+Nodes (3): bind(), jc, unbind()
+
+### Community 176 - "Community 176"
+Cohesion: 0.12
+Nodes (3): LU, QR, qr()
+
 ### Community 177 - "Community 177"
-Cohesion: 0.15
-Nodes (25): getFileIconForPreview(), formatDate(), formatExifKey(), formatFileSize(), getArchiveSize(), getDetailsTabTitle(), getFileIconForPreview(), getFolderIconMarkup() (+17 more)
-
-### Community 178 - "Community 178"
-Cohesion: 0.11
-Nodes (3): from(), CellRange, RowRange
-
-### Community 179 - "Community 179"
 Cohesion: 0.07
 Nodes (7): DocPropsApp, DocPropsAppTest, DocPropsThumbnail, PptPresentation, PptPresPropsTest, PptTableProps, PptViewPropsTest
 
 ### Community 180 - "Community 180"
-Cohesion: 0.15
-Nodes (4): AbstractDrawingAdapter, Gd, ZipFile, getPath()
+Cohesion: 0.08
+Nodes (5): BuiltIn, HLookup, Lookup, VLookup, ErrorCode
 
-### Community 181 - "Community 181"
+### Community 182 - "Community 182"
+Cohesion: 0.1
+Nodes (22): code:php ($complexString = '1.23-4.56i';), code:xml (<math display="block">), Example, Math, Usage, XML, code:php ($grid = [), code:php ($grid = [) (+14 more)
+
+### Community 183 - "Community 183"
 Cohesion: 0.1
 Nodes (9): MathML, OfficeMathML, References, Readers, Writers, code:php (<?php), PHP, OfficeMathMLTest (+1 more)
 
-### Community 184 - "Community 184"
-Cohesion: 0.14
-Nodes (3): de, Color, Color
-
-### Community 186 - "Community 186"
-Cohesion: 0.11
-Nodes (4): ODText, Word2007, ODText, Word2007
-
 ### Community 189 - "Community 189"
-Cohesion: 0.08
-Nodes (3): Column, Row, RowDimension
-
-### Community 190 - "Community 190"
-Cohesion: 0.09
-Nodes (9): evaluateArrayArguments(), evaluateArrayArgumentsIgnore(), evaluateArrayArgumentsSubset(), evaluateArrayArgumentsSubsetFrom(), evaluateSingleArgumentArray(), initialiseHelper(), testFalse(), ArrayArgumentProcessor (+1 more)
-
-### Community 192 - "Community 192"
-Cohesion: 0.1
-Nodes (3): AbstractGroupElement, HashTable, HashTableTest
-
-### Community 194 - "Community 194"
-Cohesion: 0.08
-Nodes (22): 0.1.0, Bug fixes, Enhancements, Miscellaneous, 0.2.0, Bug fixes, Enhancements, Miscellaneous (+14 more)
-
-### Community 199 - "Community 199"
-Cohesion: 0.09
-Nodes (5): BuiltIn, HLookup, Lookup, VLookup, ErrorCode
-
-### Community 200 - "Community 200"
-Cohesion: 0.1
-Nodes (5): IntOrFloat, Confidence, Percentiles, Permutations, StatisticalValidations
-
-### Community 203 - "Community 203"
 Cohesion: 0.13
 Nodes (3): AbstractSlide, AbstractSlideTest, AbstractTest
 
-### Community 204 - "Community 204"
+### Community 190 - "Community 190"
+Cohesion: 0.08
+Nodes (9): CentralDirectoryFileHeader, DataDescriptor, EndOfCentralDirectory, LocalFileHeader, CentralDirectoryFileHeaderTest, DataDescriptorTest, LocalFileHeaderTest, ExtendedInformationExtraFieldTest (+1 more)
+
+### Community 191 - "Community 191"
+Cohesion: 0.08
+Nodes (22): 0.1.0, Bug fixes, Enhancements, Miscellaneous, 0.2.0, Bug fixes, Enhancements, Miscellaneous (+14 more)
+
+### Community 192 - "Community 192"
+Cohesion: 0.15
+Nodes (27): teardownTabResources(), autoSaveFile(), broadcastMonacoCollabChanges(), broadcastMonacoCollabCursor(), clearAutoSaveTimer(), ensureMonacoCollabSocket(), flushAutoSave(), flushMonacoCollabSocketQueue() (+19 more)
+
+### Community 195 - "Community 195"
 Cohesion: 0.11
 Nodes (4): Serialized, SerializedTest, Serialized, SerializedTest
 
-### Community 205 - "Community 205"
+### Community 196 - "Community 196"
 Cohesion: 0.08
-Nodes (3): NetworkDays, Week, WorkDay
+Nodes (3): Column, Row, RowDimension
+
+### Community 198 - "Community 198"
+Cohesion: 0.11
+Nodes (6): ThumbnailsThumbnail, PptComments, PptPresProps, PptSlideLayouts, PptSlideMasters, PptSlideMastersTest
+
+### Community 206 - "Community 206"
+Cohesion: 0.11
+Nodes (7): getReadEmptyCells(), BaseWriter, getDiskCachingDirectory(), getIncludeCharts(), getPreCalculateFormulas(), getUseDiskCaching(), setUseDiskCaching()
 
 ### Community 207 - "Community 207"
 Cohesion: 0.08
-Nodes (3): DateParts, Difference, YearFrac
+Nodes (18): Semantics, SemanticsTest, add, Methods, add, addAnnotation, code:xml (<math display="block">), code:php (<?php) (+10 more)
 
-### Community 211 - "Community 211"
-Cohesion: 0.2
-Nodes (20): cloud_ai_code_security_lang(), cloud_ai_code_security_patterns(), cloud_ai_scan_code_security(), cloud_ai_compile_check(), cloud_ai_compile_code(), cloud_ai_compile_latex(), cloud_ai_compile_latex_to_pdf_file(), cloud_ai_latex_insert_after_documentclass() (+12 more)
+### Community 208 - "Community 208"
+Cohesion: 0.19
+Nodes (21): getFileIconForPreview(), formatDate(), formatFileSize(), getFileIconForPreview(), getFolderIconMarkup(), getItemIconMarkup(), renderGeneralProperties(), apiWithAbort() (+13 more)
+
+### Community 214 - "Community 214"
+Cohesion: 0.27
+Nodes (23): clearChatHistory(), resetChatPagination(), showConfirmDialog(), aiChatAppend(), aiChatClear(), aiChatLoad(), aiIsRootUser(), aiPrepare() (+15 more)
 
 ### Community 216 - "Community 216"
-Cohesion: 0.13
-Nodes (18): code:php ($complexString = '1.23-4.56i';), Example, Math, Usage, code:php ($grid = [), code:php ($grid = [), code:php ($grid = [), code:php ($grid = [) (+10 more)
+Cohesion: 0.11
+Nodes (4): Accounting, Number, Percentage, Scientific
 
 ### Community 218 - "Community 218"
-Cohesion: 0.23
-Nodes (22): clearChatHistory(), resetChatPagination(), showConfirmDialog(), aiChatAppend(), aiChatClear(), aiChatLoad(), aiIsRootUser(), aiPrepare() (+14 more)
-
-### Community 221 - "Community 221"
-Cohesion: 0.11
-Nodes (5): Addition, DirectSum, Division, Subtraction, Standardize
-
-### Community 223 - "Community 223"
-Cohesion: 0.16
-Nodes (6): Downloader, CloudWs, download_file(), pull_manifest(), push_local(), upload_file()
-
-### Community 226 - "Community 226"
-Cohesion: 0.09
-Nodes (16): Semantics, SemanticsTest, add, addAnnotation, code:xml (<math display="block">), code:php (<?php), Example, getAnnotation (+8 more)
-
-### Community 228 - "Community 228"
 Cohesion: 0.08
 Nodes (3): CellBorder, CellFill, Xf
 
-### Community 229 - "Community 229"
+### Community 219 - "Community 219"
+Cohesion: 0.12
+Nodes (3): AbstractDecoratorWriter, AbstractDecoratorWriter, AbstractDecoratorWriter
+
+### Community 220 - "Community 220"
+Cohesion: 0.09
+Nodes (3): AnimationTest, NoteTest, SlideTest
+
+### Community 221 - "Community 221"
 Cohesion: 0.1
 Nodes (4): PregMatchFlags, PregMatchParameterOutTypeExtension, PregMatchTypeSpecifyingExtension, PregReplaceCallbackClosureTypeExtension
 
-### Community 232 - "Community 232"
+### Community 224 - "Community 224"
+Cohesion: 0.2
+Nodes (22): cloud_ai_build_diff(), cloud_ai_decode_search_url(), cloud_ai_fetch_url(), cloud_ai_normalize_text(), cloud_ai_path_stat(), cloud_ai_persist_file_content(), cloud_ai_read_file_slice(), cloud_ai_read_target_content() (+14 more)
+
+### Community 227 - "Community 227"
 Cohesion: 0.11
 Nodes (3): Operations, Operations, Operations
 
-### Community 236 - "Community 236"
-Cohesion: 0.13
-Nodes (8): getLoadSheetsOnly(), getReadDataOnly(), getReadEmptyCells(), getReadFilter(), setAllowExternalImages(), setCreateBlankSheetIfNoneRead(), setLoadAllSheets(), setLoadSheetsOnly()
+### Community 230 - "Community 230"
+Cohesion: 0.11
+Nodes (4): WizardAbstract, getCellRange(), getStopIfTrue(), setStopIfTrue()
 
-### Community 237 - "Community 237"
+### Community 233 - "Community 233"
+Cohesion: 0.1
+Nodes (3): DomPDF, MPDF, TCPDF
+
+### Community 235 - "Community 235"
 Cohesion: 0.13
 Nodes (4): AbstractContainer, getElements, Media, Media
 
 ### Community 238 - "Community 238"
-Cohesion: 0.1
-Nodes (3): DomPDF, MPDF, TCPDF
+Cohesion: 0.21
+Nodes (21): cloud_archive_cancelled_job(), cloud_archive_create_selected_job(), cloud_archive_error_job(), cloud_archive_extract_job(), cloud_archive_folder_job(), cloud_archive_job_cancelled(), cloud_archive_job_file(), cloud_archive_jobs_dir() (+13 more)
 
-### Community 242 - "Community 242"
+### Community 239 - "Community 239"
+Cohesion: 0.16
+Nodes (21): setCurrentApiKeyMasked(), addDownloadItem(), cancelDownload(), continueDownload(), downloadCurrent(), downloadPath(), downloadWithProgress(), ensureDownloadRenderLoop() (+13 more)
+
+### Community 240 - "Community 240"
 Cohesion: 0.14
 Nodes (4): SimpleCache1, deleteMultiple(), getMultiple(), has()
 
-### Community 243 - "Community 243"
-Cohesion: 0.1
-Nodes (4): Operator, Operator, CellDataValidation, DataValidationHelper
-
-### Community 246 - "Community 246"
+### Community 241 - "Community 241"
 Cohesion: 0.16
 Nodes (3): Rels, Rels, RelsVBA
+
+### Community 243 - "Community 243"
+Cohesion: 0.12
+Nodes (4): Price, Rates, SecurityValidations, Yields
+
+### Community 244 - "Community 244"
+Cohesion: 0.1
+Nodes (4): Operator, Operator, CellDataValidation, DataValidationHelper
 
 ### Community 249 - "Community 249"
 Cohesion: 0.1
 Nodes (3): Base64Test, ZipFileTest, MediaTest
 
-### Community 256 - "Community 256"
+### Community 251 - "Community 251"
+Cohesion: 0.1
+Nodes (5): PackField, PackFieldTest, DataDescriptor, EndOfCentralDirectory, ExtendedInformationExtraField
+
+### Community 252 - "Community 252"
+Cohesion: 0.15
+Nodes (21): initMoveRootToolbar(), loadFolderTreeForMove(), renderMoveFolderNodes(), selectFolderForMove(), showCopyDialog(), showMoveDialog(), showTransferDialog(), buildMoveRootToolbarHtml() (+13 more)
+
+### Community 254 - "Community 254"
 Cohesion: 0.11
 Nodes (3): MetaInfManifest, MetaInfManifestTest, PptMediaTest
 
-### Community 257 - "Community 257"
+### Community 255 - "Community 255"
 Cohesion: 0.1
 Nodes (3): WildcardMatch, ExcelMatch, LookupBase
 
-### Community 258 - "Community 258"
+### Community 257 - "Community 257"
 Cohesion: 0.11
 Nodes (13): Superscript, code:xml (<math display="block">), code:php (<?php), Example, getBase, getSuperscript, Math, Methods (+5 more)
 
-### Community 260 - "Community 260"
-Cohesion: 0.13
-Nodes (6): BaseWriter, getDiskCachingDirectory(), getIncludeCharts(), getPreCalculateFormulas(), getUseDiskCaching(), setUseDiskCaching()
-
-### Community 264 - "Community 264"
-Cohesion: 0.15
-Nodes (16): cloud_ai_build_diff(), cloud_ai_decode_search_url(), cloud_ai_fetch_url(), cloud_ai_normalize_text(), cloud_ai_path_stat(), cloud_ai_read_file_slice(), cloud_ai_read_target_content(), cloud_ai_regex_delimiter() (+8 more)
-
-### Community 265 - "Community 265"
-Cohesion: 0.21
-Nodes (15): convertArrayBufferToString(), convertFBXTimeToSeconds(), dataArray, FBXLoader, FBXTree, generateTransform(), getData(), getEulerOrder() (+7 more)
-
-### Community 268 - "Community 268"
+### Community 261 - "Community 261"
 Cohesion: 0.11
 Nodes (3): DocPropsCustom, DocPropsCoreTest, PowerPoint2007Test
 
-### Community 271 - "Community 271"
-Cohesion: 0.11
-Nodes (3): SchemeColor, SlideMaster, SchemeColor
+### Community 263 - "Community 263"
+Cohesion: 0.14
+Nodes (4): Addition, DirectSum, Subtraction, Standardize
 
-### Community 274 - "Community 274"
+### Community 267 - "Community 267"
+Cohesion: 0.11
+Nodes (3): FractionTest, SlideLayout, SlideMasterTest
+
+### Community 268 - "Community 268"
+Cohesion: 0.21
+Nodes (15): convertArrayBufferToString(), convertFBXTimeToSeconds(), dataArray, FBXLoader, FBXTree, generateTransform(), getData(), getEulerOrder() (+7 more)
+
+### Community 279 - "Community 279"
 Cohesion: 0.23
 Nodes (15): fnSlide_Area(), fnSlide_Bar(), fnSlide_Bar3D(), fnSlide_Bar3DHorizontal(), fnSlide_BarHorizontal(), fnSlide_BarPercentStacked(), fnSlide_BarStacked(), fnSlide_Pie() (+7 more)
 
-### Community 275 - "Community 275"
-Cohesion: 0.17
-Nodes (19): canDropOnTreeRoot(), clearDragUi(), clearDropTarget(), clearExternalDropHighlight(), clearFolderExpandHoverTimer(), clearRootToolbarDropTarget(), clearTreeRootDropHighlight(), ensureDragGhost() (+11 more)
-
-### Community 285 - "Community 285"
+### Community 281 - "Community 281"
 Cohesion: 0.14
 Nodes (10): barFill, barTrack, cached, done(), FileBlobCache, p, text, wait (+2 more)
 
-### Community 286 - "Community 286"
-Cohesion: 0.27
-Nodes (16): formatBytes(), $(), bindEvents(), buildRects(), closeModal(), flash(), formatBytes(), hashColor() (+8 more)
+### Community 282 - "Community 282"
+Cohesion: 0.2
+Nodes (12): app_path(), bridge_call(), handle_sse_stream(), python_bin(), resolve_user_file_path(), to_public_relative_path(), app_path(), ensure_tts_tables() (+4 more)
 
-### Community 291 - "Community 291"
+### Community 283 - "Community 283"
+Cohesion: 0.17
+Nodes (18): canDropOnTreeRoot(), clearDragUi(), clearDropTarget(), clearExternalDropHighlight(), clearFolderExpandHoverTimer(), clearRootToolbarDropTarget(), clearTreeRootDropHighlight(), ensureDragGhost() (+10 more)
+
+### Community 287 - "Community 287"
 Cohesion: 0.18
 Nodes (3): Value, fromParser(), value()
 
-### Community 292 - "Community 292"
-Cohesion: 0.13
-Nodes (3): DataValidator, AbstractEnum, Validate
+### Community 296 - "Community 296"
+Cohesion: 0.38
+Nodes (15): cloud_ai_copy_config_rows(), cloud_ai_db(), cloud_ai_ensure_table(), cloud_ai_get_config(), cloud_ai_load_config(), cloud_ai_migrate_legacy_config(), cloud_ai_models_to_json(), cloud_ai_normalize_endpoint() (+7 more)
 
-### Community 295 - "Community 295"
-Cohesion: 0.12
-Nodes (3): Footnote, Comments, Footnotes
-
-### Community 300 - "Community 300"
-Cohesion: 0.14
-Nodes (3): Accounting, Number, Scientific
-
-### Community 301 - "Community 301"
-Cohesion: 0.15
-Nodes (3): Format, Locale, format()
-
-### Community 302 - "Community 302"
-Cohesion: 0.16
-Nodes (16): 10. Миграция со старого HTTP API, 11. Безопасность, 12. Переменные окружения (сервер), 13. Чеклист разработки клиента OneDrive-типа, 14. Диаграмма последовательности (открытие файла), 3. Аутентификация, 4. Bootstrap (HTTP, один раз при старте), 7. Разрешение конфликтов (+8 more)
-
-### Community 303 - "Community 303"
-Cohesion: 0.13
-Nodes (17): About the Authors, Archive Options, code:bash (composer require maennchen/zipstream-php), code:php (// Autoload the dependencies), Contributing, File Options, General, Installation (+9 more)
-
-### Community 304 - "Community 304"
-Cohesion: 0.2
-Nodes (11): app_path(), bridge_call(), handle_sse_stream(), python_bin(), resolve_user_file_path(), app_path(), ensure_tts_tables(), getDB() (+3 more)
-
-### Community 308 - "Community 308"
+### Community 298 - "Community 298"
 Cohesion: 0.21
 Nodes (13): getAuthority(), getFragment(), getHost(), getPort(), getQuery(), getUserInfo(), withFragment(), withHost() (+5 more)
 
-### Community 312 - "Community 312"
-Cohesion: 0.16
-Nodes (3): TestHelperZip, AbstractZipAdapterTest, PclZipAdapterTest
+### Community 300 - "Community 300"
+Cohesion: 0.26
+Nodes (13): conn(), delete_for_audio(), ensure_tables(), find_active(), get_progress(), get_transcription(), main(), start_job() (+5 more)
 
-### Community 313 - "Community 313"
+### Community 302 - "Community 302"
+Cohesion: 0.13
+Nodes (3): Meta, Meta, DocProps
+
+### Community 305 - "Community 305"
+Cohesion: 0.25
+Nodes (3): AdvancedCodeCompactor, compactCode(), end()
+
+### Community 307 - "Community 307"
+Cohesion: 0.16
+Nodes (6): getLoadSheetsOnly(), getReadFilter(), setAllowExternalImages(), setCreateBlankSheetIfNoneRead(), setLoadAllSheets(), setLoadSheetsOnly()
+
+### Community 308 - "Community 308"
+Cohesion: 0.18
+Nodes (17): attachExternalFile(), calculateData(), fixProblems(), flashStatus(), formatFileSize(), handleFileAttach(), handleImageFileAttach(), isAllowedDocumentFile() (+9 more)
+
+### Community 309 - "Community 309"
 Cohesion: 0.15
-Nodes (6): excelToHtml(), app_path(), buildUrl(), getBreadcrumbs(), resolve_user_file_path(), Service
+Nodes (16): initMonaco(), monacoAcquireModel(), monacoAddEditorDisposable(), monacoCreateEditor(), monacoCreateTouchToolbar(), monacoDeleteLine(), monacoDuplicateLine(), monacoEnableTouchSelection() (+8 more)
+
+### Community 312 - "Community 312"
+Cohesion: 0.17
+Nodes (3): ODText, Word2007, ODText
 
 ### Community 314 - "Community 314"
-Cohesion: 0.32
-Nodes (14): compileAndRun(), getEditorContent(), cleanupTempDir(), compile_safe_message(), compile_safe_name(), compileAndRun(), compileCppOnline(), detectFileAndFolderChanges() (+6 more)
-
-### Community 315 - "Community 315"
-Cohesion: 0.27
-Nodes (14): buildAgentDiffPreview(), buildEditorDiffPreview(), buildLineDiff(), buildLineDiff(), clearHighlight(), clearZones(), computeChangedLineRanges(), createRemovedZoneNode() (+6 more)
-
-### Community 322 - "Community 322"
-Cohesion: 0.18
-Nodes (3): Content, InvalidRegexPatternRule, UnsafeStrictGroupsCallRule
-
-### Community 323 - "Community 323"
 Cohesion: 0.12
 Nodes (3): ColorTest, ImageTest, ColorTest
 
-### Community 324 - "Community 324"
-Cohesion: 0.31
-Nodes (15): cloud_ai_copy_config_rows(), cloud_ai_db(), cloud_ai_ensure_table(), cloud_ai_get_config(), cloud_ai_load_config(), cloud_ai_migrate_legacy_config(), cloud_ai_models_to_json(), cloud_ai_normalize_endpoint() (+7 more)
+### Community 316 - "Community 316"
+Cohesion: 0.18
+Nodes (3): Content, InvalidRegexPatternRule, UnsafeStrictGroupsCallRule
 
-### Community 325 - "Community 325"
-Cohesion: 0.12
-Nodes (16): 5.3. Чтение файла (для виртуальной ФС), 5.4. Запись файла, 5.5. Каталоги и метаданные, 5.6. События в реальном времени, 5.7. Keepalive, 5. WebSocket протокол (v1), code:json ({), code:json ({) (+8 more)
-
-### Community 326 - "Community 326"
-Cohesion: 0.13
-Nodes (12): Contributing, Support, How to release, Unit Tests, Want to contribute?, code:sh (composer require phpoffice/phpword), code:sh (composer require phpoffice/phpword:dev-master), Contributing (+4 more)
-
-### Community 327 - "Community 327"
+### Community 318 - "Community 318"
 Cohesion: 0.12
 Nodes (15): code:shell (composer require markbaker/complex:^1.0), code:php ($complexString = '1.23-4.56i';), code:php ($complexString = '1.23-4.56i';), code:shell (composer require markbaker/complex-functions:^3.0), code:php ($real = 1.23;), code:php ($real = 1.23;), code:php ($complexString1 = '1.23-4.56i';), code:php ($complexString1 = '1.23-4.56i';) (+7 more)
 
-### Community 335 - "Community 335"
-Cohesion: 0.29
-Nodes (13): conn(), delete_for_audio(), ensure_tables(), find_active(), get_progress(), get_transcription(), main(), start_job() (+5 more)
-
-### Community 336 - "Community 336"
-Cohesion: 0.27
-Nodes (13): db_connection(), ensure_tables(), run_progress_pulse(), save_transcription(), transcribe_audio(), update_progress(), adjust_speed_with_ffmpeg(), db_connection() (+5 more)
-
-### Community 339 - "Community 339"
-Cohesion: 0.17
-Nodes (8): Fraction, getDenominator, getNumerator, Methods, setDenominator, setNumerator, add, Methods
-
-### Community 342 - "Community 342"
-Cohesion: 0.13
-Nodes (14): 15. Поддержка и отладка, 5.1. Подключение и auth, 5.2. Manifest (полная или инкрементальная инвентаризация), code:json ({), code:json ({), code:json ({), code:json ({), code:json ({) (+6 more)
-
-### Community 343 - "Community 343"
+### Community 319 - "Community 319"
 Cohesion: 0.23
 Nodes (11): getCookieParams(), getParsedBody(), getQueryParams(), getServerParams(), getUploadedFiles(), withAttribute(), withCookieParams(), withoutAttribute() (+3 more)
 
-### Community 344 - "Community 344"
+### Community 332 - "Community 332"
 Cohesion: 0.35
-Nodes (4): append(), getEndingNotes(), PhpPptTree, write()
+Nodes (11): cloud_ai_code_security_lang(), cloud_ai_code_security_patterns(), cloud_ai_scan_code_security(), cloud_ai_syntax_check_c(), cloud_ai_syntax_check_java(), cloud_ai_syntax_check_latex(), cloud_ai_syntax_check_python(), cloud_ai_syntax_cleanup() (+3 more)
 
-### Community 347 - "Community 347"
+### Community 333 - "Community 333"
+Cohesion: 0.31
+Nodes (13): cloud_group_chat_detect_mime(), cloud_group_chat_map_row(), cloud_group_chat_mark_read(), cloud_group_chat_media_dir(), cloud_group_chat_media_folder(), cloud_group_chat_media_rel(), cloud_group_chat_media_url(), cloud_group_chat_random_filename() (+5 more)
+
+### Community 336 - "Community 336"
 Cohesion: 0.15
 Nodes (3): CommentAuthors, CommentAuthorsTest, PptCommentsTest
 
-### Community 351 - "Community 351"
+### Community 340 - "Community 340"
 Cohesion: 0.29
-Nodes (10): addWord(), correct(), edits1(), readDataFile(), setAffData(), setup(), setWordsData(), getTmpFileStream() (+2 more)
+Nodes (5): CloudWs, download_file(), pull_manifest(), push_local(), upload_file()
 
-### Community 354 - "Community 354"
-Cohesion: 0.31
+### Community 342 - "Community 342"
+Cohesion: 0.35
+Nodes (4): append(), getEndingNotes(), PhpPptTree, write()
+
+### Community 343 - "Community 343"
+Cohesion: 0.18
+Nodes (13): About the Authors, Archive Options, Contributing, File Options, General, Overview, Unstable Branch, Upgrade to version 1.0.0 (+5 more)
+
+### Community 346 - "Community 346"
+Cohesion: 0.42
+Nodes (12): cloud_ai_compile_check(), cloud_ai_compile_code(), cloud_ai_compile_latex(), cloud_ai_compile_latex_to_pdf_file(), cloud_ai_latex_escape_texttt(), cloud_ai_latex_insert_after_documentclass(), cloud_ai_latex_needs_lualatex(), cloud_ai_latex_replace_unicode_text_symbols() (+4 more)
+
+### Community 347 - "Community 347"
+Cohesion: 0.37
 Nodes (12): ws_broadcast(), ws_broadcast_presence(), ws_decode(), ws_dispatch_message(), ws_encode(), ws_handshake(), ws_process_buffer(), ws_remove_client() (+4 more)
 
-### Community 355 - "Community 355"
+### Community 348 - "Community 348"
 Cohesion: 0.19
-Nodes (13): initMonaco(), monacoAcquireModel(), monacoAddEditorDisposable(), monacoCreateEditor(), monacoCreateTouchToolbar(), monacoDeleteLine(), monacoDuplicateLine(), monacoEnableTouchSelection() (+5 more)
+Nodes (13): monacoCreateSpellcheckWorker(), monacoCreateStatusBar(), monacoDisposeSpellcheck(), monacoEnableSpellcheck(), monacoGetAutoSpellcheckLanguageIds(), monacoGetDefaultSpellcheckLanguage(), monacoIsSpellcheckDisabled(), monacoIsTxtFile() (+5 more)
 
-### Community 359 - "Community 359"
+### Community 349 - "Community 349"
 Cohesion: 0.26
 Nodes (9): getBody(), getHeader(), getProtocolVersion(), hasHeader(), withAddedHeader(), withBody(), withHeader(), withoutHeader() (+1 more)
 
-### Community 364 - "Community 364"
-Cohesion: 0.21
-Nodes (12): monacoCreateSpellcheckWorker(), monacoCreateStatusBar(), monacoEnableSpellcheck(), monacoGetAutoSpellcheckLanguageIds(), monacoGetDefaultSpellcheckLanguage(), monacoIsSpellcheckDisabled(), monacoIsTxtFile(), monacoRefreshFooterStatusBar() (+4 more)
-
-### Community 377 - "Community 377"
+### Community 384 - "Community 384"
 Cohesion: 0.18
-Nodes (11): monacoBuildLineDiff(), monacoClearAiEditHighlight(), monacoClearAiEditZones(), monacoClearAllRemoteCursors(), monacoComputeChangedLineRanges(), monacoDisposeEditor(), monacoDisposeExtraDisposables(), monacoDisposeSpellcheck() (+3 more)
+Nodes (10): code:xml (<math display="block">), code:php (<?php), Example, getValue, Math, Methods, PHP, setValue (+2 more)
+
+### Community 385 - "Community 385"
+Cohesion: 0.18
+Nodes (10): code:xml (<math display="block">), code:php (<?php), Example, getValue, Math, Methods, PHP, setValue (+2 more)
+
+### Community 386 - "Community 386"
+Cohesion: 0.18
+Nodes (10): code:xml (<math display="block">), code:php (<?php), Example, getValue, Math, Methods, PHP, setValue (+2 more)
 
 ### Community 387 - "Community 387"
-Cohesion: 0.18
-Nodes (10): code:xml (<math display="block">), code:php (<?php), Example, getValue, Math, Methods, PHP, setValue (+2 more)
-
-### Community 388 - "Community 388"
-Cohesion: 0.18
-Nodes (10): code:xml (<math display="block">), code:php (<?php), Example, getValue, Math, Methods, PHP, setValue (+2 more)
-
-### Community 389 - "Community 389"
-Cohesion: 0.18
-Nodes (10): code:xml (<math display="block">), code:php (<?php), Example, getValue, Math, Methods, PHP, setValue (+2 more)
-
-### Community 390 - "Community 390"
-Cohesion: 0.53
-Nodes (8): cloud_ai_speech_api_get(), cloud_ai_speech_api_post(), cloud_ai_speech_api_url(), cloud_ai_speech_cookie_string(), cloud_ai_tool_generate_speech(), cloud_ai_tool_get_speech_progress(), cloud_ai_tool_get_transcription_progress(), cloud_ai_tool_transcribe_audio()
-
-### Community 400 - "Community 400"
 Cohesion: 0.2
-Nodes (10): 16.1. Получение токена, 16.2. Запуск, 16.3. Как превратить в «как OneDrive», 16.4. Полный исходный код клиента, 16.5. Справочник всех `op` (кратко), 16.6. Генерация токена через HTTP (опционально), 16. Готовое приложение (один файл `cloud_sync_client.py`), code:bash (# Скачать облако → локальная папка CloudSync) (+2 more)
+Nodes (10): monacoBuildLineDiff(), monacoClearAiEditHighlight(), monacoClearAiEditZones(), monacoClearAllRemoteCursors(), monacoComputeChangedLineRanges(), monacoDisposeEditor(), monacoDisposeExtraDisposables(), monacoHighlightAiEdit() (+2 more)
 
-### Community 401 - "Community 401"
+### Community 399 - "Community 399"
+Cohesion: 0.29
+Nodes (3): getTmpFileStream(), setUp(), tearDown()
+
+### Community 402 - "Community 402"
 Cohesion: 0.2
 Nodes (8): Interfaces, `Psr\Http\Message\MessageInterface` Methods, `Psr\Http\Message\RequestInterface` Methods, `Psr\Http\Message\ResponseInterface` Methods:, `Psr\Http\Message\ServerRequestInterface` Methods, `Psr\Http\Message\StreamInterface` Methods, `Psr\Http\Message\UploadedFileInterface` Methods, `Psr\Http\Message\UriInterface` Methods
 
-### Community 402 - "Community 402"
+### Community 403 - "Community 403"
+Cohesion: 0.53
+Nodes (8): cloud_ai_speech_api_get(), cloud_ai_speech_api_post(), cloud_ai_speech_api_url(), cloud_ai_speech_cookie_string(), cloud_ai_tool_generate_speech(), cloud_ai_tool_get_speech_progress(), cloud_ai_tool_get_transcription_progress(), cloud_ai_tool_transcribe_audio()
+
+### Community 404 - "Community 404"
 Cohesion: 0.31
 Nodes (5): _changeEvent, _endEvent, MapControls, OrbitControls, _startEvent
 
-### Community 410 - "Community 410"
-Cohesion: 0.22
-Nodes (3): ZipStream0, ZipStream2, ZipStream3
-
-### Community 417 - "Community 417"
+### Community 405 - "Community 405"
 Cohesion: 0.36
 Nodes (3): ce, Ee(), te()
 
-### Community 418 - "Community 418"
-Cohesion: 0.32
-Nodes (5): getAudioDurationViaAPI(), getAudioFileInfo(), getAudioDurationViaAPI(), getAudioFileInfo(), initHowlerPlayer()
+### Community 414 - "Community 414"
+Cohesion: 0.22
+Nodes (3): ZipStream0, ZipStream2, ZipStream3
 
 ### Community 419 - "Community 419"
+Cohesion: 0.44
+Nodes (7): addWord(), correct(), edits1(), readDataFile(), setAffData(), setup(), setWordsData()
+
+### Community 424 - "Community 424"
 Cohesion: 0.32
 Nodes (8): monacoBuildCollabInsertDecorations(), monacoCollabClientStyleSlug(), monacoEnsureCollabCharDelayClass(), monacoEnsureCollabInsertStyle(), monacoGetStatusBarColors(), monacoHexToRgb(), monacoHexToRgba(), monacoRangeForRemoteInsert()
 
-### Community 423 - "Community 423"
+### Community 425 - "Community 425"
+Cohesion: 0.43
+Nodes (6): getColorFromURL(), load3DModel(), loadOBJModel(), loadScript(), loadSTLModel(), setupCameraForModel()
+
+### Community 426 - "Community 426"
 Cohesion: 0.43
 Nodes (6): getMethod(), getRequestTarget(), getUri(), withMethod(), withRequestTarget(), withUri()
 
-### Community 433 - "Community 433"
-Cohesion: 0.25
-Nodes (7): code:php (<?php), code:php (<?php), MathML, Methods, OfficeMathML, writer, Writers
-
-### Community 434 - "Community 434"
-Cohesion: 0.25
-Nodes (7): code:xml (<math display="block">), code:php (<?php), Example, Math, PHP, Usage, XML
-
-### Community 438 - "Community 438"
+### Community 441 - "Community 441"
 Cohesion: 0.64
 Nodes (6): cloud_ai_normalize_model_id(), cloud_ai_proxy_completions(), cloud_ai_proxy_json(), cloud_ai_proxy_models(), cloud_ai_upstream_headers(), cloud_ai_upstream_models_url()
 
-### Community 441 - "Community 441"
+### Community 446 - "Community 446"
 Cohesion: 0.57
 Nodes (6): cmdExists(), dumpZipContents(), getRecursiveFileList(), getTmpDir(), validateAndExtractZip(), zipArchiveOpenErrorCodeName()
 
-### Community 443 - "Community 443"
-Cohesion: 0.25
-Nodes (8): 0. Развёртывание на сервере (текущая конфигурация), code:bash (sudo systemctl status cloud-sync-ws    # статус), code:apache (ProxyPass /cloud-sync-ws ws://127.0.0.1:8770/), code:bash (curl -sS -H "X-Client-Auth: ВАШ_ТОКЕН" "https://ВАШ_ХОСТ/app), Быстрый тест, Команды управления, Порты WebSocket (без конфликтов), Публичные URL (подставьте свой Host)
-
-### Community 444 - "Community 444"
-Cohesion: 0.25
-Nodes (8): 8.1. Модель «как OneDrive», 8.2. Linux — FUSE (libfuse), 8.3. Windows — WinFsp или Cloud Files API, 8.4. Открытый файл (важно), 8.5. Структура процессов клиента, 8. Виртуальная папка — реализация клиента, code:bash (cloud-fuse --mount ~/Cloud --server wss://example.com/cloud-), code:block28 (cloud-sync-service    # systemd / Windows Service — всегда о)
-
-### Community 446 - "Community 446"
-Cohesion: 0.81
-Nodes (5): cloud_ai_agent_file_context(), cloud_ai_agent_prompts_payload(), cloud_ai_agent_system_prompt(), cloud_ai_chat_system_prompt(), cloud_ai_prompt_file()
-
 ### Community 447 - "Community 447"
+Cohesion: 0.25
+Nodes (7): code:php (<?php), code:php (<?php), MathML, Methods, OfficeMathML, writer, Writers
+
+### Community 449 - "Community 449"
 Cohesion: 0.29
 Nodes (7): monacoCollabColorForClient(), monacoCreateRemoteCursorWidget(), monacoEnsureRemoteCursorStyle(), monacoRemoteCursorClassName(), monacoRemoteCursorWidgetMap(), monacoRemoteCursorWidgets, monacoSetRemoteCursor()
 
-### Community 455 - "Community 455"
-Cohesion: 0.29
-Nodes (6): code:php (<?php), code:php (<?php), MathML, Methods, OfficeMathML, Readers
-
-### Community 461 - "Community 461"
+### Community 450 - "Community 450"
 Cohesion: 0.71
 Nodes (5): cloud_ai_estimate_messages_tokens(), cloud_ai_estimate_tokens(), cloud_ai_pack_messages_for_budget(), cloud_ai_summarize_middle_message(), cloud_ai_truncate_text()
 
-### Community 462 - "Community 462"
+### Community 457 - "Community 457"
 Cohesion: 0.29
-Nodes (7): 2. Ограничение: только HTTPS-туннели, code:apache (ProxyPass /cloud-sync-ws ws://127.0.0.1:8770/), code:nginx (location /cloud-sync-ws {), code:bash (export CLOUD_SYNC_WS_PUBLIC_PATH=/cloud-sync-ws), code:ini ([Unit]), systemd unit (сервер), Пример nginx
+Nodes (6): code:php (<?php), code:php (<?php), MathML, Methods, OfficeMathML, Readers
 
 ### Community 463 - "Community 463"
 Cohesion: 0.29
-Nodes (6): 6.1. Локальное состояние, 6.2. Первый запуск, 6.3. Периодическая сверка, 6.4. Локальное изменение (виртуальная папка), 6.5. Удаление и переименование, 6. Алгоритм синхронизации (клиент)
-
-### Community 464 - "Community 464"
-Cohesion: 0.29
 Nodes (7): 2024-05-11 - 2.1.0, Added, Changed, Deprecated, Fixed, MINOR BREAKING CHANGE, Removed
 
-### Community 465 - "Community 465"
-Cohesion: 0.29
-Nodes (7): 1.16.0 - 2020-12-31, Added, Changed, Deprecated, Fixed, Removed, Security Fix (CVE-2020-7776)
+### Community 464 - "Community 464"
+Cohesion: 0.48
+Nodes (7): buildAssistantToolLoopBase(), detectAgentEditIntent(), detectAgentExportPdfIntent(), detectUserChatLanguage(), resolveAgentUserRole(), sendAgentWithTools(), sendChatWithTools()
+
+### Community 479 - "Community 479"
+Cohesion: 0.33
+Nodes (6): 1.27.0 - 2023-01-24, Added, Changed, Deprecated, Fixed, Removed
 
 ### Community 480 - "Community 480"
 Cohesion: 0.33
-Nodes (6): 2024-08-07 - 2.2.2, Added, Changed, Deprecated, Fixed, Moved
+Nodes (6): 1.18.0 - 2021-05-31, Added, Changed, Deprecated, Fixed, Removed
 
 ### Community 481 - "Community 481"
 Cohesion: 0.33
-Nodes (6): 1.28.0 - 2023-02-25, Added, Changed, Deprecated, Fixed, Removed
-
-### Community 482 - "Community 482"
-Cohesion: 0.33
-Nodes (6): 1.24.1 - 2022-07-18, Added, Changed, Deprecated, Fixed, Removed
-
-### Community 483 - "Community 483"
-Cohesion: 0.33
-Nodes (6): 1.21.0 - 2022-01-06, Added, Changed, Deprecated, Fixed, Removed
-
-### Community 484 - "Community 484"
-Cohesion: 0.33
-Nodes (6): 1.23.0 - 2022-04-24, Added, Changed, Deprecated, Fixed, Removed
-
-### Community 485 - "Community 485"
-Cohesion: 0.33
-Nodes (6): 1.25.0 - 2022-09-25, Added, Changed, Deprecated, Fixed, Removed
-
-### Community 486 - "Community 486"
-Cohesion: 0.33
 Nodes (6): 1.25.2 - 2022-09-25, Added, Changed, Deprecated, Fixed, Removed
 
-### Community 487 - "Community 487"
-Cohesion: 0.33
-Nodes (6): 1.24.0 - 2022-07-09, Added, Changed, Deprecated, Fixed, Removed
-
-### Community 491 - "Community 491"
+### Community 482 - "Community 482"
 Cohesion: 0.5
 Nodes (5): monacoEnsureAiActionOverlay(), monacoGetSelectedText(), monacoOpenAiActionMenu(), monacoPositionAiOverlay(), monacoRefreshAiActionOverlayLabels()
 
-### Community 495 - "Community 495"
+### Community 484 - "Community 484"
 Cohesion: 0.6
 Nodes (3): createStream(), createStreamFromFile(), createStreamFromResource()
 
-### Community 496 - "Community 496"
+### Community 485 - "Community 485"
 Cohesion: 0.6
 Nodes (3): getReasonPhrase(), getStatusCode(), withStatus()
 
-### Community 545 - "Community 545"
-Cohesion: 0.5
-Nodes (4): 1. Архитектура, code:block4 (┌───────────────────────────────────────────────────────────), Компоненты на сервере, Рекомендуемый корень синхронизации
-
 ## Knowledge Gaps
-- **531 isolated node(s):** `se`, `ALL_SERVER_TOOLS`, `ROOT_ONLY_SERVER`, `CLIENT_TOOLS`, `EDIT_TOOLS` (+526 more)
+- **511 isolated node(s):** `text`, `p`, `autoSaveTimers`, `monacoCollabSocketState`, `cloudRootState` (+506 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **366 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **390 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `t()` connect `Community 45` to `Community 0`, `Community 3`, `Community 4`, `Community 5`, `Community 8`, `Community 10`, `Community 13`, `Community 142`, `Community 21`, `Community 152`, `Community 27`, `Community 29`, `Community 286`, `Community 38`, `Community 40`, `Community 177`, `Community 314`, `Community 74`, `Community 95`, `Community 364`, `Community 497`, `Community 117`, `Community 127`?**
-  _High betweenness centrality (0.076) - this node is a cross-community bridge._
-- **Why does `ExcelError` connect `Community 11` to `Community 0`, `Community 257`, `Community 2`, `Community 3`, `Community 131`, `Community 4`, `Community 7`, `Community 9`, `Community 138`, `Community 139`, `Community 12`, `Community 269`, `Community 10`, `Community 16`, `Community 17`, `Community 18`, `Community 19`, `Community 22`, `Community 23`, `Community 24`, `Community 153`, `Community 152`, `Community 28`, `Community 158`, `Community 291`, `Community 36`, `Community 292`, `Community 422`, `Community 301`, `Community 46`, `Community 432`, `Community 56`, `Community 313`, `Community 190`, `Community 319`, `Community 64`, `Community 69`, `Community 199`, `Community 200`, `Community 73`, `Community 331`, `Community 205`, `Community 206`, `Community 79`, `Community 207`, `Community 337`, `Community 81`, `Community 339`, `Community 212`, `Community 89`, `Community 90`, `Community 220`, `Community 221`, `Community 225`, `Community 103`, `Community 232`, `Community 104`, `Community 111`, `Community 248`, `Community 121`, `Community 122`, `Community 380`, `Community 381`?**
-  _High betweenness centrality (0.073) - this node is a cross-community bridge._
-- **Why does `StringHelper` connect `Community 22` to `Community 1`, `Community 257`, `Community 131`, `Community 386`, `Community 7`, `Community 9`, `Community 266`, `Community 11`, `Community 12`, `Community 139`, `Community 14`, `Community 138`, `Community 144`, `Community 10`, `Community 18`, `Community 19`, `Community 17`, `Community 23`, `Community 25`, `Community 154`, `Community 31`, `Community 32`, `Community 291`, `Community 36`, `Community 293`, `Community 292`, `Community 41`, `Community 170`, `Community 42`, `Community 44`, `Community 301`, `Community 46`, `Community 300`, `Community 432`, `Community 49`, `Community 178`, `Community 52`, `Community 56`, `Community 187`, `Community 317`, `Community 62`, `Community 64`, `Community 449`, `Community 66`, `Community 199`, `Community 79`, `Community 80`, `Community 84`, `Community 224`, `Community 225`, `Community 101`, `Community 358`, `Community 122`, `Community 104`, `Community 233`, `Community 231`, `Community 119`, `Community 121`, `Community 378`, `Community 253`?**
-  _High betweenness centrality (0.031) - this node is a cross-community bridge._
-- **Are the 388 inferred relationships involving `ExcelError` (e.g. with `.writeCellFormula()` and `.wrapResult()`) actually correct?**
+- **Why does `ExcelError` connect `Community 9` to `Community 129`, `Community 2`, `Community 1`, `Community 4`, `Community 262`, `Community 7`, `Community 392`, `Community 263`, `Community 6`, `Community 12`, `Community 14`, `Community 527`, `Community 16`, `Community 15`, `Community 19`, `Community 21`, `Community 23`, `Community 287`, `Community 288`, `Community 33`, `Community 162`, `Community 36`, `Community 37`, `Community 38`, `Community 39`, `Community 43`, `Community 299`, `Community 44`, `Community 47`, `Community 50`, `Community 434`, `Community 180`, `Community 54`, `Community 60`, `Community 61`, `Community 62`, `Community 320`, `Community 65`, `Community 324`, `Community 70`, `Community 200`, `Community 74`, `Community 76`, `Community 77`, `Community 84`, `Community 86`, `Community 215`, `Community 88`, `Community 87`, `Community 227`, `Community 100`, `Community 231`, `Community 111`, `Community 242`, `Community 243`, `Community 116`, `Community 374`, `Community 255`?**
+  _High betweenness centrality (0.088) - this node is a cross-community bridge._
+- **Why does `t()` connect `Community 55` to `Community 0`, `Community 2`, `Community 132`, `Community 5`, `Community 4`, `Community 8`, `Community 14`, `Community 16`, `Community 146`, `Community 18`, `Community 39`, `Community 169`, `Community 49`, `Community 192`, `Community 64`, `Community 66`, `Community 67`, `Community 208`, `Community 90`, `Community 348`, `Community 239`, `Community 117`, `Community 122`, `Community 252`?**
+  _High betweenness centrality (0.057) - this node is a cross-community bridge._
+- **Why does `MD5` connect `Community 28` to `Community 0`, `Community 131`, `Community 4`, `Community 389`, `Community 134`, `Community 135`, `Community 137`, `Community 394`, `Community 10`, `Community 523`, `Community 13`, `Community 525`, `Community 524`, `Community 144`, `Community 273`, `Community 267`, `Community 148`, `Community 276`, `Community 23`, `Community 27`, `Community 417`, `Community 290`, `Community 291`, `Community 34`, `Community 165`, `Community 40`, `Community 41`, `Community 42`, `Community 172`, `Community 174`, `Community 47`, `Community 435`, `Community 186`, `Community 315`, `Community 189`, `Community 68`, `Community 197`, `Community 202`, `Community 75`, `Community 337`, `Community 210`, `Community 212`, `Community 87`, `Community 345`, `Community 91`, `Community 225`, `Community 99`, `Community 101`, `Community 102`, `Community 235`, `Community 365`, `Community 109`, `Community 112`, `Community 113`, `Community 241`, `Community 245`, `Community 118`, `Community 247`, `Community 250`, `Community 380`?**
+  _High betweenness centrality (0.038) - this node is a cross-community bridge._
+- **Are the 388 inferred relationships involving `ExcelError` (e.g. with `.wrapResult()` and `.unwrapResult()`) actually correct?**
   _`ExcelError` has 388 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 283 inferred relationships involving `Coordinate` (e.g. with `.allRanges()` and `.adjustColumnDimensions()`) actually correct?**
+- **Are the 283 inferred relationships involving `Coordinate` (e.g. with `.allRanges()` and `cloud_ai_extract_spreadsheet_text()`) actually correct?**
   _`Coordinate` has 283 INFERRED edges - model-reasoned connections that need verification._
-- **What connects `se`, `ALL_SERVER_TOOLS`, `ROOT_ONLY_SERVER` to the rest of the system?**
-  _531 weakly-connected nodes found - possible documentation gaps or missing edges._
+- **What connects `text`, `p`, `autoSaveTimers` to the rest of the system?**
+  _511 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `Community 0` be split into smaller, more focused modules?**
-  _Cohesion score 0.02 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.03 - nodes in this community are weakly interconnected._

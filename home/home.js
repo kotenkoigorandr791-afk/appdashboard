@@ -13,7 +13,7 @@
       gallery_empty: 'No screenshots are available for this application yet.',
       portal_title: 'ServerKherson portal', portal_badge: 'Main hub',
       news_section_title: 'News', news_layout_edit: 'Edit layout', news_layout_done: 'Done',
-      news_toast_label: 'New', news_empty: 'No news yet.',
+      waiting_btn: 'Waiting...', news_toast_label: 'New', news_more_btn: 'View more news', news_read_more: 'Read full news', news_empty: 'No news yet.',
       apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', films: 'Movie manager – collection, comments', map: 'Map viewer, KML, GPS, favorites', media_viewer: 'Media gallery with albums', performance: 'Server performance monitor', recipes: 'Custom recipes manager', spends: 'Expense tracker with charts', steps: 'Health & activity tracker', tft_generator: 'TFT screen code generator', viewer: 'Local network device viewer' },
       app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', map: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', media_viewer: 'Media gallery with automatic album creation, previews for images/videos, and sharing options.', performance: 'Real-time server monitor: CPU load, memory usage, disk I/O, Apache module status. Historical graphs.', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.', tft_generator: 'Generate TFT screen code from canvas drawings. Convert sketches into display-ready code.', viewer: 'Discover and monitor local network devices (routers, smart devices) with dashboard view.' }
     },
@@ -30,7 +30,7 @@
       gallery_empty: 'Для цього застосунку поки немає скріншотів.',
       portal_title: 'Портал ServerKherson', portal_badge: 'Головний хаб',
       news_section_title: 'Новини', news_layout_edit: 'Редагувати макет', news_layout_done: 'Готово',
-      news_toast_label: 'Нове', news_empty: 'Новин ще немає.',
+      waiting_btn: 'Очікування...', news_toast_label: 'Нове', news_more_btn: 'Дивитись більше новин', news_read_more: 'Розгорнути новину', news_empty: 'Новин ще немає.',
       apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', films: 'Менеджер фільмів – колекція, коментарі', map: 'Перегляд мап, KML, GPS, обране', media_viewer: 'Медіа галерея з альбомами', performance: 'Моніторинг сервера', recipes: 'Менеджер рецептів', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності', tft_generator: 'Генератор коду TFT екрана', viewer: 'Переглядач пристроїв мережі' },
       app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', map: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', media_viewer: 'Медіа галерея з автогенерацією альбомів, попереднім переглядом фото/відео.', performance: 'Моніторинг сервера в реальному часі: CPU, пам\'ять, Apache, графіки.', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.', tft_generator: 'Генерація коду для TFT екрану з малюнків на полотні.', viewer: 'Виявлення пристроїв у локальній мережі (роутери, смарт-пристрої).' }
     },
@@ -47,7 +47,7 @@
       gallery_empty: 'Для этого приложения пока нет скриншотов.',
       portal_title: 'Портал ServerKherson', portal_badge: 'Главный хаб',
       news_section_title: 'Новости', news_layout_edit: 'Редактировать макет', news_layout_done: 'Готово',
-      news_toast_label: 'Новое', news_empty: 'Новостей пока нет.',
+      waiting_btn: 'Ожидание...', news_toast_label: 'Новое', news_more_btn: 'Посмотреть больше новостей', news_read_more: 'Раскрыть новость', news_empty: 'Новостей пока нет.',
       apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', films: 'Менеджер фильмов – коллекция, комментарии', map: 'Карты, KML, GPS, избранное', media_viewer: 'Медиа галерея с альбомами', performance: 'Мониторинг сервера', recipes: 'Менеджер рецептов', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности', tft_generator: 'Генератор кода TFT экрана', viewer: 'Просмотр устройств сети' },
       app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', films: 'База фильмов с комментариями, списком просмотра, категориями.', map: 'Карты с поддержкой KML, GPS. Избранное, маршруты.', media_viewer: 'Медиа галерея с альбомами и предпросмотром.', performance: 'Мониторинг сервера: CPU, память, модули Apache, графики.', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.', tft_generator: 'Генерация кода для TFT экрана из рисунков на холсте.', viewer: 'Поиск устройств в локальной сети (роутеры, умные устройства).' }
     },
@@ -64,7 +64,7 @@
       gallery_empty: 'Для гэтага прыкладання пакуль няма здымкаў экрана.',
       portal_title: 'Партал ServerKherson', portal_badge: 'Галоўны хаб',
       news_section_title: 'Навіны', news_layout_edit: 'Рэдагаваць макет', news_layout_done: 'Гатова',
-      news_toast_label: 'Новае', news_empty: 'Навін яшчэ няма.',
+      waiting_btn: 'Чаканне...', news_toast_label: 'Новае', news_more_btn: 'Паглядзець больш навін', news_read_more: 'Разгарнуць навіну', news_empty: 'Навін яшчэ няма.',
       apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', films: 'Менеджар фільмаў – калекцыя, каментары', map: 'Мапы, KML, GPS, абранае', media_viewer: 'Медыя галерэя з альбомамі', performance: 'Маніторынг сервера', recipes: 'Менеджар рэцэптаў', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці', tft_generator: 'Генератар кода TFT экрана', viewer: 'Праглядальнік прылад сеткі' },
       app_details: { portal: 'Галоўны сайт ServerKherson: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', map: 'Мапы з падтрымкай KML, GPS. Абранае, маршруты.', media_viewer: 'Медыя галерэя з альбомамі і папярэднім праглядам.', performance: 'Маніторынг сервера: CPU, памяць, модулі Apache, графікі.', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.', tft_generator: 'Генерацыя кода для TFT экрана з малюнкаў на палатне.', viewer: 'Пошук прылад у лакальнай сетцы (роутары, разумныя прылады).' }
     },
@@ -81,7 +81,7 @@
       gallery_empty: 'Brak zrzutów ekranu dla tej aplikacji.',
       portal_title: 'Portal ServerKherson', portal_badge: 'Główny hub',
       news_section_title: 'Aktualności', news_layout_edit: 'Edytuj układ', news_layout_done: 'Gotowe',
-      news_toast_label: 'Nowe', news_empty: 'Brak aktualności.',
+      waiting_btn: 'Czekanie...', news_toast_label: 'Nowe', news_more_btn: 'Zobacz więcej aktualności', news_read_more: 'Rozwiń aktualność', news_empty: 'Brak aktualności.',
       apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', films: 'Menedżer filmów – kolekcja, komentarze', map: 'Przeglądarka map, KML, GPS', media_viewer: 'Galeria mediów z albumami', performance: 'Monitor wydajności serwera', recipes: 'Menedżer przepisów', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności', tft_generator: 'Generator kodu ekranu TFT', viewer: 'Przeglądarka urządzeń sieciowych' },
       app_details: { portal: 'Główny hub ServerKherson: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', map: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', media_viewer: 'Galeria mediów z automatycznym tworzeniem albumów.', performance: 'Monitor serwera w czasie rzeczywistym: CPU, pamięć, Apache, wykresy.', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.', tft_generator: 'Generowanie kodu dla ekranu TFT z rysunków.', viewer: 'Odkrywanie urządzeń w sieci lokalnej.' }
     },
@@ -98,7 +98,7 @@
       gallery_empty: 'Pro tuto aplikaci zatím nejsou dostupné žádné snímky obrazovky.',
       portal_title: 'Portál ServerKherson', portal_badge: 'Hlavní uzel',
       news_section_title: 'Novinky', news_layout_edit: 'Upravit rozložení', news_layout_done: 'Hotovo',
-      news_toast_label: 'Nové', news_empty: 'Zatím žádné novinky.',
+      waiting_btn: 'Čekání...', news_toast_label: 'Nové', news_more_btn: 'Zobrazit více novinek', news_read_more: 'Rozbalit novinku', news_empty: 'Zatím žádné novinky.',
       apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', films: 'Správce filmů – sbírka, komentáře', map: 'Prohlížeč map, KML, GPS', media_viewer: 'Mediální galerie s alby', performance: 'Monitor výkonu serveru', recipes: 'Správce receptů', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity', tft_generator: 'Generátor kódu obrazovky TFT', viewer: 'Prohlížeč síťových zařízení' },
       app_details: { portal: 'Hlavní hub ServerKherson: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', map: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', media_viewer: 'Mediální galerie s automatickým vytvářením alb.', performance: 'Monitor serveru v reálném čase: CPU, paměť, Apache, grafy.', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.', tft_generator: 'Generování kódu pro TFT obrazovku z kreseb.', viewer: 'Zjišťování zařízení v místní síti.' }
     }
@@ -152,6 +152,16 @@
   let ruNotifyTimer = null, engagementScheduled = false;
   const PROMO_KEY = 'sk_home_promo_dismissed';
   const NEWS_SEEN_KEY = 'sk_news_seen_ids';
+  const isNewsRoute = location.pathname.replace(/\/+$/, '').toLowerCase() === '/news';
+  const NEWS_PAGE_SIZE = 9;
+  const LANG_OPTIONS = {
+    en: { label: 'English', flag: 'lang-flag-en' },
+    uk: { label: 'Українська', flag: 'lang-flag-uk' },
+    ru: { label: 'Русский', flag: 'lang-flag-ru' },
+    be: { label: 'Беларуская', flag: 'lang-flag-be' },
+    pl: { label: 'Polski', flag: 'lang-flag-pl' },
+    cs: { label: 'Čeština', flag: 'lang-flag-cs' }
+  };
 
   const $ = id => document.getElementById(id);
   const grid = $('featuresGrid');
@@ -164,9 +174,57 @@
   const lbImg = $('lightboxImg');
   const lbCounter = $('lightboxCounter');
 
+  function closeLanguageMenu() {
+    const selector = $('langSelector');
+    const button = $('langSelectorButton');
+    if (!selector || !button) return;
+    selector.classList.remove('open');
+    button.setAttribute('aria-expanded', 'false');
+  }
+
+  function updateLanguageMenu(l) {
+    const selector = $('langSelector');
+    const button = $('langSelectorButton');
+    if (!selector || !button) return;
+    const item = LANG_OPTIONS[l] || LANG_OPTIONS.en;
+    selector.dataset.value = l;
+    button.querySelector('.lang-selector-label').textContent = item.label;
+    const flag = button.querySelector('.lang-flag');
+    flag.className = 'lang-flag ' + item.flag;
+    selector.querySelectorAll('.lang-selector-option').forEach(option => {
+      const active = option.dataset.lang === l;
+      option.classList.toggle('active', active);
+      option.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
+  function initLanguageMenu() {
+    const selector = $('langSelector');
+    const button = $('langSelectorButton');
+    if (!selector || !button) return;
+    button.addEventListener('click', e => {
+      e.stopPropagation();
+      const open = selector.classList.toggle('open');
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    selector.querySelectorAll('.lang-selector-option').forEach(option => {
+      option.addEventListener('click', e => {
+        e.stopPropagation();
+        setLanguage(option.dataset.lang || 'en');
+        closeLanguageMenu();
+      });
+    });
+    document.addEventListener('click', e => {
+      if (!selector.contains(e.target)) closeLanguageMenu();
+    });
+  }
+
   // ── News state ──────────────────────────────────────────────────────────────
   let newsItems = [];
+  let visibleNewsItems = [];
+  let newsPage = 1;
   let newsSectionVisible = false;
+  let currentNewsIndex = 0;
 
   function todayKey() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`; }
   function isFirstVisitToday() {
@@ -185,6 +243,7 @@
     const now = new Date();
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
   }
+  function todayNews(items) { return items.filter(n => isToday(n.created_at)); }
 
   function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -201,7 +260,14 @@
       .then(data => {
         if (!data.ok) return;
         newsItems = data.items || [];
-        if (newsSectionVisible) renderNewsCards();
+        if (isNewsRoute) {
+          visibleNewsItems = newsItems;
+          showNewsSection();
+        } else {
+          visibleNewsItems = todayNews(newsItems);
+          if (visibleNewsItems.length) showNewsSection();
+          else hideNewsSection();
+        }
         checkTodayToast();
       })
       .catch(() => {});
@@ -226,18 +292,32 @@
     const canvas = $('newsCanvas');
     if (!canvas) return;
     const t = I18N[lang] || I18N.en;
-    if (!newsItems.length) {
+    if (!visibleNewsItems.length) {
       canvas.innerHTML = `<div class="news-empty">${escH(t.news_empty)}</div>`;
+      renderNewsPager();
       return;
     }
+    if (isNewsRoute) {
+      renderNewsFeed();
+    } else {
+      renderNewsGrid();
+    }
+  }
+
+  function renderNewsGrid() {
+    const canvas = $('newsCanvas');
+    if (!canvas) return;
+    canvas.style.display = '';
+    const t = I18N[lang] || I18N.en;
     canvas.innerHTML = '';
-    newsItems.forEach(item => {
+    visibleNewsItems.forEach(item => {
       const card = document.createElement('div');
       card.className = 'news-card';
       card.dataset.id = item.id;
       card.innerHTML = `
 ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
 <div class="news-card-body">
+  ${isToday(item.created_at) ? `<div class="news-new-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>${escH(t.news_toast_label)}</div>` : ''}
   <div class="news-card-title">${escH(item.title)}</div>
   ${item.body ? `<div class="news-card-preview">${escH(item.body)}</div>` : ''}
   <div class="news-card-date">${fmtDate(item.created_at)}</div>
@@ -245,6 +325,193 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
       card.addEventListener('click', () => openNewsModal(item));
       canvas.appendChild(card);
     });
+    // Add "more news" card at the end
+    const moreCard = document.createElement('a');
+    moreCard.className = 'news-card news-more-card';
+    moreCard.href = '/news' + location.search;
+    moreCard.addEventListener('click', function(e) {
+      e.preventDefault();
+      const url = new URL(this.href, location.origin);
+      url.searchParams.set('lang', lang);
+      url.searchParams.set('theme', theme);
+      location.href = url.toString();
+    });
+    moreCard.innerHTML = `<div class="news-more-card-body"><div class="news-more-card-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18l5-5-5-5 M15 18l5-5-5-5"/></svg></div><div class="news-more-card-label">${escH(t.news_more_btn)}</div></div>`;
+    canvas.appendChild(moreCard);
+    renderNewsPager();
+  }
+
+  // ── News Feed (list view for /news route) ─────────────────────────────────
+  function renderNewsFeed() {
+    const canvas = $('newsCanvas');
+    if (!canvas) return;
+    canvas.style.display = 'block';
+    const t = I18N[lang] || I18N.en;
+    canvas.innerHTML = `
+      <div class="news-feed-layout">
+        <div class="news-feed" id="newsFeed"></div>
+        <div class="news-roadmap" id="newsRoadmap">
+          <div class="news-roadmap-header">${escH(t.nav_news)}</div>
+          <div class="news-roadmap-list" id="newsRoadmapList"></div>
+        </div>
+      </div>`;
+    currentNewsIndex = Math.min(currentNewsIndex, visibleNewsItems.length - 1);
+    renderFeedItems();
+    renderRoadmapItems();
+    if (visibleNewsItems.length > NEWS_PAGE_SIZE) renderFeedNav();
+    setTimeout(() => scrollToFeedItem(currentNewsIndex), 80);
+  }
+
+  function renderFeedItems() {
+    const feed = $('newsFeed');
+    if (!feed) return;
+    const t = I18N[lang] || I18N.en;
+    feed.innerHTML = '';
+    visibleNewsItems.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'news-feed-item' + (i === currentNewsIndex ? ' active' : '');
+      el.id = 'newsFeedItem-' + i;
+      el.dataset.index = i;
+      const hasBody = !!item.body;
+      el.innerHTML = `
+        <div class="news-feed-item-inner">
+          ${item.photo ? `<img class="news-feed-img" src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
+          <div class="news-feed-body">
+            ${isToday(item.created_at) ? `<div class="news-new-badge"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>${escH(t.news_toast_label)}</div>` : ''}
+            <div class="news-feed-title">${escH(item.title)}</div>
+            <div class="news-feed-date">${fmtDate(item.created_at)}</div>
+            ${hasBody ? `<div class="news-feed-preview">${escH(item.body)}</div>` : ''}
+            <div class="news-feed-readmore"${hasBody ? '' : ' style="display:none"'}>${escH(t.news_read_more)} →</div>
+          </div>
+        </div>`;
+      el.addEventListener('click', () => openNewsModal(item));
+      feed.appendChild(el);
+    });
+    // Hide readmore on items where body text does not overflow the -webkit-line-clamp
+    feed.querySelectorAll('.news-feed-item').forEach(el => {
+      const preview = el.querySelector('.news-feed-preview');
+      const readmore = el.querySelector('.news-feed-readmore');
+      if (!preview || !readmore) return;
+      if (preview.scrollHeight <= preview.clientHeight) {
+        readmore.style.display = 'none';
+      }
+    });
+  }
+
+  function renderRoadmapItems() {
+    const list = $('newsRoadmapList');
+    if (!list) return;
+    list.innerHTML = '';
+    visibleNewsItems.forEach((item, i) => {
+      const el = document.createElement('div');
+      el.className = 'news-roadmap-item' + (i === currentNewsIndex ? ' active' : '');
+      el.dataset.index = i;
+      const marker = document.createElement('div');
+      marker.className = 'roadmap-marker';
+      const dot = document.createElement('div');
+      dot.className = 'roadmap-dot';
+      marker.appendChild(dot);
+      el.appendChild(marker);
+      const content = document.createElement('div');
+      content.className = 'roadmap-content';
+      content.innerHTML = `<div class="roadmap-title">${escH(item.title)}</div><div class="roadmap-date">${fmtDate(item.created_at)}</div>`;
+      el.appendChild(content);
+      el.addEventListener('click', e => {
+        e.stopPropagation();
+        updateNewsActiveItem(i);
+        scrollToFeedItem(i);
+      });
+      list.appendChild(el);
+    });
+  }
+
+  function renderFeedNav() {
+    const feed = $('newsFeed');
+    if (!feed) return;
+    const existing = feed.querySelector('.news-feed-nav');
+    if (existing) existing.remove();
+    const nav = document.createElement('div');
+    nav.className = 'news-feed-nav';
+    nav.innerHTML = `
+      <button class="news-feed-nav-btn prev-btn"${currentNewsIndex <= 0 ? ' disabled' : ''}>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="news-feed-nav-counter">${currentNewsIndex + 1} · ${visibleNewsItems.length}</span>
+      <button class="news-feed-nav-btn next-btn"${currentNewsIndex >= visibleNewsItems.length - 1 ? ' disabled' : ''}>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+      </button>`;
+    nav.querySelector('.prev-btn').addEventListener('click', () => navigateNews(-1));
+    nav.querySelector('.next-btn').addEventListener('click', () => navigateNews(1));
+    feed.appendChild(nav);
+  }
+
+  function navigateNews(dir) {
+    const newIdx = currentNewsIndex + dir;
+    if (newIdx < 0 || newIdx >= visibleNewsItems.length) return;
+    currentNewsIndex = newIdx;
+    scrollToFeedItem(currentNewsIndex);
+    updateNewsActiveItem(currentNewsIndex);
+    updateFeedNavButtons();
+  }
+
+  function scrollToFeedItem(index) {
+    const el = document.getElementById('newsFeedItem-' + index);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function updateNewsActiveItem(index) {
+    currentNewsIndex = index;
+    document.querySelectorAll('.news-feed-item').forEach(el => {
+      el.classList.toggle('active', parseInt(el.dataset.index) === index);
+    });
+    document.querySelectorAll('.news-roadmap-item').forEach(el => {
+      el.classList.toggle('active', parseInt(el.dataset.index) === index);
+    });
+    const roadmapList = $('newsRoadmapList');
+    if (roadmapList) {
+      const activeEl = roadmapList.querySelector('.news-roadmap-item.active');
+      if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  function updateFeedNavButtons() {
+    const nav = document.querySelector('.news-feed-nav');
+    if (!nav) return;
+    const prevBtn = nav.querySelector('.prev-btn');
+    const nextBtn = nav.querySelector('.next-btn');
+    const counter = nav.querySelector('.news-feed-nav-counter');
+    prevBtn.disabled = currentNewsIndex <= 0;
+    nextBtn.disabled = currentNewsIndex >= visibleNewsItems.length - 1;
+    if (counter) counter.textContent = `${currentNewsIndex + 1} · ${visibleNewsItems.length}`;
+  }
+
+  function renderNewsPager() {
+    let pager = $('newsPager');
+    if (!pager) {
+      pager = document.createElement('div');
+      pager.id = 'newsPager';
+      pager.className = 'news-pager';
+      $('newsSection')?.appendChild(pager);
+    }
+    if (!isNewsRoute || visibleNewsItems.length <= NEWS_PAGE_SIZE) {
+      pager.innerHTML = '';
+      return;
+    }
+    const pages = Math.ceil(visibleNewsItems.length / NEWS_PAGE_SIZE);
+    pager.innerHTML = '';
+    for (let i = 1; i <= pages; i++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = i;
+      btn.className = i === newsPage ? 'active' : '';
+      btn.addEventListener('click', () => {
+        newsPage = i;
+        renderNewsCards();
+        $('newsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      pager.appendChild(btn);
+    }
   }
 
   function applyNewsTexts() {
@@ -253,6 +520,7 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
     if (el) el.textContent = t.news_section_title;
     const navBtn = document.querySelector('[data-i18n="nav_news"]');
     if (navBtn) navBtn.textContent = t.nav_news;
+
   }
 
   // ── News read modal ──────────────────────────────────────────────────────────
@@ -262,16 +530,52 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
 
   function openNewsModal(item) {
     if (!newsModal || !newsModalBody) return;
+    const idx = visibleNewsItems.indexOf(item);
+    const t = I18N[lang] || I18N.en;
     newsModalBody.innerHTML = `
 ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
-<h2>${escH(item.title)}</h2>
-<div class="news-modal-date">${fmtDate(item.created_at)}</div>
-<p>${escH(item.body || '')}</p>`;
+<div class="news-article-surface">
+  <h2>${escH(item.title)}</h2>
+  <div class="news-modal-date">${fmtDate(item.created_at)}</div>
+  <p>${escH(item.body || '')}</p>
+</div>
+${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
+  <button class="news-modal-nav-btn prev-btn" data-news-dir="-1"${idx <= 0 ? ' disabled' : ''}>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
+    <span>${escH(t.news_toast_label === 'New' ? 'Previous' : 'Попередня')}</span>
+  </button>
+  <span class="news-modal-nav-counter">${idx + 1} / ${visibleNewsItems.length}</span>
+  <button class="news-modal-nav-btn next-btn" data-news-dir="1"${idx >= visibleNewsItems.length - 1 ? ' disabled' : ''}>
+    <span>${escH(t.news_toast_label === 'New' ? 'Next' : 'Наступна')}</span>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 18l6-6-6-6"/></svg>
+  </button>
+</div>` : ''}`;
     newsModal.classList.add('active');
+    const navBtns = newsModalBody.querySelectorAll('.news-modal-nav-btn');
+    navBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const dir = parseInt(btn.dataset.newsDir);
+        const newIdx = idx + dir;
+        if (newIdx < 0 || newIdx >= visibleNewsItems.length) return;
+        openNewsModal(visibleNewsItems[newIdx]);
+        if (isNewsRoute) {
+          updateNewsActiveItem(newIdx);
+          scrollToFeedItem(newIdx);
+          if (document.querySelector('.news-feed-nav')) updateFeedNavButtons();
+        }
+      });
+    });
   }
 
   if (newsModalClose) newsModalClose.addEventListener('click', () => newsModal.classList.remove('active'));
   if (newsModal) newsModal.addEventListener('click', e => { if (e.target === newsModal) newsModal.classList.remove('active'); });
+  if (newsModal) newsModal.addEventListener('mousemove', e => {
+    const box = newsModal.querySelector('.news-article-surface');
+    if (!box) return;
+    const r = box.getBoundingClientRect();
+    box.style.setProperty('--mx', `${e.clientX - r.left}px`);
+    box.style.setProperty('--my', `${e.clientY - r.top}px`);
+  });
 
   // ── Today news star-badge toast ───────────────────────────────────────────
   function checkTodayToast() {
@@ -386,13 +690,16 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
     document.querySelector('[data-i18n="nav_home"]').textContent = t.nav_home;
     document.querySelector('[data-i18n="nav_features"]').textContent = t.nav_features;
     applyNewsTexts();
-    if (newsSectionVisible) renderNewsCards();
+    if (newsSectionVisible) {
+      visibleNewsItems = isNewsRoute ? newsItems : todayNews(newsItems);
+      renderNewsCards();
+    }
     refreshToastI18n();
   }
 
   function setLanguage(l) {
     lang = l;
-    document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active-lang', b.dataset.lang === l));
+    updateLanguageMenu(l);
     applyTexts(l);
     renderCards(l);
     if (l === 'ru') {
@@ -414,6 +721,10 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
     if (!el) return;
     el.addEventListener('click', e => {
       e.preventDefault();
+      const t = I18N[lang] || I18N.en;
+      el.textContent = t.waiting_btn || 'Waiting...';
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.7';
       const url = new URL(el.href, location.origin);
       url.searchParams.set('lang', lang);
       url.searchParams.set('theme', theme);
@@ -427,7 +738,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
       if (lang !== 'ru' || $('ruNotify')) return;
       const n = document.createElement('div');
       n.className = 'lang-notify'; n.id = 'ruNotify';
-      n.innerHTML = `Switch to English or Ukrainian? <button id="notifyEN"><span class="notify-flag notify-flag-en"></span>EN</button><button id="notifyUK"><span class="notify-flag notify-flag-uk"></span>UA</button><button id="notifyClose">✕</button>`;
+      n.innerHTML = `Switch to English or Ukrainian? <button id="notifyEN"><span class="lang-flag lang-flag-en" style="width:16px;height:11px;border-radius:2px;vertical-align:-2px;display:inline-block;flex:0 0 16px;"></span> EN</button><button id="notifyUK"><span class="lang-flag lang-flag-uk" style="width:16px;height:11px;border-radius:2px;vertical-align:-2px;display:inline-block;flex:0 0 16px;"></span> UA</button><button id="notifyClose">✕</button>`;
       document.body.appendChild(n);
       $('notifyEN').onclick = () => { setLanguage('en'); n.remove(); };
       $('notifyUK').onclick = () => { setLanguage('uk'); n.remove(); };
@@ -468,8 +779,17 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
     });
   }
 
+  function hasAuthCookies() {
+    try {
+      const c = document.cookie;
+      return c.indexOf('trusted_device_hint=') !== -1
+        || c.indexOf('sk_user_has_account=') !== -1;
+    } catch { return false; }
+  }
+
   function scheduleEngagement() {
     try { if (sessionStorage.getItem(PROMO_KEY) === '1') return; } catch (e) { return; }
+    if (hasAuthCookies()) return;
     if (engagementScheduled) return;
     engagementScheduled = true;
     setTimeout(showEngagementPromo, 30000 + Math.random() * 90000);
@@ -492,13 +812,28 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
   $('navOpenBtn').addEventListener('click', openNav);
   $('navCloseBtn').addEventListener('click', closeNav);
   $('navBackdrop').addEventListener('click', closeNav);
-  $('navGoHomeBtn').addEventListener('click', () => { closeNav(); $('heroSection').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  const seenNav = new Set();
+  document.querySelectorAll('.nav-drawer-links button').forEach(btn => {
+    const key = btn.querySelector('[data-i18n]')?.dataset.i18n || btn.id || btn.textContent.trim();
+    if (seenNav.has(key)) btn.remove();
+    else seenNav.add(key);
+  });
+  $('navGoHomeBtn').addEventListener('click', () => {
+    closeNav();
+    if (isNewsRoute) { location.href = '/' + location.search; return; }
+    $('heroSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
   $('navGoNewsBtn').addEventListener('click', () => {
     closeNav();
+    if (!isNewsRoute) { location.href = '/news' + location.search; return; }
     if (!newsSectionVisible) { showNewsSection(); }
     setTimeout(() => $('newsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
   });
-  $('navGoFeaturesBtn').addEventListener('click', () => { closeNav(); $('appsSection').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('navGoFeaturesBtn').addEventListener('click', () => {
+    closeNav();
+    if (isNewsRoute) { location.href = '/' + location.search + '#apps'; return; }
+    $('appsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 
   $('modalClose').addEventListener('click', () => modal.classList.remove('active'));
   window.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
@@ -508,6 +843,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
   $('lightboxNext').addEventListener('click', () => moveLightbox(1));
   window.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
+      closeLanguageMenu();
       if ($('navDrawer').classList.contains('open')) { closeNav(); return; }
       if (lightbox.classList.contains('active')) { lightbox.classList.remove('active'); return; }
       if (modal.classList.contains('active')) { modal.classList.remove('active'); return; }
@@ -519,7 +855,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
     }
   });
 
-  document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => setLanguage(b.dataset.lang)));
+  initLanguageMenu();
   document.querySelectorAll('#themeToggle button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.theme)));
 
   ['loginLink', 'registerLink', 'otpLink', 'drawerLoginLink', 'drawerRegisterLink', 'drawerOtpLink'].forEach(id => bindAuthLink($(id)));
@@ -535,6 +871,12 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
   const params = new URLSearchParams(location.search);
   setTheme(params.get('theme') || 'dark');
   setLanguage(params.get('lang') || 'en');
-  scheduleEngagement();
+  if (isNewsRoute) {
+    $('heroSection').style.display = 'none';
+    $('appsSection').style.display = 'none';
+  } else {
+    scheduleEngagement();
+    if (location.hash === '#apps') setTimeout(() => $('appsSection')?.scrollIntoView({ block: 'start' }), 80);
+  }
   loadNews();
 })();

@@ -1,70 +1,70 @@
 {
-  "/mnt/server/project/i18n_helpers.php": {
-    "mtime": 1782028485.9302661,
-    "hash": "bee77b0730add80c18de11f4dc53346f"
+  "/opt/docker/appdashboard/code/project/post_handlers.php": {
+    "mtime": 1783596209.4095278,
+    "hash": "fa11633eac3812df54dae2a57aab77a4"
   },
-  "/mnt/server/project/mobile_chrome.php": {
-    "mtime": 1783118374.0451188,
+  "/opt/docker/appdashboard/code/project/mobile_chrome.php": {
+    "mtime": 1783506877.4300425,
     "hash": "a702f3e433925893bce9199e7b309673"
   },
-  "/mnt/server/project/main.php": {
-    "mtime": 1783076112.633908,
-    "hash": "4c8197e86b271ebcfdb4949c11c04846"
+  "/opt/docker/appdashboard/code/project/runtime.php": {
+    "mtime": 1783507916.259526,
+    "hash": "df08fae318ef7c11ec185d47ce15dc7d"
   },
-  "/mnt/server/project/core.php": {
-    "mtime": 1783079315.9250655,
-    "hash": "df1329d0c4a4d912660e77a64ef3a325"
-  },
-  "/mnt/server/project/index.php": {
-    "mtime": 1782941122.150493,
-    "hash": "dd87bf8504d70e993ed36a2e0352506d"
-  },
-  "/mnt/server/project/runtime.php": {
-    "mtime": 1783054250.895758,
-    "hash": "352de7f911353bfbb81dffafc570bbd5"
-  },
-  "/mnt/server/project/post_handlers.php": {
-    "mtime": 1783079315.9330657,
-    "hash": "ea2ea9e0cc23356ace6db88bfc4c5d41"
-  },
-  "/mnt/server/project/browser-icons.php": {
+  "/opt/docker/appdashboard/code/project/browser-icons.php": {
     "mtime": 1783076111.5449057,
     "hash": "267a16991a49a35c39496dc621c2327a"
   },
-  "/mnt/server/project/bootstrap.php": {
-    "mtime": 1778439883.060739,
-    "hash": "d2ecfdfcbda5fbf2406e5984f657d66b"
+  "/opt/docker/appdashboard/code/project/main.php": {
+    "mtime": 1783506877.4300425,
+    "hash": "e6c270ddaee27067ddb2e034b3b34c50"
   },
-  "/mnt/server/project/oauth.php": {
-    "mtime": 1783076111.5949056,
+  "/opt/docker/appdashboard/code/project/oauth.php": {
+    "mtime": 1783076111.5949059,
     "hash": "33efe61b86bcc86c7e9982d47194d536"
   },
-  "/mnt/server/project/routes.php": {
+  "/opt/docker/appdashboard/code/project/bootstrap.php": {
+    "mtime": 1783506877.4250426,
+    "hash": "71116effeb96be1912837119d7e68e7e"
+  },
+  "/opt/docker/appdashboard/code/project/core.php": {
+    "mtime": 1783596206.2715116,
+    "hash": "086d2c08380089e416c6ecd0ea7bc2ba"
+  },
+  "/opt/docker/appdashboard/code/project/i18n_helpers.php": {
+    "mtime": 1782028485.9302664,
+    "hash": "bee77b0730add80c18de11f4dc53346f"
+  },
+  "/opt/docker/appdashboard/code/project/routes.php": {
     "mtime": 1783055142.7849417,
     "hash": "dfc4f6dc7fc1c689f7c5d5e384e37362"
   },
-  "/mnt/server/project/views/main.php": {
-    "mtime": 1783079316.0280654,
-    "hash": "922ccc1660dd04330c39fc2ae5e8a873"
+  "/opt/docker/appdashboard/code/project/index.php": {
+    "mtime": 1783514133.3220758,
+    "hash": "aada2ed5657d1e60bb6cb843d2eed956"
   },
-  "/mnt/server/project/views/news_portal_modal.php": {
-    "mtime": 1783076111.649906,
-    "hash": "a84d9cc1f6ec01ba6b6dfa2e95559efe"
-  },
-  "/mnt/server/project/assets/mobile-browser-chrome.js": {
-    "mtime": 1783118382.171655,
+  "/opt/docker/appdashboard/code/project/assets/mobile-browser-chrome.js": {
+    "mtime": 1783506877.4240427,
     "hash": "26fd0f2ae3b3f3830348cbdd32b7e1e1"
   },
-  "/mnt/server/project/bin/oauth_setup_gitea.php": {
-    "mtime": 1783076111.4889054,
+  "/opt/docker/appdashboard/code/project/views/main.php": {
+    "mtime": 1783595956.794087,
+    "hash": "4155698451f5e5e2bf45c76fa5ccec33"
+  },
+  "/opt/docker/appdashboard/code/project/views/news_portal_modal.php": {
+    "mtime": 1783595928.6699064,
+    "hash": "4931fec51528c28a3ae2dfe07054d4e0"
+  },
+  "/opt/docker/appdashboard/code/project/bin/oauth_setup_gitea.php": {
+    "mtime": 1783076111.4889057,
     "hash": "d49e7f96878868b72475e08f0541db37"
   },
-  "/mnt/server/project/bin/oauth_setup_immich.php": {
+  "/opt/docker/appdashboard/code/project/bin/oauth_setup_immich.php": {
     "mtime": 1783076111.5729058,
     "hash": "a4b37594ea06c9d38c35528c0182e916"
   },
-  "/mnt/server/project/CLAUDE.md": {
-    "mtime": 1778573744.006112,
+  "/opt/docker/appdashboard/code/project/CLAUDE.md": {
+    "mtime": 1778573744.0061123,
     "hash": "da79aa9343cd2b362206f03762160abc"
   }
 }

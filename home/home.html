@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
   <title>ServerKherson — Secure Cloud Shell</title>
   <meta name="description" content="ServerKherson is a secure cloud shell platform." />
-  <link rel="icon" type="image/png" href="icon.png">
+  <link rel="icon" type="image/png" href="/home/icon.png">
   <link rel="stylesheet" href="/home/home.css">
 </head>
 <body>
@@ -21,13 +21,20 @@
         <button data-theme="dark" class="active">🌙 Dark</button>
         <button data-theme="light">☀️ Light</button>
       </div>
-      <div class="lang-selector" id="langSelector">
-        <button class="lang-btn" data-lang="en">EN</button>
-        <button class="lang-btn" data-lang="uk">UA</button>
-        <button class="lang-btn" data-lang="ru">RU</button>
-        <button class="lang-btn" data-lang="be">BE</button>
-        <button class="lang-btn" data-lang="pl">PL</button>
-        <button class="lang-btn" data-lang="cs">CS</button>
+      <div class="lang-selector" id="langSelector" data-value="en">
+        <button type="button" class="lang-selector-btn" id="langSelectorButton" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <span class="lang-flag lang-flag-en"></span>
+          <span class="lang-selector-label">English</span>
+          <span class="lang-selector-chevron"></span>
+        </button>
+        <div class="lang-selector-menu" id="langSelectorMenu" role="listbox">
+          <button type="button" class="lang-selector-option active" data-lang="en" role="option" aria-selected="true"><span class="lang-flag lang-flag-en"></span><span>English</span></button>
+          <button type="button" class="lang-selector-option" data-lang="uk" role="option" aria-selected="false"><span class="lang-flag lang-flag-uk"></span><span>Українська</span></button>
+          <button type="button" class="lang-selector-option" data-lang="ru" role="option" aria-selected="false"><span class="lang-flag lang-flag-ru"></span><span>Русский</span></button>
+          <button type="button" class="lang-selector-option" data-lang="be" role="option" aria-selected="false"><span class="lang-flag lang-flag-be"></span><span>Беларуская</span></button>
+          <button type="button" class="lang-selector-option" data-lang="pl" role="option" aria-selected="false"><span class="lang-flag lang-flag-pl"></span><span>Polski</span></button>
+          <button type="button" class="lang-selector-option" data-lang="cs" role="option" aria-selected="false"><span class="lang-flag lang-flag-cs"></span><span>Čeština</span></button>
+        </div>
       </div>
     </div>
   </header>
@@ -44,18 +51,17 @@
       </div>
     </section>
 
-    <section class="news-section" id="newsSection" style="display:none">
-      <div class="news-section-header">
-        <h2 class="apps-section-title" data-i18n="news_section_title">News</h2>
-      </div>
-      <div id="newsCanvas" class="news-canvas"></div>
-    </section>
-
     <section class="apps-section" id="appsSection">
       <h2 class="apps-section-title" data-i18n="features_title">Server applications overview</h2>
       <div id="portalSpotlight" class="portal-spotlight-host"></div>
       <p class="apps-sub-heading" data-i18n="apps_heading">Installed applications</p>
       <div class="features-grid" id="featuresGrid"></div>
+    </section>
+    <section class="news-section" id="newsSection" style="display:none">
+      <div class="news-section-header">
+        <h2 data-i18n="news_section_title">News</h2>
+      </div>
+      <div class="news-canvas" id="newsCanvas"></div>
     </section>
   </main>
 
@@ -69,7 +75,7 @@
       <div>Created by Ihor Kotenko © <span id="year"></span></div>
       <div class="social-links">
         <a href="https://www.instagram.com/igor.ktn?igsh=MWdoZjBxenkzZGNkYQ==" target="_blank" class="social-link" title="Instagram">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.78 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
           Instagram
         </a>
         <a href="#" class="social-link" title="Email" id="emailLink">
@@ -87,9 +93,9 @@
       <button type="button" id="navCloseBtn" class="nav-drawer-close" aria-label="Close">&times;</button>
     </div>
     <nav class="nav-drawer-links">
-      <button type="button" id="navGoHomeBtn" data-i18n="nav_home">Home</button>
-      <button type="button" id="navGoNewsBtn" data-i18n="nav_news">News</button>
-      <button type="button" id="navGoFeaturesBtn" data-i18n="nav_features">Explore platform capabilities</button>
+      <button type="button" id="navGoHomeBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span data-i18n="nav_home">Home</span></button>
+      <button type="button" id="navGoNewsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16"/><path d="M4 2h16v20H4z"/><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h5"/></svg><span data-i18n="nav_news">News</span></button>
+      <button type="button" id="navGoFeaturesBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg><span data-i18n="nav_features">Explore platform capabilities</span></button>
     </nav>
     <div class="nav-drawer-auth">
       <a href="/login" class="btn-primary" id="drawerLoginLink" data-i18n="signin">Sign in</a>
@@ -107,13 +113,6 @@
     </div>
   </div>
 
-  <div class="modal" id="newsModal">
-    <div class="modal-content news-modal-content">
-      <button class="modal-close" id="newsModalClose" aria-label="Close">&times;</button>
-      <div id="newsModalBody"></div>
-    </div>
-  </div>
-
   <div class="lightbox" id="lightbox">
     <span class="lightbox-close" id="lightboxClose">&times;</span>
     <button class="lightbox-prev" id="lightboxPrev">&#10094;</button>
@@ -123,8 +122,13 @@
     </div>
     <div class="lightbox-counter" id="lightboxCounter"></div>
   </div>
-
-  <div id="newsToast" class="news-toast" style="display:none" role="status" aria-live="polite"></div>
+  <div class="modal" id="newsModal">
+    <div class="modal-content news-modal-content">
+      <button class="modal-close" id="newsModalClose" aria-label="Close">&times;</button>
+      <div id="newsModalBody"></div>
+    </div>
+  </div>
+  <div class="news-toast" id="newsToast" style="display:none"></div>
 
   <script src="/home/home.js"></script>
 </body>

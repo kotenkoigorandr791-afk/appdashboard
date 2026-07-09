@@ -209,6 +209,18 @@ function loginUserSession(string $email, array $users): bool {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    if (!headers_sent()) {
+        $__secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
+            || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+        setcookie('sk_user_has_account', '1', [
+            'expires' => time() + 365 * 86400,
+            'path' => '/',
+            'secure' => $__secure,
+            'httponly' => false,
+            'samesite' => 'Lax',
+        ]);
+    }
     return true;
 }
 
@@ -2009,6 +2021,7 @@ function deleteDirectory($dir){
 if (isset($_GET['api']) && $_GET['api'] === 'news') {
     $newsFile = APP_ROOT . '/data/news.json';
     $uploadsDir = APP_ROOT . '/uploads/news/';
+    $db = getDB();
     $userRole = (int)($_SESSION['user']['role'] ?? -1);
     $userEmail = (string)($_SESSION['user']['email'] ?? '');
     $canEdit = isset($_SESSION['user']) && $userRole >= 1;
@@ -2021,16 +2034,83 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     function newsSave($f, $items) {
         file_put_contents($f, json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
     }
+    function newsBool($value): bool {
+        return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
+    }
+    function newsTableColumns(AppDatabase $db, string $table): array {
+        $res = $db->query("PRAGMA table_info($table)");
+        $cols = [];
+        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+            if (isset($row['name'])) $cols[] = (string)$row['name'];
+        }
+        return $cols;
+    }
+    function newsEnsureColumn(AppDatabase $db, array &$cols, string $table, string $column, string $definition): void {
+        if (in_array($column, $cols, true)) return;
+        try {
+            $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+            $cols[] = $column;
+        } catch (Throwable $e) {}
+    }
+    function newsEnsureDb(AppDatabase $db, string $newsFile): void {
+        $db->exec("CREATE TABLE IF NOT EXISTS app_news (
+            id TEXT PRIMARY KEY,
+            title TEXT NOT NULL,
+            body TEXT NOT NULL DEFAULT '',
+            photo TEXT NOT NULL DEFAULT '',
+            published INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER,
+            author TEXT NOT NULL DEFAULT ''
+        )");
+        $cols = newsTableColumns($db, 'app_news');
+        newsEnsureColumn($db, $cols, 'app_news', 'id', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'title', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'body', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'photo', "TEXT NOT NULL DEFAULT ''");
+        newsEnsureColumn($db, $cols, 'app_news', 'published', "INTEGER NOT NULL DEFAULT 0");
+        newsEnsureColumn($db, $cols, 'app_news', 'created_at', "INTEGER NOT NULL DEFAULT 0");
+        newsEnsureColumn($db, $cols, 'app_news', 'updated_at', "INTEGER");
+        newsEnsureColumn($db, $cols, 'app_news', 'author', "TEXT NOT NULL DEFAULT ''");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_app_news_created_at ON app_news(created_at)");
+        if ((int)$db->querySingle("SELECT COUNT(*) FROM app_news") > 0 || !is_file($newsFile)) return;
+        $items = json_decode((string)file_get_contents($newsFile), true);
+        if (!is_array($items)) return;
+        foreach ($items as $item) {
+            if (!is_array($item) || trim((string)($item['title'] ?? '')) === '') continue;
+            $stmt = $db->prepare("INSERT INTO app_news (id, title, body, photo, published, created_at, updated_at, author) VALUES (:id, :title, :body, :photo, :published, :created_at, :updated_at, :author)");
+            $stmt->bindValue(':id', trim((string)($item['id'] ?? '')) ?: bin2hex(random_bytes(8)), SQLITE3_TEXT);
+            $stmt->bindValue(':title', trim((string)$item['title']), SQLITE3_TEXT);
+            $stmt->bindValue(':body', (string)($item['body'] ?? ''), SQLITE3_TEXT);
+            $stmt->bindValue(':photo', trim((string)($item['photo'] ?? '')), SQLITE3_TEXT);
+            $stmt->bindValue(':published', !empty($item['published']) ? 1 : 0, SQLITE3_INTEGER);
+            $stmt->bindValue(':created_at', (int)($item['created_at'] ?? time()), SQLITE3_INTEGER);
+            $stmt->bindValue(':updated_at', isset($item['updated_at']) ? (int)$item['updated_at'] : null, isset($item['updated_at']) ? SQLITE3_INTEGER : SQLITE3_NULL);
+            $stmt->bindValue(':author', (string)($item['author'] ?? ''), SQLITE3_TEXT);
+            $stmt->execute();
+        }
+    }
+    function newsLoadAllDb(AppDatabase $db, bool $canEdit): array {
+        $sql = "SELECT id, title, body, photo, published, created_at, updated_at, author FROM app_news";
+        if (!$canEdit) $sql .= " WHERE published = 1";
+        $sql .= " ORDER BY created_at DESC";
+        $res = $db->query($sql);
+        $items = [];
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $row['published'] = newsBool($row['published'] ?? 0);
+            $row['created_at'] = (int)($row['created_at'] ?? 0);
+            $row['updated_at'] = isset($row['updated_at']) ? (int)$row['updated_at'] : null;
+            $items[] = $row;
+        }
+        return $items;
+    }
+    newsEnsureDb($db, $newsFile);
 
     $action = (string)($_GET['action'] ?? $_POST['action'] ?? '');
     header('Content-Type: application/json; charset=utf-8');
 
     if ($action === 'list') {
-        $items = newsLoadAll($newsFile);
-        if (!$canEdit) {
-            $items = array_values(array_filter($items, fn($i) => !empty($i['published'])));
-        }
-        usort($items, fn($a, $b) => ($b['created_at'] ?? 0) <=> ($a['created_at'] ?? 0));
+        $items = newsLoadAllDb($db, $canEdit);
         $layoutFile = APP_ROOT . '/data/news_layout.json';
         $layout = is_file($layoutFile) ? (json_decode(file_get_contents($layoutFile), true) ?: []) : [];
         echo json_encode(['ok' => true, 'items' => $items, 'can_edit' => $canEdit, 'layout' => $layout]);
@@ -2045,13 +2125,14 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         if ($prompt === '') { echo json_encode(['ok' => false, 'error' => 'prompt_required']); exit; }
         try {
             require_once APP_ROOT . '/apps/cloud/includes/ai_config_store.php';
+            require_once APP_ROOT . '/apps/cloud/includes/ai_proxy.php';
             $aiCfg = cloud_ai_load_config();
             if (empty($aiCfg['api_key']) || empty($aiCfg['api_endpoint'])) {
                 echo json_encode(['ok' => false, 'error' => 'ai_not_configured']); exit;
             }
             $systemMsg = 'You are a news article writer. Given a topic or prompt, write a short news article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.';
-            $payload = json_encode([
-                'model' => $aiCfg['default_model'],
+            $payload = [
+                'model' => cloud_ai_normalize_model_id((string)($aiCfg['default_model'] ?: ($aiCfg['models'][0] ?? ''))),
                 'messages' => [
                     ['role' => 'system', 'content' => $systemMsg],
                     ['role' => 'user', 'content' => $prompt]
@@ -2059,24 +2140,16 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
                 'max_tokens' => 800,
                 'temperature' => 0.7,
                 'stream' => false
-            ]);
-            $ch = curl_init($aiCfg['api_endpoint']);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $payload,
-                CURLOPT_HTTPHEADER => [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $aiCfg['api_key']
-                ],
-                CURLOPT_TIMEOUT => 60,
-                CURLOPT_SSL_VERIFYPEER => false
-            ]);
-            $raw = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            if ($raw === false || $httpCode >= 400) {
-                echo json_encode(['ok' => false, 'error' => 'ai_request_failed']); exit;
+            ];
+            if ($payload['model'] === '') {
+                echo json_encode(['ok' => false, 'error' => 'ai_model_required']); exit;
+            }
+            $result = cloud_ai_proxy_json($aiCfg, $aiCfg['api_endpoint'], $payload, 'POST');
+            $raw = $result['body'];
+            if (!$result['ok']) {
+                $err = json_decode($raw, true);
+                $message = $result['error'] ?: (string)($err['error']['message'] ?? $err['message'] ?? 'ai_request_failed');
+                echo json_encode(['ok' => false, 'error' => $message]); exit;
             }
             $resp = json_decode($raw, true);
             $text = trim((string)($resp['choices'][0]['message']['content'] ?? ''));
@@ -2126,25 +2199,28 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         $published = !empty($input['published']);
         $photo = trim((string)($input['photo'] ?? ''));
         if ($title === '') { echo json_encode(['ok' => false, 'error' => 'title_required']); exit; }
-        $items = newsLoadAll($newsFile);
         $now = time();
         if ($id === '') {
             $id = bin2hex(random_bytes(8));
-            $items[] = ['id' => $id, 'title' => $title, 'body' => $body, 'photo' => $photo, 'published' => $published, 'created_at' => $now, 'author' => $userEmail];
+            $stmt = $db->prepare("INSERT INTO app_news (id, title, body, photo, published, created_at, author) VALUES (:id, :title, :body, :photo, :published, :created_at, :author)");
+            $stmt->bindValue(':id', $id, SQLITE3_TEXT);
+            $stmt->bindValue(':title', $title, SQLITE3_TEXT);
+            $stmt->bindValue(':body', $body, SQLITE3_TEXT);
+            $stmt->bindValue(':photo', $photo, SQLITE3_TEXT);
+            $stmt->bindValue(':published', $published ? 1 : 0, SQLITE3_INTEGER);
+            $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
+            $stmt->bindValue(':author', $userEmail, SQLITE3_TEXT);
+            $stmt->execute();
         } else {
-            foreach ($items as &$item) {
-                if ($item['id'] === $id) {
-                    $item['title'] = $title;
-                    $item['body'] = $body;
-                    $item['published'] = $published;
-                    if ($photo !== '') $item['photo'] = $photo;
-                    $item['updated_at'] = $now;
-                    break;
-                }
-            }
-            unset($item);
+            $stmt = $db->prepare("UPDATE app_news SET title = :title, body = :body, photo = :photo, published = :published, updated_at = :updated_at WHERE id = :id");
+            $stmt->bindValue(':id', $id, SQLITE3_TEXT);
+            $stmt->bindValue(':title', $title, SQLITE3_TEXT);
+            $stmt->bindValue(':body', $body, SQLITE3_TEXT);
+            $stmt->bindValue(':photo', $photo, SQLITE3_TEXT);
+            $stmt->bindValue(':published', $published ? 1 : 0, SQLITE3_INTEGER);
+            $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+            $stmt->execute();
         }
-        newsSave($newsFile, $items);
         echo json_encode(['ok' => true, 'id' => $id]);
         exit;
     }
@@ -2154,9 +2230,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         apSecRequireSameOrigin();
         $input = json_decode((string)file_get_contents('php://input'), true);
         $id = trim((string)($input['id'] ?? ''));
-        $items = newsLoadAll($newsFile);
-        $items = array_filter($items, fn($i) => $i['id'] !== $id);
-        newsSave($newsFile, $items);
+        $stmt = $db->prepare("DELETE FROM app_news WHERE id = :id");
+        $stmt->bindValue(':id', $id, SQLITE3_TEXT);
+        $stmt->execute();
         echo json_encode(['ok' => true]);
         exit;
     }

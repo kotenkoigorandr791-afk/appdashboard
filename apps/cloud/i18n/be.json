@@ -236,6 +236,7 @@
     "compile": "Кампіляваць і запусціць",
     "noFileToCompile": "Няма файла для кампіяцыі",
     "noContentToCompile": "Няма зместу для кампіяцыі",
+    "noPermission": "Няма дазволу на кампіяцыю",
     "languageNotSupported": "Мова не падтрымліваецца для кампіяцыі",
     "compiling": "Кампіяцыя",
     "compilationSuccess": "Кампіяцыя паспяховая",
