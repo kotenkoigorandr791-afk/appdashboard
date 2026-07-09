@@ -1,1 +1,0 @@
-{"nodes": [{"id": "mnt_server_apps_cloud_vendor_psr_simple_cache_src_invalidargumentexception_php", "label": "InvalidArgumentException.php", "file_type": "code", "source_file": "/mnt/server/apps/cloud/vendor/psr/simple-cache/src/InvalidArgumentException.php", "source_location": "L1"}], "edges": [], "raw_calls": []}
