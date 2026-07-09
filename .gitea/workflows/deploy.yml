@@ -13,6 +13,7 @@ jobs:
           set -euo pipefail
           cd /opt/docker/appdashboard/code
           git fetch origin main
+          git clean -f -- home/news.html
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             echo "Working tree is dirty; commit or stash server changes before deploy."
@@ -32,6 +33,7 @@ jobs:
           set -euo pipefail
           cd /opt/docker/appdashboard/code
           git fetch origin develop
+          git clean -f -- home/news.html
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             echo "Working tree is dirty; commit or stash server changes before deploy."

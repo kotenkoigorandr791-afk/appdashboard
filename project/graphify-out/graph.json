@@ -522,7 +522,7 @@
       "source_file": "core.php",
       "source_location": "L75",
       "id": "project_core_ensureclientauthtokensschema",
-      "community": 14,
+      "community": 13,
       "norm_label": "ensureclientauthtokensschema()"
     },
     {
@@ -531,7 +531,7 @@
       "source_file": "core.php",
       "source_location": "L89",
       "id": "project_core_createclientauthtoken",
-      "community": 14,
+      "community": 13,
       "norm_label": "createclientauthtoken()"
     },
     {
@@ -630,7 +630,7 @@
       "source_file": "core.php",
       "source_location": "L1070",
       "id": "project_core_ap_load_i18n_lang",
-      "community": 13,
+      "community": 14,
       "norm_label": "ap_load_i18n_lang()"
     },
     {
@@ -648,7 +648,7 @@
       "source_file": "core.php",
       "source_location": "L1095",
       "id": "project_core_ap_merge_i18n",
-      "community": 13,
+      "community": 14,
       "norm_label": "ap_merge_i18n()"
     },
     {
@@ -828,7 +828,7 @@
       "source_file": "core.php",
       "source_location": "L1702",
       "id": "project_core_parsejsonclientcontext",
-      "community": 9,
+      "community": 10,
       "norm_label": "parsejsonclientcontext()"
     },
     {
@@ -837,7 +837,7 @@
       "source_file": "core.php",
       "source_location": "L1716",
       "id": "project_core_collectserversecuritymeta",
-      "community": 9,
+      "community": 10,
       "norm_label": "collectserversecuritymeta()"
     },
     {
@@ -855,7 +855,7 @@
       "source_file": "core.php",
       "source_location": "L1811",
       "id": "project_core_failedauthnotifypayload",
-      "community": 9,
+      "community": 10,
       "norm_label": "failedauthnotifypayload()"
     },
     {
@@ -972,7 +972,7 @@
       "source_file": "core.php",
       "source_location": "L2040",
       "id": "project_core_newstablecolumns",
-      "community": 10,
+      "community": 9,
       "norm_label": "newstablecolumns()"
     },
     {
@@ -981,7 +981,7 @@
       "source_file": "core.php",
       "source_location": "L2048",
       "id": "project_core_newsensurecolumn",
-      "community": 10,
+      "community": 9,
       "norm_label": "newsensurecolumn()"
     },
     {
@@ -990,7 +990,7 @@
       "source_file": "core.php",
       "source_location": "L2055",
       "id": "project_core_newsensuredb",
-      "community": 10,
+      "community": 9,
       "norm_label": "newsensuredb()"
     },
     {
@@ -3138,9 +3138,9 @@
       "source_file": "core.php",
       "source_location": "L2040",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "core_php",
-      "target": "project_core_newstablecolumns",
-      "confidence_score": 1.0
+      "target": "project_core_newstablecolumns"
     },
     {
       "relation": "contains",
@@ -3148,9 +3148,9 @@
       "source_file": "core.php",
       "source_location": "L2048",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "core_php",
-      "target": "project_core_newsensurecolumn",
-      "confidence_score": 1.0
+      "target": "project_core_newsensurecolumn"
     },
     {
       "relation": "contains",
@@ -3684,9 +3684,9 @@
       "source_file": "core.php",
       "source_location": "L2066",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "project_core_newsensuredb",
-      "target": "project_core_newstablecolumns",
-      "confidence_score": 1.0
+      "target": "project_core_newstablecolumns"
     },
     {
       "relation": "calls",
@@ -3695,9 +3695,9 @@
       "source_file": "core.php",
       "source_location": "L2067",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "project_core_newsensuredb",
-      "target": "project_core_newsensurecolumn",
-      "confidence_score": 1.0
+      "target": "project_core_newsensurecolumn"
     },
     {
       "relation": "contains",
@@ -4029,5 +4029,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "7d8b69839078c8e4e07fd93d00b2fca9c9319c55"
+  "built_at_commit": "612292f05e55b9c68602a7d63c2aa923ffa36fac"
 }

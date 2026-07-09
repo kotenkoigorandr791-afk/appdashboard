@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7d8b6983`
+- Built from commit: `612292f0`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -87,11 +87,11 @@ Nodes (4): createClientBrowserAuthRequest(), ensureClientBrowserAuthSchema(), ge
 
 ### Community 9 - "Community 9"
 Cohesion: 0.67
-Nodes (3): collectServerSecurityMeta(), failedAuthNotifyPayload(), parseJsonClientContext()
+Nodes (3): newsEnsureColumn(), newsEnsureDb(), newsTableColumns()
 
 ### Community 10 - "Community 10"
 Cohesion: 0.67
-Nodes (3): newsEnsureColumn(), newsEnsureDb(), newsTableColumns()
+Nodes (3): collectServerSecurityMeta(), failedAuthNotifyPayload(), parseJsonClientContext()
 
 ## Knowledge Gaps
 - **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.

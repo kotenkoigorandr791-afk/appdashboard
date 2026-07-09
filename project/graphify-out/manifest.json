@@ -1,6 +1,6 @@
 {
   "/opt/docker/appdashboard/code/project/post_handlers.php": {
-    "mtime": 1783596209.4095278,
+    "mtime": 1783600202.5396385,
     "hash": "fa11633eac3812df54dae2a57aab77a4"
   },
   "/opt/docker/appdashboard/code/project/mobile_chrome.php": {
@@ -28,7 +28,7 @@
     "hash": "71116effeb96be1912837119d7e68e7e"
   },
   "/opt/docker/appdashboard/code/project/core.php": {
-    "mtime": 1783596206.2715116,
+    "mtime": 1783600202.5346384,
     "hash": "086d2c08380089e416c6ecd0ea7bc2ba"
   },
   "/opt/docker/appdashboard/code/project/i18n_helpers.php": {
@@ -40,7 +40,7 @@
     "hash": "dfc4f6dc7fc1c689f7c5d5e384e37362"
   },
   "/opt/docker/appdashboard/code/project/index.php": {
-    "mtime": 1783514133.3220758,
+    "mtime": 1783600202.5376384,
     "hash": "aada2ed5657d1e60bb6cb843d2eed956"
   },
   "/opt/docker/appdashboard/code/project/assets/mobile-browser-chrome.js": {
@@ -48,11 +48,11 @@
     "hash": "26fd0f2ae3b3f3830348cbdd32b7e1e1"
   },
   "/opt/docker/appdashboard/code/project/views/main.php": {
-    "mtime": 1783595956.794087,
+    "mtime": 1783600202.5556388,
     "hash": "4155698451f5e5e2bf45c76fa5ccec33"
   },
   "/opt/docker/appdashboard/code/project/views/news_portal_modal.php": {
-    "mtime": 1783595928.6699064,
+    "mtime": 1783600202.5556388,
     "hash": "4931fec51528c28a3ae2dfe07054d4e0"
   },
   "/opt/docker/appdashboard/code/project/bin/oauth_setup_gitea.php": {
