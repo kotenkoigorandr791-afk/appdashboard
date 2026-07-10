@@ -236,7 +236,7 @@
     "compile": "Kompilace a spuštění",
     "noFileToCompile": "Žádný soubor ke kompilaci",
     "noContentToCompile": "Žádný obsah ke kompilaci",
-    "noPermission": "Nemáte oprávnění ke kompilaci",
+    "noPermission": "Nemáte povolení ke kompilaci",,
     "languageNotSupported": "Jazyk není podporován pro kompilaci",
     "compiling": "Kompilace",
     "compilationSuccess": "Kompilace úspěšná",

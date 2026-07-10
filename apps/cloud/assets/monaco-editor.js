@@ -3757,6 +3757,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         showContextMenu = function(e, path, type, name) {
             original(e, path, type, name);
             const menu = document.getElementById('context-menu');
+            if (menu) menu.style.zIndex = '300000';
             if (!menu || type !== 'file' || !path) return;
             const labels = new Set([
                 typeof t === 'function' && window.i18n ? t(window.i18n, 'viewFile') : 'View file',

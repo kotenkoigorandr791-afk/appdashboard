@@ -4287,10 +4287,7 @@ function initRootToolbar(i18n) {
     if (window.initTopbarUI) {
         window.initTopbarUI(i18n);
     }
-    document.getElementById('btn-code-actions').addEventListener('click', (e) => {
-        toggleCodeActionsMenu(e);
-        adjustDropdownPosition();
-    });
+    document.getElementById('btn-code-actions').addEventListener('click', toggleCodeActionsMenu);
     document.getElementById('btn-apply-code-changes').addEventListener('click', applyCodeChanges);
     document.getElementById('btn-close-code-modal').addEventListener('click', closeCodeModal);
     document.getElementById('quota-mb').addEventListener('change', updateQuota);
@@ -5221,10 +5218,15 @@ function transliterateLastChar(lang, element) {
 function toggleCodeActionsMenu(e) {
     e.stopPropagation();
     const menu = document.getElementById('code-actions-menu');
+    if (!menu) return;
     const isHidden = menu.classList.contains('hidden');
     closeAllDropdowns(); // Сначала закрываем все
     if (isHidden) {
+        if (menu.parentElement !== document.body) {
+            document.body.appendChild(menu);
+        }
         menu.classList.remove('hidden');
+        adjustDropdownPosition();
     }
 }
 document.querySelectorAll('#code-actions-menu .dropdown-item').forEach(item => {

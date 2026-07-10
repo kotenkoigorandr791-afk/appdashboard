@@ -98,8 +98,8 @@
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
-        #top-bar{justify-content:center;}
-        #top-bar-title{flex:0 0 auto;margin-left:0;}
+        #top-bar{justify-content:flex-start;}
+        #top-bar-title{flex:1 1 auto;margin-left:0;text-align:center;}
         #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;}
         #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;}
         #home-root-button svg{width:21px;height:21px;}
@@ -128,8 +128,8 @@
         #clear-search:hover{background-color:rgba(255,68,68,0.1);}
         .group-letter{font-weight:bold;margin-bottom:5px;color:var(--text-color);}
         .group-block{background-color:var(--group-block-bg);border-radius:8px;padding:10px;margin-bottom:15px;}
-        #app-list{list-style:none;padding:0;margin:0;}
-        #app-list li{margin-bottom:10px;padding:10px;background-color:var(--app-item-bg);border-radius:8px;position:relative;}
+        #app-list,#app-list ul{list-style:none;padding:0;margin:0;}
+        #app-list li{width:100%;box-sizing:border-box;margin-bottom:10px;padding:10px;background-color:var(--app-item-bg);border-radius:8px;position:relative;}
         #app-list a{color:var(--link-color);text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;}
         #app-list a:hover{color:var(--link-hover-color);}
         .sidebar-app-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
