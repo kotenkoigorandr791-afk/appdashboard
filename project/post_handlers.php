@@ -1855,7 +1855,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <div class="ap-panel" id="ap-omniroute" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-omniroute-frame" data-src="/omniroute-bridge" title="<?php echo my_htmlspecialchars($translations['omniroute_title'] ?? 'OmniRoute'); ?>" style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0; background:#0b0d10;" allow="clipboard-read; clipboard-write; microphone"></iframe>
+                <iframe id="ap-omniroute-frame" data-src="/omniroute-bridge?next=/admin-omniroute/home" title="<?php echo my_htmlspecialchars($translations['omniroute_title'] ?? 'OmniRoute'); ?>" style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0; background:#0b0d10;" allow="clipboard-read; clipboard-write; microphone"></iframe>
             </div>
         </div>
     </div><!-- #ap-content -->

@@ -580,9 +580,9 @@ function oauth_route_omniroute_bridge(): void {
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
-    $next = trim((string)($_GET['next'] ?? '/admin-omniroute/dashboard'));
+    $next = trim((string)($_GET['next'] ?? '/admin-omniroute/home'));
     if (!str_starts_with($next, '/admin-omniroute/')) {
-        $next = '/admin-omniroute/dashboard';
+        $next = '/admin-omniroute/home';
     }
     header('Location: ' . $next);
     exit;
