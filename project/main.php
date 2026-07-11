@@ -98,7 +98,13 @@
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
-        #menu-button{top:25px;background:none;width:auto;height:auto;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:translateY(-50%);}
+        #top-bar{justify-content:flex-start;}
+        #top-bar-title{flex:1 1 auto;margin-left:0;text-align:center;}
+        #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;}
+        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;}
+        #home-root-button svg{width:21px;height:21px;}
+        #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
+        #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
         #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
@@ -122,8 +128,8 @@
         #clear-search:hover{background-color:rgba(255,68,68,0.1);}
         .group-letter{font-weight:bold;margin-bottom:5px;color:var(--text-color);}
         .group-block{background-color:var(--group-block-bg);border-radius:8px;padding:10px;margin-bottom:15px;}
-        #app-list{list-style:none;padding:0;margin:0;}
-        #app-list li{margin-bottom:10px;padding:10px;background-color:var(--app-item-bg);border-radius:8px;position:relative;}
+        #app-list,#app-list ul{list-style:none;padding:0;margin:0;}
+        #app-list li{width:100%;box-sizing:border-box;margin-bottom:10px;padding:10px;background-color:var(--app-item-bg);border-radius:8px;position:relative;}
         #app-list a{color:var(--link-color);text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;}
         #app-list a:hover{color:var(--link-hover-color);}
         .sidebar-app-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -562,6 +568,10 @@
     <canvas id="constellation-bg"></canvas>
 <?php if($showTopBarTitle): ?>
 <div id="top-bar">
+    <?php if($isHomeDashboard): ?>
+    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button>
+    <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+    <?php endif; ?>
     <div id="top-bar-title">Shell Application</div>
     <?php if($path==='/main'&&!($selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps)))):?>
         <button type="button" id="support-chat-btn" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>">
@@ -2725,7 +2735,7 @@ var T=<?php echo json_encode([
                 rows += `<tr data-filename="${fname}" data-filepath="${url}" data-shareid="${shareId}" style="border-bottom:1px solid var(--border-color);">
                     <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><label style="display:flex;gap:8px;align-items:center;"><input class="sf-row-check" type="checkbox" value="${shareId}"><span>${shareId.substring(0,10)}…${userName}</span></label></td>
                     <td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fname||'<em style=\"opacity:.4\">—</em>'}</td>
-                    <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="${url}">${pathDisplay}</td>
+                    <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="${url}"><span style="display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;">${pathDisplay}</span></td>
                     <td style="padding:8px 10px;white-space:normal;">
                         ${buildShareExpirySelect(expiresOption, shareId)}
                         <div style="margin-top:6px;font-size:11px;opacity:.7;">${expiresAt}</div>

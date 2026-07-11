@@ -236,7 +236,7 @@
     "compile": "Skompiluj i uruchom",
     "noFileToCompile": "Brak pliku do skompilowania",
     "noContentToCompile": "Brak treści do skompilowania",
-    "noPermission": "Brak uprawnień do kompilacji",
+    "noPermission": "Brak pozwolenia na kompilację",,
     "languageNotSupported": "Język nie jest obsługiwany w kompilacji",
     "compiling": "Kompilowanie",
     "compilationSuccess": "Kompilacja udana",

@@ -112,6 +112,24 @@ function smart_log_errno_level(int $errno): string {
 function smart_log_app_id(): string {
     return defined('SMART_LOG_APP_ID') && is_string(SMART_LOG_APP_ID) && SMART_LOG_APP_ID !== '' ? SMART_LOG_APP_ID : 'unknown';
 }
+function smart_log_render_exception(Throwable $e): void {
+    if (headers_sent()) {
+        return;
+    }
+    while (ob_get_level() > 0) {
+        ob_end_clean();
+    }
+    http_response_code(500);
+    $debug = (string)getenv('APP_DEBUG') === '1';
+    if (isset($_GET['api'])) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => $debug ? $e->getMessage() : 'server_error'], JSON_UNESCAPED_UNICODE);
+        return;
+    }
+    header('Content-Type: text/html; charset=UTF-8');
+    $message = $debug ? cloud_sanitize_paths_in_text($e->getMessage()) : 'Server configuration error.';
+    echo '<!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Server error</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#111827;color:#e5e7eb;font-family:Arial,sans-serif}.box{max-width:560px;padding:28px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#1f2937}h1{margin:0 0 12px;font-size:24px}p{margin:0;line-height:1.5;color:#cbd5e1}</style></head><body><div class="box"><h1>Server error</h1><p>' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p></div></body></html>';
+}
 function smart_log_write(string $appId, string $level, string $message, string $sourceFile = '', ?int $sourceLine = null, bool $alsoPhpErrorLog = true): void {
     $message = cloud_sanitize_paths_in_text($message);
     $sourceFile = cloud_safe_path_label($sourceFile, '');
@@ -170,6 +188,7 @@ function smart_log_bootstrap(string $appId): void {
     set_exception_handler(static function (Throwable $e): void {
         $msg = 'Uncaught ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
         smart_log_write(smart_log_app_id(), 'error', $msg, $e->getFile(), $e->getLine(), true);
+        smart_log_render_exception($e);
     });
     register_shutdown_function(static function (): void {
         $err = error_get_last();

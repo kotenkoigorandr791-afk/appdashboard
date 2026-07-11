@@ -575,7 +575,7 @@ function oauth_route_omniroute_bridge(): void {
         || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
     setcookie('auth_token', $token, [
         'expires' => time() + 86400 * 30,
-        'path' => '/admin-omniroute/',
+        'path' => '/',
         'secure' => $https,
         'httponly' => true,
         'samesite' => 'Lax',

@@ -433,7 +433,7 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
         // Обработка сообщений от родительского окна
         window.addEventListener('message', function(event) {
             if (event.data.type === 'saveOnlyOfficeDocument') {
-                console.log('Save requested from parent');
+
                 // Здесь можно добавить логику принудительного сохранения
             }
         });
@@ -449,7 +449,6 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
                     success: true,
                     theme: '<?php echo $theme; ?>'
                 }, '*');
-                console.log('ONLYOFFICE editor loaded successfully with theme: <?php echo $theme; ?>');
             } catch (error) {
                 console.error('Failed to load ONLYOFFICE editor:', error);
                 document.getElementById('editor').innerHTML = `

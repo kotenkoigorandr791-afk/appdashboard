@@ -89,7 +89,7 @@
         body{margin:0;padding:0;font-family:Arial,sans-serif;background-color:var(--bg-color);color:var(--text-color);overflow:hidden;}
         html,body{margin:0;padding:0;overflow:hidden;height:100%;}
         #top-bar{position:fixed;top:0;left:0;width:100%;height:50px;background-color:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;}
-        #top-bar-title{font-weight:bold;font-size:18px;margin-left:40px;flex:1;min-width:0;}
+        #top-bar-title{font-weight:bold;font-size:18px;flex:1;min-width:0;text-align:center;position:absolute;left:50%;transform:translateX(-50%);}
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
@@ -128,8 +128,8 @@
         #clear-search:hover{background-color:rgba(255,68,68,0.1);}
         .group-letter{font-weight:bold;margin-bottom:5px;color:var(--text-color);}
         .group-block{background-color:var(--group-block-bg);border-radius:8px;padding:10px;margin-bottom:15px;}
-        #app-list{list-style:none;padding:0;margin:0;}
-        #app-list li{margin-bottom:10px;padding:10px;background-color:var(--app-item-bg);border-radius:8px;position:relative;}
+        #app-list,#app-list ul{list-style:none;padding:0;margin:0;}
+        #app-list li{width:100%;box-sizing:border-box;margin-bottom:10px;padding:10px;background-color:var(--app-item-bg);border-radius:8px;position:relative;}
         #app-list a{color:var(--link-color);text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;}
         #app-list a:hover{color:var(--link-hover-color);}
         .sidebar-app-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -535,6 +535,11 @@
             .notification{bottom:20px;right:20px;left:20px;max-width:none;width:auto;}
         }
         #shared-files-list-container,#sessions-list-container,#users-content .users-table{-webkit-overflow-scrolling:touch;overflow-x:auto;}
+        #shared-files-table{width:100%;border-collapse:collapse;table-layout:auto;min-width:100%;}
+        @media (max-width: 768px) {
+            #shared-files-table{display: block; overflow-x: auto; white-space: nowrap;}
+            #shared-files-table th, #shared-files-table td{padding: 8px 12px; white-space: nowrap; min-width: 120px;}
+        }
         select{width:100%;padding:8px;border:1px solid var(--border-color);border-radius:4px;background-color:var(--modal-bg);color:var(--text-color);font-size:14px;cursor:pointer;appearance:none;-webkit-appearance:none;-moz-appearance:none;transition:border-color 0.3s,box-shadow 0.3s;}
         select:hover{border-color:var(--primary-color);}
         select:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 5px var(--primary-color);}
@@ -1537,10 +1542,9 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         </button>
         <?php endif; ?>
         <div id="app-grid">
-            <?php foreach($apps as $name=>$appData):?>
-                <?php $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
-                <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><div class="app-tile"><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div><div class="app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div></div></a>
-            <?php endforeach;?>
+            <?php $appKeys = array_keys($apps); $firstAppKey = reset($appKeys); foreach($apps as $name=>$appData): $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
+                <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><div class="app-tile" style="position: relative; overflow: visible;"><?php if ($name === $firstAppKey): ?><div style="position: absolute; top: 0px; right: -10px; background: var(--primary-color); color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; transform: rotate(15deg); box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 100; border: 2px solid white;">Popular</div><?php endif; ?><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div><div class="app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div></div></a>
+            <?php endforeach; ?>
         </div>
     <?php endif;?>
 </div>
