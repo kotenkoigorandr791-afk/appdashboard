@@ -123,6 +123,19 @@
         <h2 data-i18n="section7Title"></h2>
         <p data-i18n="section7Text"></p>
 
+        <h2 data-i18n="section8Title"></h2>
+        <p data-i18n="section8Text"></p>
+        <div class="feature-list">
+            <h3 data-i18n="section8Sub1"></h3>
+            <p data-i18n="section8Text1"></p>
+            <h3 data-i18n="section8Sub2"></h3>
+            <p data-i18n="section8Text2"></p>
+            <h3 data-i18n="section8Sub3"></h3>
+            <p data-i18n="section8Text3"></p>
+            <h3 data-i18n="section8Sub4"></h3>
+            <p data-i18n="section8Text4"></p>
+        </div>
+
         <p data-i18n="contactText"></p>
         <p><strong><a href="mailto:home260khersonserver@gmail.com">home260khersonserver@gmail.com</a></strong></p>
     </article>
@@ -159,6 +172,16 @@ const translations = {
         section6Text: "Google OAuth for alternative authentication. SMTP services for email verification and password recovery. No advertising trackers or analytics services used.",
         section7Title: "7. User rights and controls",
         section7Text: "Users can update profile information, change passwords, customize theme/color settings, manage own sessions. Root users control all accounts. Account deletion available (root cannot delete own account).",
+        section8Title: "8. Data Security and Encryption",
+        section8Text: "Shell App implements industry-standard security measures to protect user data at rest and in transit:",
+        section8Sub1: "Encryption in Transit",
+        section8Text1: "All data transmitted between the user's browser and the server is encrypted using TLS (Transport Layer Security) protocol. This ensures that login credentials, session tokens, personal information, and all communications are protected from interception during transmission.",
+        section8Sub2: "Password Hashing and Storage",
+        section8Text2: "User passwords are never stored in plaintext. All passwords are processed through strong one-way cryptographic hashing algorithms (bcrypt/Argon2) with unique salts, making them resistant to brute-force and rainbow table attacks.",
+        section8Sub3: "Session Security",
+        section8Text3: "Authentication tokens are generated using cryptographically secure random number generators. Session tokens are stored securely, expire after inactivity periods, and can be revoked at any time. Active session monitoring detects unauthorized access attempts.",
+        section8Sub4: "Data Isolation and Access Control",
+        section8Text4: "User data is isolated through role-based access control (RBAC). Root users have full administrative access, while guest users can only interact with permitted applications. Database access is restricted to authorized services only, with no direct user access to underlying storage.",
         contactText: "For data access, correction, deletion requests, or privacy questions, contact:",
         backHome: "Home"
     },
@@ -191,6 +214,16 @@ const translations = {
         section6Text: "Google OAuth для альтернативной авторизации. SMTP-сервисы для верификации email и восстановления пароля. Рекламные трекеры и аналитические сервисы не используются.",
         section7Title: "7. Права и возможности пользователей",
         section7Text: "Пользователи могут обновлять профиль, менять пароли, настраивать тему/цвета, управлять своими сессиями. Root-пользователи контролируют все аккаунты. Удаление аккаунта доступно (root не может удалить свой).",
+        section8Title: "8. Безопасность и шифрование данных",
+        section8Text: "Shell App реализует отраслевые стандарты безопасности для защиты данных пользователей при хранении и передаче:",
+        section8Sub1: "Шифрование при передаче",
+        section8Text1: "Все данные, передаваемые между браузером пользователя и сервером, шифруются с помощью протокола TLS (Transport Layer Security). Это обеспечивает защиту учётных данных для входа, токенов сессий, личной информации и всех коммуникаций от перехвата при передаче.",
+        section8Sub2: "Хеширование и хранение паролей",
+        section8Text2: "Пароли пользователей никогда не хранятся в открытом виде. Все пароли обрабатываются с помощью стойких односторонних криптографических алгоритмов хеширования (bcrypt/Argon2) с уникальными солями, что делает их устойчивыми к атакам методом перебора и радужных таблиц.",
+        section8Sub3: "Безопасность сессий",
+        section8Text3: "Токены авторизации генерируются с использованием криптографически стойких генераторов случайных чисел. Токены сессий хранятся безопасно, истекают после periods неактивности и могут быть отозваны в любой момент. Мониторинг активных сессий выявляет попытки несанкционированного доступа.",
+        section8Sub4: "Изоляция данных и контроль доступа",
+        section8Text4: "Данные пользователей изолированы с помощью контроля доступа на основе ролей (RBAC). Root-пользователи имеют полный административный доступ, тогда как гости взаимодействуют только с разрешёнными приложениями. Доступ к базе данных ограничен авторизованными сервисами, прямой доступ пользователей к хранилищу невозможен.",
         contactText: "Для запросов на доступ, исправление, удаление данных или вопросов конфиденциальности обращайтесь:",
         backHome: "← На главную"
     },
@@ -223,6 +256,16 @@ const translations = {
         section6Text: "Google OAuth, SMTP. Без реклами/аналітики.",
         section7Title: "7. Права користувачів",
         section7Text: "Профіль, пароль, тема, сесії. Root контролює все. Видалення акаунтів.",
+        section8Title: "8. Безпека та шифрування даних",
+        section8Text: "Shell App реалізує галузеві стандарти безпеки для захисту даних користувачів при зберіганні та передачі:",
+        section8Sub1: "Шифрування при передачі",
+        section8Text1: "Усі дані, що передаються між браузером користувача та сервером, шифруються за допомогою протоколу TLS (Transport Layer Security). Це забезпечує захист облікових даних для входу, токенів сесій, особистої інформації та всіх комунікацій від перехоплення при передачі.",
+        section8Sub2: "Хешування та зберігання паролів",
+        section8Text2: "Паролі користувачів ніколи не зберігаються у відкритому вигляді. Усі паролі обробляються за допомогою стійких однобічних криптографічних алгоритмів хешування (bcrypt/Argon2) з унікальними солями, що робить їх стійкими до атак методом перебору та веселкових таблиць.",
+        section8Sub3: "Безпека сесій",
+        section8Text3: "Токени авторизації генеруються з використанням криптографічно стійких генераторів випадкових чисел. Токени сесій зберігаються безпечно, закінчуються після періодів неактивності та можуть бути відкликані в будь-який момент. Моніторинг активних сесій виявляє спроби несанкціонованого доступу.",
+        section8Sub4: "Ізоляція даних та контроль доступу",
+        section8Text4: "Дані користувачів ізольовані за допомогою контролю доступу на основі ролей (RBAC). Root-користувачі мають повний адміністративний доступ, тоді як гості взаємодіють тільки з дозволеними додатками. Доступ до бази даних обмежений авторизованими сервісами, прямий доступ користувачів до сховища неможливий.",
         contactText: "Запити на доступ/видалення даних:",
         backHome: "← На головну"
     },
@@ -255,6 +298,16 @@ const translations = {
         section6Text: "Google OAuth, SMTP. Без рэкламы.",
         section7Title: "7. Правы карыстальнікаў",
         section7Text: "Профіль, пароль, тэма, сэсіі. Root кантралюе ўсё.",
+        section8Title: "8. Бяспека і шыфраванне даных",
+        section8Text: "Shell App рэалізуе галіновыя стандарты бяспекі для абароны даных карыстальнікаў пры захаванні і перадачы:",
+        section8Sub1: "Шыфраванне пры перадачы",
+        section8Text1: "Усе даныя, якія перадаюцца паміж браўзэрам карыстальніка і серверам, шыфруюцца з дапамогай пратаколу TLS (Transport Layer Security). Гэта забяспечвае абарону ўліковых дадзеных для ўваходу, токенаў сэсій, асабістай інфармацыі і ўсіх камунікацый ад перахопу пры перадачы.",
+        section8Sub2: "Хэшаванне і захаванне пароляў",
+        section8Text2: "Паролі карыстальнікаў ніколі не захоўваюцца ў адкрытым выглядзе. Усе паролі апрацоўваюцца з дапамогай ўстойлівых аднабаковых крыптаграфічных алгарытмаў хэшавання (bcrypt/Argon2) з унікальнымі салямі, што робіць іх устойлівымі да атак метадам перабору і вясёлкавых табліц.",
+        section8Sub3: "Бяспека сэсій",
+        section8Text3: "Токены аўтарызацыі генеруюцца з выкарыстаннем крыптаграфічна ўстойлівых генератараў выпадковых лікаў. Токены сэсій захоўваюцца бяспечна, сканчваюцца пасля перыядаў неактыўнасці і могуць быць адкліканы ў любы момант. Маніторынг актыўных сэсій выяўляе спробы несанкцыянаванага доступу.",
+        section8Sub4: "Ізаляцыя даных і кантроль доступу",
+        section8Text4: "Даныя карыстальнікаў ізаляваныя з дапамогай кантролю доступу на аснове роляў (RBAC). Root-карыстальнікі маюць поўны адміністратыўны доступ, у той час як госці ўзаемадзейнічаюць толькі з дазволенымі праграмамі. Доступ да базы даных абмежаваны аўтарызаванымі сэрвісамі, прамы доступ карыстальнікаў да сховішча немагчымы.",
         contactText: "Запрасы па дадзеных:",
         backHome: "← На галоўную"
     }
@@ -411,7 +464,7 @@ backHomeBtn.addEventListener("click", () => {
     const lang = getInitialLanguage(urlParams.lang);
     const theme = getInitialTheme(urlParams.theme);
     const color = getInitialColor(urlParams.color);
-    window.location.href = `/home.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+    window.location.href = '/';
 });
 
 loadSettings();
