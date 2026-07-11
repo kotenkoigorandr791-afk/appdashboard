@@ -2735,7 +2735,7 @@ var T=<?php echo json_encode([
                 rows += `<tr data-filename="${fname}" data-filepath="${url}" data-shareid="${shareId}" style="border-bottom:1px solid var(--border-color);">
                     <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><label style="display:flex;gap:8px;align-items:center;"><input class="sf-row-check" type="checkbox" value="${shareId}"><span>${shareId.substring(0,10)}…${userName}</span></label></td>
                     <td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fname||'<em style=\"opacity:.4\">—</em>'}</td>
-                    <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="${url}">${pathDisplay}</td>
+                    <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="${url}"><span style="display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;">${pathDisplay}</span></td>
                     <td style="padding:8px 10px;white-space:normal;">
                         ${buildShareExpirySelect(expiresOption, shareId)}
                         <div style="margin-top:6px;font-size:11px;opacity:.7;">${expiresAt}</div>

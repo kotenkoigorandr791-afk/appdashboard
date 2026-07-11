@@ -258,7 +258,13 @@
     fetch('/main?api=news&action=list')
       .then(r => r.json())
       .then(data => {
-        if (!data.ok) return;
+        if (!data.ok) {
+          if (isNewsRoute) {
+            visibleNewsItems = [];
+            showNewsSection();
+          }
+          return;
+        }
         newsItems = data.items || [];
         if (isNewsRoute) {
           visibleNewsItems = newsItems;
@@ -270,7 +276,12 @@
         }
         checkTodayToast();
       })
-      .catch(() => {});
+      .catch(() => {
+        if (isNewsRoute) {
+          visibleNewsItems = [];
+          showNewsSection();
+        }
+      });
   }
 
   function showNewsSection() {
