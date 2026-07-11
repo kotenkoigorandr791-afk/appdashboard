@@ -4945,7 +4945,7 @@ var monacoInjected = false;
 
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
-var OMNIROUTE_URL='/omniroute-bridge';
+var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function loadOmniRouteIframe(){
     var frame=document.getElementById('ap-omniroute-frame');
     if(!frame) return;
