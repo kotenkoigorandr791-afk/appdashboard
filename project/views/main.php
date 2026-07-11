@@ -272,6 +272,29 @@
         .flag-by { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600"><rect width="900" height="200" fill="%23d52b1e"/><rect y="200" width="900" height="200" fill="%23ffffff"/><rect y="400" width="900" height="200" fill="%234281c1"/></svg>'); }
         .flag-pl { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 6"><rect fill="%23fff" width="9" height="6"/><rect fill="%23dc143c" y="3" width="9" height="3"/></svg>'); }
         .flag-cz { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect fill="%23ffffff" width="30" height="20"/><rect fill="%23d7141a" y="10" width="30" height="10"/><polygon points="0,0 15,10 0,20" fill="%2311457e"/></svg>'); }
+        .custom-select-wrap{position:relative;flex:0 0 200px;max-width:200px;height:32px;}
+        .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);cursor:pointer;user-select:none;height:32px;box-sizing:border-box;font-size:14px;line-height:1.2;}
+        .custom-select-trigger:hover{border-color:var(--primary-color);}
+        .custom-select-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+        .custom-select-arrow{flex-shrink:0;opacity:.6;transition:transform .2s;}
+        .custom-select-wrap.open .custom-select-arrow{transform:rotate(180deg);}
+        .custom-select-dropdown{display:none;position:fixed;background:var(--modal-bg);border:1px solid var(--border-color);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:10003;overflow:hidden;min-width:160px;}
+        .custom-select-wrap.open .custom-select-dropdown{display:block;}
+        .custom-select-option{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;cursor:pointer;font-size:13px;transition:background .15s;}
+        .custom-select-option span:first-child{min-width:0;}
+        .custom-select-option:hover{background:var(--group-block-bg);}
+        .custom-select-option.active{color:var(--primary-color);font-weight:600;}
+        .custom-select-badge{display:inline-block;padding:1px 6px;margin-left:6px;background:var(--primary-color);color:#fff;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;}
+        .custom-select-flag{width:20px;height:15px;display:inline-block;background-size:cover;background-position:center;border-radius:2px;flex-shrink:0;}
+        .custom-select-flag.flag-ru{position:relative;overflow:hidden;}
+        .custom-select-flag.flag-ru::after{content:"";position:absolute;left:-3px;top:6px;width:26px;height:3px;background:#111;border:1px solid #fff;transform:rotate(-35deg);transform-origin:center;box-sizing:border-box;}
+        #icon-sort-dropdown .custom-select-option{white-space:nowrap;}
+        .settings-table{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;align-items:start;align-content:start;gap:1px;width:100%;height:auto;margin-bottom:15px;border:1px solid var(--border-color);border-radius:8px;background:var(--border-color);position:relative;overflow:visible;}
+        .settings-table-cell{display:flex;align-self:start;box-sizing:border-box;flex-direction:column;gap:4px;height:auto;min-height:0;padding:6px 8px;background:var(--modal-bg);overflow:visible;}
+        .settings-table-cell label{font-weight:bold;font-size:13px;text-align:left;line-height:1.3;}
+        .settings-table-cell .custom-select-wrap{width:100%;max-width:none;flex:none;align-self:stretch;}
+        .settings-table-cell input[type="color"]{width:100%;height:32px;padding:2px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);cursor:pointer;box-sizing:border-box;}
+        .policy-link-icon{width:16px;height:16px;vertical-align:-3px;margin-right:4px;stroke:currentColor;}
         #stats-content{background:var(--modal-bg);padding:60px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;height:85vh;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto;margin:2% auto;z-index:10001;}
         #stats-nav-box{border:1px solid var(--border-color);border-radius:12px;padding:15px;margin-bottom:20px;background:var(--group-block-bg);flex-shrink:0;}
         .stats-nav-buttons{display:flex;flex-direction:column;gap:15px;justify-content:center;align-items:center;}
@@ -422,7 +445,7 @@
         .copy-link-btn{margin-top:15px;background:var(--primary-color);color:white;border:none;padding:10px 20px;border-radius:25px;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600;transition:all 0.3s ease;}
         .copy-link-btn:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.2);}
         @keyframes shimmer{0%{transform:translateX(-100%) translateY(-100%) rotate(45deg);}100%{transform:translateX(100%) translateY(100%) rotate(45deg);}}
-        .policy-links{display:flex;justify-content:center;align-items:center;gap:15px;margin-top:20px;padding-top:20px;border-top:1px solid var(--border-color);text-align:center;width:100%;}
+        .policy-links{display:flex;justify-content:center;align-items:center;gap:15px;margin-top:20px;padding-top:20px;padding-bottom:20px;border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);text-align:center;width:100%;}
         .policy-link{color:var(--primary-color);text-decoration:none;font-size:14px;transition:opacity 0.3s;}
         .policy-link:hover{opacity:0.8;text-decoration:underline;}
         .policy-dot{color:var(--border-color);font-size:8px;width:4px;height:4px;background:currentColor;border-radius:50%;}
@@ -515,6 +538,7 @@
             .shared-files-actions select{width:100%;}
             .terminate-btn,.delete-user-btn{padding:4px 8px;font-size:11px;}
             #settings-form,#auth-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            .settings-table{grid-template-columns:1fr;}
             #stats-content{width:95%;height:90vh;padding:50px 10px 10px 10px;margin:5% auto;}
             .stats-nav-buttons{gap:10px;}
             .stats-nav-btn{padding:8px 12px;font-size:12px;}
@@ -1395,34 +1419,69 @@ endif; // showOtpPage
     <form id="settings-form" method="post" action="/main">
         <button id="close-settings" type="button">&times;</button>
         <h2><?php echo my_htmlspecialchars($translations['settings_title']); ?></h2>
-        <div class="form-row">
-            <label><?php echo my_htmlspecialchars($translations['language']); ?>:</label>
-            <select name="language">
-                <option value="en" <?php echo $config['language']==='en'?'selected':'';?>>English <span class="flag flag-gb"></span></option>
-                <option value="ru" <?php echo $config['language']==='ru'?'selected':'';?>>Русский</option>
-                <option value="uk" <?php echo $config['language']==='uk'?'selected':'';?>>Українська <span class="flag flag-ua"></span></option>
-                <option value="be" <?php echo $config['language']==='be'?'selected':'';?>>Беларуская <span class="flag flag-by"></span></option>
-                <option value="pl" <?php echo $config['language']==='pl'?'selected':'';?>>Polski <span class="flag flag-pl"></span></option>
-                <option value="cs" <?php echo $config['language']==='cs'?'selected':'';?>>Čeština <span class="flag flag-cz"></span></option>
-            </select>
-        </div>
-        <div class="form-row">
-            <label><?php echo my_htmlspecialchars($translations['theme']); ?>:</label>
-            <select name="theme">
-                <option value="light" <?php echo $savedTheme==='light'?'selected':''; ?>><?php echo my_htmlspecialchars($translations['theme_light']); ?></option>
-                <option value="dark"  <?php echo $savedTheme==='dark'?'selected':''; ?>><?php echo my_htmlspecialchars($translations['theme_dark']); ?></option>
-                <option value="auto"  <?php echo $savedTheme==='auto'?'selected':''; ?>><?php echo my_htmlspecialchars($translations['theme_auto']); ?></option>
-            </select>
-        </div>
-        <div class="form-row">
-            <label><?php echo my_htmlspecialchars($translations['color']); ?>:</label>
-            <input type="color" name="color" value="<?php echo my_htmlspecialchars($config['color']); ?>">
+        <div class="settings-table">
+                <div class="settings-table-cell">
+                    <label><?php echo my_htmlspecialchars($translations['language']); ?>:</label>
+                    <div class="custom-select-wrap" id="lang-select-wrap">
+                        <input type="hidden" name="language" id="lang-input" value="<?php echo my_htmlspecialchars($config['language']); ?>">
+                        <div class="custom-select-trigger" id="lang-trigger">
+                            <span class="custom-select-text"></span>
+                            <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="custom-select-dropdown" id="lang-dropdown">
+                            <div class="custom-select-option" data-value="en"><span class="custom-select-flag flag flag-gb"></span><span>English</span></div>
+                            <div class="custom-select-option" data-value="ru"><span class="custom-select-flag flag flag-ru"></span><span>Русский</span></div>
+                            <div class="custom-select-option" data-value="uk"><span class="custom-select-flag flag flag-ua"></span><span>Українська</span></div>
+                            <div class="custom-select-option" data-value="be"><span class="custom-select-flag flag flag-by"></span><span>Беларуская</span></div>
+                            <div class="custom-select-option" data-value="pl"><span class="custom-select-flag flag flag-pl"></span><span>Polski</span></div>
+                            <div class="custom-select-option" data-value="cs"><span class="custom-select-flag flag flag-cz"></span><span>Čeština</span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-table-cell">
+                    <label><?php echo my_htmlspecialchars($translations['theme']); ?>:</label>
+                    <div class="custom-select-wrap" id="theme-select-wrap">
+                        <input type="hidden" name="theme" id="theme-input" value="<?php echo my_htmlspecialchars($savedTheme); ?>">
+                        <div class="custom-select-trigger" id="theme-trigger">
+                            <span class="custom-select-text"></span>
+                            <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="custom-select-dropdown" id="theme-dropdown">
+                            <div class="custom-select-option" data-value="light"><span><?php echo my_htmlspecialchars($translations['theme_light']); ?></span></div>
+                            <div class="custom-select-option" data-value="dark"><span><?php echo my_htmlspecialchars($translations['theme_dark']); ?></span></div>
+                            <div class="custom-select-option" data-value="auto"><span><?php echo my_htmlspecialchars($translations['theme_auto']); ?></span></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-table-cell">
+                    <label><?php echo my_htmlspecialchars($translations['icon_sort']); ?>:</label>
+                    <div class="custom-select-wrap" id="icon-sort-select-wrap">
+                        <input type="hidden" name="icon_sort_order" id="icon-sort-input" value="<?php echo my_htmlspecialchars($savedIconSortOrder); ?>">
+                        <div class="custom-select-trigger" id="icon-sort-trigger">
+                            <span class="custom-select-text"></span>
+                            <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                        </div>
+                        <div class="custom-select-dropdown" id="icon-sort-dropdown">
+                            <div class="custom-select-option" data-value="alpha">
+                                <span><?php echo my_htmlspecialchars($translations['icon_sort_alpha']); ?></span>
+                                <span class="custom-select-badge"><?php echo my_htmlspecialchars($translations['icon_sort_recommended']); ?></span>
+                            </div>
+                            <div class="custom-select-option" data-value="popularity">
+                                <span><?php echo my_htmlspecialchars($translations['icon_sort_popular']); ?></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-table-cell">
+                    <label><?php echo my_htmlspecialchars($translations['color']); ?>:</label>
+                    <input type="color" name="color" value="<?php echo my_htmlspecialchars($config['color']); ?>">
+                </div>
         </div>
 
         <div class="policy-links">
-            <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
+            <a href="/terms?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
             <span class="policy-dot"></span>
-            <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
+            <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
         </div>
         <div class="settings-buttons-box">
             <?php if(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 1): ?>
@@ -1542,8 +1601,8 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         </button>
         <?php endif; ?>
         <div id="app-grid">
-            <?php $appKeys = array_keys($apps); $firstAppKey = reset($appKeys); foreach($apps as $name=>$appData): $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
-                <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><div class="app-tile" style="position: relative; overflow: visible;"><?php if ($name === $firstAppKey): ?><div style="position: absolute; top: 0px; right: -10px; background: var(--primary-color); color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; transform: rotate(15deg); box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 100; border: 2px solid white;">Popular</div><?php endif; ?><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div><div class="app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div></div></a>
+            <?php $mostPopularKey=''; $maxVisits=-1; foreach($apps as $n=>$d){if($d['visits']>$maxVisits){$maxVisits=$d['visits'];$mostPopularKey=$n;}} foreach($apps as $name=>$appData): $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
+                <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><div class="app-tile" style="position: relative; overflow: visible;"><?php if ($name === $mostPopularKey): ?><div style="position: absolute; top: 0px; right: -10px; background: var(--primary-color); color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; transform: rotate(15deg); box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 100; border: 2px solid white;">Popular</div><?php endif; ?><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div><div class="app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div></div></a>
             <?php endforeach; ?>
         </div>
     <?php endif;?>
@@ -1587,7 +1646,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
                         Delete Chat
                     </button>
                     <?php endif; ?>
-                    <button id="close-chat-modal" style="background:rgba(255,255,255,0.1);border:none;font-size:28px;cursor:pointer;color:var(--text-color);padding:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,0,0,0.2)';this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';this.style.transform='rotate(0deg)';">&times;</button>
+                    <button id="close-chat-modal" class="ap-close-btn-style">&times;</button>
                 </div>
             </div>
 
@@ -2873,7 +2932,7 @@ var T=<?php echo json_encode([
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();if(typeof QRCode==='undefined'){qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_library_not_loaded+'</p><p>'+T.qr_refresh_page+'</p></div>';return;}qrCodeElement.innerHTML='';try{const tempContainer=document.createElement('div');const qr=new QRCode(tempContainer,{text:domain,width:256,height:256,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});setTimeout(()=>{const canvas=tempContainer.querySelector('canvas');if(canvas){qrCodeElement.innerHTML='';qrCodeElement.appendChild(canvas);canvas.style.display='block';canvas.style.margin='0 auto';canvas.style.borderRadius='12px';canvas.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';}else{qrCodeElement.innerHTML='<p style="color: red; text-align: center;">'+T.qr_generation_failed+'</p>';}},100);}catch(error){console.error('QR Code error:',error);qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';}}});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np)np.classList.remove('active');}
+        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -3503,6 +3562,55 @@ var T=<?php echo json_encode([
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
         if(settingsModal){settingsModal.addEventListener('click',(e)=>{if(e.target===settingsModal){settingsModal.style.display='none';}});}
+        (function(){
+            function initCustomSelect(wrapId,inputId){
+                var wrap=document.getElementById(wrapId);
+                var input=document.getElementById(inputId);
+                if(!wrap||!input)return;
+                var trigger=wrap.querySelector('.custom-select-trigger');
+                var dropdown=wrap.querySelector('.custom-select-dropdown');
+                if(!trigger||!dropdown)return;
+                var options=dropdown.querySelectorAll('.custom-select-option');
+                function updateText(){
+                    var val=input.value;
+                    var txt='';
+                    options.forEach(function(o){
+                        if(o.getAttribute('data-value')===val){
+                            txt=o.querySelector('span:last-child')?o.querySelector('span:last-child').textContent:o.querySelector('span').textContent;
+                            o.classList.add('active');
+                        }else{
+                            o.classList.remove('active');
+                        }
+                    });
+                    trigger.querySelector('.custom-select-text').textContent=txt;
+                }
+                function positionDropdown(){
+                    var r=trigger.getBoundingClientRect();
+                    dropdown.style.left=r.left+'px';
+                    dropdown.style.top=(r.bottom+4)+'px';
+                    dropdown.style.width=r.width+'px';
+                    if(dropdown.id==='icon-sort-dropdown'){
+                        dropdown.style.width='max-content';
+                        var w=Math.min(Math.max(r.width,dropdown.scrollWidth+2),window.innerWidth-r.left-12);
+                        dropdown.style.width=w+'px';
+                    }
+                }
+                updateText();
+                trigger.addEventListener('click',function(e){e.stopPropagation();
+                    document.querySelectorAll('.custom-select-wrap.open').forEach(function(w){if(w!==wrap)w.classList.remove('open');});
+                    var opening=!wrap.classList.contains('open');
+                    wrap.classList.toggle('open');
+                    if(opening)positionDropdown();
+                });
+                options.forEach(function(opt){opt.addEventListener('click',function(){input.value=opt.getAttribute('data-value');updateText();wrap.classList.remove('open');});});
+            }
+            initCustomSelect('lang-select-wrap','lang-input');
+            initCustomSelect('theme-select-wrap','theme-input');
+            initCustomSelect('icon-sort-select-wrap','icon-sort-input');
+            document.addEventListener('click',function(e){
+                document.querySelectorAll('.custom-select-wrap.open').forEach(function(w){if(!w.contains(e.target))w.classList.remove('open');});
+            });
+        })();
         if(shortcutsHelpButton){shortcutsHelpButton.addEventListener('click',()=>{if(shortcutsModal){shortcutsModal.style.display='flex';}});}
         if(closeShortcuts){closeShortcuts.addEventListener('click',()=>{if(shortcutsModal)shortcutsModal.style.display='none';});}
         if(shortcutsModal){shortcutsModal.addEventListener('click',(e)=>{if(e.target===shortcutsModal){shortcutsModal.style.display='none';}});}
@@ -3857,6 +3965,7 @@ var T=<?php echo json_encode([
     text-transform: uppercase;
 }
 /* Close button — icon-only circle */
+.ap-close-btn-style,
 #ap-close-btn {
     width: 36px;
     height: 36px;
@@ -3873,6 +3982,7 @@ var T=<?php echo json_encode([
     transition: all .2s;
     padding: 0;
 }
+.ap-close-btn-style:hover,
 #ap-close-btn:hover {
     background: color-mix(in srgb, #f85149 15%, transparent);
     color: #f85149;
@@ -8751,6 +8861,8 @@ function copyOtpLink(){
             }
             syncAdminMobileLayout();
             loadChatList();
+        } else if (hash === '#news-workflow') {
+            if (typeof window.openNewsPortal === 'function') window.openNewsPortal();
         } else if (hash !== '#support-chat') {
             chatModal.style.display = 'none';
             stopPolling();

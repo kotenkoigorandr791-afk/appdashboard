@@ -122,6 +122,17 @@
         <h2 data-i18n="section7Title"></h2>
         <p data-i18n="section7Text"></p>
 
+        <h2 data-i18n="section8Title"></h2>
+        <p data-i18n="section8Text"></p>
+        <div class="feature-list">
+            <h3 data-i18n="section8Sub1"></h3>
+            <p data-i18n="section8Text1"></p>
+            <h3 data-i18n="section8Sub2"></h3>
+            <p data-i18n="section8Text2"></p>
+            <h3 data-i18n="section8Sub3"></h3>
+            <p data-i18n="section8Text3"></p>
+        </div>
+
         <p data-i18n="contactText"></p>
         <p><strong><a href="mailto:home260khersonserver@gmail.com">home260khersonserver@gmail.com</a></strong></p>
     </article>
@@ -155,6 +166,14 @@ const translations = {
         section6Text: "Root users configure domain settings, SMTP email servers, Google OAuth credentials. Service provided 'as is' with no warranty for uptime or third-party service availability.",
         section7Title: "7. Prohibited Activities",
         section7Text: "Prohibited: attempting to bypass role restrictions, sharing credentials, uploading malicious content, excessive resource usage, interfering with other users' sessions or data.",
+        section8Title: "8. Data Security and Encryption Commitments",
+        section8Text: "Shell App is committed to protecting user data through robust security practices and encryption:",
+        section8Sub1: "Encrypted Data Transmission",
+        section8Text1: "All communication between users and the platform is encrypted using TLS (Transport Layer Security). User credentials, session tokens, personal data, and all sensitive information are protected against interception and man-in-the-middle attacks during transmission.",
+        section8Sub2: "Secure Password Storage",
+        section8Text2: "Passwords are stored using strong cryptographic hashing algorithms (bcrypt/Argon2) with unique salts. Plaintext passwords are never stored, logged, or transmitted in recoverable form. Password reset flows use time-limited, single-use tokens.",
+        section8Sub3: "Infrastructure Security",
+        section8Text3: "Server infrastructure follows security best practices including regular security updates, firewall protection, intrusion detection, access logging, and encrypted database backups. User data at rest is protected through database-level encryption and access controls.",
         contactText: "Contact for account issues, service questions, or Terms clarification:",
         backHome: "← Home"
     },
@@ -184,6 +203,14 @@ const translations = {
         section6Text: "Root-пользователи настраивают доменные настройки, SMTP email-серверы, учетные данные Google OAuth. Сервис предоставляется 'как есть' без гарантий доступности.",
         section7Title: "7. Запрещенные действия",
         section7Text: "Запрещено: попытки обхода ограничений ролей, передача учетных данных, загрузка вредоносного контента, чрезмерное использование ресурсов, вмешательство в сессии других пользователей.",
+        section8Title: "8. Обязательства по безопасности и шифрованию данных",
+        section8Text: "Shell App берёт на себя обязательства по защите данных пользователей путём внедрения надёжных методов безопасности и шифрования:",
+        section8Sub1: "Шифрование передаваемых данных",
+        section8Text1: "Все коммуникации между пользователями и платформой шифруются с помощью протокола TLS (Transport Layer Security). Учётные данные для входа, токены сессий, личная информация и вся конфиденциальная данные защищены от перехвата и атак типа «человек посередине» при передаче.",
+        section8Sub2: "Безопасное хранение паролей",
+        section8Text2: "Пароли хранятся с использованием стойких криптографических алгоритмов хеширования (bcrypt/Argon2) с уникальными солями. Пароли в открытом виде никогда не хранятся, не логируются и не передаются в восстанавливаемом виде. Процедуры сброса пароля используют одноразовые токены с ограничением по времени.",
+        section8Sub3: "Безопасность инфраструктуры",
+        section8Text3: "Серверная инфраструктура соответствует лучшим практикам безопасности, включая регулярные обновления, защиту файрволом, обнаружение вторжений, журналирование доступа и шифрование резервных копий базы данных. Данные пользователей в состоянии покоя защищаются шифрованием на уровне базы данных и контролем доступа.",
         contactText: "Обращайтесь по вопросам аккаунта, сервиса или разъяснениям Условий:",
         backHome: "← На главную"
     },
@@ -213,6 +240,14 @@ const translations = {
         section6Text: "Root: домен, SMTP, OAuth. 'Як є'.",
         section7Title: "7. Заборонено",
         section7Text: "Обхід ролей, шкідливий контент, надмірне навантаження.",
+        section8Title: "8. Зобов'язання щодо безпеки та шифрування даних",
+        section8Text: "Shell App зобов'язується захищати дані користувачів шляхом впровадження надійних методів безпеки та шифрування:",
+        section8Sub1: "Шифрування даних при передачі",
+        section8Text1: "Усі комунікації між користувачами та платформою шифруються за допомогою протоколу TLS (Transport Layer Security). Облікові дані для входу, токени сесій, особиста інформація та всі конфіденційні дані захищені від перехоплення та атак типу «людина посередині» при передачі.",
+        section8Sub2: "Безпечне зберігання паролів",
+        section8Text2: "Паролі зберігаються з використанням стійких криптографічних алгоритмів хешування (bcrypt/Argon2) з унікальними солями. Паролі у відкритому вигляді ніколи не зберігаються, не логуються і не передаються у відновлюваному вигляді. Процедури скидання пароля використовують одноразові токени з обмеженням по часу.",
+        section8Sub3: "Безпека інфраструктури",
+        section8Text3: "Серверна інфраструктура відповідає найкращим практикам безпеки, включаючи регулярні оновлення, захист файрволом, виявлення вторгнень, журналізування доступу та шифрування резервних копій бази даних. Дані користувачів у стані спокою захищені шифруванням на рівні бази даних та контролем доступу.",
         contactText: "Питання аккаунту/сервісу:",
         backHome: "← На головну"
     },
@@ -242,6 +277,14 @@ const translations = {
         section6Text: "Root: дамен, SMTP, OAuth. 'Як ёсць'.",
         section7Title: "7. Забаронена",
         section7Text: "Абход роляў, шкодны кантэнт, перанагрузка.",
+        section8Title: "8. Абавязанні па бяспецы і шыфраванні даных",
+        section8Text: "Shell App бярэ на сябе абавязанні па абароне даных карыстальнікаў шляхам укаранення надзейных метадаў бяспекі і шыфравання:",
+        section8Sub1: "Шыфраванне даных пры перадачы",
+        section8Text1: "Усе камунікацыі паміж карыстальнікамі і платформай шыфруюцца з дапамогай пратаколу TLS (Transport Layer Security). Уліковыя дадзеныя для ўваходу, токены сэсій, асабістая інфармацыя і ўсе канфідэнцыйныя даныя абаронены ад перахопу і атак тыпу «чалавек пасяродзін» пры перадачы.",
+        section8Sub2: "Бяспечнае захаванне пароляў",
+        section8Text2: "Паролі захоўваюцца з выкарыстаннем ўстойлівых крыптаграфічных алгарытмаў хэшавання (bcrypt/Argon2) з унікальнымі салямі. Паролі ў адкрытым выглядзе ніколі не захоўваюцца, не лагуюцца і не перадаюцца ў аднаўляльным выглядзе. Працэдуры скіду пароля выкарыстоўваюць аднаразовыя токены з абмежаваннем па часе.",
+        section8Sub3: "Бяспека інфраструктуры",
+        section8Text3: "Серверная інфраструктура адпавядае лепшым практыкам бяспекі, уключаючы рэгулярныя абнаўленні, абарону файрволам, выяўленне ўварванняў, журналізацыю доступу і шыфраванне рэзервовых копій базы даных. Даныя карыстальнікаў у стане спакою абароненыя шыфраваннем на ўзроўні базы даных і кантролем доступу.",
         contactText: "Пытанні па ўліку/сэрвісе:",
         backHome: "← На галоўную"
     }
@@ -391,7 +434,7 @@ backHomeBtn.addEventListener("click", () => {
     const lang = getInitialLanguage(urlParams.lang);
     const theme = getInitialTheme(urlParams.theme);
     const color = getInitialColor(urlParams.color);
-    window.location.href = `/home.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+    window.location.href = '/';
 });
 
 loadSettings();

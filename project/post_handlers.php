@@ -590,6 +590,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $newLanguage=$_POST['language'];
     $newTheme=$_POST['theme'];
     $newColor=ap_sanitize_hex_color((string)($_POST['color'] ?? ''));
+    $newIconSortOrder=in_array(($_POST['icon_sort_order']??''),['alpha','popularity'],true)?$_POST['icon_sort_order']:'alpha';
     if(isset($_SESSION['user']['email'])){
         $userEmail=$_SESSION['user']['email'];
         $users=loadUsers();
@@ -597,13 +598,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $users[$userEmail]['language']=$newLanguage;
             $users[$userEmail]['theme']=$newTheme;
             $users[$userEmail]['color']=$newColor;
+            $users[$userEmail]['icon_sort_order']=$newIconSortOrder;
             saveUsers($users);
             $_SESSION['user']['language']=$newLanguage;
             $_SESSION['user']['theme']=$newTheme;
             $_SESSION['user']['color']=$newColor;
+            $_SESSION['user']['icon_sort_order']=$newIconSortOrder;
             $config['language']=$newLanguage;
             $config['theme']=$newTheme;
             $config['color']=$newColor;
+            $config['icon_sort_order']=$newIconSortOrder;
             $language=$newLanguage;
             $translations=$allTranslations[$language]??[];
             $translations=array_map(fn($v)=>$v??'',array_merge($defaultTranslations,$translations));

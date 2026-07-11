@@ -12,8 +12,8 @@ let originalPhoto = '';
 
 // Load AI models from server config
 async function loadAiModels() {
-    const modelSelect = document.getElementById('npo-ai-model');
-    if (!modelSelect) return;
+    const modelSelects = document.querySelectorAll('#npo-ai-model, #npo-settings-ai-model');
+    if (!modelSelects.length) return;
     
     try {
         const response = await fetch('/main?api=cloud_ai_config');
@@ -21,14 +21,15 @@ async function loadAiModels() {
         const models = data.config?.models || [];
         const savedModel = localStorage.getItem('ai_model_news_ai');
         
-        modelSelect.innerHTML = '<option value="">-- Select Model --</option>';
-        
-        models.forEach(model => {
-            const option = document.createElement('option');
-            option.value = model;
-            option.textContent = model;
-            if (savedModel === model) option.selected = true;
-            modelSelect.appendChild(option);
+        modelSelects.forEach(modelSelect => {
+            modelSelect.innerHTML = '<option value="">-- Select Model --</option>';
+            models.forEach(model => {
+                const option = document.createElement('option');
+                option.value = model;
+                option.textContent = model;
+                if (savedModel === model) option.selected = true;
+                modelSelect.appendChild(option);
+            });
         });
     } catch (error) {
         console.error('Failed to load AI models:', error);
@@ -37,12 +38,16 @@ async function loadAiModels() {
 
 // Save selected model
 function saveSelectedModel() {
-    const modelSelect = document.getElementById('npo-ai-model');
-    if (!modelSelect) return;
-    
-    modelSelect.addEventListener('change', () => {
-        localStorage.setItem('ai_model_news_ai', modelSelect.value);
-        markAsChanged();
+    document.querySelectorAll('#npo-ai-model, #npo-settings-ai-model').forEach(modelSelect => {
+        if (modelSelect.dataset.bound === '1') return;
+        modelSelect.dataset.bound = '1';
+        modelSelect.addEventListener('change', () => {
+            localStorage.setItem('ai_model_news_ai', modelSelect.value);
+            document.querySelectorAll('#npo-ai-model, #npo-settings-ai-model').forEach(sel => {
+                if (sel !== modelSelect) sel.value = modelSelect.value;
+            });
+            markAsChanged();
+        });
     });
 }
 
@@ -51,6 +56,7 @@ async function generateWithAi() {
     const prompt = document.getElementById('npo-ai-prompt').value.trim();
     const modelSelect = document.getElementById('npo-ai-model');
     const selectedModel = modelSelect ? modelSelect.value : '';
+    const systemPrompt = document.getElementById('npo-system-prompt')?.value.trim() || '';
     const statusEl = document.getElementById('npo-ai-status');
     const currentTitle = document.getElementById('npo-edit-title').value.trim();
     const currentBody = document.getElementById('npo-edit-body').value.trim();
@@ -66,11 +72,12 @@ async function generateWithAi() {
         const requestData = {
             prompt,
             model: selectedModel,
+            system_prompt: systemPrompt,
             current_title: currentTitle,
             current_body: currentBody
         };
         
-        const response = await fetch('/news?api=news&action=ai_generate', {
+        const response = await fetch('/main?api=news&action=ai_generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -102,7 +109,7 @@ function resetChanges() {
     hasChanges = false;
     originalTitle = document.getElementById('npo-edit-title').value.trim();
     originalBody = document.getElementById('npo-edit-body').value.trim();
-    originalPhoto = document.getElementById('npo-edit-photo').value.trim();
+    originalPhoto = document.getElementById('npo-photo-url')?.value.trim() || '';
     
     const saveBtn = document.getElementById('npo-save-btn');
     if (saveBtn) saveBtn.style.display = 'none';
@@ -112,7 +119,7 @@ function resetChanges() {
 function checkChanges() {
     const currentTitle = document.getElementById('npo-edit-title').value.trim();
     const currentBody = document.getElementById('npo-edit-body').value.trim();
-    const currentPhoto = document.getElementById('npo-edit-photo').value.trim();
+    const currentPhoto = document.getElementById('npo-photo-url')?.value.trim() || '';
     
     if (currentTitle !== originalTitle || currentBody !== originalBody || currentPhoto !== originalPhoto) {
         markAsChanged();
@@ -123,7 +130,7 @@ function checkChanges() {
 function initNewsEditor() {
     const titleEl = document.getElementById('npo-edit-title');
     const bodyEl = document.getElementById('npo-edit-body');
-    const photoEl = document.getElementById('npo-edit-photo');
+    const photoEl = document.getElementById('npo-photo-url');
     const saveBtn = document.getElementById('npo-save-btn');
     
     if (!titleEl || !bodyEl || !saveBtn) {
@@ -169,16 +176,26 @@ window.addEventListener('newsPortalOpened', initializeNewsPortal);
 #news-portal-overlay.active{display:flex;}
 /* Header */
 #npo-header{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border-color);background:var(--group-block-bg);flex-shrink:0;height:56px;}
-#npo-back{display:flex;align-items:center;gap:8px;padding:0 20px;height:100%;border:none;background:none;color:var(--text-color);font-size:14px;font-weight:600;cursor:pointer;border-right:1px solid var(--border-color);transition:background .15s;white-space:nowrap;}
-#npo-back:hover{background:var(--app-item-bg);}
-#npo-back svg{opacity:.7;}
 #npo-title{padding:0 20px;font-size:17px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#npo-header-actions{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:16px;}
 #npo-tabs{display:flex;height:100%;gap:0;}
 .npo-tab{height:100%;padding:0 22px;border:none;background:none;color:var(--text-color);font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;opacity:.6;transition:opacity .15s,border-color .15s;white-space:nowrap;}
 .npo-tab:hover{opacity:.85;}
 .npo-tab.active{opacity:1;border-bottom-color:var(--primary-color,#38bdf8);}
-#npo-add-btn{display:flex;align-items:center;gap:7px;margin:0 16px;padding:8px 18px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
+#npo-add-btn{display:flex;align-items:center;gap:7px;margin:0 12px 0 16px;padding:8px 18px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
 #npo-add-btn:hover{opacity:.88;}
+#npo-settings-btn{width:34px;height:34px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
+#npo-settings-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
+#npo-settings-popover{display:none;position:absolute;right:58px;top:48px;width:min(420px,calc(100vw - 24px));padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--modal-bg);box-shadow:0 16px 48px rgba(0,0,0,.28);z-index:12002;}
+#npo-settings-popover.open{display:block;}
+.npo-settings-field{margin-bottom:12px;}
+.npo-settings-field label{display:block;font-size:11px;font-weight:700;color:color-mix(in srgb,var(--primary-color) 72%,var(--text-color));margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;}
+#npo-settings-ai-model,#npo-system-prompt{width:100%;box-sizing:border-box;border:1px solid var(--border-color);border-radius:8px;background:var(--modal-bg);color:var(--text-color);font-size:13px;}
+#npo-settings-ai-model{padding:8px 34px 8px 12px;appearance:none;background-image:url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;background-size:16px;}
+#npo-system-prompt{padding:10px 12px;min-height:130px;resize:vertical;font-family:inherit;line-height:1.45;overflow-y:scroll;scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);}
+#npo-system-prompt::-webkit-scrollbar{width:10px;}
+#npo-system-prompt::-webkit-scrollbar-track{background:var(--scrollbar-track);border-radius:6px;}
+#npo-system-prompt::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:6px;border:2px solid var(--scrollbar-track);}
 /* Body */
 #npo-body{display:flex;flex:1;min-height:0;overflow:hidden;}
 /* Sidebar – news list */
@@ -272,16 +289,34 @@ window.addEventListener('newsPortalOpened', initializeNewsPortal);
 
 <div id="news-portal-overlay">
   <div id="npo-header">
-    <button id="npo-back" type="button">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 18l-6-6 6-6"/></svg>
-      <?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>
-    </button>
     <div id="npo-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></div>
     <?php if ($newsCanEdit): ?>
     <button id="npo-add-btn" type="button">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       <?php echo my_htmlspecialchars($translations['news_add'] ?? 'Add news'); ?>
     </button>
+    <?php endif; ?>
+    <div id="npo-header-actions">
+      <?php if ($newsCanEdit): ?>
+      <button id="npo-settings-btn" type="button" aria-label="<?php echo my_htmlspecialchars($translations['settings_title'] ?? 'Settings'); ?>">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94a7.43 7.43 0 0 0 .05-.94 7.43 7.43 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.18 7.18 0 0 0-1.63-.94L14.39 2.8a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.18 7.18 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.65 8.86a.5.5 0 0 0 .12.64l2.03 1.58a7.43 7.43 0 0 0-.05.94c0 .32.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.05.71 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
+      </button>
+      <?php endif; ?>
+      <button id="npo-back" type="button" class="ap-close-btn-style">&times;</button>
+    </div>
+    <?php if ($newsCanEdit): ?>
+    <div id="npo-settings-popover">
+      <div class="npo-settings-field">
+        <label><?php echo my_htmlspecialchars($translations['ai_default_model_label'] ?? 'Model'); ?></label>
+        <select id="npo-settings-ai-model">
+          <option value=""><?php echo my_htmlspecialchars($translations['select_model_placeholder'] ?? '-- Select Model --'); ?></option>
+        </select>
+      </div>
+      <div class="npo-settings-field" style="margin-bottom:0;">
+        <label><?php echo my_htmlspecialchars($translations['system_prompt'] ?? 'System prompt'); ?></label>
+        <textarea id="npo-system-prompt">You are a news article writer. Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.</textarea>
+      </div>
+    </div>
     <?php endif; ?>
   </div>
   <div id="npo-body">
@@ -307,7 +342,7 @@ window.addEventListener('newsPortalOpened', initializeNewsPortal);
              </div>
              <textarea id="npo-ai-prompt" placeholder="<?php echo my_htmlspecialchars($translations['news_ai_prompt_ph'] ?? 'Describe what you want: topic, tone, length...'); ?>"></textarea>
              <div class="npo-ai-actions">
-               <button type="button" id="npo-ai-generate-btn" onclick="generateWithAi()">
+               <button type="button" id="npo-ai-generate-btn">
                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"/></svg>
                  <?php echo my_htmlspecialchars($translations['generate'] ?? 'Generate'); ?>
                </button>
@@ -373,20 +408,43 @@ window.addEventListener('newsPortalOpened', initializeNewsPortal);
   const editorEmpty = document.getElementById('npo-editor-empty');
   const editorForm = document.getElementById('npo-editor-form');
   const aiPanel = document.getElementById('npo-ai-panel');
+  const settingsBtn = document.getElementById('npo-settings-btn');
+  const settingsPopover = document.getElementById('npo-settings-popover');
+  const systemPromptEl = document.getElementById('npo-system-prompt');
 
   let newsItems = [];
   let newsLayout = {};
   let selectedId = null;
   let uploadingPhoto = false;
+  if (systemPromptEl) {
+    const savedPrompt = localStorage.getItem('news_ai_system_prompt');
+    if (savedPrompt) systemPromptEl.value = savedPrompt;
+    systemPromptEl.addEventListener('input', () => localStorage.setItem('news_ai_system_prompt', systemPromptEl.value));
+  }
 
   // ── Open / Close ───────────────────────────────────────────────────────────
   function openNewsPortal() {
-    overlay.classList.add('active');
-    loadNews();
+    if (!overlay.classList.contains('active')) {
+      overlay.classList.add('active');
+      if (window.location.hash !== '#news-workflow') history.pushState(null, '', '#news-workflow');
+      loadNews();
+    }
   }
-  function closeNewsPortal() { overlay.classList.remove('active'); }
+  function closeNewsPortal() {
+    overlay.classList.remove('active');
+    if (window.location.hash === '#news-workflow') history.pushState(null, '', window.location.pathname + window.location.search);
+  }
 
   document.getElementById('npo-back').addEventListener('click', closeNewsPortal);
+  settingsBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    settingsPopover?.classList.toggle('open');
+  });
+  document.addEventListener('click', e => {
+    if (settingsPopover?.classList.contains('open') && !settingsPopover.contains(e.target) && e.target !== settingsBtn) {
+      settingsPopover.classList.remove('open');
+    }
+  });
 
   // ── Tabs ───────────────────────────────────────────────────────────────────
   document.querySelectorAll('.npo-tab').forEach(tab => {
@@ -581,6 +639,10 @@ ${item.photo
   document.getElementById('npo-ai-generate-btn')?.addEventListener('click', async () => {
     const prompt = document.getElementById('npo-ai-prompt').value.trim();
     if (!prompt) return;
+    const selectedModel = document.getElementById('npo-ai-model')?.value || '';
+    const systemPrompt = document.getElementById('npo-system-prompt')?.value.trim() || '';
+    const currentTitle = document.getElementById('npo-edit-title').value.trim();
+    const currentBody = document.getElementById('npo-edit-body').value.trim();
     const btn = document.getElementById('npo-ai-generate-btn');
     const aiStatus = document.getElementById('npo-ai-status');
     btn.disabled = true;
@@ -589,7 +651,7 @@ ${item.photo
       const res = await fetch('/main?api=news&action=ai_generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ prompt, model: selectedModel, system_prompt: systemPrompt, current_title: currentTitle, current_body: currentBody })
       });
       const data = await res.json();
       if (data.ok) {

@@ -549,5 +549,9 @@
     "github_pull_ok": "Успешно обновлено",
     "github_pull_up_to_date": "Уже актуальная версия",
     "github_no_changes": "Нет ожидающих изменений",
-    "github_pull_confirm": "Подтянуть изменения из main и перезапустить контейнер?"
+    "github_pull_confirm": "Подтянуть изменения из main и перезапустить контейнер?",
+    "icon_sort": "Порядок иконок",
+    "icon_sort_alpha": "По алфавиту",
+    "icon_sort_popular": "По популярности",
+    "icon_sort_recommended": "Рекомендовано"
 }

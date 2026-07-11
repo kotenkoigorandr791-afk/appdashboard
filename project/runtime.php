@@ -124,13 +124,18 @@ if(is_dir($appsDir)){
             $totalVisits=$visitStatsTotals[$folder]??0;
             $appRailApps=['gitea','immich'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
-	            $apps[$name]=['folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true)];
+	            $apps[$name]=['name'=>$name,'folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true)];
         }
     }
-    uasort($apps,function($a,$b){
-        if($a['visits']===$b['visits']){return strcoll($a['folder'],$b['folder']);}
-        return $b['visits']-$a['visits'];
-    });
+    $iconSortOrder=$config['icon_sort_order']??'alpha';
+    if($iconSortOrder==='popularity'){
+        uasort($apps,function($a,$b){
+            if($a['visits']===$b['visits']){return strcoll($a['name'],$b['name']);}
+            return $b['visits']-$a['visits'];
+        });
+    }else{
+        uasort($apps,function($a,$b){return strcoll($a['name'],$b['name']);});
+    }
     foreach($apps as $name=>$appData){
         $firstLetter=mb_strtoupper(mb_substr($name,0,1,'UTF-8'),'UTF-8');
         $groupedApps[$firstLetter][$name]=$appData;

@@ -13,7 +13,8 @@
       gallery_empty: 'No screenshots are available for this application yet.',
       portal_title: 'ServerKherson portal', portal_badge: 'Main hub',
       news_section_title: 'News', news_layout_edit: 'Edit layout', news_layout_done: 'Done',
-      waiting_btn: 'Waiting...', news_toast_label: 'New', news_more_btn: 'View more news', news_read_more: 'Read full news', news_empty: 'No news yet.',
+      waiting_btn: 'Waiting...', news_toast_label: 'New', news_more_btn: 'View more news', news_read_more: 'Read full news',       news_empty: 'No news yet.',       cal_less: 'Less', cal_more: 'More', cal_title: 'News Calendar',
+      explore_title: 'Explore more capabilities', explore_subtitle: 'Open any app to get started',
       apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', films: 'Movie manager – collection, comments', map: 'Map viewer, KML, GPS, favorites', media_viewer: 'Media gallery with albums', performance: 'Server performance monitor', recipes: 'Custom recipes manager', spends: 'Expense tracker with charts', steps: 'Health & activity tracker', tft_generator: 'TFT screen code generator', viewer: 'Local network device viewer' },
       app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', map: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', media_viewer: 'Media gallery with automatic album creation, previews for images/videos, and sharing options.', performance: 'Real-time server monitor: CPU load, memory usage, disk I/O, Apache module status. Historical graphs.', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.', tft_generator: 'Generate TFT screen code from canvas drawings. Convert sketches into display-ready code.', viewer: 'Discover and monitor local network devices (routers, smart devices) with dashboard view.' }
     },
@@ -30,7 +31,8 @@
       gallery_empty: 'Для цього застосунку поки немає скріншотів.',
       portal_title: 'Портал ServerKherson', portal_badge: 'Головний хаб',
       news_section_title: 'Новини', news_layout_edit: 'Редагувати макет', news_layout_done: 'Готово',
-      waiting_btn: 'Очікування...', news_toast_label: 'Нове', news_more_btn: 'Дивитись більше новин', news_read_more: 'Розгорнути новину', news_empty: 'Новин ще немає.',
+      waiting_btn: 'Очікування...', news_toast_label: 'Нове', news_more_btn: 'Дивитись більше новин', news_read_more: 'Розгорнути новину',       news_empty: 'Новин ще немає.',       cal_less: 'Менше', cal_more: 'Більше', cal_title: 'Календар новин',
+      explore_title: 'Дослідіть більше можливостей', explore_subtitle: 'Відкрийте будь-який додаток',
       apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', films: 'Менеджер фільмів – колекція, коментарі', map: 'Перегляд мап, KML, GPS, обране', media_viewer: 'Медіа галерея з альбомами', performance: 'Моніторинг сервера', recipes: 'Менеджер рецептів', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності', tft_generator: 'Генератор коду TFT екрана', viewer: 'Переглядач пристроїв мережі' },
       app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', map: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', media_viewer: 'Медіа галерея з автогенерацією альбомів, попереднім переглядом фото/відео.', performance: 'Моніторинг сервера в реальному часі: CPU, пам\'ять, Apache, графіки.', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.', tft_generator: 'Генерація коду для TFT екрану з малюнків на полотні.', viewer: 'Виявлення пристроїв у локальній мережі (роутери, смарт-пристрої).' }
     },
@@ -47,7 +49,8 @@
       gallery_empty: 'Для этого приложения пока нет скриншотов.',
       portal_title: 'Портал ServerKherson', portal_badge: 'Главный хаб',
       news_section_title: 'Новости', news_layout_edit: 'Редактировать макет', news_layout_done: 'Готово',
-      waiting_btn: 'Ожидание...', news_toast_label: 'Новое', news_more_btn: 'Посмотреть больше новостей', news_read_more: 'Раскрыть новость', news_empty: 'Новостей пока нет.',
+      waiting_btn: 'Ожидание...', news_toast_label: 'Новое', news_more_btn: 'Посмотреть больше новостей', news_read_more: 'Раскрыть новость',       news_empty: 'Новостей пока нет.',       cal_less: 'Меньше', cal_more: 'Больше', cal_title: 'Календарь новостей',
+      explore_title: 'Исследуйте возможности', explore_subtitle: 'Откройте любое приложение',
       apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', films: 'Менеджер фильмов – коллекция, комментарии', map: 'Карты, KML, GPS, избранное', media_viewer: 'Медиа галерея с альбомами', performance: 'Мониторинг сервера', recipes: 'Менеджер рецептов', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности', tft_generator: 'Генератор кода TFT экрана', viewer: 'Просмотр устройств сети' },
       app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', films: 'База фильмов с комментариями, списком просмотра, категориями.', map: 'Карты с поддержкой KML, GPS. Избранное, маршруты.', media_viewer: 'Медиа галерея с альбомами и предпросмотром.', performance: 'Мониторинг сервера: CPU, память, модули Apache, графики.', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.', tft_generator: 'Генерация кода для TFT экрана из рисунков на холсте.', viewer: 'Поиск устройств в локальной сети (роутеры, умные устройства).' }
     },
@@ -64,7 +67,8 @@
       gallery_empty: 'Для гэтага прыкладання пакуль няма здымкаў экрана.',
       portal_title: 'Партал ServerKherson', portal_badge: 'Галоўны хаб',
       news_section_title: 'Навіны', news_layout_edit: 'Рэдагаваць макет', news_layout_done: 'Гатова',
-      waiting_btn: 'Чаканне...', news_toast_label: 'Новае', news_more_btn: 'Паглядзець больш навін', news_read_more: 'Разгарнуць навіну', news_empty: 'Навін яшчэ няма.',
+      waiting_btn: 'Чаканне...', news_toast_label: 'Новае', news_more_btn: 'Паглядзець больш навін', news_read_more: 'Разгарнуць навіну',       news_empty: 'Навін яшчэ няма.',       cal_less: 'Менш', cal_more: 'Больш', cal_title: 'Календар навін',
+      explore_title: 'Даследуйце магчымасці', explore_subtitle: 'Адкрыйце любы дадатак',
       apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', films: 'Менеджар фільмаў – калекцыя, каментары', map: 'Мапы, KML, GPS, абранае', media_viewer: 'Медыя галерэя з альбомамі', performance: 'Маніторынг сервера', recipes: 'Менеджар рэцэптаў', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці', tft_generator: 'Генератар кода TFT экрана', viewer: 'Праглядальнік прылад сеткі' },
       app_details: { portal: 'Галоўны сайт ServerKherson: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', map: 'Мапы з падтрымкай KML, GPS. Абранае, маршруты.', media_viewer: 'Медыя галерэя з альбомамі і папярэднім праглядам.', performance: 'Маніторынг сервера: CPU, памяць, модулі Apache, графікі.', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.', tft_generator: 'Генерацыя кода для TFT экрана з малюнкаў на палатне.', viewer: 'Пошук прылад у лакальнай сетцы (роутары, разумныя прылады).' }
     },
@@ -81,7 +85,8 @@
       gallery_empty: 'Brak zrzutów ekranu dla tej aplikacji.',
       portal_title: 'Portal ServerKherson', portal_badge: 'Główny hub',
       news_section_title: 'Aktualności', news_layout_edit: 'Edytuj układ', news_layout_done: 'Gotowe',
-      waiting_btn: 'Czekanie...', news_toast_label: 'Nowe', news_more_btn: 'Zobacz więcej aktualności', news_read_more: 'Rozwiń aktualność', news_empty: 'Brak aktualności.',
+      waiting_btn: 'Czekanie...', news_toast_label: 'Nowe', news_more_btn: 'Zobacz więcej aktualności', news_read_more: 'Rozwiń aktualność',       news_empty: 'Brak aktualności.',       cal_less: 'Mniej', cal_more: 'Więcej', cal_title: 'Kalendarz aktualności',
+      explore_title: 'Odkryj więcej możliwości', explore_subtitle: 'Otwórz dowolną aplikację',
       apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', films: 'Menedżer filmów – kolekcja, komentarze', map: 'Przeglądarka map, KML, GPS', media_viewer: 'Galeria mediów z albumami', performance: 'Monitor wydajności serwera', recipes: 'Menedżer przepisów', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności', tft_generator: 'Generator kodu ekranu TFT', viewer: 'Przeglądarka urządzeń sieciowych' },
       app_details: { portal: 'Główny hub ServerKherson: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', map: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', media_viewer: 'Galeria mediów z automatycznym tworzeniem albumów.', performance: 'Monitor serwera w czasie rzeczywistym: CPU, pamięć, Apache, wykresy.', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.', tft_generator: 'Generowanie kodu dla ekranu TFT z rysunków.', viewer: 'Odkrywanie urządzeń w sieci lokalnej.' }
     },
@@ -98,7 +103,8 @@
       gallery_empty: 'Pro tuto aplikaci zatím nejsou dostupné žádné snímky obrazovky.',
       portal_title: 'Portál ServerKherson', portal_badge: 'Hlavní uzel',
       news_section_title: 'Novinky', news_layout_edit: 'Upravit rozložení', news_layout_done: 'Hotovo',
-      waiting_btn: 'Čekání...', news_toast_label: 'Nové', news_more_btn: 'Zobrazit více novinek', news_read_more: 'Rozbalit novinku', news_empty: 'Zatím žádné novinky.',
+      waiting_btn: 'Čekání...', news_toast_label: 'Nové', news_more_btn: 'Zobrazit více novinek', news_read_more: 'Rozbalit novinku',       news_empty: 'Zatím žádné novinky.',       cal_less: 'Méně', cal_more: 'Více', cal_title: 'Kalendář novinek',
+      explore_title: 'Prozkoumejte další možnosti', explore_subtitle: 'Otevřete libovolnou aplikaci',
       apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', films: 'Správce filmů – sbírka, komentáře', map: 'Prohlížeč map, KML, GPS', media_viewer: 'Mediální galerie s alby', performance: 'Monitor výkonu serveru', recipes: 'Správce receptů', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity', tft_generator: 'Generátor kódu obrazovky TFT', viewer: 'Prohlížeč síťových zařízení' },
       app_details: { portal: 'Hlavní hub ServerKherson: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', map: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', media_viewer: 'Mediální galerie s automatickým vytvářením alb.', performance: 'Monitor serveru v reálném čase: CPU, paměť, Apache, grafy.', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.', tft_generator: 'Generování kódu pro TFT obrazovku z kreseb.', viewer: 'Zjišťování zařízení v místní síti.' }
     }
@@ -701,6 +707,12 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     document.querySelector('[data-i18n="nav_home"]').textContent = t.nav_home;
     document.querySelector('[data-i18n="nav_features"]').textContent = t.nav_features;
     applyNewsTexts();
+    const calLess = document.querySelector('[data-i18n="cal_less"]');
+    if (calLess) calLess.textContent = t.cal_less;
+    const calMore = document.querySelector('[data-i18n="cal_more"]');
+    if (calMore) calMore.textContent = t.cal_more;
+    const calTitle = document.querySelector('[data-i18n="cal_title"]');
+    if (calTitle) calTitle.textContent = t.cal_title;
     if (newsSectionVisible) {
       visibleNewsItems = isNewsRoute ? newsItems : todayNews(newsItems);
       renderNewsCards();
@@ -806,6 +818,55 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     setTimeout(showEngagementPromo, 30000 + Math.random() * 90000);
   }
 
+  const EXPLORE_KEY = 'sk_explore_dismissed';
+  let exploreWidgetShown = false;
+
+  function scheduleExploreWidget() {
+    if (isNewsRoute) return;
+    if (exploreWidgetShown) return;
+    try { if (sessionStorage.getItem(EXPLORE_KEY) === '1') return; } catch (e) { return; }
+    exploreWidgetShown = true;
+    setTimeout(showExploreWidget, 45000 + Math.random() * 30000);
+  }
+
+  function showExploreWidget() {
+    if ($('exploreWidget')) return;
+    const t = I18N[lang] || I18N.en;
+    const allApps = [{ id: 'portal', name: t.portal_title, desc: t.apps.portal, icon: ICONS.portal }].concat(
+      APPS.map(a => ({ id: a.id, name: a.name, desc: t.apps[a.id] || '', icon: ICONS[a.id] || '' }))
+    );
+    const widget = document.createElement('div');
+    widget.id = 'exploreWidget';
+    widget.className = 'explore-widget';
+    widget.innerHTML = `<div class="explore-widget-inner">
+<div class="explore-widget-head">
+  <div class="explore-widget-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg></div>
+  <div class="explore-widget-head-text">
+    <div class="explore-widget-title">${escH(t.explore_title)}</div>
+    <div class="explore-widget-subtitle">${escH(t.explore_subtitle)}</div>
+  </div>
+  <button type="button" class="explore-widget-close" aria-label="Close">&times;</button>
+</div>
+<div class="explore-widget-list" id="exploreWidgetList"></div>
+</div>`;
+    document.body.appendChild(widget);
+    const list = widget.querySelector('#exploreWidgetList');
+    allApps.forEach(app => {
+      const item = document.createElement('div');
+      item.className = 'explore-app-item';
+      item.innerHTML = `<div class="explore-app-icon">${app.icon}</div><div><div class="explore-app-name">${escH(app.name)}</div><div class="explore-app-desc">${escH(app.desc)}</div></div>`;
+      item.addEventListener('click', () => {
+        widget.remove();
+        showModal(app.id, lang);
+      });
+      list.appendChild(item);
+    });
+    widget.querySelector('.explore-widget-close').addEventListener('click', () => {
+      try { sessionStorage.setItem(EXPLORE_KEY, '1'); } catch (e) {}
+      widget.remove();
+    });
+  }
+
   function openNav() {
     $('navBackdrop').classList.add('visible');
     $('navDrawer').classList.add('open');
@@ -887,7 +948,151 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     $('appsSection').style.display = 'none';
   } else {
     scheduleEngagement();
+    scheduleExploreWidget();
     if (location.hash === '#apps') setTimeout(() => $('appsSection')?.scrollIntoView({ block: 'start' }), 80);
   }
   loadNews();
+
+  // ── News calendar (GitHub-style) ──────────────────────────────────────────
+  (function initCalendar() {
+    const calBtn = $('calendarBtn');
+    const popover = $('calendarPopover');
+    const grid = $('calGrid');
+    const weekdaysEl = $('calWeekdays');
+    const monthLabel = $('calMonthLabel');
+    const prevBtn = $('calPrev');
+    const nextBtn = $('calNext');
+    if (!calBtn || !popover || !grid) return;
+
+    let calYear, calMonth;
+    const now = new Date();
+    calYear = now.getFullYear();
+    calMonth = now.getMonth();
+
+    const dayNames = { en: ['Mo','Tu','We','Th','Fr','Sa','Su'], uk: ['Пн','Вт','Ср','Чт','Пт','Сб','Нд'], ru: ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'], be: ['Пн','Ат','Ср','Чц','Пт','Сб', 'Нд'], pl: ['Pn','Wt','Śr','Cz','Pt','Sb','Nd'], cs: ['Po','Út','St','Čt','Pá','So','Ne'] };
+    const monthNames = { en: ['January','February','March','April','May','June','July','August','September','October','November','December'], uk: ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'], ru: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'], be: ['Студзень','Люты','Сакавік','Красавік','Май','Чэрвень','Ліпень','Жнівень','Верасень','Кастрычнік','Лістапад','Снежань'], pl: ['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'], cs: ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'] };
+
+    function renderWeekdays() {
+      const names = dayNames[lang] || dayNames.en;
+      weekdaysEl.innerHTML = '';
+      names.forEach(d => { const s = document.createElement('span'); s.className = 'cal-weekday'; s.textContent = d; weekdaysEl.appendChild(s); });
+    }
+
+    function dateKey(y, m, d) { return y + '-' + m + '-' + d; }
+
+    function getNewsBounds() {
+      let min = Infinity, max = -Infinity;
+      for (let i = 0; i < newsItems.length; i++) {
+        const ts = newsItems[i].created_at;
+        if (!ts) continue;
+        const dt = new Date(ts * 1000);
+        const v = dt.getFullYear() * 12 + dt.getMonth();
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+      return { min, max };
+    }
+
+    function updateNavButtons() {
+      const bounds = getNewsBounds();
+      const cur = calYear * 12 + calMonth;
+      const curMonth = now.getFullYear() * 12 + now.getMonth();
+      prevBtn.disabled = bounds.min === Infinity || cur <= bounds.min;
+      nextBtn.disabled = bounds.max === -Infinity || cur >= Math.min(bounds.max, curMonth);
+    }
+
+    function newsCountForKey(key) {
+      let count = 0;
+      for (let i = 0; i < newsItems.length; i++) {
+        const ts = newsItems[i].created_at;
+        if (!ts) continue;
+        const dt = new Date(ts * 1000);
+        if (dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate()) === key) count++;
+      }
+      return count;
+    }
+
+    function renderCalendar() {
+      const names = monthNames[lang] || monthNames.en;
+      monthLabel.textContent = names[calMonth] + ' ' + calYear;
+      renderWeekdays();
+      grid.innerHTML = '';
+      const firstDay = new Date(calYear, calMonth, 1);
+      let startDow = firstDay.getDay() - 1;
+      if (startDow < 0) startDow = 6;
+      const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+      for (let i = 0; i < startDow; i++) { const e = document.createElement('span'); e.className = 'cal-cell empty'; grid.appendChild(e); }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = dateKey(calYear, calMonth, d);
+        const count = newsCountForKey(key);
+        const cell = document.createElement('span');
+        cell.className = 'cal-cell' + (count ? ' has-news' : '');
+        const bucket = count >= 4 ? 4 : count >= 3 ? 3 : count >= 2 ? 2 : count >= 1 ? 1 : 0;
+        if (bucket) cell.dataset.count = bucket;
+        if (d === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear()) cell.classList.add('today');
+        if (count) {
+          const dt = new Date(calYear, calMonth, d);
+          const dateStr = dt.toLocaleDateString(lang === 'en' ? 'en-GB' : lang, { day: '2-digit', month: 'short', year: 'numeric' });
+          cell.addEventListener('mouseenter', function() {
+            const tip = document.createElement('div');
+            tip.className = 'cal-tooltip';
+            tip.textContent = count + ' ' + (count === 1 ? 'news' : 'news') + ' · ' + dateStr;
+            this.appendChild(tip);
+          });
+          cell.addEventListener('mouseleave', function() { const t = this.querySelector('.cal-tooltip'); if (t) t.remove(); });
+          cell.addEventListener('click', (function(y, m, day) {
+            return function() {
+              popover.style.display = 'none';
+              calBtn.setAttribute('aria-expanded', 'false');
+              const k = dateKey(y, m, day);
+              let matched = [];
+              for (let i = 0; i < newsItems.length; i++) {
+                const ts = newsItems[i].created_at;
+                if (!ts) continue;
+                const dt = new Date(ts * 1000);
+                if (dateKey(dt.getFullYear(), dt.getMonth(), dt.getDate()) === k) matched.push(newsItems[i]);
+              }
+              if (!matched.length) return;
+              if (!isNewsRoute) {
+                visibleNewsItems = matched;
+                showNewsSection();
+                setTimeout(function() { $('newsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+              }
+              openNewsModal(matched[0]);
+            };
+          })(calYear, calMonth, d));
+        }
+        grid.appendChild(cell);
+      }
+      const legendLabels = popover.querySelectorAll('[data-i18n]');
+      legendLabels.forEach(function(el) { const k = el.dataset.i18n; const t = I18N[lang] || I18N.en; if (t[k]) el.textContent = t[k]; });
+      updateNavButtons();
+    }
+
+    calBtn.addEventListener('click', function() {
+      const visible = popover.style.display !== 'none';
+      popover.style.display = visible ? 'none' : 'block';
+      calBtn.setAttribute('aria-expanded', String(!visible));
+      if (!visible) renderCalendar();
+    });
+
+    document.addEventListener('click', function(e) {
+      if (popover.style.display === 'none') return;
+      if (!popover.contains(e.target) && e.target !== calBtn && !calBtn.contains(e.target)) {
+        popover.style.display = 'none';
+        calBtn.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    prevBtn.addEventListener('click', function() {
+      calMonth--;
+      if (calMonth < 0) { calMonth = 11; calYear--; }
+      renderCalendar();
+    });
+    nextBtn.addEventListener('click', function() {
+      calMonth++;
+      if (calMonth > 11) { calMonth = 0; calYear++; }
+      renderCalendar();
+    });
+  })();
 })();
