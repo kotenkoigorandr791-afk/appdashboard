@@ -24,6 +24,9 @@ jobs:
           fi
           git reset --hard origin/main
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
+          docker exec appdashboard nginx -t
+          docker exec appdashboard nginx -s reload
   deploy-develop:
     if: gitea.ref == 'refs/heads/develop'
     runs-on: appdashboard-dev-deploy
@@ -46,3 +49,6 @@ jobs:
           fi
           git merge --ff-only origin/develop
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
+          docker exec appdashboard nginx -t
+          docker exec appdashboard nginx -s reload
