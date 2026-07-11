@@ -627,5 +627,9 @@
     "welcome_user": "Witaj, ",
     "windows": "Windows",
     "wrong_current_password": "Nieprawidłowe obecne hasło",
-    "year_view": "Rok"
+    "year_view": "Rok",
+    "icon_sort": "Kolejność ikon",
+    "icon_sort_alpha": "Alfabetycznie",
+    "icon_sort_popular": "Według popularności",
+    "icon_sort_recommended": "Polecane"
 }

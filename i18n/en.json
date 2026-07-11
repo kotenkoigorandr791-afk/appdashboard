@@ -558,5 +558,9 @@
     "github_pull_ok": "Updated successfully",
     "github_pull_up_to_date": "Already up to date",
     "github_no_changes": "No pending changes",
-    "github_pull_confirm": "Pull changes from main and restart the container?"
+    "github_pull_confirm": "Pull changes from main and restart the container?",
+    "icon_sort": "Icon order",
+    "icon_sort_alpha": "Alphabetical",
+    "icon_sort_popular": "By popularity",
+    "icon_sort_recommended": "Recommended"
 }

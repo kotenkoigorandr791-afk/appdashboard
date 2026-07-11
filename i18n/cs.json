@@ -627,5 +627,9 @@
     "welcome_user": "Vítejte, ",
     "windows": "Windows",
     "wrong_current_password": "Nesprávné současné heslo",
-    "year_view": "Rok"
+    "year_view": "Rok",
+    "icon_sort": "Řazení ikon",
+    "icon_sort_alpha": "Abecedně",
+    "icon_sort_popular": "Podle oblíbenosti",
+    "icon_sort_recommended": "Doporučeno"
 }
