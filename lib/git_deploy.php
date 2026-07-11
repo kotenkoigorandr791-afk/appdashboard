@@ -90,16 +90,42 @@ function gitDeployRestartContainer(): array {
     return ['success' => false, 'error' => $err !== '' ? $err : ('HTTP ' . $code . ': ' . (string)$body)];
 }
 
+function gitDeployApplyNginxConfig(): array {
+    $codeDir = gitDeployCodeDir();
+    $src = $codeDir . '/deploy/nginx/appdashboard.conf';
+    if (!is_file($src)) {
+        return ['success' => false, 'error' => 'Nginx config not found: ' . $src];
+    }
+    $copyOut = gitDeployRun('docker cp ' . escapeshellarg($src) . ' appdashboard:/etc/nginx/sites-available/appdashboard.conf');
+    if (preg_match('/\b(fatal:|error:|Error response)\b/i', $copyOut)) {
+        return ['success' => false, 'error' => $copyOut];
+    }
+    $testOut = gitDeployRun('docker exec appdashboard nginx -t');
+    if (!preg_match('/test is successful/i', $testOut)) {
+        return ['success' => false, 'error' => $testOut];
+    }
+    return ['success' => true, 'output' => trim($copyOut . "\n" . $testOut)];
+}
+
 function gitDeployPullAndRestart(): array {
     $status = gitDeployGetStatus();
     if (empty($status['success'])) {
         return $status;
     }
     if (!empty($status['up_to_date'])) {
+        $nginxOut = gitDeployApplyNginxConfig();
+        if (empty($nginxOut['success'])) {
+            return ['success' => false, 'error' => $nginxOut['error'] ?? 'Nginx config update failed'];
+        }
+        $restartOut = gitDeployRestartContainer();
+        if (empty($restartOut['success'])) {
+            return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'nginx_output' => $nginxOut['output'] ?? ''];
+        }
         return [
             'success' => true,
-            'message' => 'Already up to date',
-            'restarted' => false,
+            'message' => 'Already up to date; config reapplied and container restarted',
+            'nginx_output' => $nginxOut['output'] ?? '',
+            'restarted' => true,
             'up_to_date' => true,
             'local_head' => $status['local_head'] ?? '',
         ];
@@ -110,14 +136,19 @@ function gitDeployPullAndRestart(): array {
     if (preg_match('/\b(fatal:|error:)\b/i', $mergeOut)) {
         return ['success' => false, 'error' => $mergeOut];
     }
+    $nginxOut = gitDeployApplyNginxConfig();
+    if (empty($nginxOut['success'])) {
+        return ['success' => false, 'error' => $nginxOut['error'] ?? 'Nginx config update failed', 'merge_output' => $mergeOut];
+    }
     $restartOut = gitDeployRestartContainer();
     if (empty($restartOut['success'])) {
-        return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'merge_output' => $mergeOut];
+        return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'merge_output' => $mergeOut, 'nginx_output' => $nginxOut['output'] ?? ''];
     }
     return [
         'success' => true,
         'message' => 'Updated and container restarted',
         'merge_output' => $mergeOut,
+        'nginx_output' => $nginxOut['output'] ?? '',
         'restarted' => true,
         'local_head' => trim(gitDeployRun('cd ' . escapeshellarg($codeDir) . ' && ' . gitDeployGitBin($codeDir) . ' rev-parse --short HEAD 2>/dev/null') ?: ''),
     ];
