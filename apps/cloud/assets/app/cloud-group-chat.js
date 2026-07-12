@@ -931,6 +931,8 @@
         style.id = 'gchat-audio-styles';
         style.textContent = `
             .group-chat-media--audio {
+                width: 100%;
+                min-width: 0;
                 max-width: min(300px, 100%);
             }
             .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) {
@@ -941,7 +943,10 @@
                 background: color-mix(in srgb, var(--bg, #1a1a1a) 70%, var(--panel, #2a2a2a));
             }
             .group-chat-media--audio .cap-voice-message {
-                width: min(300px, calc(100vw - 96px));
+                width: 100%;
+                min-width: 0;
+                max-width: 100%;
+                box-sizing: border-box;
             }
             .group-chat-row--own .group-chat-media--audio .cap-voice-message {
                 background: color-mix(in srgb, var(--accent, #85b503) 18%, var(--panel, #2a2a2a));

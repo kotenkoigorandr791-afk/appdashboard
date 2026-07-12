@@ -199,6 +199,7 @@ class CustomAudioPlayer {
         transition: border-color 0.2s, box-shadow 0.2s;
         position: relative;
         min-height: 52px;
+        box-sizing: border-box;
       }
 
       .custom-audio-player:hover {
@@ -331,11 +332,12 @@ class CustomAudioPlayer {
 
       .custom-audio-player.cap-voice-message {
         display: grid;
-        grid-template-columns: 34px minmax(128px, 1fr) auto;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
         grid-template-areas: "play wave time";
         gap: 8px;
         align-items: center;
-        min-width: 220px;
+        min-width: 0;
+        width: 100%;
         max-width: 320px;
         min-height: 48px;
         padding: 7px 10px;
@@ -376,6 +378,7 @@ class CustomAudioPlayer {
       .custom-audio-player.cap-voice-message .cap-seek-container {
         grid-area: wave;
         padding: 4px 0;
+        min-width: 0;
       }
 
       .custom-audio-player.cap-voice-message .cap-seek-bar {
@@ -401,6 +404,7 @@ class CustomAudioPlayer {
       .custom-audio-player.cap-voice-message .cap-waveform {
         gap: 2px;
         padding: 4px 0;
+        overflow: hidden;
       }
 
       .custom-audio-player.cap-voice-message .cap-wave-bar {

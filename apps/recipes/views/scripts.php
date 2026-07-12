@@ -3840,20 +3840,26 @@
                 credentials: 'same-origin',
                 body: JSON.stringify(body)
             });
-            if (!r.ok || !r.body) throw new Error(translations.error_occurred);
+            if (!r.ok || !r.body) {
+                throw new Error(translations.error_occurred);
+            }
             const reader = r.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
             let donePayload = null;
             while (true) {
                 const { done, value } = await reader.read();
-                if (done) break;
+                if (done) {
+                    break;
+                }
                 buffer += decoder.decode(value, { stream: true });
                 const blocks = buffer.split('\n\n');
                 buffer = blocks.pop() || '';
                 for (const block of blocks) {
                     const parsed = parseSseBlock(block);
-                    if (!parsed) continue;
+                    if (!parsed) {
+                        continue;
+                    }
                     const { event, data } = parsed;
                     if (event === 'status') {
                         setAiRecipeStatus(tReplace(data.text || 'ai_thinking'));

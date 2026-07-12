@@ -1021,12 +1021,26 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
       let startDow = firstDay.getDay() - 1;
       if (startDow < 0) startDow = 6;
       const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
-      for (let i = 0; i < startDow; i++) { const e = document.createElement('span'); e.className = 'cal-cell empty'; grid.appendChild(e); }
+      const prevMonthDays = new Date(calYear, calMonth, 0).getDate();
+      for (let i = 0; i < startDow; i++) {
+        const e = document.createElement('span');
+        e.className = 'cal-cell empty';
+        const dayNum = prevMonthDays - startDow + 1 + i;
+        const num = document.createElement('span');
+        num.className = 'cal-day-num';
+        num.textContent = dayNum;
+        e.appendChild(num);
+        grid.appendChild(e);
+      }
       for (let d = 1; d <= daysInMonth; d++) {
         const key = dateKey(calYear, calMonth, d);
         const count = newsCountForKey(key);
         const cell = document.createElement('span');
         cell.className = 'cal-cell' + (count ? ' has-news' : '');
+        const numSpan = document.createElement('span');
+        numSpan.className = 'cal-day-num';
+        numSpan.textContent = d;
+        cell.appendChild(numSpan);
         const bucket = count >= 4 ? 4 : count >= 3 ? 3 : count >= 2 ? 2 : count >= 1 ? 1 : 0;
         if (bucket) cell.dataset.count = bucket;
         if (d === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear()) cell.classList.add('today');
@@ -1063,6 +1077,17 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
           })(calYear, calMonth, d));
         }
         grid.appendChild(cell);
+      }
+      const totalCells = startDow + daysInMonth;
+      const trailing = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+      for (let i = 1; i <= trailing; i++) {
+        const e = document.createElement('span');
+        e.className = 'cal-cell empty';
+        const num = document.createElement('span');
+        num.className = 'cal-day-num';
+        num.textContent = i;
+        e.appendChild(num);
+        grid.appendChild(e);
       }
       const legendLabels = popover.querySelectorAll('[data-i18n]');
       legendLabels.forEach(function(el) { const k = el.dataset.i18n; const t = I18N[lang] || I18N.en; if (t[k]) el.textContent = t[k]; });

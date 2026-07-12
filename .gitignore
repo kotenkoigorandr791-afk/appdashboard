@@ -6,6 +6,16 @@
 /apps/steps/utils/.venv/
 /apps/steps/utils/venv/
 /bot/.venv/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+apps/recipes/.pydeps/
 graphify-out/
 **/graphify-out/
 project/graphify-out/
@@ -32,6 +42,7 @@ project/graphify-out/
 /apps/map/user_data/
 /apps/films/comments/
 /apps/spends/backups/
+/apps/spends/utils/ocr_jobs/
 /apps/spends/users/
 /apps/steps/users/
 /apps/steps/upload_sessions/

@@ -204,13 +204,18 @@ body.light-theme .cal-nav-btn:hover { background: rgba(0,0,0,0.12); }
 .cal-cell {
   width: 100%; aspect-ratio: 1; border-radius: 3px; cursor: default;
   background: rgba(255,255,255,0.05); transition: background 0.12s, transform 0.12s;
-  position: relative;
+  position: relative; display: flex; align-items: center; justify-content: center;
 }
+.cal-day-num { font-size: 10px; font-weight: 600; line-height: 1; pointer-events: none; }
+.cal-cell.has-news .cal-day-num { color: rgba(255,255,255,0.9); }
+.cal-cell.empty .cal-day-num { color: rgba(255,255,255,0.3); }
 .cal-cell.empty { background: transparent; cursor: default; }
 .cal-cell.has-news { cursor: pointer; }
 .cal-cell.has-news:hover { transform: scale(1.35); z-index: 2; outline: 2px solid rgba(74,144,226,0.7); }
 .cal-cell.today { outline: 2px solid rgba(255,255,255,0.35); outline-offset: -1px; }
 body.light-theme .cal-cell { background: rgba(0,0,0,0.06); }
+body.light-theme .cal-cell.has-news .cal-day-num { color: rgba(255,255,255,0.95); }
+body.light-theme .cal-cell.empty .cal-day-num { color: rgba(0,0,0,0.25); }
 body.light-theme .cal-cell.today { outline-color: rgba(0,0,0,0.3); }
 .cal-cell[data-count="1"] { background: #0e4429; }
 .cal-cell[data-count="2"] { background: #006d32; }

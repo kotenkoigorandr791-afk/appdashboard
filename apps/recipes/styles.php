@@ -165,7 +165,7 @@ body::-webkit-scrollbar-thumb:hover {
 .recipe-search-container {
     width: 100%;
     max-width: 600px;
-    margin: 0 100px 20px auto;
+    margin: 0 auto 20px;
     padding: 0 20px;
 }
 

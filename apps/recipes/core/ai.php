@@ -77,7 +77,7 @@ function recipes_ai_chat(array $config, string $model, array $messages, ?array $
     $data = [
         'model' => $model,
         'messages' => $messages,
-        'max_tokens' => 8000,
+        'max_tokens' => 16384,
         'temperature' => 0.35,
         'stream' => false,
     ];
@@ -323,7 +323,9 @@ function recipes_ai_image_reject_non_food(string $title, string $description, st
         'novel', 'poem', 'painting by', 'sculpture', 'monument', 'bridge', 'railway', 'airline',
         'recipe book', 'book cover', 'cover page', 'cookbook cover', 'magazine cover', 'menu card',
         'menu cover', 'manuscript', 'printed page', 'scan of', 'scanned', 'catalogue', 'catalog',
+        '.pdf', 'pdf', 'document', 'nutrition tips',
         'drawing of', 'illustration of', 'clip art', 'hidden categories', 'wikimedia category',
+        'palette', 'pallet', 'color chart', 'colour chart', 'swatch', 'paint', 'material sample',
         'борщевик', 'hemlock', 'heracleum', 'hogweed', 'poisonous plant', 'toxic plant',
     ];
     foreach ($reject as $bad) {
@@ -331,7 +333,17 @@ function recipes_ai_image_reject_non_food(string $title, string $description, st
             return true;
         }
     }
-    if ($kind === 'product' && preg_match('/\b(soup|stew|salad|sandwich|pizza|burger|pasta dish|main course|breakfast|dinner|lunch|meal|cuisine|recipe for)\b/u', $text)) {
+    if ($kind === 'product' && preg_match('/\b(soup|stew|salad|sandwich|pizza|burger|pasta dish|main course|breakfast|dinner|lunch|meal|cuisine|recipe for|cake|cakes|dessert|biscuit|cookie|cookies|balls|treat|candy|ice cream|cone|recalled|packaged|quiche|chili|ham|cheddar|cheese)\b/u', $text)) {
+        return true;
+    }
+    return false;
+}
+
+function recipes_ai_image_reject_product_mismatch(string $query, string $label, string $title, string $description): bool
+{
+    $needle = recipes_normalize_product_name($query . ' ' . $label);
+    $text = recipes_normalize_product_name($title . ' ' . $description);
+    if (preg_match('/\b(cherry|cherries)\b/u', $needle) && preg_match('/\b(tomato|tomatoes)\b/u', $text)) {
         return true;
     }
     return false;
@@ -345,10 +357,36 @@ function recipes_ai_image_score_candidate(string $title, string $description, st
     if (recipes_ai_image_reject_homonym($title, $query, $label)) {
         return -1000;
     }
+    if ($kind === 'product' && recipes_ai_image_reject_product_mismatch($query, $label, $title, $description)) {
+        return -1000;
+    }
     $score = $kind === 'product' ? 4 : 3;
     $titleNorm = recipes_normalize_product_name($title);
     $queryNorm = recipes_normalize_product_name($query);
     $labelNorm = recipes_normalize_product_name($label);
+    $candidateNorm = recipes_normalize_product_name($title . ' ' . $description);
+    $queryWords = array_values(array_unique(array_filter(preg_split('/\s+/u', $queryNorm . ' ' . $labelNorm), static function ($w) {
+        return mb_strlen($w, 'UTF-8') >= 4 && !in_array($w, ['food', 'photo', 'dish', 'plate', 'plated', 'finished', 'served', 'with', 'cake', 'dessert'], true);
+    })));
+    if ($kind === 'recipe' && count($queryWords) >= 2) {
+        $overlap = 0;
+        foreach ($queryWords as $w) {
+            $variants = recipes_ai_search_word_variants($w);
+            foreach ($variants as $variant) {
+                if (str_contains($candidateNorm, $variant)) {
+                    $overlap++;
+                    break;
+                }
+            }
+        }
+        if ($overlap < 2 && str_contains($candidateNorm, 'black forest') && in_array('chocolate', $queryWords, true) && in_array('cherry', $queryWords, true)) {
+            $overlap++;
+        }
+        if ($overlap < 2) {
+            return -1000;
+        }
+        $score += $overlap * 4;
+    }
     if ($queryNorm !== '' && ($titleNorm === $queryNorm || str_contains($titleNorm, $queryNorm))) {
         $score += 18;
     }
@@ -365,6 +403,9 @@ function recipes_ai_image_score_candidate(string $title, string $description, st
     if (preg_match('/\b(book|cover|page|scan|scanned|illustration|drawing|diagram|logo|svg)\b/u', $text)) {
         $score -= 20;
     }
+    if (preg_match('/\b(palette|pallet|color chart|colour chart|swatch|paint|sample)\b/u', $text)) {
+        return -1000;
+    }
     $foodHints = $kind === 'product'
         ? ['fruit', 'vegetable', 'root', 'tuber', 'plant', 'crop', 'herb', 'spice', 'nut', 'seed', 'berry', 'mushroom', 'fungus', 'legume', 'grain', 'cereal', 'meat', 'beef', 'pork', 'lamb', 'poultry', 'chicken', 'fish', 'seafood', 'cheese', 'milk', 'egg', 'ingredient', 'food']
         : ['food', 'dish', 'soup', 'stew', 'salad', 'cake', 'bread', 'pasta', 'meat', 'fish', 'dessert', 'pie', 'sauce', 'porridge', 'cutlet', 'patty', 'casserole', 'roast', 'fried', 'baked', 'grilled', 'traditional', 'national dish'];
@@ -380,6 +421,42 @@ function recipes_ai_image_score_candidate(string $title, string $description, st
         $score += 2;
     }
     return $score;
+}
+
+function recipes_ai_search_word_variants(string $word): array
+{
+    $word = recipes_normalize_product_name($word);
+    if ($word === '') {
+        return [];
+    }
+    $variants = [$word];
+    if (str_ends_with($word, 'y')) {
+        $variants[] = mb_substr($word, 0, -1, 'UTF-8') . 'ies';
+    }
+    if (preg_match('/ies$/u', $word)) {
+        $variants[] = mb_substr($word, 0, -3, 'UTF-8') . 'y';
+    }
+    if (preg_match('/(?:oes|ses|xes|ches|shes)$/u', $word)) {
+        $variants[] = mb_substr($word, 0, -2, 'UTF-8');
+    }
+    if (preg_match('/s$/u', $word) && !preg_match('/ss$/u', $word)) {
+        $variants[] = mb_substr($word, 0, -1, 'UTF-8');
+    }
+    return array_values(array_unique($variants));
+}
+
+function recipes_ai_image_query_variants(string $query): array
+{
+    $query = trim($query);
+    if ($query === '') {
+        return [];
+    }
+    $variants = [$query];
+    $words = preg_split('/\s+/u', recipes_normalize_product_name($query));
+    if (count($words) === 1) {
+        $variants = array_merge($variants, recipes_ai_search_word_variants($words[0]));
+    }
+    return array_values(array_unique(array_filter($variants)));
 }
 
 function recipes_ai_wiki_fetch_pages(string $searchQuery, string $wikiLang, int $limit): array
@@ -428,25 +505,28 @@ function recipes_ai_commons_food_candidates(string $query, int $limit = 8): arra
     if ($query === '') {
         return [];
     }
-    $url = 'https://commons.wikimedia.org/w/api.php?' . http_build_query([
-        'action' => 'query',
-        'list' => 'search',
-        'srsearch' => $query . ' food photo -book -cover -scan -page -logo',
-        'srnamespace' => 6,
-        'srlimit' => $limit * 2,
-        'format' => 'json',
-    ]);
-    $body = recipes_ai_wiki_http_get($url);
-    if ($body === null) {
-        return [];
-    }
-    $json = json_decode($body, true);
     $titles = [];
-    foreach ($json['query']['search'] ?? [] as $item) {
-        if (!empty($item['title'])) {
-            $titles[] = (string)$item['title'];
+    foreach (['intitle:"' . $query . '" food photo -book -cover -scan -page -logo -palette -pallet -swatch -paint -pdf', $query . ' food photo -book -cover -scan -page -logo -palette -pallet -swatch -paint -pdf'] as $search) {
+        $url = 'https://commons.wikimedia.org/w/api.php?' . http_build_query([
+            'action' => 'query',
+            'list' => 'search',
+            'srsearch' => $search,
+            'srnamespace' => 6,
+            'srlimit' => $limit * 2,
+            'format' => 'json',
+        ]);
+        $body = recipes_ai_wiki_http_get($url);
+        if ($body === null) {
+            continue;
+        }
+        $json = json_decode($body, true);
+        foreach ($json['query']['search'] ?? [] as $item) {
+            if (!empty($item['title'])) {
+                $titles[] = (string)$item['title'];
+            }
         }
     }
+    $titles = array_values(array_unique($titles));
     if ($titles === []) {
         return [];
     }
@@ -491,10 +571,13 @@ function recipes_ai_product_en_fallback(string $name, string $lang): string
             'молоко' => 'milk', 'мука' => 'flour', 'сахар' => 'sugar', 'соль' => 'salt', 'перец' => 'pepper',
             'мясо' => 'meat', 'говядина' => 'beef', 'свинина' => 'pork', 'курица' => 'chicken',
             'чеснок' => 'garlic', 'сметана' => 'sour cream', 'масло' => 'butter', 'рис' => 'rice',
+            'какао' => 'cocoa powder', 'какао-порошок' => 'cocoa powder', 'сливки' => 'cream',
+            'сливки 33%' => 'heavy cream', 'темный шоколад' => 'dark chocolate', 'чёрный шоколад' => 'dark chocolate',
         ],
         'uk' => [
             'картопля' => 'potato', 'цибуля' => 'onion', 'морква' => 'carrot', 'капуста' => 'cabbage',
             'помідор' => 'tomato', 'огірок' => 'cucumber', 'яйце' => 'egg', 'молоко' => 'milk',
+            'какао' => 'cocoa powder', 'вершки' => 'cream', 'чорний шоколад' => 'dark chocolate',
         ],
         'be' => [
             'бульба' => 'potato', 'цыбуля' => 'onion', 'морква' => 'carrot',
@@ -525,6 +608,9 @@ function recipes_ai_recipe_image_searches(string $label, string $query): array
     if (preg_match('/борщ|borscht|borsch/u', $norm)) {
         $searches[] = 'borscht soup';
         $searches[] = 'борщ суп';
+    }
+    if (preg_match('/cherr|виш|roll|рулет|roulade/u', $norm) && preg_match('/chocolate|шоколад/u', $norm)) {
+        array_unshift($searches, 'chocolate cherry swiss roll cake', 'chocolate cherry roulade cake', 'chocolate cherry cake dessert', 'black forest roll cake');
     }
     return array_values(array_unique(array_filter($searches)));
 }
@@ -585,9 +671,13 @@ function recipes_ai_gather_image_options(string $label, string $query, string $l
         }
         $searches = $kind === 'recipe'
             ? recipes_ai_recipe_image_searches($label, $query)
-            : array_values(array_unique(array_filter([
-                $query, $label, recipes_ai_product_en_fallback($label, $lang) ?: null,
-            ])));
+            : array_values(array_unique(array_filter(array_merge(
+                recipes_ai_image_query_variants(recipes_ai_product_image_query($label, $lang)),
+                recipes_ai_image_query_variants(recipes_ai_product_image_query($query, $lang)),
+                recipes_ai_image_query_variants($query),
+                recipes_ai_image_query_variants($label),
+                recipes_ai_image_query_variants(recipes_ai_product_en_fallback($label, $lang))
+            ))));
         foreach (array_slice($searches, 0, 3) as $sq) {
             $raw = $kind === 'product'
                 ? recipes_ai_wikimedia_product_candidates($sq, $wl, 8)
@@ -603,7 +693,7 @@ function recipes_ai_gather_image_options(string $label, string $query, string $l
                     $label,
                     $kind
                 );
-                if ($score < 4) {
+                if ($score < ($kind === 'product' ? 10 : 12)) {
                     continue;
                 }
                 $seen[$c['url']] = true;
@@ -623,7 +713,7 @@ function recipes_ai_gather_image_options(string $label, string $query, string $l
                 $label,
                 $kind
             );
-            if ($score < 4) {
+            if ($score < 10) {
                 continue;
             }
             $seen[$c['url']] = true;
@@ -665,7 +755,7 @@ function recipes_ai_search_product_image(string $productName, string $lang): ?st
         return null;
     }
     $url = recipes_ai_verify_image_choice($productName, array_slice($candidates, 0, 8));
-    return $url ?: ($candidates[0]['url'] ?? null);
+    return $url;
 }
 
 function recipes_ai_wikimedia_candidates(string $query, string $wikiLang = 'en', int $limit = 8): array
@@ -697,7 +787,7 @@ function recipes_ai_verify_image_choice(string $recipeTitle, array $candidates):
     }
     $config = cloud_ai_load_config();
     if ($config['api_key'] === '') {
-        return $candidates[0]['url'] ?? null;
+        return null;
     }
     $lines = [];
     foreach ($candidates as $i => $c) {
@@ -725,7 +815,7 @@ function recipes_ai_verify_image_choice(string $recipeTitle, array $candidates):
             cloud_safe_error_log('recipes_ai_verify_image: ' . $e->getMessage());
         }
     }
-    return $candidates[0]['url'] ?? null;
+    return null;
 }
 
 function recipes_ai_search_recipe_image(string $recipeTitle, string $imageQuery, string $lang): ?array
@@ -835,7 +925,7 @@ function recipes_ai_create_product($db, string $products_dir, string $name, stri
     }
     $image_name = null;
     $preview_name = null;
-    $imgUrl = $imageUrl ?: recipes_ai_search_product_image($imageQuery ?: $name, $lang);
+    $imgUrl = $imageUrl;
     if ($imgUrl) {
         $dl = recipes_ai_download_image($imgUrl);
         if ($dl) {
@@ -844,15 +934,6 @@ function recipes_ai_create_product($db, string $products_dir, string $name, stri
                 $preview_name = recipes_product_preview_refresh($products_dir, $product_id, $image_name);
             }
         }
-    }
-    if (!$image_name) {
-        $image_name = recipes_ai_make_placeholder_image($product_dir);
-        if ($image_name) {
-            $preview_name = recipes_product_preview_refresh($products_dir, $product_id, $image_name);
-        }
-    }
-    if (!$image_name) {
-        return ['ok' => false, 'error' => 'image required for new product'];
     }
     $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "products
         (id, name_en, name_uk, name_ru, name_be, category, image, image_preview)
@@ -863,7 +944,7 @@ function recipes_ai_create_product($db, string $products_dir, string $name, stri
     $stmt->bindValue(':nr', $names['ru'], SQLITE3_TEXT);
     $stmt->bindValue(':nb', $names['be'], SQLITE3_TEXT);
     $stmt->bindValue(':cat', $category, SQLITE3_TEXT);
-    $stmt->bindValue(':img', $image_name, SQLITE3_TEXT);
+    $stmt->bindValue(':img', $image_name, $image_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->bindValue(':prev', $preview_name, $preview_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
     $stmt->execute();
     $row = recipes_load_product_row($db, $product_id);
@@ -1076,22 +1157,22 @@ function recipes_ai_json_system_prompt(string $lang): string
 {
     $cats = implode(', ', RECIPES_AI_CATEGORIES);
     $units = implode(', ', RECIPES_AI_UNITS);
-    return "You are a recipe assistant. User language: {$lang}.\n"
+    return "You are a recipe assistant. Interface language: {$lang}. The user request may be in any language.\n"
         . "Product categories: {$cats}\n"
         . "Quantity units: {$units}\n\n"
         . "Return ONLY valid JSON (no markdown) with this schema:\n"
         . "{\n"
-        . "  \"title\": \"natural dish name in user language only\",\n"
+        . "  \"title\": \"natural dish name in interface language only\",\n"
         . "  \"recipe_image_query\": \"English photo search for the FINISHED dish\",\n"
         . "  \"ingredients\": [\n"
-        . "    {\"name\": \"ingredient in user language\", \"quantity_value\": 200, \"quantity_unit\": \"grams\", \"category\": \"vegetables\"}\n"
+        . "    {\"name\": \"ingredient in interface language\", \"quantity_value\": 200, \"quantity_unit\": \"grams\", \"category\": \"vegetables\"}\n"
         . "  ],\n"
         . "  \"instructions\": [\n"
-        . "    {\"content\": \"step text in user language\", \"timer_hours\": 0, \"timer_minutes\": 15}\n"
+        . "    {\"content\": \"step text in interface language\", \"timer_hours\": 0, \"timer_minutes\": 15}\n"
         . "  ]\n"
         . "}\n"
-        . "Title: natural name in user language only — never add translations in parentheses, alternate names, or \"X-style\" prefixes.\n"
-        . "Instructions: exactly 2 or 3 steps total — combine related actions, never more than 3.\n"
+        . "Title, ingredient names and instructions must be in interface language ({$lang}) only — never add translations in parentheses, alternate names, or \"X-style\" prefixes.\n"
+        . "Instructions: exactly 2 or 3 steps total in interface language — combine related actions, never more than 3.\n"
         . "recipe_image_query: English description of the finished dish (NOT burger/hamburger for cutlets/kotleti).\n"
         . "Include realistic quantities. At least 2 ingredients.";
 }

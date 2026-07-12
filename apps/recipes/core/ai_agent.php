@@ -22,11 +22,21 @@ function recipes_ai_stream_event(string $event, array $data): void
 function recipes_ai_search_products_ranked($db, string $query, int $limit = 8): array
 {
     $merged = [];
-    $queries = [trim($query)];
+    $queries = recipes_ai_name_variants($query);
+    if (function_exists('recipes_ai_product_en_fallback')) {
+        foreach (['ru', 'uk', 'be'] as $sourceLang) {
+            $enQuery = recipes_ai_product_en_fallback($query, $sourceLang);
+            if ($enQuery !== '' && recipes_normalize_product_name($enQuery) !== recipes_normalize_product_name($query)) {
+                $queries[] = $enQuery;
+            }
+        }
+    }
     $words = preg_split('/\s+/u', recipes_normalize_product_name($query));
     foreach ($words as $w) {
         if (mb_strlen($w, 'UTF-8') >= 3) {
-            $queries[] = $w;
+            foreach (recipes_ai_name_variants($w) as $variant) {
+                $queries[] = $variant;
+            }
         }
     }
     $queries = array_values(array_unique(array_filter($queries)));
@@ -35,23 +45,124 @@ function recipes_ai_search_products_ranked($db, string $query, int $limit = 8): 
             $merged[$hit['id']] = $hit;
         }
     }
-    return array_values($merged);
+    if (count($merged) < $limit) {
+        foreach (recipes_ai_search_products_all_ranked($db, $query, $limit * 2) as $hit) {
+            $merged[$hit['id']] = $hit;
+        }
+    }
+    return array_slice(array_values($merged), 0, $limit);
+}
+
+function recipes_ai_name_variants(string $name): array
+{
+    $name = trim($name);
+    if ($name === '') {
+        return [];
+    }
+    $variants = [$name];
+    $norm = recipes_normalize_product_name($name);
+    if (preg_match('/ies$/u', $norm)) {
+        $variants[] = mb_substr($norm, 0, -3, 'UTF-8') . 'y';
+    }
+    if (preg_match('/(?:oes|ses|xes|ches|shes)$/u', $norm)) {
+        $variants[] = mb_substr($norm, 0, -2, 'UTF-8');
+    }
+    if (preg_match('/s$/u', $norm) && !preg_match('/ss$/u', $norm)) {
+        $variants[] = mb_substr($norm, 0, -1, 'UTF-8');
+    }
+    $clean = preg_replace('/\b(seedless|fresh|frozen|dried|pitted|without pits|без косточек|свежие|замороженные|сушеные)\b/iu', '', $name);
+    $clean = trim((string)preg_replace('/\s+/u', ' ', (string)$clean));
+    if ($clean !== '' && recipes_normalize_product_name($clean) !== $norm) {
+        $variants = array_merge($variants, recipes_ai_name_variants($clean));
+    }
+    return array_values(array_unique(array_filter($variants)));
+}
+
+function recipes_ai_search_products_all_ranked($db, string $query, int $limit = 16): array
+{
+    $queryVariants = array_values(array_unique(array_map('recipes_normalize_product_name', recipes_ai_name_variants($query))));
+    $queryVariants = array_values(array_filter($queryVariants));
+    if ($queryVariants === []) {
+        return [];
+    }
+    $qWords = [];
+    foreach ($queryVariants as $q) {
+        foreach (preg_split('/\s+/u', $q) as $w) {
+            if (mb_strlen($w, 'UTF-8') >= 3) {
+                $qWords[] = $w;
+            }
+        }
+    }
+    $qWords = array_values(array_unique($qWords));
+    $rows = [];
+    try {
+        $res = $db->query("SELECT id, name_en, name_uk, name_ru, name_be, category, image, image_preview FROM " . RECIPES_DB_TABLE_PREFIX . "products");
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $names = [
+                'en' => (string)$row['name_en'],
+                'uk' => (string)$row['name_uk'],
+                'ru' => (string)$row['name_ru'],
+                'be' => (string)$row['name_be'],
+            ];
+            $score = 0;
+            foreach ($names as $name) {
+                $n = recipes_normalize_product_name($name);
+                foreach ($queryVariants as $q) {
+                    if ($n === $q) {
+                        $score = max($score, 100);
+                    } elseif (str_contains($n, $q) || str_contains($q, $n)) {
+                        $score = max($score, 70);
+                    } else {
+                        $hits = 0;
+                        foreach ($qWords as $w) {
+                            if (str_contains($n, $w)) {
+                                $hits++;
+                            }
+                        }
+                        if ($hits > 0) {
+                            $score = max($score, 20 + $hits * 10);
+                        }
+                    }
+                }
+            }
+            if ($score <= 0) {
+                continue;
+            }
+            $rows[] = [
+                'id' => $row['id'],
+                'name' => $names,
+                'category' => $row['category'] ?? '',
+                'image' => $row['image'] ?? null,
+                'image_preview' => $row['image_preview'] ?? null,
+                'has_image' => !empty($row['image']),
+                '_score' => $score,
+            ];
+        }
+    } catch (Throwable $e) {
+        return [];
+    }
+    usort($rows, static fn($a, $b) => ($b['_score'] ?? 0) <=> ($a['_score'] ?? 0));
+    return array_map(static function ($row) {
+        unset($row['_score']);
+        return $row;
+    }, array_slice($rows, 0, $limit));
 }
 
 function recipes_ai_agent_system_prompt(string $lang): string
 {
     $cats = implode(', ', RECIPES_AI_CATEGORIES);
     $units = implode(', ', RECIPES_AI_UNITS);
-    return "You are a recipe assistant. User language: {$lang}.\n"
+    return "You are a recipe assistant. Interface language: {$lang}. The user request may be in any language.\n"
         . "Product categories: {$cats}. Units: {$units}.\n\n"
         . "Workflow:\n"
         . "1. Parse the recipe request.\n"
-        . "2. For EACH ingredient call search_products — pick the best matching product id from results (check all language names).\n"
+        . "2. For EACH ingredient call search_products with the ingredient name and likely synonyms/translations when needed — pick the best matching product id from results (check all language names).\n"
         . "3. If search returns no suitable match, omit product_id and use product_name only.\n"
         . "4. Call submit_recipe when ready with title, recipe_image_query (English, specific dish photo), ingredients and instructions.\n"
         . "Never invent product_id. Never auto-guess ids without search_products.\n"
-        . "Title rules: write a natural dish name ONLY in the user language. Never add translations in parentheses, alternate names, or \"X-style\" prefixes (bad: \"Russian-style Meat Patties (Kotleti)\", good: \"Котлеты\" or \"Meat patties\").\n"
-        . "Instructions: provide exactly 2 or 3 cooking steps — combine related actions, never more than 3.\n"
+        . "Title rules: write a natural dish name ONLY in the interface language ({$lang}). Never add translations in parentheses, alternate names, or \"X-style\" prefixes.\n"
+        . "Ingredient product_name and instructions: write ONLY in the interface language ({$lang}), regardless of the request language.\n"
+        . "Instructions: provide exactly 2 or 3 cooking steps in the interface language — combine related actions, never more than 3.\n"
         . "recipe_image_query: English description of the FINISHED dish for photo search (e.g. \"fried meat cutlets kotleti on plate\"), NOT burger/hamburger.";
 }
 
@@ -221,6 +332,17 @@ function recipes_ai_match_draft_products(array $draft, $db, string $lang, ?calla
             }
             continue;
         }
+        $confident = $name !== '' ? recipes_ai_find_product_confident($db, $name) : null;
+        if ($confident) {
+            $step['product_id'] = $confident['id'];
+            $step['content'] = $confident['id'];
+            $step['product_name'] = $confident['name'][$lang] ?? $confident['name']['en'];
+            $resolved[] = $step;
+            if ($emit) {
+                $emit('activity', ['kind' => 'found', 'name' => $step['product_name']]);
+            }
+            continue;
+        }
         $candidates = $name !== '' ? recipes_ai_search_products_ranked($db, $name, 6) : [];
         $key = 'p' . $pIdx++;
         $pending[] = [
@@ -259,6 +381,56 @@ function recipes_ai_find_product_exact($db, string $name): ?array
         }
     }
     return null;
+}
+
+function recipes_ai_find_product_confident($db, string $name): ?array
+{
+    $hits = recipes_ai_search_products_ranked($db, $name, 8);
+    $targets = array_values(array_filter(array_unique(array_map('recipes_normalize_product_name', recipes_ai_name_variants($name)))));
+    $targetWords = [];
+    foreach ($targets as $target) {
+        foreach (preg_split('/\s+/u', $target) as $w) {
+            if (mb_strlen($w, 'UTF-8') >= 3) {
+                $targetWords[] = $w;
+            }
+        }
+    }
+    $targetWords = array_values(array_unique($targetWords));
+    $best = null;
+    $bestScore = 0;
+    foreach ($hits as $hit) {
+        foreach ($hit['name'] as $n) {
+            $cand = recipes_normalize_product_name((string)$n);
+            if ($cand === '') {
+                continue;
+            }
+            $score = 0;
+            foreach ($targets as $target) {
+                if ($cand === $target) {
+                    $score = max($score, 100);
+                } elseif (str_contains($cand, $target)) {
+                    $score = max($score, 90);
+                } elseif (str_contains($target, $cand) && mb_strlen($cand, 'UTF-8') >= 4) {
+                    $score = max($score, 76);
+                } else {
+                    $hitsWords = 0;
+                    foreach ($targetWords as $w) {
+                        if (str_contains($cand, $w)) {
+                            $hitsWords++;
+                        }
+                    }
+                    if ($targetWords && $hitsWords === count($targetWords)) {
+                        $score = max($score, 72);
+                    }
+                }
+            }
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $hit;
+            }
+        }
+    }
+    return $bestScore >= 72 ? $best : null;
 }
 
 function recipes_ai_apply_product_decisions(array $draft, array $decisions, $db, string $products_dir, string $lang): array
@@ -307,6 +479,10 @@ function recipes_ai_apply_product_decisions(array $draft, array $decisions, $db,
                 continue;
             }
             $imgUrl = !empty($dec['image_url']) ? trim((string)$dec['image_url']) : null;
+            if (!$imgUrl) {
+                $out[] = $step;
+                continue;
+            }
             $created = recipes_ai_create_product($db, $products_dir, $pname, $cat, $lang, $imgUrl, recipes_ai_product_image_query($pname, $lang));
             if (!empty($created['ok']) && !empty($created['id'])) {
                 $step['product_id'] = $created['id'];
@@ -341,6 +517,9 @@ function recipes_ai_run_agent(string $prompt, string $lang, ?string $model, ?arr
         $response = recipes_ai_chat($config, $model, $messages, $tools);
         $choice = $response['choices'][0]['message'] ?? null;
         if (!is_array($choice)) {
+            if (function_exists('cloud_safe_error_log')) {
+                cloud_safe_error_log('recipes_ai_agent: invalid choice at iter ' . $i . ': ' . substr(json_encode($response), 0, 500));
+            }
             break;
         }
         $toolCalls = $choice['tool_calls'] ?? null;
@@ -406,6 +585,13 @@ function recipes_ai_run_agent(string $prompt, string $lang, ?string $model, ?arr
                 ];
                 break;
             }
+            if (function_exists('cloud_safe_error_log')) {
+                cloud_safe_error_log('recipes_ai_agent: text response (no valid JSON) at iter ' . $i . ': ' . substr($text, 0, 500));
+            }
+        } else {
+            if (function_exists('cloud_safe_error_log')) {
+                cloud_safe_error_log('recipes_ai_agent: empty text at iter ' . $i . ' full_choice: ' . substr(json_encode($choice), 0, 500));
+            }
         }
         break;
     }
@@ -446,9 +632,40 @@ function recipes_ai_run_agent_stream(string $prompt, string $lang, ?string $mode
 {
     recipes_ai_stream_headers();
     try {
-        recipes_ai_run_agent($prompt, $lang, $model, $currentDraft, $products_dir, static function (string $event, array $data) {
+        $result = recipes_ai_run_agent($prompt, $lang, $model, $currentDraft, $products_dir, static function (string $event, array $data) {
             recipes_ai_stream_event($event, $data);
         });
+        if (empty($result['success'])) {
+            $emitFn = static function (string $event, array $data) {
+                recipes_ai_stream_event($event, $data);
+            };
+            $emitFn('status', ['text' => 'ai_thinking']);
+            $db = getDB();
+            $jsonResult = recipes_ai_generate_json($prompt, $lang, $model, $currentDraft);
+            $json = $jsonResult['json'] ?? [];
+            if (!empty($json['title'])) {
+                $draft = recipes_ai_json_to_draft($json, $db, $lang);
+                $matched = recipes_ai_match_draft_products($draft, $db, $lang, $emitFn);
+                $draft = $matched['draft'];
+                $pending = $matched['pending_products'];
+                $emitFn('title', ['title' => $draft['title'] ?? '']);
+                $emitFn('recipe_image_query', ['query' => $draft['recipe_image_query'] ?? $draft['title'] ?? '']);
+                $emitFn('steps_clear', []);
+                foreach ($draft['steps'] ?? [] as $idx => $step) {
+                    $emitFn('step', ['index' => $idx, 'step' => $step]);
+                }
+                if ($pending !== []) {
+                    $emitFn('pending_products', ['pending_products' => $pending]);
+                }
+                $emitFn('done', [
+                    'draft' => $draft,
+                    'pending_products' => $pending,
+                    'model' => $jsonResult['model'] ?? $model,
+                ]);
+            } else {
+                recipes_ai_stream_event('error', ['message' => 'AI could not produce a recipe']);
+            }
+        }
     } catch (Throwable $e) {
         recipes_ai_stream_event('error', ['message' => $e->getMessage()]);
     }

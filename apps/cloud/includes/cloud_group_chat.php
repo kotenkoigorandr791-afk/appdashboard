@@ -142,7 +142,7 @@ function cloud_group_chat_unread_count($db, string $groupId, string $email): int
     $stmt->bindValue(':email', $email, SQLITE3_TEXT);
     $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
     $lastRead = (int)($row['last_read_id'] ?? 0);
-    $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM cloud_group_chat_messages WHERE group_id = :gid AND id > :lid AND LOWER(sender_email) != :email AND IFNULL(is_deleted,0)=0');
+    $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM cloud_group_chat_messages WHERE group_id = :gid AND id > :lid AND LOWER(sender_email) != :email AND COALESCE(is_deleted,0)=0');
     $cstmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
     $cstmt->bindValue(':lid', $lastRead, SQLITE3_INTEGER);
     $cstmt->bindValue(':email', $email, SQLITE3_TEXT);
