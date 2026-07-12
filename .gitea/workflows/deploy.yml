@@ -13,15 +13,15 @@ jobs:
           set -euo pipefail
           cd /opt/docker/appdashboard/code
           git fetch origin main
+          if [ "$(git branch --show-current)" != "main" ]; then
+            git checkout main
+          fi
+          git reset --hard origin/main
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
-          if [ "$(git branch --show-current)" != "main" ]; then
-            git checkout main
-          fi
-          git reset --hard origin/main
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
           docker exec appdashboard nginx -t
@@ -35,17 +35,17 @@ jobs:
           set -euo pipefail
           cd /opt/docker/appdashboard/code
           git fetch origin develop
-          if [ -n "$(git status --porcelain)" ]; then
-            git status --short
-            echo "Working tree is dirty; commit or stash server changes before deploy."
-            exit 1
-          fi
           if git show-ref --verify --quiet refs/heads/develop; then
             git checkout develop
           else
             git checkout -b develop --track origin/develop
           fi
           git merge --ff-only origin/develop
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            echo "Working tree is dirty; commit or stash server changes before deploy."
+            exit 1
+          fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
           docker exec appdashboard nginx -t
