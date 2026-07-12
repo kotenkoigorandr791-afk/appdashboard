@@ -13,7 +13,14 @@ $__pathLower = strtolower($__path);
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
     if ($__path === '/' || $__path === '' || $__pathLower === '/news') {
         header('Content-Type: text/html; charset=UTF-8');
-        readfile(APP_ROOT . '/home/home.html');
+        $__homeHtml = file_get_contents(APP_ROOT . '/home/home.html');
+        if ($__homeHtml !== false) {
+            $__cssVersion = is_file(APP_ROOT . '/home/home.css') ? (string)filemtime(APP_ROOT . '/home/home.css') : '1';
+            $__jsVersion = is_file(APP_ROOT . '/home/home.js') ? (string)filemtime(APP_ROOT . '/home/home.js') : '1';
+            $__homeHtml = str_replace('href="/home/home.css"', 'href="/home/home.css?v=' . $__cssVersion . '"', $__homeHtml);
+            $__homeHtml = str_replace('src="/home/home.js"', 'src="/home/home.js?v=' . $__jsVersion . '"', $__homeHtml);
+            echo $__homeHtml;
+        }
         exit;
     }
     $__homeAssets = [
