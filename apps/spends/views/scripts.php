@@ -413,6 +413,18 @@ async function switchChartCurrency(cur) {
     updateChart();
 }
 
+function linearRegression(values){
+    const n=values.length;
+    if(n<2)return values.slice();
+    let sx=0,sy=0,sxx=0,sxy=0;
+    for(let i=0;i<n;i++){sx+=i;sy+=values[i];sxx+=i*i;sxy+=i*values[i];}
+    const denom=n*sxx-sx*sx;
+    if(denom===0)return values.slice();
+    const m=(n*sxy-sx*sy)/denom;
+    const b=(sy-m*sx)/n;
+    return Array.from({length:n},(_,i)=>+(m*i+b).toFixed(2));
+}
+
 function updateChart() {
     const ctx = document.getElementById('expenses-chart').getContext('2d');
     const months = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'));
@@ -428,25 +440,42 @@ function updateChart() {
     const base = userSettings.currency;
     const conv = (exchangeRatesToUSD[base]||1)/(exchangeRatesToUSD[chartCurrency]||1);
     if (chart) chart.destroy();
+    const now=new Date();
+    const isCurrentYear=Number(currentChartYear)===now.getFullYear();
+    const currentMonthIdx=isCurrentYear?now.getMonth():-1;
+    const dashOn={borderDash:[6,4]};
+    const dashOff={borderDash:[]};
+    const segFn=p0Idx=>p0Idx<currentMonthIdx?dashOff:dashOn;
     let datasets=[];
     if (chartMode==='total') {
         const td=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
-        datasets=[{label:translations.total_expenses,data:td,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.14)',tension:.4,fill:true}];
+        datasets=[{label:translations.total_expenses,data:td,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.14)',tension:.4,fill:true,segment:ctx=>segFn(ctx.p0DataIndex)}];
         if(userSettings.show_incomes){
             const inc=months.map(m=>(monthlyIncome[m]||0)*conv);
-            datasets.push({label:t('incomes','Incomes'),data:inc,borderColor:'#22c55e',backgroundColor:'#22c55e',tension:.4,fill:false});
+            datasets.push({label:t('incomes','Incomes'),data:inc,borderColor:'#22c55e',backgroundColor:'#22c55e',tension:.4,fill:false,segment:ctx=>segFn(ctx.p0DataIndex)});
+        }
+        if(userSettings.show_trend){
+            const inc=months.map(m=>(monthlyIncome[m]||0)*conv);
+            const trendData=months.map((_,i)=>+Math.abs(inc[i]-td[i]).toFixed(2));
+            datasets.push({label:t('trend_line','Trend'),data:trendData,borderColor:'#f59e0b',backgroundColor:'transparent',borderWidth:2,tension:0,fill:false,pointRadius:0,segment:ctx=>segFn(ctx.p0DataIndex)});
         }
     } else {
+        const perStoreTotals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
         userSettings.stores.forEach((s,i)=>{
             if(s.visible===false)return;
-            datasets.push({label:s.name,data:months.map(m=>(monthly[m][s.name]||0)*conv),borderColor:storeColors[i%storeColors.length],backgroundColor:storeColors[i%storeColors.length]+'20',tension:.4,fill:false});
+            datasets.push({label:s.name,data:months.map(m=>(monthly[m][s.name]||0)*conv),borderColor:storeColors[i%storeColors.length],backgroundColor:storeColors[i%storeColors.length]+'20',tension:.4,fill:false,segment:ctx=>segFn(ctx.p0DataIndex)});
         });
+        if(userSettings.show_trend){
+            const trendData=linearRegression(perStoreTotals);
+            datasets.push({label:t('trend_line','Trend'),data:trendData,borderColor:'#f59e0b',backgroundColor:'transparent',borderWidth:2,tension:0,fill:false,pointRadius:0,segment:ctx=>segFn(ctx.p0DataIndex)});
+        }
     }
     chart=new Chart(ctx,{type:'line',data:{labels:months,datasets},options:{responsive:true,maintainAspectRatio:false,
+        interaction:{mode:'index',intersect:false},
         scales:{y:{beginAtZero:true,title:{display:true,text:`Amount (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
                x:{title:{display:true,text:'Month',color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
         plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>'}},
-                 tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+                 tooltip:{mode:'index',intersect:false,callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
     document.querySelector('.chart-toggle-btn').textContent=chartMode==='total'?translations.per_store_expenses:translations.total_expenses;
     updateYearButtons();
@@ -693,11 +722,14 @@ function saveBudgetSettingsNow(){
     f.append('currency',document.getElementById('currency').value);
     const showIncomesEl=document.getElementById('show-incomes-toggle');
     if(showIncomesEl&&showIncomesEl.checked)f.append('show_incomes','1');
+    const showTrendEl=document.getElementById('show-trend-toggle');
+    if(showTrendEl&&showTrendEl.checked)f.append('show_trend','1');
     fetch('',{method:'POST',body:f}).then(r=>r.json()).then(d=>{
         if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}
         userSettings.currency=document.getElementById('currency').value;
         userSettings.monthly_budget=parseFloat(document.getElementById('monthly-budget').value)||0;
         userSettings.show_incomes=!!(showIncomesEl&&showIncomesEl.checked);
+        userSettings.show_trend=!!(showTrendEl&&showTrendEl.checked);
         chartCurrency=userSettings.currency;
         document.querySelectorAll('.currency-btn').forEach(b=>b.classList.toggle('active',b.dataset.currency===chartCurrency));
         loadAvailableYears().then(()=>updateChart());
@@ -1436,7 +1468,15 @@ document.addEventListener('DOMContentLoaded',function(){
     const curEl=document.getElementById('currency');
     if(curEl)curEl.addEventListener('change',scheduleSaveBudgetSettings);
     const sit=document.getElementById('show-incomes-toggle');
-    if(sit)sit.addEventListener('change',scheduleSaveBudgetSettings);
+    if(sit)sit.addEventListener('change',function(){
+        scheduleSaveBudgetSettings();
+        toggleIncomeColumnVisibility();
+    });
+    const stt=document.getElementById('show-trend-toggle');
+    if(stt)stt.addEventListener('change',function(){
+        scheduleSaveBudgetSettings();
+        updateChart();
+    });
     const sb=document.getElementById('sort-by');
     if(sb)sb.addEventListener('change',scheduleSaveTableSettings);
     const rpp=document.getElementById('rows-per-page');
@@ -1493,5 +1533,17 @@ document.addEventListener('DOMContentLoaded',function(){
     });
 
     renderPagination();
+
+    function toggleIncomeColumnVisibility() {
+        const showIncomes = document.getElementById('show-incomes-toggle').checked;
+        const incomeElements = document.querySelectorAll('.income-header, .income-separator');
+        incomeElements.forEach(el => {
+            if (showIncomes) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
 });
 </script>

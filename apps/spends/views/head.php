@@ -85,7 +85,7 @@
         .bulk-delete-hint { font-size:12px; opacity:.85; margin:8px 0 12px; line-height:1.4; }
         .bulk-delete-danger { color:var(--danger-color); font-weight:600; margin:0 0 10px; line-height:1.4; }
         #settings-section-delete .confirm-btn { margin-top:12px; }
-        #settings-modal .modal-content { width:min(1100px,96vw); max-width:min(1100px,96vw); }
+        #settings-modal .modal-content { width:min(1100px,96vw); max-width:min(1100px,96vw); min-height:480px; }
         #settings-modal .store-list { max-width:100%; }
         .chart-container { margin:20px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:nowrap; max-width:80%; margin-left:auto; margin-right:auto; }
         .chart-nav-btn, .chart-toggle-btn { background:rgba(200,200,200,0.3); color:var(--text-color); border:none; padding:8px 12px; cursor:pointer; flex:0 0 auto; border-radius:4px; font-size:16px; transition:background 0.2s; }
@@ -132,6 +132,7 @@
         .settings-menu-btn.active { background:var(--primary-color); color:#fff; }
         .settings-section { display:none; }
         .settings-section.active { display:block; }
+        .income-header.hidden, .income-separator.hidden { display:none!important; }
         .modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.62); backdrop-filter:blur(8px); display:none; justify-content:center; align-items:center; z-index:1000; padding:14px; box-sizing:border-box; }
         #import-modal { background:rgba(0,0,0,0.75); padding:0!important; box-sizing:border-box; align-items:stretch; justify-content:stretch; inset:0; }
         #import-modal .modal-content { width:100vw!important; height:100vh!important; max-width:none!important; max-height:none!important; border-radius:0!important; padding:0!important; box-sizing:border-box; overflow:hidden; }

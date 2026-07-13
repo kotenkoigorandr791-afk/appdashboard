@@ -188,9 +188,7 @@
                             </div>
                         </th>
                     <?php endforeach; ?>
-                    <?php if (!empty($userSettings['show_incomes'])): ?>
-                        <th class="income-separator income-header"><div class="store-header"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="#22c55e" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm1 15.93V19h-2v-1.09c-1.96-.33-3.5-1.72-3.58-3.41h2.03c.08.85.95 1.52 2.05 1.52 1.16 0 2.08-.69 2.08-1.55 0-.9-.78-1.42-2.38-1.82-1.77-.44-3.5-1.08-3.5-3.12 0-1.63 1.3-2.86 3.3-3.17V5h2v1.08c1.82.3 3.05 1.44 3.2 3h-2.03c-.12-.72-.84-1.25-1.87-1.25-1.05 0-1.85.54-1.85 1.31 0 .78.69 1.2 2.27 1.61 1.8.46 3.62 1.16 3.62 3.35 0 1.78-1.38 3.18-3.34 3.53Z"/></svg><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></div></th>
-                    <?php endif; ?>
+                        <th class="income-separator income-header <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>"><div class="store-header"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="<?= $userSettings['income_color'] ?? '#22c55e' ?>" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm1 15.93V19h-2v-1.09c-1.96-.33-3.5-1.72-3.58-3.41h2.03c.08.85.95 1.52 2.05 1.52 1.16 0 2.08-.69 2.08-1.55 0-.9-.78-1.42-2.38-1.82-1.77-.44-3.5-1.08-3.5-3.12 0-1.63 1.3-2.86 3.3-3.17V5h2v1.08c1.82.3 3.05 1.44 3.2 3h-2.03c-.12-.72-.84-1.25-1.87-1.25-1.05 0-1.85.54-1.85 1.31 0 .78.69 1.2 2.27 1.61 1.8.46 3.62 1.16 3.62 3.35 0 1.78-1.38 3.18-3.34 3.53Z"/></svg><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></div></th>
                 </tr>
             </thead>
             <tbody>
@@ -216,10 +214,8 @@
                                     onchange="scheduleSave(this)">
                             </td>
                         <?php endforeach; ?>
-                        <?php if (!empty($userSettings['show_incomes'])):
-                            $income = $allIncomes[$date] ?? 0;
-                        ?>
-                            <td class="income-separator">
+                        <?php $income = $allIncomes[$date] ?? 0; ?>
+                            <td class="income-separator <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>">
                                 <input type="text"
                                     data-date="<?= htmlspecialchars($date) ?>"
                                     data-income="1"
@@ -227,7 +223,6 @@
                                     oninput="formatNumberInput(this)"
                                     onchange="scheduleSave(this)">
                             </td>
-                        <?php endif; ?>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -287,7 +282,7 @@
         <div class="settings-menu-bar">
             <button type="button" class="settings-menu-btn active" data-settings-section="stores" onclick="switchSettingsSection('stores')"><?= htmlspecialchars($translations['stores']) ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="table" onclick="switchSettingsSection('table')"><?= htmlspecialchars($translations['table_settings']) ?></button>
-            <button type="button" class="settings-menu-btn" data-settings-section="incomes" onclick="switchSettingsSection('incomes')"><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></button>
+            <button type="button" class="settings-menu-btn" data-settings-section="chart" onclick="switchSettingsSection('chart')"><?= htmlspecialchars($translations['chart_settings'] ?? 'Chart') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="delete" onclick="switchSettingsSection('delete')"><?= htmlspecialchars($translations['data_deletion'] ?? 'Data deletion') ?></button>
         </div>
         <div class="settings-section active" id="settings-section-stores">
@@ -360,7 +355,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="settings-section" id="settings-section-incomes">
+        <div class="settings-section" id="settings-section-chart">
             <div class="form-row">
                 <label class="income-switch-row">
                     <span class="income-switch">
@@ -368,6 +363,16 @@
                         <span class="income-slider"></span>
                     </span>
                     <span><?= htmlspecialchars($translations['show_incomes'] ?? 'Show incomes in table and chart') ?></span>
+                </label>
+            </div>
+            <div class="form-row">
+                <label class="income-switch-row">
+                    <span class="income-switch">
+                        <input type="checkbox" id="show-trend-toggle" <?= !empty($userSettings['show_trend'])?'checked':'' ?>>
+                        <span class="income-slider"></span>
+                    </span>
+                    <span><?= htmlspecialchars($translations['show_trend'] ?? 'Trend line') ?></span>
+                    <span class="trend-hint" style="position:relative;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(128,128,128,.25);font-size:12px;font-weight:700;color:var(--text-color);flex:0 0 auto;" title="<?= htmlspecialchars($translations['trend_hint'] ?? 'Linear regression trend: best-fit straight line through monthly total expenses, showing the overall direction of spending over the year.') ?>">?</span>
                 </label>
             </div>
         </div>

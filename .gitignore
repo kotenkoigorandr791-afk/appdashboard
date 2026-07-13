@@ -63,5 +63,6 @@ Thumbs.db
 
 # AI assistant instruction files
 **/*cloud*.md
+**/.claude/
 **/agents.md
 **/CLAUDE.md

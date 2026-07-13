@@ -310,6 +310,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['settings'])) {
     dbSetSetting($udb, 'monthly_budget', $budget);
     dbSetSetting($udb, 'currency', $currency);
     dbSetSetting($udb, 'show_incomes', isset($_POST['show_incomes']) ? '1' : '0');
+    dbSetSetting($udb, 'show_trend', isset($_POST['show_trend']) ? '1' : '0');
     exit(json_encode(['status'=>'success']));
 }
 
