@@ -45,8 +45,13 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   const btnRevoke = document.getElementById('btn-revoke-token');
   const btnRevokeAll = document.getElementById('btn-revoke-all-tokens');
   const btnCopy = document.getElementById('btn-copy-token');
+  const btnCopyUsername = document.getElementById('btn-copy-username');
+  const btnDownloadScript = document.getElementById('btn-download-webdav-script');
+  const btnDownloadLinuxScript = document.getElementById('btn-download-linux-webdav-script');
+  const btnDownloadWindowsScript = document.getElementById('btn-download-windows-webdav-script');
   const tokenDisplay = document.getElementById('sync-token-display');
   const tokenValue = document.getElementById('sync-token-value');
+  const usernameValue = document.getElementById('sync-username-value');
   const tokenInfo = document.getElementById('token-info');
   const tokensList = document.getElementById('sync-tokens-list');
   const tokensListContainer = document.getElementById('tokens-list-container');
@@ -55,6 +60,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   if (!modal || !openBtn) return;
 
   let currentToken = null;
+  let currentUsername = null;
+  let currentWebdavUrl = null;
   let currentTokenHash = null;
   let tokens = [];
   let selectedTokenHash = null;
@@ -104,9 +111,17 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   function renderTokenDisplay() {
     if (currentToken) {
       tokenValue.textContent = currentToken;
+      if (usernameValue) usernameValue.textContent = currentUsername || '';
+      if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = false;
+      if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = false;
+      if (btnDownloadScript) btnDownloadScript.disabled = false;
       tokenDisplay.style.display = 'block';
     } else {
       tokenValue.textContent = '';
+      if (usernameValue) usernameValue.textContent = '';
+      if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = true;
+      if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = true;
+      if (btnDownloadScript) btnDownloadScript.disabled = true;
       tokenInfo.textContent = '';
       tokenDisplay.style.display = 'none';
     }
@@ -169,6 +184,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   function refreshModalContent() {
     if (currentTokenHash && !tokens.some((token) => token.token_hash === currentTokenHash)) {
       currentToken = null;
+      currentUsername = null;
+      currentWebdavUrl = null;
       currentTokenHash = null;
     }
     renderTokenDisplay();
@@ -202,7 +219,7 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       const response = await fetch('api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=client_token_generate&device_id=web&device_name=Web+Browser&platform=Web'
+        body: 'action=client_token_generate&device_id=webdav&device_name=WebDAV&platform=WebDAV'
       });
       const data = await response.json();
       btnGenerate.disabled = false;
@@ -210,10 +227,13 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
 
       if (data.ok && data.token) {
         currentToken = data.token;
+        currentUsername = data.username || '';
+        currentWebdavUrl = data.webdav_url || `${window.location.origin}/webdav/`;
         currentTokenHash = data.token_hash || null;
         tokenValue.textContent = data.token;
+        if (usernameValue) usernameValue.textContent = currentUsername;
         const expiresDate = new Date(data.expires_at * 1000).toLocaleDateString();
-        tokenInfo.textContent = `${tr('expires', 'Expires')}: ${expiresDate} (${data.expires_in_days} ${tr('days', 'days')})`;
+        tokenInfo.textContent = `${tr('expires', 'Expires')}: ${expiresDate} (${data.expires_in_days} ${tr('days', 'days')}) | WebDAV: ${currentWebdavUrl}`;
         flashStatus(`✓ ${tr('tokenGenerated', 'Token generated!')} ${tr('copyNow', 'Copy it now.')}`);
         await loadTokens();
         renderTokenDisplay();
@@ -248,6 +268,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       if (data.ok) {
         if (selectedToken.token_hash === currentTokenHash) {
           currentToken = null;
+          currentUsername = null;
+          currentWebdavUrl = null;
           currentTokenHash = null;
         }
         selectedTokenHash = null;
@@ -265,8 +287,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
 
   async function revokeAllTokens() {
     const confirmModal = await showConfirmModal(
-      tr('revokeAllTokensTitle', 'Revoke all sync tokens'),
-      tr('confirmRevokeAll', 'Revoke ALL sync tokens? This will disconnect all desktop clients.')
+      tr('revokeAllTokensTitle', 'Revoke all WebDAV tokens'),
+      tr('confirmRevokeAll', 'Revoke ALL WebDAV tokens? This will disconnect all WebDAV connections.')
     );
     if (!confirmModal.confirmed) return false;
 
@@ -282,6 +304,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       if (data.ok) {
         btnRevokeAll.disabled = false;
         currentToken = null;
+        currentUsername = null;
+        currentWebdavUrl = null;
         currentTokenHash = null;
         tokens = [];
         selectedTokenHash = null;
@@ -303,25 +327,33 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   }
 
   async function copyToken() {
-    if (!currentToken) {
-      flashStatus(tr('noTokenToCopy', 'No token to copy'));
+    return copyValue(currentToken, tr('noTokenToCopy', 'No token to copy'));
+  }
+
+  async function copyUsername() {
+    return copyValue(currentUsername, tr('noUsernameToCopy', 'No username to copy'));
+  }
+
+  async function copyValue(value, emptyMessage) {
+    if (!value) {
+      flashStatus(emptyMessage);
       return false;
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
       try {
-        await navigator.clipboard.writeText(currentToken);
+        await navigator.clipboard.writeText(value);
         flashStatus(`✓ ${tr('tokenCopied', 'Token copied to clipboard')}`);
         return true;
       } catch (_) {
-        return fallbackCopyToken();
+        return fallbackCopyValue(value);
       }
     }
-    return fallbackCopyToken();
+    return fallbackCopyValue(value);
   }
 
-  function fallbackCopyToken() {
+  function fallbackCopyValue(value) {
     const textarea = document.createElement('textarea');
-    textarea.value = currentToken;
+    textarea.value = value;
     textarea.style.position = 'fixed';
     textarea.style.opacity = '0';
     document.body.appendChild(textarea);
@@ -338,8 +370,293 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     }
   }
 
+  function shellQuote(value) {
+    return `'${String(value).replace(/'/g, `'\\''`)}'`;
+  }
+
+  function psQuote(value) {
+    return `'${String(value).replace(/'/g, "''")}'`;
+  }
+
+  function downloadTextFile(filename, content, type = 'text/plain') {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function detectedDesktopOS() {
+    const platform = `${navigator.userAgentData?.platform || ''} ${navigator.platform || ''} ${navigator.userAgent || ''}`.toLowerCase();
+    if (platform.includes('win')) return 'windows';
+    return 'unix';
+  }
+
+  function webdavConfig() {
+    return {
+      url: currentWebdavUrl || `${window.location.origin}/webdav/`,
+      username: currentUsername || '',
+      token: currentToken || '',
+      iconUrl: new URL('apps/cloud/icon.png', window.location.origin + '/').href
+    };
+  }
+
+  function linuxWebdavScript() {
+    const cfg = webdavConfig();
+    const davUrl = cfg.url.replace(/^https:\/\//, 'webdavs://').replace(/^http:\/\//, 'webdav://');
+    return `#!/usr/bin/env sh
+set -eu
+WEBDAV_URL=${shellQuote(cfg.url)}
+WEBDAV_BROWSER_URL=${shellQuote(davUrl)}
+WEBDAV_USER=${shellQuote(cfg.username)}
+WEBDAV_TOKEN=${shellQuote(cfg.token)}
+ICON_URL=${shellQuote(cfg.iconUrl)}
+TARGET_USER="\${SUDO_USER:-\$(id -un)}"
+TARGET_HOME="\$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+TARGET_UID="\$(id -u "$TARGET_USER")"
+TARGET_GID="\$(id -g "$TARGET_USER")"
+[ -n "$TARGET_HOME" ] || TARGET_HOME="$HOME"
+if [ "$(id -u)" -eq 0 ]; then SUDO_CMD=""; else SUDO_CMD="sudo"; fi
+run_as_user() {
+  if [ "$(id -u)" -eq "$TARGET_UID" ]; then "$@"; else sudo -u "$TARGET_USER" "$@"; fi
+}
+MOUNT_DIR="$TARGET_HOME/AppDashboard Cloud"
+ICON_DIR="$TARGET_HOME/.local/share/icons"
+ICON_FILE="$ICON_DIR/appdashboard-cloud.png"
+DESKTOP_DIR="$TARGET_HOME/.local/share/applications"
+DESKTOP_FILE="$DESKTOP_DIR/appdashboard-cloud-webdav.desktop"
+USER_DESKTOP_DIR="$TARGET_HOME/Desktop"
+USER_DESKTOP_FILE="$USER_DESKTOP_DIR/AppDashboard Cloud.desktop"
+RCLONE_CONFIG_DIR="$TARGET_HOME/.config/rclone"
+RCLONE_CONFIG_FILE="$RCLONE_CONFIG_DIR/appdashboard-cloud.conf"
+RCLONE_REMOTE="appdashboard-cloud"
+RCLONE_LOG_FILE="$TARGET_HOME/.cache/appdashboard-rclone.log"
+LOG_FILE="\$(mktemp "\${TMPDIR:-/tmp}/appdashboard-webdav-mount.XXXXXX")"
+mount_is_healthy() {
+  findmnt -rn -M "$MOUNT_DIR" >/dev/null 2>&1 && run_as_user ls "$MOUNT_DIR" >/dev/null 2>&1
+}
+write_kde_icon_file() {
+  [ -s "$ICON_FILE" ] || return 0
+  run_as_user sh -c 'printf "%s\n%s\n" "[Desktop Entry]" "Icon=$2" > "$1/.directory"' sh "$MOUNT_DIR" "$ICON_FILE" 2>/dev/null || true
+  chown "$TARGET_UID:$TARGET_GID" "$MOUNT_DIR/.directory" 2>/dev/null || true
+}
+write_desktop_link() {
+  [ -d "$USER_DESKTOP_DIR" ] || return 0
+  cat > "$USER_DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Type=Link
+Name=AppDashboard Cloud
+URL=file://$MOUNT_DIR
+Icon=$ICON_FILE
+EOF
+  chmod +x "$USER_DESKTOP_FILE" 2>/dev/null || true
+  chown "$TARGET_UID:$TARGET_GID" "$USER_DESKTOP_FILE" 2>/dev/null || true
+}
+install_package() {
+  pkg="$1"
+  if command -v apt-get >/dev/null 2>&1; then ($SUDO_CMD apt-get update && $SUDO_CMD apt-get install -y "$pkg") || true
+  elif command -v dnf >/dev/null 2>&1; then $SUDO_CMD dnf install -y "$pkg" || true
+  elif command -v yum >/dev/null 2>&1; then $SUDO_CMD yum install -y "$pkg" || true
+  elif command -v zypper >/dev/null 2>&1; then $SUDO_CMD zypper --non-interactive install "$pkg" || true
+  elif command -v pacman >/dev/null 2>&1; then $SUDO_CMD pacman -Sy --noconfirm "$pkg" || true
+  fi
+}
+unmount_mount_dir() {
+  n=0
+  while findmnt -rn -M "$MOUNT_DIR" >/dev/null 2>&1; do
+    fusermount3 -u "$MOUNT_DIR" 2>/dev/null || fusermount -u "$MOUNT_DIR" 2>/dev/null || $SUDO_CMD umount -l "$MOUNT_DIR" 2>/dev/null || true
+    n=$((n + 1))
+    [ "$n" -ge 8 ] && break
+    sleep 1
+  done
+}
+if mount_is_healthy; then
+  write_kde_icon_file
+  write_desktop_link
+  echo "Already mounted: $MOUNT_DIR"
+  exit 0
+fi
+if ! run_as_user ls -ld "$MOUNT_DIR" >/dev/null 2>&1; then
+  unmount_mount_dir
+fi
+mkdir -p "$MOUNT_DIR" "$ICON_DIR" "$DESKTOP_DIR" "$RCLONE_CONFIG_DIR" "$TARGET_HOME/.cache"
+if command -v curl >/dev/null 2>&1; then curl -fsSL "$ICON_URL" -o "$ICON_FILE" || true; fi
+if command -v wget >/dev/null 2>&1 && [ ! -s "$ICON_FILE" ]; then wget -qO "$ICON_FILE" "$ICON_URL" || true; fi
+if [ -s "$ICON_FILE" ]; then chown "$TARGET_UID:$TARGET_GID" "$ICON_FILE" 2>/dev/null || true; fi
+cat > "$DESKTOP_FILE" <<EOF
+[Desktop Entry]
+Type=Link
+Name=AppDashboard Cloud
+URL=$WEBDAV_BROWSER_URL
+Icon=$ICON_FILE
+EOF
+chmod +x "$DESKTOP_FILE" 2>/dev/null || true
+chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.local" "$MOUNT_DIR" 2>/dev/null || true
+if mountpoint -q "$MOUNT_DIR" && ! mount_is_healthy; then
+  $SUDO_CMD umount -l "$MOUNT_DIR" 2>/dev/null || true
+fi
+if ! mountpoint -q "$MOUNT_DIR"; then
+  write_kde_icon_file
+fi
+write_desktop_link
+if command -v gio >/dev/null 2>&1; then
+  run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
+fi
+if ! command -v rclone >/dev/null 2>&1; then
+  install_package rclone
+fi
+if command -v rclone >/dev/null 2>&1; then
+  OBFUSCATED_TOKEN="$(run_as_user rclone obscure "$WEBDAV_TOKEN")"
+  cat > "$RCLONE_CONFIG_FILE" <<EOF
+[$RCLONE_REMOTE]
+type = webdav
+url = $WEBDAV_URL
+vendor = other
+user = $WEBDAV_USER
+pass = $OBFUSCATED_TOKEN
+EOF
+  chown -R "$TARGET_UID:$TARGET_GID" "$RCLONE_CONFIG_DIR" "$TARGET_HOME/.cache" 2>/dev/null || true
+  chmod 600 "$RCLONE_CONFIG_FILE" 2>/dev/null || true
+  if mount_is_healthy; then
+    write_kde_icon_file
+    echo "Already mounted: $MOUNT_DIR"
+    exit 0
+  fi
+  unmount_mount_dir
+  run_as_user setsid nohup rclone mount "$RCLONE_REMOTE:" "$MOUNT_DIR" --config "$RCLONE_CONFIG_FILE" --vfs-cache-mode full --dir-cache-time 1s --log-file "$RCLONE_LOG_FILE" --log-level INFO >/dev/null 2>&1 &
+  n=0
+  while [ "$n" -lt 45 ]; do
+    if mount_is_healthy; then
+      write_kde_icon_file
+      if command -v gio >/dev/null 2>&1; then
+        run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
+      fi
+      echo "Mounted: $MOUNT_DIR"
+      exit 0
+    fi
+    n=$((n + 1))
+    sleep 1
+  done
+  if findmnt -rn -M "$MOUNT_DIR" -o FSTYPE 2>/dev/null | grep -q '^fuse.rclone$'; then
+    echo "Mounted: $MOUNT_DIR"
+    exit 0
+  fi
+  cat "$RCLONE_LOG_FILE" 2>/dev/null || true
+  echo "Failed to mount with rclone."
+  exit 1
+fi
+if ! command -v mount.davfs >/dev/null 2>&1; then
+  install_package davfs2
+fi
+  if command -v mount.davfs >/dev/null 2>&1; then
+  mkdir -p "$TARGET_HOME/.davfs2"
+  touch "$TARGET_HOME/.davfs2/secrets"
+  chmod 600 "$TARGET_HOME/.davfs2/secrets"
+  chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2" 2>/dev/null || true
+  grep -vF "$WEBDAV_URL" "$TARGET_HOME/.davfs2/secrets" > "$TARGET_HOME/.davfs2/secrets.tmp" || true
+  printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$TARGET_HOME/.davfs2/secrets.tmp"
+  mv "$TARGET_HOME/.davfs2/secrets.tmp" "$TARGET_HOME/.davfs2/secrets"
+  chown "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2/secrets" 2>/dev/null || true
+  if [ -z "$SUDO_CMD" ] || command -v sudo >/dev/null 2>&1; then
+    ROOT_SECRETS_TMP="$(mktemp "\${TMPDIR:-/tmp}/appdashboard-davfs2-secrets.XXXXXX")"
+    $SUDO_CMD sh -c "touch /etc/davfs2/secrets && chmod 600 /etc/davfs2/secrets"
+    $SUDO_CMD grep -vF "$WEBDAV_URL" /etc/davfs2/secrets > "$ROOT_SECRETS_TMP" || true
+    printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$ROOT_SECRETS_TMP"
+    $SUDO_CMD mv "$ROOT_SECRETS_TMP" /etc/davfs2/secrets
+    $SUDO_CMD chmod 600 /etc/davfs2/secrets
+  fi
+  if mount_is_healthy; then
+    echo "Already mounted: $MOUNT_DIR"
+    exit 0
+  elif $SUDO_CMD mount -t davfs "$WEBDAV_URL" "$MOUNT_DIR" -o "uid=$TARGET_UID,gid=$TARGET_GID,rw,file_mode=664,dir_mode=775" 2>"$LOG_FILE"; then
+    if command -v gio >/dev/null 2>&1; then
+      run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
+    fi
+    echo "Mounted: $MOUNT_DIR"
+    exit 0
+  else
+    cat "$LOG_FILE" 2>/dev/null || true
+  fi
+fi
+echo "Opening WebDAV location. For a permanent mounted folder install davfs2, then rerun this script."
+if command -v dolphin >/dev/null 2>&1; then run_as_user nohup dolphin "$WEBDAV_BROWSER_URL" >/dev/null 2>&1 &
+elif command -v xdg-open >/dev/null 2>&1; then run_as_user xdg-open "$DESKTOP_FILE" >/dev/null 2>&1 || run_as_user xdg-open "$WEBDAV_BROWSER_URL" >/dev/null 2>&1 || true
+elif command -v open >/dev/null 2>&1; then run_as_user open "$WEBDAV_BROWSER_URL"
+else echo "$WEBDAV_BROWSER_URL"; fi
+`;
+  }
+
+  function windowsWebdavScript() {
+    const cfg = webdavConfig();
+    return `$ErrorActionPreference = 'Stop'
+$WebDavUrl = ${psQuote(cfg.url)}
+$Username = ${psQuote(cfg.username)}
+$Token = ${psQuote(cfg.token)}
+$IconUrl = ${psQuote(cfg.iconUrl)}
+$Drive = 'Z:'
+$Name = 'AppDashboard Cloud'
+function Convert-WebDavToUnc([string]$Url) {
+  $u = [Uri]$Url
+  $path = $u.AbsolutePath.TrimEnd('/')
+  if ($u.Scheme -eq 'https') { return "\\\\$($u.Host)@SSL\\DavWWWRoot$path" }
+  return "\\\\$($u.Host)\\DavWWWRoot$path"
+}
+try {
+  Set-Service WebClient -StartupType Automatic -ErrorAction SilentlyContinue
+  Start-Service WebClient -ErrorAction SilentlyContinue
+  if ([Uri]$WebDavUrl -as [Uri] -and ([Uri]$WebDavUrl).Scheme -eq 'http') {
+    New-Item -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters' -Force | Out-Null
+    New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters' -Name BasicAuthLevel -Value 2 -PropertyType DWord -Force | Out-Null
+    Restart-Service WebClient -ErrorAction SilentlyContinue
+  }
+} catch {}
+$Unc = Convert-WebDavToUnc $WebDavUrl
+& cmd.exe /c net use $Drive /delete /y | Out-Null
+& cmd.exe /c net use $Drive $Unc "/user:$Username" $Token /persistent:yes
+$IconDir = Join-Path $env:APPDATA 'AppDashboard'
+New-Item -ItemType Directory -Force -Path $IconDir | Out-Null
+$IconFile = Join-Path $IconDir 'cloud.png'
+$IconIco = Join-Path $IconDir 'cloud.ico'
+try { Invoke-WebRequest -Uri $IconUrl -OutFile $IconFile -UseBasicParsing } catch {}
+try {
+  Add-Type -AssemblyName System.Drawing
+  $Bitmap = [System.Drawing.Bitmap]::FromFile($IconFile)
+  $Icon = [System.Drawing.Icon]::FromHandle($Bitmap.GetHicon())
+  $Stream = [System.IO.File]::Open($IconIco, [System.IO.FileMode]::Create)
+  $Icon.Save($Stream)
+  $Stream.Close()
+  $Bitmap.Dispose()
+} catch {}
+$Shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) "$Name.lnk"
+$Shell = New-Object -ComObject WScript.Shell
+$Link = $Shell.CreateShortcut($Shortcut)
+$Link.TargetPath = "$Drive\\"
+$Link.WorkingDirectory = "$Drive\\"
+if (Test-Path $IconIco) { $Link.IconLocation = "$IconIco,0" }
+$Link.Save()
+Write-Host "Connected $Name as $Drive"
+`;
+  }
+
+  function downloadDetectedScript() {
+    if (detectedDesktopOS() === 'windows') {
+      downloadTextFile('appdashboard-webdav-connect.ps1', windowsWebdavScript(), 'text/plain');
+      return;
+    }
+    downloadTextFile('appdashboard-webdav-connect.sh', linuxWebdavScript(), 'text/x-shellscript');
+  }
+
   openBtn.addEventListener('click', () => {
     modal.classList.remove('hidden');
+    if (btnDownloadScript) {
+      btnDownloadScript.querySelector('span').textContent = detectedDesktopOS() === 'windows'
+        ? tr('downloadConnectScriptWindows', 'Download Windows connect script')
+        : tr('downloadConnectScriptLinux', 'Download Linux/macOS connect script');
+    }
     loadTokens();
   });
   closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
@@ -357,6 +674,39 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     const ok = await copyToken();
     if (ok) showSuccessCheck(btnCopy);
   });
+  if (btnCopyUsername) {
+    btnCopyUsername.addEventListener('click', async () => {
+      const ok = await copyUsername();
+      if (ok) showSuccessCheck(btnCopyUsername);
+    });
+  }
+  if (btnDownloadLinuxScript) {
+    btnDownloadLinuxScript.addEventListener('click', () => {
+      if (!currentToken || !currentUsername) {
+        flashStatus(tr('noTokenToCopy', 'No token to copy'));
+        return;
+      }
+      downloadTextFile('appdashboard-webdav-connect.sh', linuxWebdavScript(), 'text/x-shellscript');
+    });
+  }
+  if (btnDownloadScript) {
+    btnDownloadScript.addEventListener('click', () => {
+      if (!currentToken || !currentUsername) {
+        flashStatus(tr('noTokenToCopy', 'No token to copy'));
+        return;
+      }
+      downloadDetectedScript();
+    });
+  }
+  if (btnDownloadWindowsScript) {
+    btnDownloadWindowsScript.addEventListener('click', () => {
+      if (!currentToken || !currentUsername) {
+        flashStatus(tr('noTokenToCopy', 'No token to copy'));
+        return;
+      }
+      downloadTextFile('appdashboard-webdav-connect.ps1', windowsWebdavScript(), 'text/plain');
+    });
+  }
   tokensListContainer.addEventListener('click', (event) => {
     const item = event.target.closest('[data-token-hash]');
     if (!item) return;

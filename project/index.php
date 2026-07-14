@@ -10,6 +10,12 @@ if (getcwd() !== APP_ROOT) {
 
 $__path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $__pathLower = strtolower($__path);
+if ($__pathLower === '/webdav' || str_starts_with($__pathLower, '/webdav/') || $__pathLower === '/apps/cloud/webdav.php' || str_starts_with($__pathLower, '/apps/cloud/webdav.php/')) {
+    $_SERVER['SCRIPT_NAME'] = str_starts_with($__pathLower, '/webdav') ? '/webdav' : '/apps/cloud/webdav.php';
+    $_SERVER['PHP_SELF'] = $__path;
+    require APP_ROOT . '/apps/cloud/webdav.php';
+    exit;
+}
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
     if ($__path === '/' || $__path === '' || $__pathLower === '/news') {
         header('Content-Type: text/html; charset=UTF-8');

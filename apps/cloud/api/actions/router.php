@@ -590,14 +590,13 @@ if ($action === 'set_sync_profile') {
 }
 
 if ($action === 'sync_manifest') {
-    require_once __DIR__ . '/../../includes/cloud_sync_protocol.php';
     json_out([
         'ok' => false,
         'deprecated' => true,
-        'error' => 'use_websocket_sync',
+        'error' => 'use_webdav',
         'bootstrap' => 'sync_bootstrap.php',
-        'ws_path' => CLOUD_SYNC_WS_PATH,
-        'protocol' => CLOUD_SYNC_PROTOCOL_VERSION,
+        'webdav_path' => '/webdav/',
+        'protocol' => 'webdav',
     ], 410);
 }
 
@@ -611,6 +610,12 @@ if ($action === 'client_token_generate') {
     $expiresInDays = (int)($_POST['expires_in_days'] ?? 365);
     
     $result = generate_client_token($email, $deviceId, $deviceName, $platform, $expiresInDays);
+    if (!empty($result['ok'])) {
+        $scheme = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https') ? 'https' : 'http';
+        $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+        $result['username'] = $email;
+        $result['webdav_url'] = "{$scheme}://{$host}/webdav/";
+    }
     json_out($result);
 }
 
@@ -640,14 +645,13 @@ if ($action === 'client_token_list') {
 }
 
 if ($action === 'sync_manifest_client') {
-    require_once __DIR__ . '/../../includes/cloud_sync_protocol.php';
     json_out([
         'ok' => false,
         'deprecated' => true,
-        'error' => 'use_websocket_sync',
+        'error' => 'use_webdav',
         'bootstrap' => 'sync_bootstrap.php',
-        'ws_path' => CLOUD_SYNC_WS_PATH,
-        'protocol' => CLOUD_SYNC_PROTOCOL_VERSION,
+        'webdav_path' => '/webdav/',
+        'protocol' => 'webdav',
     ], 410);
 }
 

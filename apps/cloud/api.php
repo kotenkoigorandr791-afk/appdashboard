@@ -1,7 +1,7 @@
 <?php
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 // api.php - Simple REST endpoints for users and files 
-require 'vendor/autoload.php';
+require_once __DIR__ . '/vendor/autoload.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/cloud_group_chat.php';
@@ -13,7 +13,7 @@ if (PHP_SAPI === 'cli' && isset($argv[1])) {
     if (isset($argv[2])) $_POST['job_id'] = (string)$argv[2];
     if (isset($argv[3])) $_POST['worker_token'] = (string)$argv[3];
 }
-if (!defined('CLOUD_SYNC_WS_BOOT') && PHP_SAPI !== 'cli') {
+if (!defined('CLOUD_SYNC_WS_BOOT') && !defined('CLOUD_WEBDAV_BOOT') && PHP_SAPI !== 'cli') {
 session_start();
 $__cloudOrigin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
 $__cloudAllowedOrigins = array_filter(array_map('trim', explode(',', (string)getenv('APP_CORS_ORIGINS'))));
@@ -261,8 +261,34 @@ function get_email_from_client_auth_header(): ?string {
     return $result;
 }
 
+function validate_client_token_for_email(string $email, string $token): bool {
+    $email = trim($email);
+    $token = trim($token);
+    if ($email === '' || $token === '') return false;
+    $db = getDB();
+    if (!$db) return false;
+    try {
+        ensure_client_auth_tokens_table();
+        $tokenHash = hash('sha256', $token);
+        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE email = :e AND token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':h', $tokenHash, SQLITE3_TEXT);
+        $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
+        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        if (!$row || empty($row['email'])) return false;
+        $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
+        $upd->bindValue(':t', time(), SQLITE3_INTEGER);
+        $upd->bindValue(':h', $tokenHash, SQLITE3_TEXT);
+        $upd->execute();
+        return true;
+    } catch (Exception $e) {
+        cloud_safe_error_log('validate_client_token_for_email: ' . $e->getMessage());
+        return false;
+    }
+}
+
 // ------------------------------------------------------------------
-//  Client Token Management - Generate/Revoke tokens for desktop client
+//  Client Token Management - Generate/Revoke tokens for WebDAV clients
 // ------------------------------------------------------------------
 function generate_client_token(string $email, string $deviceId = '', string $deviceName = '', string $platform = '', int $expiresInDays = 365): array {
     $db = getDB();
@@ -271,8 +297,7 @@ function generate_client_token(string $email, string $deviceId = '', string $dev
     try {
         ensure_client_auth_tokens_table();
         
-        // Generate random token
-        $token = bin2hex(random_bytes(32));
+        $token = 'dav_' . rtrim(strtr(base64_encode(random_bytes(36)), '+/', '-_'), '=');
         $tokenHash = hash('sha256', $token);
         $expiresAt = time() + ($expiresInDays * 86400);
         
