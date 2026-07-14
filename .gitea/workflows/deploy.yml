@@ -24,6 +24,7 @@ jobs:
           fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
+          sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
           docker exec appdashboard nginx -t
           docker restart appdashboard
   deploy-develop:
@@ -48,5 +49,6 @@ jobs:
           fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
+          sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
           docker exec appdashboard nginx -t
           docker restart appdashboard
