@@ -339,7 +339,13 @@
         #content{padding-top:0;position:fixed;left:0;width:100%;height:100vh;box-sizing:border-box;overflow:hidden;}
         #content.has-app-rail{--rail-w:48px;}
         #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
-        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;transition:background-color .35s ease,border-color .35s ease,color .35s ease;}
+        #content.app-edge-immich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#111827':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
+        #content.app-edge-gitea{--app-edge-bg:#0d1117;--app-edge-border:#30363d;--app-edge-text:#f0f6fc;}
+        #content.app-edge-x{--app-edge-bg:#000000;--app-edge-border:#2f3336;--app-edge-text:#e7e9ea;}
+        #content.edge-app-shell #app-icon-rail{background:var(--app-edge-bg);border-color:var(--app-edge-border);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;}
+        #content.edge-app-shell #app-iframe{background:var(--app-edge-bg);}
+        #content.edge-app-shell .app-rail-link,#content.edge-app-shell .app-rail-service-name{color:var(--app-edge-text);}
         #app-icon-rail::-webkit-scrollbar{display:none;}
         .app-rail-link{display:flex;align-items:center;justify-content:center;width:var(--rail-icon);height:var(--rail-icon);border-radius:8px;flex-shrink:0;text-decoration:none;color:var(--text-color);background:transparent;transition:background-color 0.2s,transform 0.15s;}
         .app-rail-link:hover{background:color-mix(in srgb,var(--primary-color) 22%,transparent);transform:translateY(-1px);}
@@ -356,6 +362,7 @@
             #content.has-app-rail.rail-top-on-mobile{--rail-h:48px;--rail-w:0px;}
             #content.has-app-rail.rail-top-on-mobile #app-iframe{left:0!important;width:100%!important;top:var(--rail-h);height:calc(100% - var(--rail-h));}
             #content.has-app-rail.rail-top-on-mobile #app-icon-rail{flex-direction:row;width:100%;height:var(--rail-h);border-right:none;border-bottom:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);padding:0;overflow:hidden;gap:0;position:relative;}
+            #content.edge-app-shell.rail-top-on-mobile #app-icon-rail{border-bottom-color:var(--app-edge-border);}
             #content.has-app-rail.rail-top-on-mobile .app-rail-scroll{display:flex;flex-direction:row;align-items:center;gap:6px;padding:0 8px 0 calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;height:100%;flex:1;}
             #content.has-app-rail.rail-top-on-mobile .app-rail-scroll::-webkit-scrollbar{display:none;}
             #content.has-app-rail.rail-top-on-mobile .app-rail-divider{width:1px;height:60%;flex-shrink:0;margin:0 2px;}
@@ -1625,7 +1632,8 @@ $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
 <?php $railTopApps=['immich','gitea']; ?>
-<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell<?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps))?' rail-top-on-mobile':''; ?>"<?php endif;?>>
+<?php $edgeAppShellApps=['immich','gitea','x','X']; ?>
+<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($showAppFrame):?>
         <?php if($showAppRail):?>
         <div id="app-icon-rail">
@@ -4076,6 +4084,36 @@ var T=<?php echo json_encode([
     box-sizing: border-box;
 }
 #admin-panel-overlay.active { display: flex; flex-direction: column; }
+#admin-panel-overlay,
+#ap-topbar,
+#ap-sidebar,
+#ap-content {
+    transition: background-color .35s ease, border-color .35s ease, color .35s ease;
+}
+#admin-panel-overlay.ap-edge-omniroute {
+    --ap-edge-bg: #0b0d10;
+    --ap-edge-border: #1b2330;
+    --ap-edge-text: #e5edf7;
+    background: var(--ap-edge-bg);
+    color: var(--ap-edge-text);
+}
+#admin-panel-overlay.ap-edge-omniroute #ap-topbar,
+#admin-panel-overlay.ap-edge-omniroute #ap-sidebar,
+#admin-panel-overlay.ap-edge-omniroute #ap-content {
+    background: var(--ap-edge-bg);
+    border-color: var(--ap-edge-border);
+    color: var(--ap-edge-text);
+}
+#admin-panel-overlay.ap-edge-omniroute .ap-nav-btn {
+    color: var(--ap-edge-text);
+}
+#admin-panel-overlay.ap-edge-omniroute .ap-nav-btn:hover {
+    background: #121823;
+}
+#admin-panel-overlay.ap-edge-omniroute .ap-nav-btn.active {
+    background: #172033;
+    border-color: #2b3b52;
+}
 #ap-dynamic-root {
     display: flex;
     flex-direction: column;
@@ -5369,6 +5407,7 @@ function ensureMonaco(cb){
 /* ── Panel switch ── */
 function openPanel(id){
     if(!dynRoot)return;
+    overlay.classList.toggle('ap-edge-omniroute',id==='ap-omniroute');
     dynRoot.querySelectorAll('.ap-panel').forEach(function(p){p.classList.remove('active');});
     dynRoot.querySelectorAll('.ap-nav-btn').forEach(function(b){b.classList.remove('active');});
     var p=dynRoot.querySelector('#'+id); if(p) p.classList.add('active');
@@ -5399,7 +5438,7 @@ function openAdminPanel(target){
     if(!apLoaded){skeleton.style.display='flex';dynRoot.style.display='none';loadPanel(target||'ap-users');}
     else openPanel(target||'ap-users');
 }
-function closeAdminPanel(){overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
+function closeAdminPanel(){overlay.classList.remove('ap-edge-omniroute');overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
 
 /* ── AJAX load ── */
 function loadPanel(target, year){
