@@ -17,8 +17,14 @@
     "syncLogAction": "Action",
     "syncLogPath": "Path",
     "syncLogMessage": "Message",
-    "syncToken": "Desktop Sync Token",
-    "manageSyncTokens": "Manage Sync Tokens",
-    "syncTokenTitle": "Desktop Sync Tokens",
-    "syncTokenDescription": "Generate tokens for desktop sync clients. Copy the token and paste it into your desktop application."
+    "syncToken": "WebDAV Token",
+    "manageSyncTokens": "Manage WebDAV Tokens",
+    "syncTokenTitle": "WebDAV Tokens",
+    "syncTokenDescription": "Generate a WebDAV token. Use your account email as the login and this token as the password.",
+    "webdavScriptHint": "Download the script, run it, and enter your sudo password if the system asks to install davfs2 or mount the folder.",
+    "downloadConnectScript": "Download connect script",
+    "downloadConnectScriptLinux": "Download Linux/macOS connect script",
+    "downloadConnectScriptWindows": "Download Windows connect script",
+    "downloadLinuxScript": "Linux/macOS SH",
+    "downloadWindowsScript": "Windows PS1"
 }

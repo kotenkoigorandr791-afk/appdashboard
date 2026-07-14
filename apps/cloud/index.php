@@ -1928,7 +1928,7 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
 <div id="sync-token-modal" class="modal hidden">
   <div class="modal-content" style="max-width:650px;">
     <div class="modal-header">
-      <h3 data-i18n="syncTokenTitle">Desktop Sync Tokens</h3>
+      <h3 data-i18n="syncTokenTitle">WebDAV Tokens</h3>
       <button id="btn-close-token-modal" class="icon-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -1938,7 +1938,7 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
     </div>
     <div class="modal-body" style="padding:20px;">
       <p style="color:var(--fg-secondary);font-size:13px;margin-bottom:16px;" data-i18n="syncTokenDescription">
-        Generate tokens for desktop sync clients. Copy the token and paste it into your desktop application.
+        Generate a WebDAV token. Use your account email as the login and this token as the password.
       </p>
       
       <!-- Generate button -->
@@ -1950,12 +1950,21 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
           <span data-i18n="generateToken">Generate New Token</span>
         </button>
         <div style="font-size:11px;color:var(--fg-secondary);margin-top:8px;">
-          Create a token, copy it once, then manage active devices below.
+          Create a token, copy it once, then manage active WebDAV connections below.
         </div>
       </div>
       
       <!-- Generated token display -->
       <div id="sync-token-display" style="display:none;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <code id="sync-username-value" style="flex:1;background:var(--panel);padding:10px;border-radius:6px;font-size:13px;word-break:break-all;font-family:monospace;"></code>
+          <button id="btn-copy-username" class="btn secondary small" title="Copy username">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <code id="sync-token-value" style="flex:1;background:var(--panel);padding:10px;border-radius:6px;font-size:13px;word-break:break-all;font-family:monospace;"></code>
           <button id="btn-copy-token" class="btn secondary small" title="Copy">
@@ -1965,13 +1974,40 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
             </svg>
           </button>
         </div>
+        <div style="font-size:11px;color:var(--fg-secondary);line-height:1.45;margin-bottom:8px;" data-i18n="webdavScriptHint">Download the script, run it, and enter your sudo password if the system asks to install davfs2 or mount the folder.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+          <button id="btn-download-webdav-script" class="btn primary small" style="display:inline-flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span data-i18n="downloadConnectScript">Download connect script</span>
+          </button>
+          <button id="btn-download-linux-webdav-script" class="btn secondary small" style="display:inline-flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span data-i18n="downloadLinuxScript">Linux/macOS SH</span>
+          </button>
+          <button id="btn-download-windows-webdav-script" class="btn secondary small" style="display:inline-flex;align-items:center;gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span data-i18n="downloadWindowsScript">Windows PS1</span>
+          </button>
+        </div>
         <div id="token-info" style="font-size:11px;color:var(--fg-secondary);"></div>
       </div>
       
       <!-- Active devices list -->
       <div id="sync-tokens-list" style="display:none;">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
-          <h4 style="font-size:14px;font-weight:600;margin:0;" data-i18n="activeDevices">Active Devices</h4>
+          <h4 style="font-size:14px;font-weight:600;margin:0;" data-i18n="activeDevices">Active WebDAV Tokens</h4>
           <div id="selected-token-hint" style="font-size:11px;color:var(--fg-secondary);">Select a device to manage its token.</div>
         </div>
         <div id="tokens-list-container" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);"></div>

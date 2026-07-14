@@ -6749,7 +6749,7 @@ async function buildTree(path) {
 }
 window.buildTree = buildTree;
 
-const TREE_AUTO_REFRESH_INTERVAL_MS = 30000;
+const TREE_AUTO_REFRESH_INTERVAL_MS = 1000;
 let treeAutoRefreshTimerId = null;
 let treeAutoRefreshInFlight = false;
 
@@ -6809,7 +6809,7 @@ async function refreshMainTreeIncrementally() {
         .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }))
         .forEach((item) => {
             if (areAllParentsOpen(item.path)) {
-                treeNodeAdd(item, { openParents: false });
+                treeNodeAdd(item, { openParents: false, highlight: false });
             }
         });
 
@@ -6949,7 +6949,7 @@ async function refreshScopedRootIncrementally(root) {
         .sort((a, b) => a.path.localeCompare(b.path, undefined, { numeric: true, sensitivity: 'base' }))
         .forEach((item) => {
             if (!getTreeNodeByPath(item.path)) {
-                treeNodeAdd(item, { openParents: false });
+                treeNodeAdd(item, { openParents: false, highlight: false });
             }
         });
 
@@ -6992,8 +6992,12 @@ function initTreeAutoRefresh() {
     treeAutoRefreshTimerId = window.setInterval(() => {
         void runTreeAutoRefresh();
     }, TREE_AUTO_REFRESH_INTERVAL_MS);
+    void runTreeAutoRefresh();
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) void runTreeAutoRefresh();
+    });
+    window.addEventListener('focus', () => {
+        void runTreeAutoRefresh();
     });
 }
 
@@ -9230,13 +9234,13 @@ async function api(action, params={}, method='POST') {
     }
   if (method === 'GET') {
     url.searchParams.set('action', action);
-    url.searchParams.set('v', '1');
+    url.searchParams.set('v', String(Date.now()));
     Object.entries(scopedParams||{}).forEach(([k,v]) => {
       if (v !== undefined && v !== null) {
         url.searchParams.set(k, v);
       }
     });
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error(`API error: ${res.status} ${res.statusText}`);
     const text = await res.text();
     if (!res.headers.get('content-type')?.includes('application/json')) return text;
