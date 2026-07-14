@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -eu
-docker exec -i immich_server sh -s <<'SH'
+patched="$(docker exec -i immich_server sh -s <<'SH'
 set -eu
 file=/build/www/index.html
 marker=appdashboard-immich-theme-bridge
@@ -10,6 +10,10 @@ if [ -f "$file" ] && ! grep -q "$marker" "$file"; then
   awk -v script="$script" '{print; if ($0 ~ /<head>/) print script}' "$file" > "$tmp"
   cat "$tmp" > "$file"
   rm -f "$tmp"
+  echo patched
 fi
 SH
-docker restart immich_server >/dev/null
+)"
+if [ "$patched" = "patched" ]; then
+  docker restart immich_server >/dev/null
+fi
