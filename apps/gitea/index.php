@@ -13,6 +13,7 @@ require_once APP_ROOT . '/project/oauth.php';
 $isLoggedIn = isset($_SESSION['user']['email']) && getUserFromActiveSessions(session_id()) !== null;
 $currentHost = (string)($_SERVER['HTTP_HOST'] ?? '');
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
+$giteaTheme = $theme === 'dark' ? 'gitea-dark' : 'gitea';
 if (!$isLoggedIn) {
     $u = 'https://serverkherson.xyz/login';
     header('Content-Type: text/html; charset=utf-8');
@@ -20,9 +21,10 @@ if (!$isLoggedIn) {
     exit;
 }
 if ($currentHost === 'serverkherson.xyz') {
+    gitea_sync_user_theme((string)($_SESSION['user']['email'] ?? ''), $giteaTheme);
     gitea_clear_sessions();
     $u = 'https://git.serverkherson.xyz/user/oauth2/AppDashboard';
-    if ($theme !== '') $u .= '?' . http_build_query(['theme' => $theme]);
+    if ($theme !== '') $u .= '?' . http_build_query(['theme' => $giteaTheme]);
     header('Location: ' . $u);
     exit;
 }
@@ -45,6 +47,19 @@ function gitea_clear_sessions(): void {
             PDO::ATTR_TIMEOUT => 3,
         ]);
         $pdo->exec("DELETE FROM session");
+    } catch (\Exception $e) {
+    }
+}
+
+function gitea_sync_user_theme(string $email, string $theme): void {
+    if ($email === '' || !in_array($theme, ['gitea', 'gitea-dark'], true)) return;
+    try {
+        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 3,
+        ]);
+        $stmt = $pdo->prepare('UPDATE "user" SET theme = :theme WHERE lower(email) = lower(:email)');
+        $stmt->execute([':theme' => $theme, ':email' => $email]);
     } catch (\Exception $e) {
     }
 }

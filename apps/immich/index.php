@@ -21,7 +21,12 @@ if (!$isLoggedIn) {
 }
 if ($currentHost === 'serverkherson.xyz') {
     $params = ['autoLaunch' => '1'];
-    if ($theme !== '') $params['theme'] = $theme;
+    if ($theme !== '') {
+        $params['theme'] = $theme;
+        $params['colorTheme'] = $theme;
+        $params['color-theme'] = $theme;
+        $params['appearance'] = $theme;
+    }
     header('Location: https://photo.serverkherson.xyz/auth/login?' . http_build_query($params));
     exit;
 }

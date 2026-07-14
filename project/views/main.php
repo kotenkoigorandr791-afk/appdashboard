@@ -2474,7 +2474,7 @@ var T=<?php echo json_encode([
         function resolveTheme(theme){return theme==='auto'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;}
         function updateEdgeAppShellTheme(theme){const content=document.getElementById('content');if(!content)return;if(content.classList.contains('app-edge-gitea')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#0d1117':'#f6f8fa');content.style.setProperty('--app-edge-border',theme==='dark'?'#30363d':'#d0d7de');content.style.setProperty('--app-edge-text',theme==='dark'?'#f0f6fc':'#24292f');}else if(content.classList.contains('app-edge-immich')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#111827':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1f2937':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f9fafb':'#111827');}else if(content.classList.contains('app-edge-x')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#000000':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#2f3336':'#cfd9de');content.style.setProperty('--app-edge-text',theme==='dark'?'#e7e9ea':'#0f1419');}}
         function updateOmniRouteEdgeTheme(theme){const root=document.documentElement;if(theme==='dark'){root.style.setProperty('--ap-omniroute-edge-bg','#0b0d10');root.style.setProperty('--ap-omniroute-edge-border','#1b2330');root.style.setProperty('--ap-omniroute-edge-text','#e5edf7');root.style.setProperty('--ap-omniroute-edge-hover','#121823');root.style.setProperty('--ap-omniroute-edge-active','#172033');root.style.setProperty('--ap-omniroute-edge-active-border','#2b3b52');}else{root.style.setProperty('--ap-omniroute-edge-bg','#f8fafc');root.style.setProperty('--ap-omniroute-edge-border','#dbe3ed');root.style.setProperty('--ap-omniroute-edge-text','#111827');root.style.setProperty('--ap-omniroute-edge-hover','#eef3f8');root.style.setProperty('--ap-omniroute-edge-active','#e6edf5');root.style.setProperty('--ap-omniroute-edge-active-border','#c7d3e0');}}
-        function applyThemeRuntime(theme){const resolved=resolveTheme(theme);updateCSSVariables(resolved);applyThemeToAuthModal(resolved);updateAppIframeTheme(resolved);updateEdgeAppShellTheme(resolved);updateOmniRouteEdgeTheme(resolved);}
+        function applyThemeRuntime(theme){const resolved=resolveTheme(theme);updateCSSVariables(resolved);applyThemeToAuthModal(resolved);updateAppIframeTheme(resolved);updateEdgeAppShellTheme(resolved);updateOmniRouteEdgeTheme(resolved);if(typeof injectOmniRouteTheme==='function')injectOmniRouteTheme();}
         function detectAndApplySystemTheme(){if(getSelectedThemeValue()==='auto')applyThemeRuntime('auto');}
         function updateCSSVariables(theme){const root=document.documentElement;if(theme==='dark'){root.style.setProperty('--bg-color','#333');root.style.setProperty('--text-color','#fff');root.style.setProperty('--sidebar-bg','#444');root.style.setProperty('--group-block-bg','#555');root.style.setProperty('--app-item-bg','#666');root.style.setProperty('--tooltip-bg','#666');root.style.setProperty('--modal-bg','#555');root.style.setProperty('--border-color','#666');root.style.setProperty('--scrollbar-track','#222');root.style.setProperty('--scrollbar-thumb','#555');root.style.setProperty('--scrollbar-thumb-hover','#777');root.style.setProperty('--icon-bg-color','#444');root.style.setProperty('--link-color','#ddd');root.style.setProperty('--link-hover-color',getComputedStyle(root).getPropertyValue('--primary-color'));root.style.setProperty('--table-header-bg','#444');root.style.setProperty('--table-row-hover','#555');root.style.setProperty('--app-icon-grad-start','color-mix(in srgb,var(--primary-color) 72%,white)');root.style.setProperty('--app-icon-grad-end','color-mix(in srgb,var(--primary-color) 88%,black)');}else{root.style.setProperty('--bg-color','#fff');root.style.setProperty('--text-color','#1f2937');root.style.setProperty('--sidebar-bg','#f0f0f0');root.style.setProperty('--group-block-bg','#e9e9e9');root.style.setProperty('--app-item-bg','#d9d9d9');root.style.setProperty('--tooltip-bg','#333');root.style.setProperty('--modal-bg','#fff');root.style.setProperty('--border-color','#ccc');root.style.setProperty('--scrollbar-track','#f0f0f0');root.style.setProperty('--scrollbar-thumb','#c0c0c0');root.style.setProperty('--scrollbar-thumb-hover','#999');root.style.setProperty('--icon-bg-color','#f0f0f0');root.style.setProperty('--link-color','#333');root.style.setProperty('--link-hover-color',getComputedStyle(root).getPropertyValue('--primary-color'));root.style.setProperty('--table-header-bg','#f0f0f0');root.style.setProperty('--table-row-hover','#f5f5f5');root.style.setProperty('--app-icon-grad-start','color-mix(in srgb,var(--primary-color) 84%,black)');root.style.setProperty('--app-icon-grad-end','color-mix(in srgb,var(--primary-color) 65%,black)');}}
         function updateScrollbarStyles(theme){/* handled by CSS variables updated in updateCSSVariables */}        function applyAutoTheme(){if(getSelectedThemeValue()==='auto'){applyThemeRuntime('auto');updateScrollbarStyles(resolveTheme('auto'));}}
@@ -4096,6 +4096,14 @@ var T=<?php echo json_encode([
 #ap-content {
     transition: background-color .35s ease, border-color .35s ease, color .35s ease;
 }
+:root {
+    --ap-omniroute-edge-bg: <?php echo $themeForAppLink === 'dark' ? '#0b0d10' : '#f8fafc'; ?>;
+    --ap-omniroute-edge-border: <?php echo $themeForAppLink === 'dark' ? '#1b2330' : '#dbe3ed'; ?>;
+    --ap-omniroute-edge-text: <?php echo $themeForAppLink === 'dark' ? '#e5edf7' : '#111827'; ?>;
+    --ap-omniroute-edge-hover: <?php echo $themeForAppLink === 'dark' ? '#121823' : '#eef3f8'; ?>;
+    --ap-omniroute-edge-active: <?php echo $themeForAppLink === 'dark' ? '#172033' : '#e6edf5'; ?>;
+    --ap-omniroute-edge-active-border: <?php echo $themeForAppLink === 'dark' ? '#2b3b52' : '#c7d3e0'; ?>;
+}
 #admin-panel-overlay.ap-edge-omniroute {
     --ap-edge-bg: var(--ap-omniroute-edge-bg, #0b0d10);
     --ap-edge-border: var(--ap-omniroute-edge-border, #1b2330);
@@ -4106,9 +4114,9 @@ var T=<?php echo json_encode([
 #admin-panel-overlay.ap-edge-omniroute #ap-topbar,
 #admin-panel-overlay.ap-edge-omniroute #ap-sidebar,
 #admin-panel-overlay.ap-edge-omniroute #ap-content {
-    background: var(--ap-edge-bg);
-    border-color: var(--ap-edge-border);
-    color: var(--ap-edge-text);
+    background: var(--ap-edge-bg) !important;
+    border-color: var(--ap-edge-border) !important;
+    color: var(--ap-edge-text) !important;
 }
 #admin-panel-overlay.ap-edge-omniroute .ap-nav-btn {
     color: var(--ap-edge-text);
@@ -5276,13 +5284,31 @@ var monacoInjected = false;
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
+function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
+function injectOmniRouteTheme(){
+    var frame=document.getElementById('ap-omniroute-frame');
+    if(!frame) return;
+    try{
+        var doc=frame.contentDocument||frame.contentWindow.document;
+        if(!doc) return;
+        var style=doc.getElementById('ap-omniroute-theme-style');
+        if(!style){style=doc.createElement('style');style.id='ap-omniroute-theme-style';(doc.head||doc.documentElement).appendChild(style);}
+        if(currentResolvedTheme()==='light'){
+            style.textContent='html{color-scheme:light!important}body,[class*="sidebar" i],[class*="side-bar" i],[class*="sidenav" i],aside,nav{background:#f8fafc!important;color:#111827!important;border-color:#dbe3ed!important}[class*="sidebar" i] *,[class*="side-bar" i] *,[class*="sidenav" i] *,aside *,nav *{border-color:#dbe3ed!important}';
+        }else{
+            style.textContent='';
+        }
+    }catch(e){}
+}
 function loadOmniRouteIframe(){
     var frame=document.getElementById('ap-omniroute-frame');
     if(!frame) return;
+    if(!frame.dataset.themeHooked){frame.dataset.themeHooked='1';frame.addEventListener('load',injectOmniRouteTheme);}
     var target=frame.getAttribute('data-src')||OMNIROUTE_URL;
     if(frame.dataset.loaded===target) return;
     frame.dataset.loaded=target;
     frame.src=target;
+    injectOmniRouteTheme();
 }
 
 var T=<?php echo json_encode([
