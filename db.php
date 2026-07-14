@@ -128,6 +128,181 @@ function ensureSupportChatSchema(AppDatabase $db): void {
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN edited_at INTEGER"); } catch (Exception $e) {}
 }
+function ensureTelegramBotSchema(AppDatabase $db): void {
+    if (app_db_is_pgsql()) {
+        $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_sessions (
+            chat_id TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            authorized_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            telegram_user_id TEXT NOT NULL DEFAULT ''
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_link_tokens (
+            token_hash TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            created_by TEXT NOT NULL DEFAULT '',
+            created_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            expires_at BIGINT NOT NULL,
+            used_at BIGINT,
+            used_chat_id TEXT NOT NULL DEFAULT ''
+        )");
+        foreach ([
+            "ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_at BIGINT",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_chat_id TEXT NOT NULL DEFAULT ''",
+        ] as $sql) {
+            try { $db->exec($sql); } catch (Throwable $e) {}
+        }
+    } else {
+        $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_sessions (
+            chat_id      TEXT PRIMARY KEY,
+            email        TEXT NOT NULL,
+            authorized_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            telegram_user_id TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+        try { $db->exec("ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+        $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_link_tokens (
+            token_hash TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            created_by TEXT NOT NULL DEFAULT '',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            expires_at INTEGER NOT NULL,
+            used_at INTEGER,
+            used_chat_id TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+        foreach ([
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_at INTEGER",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_chat_id TEXT NOT NULL DEFAULT ''",
+        ] as $sql) {
+            try { $db->exec($sql); } catch (Throwable $e) {}
+        }
+    }
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_sessions_email ON tg_bot_sessions(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_sessions_tg_uid ON tg_bot_sessions(telegram_user_id)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_link_tokens_email ON tg_bot_link_tokens(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_link_tokens_expires ON tg_bot_link_tokens(expires_at)");
+}
+function ensureNotificationsSchema(AppDatabase $db): void {
+    if (app_db_is_pgsql()) {
+        $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
+            id BIGSERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL DEFAULT '',
+            app_id TEXT NOT NULL DEFAULT '',
+            severity TEXT NOT NULL DEFAULT 'info',
+            title TEXT NOT NULL,
+            message TEXT NOT NULL DEFAULT '',
+            event_type TEXT NOT NULL DEFAULT '',
+            context_json TEXT NOT NULL DEFAULT '{}',
+            is_read INTEGER NOT NULL DEFAULT 0,
+            created_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            read_at BIGINT
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS app_notification_settings (
+            email TEXT PRIMARY KEY,
+            browser_enabled INTEGER NOT NULL DEFAULT 0,
+            telegram_enabled INTEGER NOT NULL DEFAULT 1,
+            updated_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint)
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS app_metrics (
+            id BIGSERIAL PRIMARY KEY,
+            app_id TEXT NOT NULL DEFAULT '',
+            metric TEXT NOT NULL,
+            value DOUBLE PRECISION NOT NULL DEFAULT 0,
+            unit TEXT NOT NULL DEFAULT '',
+            user_email TEXT NOT NULL DEFAULT '',
+            context_json TEXT NOT NULL DEFAULT '{}',
+            created_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint)
+        )");
+        foreach ([
+            "ALTER TABLE app_notifications ADD COLUMN event_type TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE app_notifications ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'",
+            "ALTER TABLE app_notification_settings ADD COLUMN browser_enabled INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE app_notification_settings ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE app_metrics ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+        ] as $sql) {
+            try { $db->exec($sql); } catch (Throwable $e) {}
+        }
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_app_notifications_user_read ON app_notifications(user_email, is_read, created_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_app_notifications_created ON app_notifications(created_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_app_metrics_app_created ON app_metrics(app_id, created_at)");
+        return;
+    }
+    $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_email TEXT NOT NULL DEFAULT '',
+        app_id TEXT NOT NULL DEFAULT '',
+        severity TEXT NOT NULL DEFAULT 'info',
+        title TEXT NOT NULL,
+        message TEXT NOT NULL DEFAULT '',
+        event_type TEXT NOT NULL DEFAULT '',
+        context_json TEXT NOT NULL DEFAULT '{}',
+        is_read INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        read_at INTEGER,
+        FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+    )");
+    $db->exec("CREATE TABLE IF NOT EXISTS app_notification_settings (
+        email TEXT PRIMARY KEY,
+        browser_enabled INTEGER NOT NULL DEFAULT 0,
+        telegram_enabled INTEGER NOT NULL DEFAULT 1,
+        updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+    )");
+    $db->exec("CREATE TABLE IF NOT EXISTS app_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        app_id TEXT NOT NULL DEFAULT '',
+        metric TEXT NOT NULL,
+        value REAL NOT NULL DEFAULT 0,
+        unit TEXT NOT NULL DEFAULT '',
+        user_email TEXT NOT NULL DEFAULT '',
+        context_json TEXT NOT NULL DEFAULT '{}',
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+    )");
+    foreach ([
+        "ALTER TABLE app_notifications ADD COLUMN event_type TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE app_notifications ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE app_notification_settings ADD COLUMN browser_enabled INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE app_notification_settings ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE app_metrics ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+    ] as $sql) {
+        try { $db->exec($sql); } catch (Throwable $e) {}
+    }
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_app_notifications_user_read ON app_notifications(user_email, is_read, created_at)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_app_notifications_created ON app_notifications(created_at)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_app_metrics_app_created ON app_metrics(app_id, created_at)");
+}
+function createAppNotification(string $userEmail, string $appId, string $severity, string $title, string $message = '', string $eventType = '', array $context = []): int {
+    $db = getDB();
+    ensureNotificationsSchema($db);
+    $severity = in_array($severity, ['info','success','warning','error','critical'], true) ? $severity : 'info';
+    $stmt = $db->prepare("INSERT INTO app_notifications(user_email,app_id,severity,title,message,event_type,context_json,is_read,created_at) VALUES(:u,:a,:s,:t,:m,:e,:c,0,:n)");
+    $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+    $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
+    $stmt->bindValue(':s', $severity, SQLITE3_TEXT);
+    $stmt->bindValue(':t', $title, SQLITE3_TEXT);
+    $stmt->bindValue(':m', $message, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $eventType, SQLITE3_TEXT);
+    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+    $stmt->execute();
+    return (int)$db->lastInsertRowID();
+}
+function recordAppMetric(string $userEmail, string $appId, string $metric, float $value, string $unit = '', array $context = []): void {
+    $db = getDB();
+    ensureNotificationsSchema($db);
+    $stmt = $db->prepare("INSERT INTO app_metrics(app_id,metric,value,unit,user_email,context_json,created_at) VALUES(:a,:m,:v,:u,:e,:c,:t)");
+    $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
+    $stmt->bindValue(':m', $metric, SQLITE3_TEXT);
+    $stmt->bindValue(':v', $value, SQLITE3_FLOAT);
+    $stmt->bindValue(':u', $unit, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $userEmail, SQLITE3_TEXT);
+    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+    $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+    $stmt->execute();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Schema initialisation  (runs once on first connection)
@@ -139,6 +314,8 @@ function initDB(AppDatabase $db): void {
         ensureTrustedDevicesSchema($db);
         ensureTrustedDeviceCookiesSchema($db);
         ensureSupportChatSchema($db);
+        ensureTelegramBotSchema($db);
+        ensureNotificationsSchema($db);
         require_once __DIR__ . '/lib/pg_foreign_keys.php';
         ensure_pg_foreign_keys($db);
         return;
@@ -428,16 +605,7 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_fingerprint ON trusted_devices(fingerprint)");
 
     // ── Telegram bot authenticated sessions ─────────────────────────────────
-    $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_sessions (
-        chat_id      TEXT PRIMARY KEY,
-        email        TEXT NOT NULL,
-        authorized_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        telegram_user_id TEXT NOT NULL DEFAULT '',
-        FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
-    )");
-    try { $db->exec("ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_sessions_email ON tg_bot_sessions(email)");
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_sessions_tg_uid ON tg_bot_sessions(telegram_user_id)");
+    ensureTelegramBotSchema($db);
 
     // ── Quick Commands for SSH Terminal ──────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS quick_commands (
@@ -454,6 +622,7 @@ function initDB(AppDatabase $db): void {
 
     // ── Support Chat ──────────────────────────────────────────────────────────
     ensureSupportChatSchema($db);
+    ensureNotificationsSchema($db);
 
     // ── Monitoring (grouped monitor_* tables) ───────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_system_snapshots (

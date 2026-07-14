@@ -1829,6 +1829,22 @@ function cloud_archive_start_job(string $type, array $payload, callable $runner)
 function cloud_archive_error_job(string $jobId, string $message): void {
     cloud_archive_write_job($jobId, ['status' => 'error', 'progress' => 100, 'error' => $message]);
 }
+function cloud_archive_notify_job(string $jobId, array $payload, string $severity, string $title, string $message): void {
+    $email = (string)($payload['email'] ?? '');
+    if ($email === '' || !function_exists('ensureNotificationsSchema')) return;
+    try {
+        $db = getDB();
+        ensureNotificationsSchema($db);
+        $stmt = $db->prepare("INSERT INTO app_notifications(user_email,app_id,severity,title,message,event_type,context_json,is_read,created_at) VALUES(:u,'cloud',:s,:t,:m,'worker_finished',:c,0,:n)");
+        $stmt->bindValue(':u', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':s', $severity, SQLITE3_TEXT);
+        $stmt->bindValue(':t', $title, SQLITE3_TEXT);
+        $stmt->bindValue(':m', $message, SQLITE3_TEXT);
+        $stmt->bindValue(':c', json_encode(['job_id' => $jobId, 'root' => (string)($payload['root'] ?? ''), 'type' => (string)($payload['type'] ?? '')], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+        $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+        $stmt->execute();
+    } catch (Throwable $e) {}
+}
 function cloud_archive_job_cancelled(string $jobId): bool {
     $file = cloud_archive_job_file($jobId);
     $job = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
@@ -1911,8 +1927,10 @@ function cloud_archive_create_selected_job(string $jobId, array $payload): void 
         if ($email && $rootKey === 'main') invalidate_file_tree($email);
         if ($email) append_sync_log($email, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
         cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'archive_path' => $archive_name, 'archive_name' => $archive_name, 'items_count' => $added, 'size' => filesize($archive_path)]);
+        cloud_archive_notify_job($jobId, $payload, 'success', 'Cloud archive finished', $archive_name);
     } catch (Throwable $e) {
         cloud_archive_error_job($jobId, $e->getMessage());
+        cloud_archive_notify_job($jobId, $payload, 'error', 'Cloud archive failed', $e->getMessage());
     }
 }
 function cloud_archive_folder_job(string $jobId, array $payload): void {
@@ -1959,8 +1977,10 @@ function cloud_archive_folder_job(string $jobId, array $payload): void {
         if ($email) append_sync_log($email, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
         $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
         cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'archive_path' => $result_path, 'archive_name' => $archive_name, 'size' => filesize($archive_path), 'files_count' => $added]);
+        cloud_archive_notify_job($jobId, $payload, 'success', 'Cloud folder archive finished', $result_path);
     } catch (Throwable $e) {
         cloud_archive_error_job($jobId, $e->getMessage());
+        cloud_archive_notify_job($jobId, $payload, 'error', 'Cloud folder archive failed', $e->getMessage());
     }
 }
 function cloud_archive_extract_job(string $jobId, array $payload): void {
@@ -2013,9 +2033,12 @@ function cloud_archive_extract_job(string $jobId, array $payload): void {
         $email = get_session_email();
         if ($email && $rootKey === 'main') invalidate_file_tree($email);
         if ($email) append_sync_log($email, $rootKey, 'extract_archive', $archive_path, 'INFO', 'Archive extracted');
-        cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'extracted_to' => $extract_to === '' ? dirname($archive_path) : $extract_to, 'extracted_files_count' => $extracted]);
+        $extractResult = $extract_to === '' ? dirname($archive_path) : $extract_to;
+        cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'extracted_to' => $extractResult, 'extracted_files_count' => $extracted]);
+        cloud_archive_notify_job($jobId, $payload, 'success', 'Cloud extraction finished', $extractResult);
     } catch (Throwable $e) {
         cloud_archive_error_job($jobId, $e->getMessage());
+        cloud_archive_notify_job($jobId, $payload, 'error', 'Cloud extraction failed', $e->getMessage());
     }
 }
 if ($action === 'archive_job_status') {
@@ -2065,7 +2088,7 @@ if ($action === 'create_archive') {
         json_out(['error' => 'No items selected'], 400);
     }
     if ((string)($_POST['async'] ?? '') === '1') {
-        cloud_archive_start_job('create_archive', ['user' => $user, 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name], 'cloud_archive_create_selected_job');
+        cloud_archive_start_job('create_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name, 'type' => 'create_archive'], 'cloud_archive_create_selected_job');
     }
     
     // Санитайзим имя архива
@@ -2514,7 +2537,7 @@ if ($action === 'extract_archive') {
         json_out(['error' => 'archive_path is required'], 400);
     }
     if ((string)($_POST['async'] ?? '') === '1') {
-        cloud_archive_start_job('extract_archive', ['user' => $user, 'root' => $rootKey, 'archive_path' => $archive_path, 'extract_to' => $extract_to], 'cloud_archive_extract_job');
+        cloud_archive_start_job('extract_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'archive_path' => $archive_path, 'extract_to' => $extract_to, 'type' => 'extract_archive'], 'cloud_archive_extract_job');
     }
     
     $full_archive_path = $base . '/' . $archive_path;
@@ -2604,7 +2627,7 @@ if ($action === 'archive_folder') {
         json_out(['error' => 'folder_path is required'], 400);
     }
     if ((string)($_POST['async'] ?? '') === '1') {
-        cloud_archive_start_job('archive_folder', ['user' => $user, 'root' => $rootKey, 'folder_path' => $folder_path], 'cloud_archive_folder_job');
+        cloud_archive_start_job('archive_folder', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'folder_path' => $folder_path, 'type' => 'archive_folder'], 'cloud_archive_folder_job');
     }
     
     $full_path = $base . '/' . $folder_path;

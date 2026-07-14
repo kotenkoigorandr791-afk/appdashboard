@@ -262,8 +262,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 saveVerificationTokens($tokens);
                 
                 if(sendVerificationEmail($email, $verificationToken)){
-                    // Notify Telegram about new registration attempt
                     notifyTelegramNewUser($email, $name, $photo, $regMethod);
+                    try { apCreateNotification(getDB(), '', 'registration', 'info', 'New registration', $email . ' (' . $regMethod . ')', 'registration_pending', ['email' => $email, 'name' => $name, 'method' => $regMethod]); } catch (Throwable $e) {}
                     $authSuccess = $translations['verification_link_sent'];
                     $showVerificationMessage = true;
                     $verificationEmail = $email;
@@ -789,7 +789,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             echo json_encode(['success'=>false,'error'=>'Bot token is empty']);
             exit;
         }
-        $chatIds = loadAuthorizedChats();
+        $chatIds = loadAuthorizedAdminChats();
         if(empty($chatIds)){
             header('Content-Type: application/json');
             echo json_encode(['success'=>false,'error'=>'No authorized chat IDs. Users must sign in to the Telegram bot first.']);
@@ -799,6 +799,25 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         while(ob_get_level() > 1) ob_end_clean();
         header('Content-Type: application/json');
         echo json_encode(['success'=>$ok,'error'=>$ok?null:'Delivery failed. See PHP error log. Token starts: '.substr($cfg['bot_token'],0,10).'...']);
+        exit;
+    }
+    if(isset($_POST['generate_tg_link_token']) && isset($_POST['ajax']) && $sessionIsAdmin){
+        $email = trim((string)($_POST['tg_link_email'] ?? ''));
+        $users = loadUsers();
+        if($email === '' || !isset($users[$email])){
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>'User not found']);
+            exit;
+        }
+        $current = (string)($_SESSION['user']['email'] ?? '');
+        if((int)($_SESSION['user']['role'] ?? 0) < 2){
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>'Permission denied']);
+            exit;
+        }
+        $token = createTelegramLinkToken($email, $current);
+        header('Content-Type: application/json');
+        echo json_encode(['success'=>true,'token'=>$token,'email'=>$email,'expires_in'=>900]);
         exit;
     }
     // Save user folders config (admin only)
@@ -1258,7 +1277,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         require_once __DIR__ . '/../apps/cloud/includes/ai_config_store.php';
         require_once __DIR__ . '/../lib/git_deploy.php';
         $_apAiCfg = cloud_ai_load_config();
-        $_apChats    = loadAuthorizedChats();
+        $_apChats    = loadAuthorizedTelegramSessions();
         $_apUList    = loadUsers();
         $_apPList    = loadPendingUsers();
         $_apAllU     = $_apUList;
@@ -1423,10 +1442,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-card ap-settings-card" data-settings-card="telegram">
                 <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg><?php echo my_htmlspecialchars($translations['bot_settings']??'Telegram Bot'); ?></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['tg_bot_token']??'Bot Token'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-tg-token" value="<?php echo my_htmlspecialchars($_apTgCfg['bot_token']??''); ?>" placeholder="1234567890:ABCDef&#x2026;"><button type="button" class="ap-pwd-eye" data-target="ap-tg-token"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['tg_bot_token_hint']??'Get your token from @BotFather. Do not URL-encode it.'); ?></div></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['tg_recipients']??'Authorized Chat IDs'); ?></label><div class="ap-recipients-box"><?php if(!empty($_apChats)): foreach($_apChats as $_cid): ?><div><?php echo my_htmlspecialchars($_cid); ?></div><?php endforeach; else: ?><span style="opacity:.45;"><?php echo my_htmlspecialchars($translations['tg_no_chats']??'No chat IDs found.'); ?></span><?php endif; ?></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['ap_tg_hint']??$translations['tg_recipients_hint']??''); ?></div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['tg_recipients']??'Authorized Chat IDs'); ?></label><div class="ap-recipients-box"><?php if(!empty($_apChats)): foreach($_apChats as $_s): ?><div><?php echo my_htmlspecialchars(($_s['email']??'') . ' · ' . ($_s['chat_id']??'')); ?></div><?php endforeach; else: ?><span style="opacity:.45;"><?php echo my_htmlspecialchars($translations['tg_no_chats']??'No chat IDs found.'); ?></span><?php endif; ?></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['ap_tg_hint']??$translations['tg_recipients_hint']??''); ?></div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['tg_link_account']??'Bind account'); ?></label><select id="ap-tg-link-email"><?php foreach($_apUList as $_em=>$_u): if((int)($_u['role']??0)<2) continue; ?><option value="<?php echo my_htmlspecialchars($_em); ?>"<?php echo $_em===$_apCurEmail?' selected':''; ?>><?php echo my_htmlspecialchars($_em); ?></option><?php endforeach; ?></select><div class="ap-hint"><?php echo my_htmlspecialchars($translations['tg_link_hint']??'Generate a one-time code and send it to the Telegram bot.'); ?></div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['tg_link_token']??'One-time code'); ?></label><input type="text" id="ap-tg-link-token" readonly placeholder="--------" autocomplete="off"></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['tg_public_base_url']??'Public site URL'); ?></label><input type="text" id="ap-tg-webapp-url" value="<?php echo my_htmlspecialchars($_apTgCfg['webapp_base_url']??''); ?>" placeholder="https://serverkherson.xyz" autocomplete="off"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['tg_public_base_url_hint']??''); ?></div></div>
                 <div class="ap-btn-row">
                     <button type="button" class="ap-btn ap-btn-primary" id="ap-tg-save"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button>
+                    <button type="button" class="ap-btn" id="ap-tg-link-generate"><?php echo my_htmlspecialchars($translations['tg_link_generate']??'Generate code'); ?></button>
                     <button type="button" class="ap-btn ap-btn-success" id="ap-tg-test"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg><?php echo my_htmlspecialchars($translations['tg_test']??'Test'); ?></button>
                 </div>
                 <div class="ap-status" id="ap-tg-status"></div>

@@ -138,6 +138,18 @@ function fit_spawn_worker(string $jobPath): bool {
     return true;
 }
 require_once __DIR__ . '/../../core/db_helpers.php';
+function fit_notify_job_once(AppDatabase $db, string $jobId, array $state): array {
+    $status = (string)($state['status'] ?? '');
+    if (!in_array($status, ['done','error'], true) || !empty($state['notification_sent'])) return $state;
+    $email = get_current_user_email() ?: '';
+    $title = $status === 'done' ? 'Google Fit import finished' : 'Google Fit import failed';
+    $message = $status === 'done' ? ('Imported: ' . (int)($state['imported'] ?? 0) . ' days') : (string)($state['message'] ?? 'worker_error');
+    app_notify($email, 'steps', $status === 'done' ? 'success' : 'error', $title, $message, 'worker_finished', ['job_id' => $jobId, 'kind' => 'google_fit_takeout']);
+    app_metric($email, 'steps', 'fit_takeout_finished', 1, 'job', ['job_id' => $jobId, 'status' => $status, 'imported' => (int)($state['imported'] ?? 0)]);
+    $state['notification_sent'] = 1;
+    try { fit_takeout_save($db, $jobId, $state); } catch (Throwable $e) {}
+    return $state;
+}
 try {
     $db = getUserDB(FIT_USER_DIR);
     if (!$db) {
@@ -232,6 +244,7 @@ if ($action === 'job_status' && isset($_GET['job'])) {
     if (($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) > 1800) {
         $st = array_merge($st, ['status' => 'error', 'message' => 'stale_job']);
     }
+    $st = fit_notify_job_once($db, $jid, $st);
     echo json_encode(['ok' => true, 'state' => $st]);
     exit;
 }
