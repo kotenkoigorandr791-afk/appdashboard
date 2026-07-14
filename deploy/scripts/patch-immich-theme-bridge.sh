@@ -12,3 +12,4 @@ if [ -f "$file" ] && ! grep -q "$marker" "$file"; then
   rm -f "$tmp"
 fi
 SH
+docker restart immich_server >/dev/null
