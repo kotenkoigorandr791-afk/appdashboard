@@ -3693,7 +3693,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
 .tree .node.tree-drop-target{outline:2px dashed var(--accent);outline-offset:-2px;background:color-mix(in srgb,var(--accent) 12%,transparent)!important}
 .tree .node.tree-drag-source{opacity:.55}
 #tree.tree-external-drop-active,#tree.tree-root-drop-active{outline:2px dashed var(--accent);outline-offset:-4px;background:color-mix(in srgb,var(--accent) 6%,transparent)}
-.sidebar.tree-external-drop-active{outline:2px dashed var(--accent);outline-offset:-4px}
+
 #tree.cloud-tree-root-switching{opacity:0;transform:translateX(10px);transition:opacity .18s ease,transform .18s ease}
 .cloud-tree-drag-ghost{position:fixed;z-index:40000;pointer-events:none;padding:6px 10px;border-radius:8px;background:var(--panel);border:1px solid var(--accent);box-shadow:0 8px 24px rgba(0,0,0,.22);font-size:13px;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cloud-tree-move-icon{position:fixed;z-index:40001;pointer-events:none;width:24px;height:24px;color:var(--accent);filter:drop-shadow(0 1px 2px rgba(0,0,0,.25))}
@@ -3860,9 +3860,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
 
     function clearExternalDropHighlight() {
         const tree = document.getElementById('tree');
-        const sidebar = document.querySelector('.sidebar');
         if (tree) tree.classList.remove('tree-external-drop-active');
-        if (sidebar) sidebar.classList.remove('tree-external-drop-active');
     }
 
     function clearDragUi() {
@@ -3961,11 +3959,21 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
     }
 
     function rootToolbarTargetAt(x, y) {
-        const btn = document.elementFromPoint(x, y)?.closest?.('#root-toolbar .root-toolbar-btn[data-root]');
-        if (!btn) return null;
-        const root = btn.dataset.root || '';
-        if (root === 'trash') return null;
-        return btn;
+        const el = document.elementFromPoint(x, y);
+        const btn = el?.closest?.('#root-toolbar .root-toolbar-btn[data-root]');
+        if (btn) {
+            const root = btn.dataset.root || '';
+            if (root !== 'trash') return btn;
+            return null;
+        }
+        const toolbar = document.getElementById('root-toolbar');
+        if (!toolbar) return null;
+        for (const b of toolbar.querySelectorAll('.root-toolbar-btn[data-root]')) {
+            if ((b.dataset.root || '') === 'trash') continue;
+            const r = b.getBoundingClientRect();
+            if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) return b;
+        }
+        return null;
     }
 
     async function switchTreeRootDuringDrag(rootKey) {
@@ -4172,24 +4180,60 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         if (typeof uploadFn === 'function') uploadFn(list, basePath || '');
     }
 
+    async function resolveDropItems(items) {
+        const allFiles = [];
+        async function processEntry(entry, path) {
+            if (entry.isFile) {
+                return new Promise((resolve) => {
+                    entry.file((file) => {
+                        file.relativePath = path + file.name;
+                        allFiles.push(file);
+                        resolve();
+                    }, resolve);
+                });
+            }
+            if (entry.isDirectory) {
+                const reader = entry.createReader();
+                return new Promise((resolve) => {
+                    const readBatch = () => reader.readEntries(async (entries) => {
+                        if (!entries.length) return resolve();
+                        await Promise.all(entries.map((e) => processEntry(e, path + entry.name + '/')));
+                        readBatch();
+                    });
+                    readBatch();
+                });
+            }
+        }
+        for (const item of items) {
+            if (item.kind === 'file') {
+                const entry = item.webkitGetAsEntry?.() || item.getAsEntry?.();
+                if (entry) await processEntry(entry, '');
+            }
+        }
+        return allFiles;
+    }
+
     function initTreeExternalFileDrop() {
         const targets = getExternalDropTargets();
         if (!targets.length) return;
         const zone = targets[targets.length - 1];
         if (zone.dataset.cloudExternalDropBound === '1') return;
         zone.dataset.cloudExternalDropBound = '1';
+        let extDragViewRoot = '';
+        let extDragSwitching = false;
+        let extDragRootSwitchToken = 0;
+        let extDragRootBtn = null;
         const onDragEnter = (e) => {
             if (window.matchMedia(MOBILE_MQ).matches) return;
             if (!hasExternalFileTransfer(e)) return;
             if (typeof isTrashRoot === 'function' && isTrashRoot()) return;
             e.preventDefault();
             e.stopPropagation();
+            extDragViewRoot = (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
             const tree = document.getElementById('tree');
-            const sidebar = document.querySelector('.sidebar');
             if (tree) tree.classList.add('tree-external-drop-active');
-            if (sidebar) sidebar.classList.add('tree-external-drop-active');
         };
-        const onDragOver = (e) => {
+        const onDragOver = async (e) => {
             if (window.matchMedia(MOBILE_MQ).matches) return;
             if (!hasExternalFileTransfer(e)) return;
             if (typeof isTrashRoot === 'function' && isTrashRoot()) return;
@@ -4197,6 +4241,33 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
             e.stopPropagation();
             e.dataTransfer.dropEffect = 'copy';
             const tree = document.getElementById('tree');
+            const rootBtn = rootToolbarTargetAt(e.clientX, e.clientY);
+            if (extDragRootBtn) { extDragRootBtn.classList.remove('tree-root-drop-target'); extDragRootBtn = null; }
+            if (rootBtn) {
+                extDragRootBtn = rootBtn;
+                rootBtn.classList.add('tree-root-drop-target');
+                const nextRoot = rootBtn.dataset.root || 'main';
+                if (!extDragSwitching && nextRoot !== extDragViewRoot) {
+                    extDragSwitching = true;
+                    const token = ++extDragRootSwitchToken;
+                    clearDropTarget();
+                    if (tree) tree.classList.remove('tree-external-drop-active');
+                    if (tree) tree.classList.add('cloud-tree-root-switching');
+                    await new Promise((r) => setTimeout(r, 140));
+                    if (token !== extDragRootSwitchToken) return;
+                    if (typeof setCurrentCloudRoot === 'function') setCurrentCloudRoot(nextRoot);
+                    const toolbar = document.getElementById('root-toolbar');
+                    if (toolbar) toolbar.querySelectorAll('.root-toolbar-btn').forEach((b) => b.classList.toggle('active', (b.dataset.root || 'main') === nextRoot));
+                    if (typeof cachedFileTree !== 'undefined') cachedFileTree = null;
+                    try { if (typeof buildTree === 'function') await buildTree(''); if (typeof syncRootModeView === 'function') await syncRootModeView(); } catch (_) {}
+                    extDragViewRoot = nextRoot;
+                    if (tree) requestAnimationFrame(() => tree.classList.remove('cloud-tree-root-switching'));
+                    extDragSwitching = false;
+                }
+                clearDropTarget();
+                if (tree) tree.classList.remove('tree-external-drop-active');
+                return;
+            }
             const folderTarget = folderDropTargetAt(e.clientX, e.clientY);
             clearDropTarget();
             if (folderTarget) {
@@ -4209,23 +4280,44 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         };
         const onDragLeave = (e) => {
             if (window.matchMedia(MOBILE_MQ).matches) return;
+            const tree = document.getElementById('tree');
             const sidebar = document.querySelector('.sidebar');
             const related = e.relatedTarget;
             if (related && sidebar && sidebar.contains(related)) return;
             clearDropTarget();
             clearExternalDropHighlight();
+            if (extDragRootBtn) { extDragRootBtn.classList.remove('tree-root-drop-target'); extDragRootBtn = null; }
         };
-        const onDrop = (e) => {
+        const onDrop = async (e) => {
             if (window.matchMedia(MOBILE_MQ).matches) return;
             if (!hasExternalFileTransfer(e)) return;
             if (typeof isTrashRoot === 'function' && isTrashRoot()) return;
             e.preventDefault();
             e.stopPropagation();
+            const rootBtn = rootToolbarTargetAt(e.clientX, e.clientY);
+            let targetRoot = (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
+            if (rootBtn && rootBtn.dataset.root && rootBtn.dataset.root !== 'trash') {
+                targetRoot = rootBtn.dataset.root;
+                if (targetRoot !== extDragViewRoot && typeof setCurrentCloudRoot === 'function') {
+                    setCurrentCloudRoot(targetRoot);
+                    if (typeof cachedFileTree !== 'undefined') cachedFileTree = null;
+                    try { if (typeof buildTree === 'function') await buildTree(''); if (typeof syncRootModeView === 'function') await syncRootModeView(); } catch (_) {}
+                }
+            }
             const targetNode = dropTargetNode || folderDropTargetAt(e.clientX, e.clientY);
             const targetDir = targetNode?.dataset?.path || '';
             clearDropTarget();
             clearExternalDropHighlight();
-            uploadExternalFiles(e.dataTransfer.files, targetDir);
+            if (extDragRootBtn) { extDragRootBtn.classList.remove('tree-root-drop-target'); extDragRootBtn = null; }
+            const files = await (async () => {
+                const items = e.dataTransfer.items;
+                if (items && items.length > 0) {
+                    const resolved = await resolveDropItems(items);
+                    if (resolved.length) return resolved;
+                }
+                return Array.from(e.dataTransfer.files || []);
+            })();
+            if (files.length) uploadExternalFiles(files, targetDir);
         };
         zone.addEventListener('dragenter', onDragEnter);
         zone.addEventListener('dragover', onDragOver);

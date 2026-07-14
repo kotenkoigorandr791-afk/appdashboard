@@ -18,9 +18,10 @@ $udb = getUserSQLite($currentUserEmail);
 $userSettings = [
     'monthly_budget' => (float)dbGetSetting($udb, 'monthly_budget', 100),
     'currency'       => dbGetSetting($udb, 'currency', 'USD'),
-    'show_incomes'   => (bool)(int)dbGetSetting($udb, 'show_incomes', 1),
-    'show_trend'     => (bool)(int)dbGetSetting($udb, 'show_trend', 0),
-    'stores'         => dbGetStores($udb),
+    'show_incomes'       => (bool)(int)dbGetSetting($udb, 'show_incomes', 1),
+    'show_trend'         => (bool)(int)dbGetSetting($udb, 'show_trend', 0),
+    'trim_empty_months'  => (bool)(int)dbGetSetting($udb, 'trim_empty_months', 0),
+    'stores'             => dbGetStores($udb),
 ];
 
 $tableSettings = [

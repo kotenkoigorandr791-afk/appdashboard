@@ -1274,7 +1274,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?>
     </div>
     <div class="ap-user-info">
-        <img src="<?php echo my_htmlspecialchars($_SESSION['user']['photo'] ?? 'default_avatar.png', ENT_QUOTES, 'UTF-8'); ?>" alt="avatar" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border-color);object-fit:cover;">
+        <img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo'] ?? 'default_avatar.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="avatar" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border-color);object-fit:cover;">
         <div>
             <div class="ap-user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']??''); ?></div>
             <div class="ap-user-role"><?php echo my_htmlspecialchars($translations['admin']??'Admin'); ?></div>
@@ -1339,7 +1339,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $_isRoot=($_email==='root@root'); $_isSelf=($_email===$_apCurEmail);
     $_isVer=!empty($_ud['verified']); $_isPend=!empty($_ud['_pending']); $_role=(int)($_ud['role']??0);
     $_eH=my_htmlspecialchars($_email); $_nH=my_htmlspecialchars($_ud['name']??'');
-    $_ph=my_htmlspecialchars($_ud['photo']??'default_avatar.png'); $_dis=$_isSelf?' disabled':'';
+    $_ph=my_htmlspecialchars(app_avatar_src($_ud['photo']??'default_avatar.png')); $_dis=$_isSelf?' disabled':'';
 ?>
                         <tr data-email="<?php echo $_eH; ?>" data-name="<?php echo $_nH; ?>">
                             <td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><img src="<?php echo $_ph; ?>" style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-color);object-fit:cover;flex-shrink:0;" alt=""><?php echo $_nH; ?></div></td>
@@ -1458,6 +1458,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <!-- Backup Settings -->
             <div class="ap-card ap-settings-card" data-settings-card="backup">
                 <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><?php echo my_htmlspecialchars($translations['backup_settings']??'Backup Credentials'); ?></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['backup_host_label']??'Duplicati URL'); ?></label><input type="text" id="ap-backup-host" value="" placeholder="http://127.0.0.1:8200"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['backup_host_hint']??'URL reachable from the AppDashboard server.'); ?></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['backup_token_label']??'API Token (Forever Token)'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-backup-token" value="" placeholder="JWT token; Bearer prefix is optional"><button type="button" class="ap-pwd-eye" data-target="ap-backup-token"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['backup_credentials_hint']??'Stored encrypted in the database and used by the Backup manager.'); ?></div></div>
                 <div class="ap-btn-row">
                     <button type="button" id="ap-save-backup-creds" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button>
@@ -1943,7 +1944,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $isPend=!empty($ud['_pending']); $isRoot=($email==='root@root');
             $isSelf=($email===$curEmail); $isVer=!empty($ud['verified']); $role=(int)($ud['role']??0);
             $eH=my_htmlspecialchars($email); $nH=my_htmlspecialchars($ud['name']??'');
-            $ph=my_htmlspecialchars($ud['photo']??'default_avatar.png'); $dis=$isSelf?' disabled':'';
+            $ph=my_htmlspecialchars(app_avatar_src($ud['photo']??'default_avatar.png')); $dis=$isSelf?' disabled':'';
             // role cell
             if($isRoot) $rC='<span style="color:var(--primary-color);font-size:12px;font-weight:700;">Admin &#x1F512;</span>';
             elseif($isPend) $rC='<span style="color:#aaa;font-size:12px;">Guest</span>';

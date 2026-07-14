@@ -203,8 +203,9 @@ if (isset($_GET['config'])) {
     $action = $_GET['config'];
     if ($action === 'save') {
         $raw   = json_decode(file_get_contents('php://input'), true);
-        $host  = 'http://localhost:8200';
+        $host  = dupBackupNormalizeHost((string)($raw['host'] ?? getenv('DUPLICATI_HOST') ?: 'http://localhost:8200'));
         $token = dupBackupNormalizeToken((string)($raw['token'] ?? ''));
+        if (!$host || !preg_match('#^https?://#i', $host)) { http_response_code(400); echo json_encode(['error'=>'Invalid host']); exit; }
         if (!$token) { http_response_code(400); echo json_encode(['error'=>'Missing token']); exit; }
         try {
             dupBackupSaveEncrypted($host, $token);
@@ -548,7 +549,7 @@ if (isset($_GET['proxy'])) {
     $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlError = curl_error($ch);
     curl_close($ch);
-    if ($curlError) { http_response_code(502); echo json_encode(['error'=>'cURL: '.$curlError]); }
+    if ($curlError) { http_response_code(502); echo json_encode(['error'=>'Cannot reach Duplicati at ' . $proxyHost . ': ' . $curlError], JSON_UNESCAPED_UNICODE); }
     else            { http_response_code($httpCode); echo $response ?: '{}'; }
     exit;
 }

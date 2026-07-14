@@ -63,6 +63,10 @@
                 <option value="BYN">BYN</option>
             </select>
         </div>
+        <div id="rates-loading" style="display:none;text-align:center;padding:40px 0;color:var(--text-color);">
+            <div class="rates-spinner"></div>
+            <p style="margin-top:12px;font-size:14px;opacity:.8;"><?= htmlspecialchars($translations['loading_rates'] ?? 'Loading exchange rates...') ?></p>
+        </div>
         <div id="rates-table-container">
             <table class="rates-table" id="rates-table">
                 <thead>
@@ -105,7 +109,7 @@
                 <button type="button" role="menuitem" id="import-opt-csv"><?= htmlspecialchars($translations['import_menu_csv'] ?? 'CSV') ?></button>
             </div>
             </div>
-            <button class="header-btn" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['analytics_title'] ?? 'Analytics') ?>">
+            <button class="header-btn" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v5"/><path d="M16 14.639V21"/><path d="M20 10.656V21"/><path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15"/><path d="M4 18.463V21"/><path d="M8 14.656V21"/></svg>
             </button>
             <button class="header-btn" onclick="showModal('settings-modal')" title="<?= htmlspecialchars($translations['settings_title'].' · '.$translations['table_settings']) ?>">
@@ -188,7 +192,7 @@
                             </div>
                         </th>
                     <?php endforeach; ?>
-                        <th class="income-separator income-header <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>"><div class="store-header"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="<?= $userSettings['income_color'] ?? '#22c55e' ?>" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Zm1 15.93V19h-2v-1.09c-1.96-.33-3.5-1.72-3.58-3.41h2.03c.08.85.95 1.52 2.05 1.52 1.16 0 2.08-.69 2.08-1.55 0-.9-.78-1.42-2.38-1.82-1.77-.44-3.5-1.08-3.5-3.12 0-1.63 1.3-2.86 3.3-3.17V5h2v1.08c1.82.3 3.05 1.44 3.2 3h-2.03c-.12-.72-.84-1.25-1.87-1.25-1.05 0-1.85.54-1.85 1.31 0 .78.69 1.2 2.27 1.61 1.8.46 3.62 1.16 3.62 3.35 0 1.78-1.38 3.18-3.34 3.53Z"/></svg><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></div></th>
+                        <th class="income-separator income-header <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>"><div class="store-header"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9.4a4 4 0 1 0 0 5.2"/><path d="M7 12h5"/><circle cx="12" cy="12" r="10"/></svg><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></div></th>
                 </tr>
             </thead>
             <tbody>
@@ -233,7 +237,7 @@
 <div id="ocr-analytics-modal" class="modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('ocr-analytics-modal')">×</button>
-        <h3 style="margin-top:0;"><?= htmlspecialchars($translations['analytics_title'] ?? 'Analytics') ?></h3>
+        <h3 style="margin-top:0;"><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></h3>
         <div class="chart-nav-bottom" style="margin:0 0 10px;">
             <button id="analytics-year-prev-btn" class="chart-nav-btn" onclick="changeAnalyticsYear(-1)">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
@@ -371,8 +375,18 @@
                         <input type="checkbox" id="show-trend-toggle" <?= !empty($userSettings['show_trend'])?'checked':'' ?>>
                         <span class="income-slider"></span>
                     </span>
-                    <span><?= htmlspecialchars($translations['show_trend'] ?? 'Trend line') ?></span>
-                    <span class="trend-hint" style="position:relative;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(128,128,128,.25);font-size:12px;font-weight:700;color:var(--text-color);flex:0 0 auto;" title="<?= htmlspecialchars($translations['trend_hint'] ?? 'Linear regression trend: best-fit straight line through monthly total expenses, showing the overall direction of spending over the year.') ?>">?</span>
+                    <span><?= htmlspecialchars($translations['show_trend'] ?? 'Difference line') ?></span>
+                    <span class="trend-hint" style="position:relative;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(128,128,128,.25);font-size:12px;font-weight:700;color:var(--text-color);flex:0 0 auto;" title="<?= htmlspecialchars($translations['trend_hint'] ?? 'Income minus expenses: shows the difference between income and spending per month. Can be negative.') ?>">?</span>
+                </label>
+            </div>
+            <div class="form-row">
+                <label class="income-switch-row">
+                    <span class="income-switch">
+                        <input type="checkbox" id="trim-empty-months-toggle" <?= !empty($userSettings['trim_empty_months'])?'checked':'' ?>>
+                        <span class="income-slider"></span>
+                    </span>
+                    <span><?= htmlspecialchars($translations['trim_empty_months'] ?? 'Hide months with no data') ?></span>
+                    <span class="trend-hint" style="position:relative;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:rgba(128,128,128,.25);font-size:12px;font-weight:700;color:var(--text-color);flex:0 0 auto;" title="<?= htmlspecialchars($translations['trim_empty_months_hint'] ?? 'If a month has no expenses or incomes, it is hidden on the chart.') ?>">?</span>
                 </label>
             </div>
         </div>

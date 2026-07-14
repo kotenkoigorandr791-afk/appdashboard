@@ -3,6 +3,13 @@
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
     return htmlspecialchars($string ?? '', $flags, $encoding, $double_encode);
 }
+function app_avatar_src($photo): string {
+    $src = trim((string)($photo ?: 'default_avatar.png'));
+    if (preg_match('#^https://lh3\.googleusercontent\.com/#i', $src)) {
+        return '/main?api=avatar_proxy&u=' . rawurlencode($src);
+    }
+    return $src;
+}
 function ap_sanitize_hex_color(string $c, string $fallback = '#007bff'): string {
     $c = trim($c);
     if ($c !== '' && ($c[0] ?? '') !== '#') {
@@ -28,6 +35,66 @@ function json_out($data, $status = 200) {
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     }
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
+    $url = trim((string)($_GET['u'] ?? ''));
+    if (!preg_match('#^https://lh3\.googleusercontent\.com/#i', $url)) {
+        http_response_code(400);
+        exit;
+    }
+    $cacheDir = APP_ROOT . '/uploads/avatar_cache';
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0775, true);
+    }
+    $cacheFile = $cacheDir . '/' . hash('sha256', $url) . '.bin';
+    $contentTypeFile = $cacheFile . '.type';
+    if (!is_file($cacheFile) || filemtime($cacheFile) < time() - 604800) {
+        $body = false;
+        $code = 0;
+        $type = 'image/jpeg';
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_USERAGENT => 'AppDashboard/1.0',
+            ]);
+            $body = curl_exec($ch);
+            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $type = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+            curl_close($ch);
+        } else {
+            $ctx = stream_context_create(['http' => ['timeout' => 8, 'follow_location' => 1, 'user_agent' => 'AppDashboard/1.0']]);
+            $body = @file_get_contents($url, false, $ctx);
+            $code = is_string($body) && $body !== '' ? 200 : 0;
+            if (isset($http_response_header) && is_array($http_response_header)) {
+                foreach ($http_response_header as $headerLine) {
+                    if (stripos($headerLine, 'Content-Type:') === 0) {
+                        $type = trim(substr($headerLine, 13));
+                        break;
+                    }
+                }
+            }
+        }
+        if ($code === 200 && is_string($body) && $body !== '') {
+            @file_put_contents($cacheFile, $body, LOCK_EX);
+            @file_put_contents($contentTypeFile, preg_match('#^image/#i', $type) ? $type : 'image/jpeg', LOCK_EX);
+            header('Content-Type: ' . (preg_match('#^image/#i', $type) ? $type : 'image/jpeg'));
+            header('Cache-Control: public, max-age=604800, immutable');
+            echo $body;
+            exit;
+        }
+    }
+    if (is_file($cacheFile)) {
+        header('Content-Type: ' . (is_file($contentTypeFile) ? trim((string)file_get_contents($contentTypeFile)) : 'image/jpeg'));
+        header('Cache-Control: public, max-age=604800, immutable');
+        readfile($cacheFile);
+        exit;
+    }
+    header('Location: /default_avatar.png', true, 302);
     exit;
 }
 const PASSWORD_MIN_LENGTH = 6;

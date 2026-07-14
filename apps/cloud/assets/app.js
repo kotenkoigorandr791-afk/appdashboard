@@ -479,6 +479,10 @@ function getTreeDragPayload(event) {
     const single = dt.getData('application/x-cloud-file-path') || dt.getData('text/plain');
     return single ? [String(single).split('\n')[0].trim()].filter(Boolean) : currentTreeDragPaths.slice();
 }
+function hasExternalFilesDrag(event) {
+    const types = event?.dataTransfer?.types;
+    return !!types && Array.from(types).includes('Files');
+}
 
 function canDropTreePaths(paths, targetDir) {
     const target = String(targetDir || '').trim();
@@ -538,6 +542,14 @@ function initTreeDragMoveHandlers() {
     });
 
     document.addEventListener('dragover', (event) => {
+        if (hasExternalFilesDrag(event)) {
+            const node = event.target?.closest?.('#tree .node[data-type="dir"]');
+            if (!node) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            node.classList.add('tree-drop-target');
+            return;
+        }
         const node = event.target?.closest?.('#tree .node[data-type="dir"]');
         if (!node) return;
         const paths = getTreeDragPayload(event);
@@ -553,6 +565,17 @@ function initTreeDragMoveHandlers() {
     }, true);
 
     document.addEventListener('drop', async (event) => {
+        if (hasExternalFilesDrag(event)) {
+            const node = event.target?.closest?.('#tree .node[data-type="dir"]');
+            if (!node) return;
+            const files = event.dataTransfer?.files;
+            if (!files || !files.length || typeof window.uploadFilesToPath !== 'function') return;
+            event.preventDefault();
+            event.stopPropagation();
+            document.querySelectorAll('#tree .node.tree-drop-target').forEach((el) => el.classList.remove('tree-drop-target'));
+            window.uploadFilesToPath(Array.from(files), node.dataset.path || '');
+            return;
+        }
         const node = event.target?.closest?.('#tree .node[data-type="dir"]');
         if (!node) return;
         const paths = getTreeDragPayload(event);
@@ -4195,10 +4218,11 @@ function initRootToolbar(i18n) {
             }
         }, { once: false });
         btn.addEventListener('dragover', (event) => {
+            const isExternalFiles = hasExternalFilesDrag(event);
             const paths = getTreeDragPayload(event);
-            if (!paths.length) return;
+            if (!paths.length && !isExternalFiles) return;
             event.preventDefault();
-            event.dataTransfer.dropEffect = 'move';
+            event.dataTransfer.dropEffect = isExternalFiles ? 'copy' : 'move';
             btn.classList.add('tree-drop-target');
             const nextRoot = btn.dataset.root || 'main';
             if (nextRoot !== getCurrentCloudRoot() && !dragSwitchTimer) {
@@ -4221,14 +4245,22 @@ function initRootToolbar(i18n) {
             }
         });
         btn.addEventListener('drop', async (event) => {
+            const isExternalFiles = hasExternalFilesDrag(event);
             const paths = getTreeDragPayload(event);
-            if (!paths.length) return;
+            if (!paths.length && !isExternalFiles) return;
             event.preventDefault();
             event.stopPropagation();
             const targetRoot = btn.dataset.root || 'main';
             clearRootDragState();
             if (targetRoot !== getCurrentCloudRoot()) {
                 await switchCloudRoot(targetRoot, { silent: true, keepSelection: true });
+            }
+            if (isExternalFiles) {
+                const files = event.dataTransfer?.files;
+                if (files?.length && typeof window.uploadFilesToPath === 'function') {
+                    window.uploadFilesToPath(Array.from(files), '');
+                }
+                return;
             }
             await moveTreeDragPaths(paths, '', targetRoot, currentTreeDragSourceRoot || getCurrentCloudRoot());
             currentTreeDragPaths = [];

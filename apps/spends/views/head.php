@@ -208,7 +208,7 @@
         .chart-year-framed { display:inline-block; padding:5px 15px; border:2px solid var(--primary-color); border-radius:20px; font-weight:bold; color:var(--primary-color); margin-bottom:10px; }
         .chart-nav-bottom { display:flex; justify-content:center; gap:10px; margin-top:10px; align-items:center; }
         #ocr-analytics-modal { padding:0!important; align-items:stretch; justify-content:stretch; inset:0; }
-        #ocr-analytics-modal .modal-content { width:100vw!important; height:100vh!important; max-width:none!important; max-height:none!important; border-radius:0!important; margin:0!important; overflow:hidden!important; display:flex; flex-direction:column; padding:12px 14px; box-sizing:border-box; }
+        #ocr-analytics-modal .modal-content { width:90vw!important; height:80vh!important; max-width:1200px!important; max-height:none!important; border-radius:12px!important; margin:auto!important; overflow:hidden!important; display:flex; flex-direction:column; padding:12px 14px; box-sizing:border-box; }
         #ocr-analytics-modal h3 { margin:0 48px 8px!important; text-align:center; }
         #ocr-analytics-modal .chart-nav-bottom { margin:0 0 8px!important; min-height:42px; align-items:center; }
         #ocr-analytics-modal .chart-year-framed { margin-bottom:0!important; display:flex; align-items:center; justify-content:center; height:40px; }
@@ -216,6 +216,8 @@
         #ocr-analytics-modal .rate-chart-container { flex:1 1 auto; min-height:0; margin:0; padding:8px 10px; overflow:hidden; display:flex; }
         #ocr-analytics-modal #ocr-analytics-chart { width:100%!important; height:100%!important; max-height:none!important; }
         /* Exchange Rates Modal */
+        .rates-spinner { width:36px; height:36px; border:4px solid var(--border-color); border-top-color:var(--primary-color); border-radius:50%; animation:rates-spin .8s linear infinite; margin:0 auto; }
+        @keyframes rates-spin { to { transform:rotate(360deg); } }
         .rates-table { width:100%; border-collapse:collapse; margin-top:15px; }
         .rates-table th, .rates-table td { padding:12px; text-align:left; border-bottom:1px solid var(--border-color); }
         .rates-table th { background:var(--primary-color); color:white; font-weight:500; }
@@ -333,7 +335,7 @@
                 flex: 1 1 auto !important;
                 min-width: 120px !important;
             }
-            #ocr-analytics-modal .modal-content { padding:10px!important; }
+            #ocr-analytics-modal .modal-content { padding:10px!important; width:100vw!important; height:100vh!important; max-width:none!important; border-radius:0!important; margin:0!important; }
             #ocr-analytics-modal h3 { font-size:18px; margin:0 42px 6px!important; }
             #ocr-analytics-modal .chart-nav-bottom { gap:8px; margin:0 0 6px!important; }
             #ocr-analytics-modal .chart-year-framed { min-width:92px; height:36px; padding:4px 10px; }

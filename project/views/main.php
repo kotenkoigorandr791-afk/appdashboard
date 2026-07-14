@@ -79,6 +79,14 @@
         .profile-actions{display:flex;flex-direction:column;align-items:center;gap:10px;}
         .profile-action-button{padding:12px 20px;background:var(--primary-color);color:white;border:none;border-radius:24px;cursor:pointer;text-align:center;font-weight:600;transition:all 0.3s ease;width:60%;max-width:300px;margin:0 auto 10px auto;display:block;}
         .profile-action-button:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+        .email-row{display:inline-flex;align-items:center;gap:6px;}
+        .copy-email-btn{background:none;border:none;padding:2px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.3s ease;vertical-align:middle;}
+        .copy-email-btn svg{width:16px;height:16px;color:color-mix(in srgb,var(--text-color) 50%,var(--primary-color));stroke:currentColor;transition:all 0.3s ease;}
+        .copy-email-btn:hover svg{opacity:0.7;}
+        .copy-email-btn.copied svg{stroke:#22c55e;animation:copyPulse 0.4s ease;}
+        .copy-email-btn.failed svg{stroke:#ef4444;animation:copyShake 0.4s ease;}
+        @keyframes copyPulse{0%{transform:scale(1);}50%{transform:scale(1.3);}100%{transform:scale(1);}}
+        @keyframes copyShake{0%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}100%{transform:translateX(0);}}
         .password-form, .photo-form{display:none;margin-top:15px;padding:15px;background:var(--group-block-bg);border-radius:6px;width:100%;max-width:400px;}
         .password-form.active, .photo-form.active{display:block;}
         .password-change-box{display:none;margin-top:15px;padding:18px;background:var(--group-block-bg);border:1px solid var(--border-color);border-radius:8px;width:100%;max-width:400px;box-sizing:border-box;}
@@ -767,7 +775,7 @@ endif; // showOtpPage
                 <?php if(isset($authError)):?><div class="auth-error"><?php echo my_htmlspecialchars($authError); ?></div><?php endif;?>
                 <div class="google-user-info">
                     <?php if($pendingGoogleData['photo'] !== 'default_avatar.png'): ?>
-                        <img src="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>" alt="Google Avatar" class="google-avatar">
+                        <img src="<?php echo my_htmlspecialchars(app_avatar_src($pendingGoogleData['photo'])); ?>" alt="Google Avatar" class="google-avatar">
                     <?php endif; ?>
                     <div class="google-email"><?php echo my_htmlspecialchars($pendingGoogleData['email']); ?></div>
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
@@ -942,9 +950,9 @@ endif; // showOtpPage
             <?php if(isset($profileError)):?><div class="auth-error"><?php echo my_htmlspecialchars($profileError); ?></div><?php endif;?>
             <?php if(isset($profileSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($profileSuccess); ?></div><?php endif;?>
             <div class="profile-section">
-                <img src="<?php echo my_htmlspecialchars($_SESSION['user']['photo']??'default_avatar.png'); ?>" alt="User Avatar" class="profile-avatar">
+                <img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="profile-avatar">
                 <h3><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></h3>
-                <p><?php echo my_htmlspecialchars($_SESSION['user']['email']); ?></p>
+                <p class="email-row"><?php echo my_htmlspecialchars($_SESSION['user']['email']); ?><button type="button" class="copy-email-btn" data-email="<?php echo my_htmlspecialchars($_SESSION['user']['email']); ?>" title="Copy email"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></p>
                 <p><strong><?php echo my_htmlspecialchars($translations['user_role']); ?>:</strong>
                     <?php $role=$_SESSION['user']['role']??0;
                     if($role==2)echo my_htmlspecialchars($translations['admin']);
@@ -1411,7 +1419,7 @@ endif; // showOtpPage
             </div>
             <?php if(!$isHomeDashboard): ?><a href="/main" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a><?php endif; ?>
             <button id="settings-button" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['settings_title']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg></button>
-            <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars($_SESSION['user']['photo']??'default_avatar.png'); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
+            <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
         </div>
     </div>
 <?php endif;?>
@@ -3478,6 +3486,7 @@ var T=<?php echo json_encode([
         }
         if(closeProfile){closeProfile.addEventListener('click',()=>{if(profileModal){profileModal.style.display='none';}closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}});}
         if(profileModal){profileModal.addEventListener('click',(e)=>{if(e.target===profileModal){profileModal.style.display='none';closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}}});}
+        document.querySelectorAll('.copy-email-btn').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();var email=this.getAttribute('data-email');var b=this;try{navigator.clipboard.writeText(email).then(function(){b.classList.add('copied');setTimeout(function(){b.classList.remove('copied');},1200);},function(){b.classList.add('failed');setTimeout(function(){b.classList.remove('failed');},1200);});}catch(err){b.classList.add('failed');setTimeout(function(){b.classList.remove('failed');},1200);}});});
         if(showPasswordForm){showPasswordForm.addEventListener('click',()=>{
             if(passwordChangeBox){
                 passwordChangeBox.classList.toggle('active');
@@ -6436,13 +6445,14 @@ function wireEvents(){
             if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.onlyoffice_saved,'success');
         }).catch(function(){setStatus(ooSt,'x '+T.error,'error');});
     });
-    var bkToken=dynRoot.querySelector('#ap-backup-token'),bkSt=dynRoot.querySelector('#ap-backup-creds-status'),bkSave=dynRoot.querySelector('#ap-save-backup-creds'),bkDel=dynRoot.querySelector('#ap-delete-backup-creds'),bkFrame=dynRoot.querySelector('#ap-backup-frame');
+    var bkHost=dynRoot.querySelector('#ap-backup-host'),bkToken=dynRoot.querySelector('#ap-backup-token'),bkSt=dynRoot.querySelector('#ap-backup-creds-status'),bkSave=dynRoot.querySelector('#ap-save-backup-creds'),bkDel=dynRoot.querySelector('#ap-delete-backup-creds'),bkFrame=dynRoot.querySelector('#ap-backup-frame');
     function normalizeBackupTokenAdmin(v){var s=String(v||'').trim().replace(/^\uFEFF/,'');while(/^bearer\s+/i.test(s))s=s.replace(/^bearer\s+/i,'').trim();return s;}
     function reloadBackupFrame(){if(!bkFrame)return;try{var u=new URL(bkFrame.src,window.location.origin);u.searchParams.set('_ts',Date.now().toString());bkFrame.src=u.toString();}catch(e){bkFrame.src=bkFrame.src;}}
     function loadBackupCreds(){
         if(!bkToken)return;
         setStatus(bkSt,'Loading...','info');
         fetch('/backup_dashboard.php?config=load',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
+            if(bkHost)bkHost.value=d.host||'http://127.0.0.1:8200';
             if(bkToken)bkToken.value=normalizeBackupTokenAdmin(d.token||'');
             setStatus(bkSt,d.token?'Loaded':'Not configured',d.token?'success':'info');
         }).catch(function(){setStatus(bkSt,'x '+T.error,'error');});
@@ -6538,10 +6548,12 @@ function wireEvents(){
         }
     })();
     if(bkSave)bkSave.addEventListener('click',function(){
+        var host=(bkHost?bkHost.value:'').trim()||'http://127.0.0.1:8200';
         var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');
+        if(!/^https?:\/\//i.test(host)){setStatus(bkSt,'x Invalid Duplicati URL','error');return;}
         if(!token){setStatus(bkSt,'x Token is required','error');return;}
         setStatus(bkSt,T.saving,'info');
-        fetch('/backup_dashboard.php?config=save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({host:'http://localhost:8200',token:token})}).then(function(r){
+        fetch('/backup_dashboard.php?config=save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({host:host,token:token})}).then(function(r){
             return r.json().then(function(d){d._ok=r.ok;return d;}).catch(function(){return{_ok:r.ok,error:'Save failed'};});
         }).then(function(d){
             setStatus(bkSt,d._ok?('+ '+T.backup_saved):('x '+(d.error||T.error)),d._ok?'success':'error');

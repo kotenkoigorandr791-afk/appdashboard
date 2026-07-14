@@ -1233,7 +1233,11 @@ if ($action === 'upload') {
         
         // Если это инициализация новой загрузки
         if (isset($_POST['init_upload']) && $_POST['init_upload'] === 'true') {
-            $upload_id = create_upload_session($target_path, $user);
+            try {
+                $upload_id = create_upload_session($target_path, $user);
+            } catch (Throwable $e) {
+                json_out(['error' => $e->getMessage()], 500);
+            }
             json_out(['success' => true, 'upload_id' => $upload_id]);
             exit;
         }

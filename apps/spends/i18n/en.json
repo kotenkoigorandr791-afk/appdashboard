@@ -112,14 +112,14 @@
     "day_label": "Day",
     "date_format_hint": "Use mouse wheel to change values",
     "select_date_label": "Select Date:",
-    "analytics_title": "Analytics",
+    "statistics_title": "Statistics",
     "all_stores": "All stores",
     "incomes": "Incomes",
     "chart_settings": "Chart",
     "show_incomes": "Show incomes in table and chart",
-    "show_trend": "Trend line",
-    "trend_line": "Trend",
-    "trend_hint": "Income minus expenses (always positive): shows the balance between income and spending. Solid line for past months, dashed for current/future.",
+    "show_trend": "Difference line",
+    "difference_line": "Difference",
+    "trend_hint": "Income minus expenses: shows the difference between income and spending per month. Can be negative.",
     "data_deletion": "Data deletion",
     "bulk_delete_intro": "Remove expenses (and optionally incomes) for a period, or erase all transaction data. Store list is not removed.",
     "bulk_delete_mode": "Mode",
@@ -187,5 +187,8 @@
     "bank_csv_confidence": "Detection confidence",
     "bank_csv_analyze_fail": "Could not analyze CSV",
     "bank_csv_apply_ok": "Import completed",
-    "bank_csv_income_group": "Income"
+    "bank_csv_income_group": "Income",
+    "loading_rates": "Loading exchange rates...",
+    "trim_empty_months": "Hide months with no data",
+    "trim_empty_months_hint": "If a month has no expenses or incomes, it is hidden on the chart."
 }
