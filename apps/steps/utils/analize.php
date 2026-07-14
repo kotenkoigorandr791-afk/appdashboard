@@ -175,6 +175,7 @@ foreach (['uk' => ['progress_label' => 'Прогрес', 'eta' => 'Залиши�
 }
 $trans = $translations[$lang];
 require_once __DIR__ . '/../auth_common.php';
+require_once __DIR__ . '/../../../lib/app_db.php';
 $safeName = get_current_user_folder();
 if (!defined('RESULTS_DIR')) {
     define('USER_DIR', __DIR__ . '/../users/' . $safeName);
@@ -188,6 +189,22 @@ foreach ($folders as $folder) {
     }
 }
 require_once __DIR__ . '/../video_job_sqlite.php';
+function steps_notify_video_job_once(?AppDatabase $db, string $jobId, array $state, ?string $statePath = null): array {
+    $status = (string)($state['status'] ?? '');
+    if (!in_array($status, ['done','error'], true) || !empty($state['notification_sent'])) return $state;
+    $email = get_current_user_email() ?: '';
+    $title = $status === 'done' ? 'Steps video import finished' : 'Steps video import failed';
+    $message = $status === 'done' ? ('Processed: ' . (int)($state['processed'] ?? 0) . ' / ' . (int)($state['total'] ?? 0)) : (string)($state['message'] ?? 'worker_error');
+    app_notify($email, 'steps', $status === 'done' ? 'success' : 'error', $title, $message, 'worker_finished', ['job_id' => $jobId, 'kind' => 'video']);
+    app_metric($email, 'steps', 'video_job_finished', 1, 'job', ['job_id' => $jobId, 'status' => $status]);
+    $state['notification_sent'] = 1;
+    if ($db) {
+        try { video_job_save($db, $jobId, $state); } catch (Throwable $e) {}
+    } elseif ($statePath) {
+        @file_put_contents($statePath, json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+    return $state;
+}
 function analize_python_cv2_ok(string $interpreter): bool {
     if ($interpreter === '') {
         return false;
@@ -599,11 +616,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'job_status' && isset($_GET['j
             if (($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) > VIDEO_JOB_RUNNING_STALE_SEC) {
                 $st = array_merge($st, ['status' => 'error', 'message' => 'stale_job']);
             }
+            $st = steps_notify_video_job_once($vdb, $jid, $st);
             echo json_encode(['ok' => true, 'state' => $st], JSON_UNESCAPED_UNICODE | (defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 0));
             exit;
         }
         $fsSt = $fromFs();
         if ($fsSt !== null) {
+            $fsSt = steps_notify_video_job_once(null, $jid, $fsSt, $fsStatePath);
             echo json_encode(['ok' => true, 'state' => $fsSt], JSON_UNESCAPED_UNICODE | (defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 0));
             exit;
         }
@@ -612,6 +631,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'job_status' && isset($_GET['j
     }
     $fsStOnly = $fromFs();
     if ($fsStOnly !== null) {
+        $fsStOnly = steps_notify_video_job_once(null, $jid, $fsStOnly, $fsStatePath);
         echo json_encode(['ok' => true, 'state' => $fsStOnly], JSON_UNESCAPED_UNICODE | (defined('JSON_INVALID_UTF8_SUBSTITUTE') ? JSON_INVALID_UTF8_SUBSTITUTE : 0));
         exit;
     }

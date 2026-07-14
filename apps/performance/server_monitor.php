@@ -38,9 +38,41 @@ if (!function_exists('json_encode')) {
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-cache, must-revalidate');
 
-$forceRefresh = isset($_GET['force_refresh']) && $_GET['force_refresh'] === '1';
-if ($forceRefresh) {
-    monitorRunCollectorCycle(true, true, false, 0);
+$action = isset($_GET['action']) ? strtolower(trim((string)$_GET['action'])) : '';
+if ($action !== '') {
+    if ($_userRole < 2 && in_array($action, ['save_uptime_check', 'delete_uptime_check'], true)) {
+        http_response_code(403);
+        echo json_encode(['ok' => false, 'error' => 'forbidden'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($action === 'uptime') {
+        monitorEnsureUptimeSchema();
+        echo json_encode(['ok' => true] + monitorFetchUptimePayload(), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($action === 'run_uptime_checks') {
+        $containers = monitorCollectDockerContainers();
+        monitorRunUptimeChecks($containers);
+        echo json_encode(['ok' => true] + monitorFetchUptimePayload(), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($action === 'docker_history') {
+        echo json_encode(['ok' => true] + monitorFetchDockerHistory((string)($_GET['container_id'] ?? ''), (string)($_GET['period'] ?? '24h')), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($action === 'save_uptime_check') {
+        $raw = file_get_contents('php://input');
+        $input = is_string($raw) ? json_decode($raw, true) : null;
+        if (!is_array($input)) {
+            $input = $_POST;
+        }
+        echo json_encode(monitorSaveUptimeCheckFromInput($input), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($action === 'delete_uptime_check') {
+        echo json_encode(monitorDeleteUptimeCheck((int)($_GET['id'] ?? 0)), JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 }
 
 $result = monitorFetchDisplayPayloadFromDb();

@@ -25,6 +25,8 @@ function handleRoutePostActions($lang, $theme, $color, $view_mode, $display_mode
                             $filename = $csvFilename;
                         }
                         saveRoute(uniqid(), $name, $filename, $points);
+                        app_notify(getCurrentUserEmail() ?: '', 'map', 'success', 'Route imported', (string)$name, 'route_imported', ['points' => count($points)]);
+                        app_metric(getCurrentUserEmail() ?: '', 'map', 'route_points_imported', (float)count($points), 'points', ['name' => (string)$name]);
                         header("Location: ?lang=$lang&theme=$theme&color=" . urlencode($color) . "&view_mode=$view_mode&display_mode=$display_mode");
                         exit;
                     }
@@ -52,6 +54,10 @@ function handleRoutePostActions($lang, $theme, $color, $view_mode, $display_mode
                     generateCsvFromPoints($points, $filename);
                     saveRoute(uniqid(), $name . ' ' . $processedCount, $filename, $points);
                 }
+                if ($processedCount > 0) {
+                    app_notify(getCurrentUserEmail() ?: '', 'map', 'success', 'Routes folder imported', (string)$name, 'routes_folder_imported', ['routes' => $processedCount]);
+                    app_metric(getCurrentUserEmail() ?: '', 'map', 'routes_imported', (float)$processedCount, 'routes', ['name' => (string)$name]);
+                }
                 header("Location: ?lang=$lang&theme=$theme&color=" . urlencode($color) . "&view_mode=$view_mode&display_mode=$display_mode&processed=$processedCount");
                 exit;
             }
@@ -60,7 +66,9 @@ function handleRoutePostActions($lang, $theme, $color, $view_mode, $display_mode
             echo json_encode(['success' => renameRoute($_POST['id'], $_POST['name'])]);
             exit;
         case 'delete_route':
-            echo json_encode(['success' => deleteRoute($_POST['id'])]);
+            $ok = deleteRoute($_POST['id']);
+            if ($ok) app_notify(getCurrentUserEmail() ?: '', 'map', 'info', 'Route deleted', (string)$_POST['id'], 'route_deleted');
+            echo json_encode(['success' => $ok]);
             exit;
         case 'toggle_favorite':
             $id = $_POST['id'];
@@ -79,7 +87,9 @@ function handleRouteAjaxActions(): void {
         exit;
     }
     if ($_GET['ajax'] === 'delete' && isset($_POST['id'])) {
-        echo json_encode(['success' => deleteRoute($_POST['id'])]);
+        $ok = deleteRoute($_POST['id']);
+        if ($ok) app_notify(getCurrentUserEmail() ?: '', 'map', 'info', 'Route deleted', (string)$_POST['id'], 'route_deleted');
+        echo json_encode(['success' => $ok]);
         exit;
     }
     if ($_GET['ajax'] === 'toggle_favorite' && isset($_POST['id'])) {

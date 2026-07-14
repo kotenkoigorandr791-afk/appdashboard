@@ -413,13 +413,25 @@ async function switchChartCurrency(cur) {
     updateChart();
 }
 
+function linearRegression(values){
+    const n=values.length;
+    if(n<2)return values.slice();
+    let sx=0,sy=0,sxx=0,sxy=0;
+    for(let i=0;i<n;i++){sx+=i;sy+=values[i];sxx+=i*i;sxy+=i*values[i];}
+    const denom=n*sxx-sx*sx;
+    if(denom===0)return values.slice();
+    const m=(n*sxy-sx*sy)/denom;
+    const b=(sy-m*sx)/n;
+    return Array.from({length:n},(_,i)=>+(m*i+b).toFixed(2));
+}
+
 function updateChart() {
     const ctx = document.getElementById('expenses-chart').getContext('2d');
-    const months = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'));
+    const allMonths = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'));
     const yearDates = Object.keys(expensesData).filter(d=>d.startsWith(currentChartYear.toString()));
     const monthly={};
-    months.forEach(m=>{ monthly[m]={}; userSettings.stores.forEach(s=>{monthly[m][s.name]=0;}); });
-    const monthlyIncome={};months.forEach(m=>{monthlyIncome[m]=0;});
+    allMonths.forEach(m=>{ monthly[m]={}; userSettings.stores.forEach(s=>{monthly[m][s.name]=0;}); });
+    const monthlyIncome={};allMonths.forEach(m=>{monthlyIncome[m]=0;});
     yearDates.forEach(date=>{
         const m=date.split('-')[1];
         if (m in monthly) userSettings.stores.forEach(s=>{monthly[m][s.name]+=(expensesData[date]&&expensesData[date][s.name])||0;});
@@ -428,25 +440,63 @@ function updateChart() {
     const base = userSettings.currency;
     const conv = (exchangeRatesToUSD[base]||1)/(exchangeRatesToUSD[chartCurrency]||1);
     if (chart) chart.destroy();
+    const now=new Date();
+    const isCurrentYear=Number(currentChartYear)===now.getFullYear();
+    const isPastYear=Number(currentChartYear)<now.getFullYear();
+    let months=allMonths;
+    if(userSettings.trim_empty_months){
+        months=allMonths.filter(m=>{
+            let hasData=false;
+            userSettings.stores.forEach(s=>{if((monthly[m][s.name]||0)!==0)hasData=true;});
+            if((monthlyIncome[m]||0)!==0)hasData=true;
+            return hasData;
+        });
+    }
+    const cutMonth=isCurrentYear?String(now.getMonth()+1).padStart(2,'0'):(isPastYear?'99':'__none__');
+    function splitLine(vals,color,opts){
+        const n=vals.length;
+        const solid=[],dashed=[];
+        for(let i=0;i<n;i++){
+            if(months[i]<cutMonth){solid.push(vals[i]);dashed.push(null);}
+            else if(months[i]===cutMonth){solid.push(vals[i]);dashed.push(vals[i]);}
+            else{solid.push(null);dashed.push(vals[i]);}
+        }
+        const base={tension:.4,pointRadius:0,borderWidth:2,...(opts||{})};
+        const r=[];
+        r.push({...base,label:opts&&opts._label||'',data:solid,borderColor:color,backgroundColor:base.fill?color+'22':'transparent',fill:!!base.fill});
+        r.push({...base,label:'',data:dashed,borderColor:color,backgroundColor:'transparent',borderDash:[6,4],fill:false});
+        return r;
+    }
     let datasets=[];
     if (chartMode==='total') {
         const td=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
-        datasets=[{label:translations.total_expenses,data:td,borderColor:'#ef4444',backgroundColor:'rgba(239,68,68,.14)',tension:.4,fill:true}];
+        datasets=splitLine(td,'#ef4444',{fill:true,_label:translations.total_expenses});
         if(userSettings.show_incomes){
             const inc=months.map(m=>(monthlyIncome[m]||0)*conv);
-            datasets.push({label:t('incomes','Incomes'),data:inc,borderColor:'#22c55e',backgroundColor:'#22c55e',tension:.4,fill:false});
+            datasets.push(...splitLine(inc,'#22c55e',{_label:t('incomes','Incomes')}));
+        }
+        if(userSettings.show_trend){
+            const inc=months.map(m=>(monthlyIncome[m]||0)*conv);
+            const diff=months.map((_,i)=>+(inc[i]-td[i]).toFixed(2));
+            datasets.push(...splitLine(diff,'#f59e0b',{_label:t('difference_line','Difference')}));
         }
     } else {
+        const perStoreTotals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
         userSettings.stores.forEach((s,i)=>{
             if(s.visible===false)return;
-            datasets.push({label:s.name,data:months.map(m=>(monthly[m][s.name]||0)*conv),borderColor:storeColors[i%storeColors.length],backgroundColor:storeColors[i%storeColors.length]+'20',tension:.4,fill:false});
+            datasets.push(...splitLine(months.map(m=>(monthly[m][s.name]||0)*conv),storeColors[i%storeColors.length],{_label:s.name}));
         });
+        if(userSettings.show_trend){
+            const trendData=linearRegression(perStoreTotals);
+            datasets.push(...splitLine(trendData,'#f59e0b',{tension:0,_label:t('difference_line','Trend')}));
+        }
     }
     chart=new Chart(ctx,{type:'line',data:{labels:months,datasets},options:{responsive:true,maintainAspectRatio:false,
-        scales:{y:{beginAtZero:true,title:{display:true,text:`Amount (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
+        interaction:{mode:'index',intersect:false},
+        scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`Amount (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
                x:{title:{display:true,text:'Month',color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
-        plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>'}},
-                 tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+        plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
+                 tooltip:{mode:'index',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
     document.querySelector('.chart-toggle-btn').textContent=chartMode==='total'?translations.per_store_expenses:translations.total_expenses;
     updateYearButtons();
@@ -496,9 +546,15 @@ function toggleChartMode(){chartMode=chartMode==='total'?'stores':'total';update
 // ══ Exchange Rates ══════════════════════════════════════════════════════════
 function loadExchangeRates() {
     const base = document.getElementById('base-currency-select').value;
+    const loader = document.getElementById('rates-loading');
+    const table = document.getElementById('rates-table-container');
+    if(loader) loader.style.display='block';
+    if(table) table.style.display='none';
     fetch(`?get_exchange_rates=1&base=${base}`)
         .then(r=>r.json())
         .then(data=>{
+            if(loader) loader.style.display='none';
+            if(table) table.style.display='';
             if(data.status==='success') {
                 currentRates = data.rates;
                 displayRatesTable(base, data.rates);
@@ -507,7 +563,11 @@ function loadExchangeRates() {
                 showNotification(t('failed_load_exchange_rates','Failed to load exchange rates'), 'error');
             }
         })
-        .catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`, 'error'));
+        .catch(e=>{
+            if(loader) loader.style.display='none';
+            if(table) table.style.display='';
+            showNotification(`${t('network_error','Network error')}: ${e}`, 'error');
+        });
 }
 
 function displayRatesTable(base, rates) {
@@ -693,11 +753,17 @@ function saveBudgetSettingsNow(){
     f.append('currency',document.getElementById('currency').value);
     const showIncomesEl=document.getElementById('show-incomes-toggle');
     if(showIncomesEl&&showIncomesEl.checked)f.append('show_incomes','1');
+    const showTrendEl=document.getElementById('show-trend-toggle');
+    if(showTrendEl&&showTrendEl.checked)f.append('show_trend','1');
+    const trimEmptyEl=document.getElementById('trim-empty-months-toggle');
+    if(trimEmptyEl&&trimEmptyEl.checked)f.append('trim_empty_months','1');
     fetch('',{method:'POST',body:f}).then(r=>r.json()).then(d=>{
         if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}
         userSettings.currency=document.getElementById('currency').value;
         userSettings.monthly_budget=parseFloat(document.getElementById('monthly-budget').value)||0;
         userSettings.show_incomes=!!(showIncomesEl&&showIncomesEl.checked);
+        userSettings.show_trend=!!(showTrendEl&&showTrendEl.checked);
+        userSettings.trim_empty_months=!!(trimEmptyEl&&trimEmptyEl.checked);
         chartCurrency=userSettings.currency;
         document.querySelectorAll('.currency-btn').forEach(b=>b.classList.toggle('active',b.dataset.currency===chartCurrency));
         loadAvailableYears().then(()=>updateChart());
@@ -1271,7 +1337,8 @@ function submitUnresolvedMappings(){
 // ══ Share chart ═══════════════════════════════════════════════════════════
 function getShareChartData(){
     const cd=JSON.parse(JSON.stringify(chart.data));
-    cd.datasets.forEach((d,i)=>{d.borderColor=storeColors[i%storeColors.length];d.backgroundColor=storeColors[i%storeColors.length]+'80';d.borderWidth=3;d.pointRadius=5;d.tension=0.4;});
+    cd.datasets=cd.datasets.filter(d=>d.label!=='');
+    cd.datasets.forEach((d,i)=>{d.borderColor=storeColors[i%storeColors.length];d.backgroundColor=storeColors[i%storeColors.length]+'80';d.borderWidth=3;d.pointRadius=5;d.tension=0.4;delete d.borderDash;});
     return cd;
 }
 function shareChartOptions(isMobile,titleSize){
@@ -1436,7 +1503,20 @@ document.addEventListener('DOMContentLoaded',function(){
     const curEl=document.getElementById('currency');
     if(curEl)curEl.addEventListener('change',scheduleSaveBudgetSettings);
     const sit=document.getElementById('show-incomes-toggle');
-    if(sit)sit.addEventListener('change',scheduleSaveBudgetSettings);
+    if(sit)sit.addEventListener('change',function(){
+        scheduleSaveBudgetSettings();
+        toggleIncomeColumnVisibility();
+    });
+    const stt=document.getElementById('show-trend-toggle');
+    if(stt)stt.addEventListener('change',function(){
+        scheduleSaveBudgetSettings();
+        updateChart();
+    });
+    const tem=document.getElementById('trim-empty-months-toggle');
+    if(tem)tem.addEventListener('change',function(){
+        scheduleSaveBudgetSettings();
+        updateChart();
+    });
     const sb=document.getElementById('sort-by');
     if(sb)sb.addEventListener('change',scheduleSaveTableSettings);
     const rpp=document.getElementById('rows-per-page');
@@ -1493,5 +1573,17 @@ document.addEventListener('DOMContentLoaded',function(){
     });
 
     renderPagination();
+
+    function toggleIncomeColumnVisibility() {
+        const showIncomes = document.getElementById('show-incomes-toggle').checked;
+        const incomeElements = document.querySelectorAll('.income-header, .income-separator');
+        incomeElements.forEach(el => {
+            if (showIncomes) {
+                el.classList.remove('hidden');
+            } else {
+                el.classList.add('hidden');
+            }
+        });
+    }
 });
 </script>

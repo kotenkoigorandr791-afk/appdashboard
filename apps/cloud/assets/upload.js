@@ -224,6 +224,12 @@ function addUploadItem(filename, totalSize) {
     `;
 
   container.appendChild(item);
+  showFloatingUploadButton();
+  const panel = document.getElementById('upload-progress-panel');
+  if (panel && !uploadFloatingState.minimized) {
+    panel.classList.remove('hidden');
+    uploadFloatingState.panelVisible = true;
+  }
 
   uploadFloatingState.items.set(uploadId, {
     filename,
@@ -1787,7 +1793,9 @@ async function uploadSingleFile(filePath, file, signal, overwrite, onProgress) {
         total_size: String(file.size)
       })
     });
-    const initData = await initResponse.json();
+    const text = await initResponse.text();
+    let initData;
+    try { initData = JSON.parse(text); } catch (_) { throw new Error(text.slice(0, 200) || 'Invalid server response'); }
     if (initResponse.ok && initData.success && initData.upload_id) {
       uploadId = initData.upload_id;
     } else {
@@ -1795,6 +1803,7 @@ async function uploadSingleFile(filePath, file, signal, overwrite, onProgress) {
     }
   } catch (err) {
     console.error('Upload initialization failed:', err);
+    flashStatus(String(err.message || err));
     uploadId = '';
   }
 

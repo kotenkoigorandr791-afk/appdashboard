@@ -66,10 +66,11 @@
     </header>
 
     <nav class="section-strip" aria-label="Monitor Sections">
-        <button class="section-strip-button active" type="button" data-section-target="graphs"><?= htmlspecialchars($t['section_graphs']) ?></button>
-        <button class="section-strip-button" type="button" data-section-target="disk"><?= htmlspecialchars($t['disk']) ?></button>
-        <button class="section-strip-button" type="button" data-section-target="nginx"><?= htmlspecialchars($t['nginx_modules']) ?></button>
-        <button class="section-strip-button" type="button" data-section-target="php"><?= htmlspecialchars($t['php_modules']) ?></button>
+        <button class="section-strip-button active" type="button" data-section-target="graphs"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
+        <button class="section-strip-button" type="button" data-section-target="uptime"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime') ?></button>
+        <button class="section-strip-button" type="button" data-section-target="disk"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><?= htmlspecialchars($t['disk']) ?></button>
+        <button class="section-strip-button" type="button" data-section-target="nginx"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M9 9v6"/><path d="m9 9 6 6"/><path d="M15 9v6"/></svg><?= htmlspecialchars($t['nginx_modules']) ?></button>
+        <button class="section-strip-button" type="button" data-section-target="php"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
     </nav>
 
     <section id="monitorSection-graphs" class="monitor-section active" data-section-panel="graphs">
@@ -115,6 +116,29 @@
             <section>
                 <h2><?= htmlspecialchars($t['network_interfaces']) ?></h2>
                 <div id="networkGrid" class="network-grid">
+                    <div class="loading-placeholder"><?= htmlspecialchars($t['loading']) ?></div>
+                </div>
+            </section>
+        </div>
+    </section>
+
+    <section id="monitorSection-uptime" class="monitor-section" data-section-panel="uptime">
+        <div class="section-cluster">
+            <section>
+                <div class="uptime-toolbar">
+                    <h2><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime Monitoring') ?></h2>
+                    <div class="uptime-toolbar-actions">
+                        <?php if ($userRole >= 2): ?>
+                        <button class="btn-primary icon-button" type="button" onclick="openUptimeCheckModal()"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></button>
+                        <?php endif; ?>
+                        <button id="toggleAllDockerMetricsBtn" class="btn-secondary icon-button" type="button" onclick="toggleAllDockerMetrics()"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span>Expand all</span></button>
+                        <button class="btn-secondary icon-button" type="button" onclick="runUptimeChecks()"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['run_checks'] ?? 'Run checks') ?></button>
+                    </div>
+                </div>
+                <div id="uptimeSummary" class="uptime-summary">
+                    <div class="loading-placeholder"><?= htmlspecialchars($t['loading']) ?></div>
+                </div>
+                <div id="uptimeChecksGrid" class="uptime-checks-grid">
                     <div class="loading-placeholder"><?= htmlspecialchars($t['loading']) ?></div>
                 </div>
             </section>
@@ -168,6 +192,33 @@
     </section>
 </div>
 
+<?php if ($userRole >= 2): ?>
+<div id="uptimeCheckModal" class="modal uptime-check-modal">
+    <span class="modal-close" onclick="closeUptimeCheckModal()">&times;</span>
+    <div class="modal-content uptime-modal-content">
+        <div class="uptime-form-panel">
+            <h2><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></h2>
+            <form id="uptimeCheckForm" class="uptime-check-form" onsubmit="saveUptimeCheck(event)">
+                <input type="hidden" name="id" value="">
+                <label><span><?= htmlspecialchars($t['monitor_name'] ?? 'Name') ?></span><input name="name" type="text" required></label>
+                <label><span><?= htmlspecialchars($t['monitor_type'] ?? 'Type') ?></span><select name="type"><option value="http">HTTP</option><option value="keyword">HTTP Keyword</option><option value="tcp">TCP Port</option><option value="ping">Ping</option><option value="dns">DNS</option></select></label>
+                <label><span><?= htmlspecialchars($t['monitor_target'] ?? 'Target') ?></span><input name="target" type="text" placeholder="https://example.com or host:443" required></label>
+                <label><span><?= htmlspecialchars($t['method'] ?? 'Method') ?></span><select name="method"><option>GET</option><option>HEAD</option><option>POST</option></select></label>
+                <label><span><?= htmlspecialchars($t['expected_status'] ?? 'Expected status') ?></span><input name="expected_status" type="number" min="0" value="200"></label>
+                <label><span><?= htmlspecialchars($t['keyword'] ?? 'Keyword') ?></span><input name="keyword" type="text"></label>
+                <label><span><?= htmlspecialchars($t['interval_sec'] ?? 'Interval, sec') ?></span><input name="interval_sec" type="number" min="10" value="60"></label>
+                <label><span><?= htmlspecialchars($t['timeout_sec'] ?? 'Timeout, sec') ?></span><input name="timeout_sec" type="number" min="1" value="10"></label>
+                <label class="uptime-enabled"><input name="enabled" type="checkbox" checked><span><?= htmlspecialchars($t['enabled'] ?? 'Enabled') ?></span></label>
+                <div class="uptime-form-actions">
+                    <button class="btn-primary" type="submit"><?= htmlspecialchars($t['save'] ?? 'Save') ?></button>
+                    <button class="btn-secondary" type="button" onclick="closeUptimeCheckModal()"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
+
 <div id="phpinfoModal" class="modal">
     <span class="modal-close" onclick="closePhpInfo()">&times;</span>
     <div id="phpinfoContent" class="modal-content"></div>
@@ -184,4 +235,3 @@
         </div>
     </div>
 </div>
-

@@ -3,6 +3,13 @@
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
     return htmlspecialchars($string ?? '', $flags, $encoding, $double_encode);
 }
+function app_avatar_src($photo): string {
+    $src = trim((string)($photo ?: 'default_avatar.png'));
+    if (preg_match('#^https://lh3\.googleusercontent\.com/#i', $src)) {
+        return '/main?api=avatar_proxy&u=' . rawurlencode($src);
+    }
+    return $src;
+}
 function ap_sanitize_hex_color(string $c, string $fallback = '#007bff'): string {
     $c = trim($c);
     if ($c !== '' && ($c[0] ?? '') !== '#') {
@@ -28,6 +35,66 @@ function json_out($data, $status = 200) {
         header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
     }
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
+    $url = trim((string)($_GET['u'] ?? ''));
+    if (!preg_match('#^https://lh3\.googleusercontent\.com/#i', $url)) {
+        http_response_code(400);
+        exit;
+    }
+    $cacheDir = APP_ROOT . '/uploads/avatar_cache';
+    if (!is_dir($cacheDir)) {
+        @mkdir($cacheDir, 0775, true);
+    }
+    $cacheFile = $cacheDir . '/' . hash('sha256', $url) . '.bin';
+    $contentTypeFile = $cacheFile . '.type';
+    if (!is_file($cacheFile) || filemtime($cacheFile) < time() - 604800) {
+        $body = false;
+        $code = 0;
+        $type = 'image/jpeg';
+        if (function_exists('curl_init')) {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_TIMEOUT => 8,
+                CURLOPT_CONNECTTIMEOUT => 4,
+                CURLOPT_USERAGENT => 'AppDashboard/1.0',
+            ]);
+            $body = curl_exec($ch);
+            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $type = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+            curl_close($ch);
+        } else {
+            $ctx = stream_context_create(['http' => ['timeout' => 8, 'follow_location' => 1, 'user_agent' => 'AppDashboard/1.0']]);
+            $body = @file_get_contents($url, false, $ctx);
+            $code = is_string($body) && $body !== '' ? 200 : 0;
+            if (isset($http_response_header) && is_array($http_response_header)) {
+                foreach ($http_response_header as $headerLine) {
+                    if (stripos($headerLine, 'Content-Type:') === 0) {
+                        $type = trim(substr($headerLine, 13));
+                        break;
+                    }
+                }
+            }
+        }
+        if ($code === 200 && is_string($body) && $body !== '') {
+            @file_put_contents($cacheFile, $body, LOCK_EX);
+            @file_put_contents($contentTypeFile, preg_match('#^image/#i', $type) ? $type : 'image/jpeg', LOCK_EX);
+            header('Content-Type: ' . (preg_match('#^image/#i', $type) ? $type : 'image/jpeg'));
+            header('Cache-Control: public, max-age=604800, immutable');
+            echo $body;
+            exit;
+        }
+    }
+    if (is_file($cacheFile)) {
+        header('Content-Type: ' . (is_file($contentTypeFile) ? trim((string)file_get_contents($contentTypeFile)) : 'image/jpeg'));
+        header('Cache-Control: public, max-age=604800, immutable');
+        readfile($cacheFile);
+        exit;
+    }
+    header('Location: /default_avatar.png', true, 302);
     exit;
 }
 const PASSWORD_MIN_LENGTH = 6;
@@ -349,6 +416,35 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
 // Auth config loaded from SQLite via db.php
 $authConfig=loadAuthConfig();
 
+function apCreateNotification(AppDatabase $db, string $userEmail, string $appId, string $severity, string $title, string $message = '', string $eventType = '', array $context = []): int {
+    ensureNotificationsSchema($db);
+    $severity = in_array($severity, ['info','success','warning','error','critical'], true) ? $severity : 'info';
+    $stmt = $db->prepare("INSERT INTO app_notifications(user_email, app_id, severity, title, message, event_type, context_json, is_read, created_at) VALUES(:u,:a,:s,:t,:m,:e,:c,0,:n)");
+    $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+    $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
+    $stmt->bindValue(':s', $severity, SQLITE3_TEXT);
+    $stmt->bindValue(':t', $title, SQLITE3_TEXT);
+    $stmt->bindValue(':m', $message, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $eventType, SQLITE3_TEXT);
+    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+    $stmt->execute();
+    if (in_array($severity, ['warning','error','critical'], true)) {
+        $telegramEnabled = 1;
+        if ($userEmail !== '') {
+            $set = $db->prepare("SELECT telegram_enabled FROM app_notification_settings WHERE email = :u");
+            $set->bindValue(':u', $userEmail, SQLITE3_TEXT);
+            $setRow = $set->execute()->fetchArray(SQLITE3_ASSOC);
+            $telegramEnabled = (int)($setRow['telegram_enabled'] ?? 1);
+        }
+        if ($telegramEnabled) {
+        $label = $appId !== '' ? '[' . $appId . '] ' : '';
+        @sendTelegramMessage(my_htmlspecialchars($label . $title . ($message !== '' ? "\n" . $message : '')));
+        }
+    }
+    return (int)$db->lastInsertRowID();
+}
+
 // ── AI Config API ─────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'cloud_ai_config') {
     require_once APP_ROOT . '/apps/cloud/includes/ai_config_store.php';
@@ -657,6 +753,105 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
     }
     json_out(['ok' => false, 'error' => 'unknown_action'], 400);
 }
+
+if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
+    $sessionOk = isset($_SESSION['user']['email'], $_SESSION['auth_time']) && getUserFromActiveSessions(session_id()) !== null;
+    if (!$sessionOk) json_out(['ok' => false, 'error' => 'not_authenticated'], 401);
+    $db = getDB();
+    ensureNotificationsSchema($db);
+    $userEmail = (string)$_SESSION['user']['email'];
+    $input = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($input)) $input = $_POST;
+    $action = (string)($input['action'] ?? $_GET['action'] ?? '');
+    if (PHP_SESSION_ACTIVE === session_status()) {
+        session_write_close();
+    }
+    if ($action === 'list') {
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? $input['limit'] ?? 30)));
+        $stmt = $db->prepare("SELECT id,user_email,app_id,severity,title,message,event_type,is_read,created_at FROM app_notifications WHERE user_email = '' OR user_email = :u ORDER BY created_at DESC, id DESC LIMIT :l");
+        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+        $stmt->bindValue(':l', $limit, SQLITE3_INTEGER);
+        $res = $stmt->execute();
+        $items = [];
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $items[] = [
+                'id' => (int)$row['id'],
+                'app_id' => (string)$row['app_id'],
+                'severity' => (string)$row['severity'],
+                'title' => (string)$row['title'],
+                'message' => (string)$row['message'],
+                'event_type' => (string)$row['event_type'],
+                'is_read' => (int)$row['is_read'],
+                'created_at' => (int)$row['created_at'],
+            ];
+        }
+        $cnt = $db->prepare("SELECT COUNT(*) AS c FROM app_notifications WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
+        $cnt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+        $countRow = $cnt->execute()->fetchArray(SQLITE3_ASSOC);
+        json_out(['ok' => true, 'items' => $items, 'unread' => (int)($countRow['c'] ?? 0)]);
+    }
+    if ($action === 'mark_read') {
+        $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE id = :id AND (user_email = '' OR user_email = :u)");
+            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+            $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+            $stmt->execute();
+        } else {
+            $stmt = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
+            $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+            $stmt->execute();
+        }
+        json_out(['ok' => true]);
+    }
+    if ($action === 'settings') {
+        $stmt = $db->prepare("SELECT browser_enabled, telegram_enabled FROM app_notification_settings WHERE email = :u");
+        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        json_out(['ok' => true, 'settings' => ['browser_enabled' => (int)($row['browser_enabled'] ?? 0), 'telegram_enabled' => (int)($row['telegram_enabled'] ?? 1)]]);
+    }
+    if ($action === 'save_settings') {
+        $browser = !empty($input['browser_enabled']) ? 1 : 0;
+        $telegram = array_key_exists('telegram_enabled', $input) ? (!empty($input['telegram_enabled']) ? 1 : 0) : 1;
+        $stmt = $db->prepare("INSERT INTO app_notification_settings(email,browser_enabled,telegram_enabled,updated_at) VALUES(:u,:b,:g,:t) ON CONFLICT(email) DO UPDATE SET browser_enabled = excluded.browser_enabled, telegram_enabled = excluded.telegram_enabled, updated_at = excluded.updated_at");
+        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+        $stmt->bindValue(':b', $browser, SQLITE3_INTEGER);
+        $stmt->bindValue(':g', $telegram, SQLITE3_INTEGER);
+        $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+        $stmt->execute();
+        json_out(['ok' => true]);
+    }
+    if ($action === 'metric') {
+        $appId = trim((string)($input['app_id'] ?? ''));
+        $metric = trim((string)($input['metric'] ?? ''));
+        if ($metric === '') json_out(['ok' => false, 'error' => 'missing_metric'], 400);
+        $stmt = $db->prepare("INSERT INTO app_metrics(app_id, metric, value, unit, user_email, context_json, created_at) VALUES(:a,:m,:v,:unit,:u,:c,:t)");
+        $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
+        $stmt->bindValue(':m', $metric, SQLITE3_TEXT);
+        $stmt->bindValue(':v', (float)($input['value'] ?? 0), SQLITE3_FLOAT);
+        $stmt->bindValue(':unit', trim((string)($input['unit'] ?? '')), SQLITE3_TEXT);
+        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+        $stmt->bindValue(':c', json_encode(is_array($input['context'] ?? null) ? $input['context'] : [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+        $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+        $stmt->execute();
+        json_out(['ok' => true]);
+    }
+    if ($action === 'emit' || $action === 'worker_finished') {
+        $appId = trim((string)($input['app_id'] ?? ''));
+        $eventType = $action === 'worker_finished' ? 'worker_finished' : trim((string)($input['event_type'] ?? ''));
+        $severity = $action === 'worker_finished' ? 'warning' : trim((string)($input['severity'] ?? 'info'));
+        $title = trim((string)($input['title'] ?? ''));
+        $message = trim((string)($input['message'] ?? ''));
+        if ($title === '') $title = $eventType === 'worker_finished' ? 'Worker finished' : 'Notification';
+        $id = apCreateNotification($db, $userEmail, $appId, $severity, $title, $message, $eventType, is_array($input['context'] ?? null) ? $input['context'] : []);
+        json_out(['ok' => true, 'id' => $id]);
+    }
+    json_out(['ok' => false, 'error' => 'unknown_action'], 400);
+} catch (Throwable $e) {
+    json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+}}
 
 // ── Support Chat API ─────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
@@ -1561,6 +1756,7 @@ function removeBOM($text){
 function loadAuthorizedChats(){
     try {
         $db = getDB();
+        ensureTelegramBotSchema($db);
         $res = $db->query("SELECT chat_id FROM tg_bot_sessions");
         $ids = [];
         while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
@@ -1573,6 +1769,52 @@ function loadAuthorizedChats(){
         return [];
     }
 }
+function loadAuthorizedTelegramSessions(): array {
+    try {
+        $db = getDB();
+        ensureTelegramBotSchema($db);
+        $res = $db->query("SELECT s.chat_id,s.email,s.authorized_at,s.telegram_user_id,u.name,u.role FROM tg_bot_sessions s LEFT JOIN users u ON u.email=s.email ORDER BY s.authorized_at DESC");
+        $rows = [];
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $rows[] = $row;
+        }
+        return $rows;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+function loadAuthorizedAdminChats(): array {
+    try {
+        $db = getDB();
+        ensureTelegramBotSchema($db);
+        $res = $db->query("SELECT s.chat_id FROM tg_bot_sessions s INNER JOIN users u ON u.email=s.email WHERE u.role >= 2");
+        $ids = [];
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $id = trim((string)($row['chat_id'] ?? ''));
+            if ($id !== '') $ids[] = $id;
+        }
+        return $ids;
+    } catch (Throwable $e) {
+        return [];
+    }
+}
+function createTelegramLinkToken(string $email, string $createdBy): string {
+    $db = getDB();
+    ensureTelegramBotSchema($db);
+    $purge = $db->prepare("DELETE FROM tg_bot_link_tokens WHERE expires_at < :n OR email = :e");
+    $purge->bindValue(':n', time(), SQLITE3_INTEGER);
+    $purge->bindValue(':e', $email, SQLITE3_TEXT);
+    $purge->execute();
+    $token = strtoupper(bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4)));
+    $stmt = $db->prepare("INSERT INTO tg_bot_link_tokens(token_hash,email,created_by,created_at,expires_at) VALUES(:h,:e,:c,:n,:x)");
+    $stmt->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':c', $createdBy, SQLITE3_TEXT);
+    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':x', time() + 900, SQLITE3_INTEGER);
+    $stmt->execute();
+    return $token;
+}
 
 function sendTelegramMessage($text, $domain = null){
     $cfg = loadTgBotConfig();
@@ -1580,7 +1822,7 @@ function sendTelegramMessage($text, $domain = null){
         error_log('[TG] sendTelegramMessage: bot_token is empty');
         return false;
     }
-    $chatIds = loadAuthorizedChats();
+    $chatIds = loadAuthorizedAdminChats();
     if(empty($chatIds)){
         error_log('[TG] sendTelegramMessage: no authorized chat IDs found');
         return false;
@@ -1639,7 +1881,7 @@ function buildTelegramInlineKeyboard($domain){
 function sendTelegramPhoto($photoUrl, $caption){
     $cfg = loadTgBotConfig();
     if(empty($cfg['bot_token'])) return false;
-    $chatIds = loadAuthorizedChats();
+    $chatIds = loadAuthorizedAdminChats();
     if(empty($chatIds)) return false;
     $token = trim($cfg['bot_token']);
     $domain = getTelegramDomain();

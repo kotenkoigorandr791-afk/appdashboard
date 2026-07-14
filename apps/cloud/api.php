@@ -136,10 +136,21 @@ function ensure_cloud_encryption_consents_table(): void {
 const UPLOAD_SESSIONS_DIR = __DIR__ . '/upload_sessions';
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
 
+function upload_sessions_dir() {
+    static $dir = null;
+    if ($dir !== null) return $dir;
+    if (is_dir(UPLOAD_SESSIONS_DIR) && is_writable(UPLOAD_SESSIONS_DIR)) {
+        return $dir = UPLOAD_SESSIONS_DIR;
+    }
+    $fallback = rtrim(sys_get_temp_dir(), '/\\') . '/appdashboard_cloud_upload_sessions_' . substr(sha1(__DIR__), 0, 12);
+    @mkdir($fallback, 0775, true);
+    return $dir = $fallback;
+}
+
 // Функция для создания сессии загрузки с привязкой к пути
 function create_upload_session($target_path, $user) {
     $upload_id = bin2hex(random_bytes(16));
-    $session_file = UPLOAD_SESSIONS_DIR . '/' . $upload_id . '.json';
+    $session_file = upload_sessions_dir() . '/' . $upload_id . '.json';
     
     $session_data = [
         'id' => $upload_id,
@@ -152,13 +163,15 @@ function create_upload_session($target_path, $user) {
         'active' => true
     ];
     
-    file_put_contents($session_file, json_encode($session_data, JSON_PRETTY_PRINT));
+    if (@file_put_contents($session_file, json_encode($session_data, JSON_PRETTY_PRINT)) === false) {
+        throw new RuntimeException('Cannot create upload session');
+    }
     return $upload_id;
 }
 
 // Функция для получения сессии загрузки
 function get_upload_session($upload_id) {
-    $session_file = UPLOAD_SESSIONS_DIR . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
+    $session_file = upload_sessions_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
     if (file_exists($session_file)) {
         return json_decode(file_get_contents($session_file), true);
     }
@@ -167,23 +180,23 @@ function get_upload_session($upload_id) {
 
 // Функция для обновления сессии
 function update_upload_session($upload_id) {
-    $session_file = UPLOAD_SESSIONS_DIR . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
+    $session_file = upload_sessions_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
     if (file_exists($session_file)) {
         $data = json_decode(file_get_contents($session_file), true);
         $data['last_activity'] = time();
-        file_put_contents($session_file, json_encode($data, JSON_PRETTY_PRINT));
+        @file_put_contents($session_file, json_encode($data, JSON_PRETTY_PRINT));
     }
 }
 
 // Функция для удаления сессии
 function delete_upload_session($upload_id) {
-    $session_file = UPLOAD_SESSIONS_DIR . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
+    $session_file = upload_sessions_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
     @unlink($session_file);
 }
 
 // Очистка старых сессий (можно вызвать при старте)
 function cleanup_old_upload_sessions() {
-    $files = glob(UPLOAD_SESSIONS_DIR . '/*.json');
+    $files = glob(upload_sessions_dir() . '/*.json');
     $now = time();
     foreach ($files as $file) {
         if ($now - filemtime($file) > 86400) { // 24 часа

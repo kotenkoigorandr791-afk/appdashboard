@@ -67,6 +67,10 @@ function smart_log_ensure_schema(AppDatabase $db): void {
         last_seen   INTEGER NOT NULL
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_smart_app_logs_app_last ON smart_app_logs(app_id, last_seen DESC)");
+    $db->exec("CREATE TABLE IF NOT EXISTS smart_log_tg_sent (
+        signature TEXT PRIMARY KEY,
+        last_sent INTEGER NOT NULL
+    )");
 }
 function smart_log_conn(): AppDatabase {
     static $db = null;
@@ -162,10 +166,53 @@ function smart_log_write(string $appId, string $level, string $message, string $
         $stmt->bindValue(':msg', substr($message, 0, 8000), SQLITE3_TEXT);
         $stmt->bindValue(':ts', $now, SQLITE3_INTEGER);
         $stmt->execute();
+        smart_log_notify_telegram($db, $sig, $appId, $level, $message, $sourceFile, $sourceLine, $now);
     } catch (Throwable $e) {
         cloud_safe_error_log('smart_log_write: ' . $e->getMessage());
     } finally {
         $in = false;
+    }
+}
+function smart_log_notify_telegram(AppDatabase $db, string $sig, string $appId, string $level, string $message, string $sourceFile, ?int $sourceLine, int $now): void {
+    if (!in_array($level, ['error', 'critical'], true)) return;
+    try {
+        $row = $db->prepare("SELECT last_sent FROM smart_log_tg_sent WHERE signature = :s LIMIT 1");
+        $row->bindValue(':s', $sig, SQLITE3_TEXT);
+        $sent = $row->execute()->fetchArray(SQLITE3_ASSOC);
+        if ($sent && $now - (int)($sent['last_sent'] ?? 0) < 900) return;
+        $tokenRow = $db->query("SELECT value FROM config WHERE key='tg_bot_token' LIMIT 1")->fetchArray(SQLITE3_ASSOC);
+        $token = trim((string)($tokenRow['value'] ?? ''));
+        if ($token === '') return;
+        $res = $db->query("SELECT s.chat_id FROM tg_bot_sessions s INNER JOIN users u ON u.email=s.email WHERE u.role >= 2");
+        $chatIds = [];
+        while ($res && ($r = $res->fetchArray(SQLITE3_ASSOC))) {
+            $cid = trim((string)($r['chat_id'] ?? ''));
+            if ($cid !== '') $chatIds[] = $cid;
+        }
+        if (!$chatIds) return;
+        $text = '<b>Server failure</b>' . "\n"
+            . '<b>App:</b> ' . htmlspecialchars(substr($appId, 0, 80), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\n"
+            . '<b>Level:</b> ' . htmlspecialchars($level, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\n"
+            . '<b>Source:</b> ' . htmlspecialchars($sourceFile . ($sourceLine !== null ? ':' . $sourceLine : ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . "\n"
+            . '<b>Message:</b> ' . htmlspecialchars(substr($message, 0, 1800), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        foreach ($chatIds as $chatId) {
+            $ch = curl_init('https://api.telegram.org/bot' . $token . '/sendMessage');
+            if (!$ch) continue;
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => http_build_query(['chat_id' => $chatId, 'text' => $text, 'parse_mode' => 'HTML', 'disable_web_page_preview' => true]),
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 8,
+            ]);
+            curl_exec($ch);
+            curl_close($ch);
+        }
+        $up = $db->prepare("INSERT INTO smart_log_tg_sent(signature,last_sent) VALUES(:s,:t) ON CONFLICT(signature) DO UPDATE SET last_sent = excluded.last_sent");
+        $up->bindValue(':s', $sig, SQLITE3_TEXT);
+        $up->bindValue(':t', $now, SQLITE3_INTEGER);
+        $up->execute();
+    } catch (Throwable $e) {
+        cloud_safe_error_log('smart_log_notify_telegram: ' . $e->getMessage());
     }
 }
 function smart_log_bootstrap(string $appId): void {

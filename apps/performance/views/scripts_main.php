@@ -66,6 +66,13 @@ let lastKnownMetrics = {
 let lastKnownDrives = [];
 let lastKnownNetworkInterfaces = [];
 let lastKnownSmartData = null;
+let lastKnownUptimeMonitoring = null;
+let lastKnownDockerContainers = [];
+let uptimeChecksById = {};
+let expandedDockerChecks = {};
+let dockerChartPeriods = {};
+let dockerMetricCharts = {};
+let uptimeGroupCollapsed = { docker: false, other: false };
 
 // Auto-zoom state (only for admins)
 let autoZoomEnabled = userRole >= 2;
@@ -187,6 +194,8 @@ function saveStoredData() {
             lastNetworkData: lastKnownNetworkInterfaces,
             lastDrivesData: lastKnownDrives,
             lastSmartData: lastKnownSmartData,
+            lastUptimeMonitoring: lastKnownUptimeMonitoring,
+            lastDockerContainers: lastKnownDockerContainers,
             timestamp: Date.now()
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
@@ -620,6 +629,7 @@ function handleData(d, isFallback = false) {
     networkVal.style.color = isFallback ? 'var(--warning-color)' : '';
 
     displaySmartData(d.smart || null);
+    displayUptimeMonitoring(d.uptime_monitoring || null, d.docker_containers || []);
     
     const now = new Date();
     const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'});
@@ -1004,6 +1014,10 @@ function displayLastKnownData() {
                 if (data.lastSmartData && (data.lastSmartData.available || Array.isArray(data.lastSmartData.devices))) {
                     displaySmartData(data.lastSmartData);
                 }
+
+                if (data.lastUptimeMonitoring) {
+                    displayUptimeMonitoring(data.lastUptimeMonitoring, data.lastDockerContainers || []);
+                }
             }
         }
     } catch (e) {
@@ -1089,6 +1103,342 @@ function displayDrivesData(drivesData) {
         });
     } else {
         drivesGrid.innerHTML = '<p class="no-data"><?= htmlspecialchars($t['no_drives_found']) ?></p>';
+    }
+}
+
+function uptimeStatusLabel(status) {
+    if (status === 'up') return 'UP';
+    if (status === 'down') return 'DOWN';
+    return 'UNKNOWN';
+}
+
+function formatUptimeDate(ts) {
+    if (!ts) return '—';
+    const d = new Date(Number(ts) * 1000);
+    return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString();
+}
+
+function displayUptimeMonitoring(payload, dockerContainers) {
+    const summaryEl = document.getElementById('uptimeSummary');
+    const gridEl = document.getElementById('uptimeChecksGrid');
+    if (!summaryEl || !gridEl) return;
+    lastKnownUptimeMonitoring = payload || null;
+    lastKnownDockerContainers = Array.isArray(dockerContainers) ? dockerContainers : [];
+    const dockerById = {};
+    const dockerByName = {};
+    lastKnownDockerContainers.forEach(container => {
+        if (container?.id) dockerById[String(container.id)] = container;
+        if (container?.name) dockerByName[String(container.name)] = container;
+    });
+    const summary = payload?.summary || { up: 0, down: 0, unknown: 0, total: 0 };
+    summaryEl.innerHTML = `
+        <div class="uptime-summary-card up"><span>UP</span><strong>${summary.up || 0}</strong></div>
+        <div class="uptime-summary-card down"><span>DOWN</span><strong>${summary.down || 0}</strong></div>
+        <div class="uptime-summary-card unknown"><span>UNKNOWN</span><strong>${summary.unknown || 0}</strong></div>
+        <div class="uptime-summary-card"><span>TOTAL</span><strong>${summary.total || 0}</strong></div>`;
+    const checks = Array.isArray(payload?.checks) ? payload.checks : [];
+    if (checks.length === 0) {
+        gridEl.innerHTML = '<p class="no-data">No uptime checks yet</p>';
+        return;
+    }
+    uptimeChecksById = {};
+    checks.forEach(check => { uptimeChecksById[Number(check.id)] = check; });
+    const dockerChecks = checks.filter(check => String(check.type || '') === 'docker');
+    const otherChecks = checks.filter(check => String(check.type || '') !== 'docker');
+    const renderCheck = check => {
+        const status = check.last_status || 'unknown';
+        const history = Array.isArray(check.history) ? check.history : [];
+        const bars = history.map(item => `<span class="uptime-history-bar ${escapeHtml(item.status || 'unknown')}" title="${formatUptimeDate(item.checked_at)}"></span>`).join('');
+        const canDelete = userRole >= 2 && Number(check.auto_discovered || 0) === 0;
+        const isDocker = String(check.type || '') === 'docker';
+        const dockerContainer = isDocker ? (dockerById[String(check.docker_container_id || '')] || dockerByName[String(check.docker_container_name || check.target || '')] || null) : null;
+        const expanded = Boolean(expandedDockerChecks[Number(check.id)]);
+        const dockerDetails = isDocker && dockerContainer ? buildDockerMetricsDetails(check, dockerContainer, expanded) : '';
+        return `
+            <div class="uptime-check-card ${escapeHtml(status)}">
+                <div class="uptime-check-top">
+                    <div>
+                        <h3>${escapeHtml(check.name || '')}</h3>
+                        <div class="uptime-check-target">${escapeHtml(check.target || '')}</div>
+                    </div>
+                    <span class="uptime-status ${escapeHtml(status)}">${uptimeStatusLabel(status)}</span>
+                </div>
+                <div class="uptime-check-meta">
+                    <span>${escapeHtml(String(check.type || '').toUpperCase())}</span>
+                    <span>${check.last_latency_ms ? `${check.last_latency_ms} ms` : '—'}</span>
+                    <span>${check.last_http_status ? `HTTP ${check.last_http_status}` : formatUptimeDate(check.last_checked_at)}</span>
+                </div>
+                <div class="uptime-history">${bars || '<span class="uptime-history-empty">No checks</span>'}</div>
+                <div class="uptime-check-message">${escapeHtml(check.last_message || '')}</div>
+                <div class="uptime-card-actions">
+                    ${isDocker && dockerContainer ? `<button class="btn-secondary" type="button" onclick="toggleDockerMetrics(${Number(check.id)})">${expanded ? 'Hide metrics' : 'Show metrics'}</button>` : ''}
+                    ${userRole >= 2 ? `<button class="btn-secondary" type="button" onclick="editUptimeCheckById(${Number(check.id)})">Edit</button>${canDelete ? `<button class="btn-secondary" type="button" onclick="deleteUptimeCheck(${Number(check.id)})">Delete</button>` : ''}` : ''}
+                </div>
+                ${dockerDetails}
+            </div>`;
+    };
+    const renderGroup = (key, title, groupChecks) => {
+        if (groupChecks.length === 0) return '';
+        const collapsed = Boolean(uptimeGroupCollapsed[key]);
+        const up = groupChecks.filter(check => (check.last_status || 'unknown') === 'up').length;
+        const down = groupChecks.filter(check => (check.last_status || 'unknown') === 'down').length;
+        return `
+            <div class="uptime-group ${collapsed ? 'collapsed' : ''}">
+                <button class="uptime-group-header" type="button" onclick="toggleUptimeGroup('${key}')">
+                    <span class="uptime-group-arrow">${collapsed ? '›' : '⌄'}</span>
+                    <span class="uptime-group-title">${title}</span>
+                    <span class="uptime-group-count">${groupChecks.length}</span>
+                    <span class="uptime-group-pill up">${up}</span>
+                    <span class="uptime-group-pill down">${down}</span>
+                </button>
+                <div class="uptime-group-body">${collapsed ? '' : groupChecks.map(renderCheck).join('')}</div>
+            </div>`;
+    };
+    gridEl.innerHTML = `
+        ${renderGroup('docker', 'Docker', dockerChecks)}
+        ${renderGroup('other', 'Other monitors', otherChecks)}`;
+    updateToggleAllDockerMetricsButton(dockerChecks);
+    setTimeout(renderExpandedDockerCharts, 0);
+}
+
+function toggleUptimeGroup(key) {
+    uptimeGroupCollapsed[key] = !uptimeGroupCollapsed[key];
+    displayUptimeMonitoring(lastKnownUptimeMonitoring, lastKnownDockerContainers);
+}
+
+function buildDockerMetricsDetails(check, container, expanded) {
+    if (!expanded) return '';
+    const stats = container.stats || {};
+    const checkId = Number(check.id);
+    const period = dockerChartPeriods[checkId] || '24h';
+    return `
+        <div class="docker-metrics-panel">
+            <div class="docker-metrics-layout">
+                <div class="drive-stats-grid">
+                    <div class="drive-stat-box"><span class="drive-stat-label">Image</span><span class="drive-stat-value">${escapeHtml(container.image || '—')}</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">State</span><span class="drive-stat-value">${escapeHtml(container.health || container.state || '—')}</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">CPU</span><span class="drive-stat-value">${Number(stats.cpu_percent || 0).toFixed(2)}%</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">Memory</span><span class="drive-stat-value">${Number(stats.memory_percent || 0).toFixed(2)}%</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">Memory usage</span><span class="drive-stat-value">${escapeHtml(stats.memory || '—')}</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">PIDs</span><span class="drive-stat-value">${Number(stats.pids || 0)}</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">Network IO</span><span class="drive-stat-value">${escapeHtml(stats.network_io || '—')}</span></div>
+                    <div class="drive-stat-box"><span class="drive-stat-label">Block IO</span><span class="drive-stat-value">${escapeHtml(stats.block_io || '—')}</span></div>
+                </div>
+                <div class="docker-chart-panel">
+                    <div class="docker-chart-toolbar">
+                        <select onchange="setDockerChartPeriod(${checkId}, this.value)">
+                            ${['1h','6h','24h','7d','30d'].map(p => `<option value="${p}" ${p === period ? 'selected' : ''}>${p}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="docker-chart-wrap">
+                        <canvas id="dockerChart-${checkId}" data-container-id="${escapeHtml(container.id || '')}" data-period="${escapeHtml(period)}"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>`;
+}
+
+function toggleDockerMetrics(checkId) {
+    expandedDockerChecks[Number(checkId)] = !expandedDockerChecks[Number(checkId)];
+    displayUptimeMonitoring(lastKnownUptimeMonitoring, lastKnownDockerContainers);
+}
+
+function toggleAllDockerMetrics() {
+    const checks = Array.isArray(lastKnownUptimeMonitoring?.checks) ? lastKnownUptimeMonitoring.checks : [];
+    const dockerChecks = checks.filter(check => String(check.type || '') === 'docker');
+    const allExpanded = dockerChecks.length > 0 && dockerChecks.every(check => expandedDockerChecks[Number(check.id)]);
+    dockerChecks.forEach(check => {
+        expandedDockerChecks[Number(check.id)] = !allExpanded;
+    });
+    displayUptimeMonitoring(lastKnownUptimeMonitoring, lastKnownDockerContainers);
+}
+
+function updateToggleAllDockerMetricsButton(dockerChecks) {
+    const button = document.getElementById('toggleAllDockerMetricsBtn');
+    if (!button) return;
+    const allExpanded = dockerChecks.length > 0 && dockerChecks.every(check => expandedDockerChecks[Number(check.id)]);
+    const label = button.querySelector('span');
+    if (label) label.textContent = allExpanded ? 'Collapse all' : 'Expand all';
+    button.disabled = dockerChecks.length === 0;
+}
+
+function setDockerChartPeriod(checkId, period) {
+    dockerChartPeriods[Number(checkId)] = period;
+    displayUptimeMonitoring(lastKnownUptimeMonitoring, lastKnownDockerContainers);
+}
+
+function renderExpandedDockerCharts() {
+    document.querySelectorAll('canvas[id^="dockerChart-"]').forEach(canvas => {
+        const checkId = Number(canvas.id.replace('dockerChart-', ''));
+        const containerId = canvas.dataset.containerId || '';
+        const period = canvas.dataset.period || '24h';
+        if (containerId) {
+            loadDockerMetricChart(checkId, containerId, period);
+        }
+    });
+}
+
+async function loadDockerMetricChart(checkId, containerId, period) {
+    const canvas = document.getElementById(`dockerChart-${checkId}`);
+    if (!canvas) return;
+    const url = new URL(serverMonitorUrl.href);
+    url.searchParams.set('action', 'docker_history');
+    url.searchParams.set('container_id', containerId);
+    url.searchParams.set('period', period);
+    url.searchParams.set('t', Date.now());
+    const resp = await fetch(url.href, { credentials: 'same-origin', cache: 'no-store' });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const points = Array.isArray(data.points) ? data.points : [];
+    const labels = points.map(point => formatDockerChartTime(point.created_at, period));
+    const textColor = themeClass === 'dark' ? '#f0f0f0' : '#333';
+    const gridColor = themeClass === 'dark' ? 'rgba(255,255,255,.1)' : 'rgba(0,0,0,.1)';
+    if (dockerMetricCharts[checkId]) {
+        dockerMetricCharts[checkId].destroy();
+        delete dockerMetricCharts[checkId];
+    }
+    dockerMetricCharts[checkId] = new Chart(canvas.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'CPU %',
+                    data: points.map(point => Number(point.cpu_percent || 0)),
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76,175,80,.12)',
+                    borderWidth: 2,
+                    tension: .35,
+                    pointRadius: 0,
+                    yAxisID: 'percent'
+                },
+                {
+                    label: 'Memory %',
+                    data: points.map(point => Number(point.memory_percent || 0)),
+                    borderColor: primaryColor,
+                    backgroundColor: 'rgba(33,150,243,.1)',
+                    borderWidth: 2,
+                    tension: .35,
+                    pointRadius: 0,
+                    yAxisID: 'percent'
+                },
+                {
+                    label: 'PIDs',
+                    data: points.map(point => Number(point.pids || 0)),
+                    borderColor: '#FF9800',
+                    backgroundColor: 'rgba(255,152,0,.1)',
+                    borderWidth: 2,
+                    tension: .35,
+                    pointRadius: 0,
+                    yAxisID: 'pids'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { labels: { color: textColor } } },
+            scales: {
+                x: { ticks: { color: textColor, maxTicksLimit: 8 }, grid: { color: gridColor } },
+                percent: { type: 'linear', position: 'left', min: 0, suggestedMax: 100, ticks: { color: textColor }, grid: { color: gridColor } },
+                pids: { type: 'linear', position: 'right', min: 0, ticks: { color: textColor }, grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+}
+
+function formatDockerChartTime(ts, period) {
+    const d = new Date(Number(ts) * 1000);
+    if (Number.isNaN(d.getTime())) return '';
+    if (period === '7d' || period === '30d') {
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+async function runUptimeChecks() {
+    const url = new URL(serverMonitorUrl.href);
+    url.searchParams.set('action', 'run_uptime_checks');
+    url.searchParams.set('t', Date.now());
+    const resp = await fetch(url.href, { credentials: 'same-origin', cache: 'no-store' });
+    if (resp.ok) {
+        const data = await resp.json();
+        displayUptimeMonitoring(data, lastKnownDockerContainers);
+    }
+}
+
+function resetUptimeForm() {
+    const form = document.getElementById('uptimeCheckForm');
+    if (!form) return;
+    form.reset();
+    form.elements.id.value = '';
+    form.elements.enabled.checked = true;
+}
+
+function openUptimeCheckModal() {
+    const modal = document.getElementById('uptimeCheckModal');
+    if (!modal) return;
+    modal.style.display = 'block';
+    document.body.classList.add('modal-open');
+}
+
+function closeUptimeCheckModal() {
+    const modal = document.getElementById('uptimeCheckModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    resetUptimeForm();
+    document.body.classList.remove('modal-open');
+}
+
+function editUptimeCheck(check) {
+    const form = document.getElementById('uptimeCheckForm');
+    if (!form) return;
+    form.elements.id.value = check.id || '';
+    form.elements.name.value = check.name || '';
+    form.elements.type.value = check.type || 'http';
+    form.elements.target.value = check.target || '';
+    form.elements.method.value = check.method || 'GET';
+    form.elements.expected_status.value = check.expected_status || 200;
+    form.elements.keyword.value = check.keyword || '';
+    form.elements.interval_sec.value = check.interval_sec || 60;
+    form.elements.timeout_sec.value = check.timeout_sec || 10;
+    form.elements.enabled.checked = Number(check.enabled || 0) === 1;
+    document.querySelector('[data-section-target="uptime"]')?.click();
+    openUptimeCheckModal();
+}
+
+function editUptimeCheckById(id) {
+    const check = uptimeChecksById[Number(id)];
+    if (check) editUptimeCheck(check);
+}
+
+async function saveUptimeCheck(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
+    payload.enabled = form.elements.enabled.checked ? 1 : 0;
+    const url = new URL(serverMonitorUrl.href);
+    url.searchParams.set('action', 'save_uptime_check');
+    const resp = await fetch(url.href, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+    if (resp.ok) {
+        closeUptimeCheckModal();
+        await runUptimeChecks();
+    }
+}
+
+async function deleteUptimeCheck(id) {
+    const url = new URL(serverMonitorUrl.href);
+    url.searchParams.set('action', 'delete_uptime_check');
+    url.searchParams.set('id', id);
+    const resp = await fetch(url.href, { method: 'POST', credentials: 'same-origin' });
+    if (resp.ok) {
+        await runUptimeChecks();
     }
 }
 function fillTable(id, list, nameKey, statusKey) {

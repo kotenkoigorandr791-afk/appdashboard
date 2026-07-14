@@ -95,11 +95,11 @@ function handleLocationAPI() {
         }
         
         // Validate token
-        $stmt = $db->prepare("SELECT id FROM map_location_tokens WHERE token = :token AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP");
+        $stmt = $db->prepare("SELECT id,user_email FROM map_location_tokens WHERE token = :token AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP");
         $stmt->bindValue(':token', $token, SQLITE3_TEXT);
         $result = $stmt->execute();
-        $isValidToken = (bool)$result->fetchArray();
-        if (!$isValidToken) {
+        $tokenRow = $result->fetchArray(SQLITE3_ASSOC);
+        if (!$tokenRow) {
             http_response_code(401);
             echo json_encode(['error' => 'Invalid or expired token']);
             return true;
@@ -176,6 +176,7 @@ function handleLocationAPI() {
         $stmt->execute();
         $insertId = $db->lastInsertRowID();
         pruneLocationHistory($db, $token, 50);
+        app_metric((string)($tokenRow['user_email'] ?? ''), 'map', 'location_update', 1, 'point', ['device_name' => (string)$deviceName, 'has_photo' => $photoPath !== null]);
         
         // Return full photo path URL if photo was uploaded
         $responsePhotoPath = $photoPath ? '/apps/map/' . $photoPath : null;

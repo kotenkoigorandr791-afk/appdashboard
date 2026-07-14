@@ -109,6 +109,15 @@ foreach (array_unique(['en', $lang]) as $translationLang) {
         }
     }
 }
+$dockerExtraTranslations = [
+    'en' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Update the stack', 'docker_stack_updated' => 'Stack updated', 'docker_invalid_stack' => 'Invalid stack ID', 'docker_stack_not_found' => 'Stack not found', 'docker_stack_file' => 'Compose file', 'docker_edit_stack' => 'Edit stack'],
+    'ru' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Обновить stack', 'docker_stack_updated' => 'Stack обновлён', 'docker_invalid_stack' => 'Некорректный ID stack', 'docker_stack_not_found' => 'Stack не найден', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редактировать stack'],
+    'uk' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Оновити stack', 'docker_stack_updated' => 'Stack оновлено', 'docker_invalid_stack' => 'Некоректний ID stack', 'docker_stack_not_found' => 'Stack не знайдено', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редагувати stack'],
+    'be' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Абнавіць stack', 'docker_stack_updated' => 'Stack абноўлены', 'docker_invalid_stack' => 'Некарэктны ID stack', 'docker_stack_not_found' => 'Stack не знойдзены', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Рэдагаваць stack']
+];
+foreach ($dockerExtraTranslations as $translationLang => $translations) {
+    $i18n[$translationLang] = array_merge($translations, $i18n[$translationLang] ?? []);
+}
 function t($key) {
     global $i18n, $lang;
     return $i18n[$lang][$key] ?? $i18n['en'][$key] ?? $key;
@@ -212,6 +221,39 @@ function dockerActionMessage(array $result, array $okCodes, $successKey, array $
         return tf($successKey, $vars);
     }
     return tf('docker_action_error', ['error' => dockerErrorFromResult($result)]);
+}
+function validStackIdParam($id) {
+    return is_string($id) && preg_match('/^\d+$/', $id);
+}
+function dockerStackById($id) {
+    $result = callPortainerAPI('stacks/' . rawurlencode($id));
+    return ($result['code'] === 200 && is_array($result['data'])) ? $result['data'] : null;
+}
+function dockerStackFileContent($id) {
+    $result = callPortainerAPI('stacks/' . rawurlencode($id) . '/file');
+    if ($result['code'] !== 200 || !is_array($result['data'])) {
+        return [null, dockerErrorFromResult($result)];
+    }
+    foreach (['StackFileContent', 'stackFileContent', 'Content'] as $key) {
+        if (isset($result['data'][$key]) && is_string($result['data'][$key])) {
+            return [$result['data'][$key], null];
+        }
+    }
+    return ['', null];
+}
+function dockerUpdateStackFile(array $stack, $content, $prune = false, $pullImage = false) {
+    $id = (string)($stack['Id'] ?? '');
+    $endpointId = (int)($stack['EndpointId'] ?? getDockerEndpointId());
+    if ($id === '' || $endpointId <= 0) {
+        return ['code' => 0, 'data' => 'Invalid stack'];
+    }
+    $body = [
+        'StackFileContent' => (string)$content,
+        'Env' => is_array($stack['Env'] ?? null) ? $stack['Env'] : [],
+        'Prune' => (bool)$prune,
+        'PullImage' => (bool)$pullImage
+    ];
+    return callPortainerAPI('stacks/' . rawurlencode($id) . '?endpointId=' . $endpointId, 'PUT', $body, 300);
 }
 function dockerRedirect($message) {
     header('Location: ' . dockerUrl(['message' => $message, 'action' => null, 'id' => null, 'image' => null, 'view' => null]));
@@ -625,6 +667,43 @@ if ($view === 'stats_data' && isset($_GET['id'])) {
     echo json_encode(['ok' => true, 'ts' => time(), 'stats' => ['cpu_total' => round($cpuPercent, 2), 'mem_used' => $mu, 'mem_limit' => $ml, 'pids' => (int)($d['pids_stats']['current'] ?? 0), 'net_rx' => $rx, 'net_tx' => $tx, 'blk_read' => $blockRead, 'blk_write' => $blockWrite]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_stack') {
+    $stackId = (string)($_POST['id'] ?? '');
+    if (!validStackIdParam($stackId)) {
+        dockerRedirect(t('docker_invalid_stack'));
+    }
+    $stack = dockerStackById($stackId);
+    if ($stack === null) {
+        dockerRedirect(t('docker_stack_not_found'));
+    }
+    $result = dockerUpdateStackFile($stack, (string)($_POST['stack_file_content'] ?? ''), isset($_POST['prune']), isset($_POST['pull_image']));
+    header('Location: ' . dockerUrl(['view' => 'stack_editor', 'id' => $stackId, 'action' => null, 'message' => dockerActionMessage($result, [200, 204], 'docker_stack_updated')]));
+    exit;
+}
+if ($view === 'stack_editor' && isset($_GET['id'])) {
+    $stackId = (string)$_GET['id'];
+    if (!validStackIdParam($stackId)) {
+        viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('docker_invalid_stack'), ENT_QUOTES, 'UTF-8') . '</h1>');
+        exit;
+    }
+    $stack = dockerStackById($stackId);
+    if ($stack === null) {
+        viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('docker_stack_not_found'), ENT_QUOTES, 'UTF-8') . '</h1>');
+        exit;
+    }
+    [$content, $fileError] = dockerStackFileContent($stackId);
+    $stackName = (string)($stack['Name'] ?? ('#' . $stackId));
+    $innerHtml = '<div class="view-panel"><form method="post" action="' . htmlspecialchars(dockerUrl(['view' => 'stack_editor', 'id' => $stackId, 'action' => null]), ENT_QUOTES, 'UTF-8') . '"><input type="hidden" name="action" value="save_stack"><input type="hidden" name="id" value="' . htmlspecialchars($stackId, ENT_QUOTES, 'UTF-8') . '"><div class="log-toolbar"><h1>' . htmlspecialchars(t('docker_stack_editor') . ' · ' . $stackName, ENT_QUOTES, 'UTF-8') . '</h1><button class="log-copy-btn" type="submit">' . ico('check') . ' ' . htmlspecialchars(t('docker_update_stack'), ENT_QUOTES, 'UTF-8') . '</button></div>';
+    if (trim((string)($_GET['message'] ?? '')) !== '') {
+        $innerHtml .= '<p style="background:var(--accent-muted);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;padding:10px 12px;">' . htmlspecialchars((string)$_GET['message'], ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+    if ($fileError !== null) {
+        $innerHtml .= '<p style="color:var(--danger);margin-bottom:12px;">' . htmlspecialchars($fileError, ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+    $innerHtml .= '<textarea name="stack_file_content" spellcheck="false" style="width:100%;min-height:62vh;resize:vertical;background:rgba(0,0,0,.16);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . htmlspecialchars((string)$content, ENT_QUOTES, 'UTF-8') . '</textarea><div class="detail-list"><label><input type="checkbox" name="prune" value="1"> Prune services</label><label><input type="checkbox" name="pull_image" value="1"> Pull latest image</label><div><strong>Endpoint:</strong> ' . (int)($stack['EndpointId'] ?? getDockerEndpointId()) . '</div><div><strong>ID:</strong> ' . htmlspecialchars($stackId, ENT_QUOTES, 'UTF-8') . '</div></div></form></div>';
+    viewPageShell(t('docker_stack_editor'), $innerHtml);
+    exit;
+}
 $action = $_GET['action'] ?? '';
 $message = '';
 
@@ -738,6 +817,7 @@ if ($action === 'kill_container' && isset($_GET['id'])) {
 $message = $_GET['message'] ?? '';
 $epId = getDockerEndpointId();
 $containers = callPortainerAPI(dockerApi('containers/json?all=true'));
+$stacks = callPortainerAPI('stacks');
 $stats = callPortainerAPI(dockerApi('info'));
 $images = callPortainerAPI(dockerApi('images/json'));
 $systemInfo = callPortainerAPI('endpoints/' . $epId);
@@ -760,6 +840,23 @@ if ($jwtToken === '') {
 $stacksMap = [];
 $containersInStack = [];
 $usedVolumesMap = [];
+if (($stacks['code'] ?? 0) === 200 && is_array($stacks['data'])) {
+    foreach ($stacks['data'] as $stack) {
+        if (!is_array($stack)) continue;
+        $stackEndpointId = (int)($stack['EndpointId'] ?? $stack['EndpointID'] ?? 0);
+        if ($stackEndpointId > 0 && $stackEndpointId !== (int)$epId) continue;
+        $stackName = trim((string)($stack['Name'] ?? ''));
+        if ($stackName === '') continue;
+        $stacksMap[$stackName] = [
+            'name' => $stackName,
+            'containers' => 0,
+            'id' => isset($stack['Id']) ? (int)$stack['Id'] : null,
+            'type' => (int)($stack['Type'] ?? 0),
+            'endpoint_id' => $stackEndpointId,
+            'status' => (string)($stack['Status'] ?? '')
+        ];
+    }
+}
 if (is_array($containers['data'])) {
     foreach ($containers['data'] as $c) {
         if (!is_array($c)) continue;
@@ -767,7 +864,7 @@ if (is_array($containers['data'])) {
         $stackName = trim((string)($labels['com.docker.compose.project'] ?? $labels['com.docker.stack.namespace'] ?? ''));
         if ($stackName !== '') {
             $cname = str_replace('/', '', (string)($c['Names'][0] ?? ''));
-            if (!isset($stacksMap[$stackName])) $stacksMap[$stackName] = ['name' => $stackName, 'containers' => 0];
+            if (!isset($stacksMap[$stackName])) $stacksMap[$stackName] = ['name' => $stackName, 'containers' => 0, 'id' => null, 'type' => 0, 'endpoint_id' => (int)$epId, 'status' => ''];
             $stacksMap[$stackName]['containers']++;
             if (!isset($containersInStack[$stackName])) $containersInStack[$stackName] = [];
             $containersInStack[$stackName][] = ['id' => (string)($c['Id'] ?? ''), 'name' => $cname, 'image' => (string)($c['Image'] ?? ''), 'state' => (string)($c['State'] ?? '')];
@@ -1389,11 +1486,11 @@ function ico($n) {
         </div>
         <div id="stacksSection" class="section">
             <div class="section-header"><div class="section-title-wrap"><?php echo ico('layers'); ?><div class="section-title">Stacks</div></div></div>
-            <div class="table-container containers-table-wrap"><table><thead><tr><th>Name</th><th>Containers</th><th>Open</th></tr></thead><tbody>
-            <?php if (!empty($stacksMap)): foreach ($stacksMap as $stackName => $stackData): $sc=(int)($stackData['containers']??0); ?>
-                <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars(strtolower((string)$stackName), ENT_QUOTES, 'UTF-8'); ?>"><td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars((string)$stackName, ENT_QUOTES, 'UTF-8'); ?></strong></span></td><td><?php echo $sc; ?></td><td><a class="stack-open-btn" href="#" onclick="event.preventDefault();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);">Show containers</a></td></tr>
-                <tr class="c-actions" style="display:none"><td colspan="3"><div class="c-panel"><div class="c-panel-hint">Containers in stack</div><?php if (!empty($containersInStack[$stackName])): ?><div class="stack-container-grid"><?php foreach ($containersInStack[$stackName] as $stackContainer): $scState = (string)$stackContainer['state']; ?><div class="stack-container-card" onclick="event.stopPropagation();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackContainer['name'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);" title="Click to navigate to this container"><div class="stack-card-top"><span class="scc-name"><?php echo htmlspecialchars((string)$stackContainer['name'], ENT_QUOTES, 'UTF-8'); ?></span><span class="status-badge status-<?php echo $scState === 'running' ? 'running' : ($scState === 'exited' ? 'exited' : ($scState === 'paused' ? 'paused' : 'created')); ?>"><?php echo ico('dot'); ?> <?php echo htmlspecialchars($scState, ENT_QUOTES, 'UTF-8'); ?></span></div><div class="stack-card-image"><?php echo ico('cube'); ?> <span class="mono-clip"><?php echo htmlspecialchars((string)$stackContainer['image'], ENT_QUOTES, 'UTF-8'); ?></span></div></div><?php endforeach; ?></div><?php else: ?><div class="detail-list"><div>No containers</div></div><?php endif; ?></div></td></tr>
-            <?php endforeach; else: ?><tr><td colspan="3" style="text-align:center;padding:40px;">No stacks found</td></tr><?php endif; ?>
+            <div class="table-container containers-table-wrap"><table><thead><tr><th>Name</th><th>Containers</th><th>Type</th><th><?php echo htmlspecialchars(t('docker_stack_file'), ENT_QUOTES, 'UTF-8'); ?></th><th>Open</th></tr></thead><tbody>
+            <?php if (!empty($stacksMap)): foreach ($stacksMap as $stackName => $stackData): $sc=(int)($stackData['containers']??0); $stackId=$stackData['id'] ?? null; $stackType=(int)($stackData['type'] ?? 0); ?>
+                <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars(strtolower((string)$stackName), ENT_QUOTES, 'UTF-8'); ?>"><td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars((string)$stackName, ENT_QUOTES, 'UTF-8'); ?></strong></span></td><td><?php echo $sc; ?></td><td><?php echo $stackType === 2 ? 'Compose' : ($stackType === 1 ? 'Swarm' : ''); ?></td><td><?php if ($stackId !== null): ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'stack_editor', 'id' => (string)$stackId, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_stack_editor') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_edit_stack'), ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><span class="tag-pill"><?php echo htmlspecialchars(t('unavailable'), ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?></td><td><a class="stack-open-btn" href="#" onclick="event.preventDefault();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);">Show containers</a></td></tr>
+                <tr class="c-actions" style="display:none"><td colspan="5"><div class="c-panel"><div class="c-panel-hint">Containers in stack</div><?php if (!empty($containersInStack[$stackName])): ?><div class="stack-container-grid"><?php foreach ($containersInStack[$stackName] as $stackContainer): $scState = (string)$stackContainer['state']; ?><div class="stack-container-card" onclick="event.stopPropagation();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackContainer['name'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);" title="Click to navigate to this container"><div class="stack-card-top"><span class="scc-name"><?php echo htmlspecialchars((string)$stackContainer['name'], ENT_QUOTES, 'UTF-8'); ?></span><span class="status-badge status-<?php echo $scState === 'running' ? 'running' : ($scState === 'exited' ? 'exited' : ($scState === 'paused' ? 'paused' : 'created')); ?>"><?php echo ico('dot'); ?> <?php echo htmlspecialchars($scState, ENT_QUOTES, 'UTF-8'); ?></span></div><div class="stack-card-image"><?php echo ico('cube'); ?> <span class="mono-clip"><?php echo htmlspecialchars((string)$stackContainer['image'], ENT_QUOTES, 'UTF-8'); ?></span></div></div><?php endforeach; ?></div><?php else: ?><div class="detail-list"><div>No containers</div></div><?php endif; ?></div></td></tr>
+            <?php endforeach; else: ?><tr><td colspan="5" style="text-align:center;padding:40px;">No stacks found</td></tr><?php endif; ?>
             </tbody></table></div>
         </div>
         

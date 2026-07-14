@@ -388,6 +388,7 @@ function monitorEnsureSmartTable(): void {
     try {
         $db = getDB();
         if (!$db) return;
+        monitorEnsureBaseSchema();
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_smart_snapshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at INTEGER NOT NULL,
@@ -395,12 +396,12 @@ function monitorEnsureSmartTable(): void {
             model TEXT DEFAULT '',
             serial TEXT DEFAULT '',
             firmware TEXT DEFAULT '',
-            capacity_bytes INTEGER,
+            capacity_bytes BIGINT,
             health_passed INTEGER,
             temperature_c INTEGER,
-            power_on_hours INTEGER,
+            power_on_hours BIGINT,
             power_cycle_count INTEGER,
-            data_written_bytes INTEGER,
+            data_written_bytes BIGINT,
             wear_used_percent INTEGER,
             life_remaining_percent INTEGER,
             reallocated_sectors INTEGER DEFAULT 0,
@@ -416,6 +417,14 @@ function monitorEnsureSmartTable(): void {
             messages_json TEXT DEFAULT '[]',
             self_tests_json TEXT DEFAULT '[]'
         )");
+        monitorEnsureColumn($db, 'monitor_smart_snapshots', 'capacity_bytes', 'BIGINT');
+        monitorEnsureColumn($db, 'monitor_smart_snapshots', 'power_on_hours', 'BIGINT');
+        monitorEnsureColumn($db, 'monitor_smart_snapshots', 'data_written_bytes', 'BIGINT');
+        if (function_exists('app_db_is_pgsql') && app_db_is_pgsql()) {
+            $db->exec("ALTER TABLE monitor_smart_snapshots ALTER COLUMN capacity_bytes TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_smart_snapshots ALTER COLUMN power_on_hours TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_smart_snapshots ALTER COLUMN data_written_bytes TYPE BIGINT");
+        }
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_smart_device_time
             ON monitor_smart_snapshots(device_path, created_at)");
     } catch (Exception $e) {
@@ -964,10 +973,881 @@ function monitorLoadModulesFromDb(): array {
     }
 }
 
+function monitorGetDbSafe() {
+    try {
+        return getDB();
+    } catch (Throwable $e) {
+        error_log('monitor db unavailable: ' . $e->getMessage());
+        return null;
+    }
+}
+
+function monitorTableColumns($db, string $table): array {
+    $columns = [];
+    $res = $db->query("PRAGMA table_info($table)");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $columns[(string)$row['name']] = true;
+    }
+    return $columns;
+}
+
+function monitorEnsureColumn($db, string $table, string $column, string $definition): void {
+    $columns = monitorTableColumns($db, $table);
+    if (!isset($columns[$column])) {
+        $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+    }
+}
+
+function monitorEnsureBaseSchema(): void {
+    try {
+        $db = monitorGetDbSafe();
+        if (!$db) return;
+        $db->busyTimeout(5000);
+        $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_system_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            cpu_percent REAL NOT NULL DEFAULT 0,
+            memory_percent REAL NOT NULL DEFAULT 0,
+            swap_percent REAL NOT NULL DEFAULT 0,
+            disk_io_percent REAL NOT NULL DEFAULT 0,
+            disk_read_bytes_per_sec BIGINT NOT NULL DEFAULT 0,
+            disk_write_bytes_per_sec BIGINT NOT NULL DEFAULT 0,
+            network_recv_bytes_per_sec BIGINT NOT NULL DEFAULT 0,
+            network_sent_bytes_per_sec BIGINT NOT NULL DEFAULT 0,
+            uptime_seconds BIGINT,
+            status TEXT NOT NULL DEFAULT 'ok',
+            context_json TEXT NOT NULL DEFAULT '{}'
+        )");
+        monitorEnsureColumn($db, 'monitor_system_snapshots', 'disk_read_bytes_per_sec', 'BIGINT NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_system_snapshots', 'disk_write_bytes_per_sec', 'BIGINT NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_system_snapshots', 'network_recv_bytes_per_sec', 'BIGINT NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_system_snapshots', 'network_sent_bytes_per_sec', 'BIGINT NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_system_snapshots', 'uptime_seconds', 'BIGINT');
+        if (function_exists('app_db_is_pgsql') && app_db_is_pgsql()) {
+            $db->exec("ALTER TABLE monitor_system_snapshots ALTER COLUMN disk_read_bytes_per_sec TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_system_snapshots ALTER COLUMN disk_write_bytes_per_sec TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_system_snapshots ALTER COLUMN network_recv_bytes_per_sec TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_system_snapshots ALTER COLUMN network_sent_bytes_per_sec TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_system_snapshots ALTER COLUMN uptime_seconds TYPE BIGINT");
+        }
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_system_snapshots_created ON monitor_system_snapshots(created_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_system_snapshots_status ON monitor_system_snapshots(status, created_at)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_disk_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            snapshot_id INTEGER NOT NULL,
+            drive_letter TEXT NOT NULL,
+            total_bytes BIGINT NOT NULL DEFAULT 0,
+            free_bytes BIGINT NOT NULL DEFAULT 0,
+            used_bytes BIGINT NOT NULL DEFAULT 0,
+            used_percent REAL NOT NULL DEFAULT 0,
+            FOREIGN KEY (snapshot_id) REFERENCES monitor_system_snapshots(id) ON DELETE CASCADE
+        )");
+        monitorEnsureColumn($db, 'monitor_disk_snapshots', 'total_bytes', 'BIGINT NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_disk_snapshots', 'free_bytes', 'BIGINT NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_disk_snapshots', 'used_bytes', 'BIGINT NOT NULL DEFAULT 0');
+        if (function_exists('app_db_is_pgsql') && app_db_is_pgsql()) {
+            $db->exec("ALTER TABLE monitor_disk_snapshots ALTER COLUMN total_bytes TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_disk_snapshots ALTER COLUMN free_bytes TYPE BIGINT");
+            $db->exec("ALTER TABLE monitor_disk_snapshots ALTER COLUMN used_bytes TYPE BIGINT");
+        }
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_disk_snapshots_snapshot ON monitor_disk_snapshots(snapshot_id)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_disk_snapshots_drive_created ON monitor_disk_snapshots(drive_letter, snapshot_id)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_metric_hourly (
+            metric_hour INTEGER NOT NULL,
+            metric TEXT NOT NULL,
+            app_id TEXT NOT NULL DEFAULT '',
+            min_value REAL NOT NULL DEFAULT 0,
+            avg_value REAL NOT NULL DEFAULT 0,
+            max_value REAL NOT NULL DEFAULT 0,
+            sample_count INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            PRIMARY KEY (metric_hour, metric, app_id)
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_metric_hourly_metric ON monitor_metric_hourly(metric, metric_hour)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_alert_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            metric TEXT NOT NULL,
+            operator TEXT NOT NULL,
+            threshold REAL NOT NULL,
+            duration_sec INTEGER NOT NULL DEFAULT 300,
+            severity TEXT NOT NULL DEFAULT 'warning',
+            enabled INTEGER NOT NULL DEFAULT 1,
+            notify_channels TEXT NOT NULL DEFAULT '[]',
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            rule_id INTEGER,
+            opened_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            closed_at INTEGER,
+            severity TEXT NOT NULL DEFAULT 'warning',
+            status TEXT NOT NULL DEFAULT 'open',
+            title TEXT NOT NULL,
+            message TEXT NOT NULL DEFAULT '',
+            value REAL,
+            context_json TEXT NOT NULL DEFAULT '{}'
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_app_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            level TEXT NOT NULL DEFAULT 'info',
+            app_id TEXT NOT NULL DEFAULT '',
+            event_type TEXT NOT NULL DEFAULT '',
+            user_email TEXT,
+            ip_address TEXT NOT NULL DEFAULT '',
+            user_agent TEXT NOT NULL DEFAULT '',
+            message TEXT NOT NULL DEFAULT '',
+            context_json TEXT NOT NULL DEFAULT '{}'
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_app_events_created ON monitor_app_events(created_at)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_http_requests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            method TEXT NOT NULL DEFAULT '',
+            path TEXT NOT NULL DEFAULT '',
+            app_id TEXT NOT NULL DEFAULT '',
+            user_email TEXT,
+            ip_address TEXT NOT NULL DEFAULT '',
+            status_code INTEGER NOT NULL DEFAULT 200,
+            duration_ms INTEGER NOT NULL DEFAULT 0,
+            response_bytes BIGINT NOT NULL DEFAULT 0,
+            error_message TEXT NOT NULL DEFAULT '',
+            context_json TEXT NOT NULL DEFAULT '{}'
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_http_requests_created ON monitor_http_requests(created_at)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_errors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            level TEXT NOT NULL DEFAULT 'error',
+            app_id TEXT NOT NULL DEFAULT '',
+            user_email TEXT,
+            file TEXT NOT NULL DEFAULT '',
+            line INTEGER,
+            message TEXT NOT NULL DEFAULT '',
+            trace_hash TEXT NOT NULL DEFAULT '',
+            context_json TEXT NOT NULL DEFAULT '{}',
+            resolved INTEGER NOT NULL DEFAULT 0,
+            resolved_at INTEGER
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_errors_created ON monitor_errors(created_at)");
+    } catch (Exception $e) {
+        error_log('monitorEnsureBaseSchema failed: ' . $e->getMessage());
+    }
+}
+
+function monitorEnsureUptimeSchema(): void {
+    try {
+        monitorEnsureBaseSchema();
+        $db = monitorGetDbSafe();
+        if (!$db) return;
+        $db->busyTimeout(5000);
+        $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_uptime_checks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL DEFAULT 'http',
+            target TEXT NOT NULL DEFAULT '',
+            method TEXT NOT NULL DEFAULT 'GET',
+            expected_status INTEGER NOT NULL DEFAULT 200,
+            keyword TEXT NOT NULL DEFAULT '',
+            interval_sec INTEGER NOT NULL DEFAULT 60,
+            timeout_sec INTEGER NOT NULL DEFAULT 10,
+            retries INTEGER NOT NULL DEFAULT 1,
+            docker_container_id TEXT NOT NULL DEFAULT '',
+            docker_container_name TEXT NOT NULL DEFAULT '',
+            enabled INTEGER NOT NULL DEFAULT 1,
+            auto_discovered INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        )");
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'method', "TEXT NOT NULL DEFAULT 'GET'");
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'expected_status', 'INTEGER NOT NULL DEFAULT 200');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'keyword', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'interval_sec', 'INTEGER NOT NULL DEFAULT 60');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'timeout_sec', 'INTEGER NOT NULL DEFAULT 10');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'retries', 'INTEGER NOT NULL DEFAULT 1');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'docker_container_id', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'docker_container_name', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'enabled', 'INTEGER NOT NULL DEFAULT 1');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'auto_discovered', 'INTEGER NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'created_at', 'INTEGER NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_uptime_checks', 'updated_at', 'INTEGER NOT NULL DEFAULT 0');
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_checks_type_enabled ON monitor_uptime_checks(type, enabled)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_checks_docker ON monitor_uptime_checks(docker_container_id)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_uptime_results (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            check_id INTEGER NOT NULL,
+            checked_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            status TEXT NOT NULL DEFAULT 'unknown',
+            latency_ms INTEGER,
+            http_status INTEGER,
+            message TEXT NOT NULL DEFAULT '',
+            response_excerpt TEXT NOT NULL DEFAULT '',
+            meta_json TEXT NOT NULL DEFAULT '{}',
+            FOREIGN KEY (check_id) REFERENCES monitor_uptime_checks(id) ON DELETE CASCADE
+        )");
+        monitorEnsureColumn($db, 'monitor_uptime_results', 'latency_ms', 'INTEGER');
+        monitorEnsureColumn($db, 'monitor_uptime_results', 'http_status', 'INTEGER');
+        monitorEnsureColumn($db, 'monitor_uptime_results', 'response_excerpt', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_results', 'meta_json', "TEXT NOT NULL DEFAULT '{}'");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_results_check_time ON monitor_uptime_results(check_id, checked_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_results_status_time ON monitor_uptime_results(status, checked_at)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_uptime_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            check_id INTEGER NOT NULL,
+            check_name TEXT NOT NULL DEFAULT '',
+            check_type TEXT NOT NULL DEFAULT '',
+            target TEXT NOT NULL DEFAULT '',
+            started_at INTEGER NOT NULL,
+            finished_at INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'unknown',
+            latency_ms INTEGER,
+            http_status INTEGER,
+            message TEXT NOT NULL DEFAULT '',
+            meta_json TEXT NOT NULL DEFAULT '{}',
+            FOREIGN KEY (check_id) REFERENCES monitor_uptime_checks(id) ON DELETE CASCADE
+        )");
+        monitorEnsureColumn($db, 'monitor_uptime_logs', 'check_name', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_logs', 'check_type', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_logs', 'target', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_uptime_logs', 'latency_ms', 'INTEGER');
+        monitorEnsureColumn($db, 'monitor_uptime_logs', 'http_status', 'INTEGER');
+        monitorEnsureColumn($db, 'monitor_uptime_logs', 'meta_json', "TEXT NOT NULL DEFAULT '{}'");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_logs_check_time ON monitor_uptime_logs(check_id, started_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_logs_status_time ON monitor_uptime_logs(status, started_at)");
+        $db->exec("CREATE TABLE IF NOT EXISTS monitor_docker_snapshots (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            container_id TEXT NOT NULL,
+            container_name TEXT NOT NULL DEFAULT '',
+            image TEXT NOT NULL DEFAULT '',
+            state TEXT NOT NULL DEFAULT '',
+            health TEXT NOT NULL DEFAULT '',
+            cpu_percent REAL NOT NULL DEFAULT 0,
+            memory_percent REAL NOT NULL DEFAULT 0,
+            memory_text TEXT NOT NULL DEFAULT '',
+            network_io TEXT NOT NULL DEFAULT '',
+            block_io TEXT NOT NULL DEFAULT '',
+            pids INTEGER NOT NULL DEFAULT 0
+        )");
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'health', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'cpu_percent', 'REAL NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'memory_percent', 'REAL NOT NULL DEFAULT 0');
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'memory_text', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'network_io', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'block_io', "TEXT NOT NULL DEFAULT ''");
+        monitorEnsureColumn($db, 'monitor_docker_snapshots', 'pids', 'INTEGER NOT NULL DEFAULT 0');
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_docker_snapshots_container_time ON monitor_docker_snapshots(container_id, created_at)");
+    } catch (Exception $e) {
+        error_log('monitorEnsureUptimeSchema failed: ' . $e->getMessage());
+    }
+}
+
+function monitorDockerCommand(string $args): ?string {
+    $output = @shell_exec('docker ' . $args . ' 2>/dev/null');
+    if (!is_string($output) || trim($output) === '') {
+        return null;
+    }
+    return $output;
+}
+
+function formatBytesHuman(float $bytes): string {
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $i = 0;
+    while ($bytes >= 1024 && $i < count($units) - 1) {
+        $bytes /= 1024;
+        $i++;
+    }
+    return round($bytes, 1) . ' ' . $units[$i];
+}
+
+function monitorDockerSocketPaths(): array {
+    $candidates = [];
+    $envSockets = getenv('MONITOR_DOCKER_SOCKETS');
+    if (is_string($envSockets) && $envSockets !== '') {
+        foreach (explode(',', $envSockets) as $socket) {
+            $candidates[] = trim($socket);
+        }
+    }
+    $envSocket = getenv('MONITOR_DOCKER_SOCKET');
+    if (is_string($envSocket) && $envSocket !== '') {
+        $candidates[] = $envSocket;
+    }
+    $dockerHost = getenv('DOCKER_HOST');
+    if (is_string($dockerHost) && str_starts_with($dockerHost, 'unix://')) {
+        $candidates[] = substr($dockerHost, 7);
+    }
+    $candidates[] = '/var/run/docker.sock';
+    $candidates[] = '/run/docker.sock';
+    $candidates[] = '/run/docker-desktop.sock';
+    $candidates[] = '/host/var/run/docker.sock';
+    $paths = [];
+    foreach ($candidates as $path) {
+        if (is_string($path) && $path !== '' && is_readable($path)) {
+            $paths[$path] = true;
+        }
+    }
+    return array_keys($paths);
+}
+
+function monitorDockerSocketPath(): ?string {
+    $paths = monitorDockerSocketPaths();
+    return $paths[0] ?? null;
+}
+
+function monitorDockerApiRequest(string $path, ?string $socketPath = null): ?array {
+    if (!function_exists('curl_init') || !defined('CURLOPT_UNIX_SOCKET_PATH')) {
+        return null;
+    }
+    $dockerHost = getenv('DOCKER_HOST');
+    $ch = null;
+    if (is_string($dockerHost) && preg_match('#^tcp://([^:]+):(\d+)$#', $dockerHost, $m)) {
+        $ch = curl_init('http://' . $m[1] . ':' . $m[2] . $path);
+    } else {
+        $socket = $socketPath ?: monitorDockerSocketPath();
+        if ($socket === null) {
+            return null;
+        }
+        $ch = curl_init('http://localhost' . $path);
+        curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socket);
+    }
+    if (!$ch) return null;
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 8,
+        CURLOPT_CONNECTTIMEOUT => 3,
+    ]);
+    $raw = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    curl_close($ch);
+    if (!is_string($raw) || $raw === '' || $code < 200 || $code >= 300) {
+        return null;
+    }
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function monitorDockerApiContainers(): array {
+    $sources = monitorDockerSocketPaths();
+    if ($sources === [] && is_string(getenv('DOCKER_HOST')) && str_starts_with((string)getenv('DOCKER_HOST'), 'tcp://')) {
+        $sources = [null];
+    }
+    $containers = [];
+    foreach ($sources as $source) {
+        $rows = monitorDockerApiRequest('/containers/json?all=1', $source);
+        if (!is_array($rows)) continue;
+        foreach ($rows as $row) {
+            if (!is_array($row)) continue;
+            $id = (string)($row['Id'] ?? '');
+            if ($id === '' || isset($containers[$id])) continue;
+            $names = $row['Names'] ?? [];
+            $name = is_array($names) && isset($names[0]) ? ltrim((string)$names[0], '/') : substr($id, 0, 12);
+            $inspect = monitorDockerApiRequest('/containers/' . rawurlencode($id) . '/json', $source) ?? [];
+            $health = strtolower((string)($inspect['State']['Health']['Status'] ?? ''));
+            $containers[$id] = [
+                'id' => $id,
+                'short_id' => substr($id, 0, 12),
+                'name' => $name !== '' ? $name : substr($id, 0, 12),
+                'image' => (string)($row['Image'] ?? ''),
+                'state' => strtolower((string)($row['State'] ?? '')),
+                'status_text' => (string)($row['Status'] ?? ''),
+                'health' => $health,
+                'ports' => json_encode($row['Ports'] ?? [], JSON_UNESCAPED_UNICODE),
+                'created_at' => isset($row['Created']) ? date('Y-m-d H:i:s', (int)$row['Created']) : '',
+                'docker_socket' => (string)($source ?? getenv('DOCKER_HOST') ?: ''),
+            ];
+        }
+    }
+    return array_values($containers);
+}
+
+function monitorCollectDockerContainers(): array {
+    $apiContainers = monitorDockerApiContainers();
+    if ($apiContainers !== []) {
+        return $apiContainers;
+    }
+    $raw = monitorDockerCommand("ps -a --no-trunc --format '{{json .}}'");
+    if ($raw === null) return [];
+    $containers = [];
+    foreach (explode("\n", trim($raw)) as $line) {
+        $row = json_decode($line, true);
+        if (!is_array($row)) continue;
+        $id = (string)($row['ID'] ?? '');
+        if ($id === '') continue;
+        $name = ltrim((string)($row['Names'] ?? ''), '/');
+        $state = strtolower((string)($row['State'] ?? ''));
+        $status = (string)($row['Status'] ?? '');
+        $inspectRaw = monitorDockerCommand('inspect ' . escapeshellarg($id));
+        $inspect = [];
+        if (is_string($inspectRaw)) {
+            $decoded = json_decode($inspectRaw, true);
+            $inspect = is_array($decoded[0] ?? null) ? $decoded[0] : [];
+        }
+        $health = strtolower((string)($inspect['State']['Health']['Status'] ?? ''));
+        $containers[] = [
+            'id' => $id,
+            'short_id' => substr($id, 0, 12),
+            'name' => $name !== '' ? $name : substr($id, 0, 12),
+            'image' => (string)($row['Image'] ?? ''),
+            'state' => $state,
+            'status_text' => $status,
+            'health' => $health,
+            'ports' => (string)($row['Ports'] ?? ''),
+            'created_at' => (string)($row['CreatedAt'] ?? ''),
+        ];
+    }
+    return $containers;
+}
+
+function monitorDockerApiCpuPercent(array $stats): float {
+    $cpuDelta = (float)(($stats['cpu_stats']['cpu_usage']['total_usage'] ?? 0) - ($stats['precpu_stats']['cpu_usage']['total_usage'] ?? 0));
+    $systemDelta = (float)(($stats['cpu_stats']['system_cpu_usage'] ?? 0) - ($stats['precpu_stats']['system_cpu_usage'] ?? 0));
+    $online = (float)($stats['cpu_stats']['online_cpus'] ?? count($stats['cpu_stats']['cpu_usage']['percpu_usage'] ?? []));
+    if ($cpuDelta <= 0 || $systemDelta <= 0 || $online <= 0) {
+        return 0.0;
+    }
+    return round(($cpuDelta / $systemDelta) * $online * 100, 2);
+}
+
+function monitorDockerApiStats(array $containers): array {
+    $stats = [];
+    foreach ($containers as $container) {
+        $id = (string)($container['id'] ?? '');
+        if ($id === '') continue;
+        $row = monitorDockerApiRequest('/containers/' . rawurlencode($id) . '/stats?stream=false', (string)($container['docker_socket'] ?? '') ?: null);
+        if (!is_array($row)) continue;
+        $memUsage = (float)($row['memory_stats']['usage'] ?? 0);
+        $memLimit = (float)($row['memory_stats']['limit'] ?? 0);
+        $rx = 0;
+        $tx = 0;
+        foreach (($row['networks'] ?? []) as $net) {
+            if (!is_array($net)) continue;
+            $rx += (int)($net['rx_bytes'] ?? 0);
+            $tx += (int)($net['tx_bytes'] ?? 0);
+        }
+        $blockRead = 0;
+        $blockWrite = 0;
+        foreach (($row['blkio_stats']['io_service_bytes_recursive'] ?? []) as $io) {
+            if (!is_array($io)) continue;
+            $op = strtolower((string)($io['op'] ?? ''));
+            if ($op === 'read') $blockRead += (int)($io['value'] ?? 0);
+            if ($op === 'write') $blockWrite += (int)($io['value'] ?? 0);
+        }
+        $stats[$id] = [
+            'cpu_percent' => monitorDockerApiCpuPercent($row),
+            'memory' => formatBytesHuman($memUsage) . ' / ' . formatBytesHuman($memLimit),
+            'memory_percent' => $memLimit > 0 ? round(($memUsage / $memLimit) * 100, 2) : 0,
+            'network_io' => formatBytesHuman($rx) . ' / ' . formatBytesHuman($tx),
+            'block_io' => formatBytesHuman($blockRead) . ' / ' . formatBytesHuman($blockWrite),
+            'pids' => (int)($row['pids_stats']['current'] ?? 0),
+        ];
+    }
+    return $stats;
+}
+
+function monitorCollectDockerStats(): array {
+    $raw = monitorDockerCommand("stats --no-stream --no-trunc --format '{{json .}}'");
+    if ($raw === null) return [];
+    $stats = [];
+    foreach (explode("\n", trim($raw)) as $line) {
+        $row = json_decode($line, true);
+        if (!is_array($row)) continue;
+        $id = (string)($row['ID'] ?? '');
+        if ($id === '') continue;
+        $stats[$id] = [
+            'cpu_percent' => (float)str_replace('%', '', (string)($row['CPUPerc'] ?? '0')),
+            'memory' => (string)($row['MemUsage'] ?? ''),
+            'memory_percent' => (float)str_replace('%', '', (string)($row['MemPerc'] ?? '0')),
+            'network_io' => (string)($row['NetIO'] ?? ''),
+            'block_io' => (string)($row['BlockIO'] ?? ''),
+            'pids' => (int)($row['PIDs'] ?? 0),
+        ];
+    }
+    return $stats;
+}
+
+function monitorSyncDockerChecks(array $containers): void {
+    try {
+        monitorEnsureUptimeSchema();
+        $db = monitorGetDbSafe();
+        if (!$db) return;
+        $stmt = $db->prepare("INSERT INTO monitor_uptime_checks
+            (name, type, target, interval_sec, timeout_sec, retries, docker_container_id, docker_container_name, enabled, auto_discovered, created_at, updated_at)
+            VALUES(:name, 'docker', :target, 60, 10, 1, :container_id, :container_name, 1, 1, :now, :now)");
+        $now = time();
+        $currentIds = [];
+        foreach ($containers as $container) {
+            if (!is_array($container)) continue;
+            $id = (string)($container['id'] ?? '');
+            if ($id === '') continue;
+            $currentIds[] = "'" . AppDatabase::escapeString($id) . "'";
+            $exists = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_uptime_checks WHERE docker_container_id = '" . SQLite3::escapeString($id) . "'");
+            if ($exists > 0) continue;
+            $name = 'Docker: ' . (string)($container['name'] ?? substr($id, 0, 12));
+            $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+            $stmt->bindValue(':target', (string)($container['name'] ?? $id), SQLITE3_TEXT);
+            $stmt->bindValue(':container_id', $id, SQLITE3_TEXT);
+            $stmt->bindValue(':container_name', (string)($container['name'] ?? ''), SQLITE3_TEXT);
+            $stmt->bindValue(':now', $now, SQLITE3_INTEGER);
+            $stmt->execute();
+        }
+        if ($currentIds !== []) {
+            $db->exec("DELETE FROM monitor_uptime_checks WHERE type = 'docker' AND auto_discovered = 1 AND docker_container_id NOT IN (" . implode(',', $currentIds) . ")");
+        }
+    } catch (Exception $e) {
+        error_log('monitorSyncDockerChecks failed: ' . $e->getMessage());
+    }
+}
+
+function monitorReadUptimeChecks(bool $enabledOnly = false): array {
+    monitorEnsureUptimeSchema();
+    $db = monitorGetDbSafe();
+    if (!$db) return [];
+    $sql = 'SELECT * FROM monitor_uptime_checks';
+    if ($enabledOnly) $sql .= ' WHERE enabled = 1';
+    $sql .= ' ORDER BY auto_discovered DESC, name ASC';
+    $res = $db->query($sql);
+    $checks = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $checks[] = $row;
+    }
+    return $checks;
+}
+
+function monitorCheckHttp(array $check): array {
+    $target = (string)($check['target'] ?? '');
+    $timeout = max(1, (int)($check['timeout_sec'] ?? 10));
+    $method = strtoupper((string)($check['method'] ?? 'GET'));
+    $expected = (int)($check['expected_status'] ?? 200);
+    $keyword = (string)($check['keyword'] ?? '');
+    if (!function_exists('curl_init')) {
+        return ['status' => 'down', 'message' => 'curl_unavailable'];
+    }
+    $ch = curl_init($target);
+    if (!$ch) return ['status' => 'down', 'message' => 'curl_init_failed'];
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HEADER => false,
+        CURLOPT_NOBODY => $method === 'HEAD',
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => $timeout,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_USERAGENT => 'AppDashboard Performance Monitor',
+    ]);
+    $body = curl_exec($ch);
+    $err = curl_error($ch);
+    $http = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+    $latency = (int)round(((float)curl_getinfo($ch, CURLINFO_TOTAL_TIME)) * 1000);
+    curl_close($ch);
+    if ($body === false) {
+        return ['status' => 'down', 'latency_ms' => $latency, 'http_status' => $http, 'message' => $err ?: 'request_failed'];
+    }
+    $okStatus = $expected > 0 ? $http === $expected : $http >= 200 && $http < 400;
+    $okKeyword = $keyword === '' || strpos((string)$body, $keyword) !== false;
+    return [
+        'status' => $okStatus && $okKeyword ? 'up' : 'down',
+        'latency_ms' => $latency,
+        'http_status' => $http,
+        'message' => $okStatus ? ($okKeyword ? 'ok' : 'keyword_missing') : 'unexpected_status',
+        'response_excerpt' => substr((string)$body, 0, 500),
+    ];
+}
+
+function monitorCheckTcp(array $check): array {
+    $target = (string)($check['target'] ?? '');
+    $timeout = max(1, (int)($check['timeout_sec'] ?? 10));
+    $host = $target;
+    $port = 0;
+    if (str_contains($target, ':')) {
+        [$host, $portRaw] = explode(':', $target, 2);
+        $port = (int)$portRaw;
+    }
+    if ($host === '' || $port <= 0) return ['status' => 'down', 'message' => 'invalid_target'];
+    $start = microtime(true);
+    $errno = 0;
+    $errstr = '';
+    $fp = @fsockopen($host, $port, $errno, $errstr, $timeout);
+    $latency = (int)round((microtime(true) - $start) * 1000);
+    if (is_resource($fp)) {
+        fclose($fp);
+        return ['status' => 'up', 'latency_ms' => $latency, 'message' => 'ok'];
+    }
+    return ['status' => 'down', 'latency_ms' => $latency, 'message' => $errstr ?: ('errno_' . $errno)];
+}
+
+function monitorCheckPing(array $check): array {
+    $target = escapeshellarg((string)($check['target'] ?? ''));
+    if ($target === "''") return ['status' => 'down', 'message' => 'invalid_target'];
+    $timeout = max(1, (int)($check['timeout_sec'] ?? 10));
+    $output = @shell_exec('ping -c 1 -W ' . (int)$timeout . ' ' . $target . ' 2>&1');
+    $latency = null;
+    if (is_string($output) && preg_match('/time=([0-9.]+)\s*ms/', $output, $m)) {
+        $latency = (int)round((float)$m[1]);
+    }
+    return [
+        'status' => is_string($output) && preg_match('/1 (packets )?received|1 received/', $output) ? 'up' : 'down',
+        'latency_ms' => $latency,
+        'message' => $latency !== null ? 'ok' : trim(substr((string)$output, 0, 160)),
+    ];
+}
+
+function monitorCheckDns(array $check): array {
+    $target = (string)($check['target'] ?? '');
+    if ($target === '') return ['status' => 'down', 'message' => 'invalid_target'];
+    $start = microtime(true);
+    $records = @dns_get_record($target, DNS_A + DNS_AAAA + DNS_CNAME);
+    $latency = (int)round((microtime(true) - $start) * 1000);
+    return [
+        'status' => is_array($records) && count($records) > 0 ? 'up' : 'down',
+        'latency_ms' => $latency,
+        'message' => is_array($records) && count($records) > 0 ? 'ok' : 'no_records',
+        'meta' => ['records' => array_slice(is_array($records) ? $records : [], 0, 5)],
+    ];
+}
+
+function monitorCheckDocker(array $check, array $containersById): array {
+    $id = (string)($check['docker_container_id'] ?? '');
+    $container = $containersById[$id] ?? null;
+    if (!$container) {
+        return ['status' => 'down', 'message' => 'container_missing'];
+    }
+    $state = strtolower((string)($container['state'] ?? ''));
+    $health = strtolower((string)($container['health'] ?? ''));
+    $up = $state === 'running' && ($health === '' || $health === 'healthy');
+    $message = $health !== '' ? $state . '/' . $health : $state;
+    return ['status' => $up ? 'up' : 'down', 'message' => $message, 'meta' => $container];
+}
+
+function monitorRunOneUptimeCheck(array $check, array $containersById): array {
+    $type = strtolower((string)($check['type'] ?? 'http'));
+    if ($type === 'http' || $type === 'https' || $type === 'keyword') return monitorCheckHttp($check);
+    if ($type === 'tcp' || $type === 'port') return monitorCheckTcp($check);
+    if ($type === 'ping') return monitorCheckPing($check);
+    if ($type === 'dns') return monitorCheckDns($check);
+    if ($type === 'docker') return monitorCheckDocker($check, $containersById);
+    return ['status' => 'unknown', 'message' => 'unsupported_type'];
+}
+
+function monitorStoreUptimeResult(int $checkId, array $result): void {
+    $db = monitorGetDbSafe();
+    if (!$db) return;
+    $stmt = $db->prepare("INSERT INTO monitor_uptime_results
+        (check_id, checked_at, status, latency_ms, http_status, message, response_excerpt, meta_json)
+        VALUES(:check_id, :checked_at, :status, :latency_ms, :http_status, :message, :response_excerpt, :meta_json)");
+    $stmt->bindValue(':check_id', $checkId, SQLITE3_INTEGER);
+    $stmt->bindValue(':checked_at', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':status', (string)($result['status'] ?? 'unknown'), SQLITE3_TEXT);
+    $stmt->bindValue(':latency_ms', isset($result['latency_ms']) && is_numeric($result['latency_ms']) ? (int)$result['latency_ms'] : null, SQLITE3_INTEGER);
+    $stmt->bindValue(':http_status', isset($result['http_status']) && is_numeric($result['http_status']) ? (int)$result['http_status'] : null, SQLITE3_INTEGER);
+    $stmt->bindValue(':message', substr((string)($result['message'] ?? ''), 0, 500), SQLITE3_TEXT);
+    $stmt->bindValue(':response_excerpt', substr((string)($result['response_excerpt'] ?? ''), 0, 500), SQLITE3_TEXT);
+    $stmt->bindValue(':meta_json', json_encode($result['meta'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+    $stmt->execute();
+}
+
+function monitorStoreUptimeLog(array $check, array $result, int $startedAt, int $finishedAt): void {
+    $db = monitorGetDbSafe();
+    if (!$db) return;
+    $stmt = $db->prepare("INSERT INTO monitor_uptime_logs
+        (check_id, check_name, check_type, target, started_at, finished_at, status, latency_ms, http_status, message, meta_json)
+        VALUES(:check_id, :check_name, :check_type, :target, :started_at, :finished_at, :status, :latency_ms, :http_status, :message, :meta_json)");
+    $stmt->bindValue(':check_id', (int)($check['id'] ?? 0), SQLITE3_INTEGER);
+    $stmt->bindValue(':check_name', (string)($check['name'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':check_type', (string)($check['type'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':target', (string)($check['target'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':started_at', $startedAt, SQLITE3_INTEGER);
+    $stmt->bindValue(':finished_at', $finishedAt, SQLITE3_INTEGER);
+    $stmt->bindValue(':status', (string)($result['status'] ?? 'unknown'), SQLITE3_TEXT);
+    $stmt->bindValue(':latency_ms', isset($result['latency_ms']) && is_numeric($result['latency_ms']) ? (int)$result['latency_ms'] : null, SQLITE3_INTEGER);
+    $stmt->bindValue(':http_status', isset($result['http_status']) && is_numeric($result['http_status']) ? (int)$result['http_status'] : null, SQLITE3_INTEGER);
+    $stmt->bindValue(':message', substr((string)($result['message'] ?? ''), 0, 500), SQLITE3_TEXT);
+    $stmt->bindValue(':meta_json', json_encode($result['meta'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+    $stmt->execute();
+}
+
+function monitorRunUptimeChecks(array $containers): void {
+    monitorEnsureUptimeSchema();
+    monitorSyncDockerChecks($containers);
+    $containersById = [];
+    foreach ($containers as $container) {
+        if (is_array($container) && isset($container['id'])) {
+            $containersById[(string)$container['id']] = $container;
+        }
+    }
+    foreach (monitorReadUptimeChecks(true) as $check) {
+        $interval = max(10, (int)($check['interval_sec'] ?? 60));
+        $db = monitorGetDbSafe();
+        if (!$db) continue;
+        $last = (int)$db->querySingle('SELECT checked_at FROM monitor_uptime_results WHERE check_id = ' . (int)$check['id'] . ' ORDER BY checked_at DESC LIMIT 1');
+        if ($last > 0 && (time() - $last) < $interval) continue;
+        $startedAt = time();
+        $result = monitorRunOneUptimeCheck($check, $containersById);
+        $finishedAt = time();
+        monitorStoreUptimeResult((int)$check['id'], $result);
+        monitorStoreUptimeLog($check, $result, $startedAt, $finishedAt);
+    }
+}
+
+function monitorStoreDockerSnapshots(array $containers): void {
+    monitorEnsureUptimeSchema();
+    $db = monitorGetDbSafe();
+    if (!$db || $containers === []) return;
+    $stmt = $db->prepare("INSERT INTO monitor_docker_snapshots
+        (created_at, container_id, container_name, image, state, health, cpu_percent, memory_percent, memory_text, network_io, block_io, pids)
+        VALUES(:created_at, :container_id, :container_name, :image, :state, :health, :cpu_percent, :memory_percent, :memory_text, :network_io, :block_io, :pids)");
+    $now = time();
+    foreach ($containers as $container) {
+        if (!is_array($container)) continue;
+        $stats = is_array($container['stats'] ?? null) ? $container['stats'] : [];
+        $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
+        $stmt->bindValue(':container_id', (string)($container['id'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':container_name', (string)($container['name'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':image', (string)($container['image'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':state', (string)($container['state'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':health', (string)($container['health'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':cpu_percent', (float)($stats['cpu_percent'] ?? 0), SQLITE3_FLOAT);
+        $stmt->bindValue(':memory_percent', (float)($stats['memory_percent'] ?? 0), SQLITE3_FLOAT);
+        $stmt->bindValue(':memory_text', (string)($stats['memory'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':network_io', (string)($stats['network_io'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':block_io', (string)($stats['block_io'] ?? ''), SQLITE3_TEXT);
+        $stmt->bindValue(':pids', (int)($stats['pids'] ?? 0), SQLITE3_INTEGER);
+        $stmt->execute();
+    }
+}
+
+function monitorFetchUptimePayload(int $historyLimit = 24): array {
+    monitorEnsureUptimeSchema();
+    $db = monitorGetDbSafe();
+    if (!$db) return ['checks' => [], 'summary' => ['up' => 0, 'down' => 0, 'unknown' => 0, 'total' => 0]];
+    $checks = [];
+    $res = $db->query("SELECT c.*, r.status AS last_status, r.latency_ms AS last_latency_ms, r.http_status AS last_http_status,
+        r.message AS last_message, r.checked_at AS last_checked_at
+        FROM monitor_uptime_checks c
+        LEFT JOIN monitor_uptime_results r ON r.id = (
+            SELECT id FROM monitor_uptime_results WHERE check_id = c.id ORDER BY checked_at DESC LIMIT 1
+        )
+        ORDER BY c.auto_discovered DESC, c.name ASC");
+    $summary = ['up' => 0, 'down' => 0, 'unknown' => 0, 'total' => 0];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $status = (string)($row['last_status'] ?? 'unknown');
+        if (!isset($summary[$status])) $status = 'unknown';
+        $summary[$status]++;
+        $summary['total']++;
+        $hist = [];
+        $histStmt = $db->prepare('SELECT checked_at, status, latency_ms FROM monitor_uptime_results WHERE check_id = :id ORDER BY checked_at DESC LIMIT :limit');
+        $histStmt->bindValue(':id', (int)$row['id'], SQLITE3_INTEGER);
+        $histStmt->bindValue(':limit', $historyLimit, SQLITE3_INTEGER);
+        $histRes = $histStmt->execute();
+        while ($h = $histRes->fetchArray(SQLITE3_ASSOC)) {
+            $hist[] = $h;
+        }
+        $row['history'] = array_reverse($hist);
+        $checks[] = $row;
+    }
+    return ['checks' => $checks, 'summary' => $summary];
+}
+
+function monitorFetchDockerHistory(string $containerId, string $period = '24h'): array {
+    monitorEnsureUptimeSchema();
+    $db = monitorGetDbSafe();
+    if (!$db || $containerId === '') {
+        return ['points' => [], 'period' => $period];
+    }
+    $periodSeconds = [
+        '1h' => 3600,
+        '6h' => 21600,
+        '24h' => 86400,
+        '7d' => 604800,
+        '30d' => 2592000,
+    ][$period] ?? 86400;
+    $since = time() - $periodSeconds;
+    $limit = max(120, min(3000, (int)ceil($periodSeconds / 60) + 60));
+    $stmt = $db->prepare("SELECT created_at, cpu_percent, memory_percent, pids, state, health
+        FROM monitor_docker_snapshots
+        WHERE container_id = :container_id AND created_at >= :since
+        ORDER BY created_at DESC
+        LIMIT :limit");
+    $stmt->bindValue(':container_id', $containerId, SQLITE3_TEXT);
+    $stmt->bindValue(':since', $since, SQLITE3_INTEGER);
+    $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $points = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $points[] = [
+            'created_at' => (int)($row['created_at'] ?? 0),
+            'cpu_percent' => (float)($row['cpu_percent'] ?? 0),
+            'memory_percent' => (float)($row['memory_percent'] ?? 0),
+            'pids' => (int)($row['pids'] ?? 0),
+            'state' => (string)($row['state'] ?? ''),
+            'health' => (string)($row['health'] ?? ''),
+        ];
+    }
+    return ['points' => array_reverse($points), 'period' => $period];
+}
+
+function monitorSaveUptimeCheckFromInput(array $input): array {
+    monitorEnsureUptimeSchema();
+    $db = monitorGetDbSafe();
+    if (!$db) return ['ok' => false, 'error' => 'db_unavailable'];
+    $id = (int)($input['id'] ?? 0);
+    $name = trim((string)($input['name'] ?? ''));
+    $type = strtolower(trim((string)($input['type'] ?? 'http')));
+    $target = trim((string)($input['target'] ?? ''));
+    if ($name === '' || $target === '') return ['ok' => false, 'error' => 'name_target_required'];
+    if (!in_array($type, ['http', 'https', 'keyword', 'tcp', 'port', 'ping', 'dns', 'docker'], true)) $type = 'http';
+    $now = time();
+    if ($id > 0) {
+        $stmt = $db->prepare("UPDATE monitor_uptime_checks SET name=:name, type=:type, target=:target, method=:method,
+            expected_status=:expected_status, keyword=:keyword, interval_sec=:interval_sec, timeout_sec=:timeout_sec,
+            retries=:retries, enabled=:enabled, updated_at=:updated_at WHERE id=:id");
+        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    } else {
+        $stmt = $db->prepare("INSERT INTO monitor_uptime_checks
+            (name, type, target, method, expected_status, keyword, interval_sec, timeout_sec, retries, enabled, auto_discovered, created_at, updated_at)
+            VALUES(:name, :type, :target, :method, :expected_status, :keyword, :interval_sec, :timeout_sec, :retries, :enabled, 0, :updated_at, :updated_at)");
+    }
+    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+    $stmt->bindValue(':type', $type, SQLITE3_TEXT);
+    $stmt->bindValue(':target', $target, SQLITE3_TEXT);
+    $stmt->bindValue(':method', strtoupper((string)($input['method'] ?? 'GET')), SQLITE3_TEXT);
+    $stmt->bindValue(':expected_status', max(0, (int)($input['expected_status'] ?? 200)), SQLITE3_INTEGER);
+    $stmt->bindValue(':keyword', (string)($input['keyword'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':interval_sec', max(10, (int)($input['interval_sec'] ?? 60)), SQLITE3_INTEGER);
+    $stmt->bindValue(':timeout_sec', max(1, (int)($input['timeout_sec'] ?? 10)), SQLITE3_INTEGER);
+    $stmt->bindValue(':retries', max(1, (int)($input['retries'] ?? 1)), SQLITE3_INTEGER);
+    $stmt->bindValue(':enabled', !empty($input['enabled']) ? 1 : 0, SQLITE3_INTEGER);
+    $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+    $stmt->execute();
+    return ['ok' => true, 'id' => $id > 0 ? $id : (int)$db->lastInsertRowID()];
+}
+
+function monitorDeleteUptimeCheck(int $id): array {
+    monitorEnsureUptimeSchema();
+    $db = monitorGetDbSafe();
+    if (!$db) return ['ok' => false, 'error' => 'db_unavailable'];
+    $stmt = $db->prepare('DELETE FROM monitor_uptime_checks WHERE id = :id AND auto_discovered = 0');
+    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    $stmt->execute();
+    return ['ok' => true];
+}
+
 function monitorCollectMetricsPayload(bool $includeSmart = false, bool $includeDrives = false): array {
     $diskIO = getDiskIO();
     $smartDiagnostics = $includeSmart ? getSmartDiagnostics() : monitorLoadSmartFromDb();
     $drives = $includeDrives ? getDrives() : monitorLoadDrivesFromDb();
+    $dockerContainers = monitorCollectDockerContainers();
+    $dockerStats = monitorDockerApiStats($dockerContainers);
+    if ($dockerStats === []) {
+        $dockerStats = monitorCollectDockerStats();
+    }
+    foreach ($dockerContainers as &$container) {
+        $container['stats'] = $dockerStats[$container['id']] ?? null;
+    }
+    unset($container);
     if ($includeSmart) {
         monitorSaveSmartToDb($smartDiagnostics);
     }
@@ -985,17 +1865,23 @@ function monitorCollectMetricsPayload(bool $includeSmart = false, bool $includeD
         'uptime' => getUptime(),
         'drives' => $drives,
         'smart' => $smartDiagnostics,
+        'docker_containers' => $dockerContainers,
+        'uptime_monitoring' => monitorFetchUptimePayload(),
         'status' => 'ok',
         'context' => [
             'source' => 'apps/performance/bin/monitor_collector.php',
             'drives' => $drives,
             'smart' => $smartDiagnostics,
+            'docker_containers' => $dockerContainers,
         ],
     ];
 }
 
 function monitorRunCollectorCycle(bool $includeSmart = false, bool $includeDrives = false, bool $includeModules = false, int $minIntervalSec = 60): ?int {
+    monitorEnsureBaseSchema();
     $metrics = monitorCollectMetricsPayload($includeSmart, $includeDrives);
+    monitorRunUptimeChecks(is_array($metrics['docker_containers'] ?? null) ? $metrics['docker_containers'] : []);
+    monitorStoreDockerSnapshots(is_array($metrics['docker_containers'] ?? null) ? $metrics['docker_containers'] : []);
     $snapshotId = monitorRecordSystemSnapshot($metrics, $minIntervalSec);
     $smartDevices = is_array($metrics['smart']) ? ($metrics['smart']['devices'] ?? []) : [];
     if (!empty($smartDevices)) {
@@ -1020,6 +1906,8 @@ function monitorEmptyDisplayPayload(): array {
         'uptime' => ['days' => 0, 'hours' => 0, 'minutes' => 0],
         'drives' => [],
         'smart' => ['devices' => [], 'updated_at' => 0],
+        'docker_containers' => [],
+        'uptime_monitoring' => monitorFetchUptimePayload(),
         'nginx_modules' => $modules['nginx_modules'] ?? [],
         'php_modules' => $modules['php_modules'] ?? [],
         'monitor_snapshot_id' => null,
@@ -1032,6 +1920,7 @@ function monitorEmptyDisplayPayload(): array {
 
 function monitorFetchDisplayPayloadFromDb(): array {
     try {
+        monitorEnsureBaseSchema();
         $db = getDB();
         if (!$db) {
             return monitorEmptyDisplayPayload();
@@ -1087,6 +1976,7 @@ function monitorFetchDisplayPayloadFromDb(): array {
             }
         }
         $modules = monitorLoadModulesFromDb();
+        $dockerContainers = is_array($context['docker_containers'] ?? null) ? $context['docker_containers'] : monitorCollectDockerContainers();
         $createdAt = (int)($row['created_at'] ?? time());
         return [
             'cpu_usage' => (float)($row['cpu_percent'] ?? 0),
@@ -1097,6 +1987,8 @@ function monitorFetchDisplayPayloadFromDb(): array {
             'uptime' => monitorUptimeFromSeconds(isset($row['uptime_seconds']) ? (int)$row['uptime_seconds'] : null),
             'drives' => $drives,
             'smart' => $smart,
+            'docker_containers' => $dockerContainers,
+            'uptime_monitoring' => monitorFetchUptimePayload(),
             'nginx_modules' => $modules['nginx_modules'] ?? [],
             'php_modules' => $modules['php_modules'] ?? [],
             'monitor_snapshot_id' => $snapshotId,

@@ -7,6 +7,7 @@ import time
 import logging
 import subprocess
 import socket
+import hashlib
 from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 import pg_sqlite_compat as sqlite3
@@ -90,6 +91,26 @@ def ensure_schema() -> None:
             db.execute("ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''")
         except psycopg2.Error:
             pass
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS tg_bot_link_tokens (
+                token_hash TEXT PRIMARY KEY,
+                email TEXT NOT NULL,
+                created_by TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                expires_at INTEGER NOT NULL,
+                used_at INTEGER,
+                used_chat_id TEXT NOT NULL DEFAULT ''
+            )
+        """)
+        for sql in (
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_at INTEGER",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_chat_id TEXT NOT NULL DEFAULT ''",
+        ):
+            try:
+                db.execute(sql)
+            except psycopg2.Error:
+                pass
         db.commit()
 
 
@@ -141,6 +162,41 @@ def add_session(chat_id: str, email: str, telegram_user_id: str = '') -> None:
             (chat_id, email, int(time.time()), telegram_user_id),
         )
         db.commit()
+
+
+def redeem_link_token(raw_token: str, chat_id: str, telegram_user_id: Optional[int]) -> Optional[str]:
+    normalized = re.sub(r'\s+', '', raw_token.strip().upper())
+    if not re.fullmatch(r'[A-F0-9]{8}-?[A-F0-9]{8}', normalized):
+        return None
+    if '-' not in normalized:
+        normalized = normalized[:8] + '-' + normalized[8:]
+    token_hash = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+    now = int(time.time())
+    uid = str(telegram_user_id) if telegram_user_id is not None else ''
+    try:
+        with get_db() as db:
+            row = db.execute(
+                """SELECT t.email,u.verified,u.role FROM tg_bot_link_tokens t
+                   INNER JOIN users u ON u.email=t.email
+                   WHERE t.token_hash=? AND t.used_at IS NULL AND t.expires_at>=? LIMIT 1""",
+                (token_hash, now),
+            ).fetchone()
+            if not row or not int(row['verified']) or int(row['role']) < 2:
+                return None
+            email = str(row['email'])
+            db.execute(
+                "UPDATE tg_bot_link_tokens SET used_at=?, used_chat_id=? WHERE token_hash=?",
+                (now, chat_id, token_hash),
+            )
+            db.execute(
+                "INSERT OR REPLACE INTO tg_bot_sessions (chat_id, email, authorized_at, telegram_user_id) VALUES (?,?,?,?)",
+                (chat_id, email, now, uid),
+            )
+            db.commit()
+            return email
+    except Exception as e:
+        log.error(f'redeem_link_token: {e}')
+        return None
 
 
 def sync_telegram_user_id(chat_id: str, telegram_user_id: Optional[int]) -> None:
@@ -1775,47 +1831,22 @@ def handle_update(token: str, update: dict) -> None:
             dispatch_limited_command(token, chat_id, cmd, kb)
         return
 
-    state = _state.get(chat_id, {})
-    step = state.get('step', 'idle')
-
-    if step == 'awaiting_password':
-        candidate_email = state.get('email', '')
-        _state.pop(chat_id, None)
-        role = verify_user_credentials(candidate_email, text)
-        if role is None:
-            tg_send(
-                token,
-                chat_id,
-                'Sign-in failed: wrong email or password.\n\nSend any message to try again.',
-                parse_mode='',
-            )
-            return
-        uid_s = str(tg_uid) if tg_uid is not None else ''
-        add_session(chat_id, candidate_email, uid_s)
-        is_admin = role >= 2
-        if is_admin:
-            clear_admin_step(chat_id)
-            set_admin_menu(chat_id, 'admin_main')
-        kb = admin_reply_keyboard(chat_id, is_root_email(candidate_email), 'admin_main') if is_admin else limited_reply_keyboard()
-        hint = (
-            '<b>Signed in.</b>\n\nAccount: <code>'
-            + _esc(candidate_email)
-            + '</code>\n\nFull bot features are available.'
-            if is_admin
-            else '<b>Signed in.</b>\n\nAccount: <code>'
-            + _esc(candidate_email)
-            + '</code>\n\nOnly <b>Status</b> and <b>Logout</b> are available.'
+    linked_email = redeem_link_token(text, chat_id, tg_uid)
+    if linked_email:
+        clear_admin_step(chat_id)
+        set_admin_menu(chat_id, 'admin_main')
+        tg_send(
+            token,
+            chat_id,
+            '<b>Telegram linked.</b>\n\nAccount: <code>' + _esc(linked_email) + '</code>',
+            reply_markup=admin_reply_keyboard(chat_id, is_root_email(linked_email), 'admin_main'),
         )
-        tg_send(token, chat_id, hint, reply_markup=kb)
         return
-
-    if step == 'awaiting_email':
-        _state[chat_id] = {'step': 'awaiting_password', 'email': text}
-        tg_send(token, chat_id, 'Enter your password:', parse_mode='')
-        return
-
-    _state[chat_id] = {'step': 'awaiting_email'}
-    tg_send(token, chat_id, '<b>Sign in</b>\n\nSend your account email:')
+    tg_send(
+        token,
+        chat_id,
+        '<b>Send a one-time binding code.</b>\n\nGenerate it in the server admin panel: Settings → Telegram Bot → Generate code.',
+    )
 
 
 def main() -> None:

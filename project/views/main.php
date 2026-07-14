@@ -79,6 +79,14 @@
         .profile-actions{display:flex;flex-direction:column;align-items:center;gap:10px;}
         .profile-action-button{padding:12px 20px;background:var(--primary-color);color:white;border:none;border-radius:24px;cursor:pointer;text-align:center;font-weight:600;transition:all 0.3s ease;width:60%;max-width:300px;margin:0 auto 10px auto;display:block;}
         .profile-action-button:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.2);}
+        .email-row{display:inline-flex;align-items:center;gap:6px;}
+        .copy-email-btn{background:none;border:none;padding:2px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.3s ease;vertical-align:middle;}
+        .copy-email-btn svg{width:16px;height:16px;color:color-mix(in srgb,var(--text-color) 50%,var(--primary-color));stroke:currentColor;transition:all 0.3s ease;}
+        .copy-email-btn:hover svg{opacity:0.7;}
+        .copy-email-btn.copied svg{stroke:#22c55e;animation:copyPulse 0.4s ease;}
+        .copy-email-btn.failed svg{stroke:#ef4444;animation:copyShake 0.4s ease;}
+        @keyframes copyPulse{0%{transform:scale(1);}50%{transform:scale(1.3);}100%{transform:scale(1);}}
+        @keyframes copyShake{0%{transform:translateX(0);}25%{transform:translateX(-3px);}75%{transform:translateX(3px);}100%{transform:translateX(0);}}
         .password-form, .photo-form{display:none;margin-top:15px;padding:15px;background:var(--group-block-bg);border-radius:6px;width:100%;max-width:400px;}
         .password-form.active, .photo-form.active{display:block;}
         .password-change-box{display:none;margin-top:15px;padding:18px;background:var(--group-block-bg);border:1px solid var(--border-color);border-radius:8px;width:100%;max-width:400px;box-sizing:border-box;}
@@ -91,6 +99,10 @@
         #top-bar{position:fixed;top:0;left:0;width:100%;height:50px;background-color:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;}
         #top-bar-title{font-weight:bold;font-size:18px;flex:1;min-width:0;text-align:center;position:absolute;left:50%;transform:translateX(-50%);}
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
+        #notifications-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
+        #notifications-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
+        #notifications-btn svg{width:22px;height:22px;stroke:currentColor;}
+        #notifications-btn + #support-chat-btn{margin-left:0;}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
 	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
@@ -105,6 +117,7 @@
         #home-root-button svg{width:21px;height:21px;}
         #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
         #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
+        #top-bar #notifications-btn{position:absolute;right:64px;top:5px;margin-left:0;}
         #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
@@ -116,6 +129,18 @@
 	        }
         <?php endif; ?>
         #sidebar{position:fixed;top:50px;left:-320px;width:320px;height:calc(100% - 50px);background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
+        #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:58px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.28);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;}
+        #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
+        .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
+        .notifications-actions{display:flex;gap:8px;align-items:center;}
+        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;}
+        .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
+        #notifications-list{overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;}
+        .notification-row{border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;background:var(--bg-color);}
+        .notification-row.unread{border-color:color-mix(in srgb,var(--primary-color) 60%,var(--border-color));}
+        .notification-row-title{font-weight:700;font-size:14px;margin-bottom:4px;}
+        .notification-row-meta{font-size:11px;opacity:.65;margin-bottom:4px;}
+        .notification-row-message{font-size:13px;line-height:1.35;opacity:.85;white-space:pre-wrap;}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
         #app-list-container::-webkit-scrollbar{display:none;}
@@ -314,7 +339,13 @@
         #content{padding-top:0;position:fixed;left:0;width:100%;height:100vh;box-sizing:border-box;overflow:hidden;}
         #content.has-app-rail{--rail-w:48px;}
         #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
-        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;transition:background-color .35s ease,border-color .35s ease,color .35s ease;}
+        #content.app-edge-immich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#111827':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
+        #content.app-edge-gitea{--app-edge-bg:#0d1117;--app-edge-border:#30363d;--app-edge-text:#f0f6fc;}
+        #content.app-edge-x{--app-edge-bg:#000000;--app-edge-border:#2f3336;--app-edge-text:#e7e9ea;}
+        #content.edge-app-shell #app-icon-rail{background:var(--app-edge-bg);border-color:var(--app-edge-border);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;}
+        #content.edge-app-shell #app-iframe{background:var(--app-edge-bg);}
+        #content.edge-app-shell .app-rail-link,#content.edge-app-shell .app-rail-service-name{color:var(--app-edge-text);}
         #app-icon-rail::-webkit-scrollbar{display:none;}
         .app-rail-link{display:flex;align-items:center;justify-content:center;width:var(--rail-icon);height:var(--rail-icon);border-radius:8px;flex-shrink:0;text-decoration:none;color:var(--text-color);background:transparent;transition:background-color 0.2s,transform 0.15s;}
         .app-rail-link:hover{background:color-mix(in srgb,var(--primary-color) 22%,transparent);transform:translateY(-1px);}
@@ -331,6 +362,7 @@
             #content.has-app-rail.rail-top-on-mobile{--rail-h:48px;--rail-w:0px;}
             #content.has-app-rail.rail-top-on-mobile #app-iframe{left:0!important;width:100%!important;top:var(--rail-h);height:calc(100% - var(--rail-h));}
             #content.has-app-rail.rail-top-on-mobile #app-icon-rail{flex-direction:row;width:100%;height:var(--rail-h);border-right:none;border-bottom:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);padding:0;overflow:hidden;gap:0;position:relative;}
+            #content.edge-app-shell.rail-top-on-mobile #app-icon-rail{border-bottom-color:var(--app-edge-border);}
             #content.has-app-rail.rail-top-on-mobile .app-rail-scroll{display:flex;flex-direction:row;align-items:center;gap:6px;padding:0 8px 0 calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;height:100%;flex:1;}
             #content.has-app-rail.rail-top-on-mobile .app-rail-scroll::-webkit-scrollbar{display:none;}
             #content.has-app-rail.rail-top-on-mobile .app-rail-divider{width:1px;height:60%;flex-shrink:0;margin:0 2px;}
@@ -603,6 +635,10 @@
     <?php endif; ?>
     <div id="top-bar-title">Shell Application</div>
     <?php if($path==='/main'&&!($selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps)))):?>
+        <button type="button" id="notifications-btn" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+            <span id="notifications-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
+        </button>
         <button type="button" id="support-chat-btn" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>">
             <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
             <span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
@@ -767,7 +803,7 @@ endif; // showOtpPage
                 <?php if(isset($authError)):?><div class="auth-error"><?php echo my_htmlspecialchars($authError); ?></div><?php endif;?>
                 <div class="google-user-info">
                     <?php if($pendingGoogleData['photo'] !== 'default_avatar.png'): ?>
-                        <img src="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>" alt="Google Avatar" class="google-avatar">
+                        <img src="<?php echo my_htmlspecialchars(app_avatar_src($pendingGoogleData['photo'])); ?>" alt="Google Avatar" class="google-avatar">
                     <?php endif; ?>
                     <div class="google-email"><?php echo my_htmlspecialchars($pendingGoogleData['email']); ?></div>
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
@@ -942,9 +978,9 @@ endif; // showOtpPage
             <?php if(isset($profileError)):?><div class="auth-error"><?php echo my_htmlspecialchars($profileError); ?></div><?php endif;?>
             <?php if(isset($profileSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($profileSuccess); ?></div><?php endif;?>
             <div class="profile-section">
-                <img src="<?php echo my_htmlspecialchars($_SESSION['user']['photo']??'default_avatar.png'); ?>" alt="User Avatar" class="profile-avatar">
+                <img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="profile-avatar">
                 <h3><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></h3>
-                <p><?php echo my_htmlspecialchars($_SESSION['user']['email']); ?></p>
+                <p class="email-row"><?php echo my_htmlspecialchars($_SESSION['user']['email']); ?><button type="button" class="copy-email-btn" data-email="<?php echo my_htmlspecialchars($_SESSION['user']['email']); ?>" title="Copy email"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></p>
                 <p><strong><?php echo my_htmlspecialchars($translations['user_role']); ?>:</strong>
                     <?php $role=$_SESSION['user']['role']??0;
                     if($role==2)echo my_htmlspecialchars($translations['admin']);
@@ -1060,22 +1096,36 @@ endif; // showOtpPage
             </div>
 
             <?php
-            $authorizedChats = loadAuthorizedChats();
+            $authorizedChats = loadAuthorizedTelegramSessions();
             if(!empty($authorizedChats)):
             ?>
             <div class="tg-bot-field">
                 <label><?php echo my_htmlspecialchars($translations['tg_recipients'] ?? 'Recipients'); ?></label>
                 <div style="background:var(--group-block-bg);border-radius:6px;padding:8px 12px;font-size:13px;font-family:monospace;line-height:1.8;">
-                    <?php foreach($authorizedChats as $cid): ?>
-                        <div><?php echo my_htmlspecialchars($cid); ?></div>
+                    <?php foreach($authorizedChats as $s): ?>
+                        <div><?php echo my_htmlspecialchars(($s['email'] ?? '') . ' · ' . ($s['chat_id'] ?? '')); ?></div>
                     <?php endforeach; ?>
                 </div>
                 <div class="tg-bot-hint"><?php echo my_htmlspecialchars($translations['tg_recipients_hint'] ?? ''); ?></div>
             </div>
             <?php endif; ?>
+            <div class="tg-bot-field">
+                <label><?php echo my_htmlspecialchars($translations['tg_link_account'] ?? 'Bind account'); ?></label>
+                <select id="tg-link-email" class="auth-input" style="margin-bottom:0;">
+                    <?php foreach(loadUsers() as $em=>$u): if((int)($u['role'] ?? 0) < 2) continue; ?>
+                        <option value="<?php echo my_htmlspecialchars($em); ?>"<?php echo $em===($_SESSION['user']['email']??'')?' selected':''; ?>><?php echo my_htmlspecialchars($em); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="tg-bot-hint"><?php echo my_htmlspecialchars($translations['tg_link_hint'] ?? 'Generate a one-time code and send it to the Telegram bot.'); ?></div>
+            </div>
+            <div class="tg-bot-field">
+                <label><?php echo my_htmlspecialchars($translations['tg_link_token'] ?? 'One-time code'); ?></label>
+                <input type="text" id="tg-link-token" value="" readonly placeholder="--------">
+            </div>
 
             <div class="tg-bot-actions">
                 <button type="button" class="tg-save-btn" id="save-tg-bot"><?php echo my_htmlspecialchars($translations['save'] ?? 'Save'); ?></button>
+                <button type="button" class="tg-test-btn" id="generate-tg-link-token"><?php echo my_htmlspecialchars($translations['tg_link_generate'] ?? 'Generate code'); ?></button>
                 <button type="button" class="tg-test-btn" id="test-tg-bot"><?php echo my_htmlspecialchars($translations['tg_test'] ?? 'Test'); ?></button>
             </div>
             <div class="tg-status" id="tg-status"></div>
@@ -1411,7 +1461,7 @@ endif; // showOtpPage
             </div>
             <?php if(!$isHomeDashboard): ?><a href="/main" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a><?php endif; ?>
             <button id="settings-button" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['settings_title']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg></button>
-            <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars($_SESSION['user']['photo']??'default_avatar.png'); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
+            <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
         </div>
     </div>
 <?php endif;?>
@@ -1582,7 +1632,8 @@ $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
 <?php $railTopApps=['immich','gitea']; ?>
-<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell<?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps))?' rail-top-on-mobile':''; ?>"<?php endif;?>>
+<?php $edgeAppShellApps=['immich','gitea','x','X']; ?>
+<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($showAppFrame):?>
         <?php if($showAppRail):?>
         <div id="app-icon-rail">
@@ -1595,6 +1646,10 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         <iframe id="app-iframe" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/index.php?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
     <?php elseif($path==='/main'):?>
         <?php if(!$showTopBarTitle):?>
+        <button type="button" id="notifications-btn" class="notifications-floating" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" style="position:fixed;top:10px;right:64px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 10%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+            <span id="notifications-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
+        </button>
         <button type="button" id="support-chat-btn" class="support-chat-floating" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>" style="position:fixed;top:10px;right:16px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 28%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 14%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
             <span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
@@ -1606,6 +1661,16 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             <?php endforeach; ?>
         </div>
     <?php endif;?>
+</div>
+<div id="notifications-panel" role="region" aria-live="polite">
+    <div class="notifications-head">
+        <span><?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?></span>
+        <div class="notifications-actions">
+            <button type="button" id="notifications-enable-btn"><?php echo my_htmlspecialchars($translations['enable'] ?? 'Enable'); ?></button>
+            <button type="button" id="notifications-mark-read-btn"><?php echo my_htmlspecialchars($translations['mark_read'] ?? 'Read'); ?></button>
+        </div>
+    </div>
+    <div id="notifications-list"></div>
 </div>
 
 <!-- Support Chat Modal -->
@@ -2940,6 +3005,7 @@ var T=<?php echo json_encode([
         const closeTgBot = document.getElementById('close-tg-bot');
         const saveTgBot = document.getElementById('save-tg-bot');
         const testTgBot = document.getElementById('test-tg-bot');
+        const generateTgLinkToken = document.getElementById('generate-tg-link-token');
         const tgStatus = document.getElementById('tg-status');
 
         if(tgBotButton){ tgBotButton.addEventListener('click',()=>{ closeAllModals(); if(tgBotModal) tgBotModal.style.display='flex'; }); }
@@ -2976,6 +3042,23 @@ var T=<?php echo json_encode([
                     if(tgStatus) tgStatus.style.color = d.success ? '#00C851' : '#ff4444';
                     if(tgStatus) tgStatus.textContent = d.success ? <?php echo json_encode($translations['tg_test_ok'] ?? 'Test message sent successfully', JSON_UNESCAPED_UNICODE); ?> : <?php echo json_encode($translations['tg_test_fail'] ?? 'Failed — check token and chat ID', JSON_UNESCAPED_UNICODE); ?>;
                 });
+            });
+        }
+        if(generateTgLinkToken){
+            generateTgLinkToken.addEventListener('click',()=>{
+                const fd = new FormData();
+                fd.append('generate_tg_link_token','1');
+                fd.append('ajax','1');
+                fd.append('tg_link_email', document.getElementById('tg-link-email')?.value || '');
+                if(tgStatus) tgStatus.textContent = '...';
+                fetch('/main',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+                    if(d.success){
+                        const out=document.getElementById('tg-link-token');
+                        if(out) out.value=d.token;
+                    }
+                    if(tgStatus) tgStatus.style.color = d.success ? '#00C851' : '#ff4444';
+                    if(tgStatus) tgStatus.textContent = d.success ? d.token : (d.error || 'Error');
+                }).catch(()=>{if(tgStatus){tgStatus.style.color='#ff4444';tgStatus.textContent='Network error';}});
             });
         }
         // ===== Delete User Modal =====
@@ -3358,6 +3441,95 @@ var T=<?php echo json_encode([
                 setTimeout(() => { if(notification.parentNode) notification.remove(); }, 250);
             }, 4000);
         }
+        (function(){
+            const btn=document.getElementById('notifications-btn');
+            const panel=document.getElementById('notifications-panel');
+            const list=document.getElementById('notifications-list');
+            const badge=document.getElementById('notifications-unread-badge');
+            const enableBtn=document.getElementById('notifications-enable-btn');
+            const readBtn=document.getElementById('notifications-mark-read-btn');
+            let lastSeenId=0;
+            const enableBtnLabel=enableBtn?enableBtn.textContent:'Enable';
+            window.ApNotificationPopover=window.ApNotificationPopover||function(trigger,target){
+                function open(){if(target)target.classList.add('open');}
+                function close(){if(target)target.classList.remove('open');}
+                function toggle(){if(!target)return;target.classList.contains('open')?close():open();}
+                function isOpen(){return !!(target&&target.classList.contains('open'));}
+                if(trigger&&target){
+                    document.addEventListener('click',function(e){
+                        if(isOpen()&&!target.contains(e.target)&&!trigger.contains(e.target))close();
+                    });
+                    window.addEventListener('resize',close);
+                    document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+                }
+                return {open:open,close:close,toggle:toggle,isOpen:isOpen};
+            };
+            const notificationPopover=window.ApNotificationPopover(btn,panel);
+            function notificationHeaders(){return {'Content-Type':'application/json'};}
+            function syncEnableButton(){
+                if(!enableBtn)return;
+                const granted='Notification'in window&&Notification.permission==='granted';
+                enableBtn.disabled=granted;
+                enableBtn.setAttribute('aria-disabled',granted?'true':'false');
+                enableBtn.textContent=granted?'Enabled':enableBtnLabel;
+            }
+            function setBadge(count){
+                if(!badge)return;
+                if(count>0){badge.textContent=count>99?'99+':String(count);badge.style.display='block';}
+                else{badge.style.display='none';}
+            }
+            function rowHtml(n){
+                const dt=new Date((Number(n.created_at)||0)*1000).toLocaleString();
+                const app=n.app_id?` · ${escHtml(n.app_id)}`:'';
+                const msg=n.message?`<div class="notification-row-message">${escHtml(n.message)}</div>`:'';
+                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${escHtml(n.severity||'info')}${app} · ${dt}</div>${msg}</div>`;
+            }
+            async function loadNotifications(showBrowser){
+                if(!btn||!list)return;
+                try{
+                    const r=await fetch('/main?api=notifications&action=list&limit=40');
+                    const d=await r.json();
+                    if(!d.ok)return;
+                    setBadge(Number(d.unread)||0);
+                    list.innerHTML=(d.items||[]).map(rowHtml).join('')||'<div class="notification-row"><div class="notification-row-message">No notifications</div></div>';
+                    const newest=(d.items||[])[0];
+                    if(showBrowser&&newest&&Number(newest.id)>lastSeenId&&Number(newest.is_read)===0&&'Notification'in window&&Notification.permission==='granted'){
+                        new Notification(newest.title||'Notification',{body:newest.message||newest.app_id||''});
+                    }
+                    if(newest)lastSeenId=Math.max(lastSeenId,Number(newest.id)||0);
+                }catch(e){}
+            }
+            if(btn&&panel){
+                btn.addEventListener('click',function(e){
+                    e.stopPropagation();
+                    notificationPopover.toggle();
+                    syncEnableButton();
+                    loadNotifications(false);
+                });
+            }
+            if(readBtn){
+                readBtn.addEventListener('click',function(){
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(){loadNotifications(false);});
+                });
+            }
+            if(enableBtn){
+                enableBtn.addEventListener('click',async function(){
+                    let browser=0;
+                    if('Notification'in window){
+                        const p=Notification.permission==='granted'?'granted':await Notification.requestPermission();
+                        browser=p==='granted'?1:0;
+                    }
+                    syncEnableButton();
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'save_settings',browser_enabled:browser,telegram_enabled:1})}).then(function(){
+                        showTempNotification(browser?'Notifications enabled':'Telegram notifications enabled','success');
+                    });
+                });
+            }
+            syncEnableButton();
+            loadNotifications(false);
+            setInterval(function(){loadNotifications(true);},45000);
+            document.addEventListener('visibilitychange',function(){if(!document.hidden)loadNotifications(false);});
+        })();
         
         function showNewDeviceNotification(){
             // Check if already has a notification showing
@@ -3478,6 +3650,7 @@ var T=<?php echo json_encode([
         }
         if(closeProfile){closeProfile.addEventListener('click',()=>{if(profileModal){profileModal.style.display='none';}closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}});}
         if(profileModal){profileModal.addEventListener('click',(e)=>{if(e.target===profileModal){profileModal.style.display='none';closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}}});}
+        document.querySelectorAll('.copy-email-btn').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();var email=this.getAttribute('data-email');var b=this;try{navigator.clipboard.writeText(email).then(function(){b.classList.add('copied');setTimeout(function(){b.classList.remove('copied');},1200);},function(){b.classList.add('failed');setTimeout(function(){b.classList.remove('failed');},1200);});}catch(err){b.classList.add('failed');setTimeout(function(){b.classList.remove('failed');},1200);}});});
         if(showPasswordForm){showPasswordForm.addEventListener('click',()=>{
             if(passwordChangeBox){
                 passwordChangeBox.classList.toggle('active');
@@ -3911,6 +4084,36 @@ var T=<?php echo json_encode([
     box-sizing: border-box;
 }
 #admin-panel-overlay.active { display: flex; flex-direction: column; }
+#admin-panel-overlay,
+#ap-topbar,
+#ap-sidebar,
+#ap-content {
+    transition: background-color .35s ease, border-color .35s ease, color .35s ease;
+}
+#admin-panel-overlay.ap-edge-omniroute {
+    --ap-edge-bg: #0b0d10;
+    --ap-edge-border: #1b2330;
+    --ap-edge-text: #e5edf7;
+    background: var(--ap-edge-bg);
+    color: var(--ap-edge-text);
+}
+#admin-panel-overlay.ap-edge-omniroute #ap-topbar,
+#admin-panel-overlay.ap-edge-omniroute #ap-sidebar,
+#admin-panel-overlay.ap-edge-omniroute #ap-content {
+    background: var(--ap-edge-bg);
+    border-color: var(--ap-edge-border);
+    color: var(--ap-edge-text);
+}
+#admin-panel-overlay.ap-edge-omniroute .ap-nav-btn {
+    color: var(--ap-edge-text);
+}
+#admin-panel-overlay.ap-edge-omniroute .ap-nav-btn:hover {
+    background: #121823;
+}
+#admin-panel-overlay.ap-edge-omniroute .ap-nav-btn.active {
+    background: #172033;
+    border-color: #2b3b52;
+}
 #ap-dynamic-root {
     display: flex;
     flex-direction: column;
@@ -5204,6 +5407,7 @@ function ensureMonaco(cb){
 /* ── Panel switch ── */
 function openPanel(id){
     if(!dynRoot)return;
+    overlay.classList.toggle('ap-edge-omniroute',id==='ap-omniroute');
     dynRoot.querySelectorAll('.ap-panel').forEach(function(p){p.classList.remove('active');});
     dynRoot.querySelectorAll('.ap-nav-btn').forEach(function(b){b.classList.remove('active');});
     var p=dynRoot.querySelector('#'+id); if(p) p.classList.add('active');
@@ -5234,7 +5438,7 @@ function openAdminPanel(target){
     if(!apLoaded){skeleton.style.display='flex';dynRoot.style.display='none';loadPanel(target||'ap-users');}
     else openPanel(target||'ap-users');
 }
-function closeAdminPanel(){overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
+function closeAdminPanel(){overlay.classList.remove('ap-edge-omniroute');overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
 
 /* ── AJAX load ── */
 function loadPanel(target, year){
@@ -6386,9 +6590,10 @@ function wireEvents(){
     /* telegram */
     var tgTok=dynRoot.querySelector('#ap-tg-token'), tgSt=dynRoot.querySelector('#ap-tg-status');
     function tgReq(a){var fd=new FormData();fd.append(a,'1');fd.append('ajax','1');fd.append('tg_bot_token',tgTok?tgTok.value.trim():'');var tw=dynRoot.querySelector('#ap-tg-webapp-url');fd.append('tg_webapp_base_url',tw?tw.value.trim():'');return fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).catch(function(){return{success:false,error:'Network error'};});}
-    var tgSv=dynRoot.querySelector('#ap-tg-save'),tgTs=dynRoot.querySelector('#ap-tg-test');
+    var tgSv=dynRoot.querySelector('#ap-tg-save'),tgTs=dynRoot.querySelector('#ap-tg-test'),tgGn=dynRoot.querySelector('#ap-tg-link-generate');
     if(tgSv) tgSv.addEventListener('click',function(){setStatus(tgSt,T.saving,'info');tgReq('save_tg_bot_config').then(function(d){setStatus(tgSt,d.success?('+ '+T.tg_saved):('x '+(d.error||T.error)),d.success?'success':'error');});});
     if(tgTs) tgTs.addEventListener('click',function(){setStatus(tgSt,'...','info');tgReq('test_tg_bot').then(function(d){setStatus(tgSt,d.success?('+ '+T.tg_test_ok):('x '+(d.error||T.tg_test_fail)),d.success?'success':'error');});});
+    if(tgGn) tgGn.addEventListener('click',function(){setStatus(tgSt,T.saving,'info');var fd=new FormData();fd.append('generate_tg_link_token','1');fd.append('ajax','1');var sel=dynRoot.querySelector('#ap-tg-link-email');fd.append('tg_link_email',sel?sel.value:'');fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){var out=dynRoot.querySelector('#ap-tg-link-token');if(d.success&&out)out.value=d.token;setStatus(tgSt,d.success?('+ '+(d.token||'')):('x '+(d.error||T.error)),d.success?'success':'error');}).catch(function(){setStatus(tgSt,'x Network error','error');});});
     var dkSt=dynRoot.querySelector('#ap-docker-status'),dkSv=dynRoot.querySelector('#ap-save-docker'),dkFrame=dynRoot.querySelector('#ap-docker-frame');
     if(dkSv) dkSv.addEventListener('click',function(){
         setStatus(dkSt,T.saving,'info');
@@ -6436,13 +6641,14 @@ function wireEvents(){
             if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.onlyoffice_saved,'success');
         }).catch(function(){setStatus(ooSt,'x '+T.error,'error');});
     });
-    var bkToken=dynRoot.querySelector('#ap-backup-token'),bkSt=dynRoot.querySelector('#ap-backup-creds-status'),bkSave=dynRoot.querySelector('#ap-save-backup-creds'),bkDel=dynRoot.querySelector('#ap-delete-backup-creds'),bkFrame=dynRoot.querySelector('#ap-backup-frame');
+    var bkHost=dynRoot.querySelector('#ap-backup-host'),bkToken=dynRoot.querySelector('#ap-backup-token'),bkSt=dynRoot.querySelector('#ap-backup-creds-status'),bkSave=dynRoot.querySelector('#ap-save-backup-creds'),bkDel=dynRoot.querySelector('#ap-delete-backup-creds'),bkFrame=dynRoot.querySelector('#ap-backup-frame');
     function normalizeBackupTokenAdmin(v){var s=String(v||'').trim().replace(/^\uFEFF/,'');while(/^bearer\s+/i.test(s))s=s.replace(/^bearer\s+/i,'').trim();return s;}
     function reloadBackupFrame(){if(!bkFrame)return;try{var u=new URL(bkFrame.src,window.location.origin);u.searchParams.set('_ts',Date.now().toString());bkFrame.src=u.toString();}catch(e){bkFrame.src=bkFrame.src;}}
     function loadBackupCreds(){
         if(!bkToken)return;
         setStatus(bkSt,'Loading...','info');
         fetch('/backup_dashboard.php?config=load',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
+            if(bkHost)bkHost.value=d.host||'http://127.0.0.1:8200';
             if(bkToken)bkToken.value=normalizeBackupTokenAdmin(d.token||'');
             setStatus(bkSt,d.token?'Loaded':'Not configured',d.token?'success':'info');
         }).catch(function(){setStatus(bkSt,'x '+T.error,'error');});
@@ -6538,10 +6744,12 @@ function wireEvents(){
         }
     })();
     if(bkSave)bkSave.addEventListener('click',function(){
+        var host=(bkHost?bkHost.value:'').trim()||'http://127.0.0.1:8200';
         var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');
+        if(!/^https?:\/\//i.test(host)){setStatus(bkSt,'x Invalid Duplicati URL','error');return;}
         if(!token){setStatus(bkSt,'x Token is required','error');return;}
         setStatus(bkSt,T.saving,'info');
-        fetch('/backup_dashboard.php?config=save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({host:'http://localhost:8200',token:token})}).then(function(r){
+        fetch('/backup_dashboard.php?config=save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({host:host,token:token})}).then(function(r){
             return r.json().then(function(d){d._ok=r.ok;return d;}).catch(function(){return{_ok:r.ok,error:'Save failed'};});
         }).then(function(d){
             setStatus(bkSt,d._ok?('+ '+T.backup_saved):('x '+(d.error||T.error)),d._ok?'success':'error');

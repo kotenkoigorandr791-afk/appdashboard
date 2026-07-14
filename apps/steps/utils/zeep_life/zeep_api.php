@@ -7,6 +7,18 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../auth_common.php';
 require_once __DIR__ . '/zeep_state.php';
 require_once __DIR__ . '/../../core/db_helpers.php';
+function zeep_notify_job_once(AppDatabase $db, string $jobId, array $state): array {
+    $status = (string)($state['status'] ?? '');
+    if (!in_array($status, ['done','error'], true) || !empty($state['notification_sent'])) return $state;
+    $email = get_current_user_email() ?: '';
+    $title = $status === 'done' ? 'Zeep Life import finished' : 'Zeep Life import failed';
+    $message = $status === 'done' ? ('Imported: ' . (int)($state['imported'] ?? 0) . ' days') : (string)($state['message'] ?? 'worker_error');
+    app_notify($email, 'steps', $status === 'done' ? 'success' : 'error', $title, $message, 'worker_finished', ['job_id' => $jobId, 'kind' => 'zeep_life']);
+    app_metric($email, 'steps', 'zeep_life_finished', 1, 'job', ['job_id' => $jobId, 'status' => $status, 'imported' => (int)($state['imported'] ?? 0)]);
+    $state['notification_sent'] = 1;
+    try { zeep_job_save($db, $jobId, $state); } catch (Throwable $e) {}
+    return $state;
+}
 $safeName = get_current_user_folder();
 define('ZEEP_USER_DIR', __DIR__ . '/../../users/' . $safeName);
 define('ZEEP_JOBS_DIR', ZEEP_USER_DIR . '/zeep_jobs/');
@@ -276,6 +288,7 @@ if ($action === 'job_status' && isset($_GET['job'])) {
     if (is_array($st) && ($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) > 1800) {
         $st = array_merge($st, ['status' => 'error', 'message' => 'stale_job']);
     }
+    if (is_array($st)) $st = zeep_notify_job_once($db, $jid, $st);
     echo json_encode(['ok' => true, 'state' => $st]);
     exit;
 }

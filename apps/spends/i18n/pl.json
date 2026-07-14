@@ -112,10 +112,14 @@
     "day_label": "Dzień",
     "date_format_hint": "Użyj kółka myszy, aby zmienić wartości",
     "select_date_label": "Wybierz datę:",
-    "analytics_title": "Analityka",
+    "statistics_title": "Statystyka",
     "all_stores": "Wszystkie sklepy",
     "incomes": "Przychody",
+    "chart_settings": "Wykres",
     "show_incomes": "Pokaż przychody w tabeli i na wykresie",
+    "show_trend": "Linia różnicy",
+    "difference_line": "Różnica",
+    "trend_hint": "Przychody minus wydatki: pokazuje różnicę między przychodami a wydatkami w poszczególnych miesiącach. Może być ujemna.",
     "data_deletion": "Usuwanie danych",
     "bulk_delete_intro": "Usuń wydatki (i opcjonalnie przychody) za okres lub usuń wszystkie dane transakcji.",
     "bulk_delete_mode": "Tryb",
@@ -183,5 +187,8 @@
     "bank_csv_confidence": "Poziom pewności wykrycia",
     "bank_csv_analyze_fail": "Nie można przeanalizować CSV",
     "bank_csv_apply_ok": "Import zakończony",
-    "bank_csv_income_group": "Przychód"
+    "bank_csv_income_group": "Przychód",
+    "loading_rates": "Ładowanie kursów walut...",
+    "trim_empty_months": "Ukryj miesiące bez danych",
+    "trim_empty_months_hint": "Jeśli miesiąc nie ma wydatków ani przychodów, jest ukryty na wykresie."
 }

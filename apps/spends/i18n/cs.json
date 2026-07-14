@@ -112,10 +112,14 @@
     "day_label": "Den",
     "date_format_hint": "Použijte kolečko myši ke změně hodnot",
     "select_date_label": "Vybrat datum:",
-    "analytics_title": "Analytika",
+    "statistics_title": "Statistiky",
     "all_stores": "Všechny obchody",
     "incomes": "Příjmy",
+    "chart_settings": "Graf",
     "show_incomes": "Zobrazit příjmy v tabulce a grafu",
+    "show_trend": "Čára rozdílu",
+    "difference_line": "Rozdíl",
+    "trend_hint": "Příjmy minus výdaje: ukazuje rozdíl mezi příjmy a výdaji v jednotlivých měsících. Může být záporný.",
     "data_deletion": "Mazání dat",
     "bulk_delete_intro": "Odeberte výdaje (a volitelně příjmy) za období, nebo smažte všechna transakční data.",
     "bulk_delete_mode": "Režim",
@@ -183,5 +187,8 @@
     "bank_csv_confidence": "Spolehlivost detekce",
     "bank_csv_analyze_fail": "CSV nelze analyzovat",
     "bank_csv_apply_ok": "Import dokončen",
-    "bank_csv_income_group": "Příjem"
+    "bank_csv_income_group": "Příjem",
+    "loading_rates": "Načítání směnných kurzů...",
+    "trim_empty_months": "Skrýt měsíce bez dat",
+    "trim_empty_months_hint": "Pokud měsíc nemá žádné výdaje ani příjmy, nezobrazí se na grafu."
 }
