@@ -114,5 +114,19 @@
     "smart_hint_health_fail": "SMART hlásí selhávající disk. Zálohujte data a vyměňte disk.",
     "smart_hint_temp_high": "Teplota disku je zvýšená. Zkontrolujte proudění vzduchu a zátěž.",
     "smart_hint_wear_high": "Životnost SSD je nízká. Naplánujte výměnu.",
-    "smart_hint_errors_logged": "Protokol chyb SMART obsahuje záznamy. Zkontrolujte úplnou zprávu smartctl."
+    "smart_hint_errors_logged": "Protokol chyb SMART obsahuje záznamy. Zkontrolujte úplnou zprávu smartctl.",
+    "uptime_monitoring": "Uptime monitoring",
+    "run_checks": "Spustit kontroly",
+    "add_uptime_check": "Přidat kontrolu",
+    "monitor_name": "Název",
+    "monitor_type": "Typ",
+    "monitor_target": "Cíl",
+    "method": "Metoda",
+    "expected_status": "Očekávaný status",
+    "keyword": "Klíčové slovo",
+    "interval_sec": "Interval, s",
+    "timeout_sec": "Timeout, s",
+    "enabled": "Povoleno",
+    "save": "Uložit",
+    "cancel": "Zrušit"
 }

@@ -114,5 +114,19 @@
     "smart_hint_health_fail": "SMART zgłasza uszkodzony dysk. Wykonaj kopię zapasową i wymień dysk.",
     "smart_hint_temp_high": "Temperatura dysku jest podwyższona. Sprawdź przepływ powietrza i obciążenie.",
     "smart_hint_wear_high": "Rezerwa życia dysku SSD jest niska. Zaplanuj wymianę.",
-    "smart_hint_errors_logged": "Dziennik błędów SMART zawiera wpisy. Sprawdź pełny raport smartctl."
+    "smart_hint_errors_logged": "Dziennik błędów SMART zawiera wpisy. Sprawdź pełny raport smartctl.",
+    "uptime_monitoring": "Monitoring uptime",
+    "run_checks": "Uruchom testy",
+    "add_uptime_check": "Dodaj test",
+    "monitor_name": "Nazwa",
+    "monitor_type": "Typ",
+    "monitor_target": "Cel",
+    "method": "Metoda",
+    "expected_status": "Oczekiwany status",
+    "keyword": "Słowo kluczowe",
+    "interval_sec": "Interwał, s",
+    "timeout_sec": "Limit czasu, s",
+    "enabled": "Włączone",
+    "save": "Zapisz",
+    "cancel": "Anuluj"
 }

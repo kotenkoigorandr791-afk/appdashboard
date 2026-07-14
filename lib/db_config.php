@@ -40,6 +40,21 @@ function app_db_load_config(): array {
             if ($k === 'db_sslmode') $cfg['sslmode'] = $v;
         }
     }
+    $envMap = [
+        'DB_DRIVER' => 'driver',
+        'DB_HOST' => 'host',
+        'DB_PORT' => 'port',
+        'DB_NAME' => 'name',
+        'DB_USER' => 'user',
+        'DB_PASSWORD' => 'password',
+        'DB_SSLMODE' => 'sslmode',
+    ];
+    foreach ($envMap as $env => $key) {
+        $value = getenv($env);
+        if (is_string($value) && $value !== '') {
+            $cfg[$key] = $value;
+        }
+    }
     return $cfg;
 }
 function app_db_is_pgsql(): bool {

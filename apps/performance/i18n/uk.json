@@ -114,5 +114,19 @@
     "smart_hint_health_fail": "SMART повідомляє про несправність диска. Зробіть резервну копію та готуйте заміну.",
     "smart_hint_temp_high": "Температура диска підвищена. Перевірте обдув і тривале навантаження.",
     "smart_hint_wear_high": "Ресурс SSD помітно знижений. Плануйте заміну.",
-    "smart_hint_errors_logged": "У SMART є записи про помилки. Перевірте повний вивід smartctl."
+    "smart_hint_errors_logged": "У SMART є записи про помилки. Перевірте повний вивід smartctl.",
+    "uptime_monitoring": "Uptime моніторинг",
+    "run_checks": "Запустити перевірки",
+    "add_uptime_check": "Додати перевірку",
+    "monitor_name": "Назва",
+    "monitor_type": "Тип",
+    "monitor_target": "Ціль",
+    "method": "Метод",
+    "expected_status": "Очікуваний статус",
+    "keyword": "Ключове слово",
+    "interval_sec": "Інтервал, сек",
+    "timeout_sec": "Таймаут, сек",
+    "enabled": "Увімкнено",
+    "save": "Зберегти",
+    "cancel": "Скасувати"
 }

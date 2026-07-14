@@ -114,5 +114,19 @@
     "smart_hint_health_fail": "SMART reports a failing drive. Backup data and replace the disk.",
     "smart_hint_temp_high": "Drive temperature is elevated. Check airflow and sustained load.",
     "smart_hint_wear_high": "SSD life reserve is low. Plan replacement.",
-    "smart_hint_errors_logged": "SMART error log contains entries. Inspect the full smartctl report."
+    "smart_hint_errors_logged": "SMART error log contains entries. Inspect the full smartctl report.",
+    "uptime_monitoring": "Uptime Monitoring",
+    "run_checks": "Run checks",
+    "add_uptime_check": "Add check",
+    "monitor_name": "Name",
+    "monitor_type": "Type",
+    "monitor_target": "Target",
+    "method": "Method",
+    "expected_status": "Expected status",
+    "keyword": "Keyword",
+    "interval_sec": "Interval, sec",
+    "timeout_sec": "Timeout, sec",
+    "enabled": "Enabled",
+    "save": "Save",
+    "cancel": "Cancel"
 }
