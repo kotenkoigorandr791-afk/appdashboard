@@ -18,20 +18,25 @@ $userDir  = "$usersDir/$safeUserName";
 checkDirectory($usersDir);
 checkDirectory($userDir);
 
-// Фото профиля
 $profilePhoto = 'default_profile.jpg';
 if (!empty($userPhotoFromDB)) {
-    $photoPath = "$userDir/profile.jpg";
-    if (!file_exists($photoPath) || filemtime($photoPath) < time() - 3600) {
-        if (filter_var($userPhotoFromDB, FILTER_VALIDATE_URL)) {
-            $c = @file_get_contents($userPhotoFromDB);
-            if ($c !== false) file_put_contents($photoPath, $c);
-        } elseif (file_exists($userPhotoFromDB)) {
-            @copy($userPhotoFromDB, $photoPath);
+    $photoSrc = trim((string)$userPhotoFromDB);
+    if (filter_var($photoSrc, FILTER_VALIDATE_URL)) {
+        $profilePhoto = $photoSrc;
+    } else {
+        $rootDir = dirname(__DIR__, 3);
+        $relPhoto = ltrim($photoSrc, '/');
+        $rootPhotoPath = $rootDir . '/' . $relPhoto;
+        if ($relPhoto !== '' && is_file($rootPhotoPath)) {
+            $profilePhoto = '/' . $relPhoto . '?v=' . (int)@filemtime($rootPhotoPath);
+        } elseif ($photoSrc !== '' && is_file($photoSrc)) {
+            $profilePhoto = $photoSrc;
+        } else {
+            $photoPath = "$userDir/profile.jpg";
+            if (is_file($photoPath) && filesize($photoPath) > 0) {
+                $profilePhoto = "users/$safeUserName/profile.jpg?v=" . (int)@filemtime($photoPath);
+            }
         }
-    }
-    if (file_exists($photoPath) && filesize($photoPath) > 0) {
-        $profilePhoto = "users/$safeUserName/profile.jpg";
     }
 }
 
@@ -94,4 +99,3 @@ if ($toInsert) {
 $stepsData = array_values($stepsDataRaw);
 usort($stepsData, fn($a, $b) => strcmp($a['date'], $b['date']));
 error_log("Final stepsData count: " . count($stepsData) . ", first 3: " . json_encode(array_slice($stepsData, 0, 3)));
-

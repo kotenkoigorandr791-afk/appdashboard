@@ -511,6 +511,11 @@ The user wants the file content changed. User request: «${String(userTask || ''
             systemContent += '\n\n[DOCUMENT SUMMARY]\nThe user wants a summary or conspect. Read the file if needed, then write a full structured answer in the user language. Never finish without written text for the user.';
         }
         const messages = [{ role: 'system', content: systemContent }].concat(ctx.historyMessages || []);
+        const currentTask = String(ctx.userTask || '').trim();
+        const lastMessage = messages[messages.length - 1];
+        if (currentTask && !(lastMessage && lastMessage.role === 'user' && String(lastMessage.content || '').trim() === currentTask)) {
+            messages.push({ role: 'user', content: currentTask });
+        }
         const usageTotals = { prompt: 0, completion: 0, total: 0 };
         ctx.editStepsUsed = 0;
         ctx.maxEditStepsBudget = ctx.maxEditSteps ?? ctx.maxSteps ?? 14;

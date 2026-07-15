@@ -2,12 +2,25 @@ import os
 import sys
 import threading
 import time
+SCRIPT_DIR = os.path.dirname(__file__)
+CACHE_DIR = os.path.join(SCRIPT_DIR, "transcription_uploads", ".cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+os.environ.setdefault("HOME", CACHE_DIR)
+os.environ.setdefault("XDG_CACHE_HOME", CACHE_DIR)
+os.environ.setdefault("MPLCONFIGDIR", CACHE_DIR)
+os.environ.setdefault("TORCH_HOME", CACHE_DIR)
 import whisper
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'lib'))
+sys.path.insert(0, os.path.join(SCRIPT_DIR, '..', '..', 'lib'))
 import pg_sqlite_compat as sqlite3
 
-BASE_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+BASE_DIR = os.path.realpath(os.path.join(SCRIPT_DIR, "..", ".."))
 DB_LOCK = threading.Lock()
+
+def safe_message(message):
+    import re
+    message = str(message)
+    message = re.sub(r"\b[A-Za-z]:[\\/][^\s\"'<>)]*", "[hidden-path]", message)
+    return re.sub(r"(^|[\s(])/(?:[^/\s\"'<>)]*/)*[^/\s\"'<>)]*", r"\1[hidden-path]", message)
 
 def db_connection():
     return sqlite3.connect()
@@ -51,7 +64,7 @@ def transcribe_audio(input_file, language, progress_id, user_name, audio_path):
             with open(input_file, 'rb') as f:
                 f.read(1)
         except Exception as e:
-            raise Exception(f"Cannot read input file {safe_name}: {str(e)}")
+            raise Exception(f"Cannot read input file {safe_name}: {safe_message(e)}")
 
         current_filename = os.path.basename(input_file)
         update_progress(progress_id, 0, current_filename)
@@ -60,7 +73,7 @@ def transcribe_audio(input_file, language, progress_id, user_name, audio_path):
         # Set FFmpeg path explicitly
         pass  # PATH is configured system-wide on Linux
 
-        model = whisper.load_model("tiny")
+        model = whisper.load_model("tiny", download_root=CACHE_DIR)
         update_progress(progress_id, 15, "Preparing audio...")
 
         if not os.path.exists(input_file):
@@ -80,7 +93,7 @@ def transcribe_audio(input_file, language, progress_id, user_name, audio_path):
         update_progress(progress_id, 100, "Completed", transcription, "completed", "")
         print("Transcription completed successfully!")
     except Exception as e:
-        error_msg = f"Error: {str(e)}"
+        error_msg = f"Error: {safe_message(e)}"
         print(error_msg, file=sys.stderr)
         update_progress(progress_id, 0, error_msg, "", "error", error_msg)
         sys.exit(1)

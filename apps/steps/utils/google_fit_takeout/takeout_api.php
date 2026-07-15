@@ -81,7 +81,7 @@ function fit_find_python(): string {
     if (DIRECTORY_SEPARATOR === '\\' && is_file('C:\\Compilers\\Python\\python.exe')) {
         $candidates[] = 'C:\\Compilers\\Python\\python.exe';
     }
-    $candidates = array_merge($candidates, [dirname(__DIR__) . '/venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/Scripts/python.exe', 'py', 'python', 'python3']);
+    $candidates = array_merge($candidates, [dirname(__DIR__) . '/venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/bin/python3', 'py', 'python', 'python3']);
     foreach ($candidates as $p) {
         if (strpos($p, '/') !== false || strpos($p, '\\') !== false) {
             if (is_file($p)) {
@@ -138,6 +138,21 @@ function fit_spawn_worker(string $jobPath): bool {
     return true;
 }
 require_once __DIR__ . '/../../core/db_helpers.php';
+function fit_takeout_job_cfg(string $jobId): array {
+    $email = get_current_user_email() ?: ('folder_' . basename(FIT_USER_DIR));
+    $userSchema = app_user_schema_id('steps', $email);
+    $usql = realpath(FIT_USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3');
+    if ($usql === false) {
+        $usql = FIT_USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3';
+    }
+    return [
+        'user_schema' => $userSchema,
+        'user_sqlite_path' => str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $usql),
+        'user_email' => $email,
+        'job_id' => $jobId,
+        'conflict_mode' => 'ask',
+    ];
+}
 function fit_notify_job_once(AppDatabase $db, string $jobId, array $state): array {
     $status = (string)($state['status'] ?? '');
     if (!in_array($status, ['done','error'], true) || !empty($state['notification_sent'])) return $state;
@@ -361,7 +376,7 @@ if (!$moved) {
     echo json_encode(['ok' => false, 'error' => 'move']);
     exit;
 }
-$cfg = ['user_sqlite_path' => str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $userSqlite), 'job_id' => $jobId, 'conflict_mode' => 'ask'];
+$cfg = fit_takeout_job_cfg($jobId);
 if (@file_put_contents($jobPath . '/job_config.json', json_encode($cfg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) === false) {
     @unlink($zipFile);
     echo json_encode(['ok' => false, 'error' => 'config']);

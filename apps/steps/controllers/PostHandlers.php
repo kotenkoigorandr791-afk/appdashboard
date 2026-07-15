@@ -149,6 +149,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    // Пакетное сохранение строк из таблицы (массовое удаление/обнуление)
+    if (isset($_POST['save_table_data_batch'])) {
+        $raw = $_POST['items'] ?? '[]';
+        $items = json_decode($raw, true);
+        if (!is_array($items) || empty($items))
+            exit(json_encode(['status' => 'error', 'message' => $translations['invalid_data'] ?? 'Invalid data']));
+        $batch = [];
+        foreach ($items as $item) {
+            $date  = $item['date'] ?? '';
+            $steps = preg_replace('/\D+/', '', (string)($item['steps'] ?? ''));
+            if (empty($date) || $steps === '' || !ctype_digit($steps))
+                continue;
+            if (!preg_match('/^\d{2}-\d{2}-\d{2}$/', $date))
+                continue;
+            $isoDate = csvDateToISO($date);
+            if (!$isoDate)
+                continue;
+            $batch[] = ['date' => $isoDate, 'steps' => (int)$steps];
+        }
+        if (empty($batch))
+            exit(json_encode(['status' => 'error', 'message' => $translations['invalid_data'] ?? 'Invalid data']));
+        try {
+            upsertStepsBatch($userDb, $batch);
+            exit(json_encode(['status' => 'success', 'message' => $translations['data_saved'] ?? 'Data saved', 'count' => count($batch)]));
+        } catch (Exception $e) {
+            exit(json_encode(['status' => 'error', 'message' => $translations['failed_save'] ?? 'Failed to save']));
+        }
+    }
+
     // ── Таблица: получение страницы с фильтром (через SQL) ───────────────────
     if (isset($_POST['get_table_page'])) {
         $page       = max(1, (int)($_POST['page']      ?? 1));

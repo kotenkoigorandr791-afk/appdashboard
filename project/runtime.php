@@ -122,7 +122,7 @@ if(is_dir($appsDir)){
             $menuButtonMobile=$shellParseMenuButton($nameData,'menu_button_mobile',$menuButton);
             $icon=file_exists($iconFileSvg)?$iconFileSvg:(file_exists($iconFilePng)?$iconFilePng:'default_icon.png');
             $totalVisits=$visitStatsTotals[$folder]??0;
-            $appRailApps=['gitea','immich','x','X'];
+            $appRailApps=['gitea','immich','plane','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
 	            $apps[$name]=['name'=>$name,'folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true)];
         }

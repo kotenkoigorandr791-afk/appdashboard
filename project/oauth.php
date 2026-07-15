@@ -138,6 +138,8 @@ function oauth_build_user_claims(array $user): array {
         'name' => $name,
         'preferred_username' => $username,
         'picture' => $picture,
+        'role' => (int)($user['role'] ?? 0),
+        'is_admin' => (int)($user['role'] ?? 0) >= 2,
     ];
 }
 
@@ -321,7 +323,7 @@ function oauth_route_discovery(): void {
         'id_token_signing_alg_values_supported' => ['RS256'],
         'scopes_supported' => ['openid', 'email', 'profile', 'offline_access'],
         'token_endpoint_auth_methods_supported' => ['client_secret_basic', 'client_secret_post'],
-        'claims_supported' => ['sub', 'email', 'email_verified', 'name', 'preferred_username', 'picture'],
+        'claims_supported' => ['sub', 'email', 'email_verified', 'name', 'preferred_username', 'picture', 'role', 'is_admin'],
         'code_challenge_methods_supported' => ['S256', 'plain'],
         'grant_types_supported' => ['authorization_code', 'refresh_token'],
     ], JSON_UNESCAPED_SLASHES);
@@ -441,6 +443,84 @@ function oauth_route_userinfo(): void {
         exit;
     }
     echo json_encode(oauth_build_user_claims($user), JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+function oauth_gitea_auth_user(): ?array {
+    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+    if (stripos($auth, 'Bearer ') !== 0) return null;
+    $claims = oauth_verify_access_token(trim(substr($auth, 7)));
+    $email = $claims ? (string)($claims['email'] ?? $claims['sub'] ?? '') : '';
+    return $email !== '' ? getUserByEmail($email) : null;
+}
+
+function oauth_route_gitea_user(): void {
+    header('Content-Type: application/json; charset=utf-8');
+    $user = oauth_gitea_auth_user();
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['message' => 'invalid token']);
+        exit;
+    }
+    $claims = oauth_build_user_claims($user);
+    $syncEmail = (string)$claims['email'];
+    $syncIsAdmin = (bool)$claims['is_admin'];
+    echo json_encode([
+        'id' => (int)sprintf('%u', crc32((string)$claims['email'])),
+        'login' => $claims['preferred_username'],
+        'full_name' => $claims['name'],
+        'email' => $claims['email'],
+        'avatar_url' => $claims['picture'],
+        'is_admin' => $claims['is_admin'],
+    ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+    sleep(2);
+    oauth_sync_plane_admin($syncEmail, $syncIsAdmin);
+    exit;
+}
+
+function oauth_sync_plane_admin(string $email, bool $isAdmin): void {
+    if ($email === '') return;
+    try {
+        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=plane', 'plane', '2f7fc8329b05207b856e768e22355197a5003655b4279aa1', [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 3,
+        ]);
+        if (!$isAdmin) {
+            $stmt = $pdo->prepare('DELETE FROM instance_admins WHERE user_id IN (SELECT id FROM users WHERE lower(email) = lower(:email))');
+            $stmt->execute([':email' => $email]);
+            return;
+        }
+        $stmt = $pdo->prepare("INSERT INTO instance_admins(created_at,updated_at,id,role,is_verified,instance_id,user_id)
+            SELECT now(),now(),:id,20,true,(SELECT id FROM instances ORDER BY created_at DESC LIMIT 1),u.id
+            FROM users u
+            WHERE lower(u.email) = lower(:email)
+            ON CONFLICT (instance_id,user_id) DO UPDATE SET role = 20, is_verified = true, updated_at = now()");
+        $stmt->execute([':id' => oauth_uuid(), ':email' => $email]);
+    } catch (\Exception $e) {
+    }
+}
+
+function oauth_uuid(): string {
+    $data = random_bytes(16);
+    $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
+    $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
+    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
+}
+
+function oauth_route_gitea_emails(): void {
+    header('Content-Type: application/json; charset=utf-8');
+    $user = oauth_gitea_auth_user();
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['message' => 'invalid token']);
+        exit;
+    }
+    echo json_encode([[
+        'email' => (string)$user['email'],
+        'verified' => (bool)($user['verified'] ?? false),
+        'primary' => true,
+    ]], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -593,8 +673,12 @@ function oauth_dispatch(string $path): void {
         case '/.well-known/openid-configuration': oauth_route_discovery(); return;
         case '/.well-known/jwks.json': oauth_route_jwks(); return;
         case '/authorize': oauth_route_authorize(); return;
+        case '/login/oauth/authorize': oauth_route_authorize(); return;
         case '/token': oauth_route_token(); return;
+        case '/login/oauth/access_token': oauth_route_token(); return;
         case '/userinfo': oauth_route_userinfo(); return;
+        case '/api/v1/user': oauth_route_gitea_user(); return;
+        case '/api/v1/user/emails': oauth_route_gitea_emails(); return;
         case '/oauth-bridge': oauth_route_bridge(); return;
         case '/omniroute-bridge': oauth_route_omniroute_bridge(); return;
     }

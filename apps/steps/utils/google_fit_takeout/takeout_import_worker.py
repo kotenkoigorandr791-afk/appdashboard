@@ -11,6 +11,71 @@ import zipfile
 from datetime import datetime, timezone
 from typing import Any
 
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
+
+def _load_pg_config() -> dict[str, str]:
+    cfg = {"host": "127.0.0.1", "port": "5432", "name": "appdashboard", "user": "appdashboard", "password": ""}
+    for path in (
+        os.environ.get("APP_DB_CONFIG", ""),
+        "/opt/AppDashboard/data/db.env",
+        "/opt/docker/appdashboard/code/data/db.env",
+        os.path.normpath(os.path.join(os.path.dirname(__file__), "../../../../data/db.env")),
+    ):
+        if not path or not os.path.isfile(path):
+            continue
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k, v = k.strip().lower(), v.strip()
+                if k == "db_host":
+                    cfg["host"] = v
+                elif k == "db_port":
+                    cfg["port"] = v
+                elif k == "db_name":
+                    cfg["name"] = v
+                elif k == "db_user":
+                    cfg["user"] = v
+                elif k == "db_password":
+                    cfg["password"] = v
+        break
+    return cfg
+
+
+def _pg_connect():
+    if psycopg2 is None:
+        return None
+    pg = _load_pg_config()
+    try:
+        return psycopg2.connect(
+            host=pg["host"],
+            port=pg["port"],
+            dbname=pg["name"],
+            user=pg["user"],
+            password=pg["password"],
+            connect_timeout=5,
+        )
+    except Exception:
+        return None
+
+
+def _schema_sql(schema: str) -> str:
+    return '"' + schema.replace('"', '""') + '"'
+
+
+def _ensure_fit_job_table(conn, schema: str) -> None:
+    s = _schema_sql(schema)
+    with conn.cursor() as cur:
+        cur.execute(f"CREATE TABLE IF NOT EXISTS {s}.fit_takeout_job_state (id INTEGER PRIMARY KEY CHECK (id = 1), job_id TEXT NOT NULL DEFAULT '', state_json TEXT NOT NULL DEFAULT '{{}}', updated_at BIGINT NOT NULL DEFAULT 0)")
+        cur.execute(f"INSERT INTO {s}.fit_takeout_job_state (id, job_id, state_json, updated_at) VALUES (1, '', '{{}}', 0) ON CONFLICT (id) DO NOTHING")
+    conn.commit()
+
 
 def _write_state_sqlite(db_path: str, job_id: str, obj: dict) -> None:
     import sqlite3
@@ -33,6 +98,39 @@ def _write_state_sqlite(db_path: str, job_id: str, obj: dict) -> None:
                 conn.close()
         except sqlite3.OperationalError:
             time.sleep(0.03 * min(attempt + 1, 25))
+
+
+def _write_state(job_dir: str, cfg: dict, job_id: str, obj: dict) -> None:
+    try:
+        with open(os.path.join(job_dir, "state.json"), "w", encoding="utf-8") as f:
+            json.dump(obj, f, ensure_ascii=False)
+    except OSError:
+        pass
+    payload = json.dumps(obj, ensure_ascii=False)
+    t = int(time.time())
+    schema = str(cfg.get("user_schema") or "").strip()
+    if schema and psycopg2 is not None:
+        conn = _pg_connect()
+        if conn is not None:
+            try:
+                _ensure_fit_job_table(conn, schema)
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"INSERT INTO {_schema_sql(schema)}.fit_takeout_job_state (id, job_id, state_json, updated_at) VALUES (1, %s, %s, %s) "
+                        "ON CONFLICT (id) DO UPDATE SET job_id = EXCLUDED.job_id, state_json = EXCLUDED.state_json, updated_at = EXCLUDED.updated_at",
+                        (job_id, payload, t),
+                    )
+                conn.commit()
+                conn.close()
+                return
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+    db_path = str(cfg.get("user_sqlite_path") or "").strip()
+    if db_path and os.path.isfile(db_path):
+        _write_state_sqlite(db_path, job_id, obj)
 
 
 def _read_json(path: str) -> Any:
@@ -303,6 +401,62 @@ def _count_conflict_days_sqlite(db_path: str, day_steps: dict[str, int]) -> int:
     return 0
 
 
+def _count_conflict_days(cfg: dict, day_steps: dict[str, int]) -> int:
+    schema = str(cfg.get("user_schema") or "").strip()
+    if schema and psycopg2 is not None and day_steps:
+        conn = _pg_connect()
+        if conn is not None:
+            try:
+                days = sorted(day_steps.keys())
+                ph = ",".join(["%s"] * len(days))
+                with conn.cursor() as cur:
+                    cur.execute(f"SELECT date, steps FROM {_schema_sql(schema)}.steps WHERE date IN ({ph})", days)
+                    n = 0
+                    for d, s in cur.fetchall():
+                        if d in day_steps and int(s) != int(day_steps[d]):
+                            n += 1
+                conn.close()
+                return n
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+    db_path = str(cfg.get("user_sqlite_path") or "").strip()
+    if not db_path or not os.path.isfile(db_path):
+        return 0
+    return _count_conflict_days_sqlite(db_path, day_steps)
+
+
+def _import_steps(cfg: dict, day_steps: dict[str, int], mode: str) -> int:
+    if not day_steps:
+        return 0
+    schema = str(cfg.get("user_schema") or "").strip()
+    if schema and psycopg2 is not None:
+        conn = _pg_connect()
+        if conn is not None:
+            try:
+                s = _schema_sql(schema)
+                rows = [(d, v) for d, v in sorted(day_steps.items()) if v > 0]
+                with conn.cursor() as cur:
+                    if mode == "keep" or mode == "new_only":
+                        cur.executemany(f"INSERT INTO {s}.steps (date, steps) VALUES (%s, %s) ON CONFLICT (date) DO NOTHING", rows)
+                    else:
+                        cur.executemany(f"INSERT INTO {s}.steps (date, steps) VALUES (%s, %s) ON CONFLICT (date) DO UPDATE SET steps = EXCLUDED.steps", rows)
+                conn.commit()
+                conn.close()
+                return len(rows)
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+    db_path = str(cfg.get("user_sqlite_path") or "").strip()
+    if not db_path:
+        return 0
+    return _import_steps_sqlite(db_path, day_steps, mode)
+
+
 def _import_steps_sqlite(db_path: str, day_steps: dict[str, int], mode: str) -> int:
     import sqlite3
     if not day_steps:
@@ -335,17 +489,18 @@ def run_job(job_dir: str) -> None:
     cfgp = os.path.join(jdir, "job_config.json")
     with open(cfgp, "r", encoding="utf-8") as f:
         cfg = json.load(f)
-    db_path = os.path.normpath(str(cfg.get("user_sqlite_path", "")))
     jbid = os.path.basename(os.path.normpath(jdir))
-    if not os.path.isfile(db_path):
-        _write_state_sqlite(db_path, jbid, {"status": "error", "message": "no user db", "progress": 0, "imported": 0, "job_id": jbid})
+    schema = str(cfg.get("user_schema") or "").strip()
+    db_path = os.path.normpath(str(cfg.get("user_sqlite_path", "")))
+    if not schema and not os.path.isfile(db_path):
+        _write_state(jdir, cfg, jbid, {"status": "error", "message": "no user db", "progress": 0, "imported": 0, "job_id": jbid})
         return
     zip_p = os.path.join(jdir, "takeout.zip")
     if not os.path.isfile(zip_p):
-        _write_state_sqlite(db_path, jbid, {"status": "error", "message": "no zip", "progress": 0, "imported": 0, "job_id": jbid})
+        _write_state(jdir, cfg, jbid, {"status": "error", "message": "no zip", "progress": 0, "imported": 0, "job_id": jbid})
         return
     if _is_cancelled(jdir):
-        _write_state_sqlite(db_path, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": 0, "job_id": jbid})
+        _write_state(jdir, cfg, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": 0, "job_id": jbid})
         _cleanup_job_dir(jdir)
         return
     ext = os.path.join(jdir, "extracted")
@@ -367,20 +522,14 @@ def run_job(job_dir: str) -> None:
                 except OSError:
                     pass
         os.makedirs(ext, exist_ok=True)
-        _write_state_sqlite(
-            db_path, jbid, {"status": "running", "progress": 2.0, "message": "unzip", "imported": 0, "total_days": 0, "job_id": jbid}
-        )
+        _write_state(jdir, cfg, jbid, {"status": "running", "progress": 2.0, "message": "unzip", "imported": 0, "total_days": 0, "job_id": jbid})
         try:
             with zipfile.ZipFile(zip_p, "r") as zf:
                 zf.extractall(ext)
         except (zipfile.BadZipFile, OSError) as e:
-            _write_state_sqlite(
-                db_path, jbid, {"status": "error", "message": str(e)[:200], "progress": 0, "imported": 0, "job_id": jbid}
-            )
+            _write_state(jdir, cfg, jbid, {"status": "error", "message": str(e)[:200], "progress": 0, "imported": 0, "job_id": jbid})
             return
-        _write_state_sqlite(
-            db_path, jbid, {"status": "running", "progress": 8.0, "message": "parse", "imported": 0, "total_days": 0, "job_id": jbid}
-        )
+        _write_state(jdir, cfg, jbid, {"status": "running", "progress": 8.0, "message": "parse", "imported": 0, "total_days": 0, "job_id": jbid})
         day_steps = _parse_daily_activity_metrics(ext)
         if not day_steps:
             jsons = [p for p in _walk_json_files(ext) if "fit" in p.lower() or "d." in os.path.basename(p) or "step" in p.lower() or "activity" in p.lower()]
@@ -390,26 +539,15 @@ def run_job(job_dir: str) -> None:
             seen: set[str] = set()
             for i, path in enumerate(jsons):
                 if _is_cancelled(jdir):
-                    _write_state_sqlite(db_path, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": len(day_steps), "job_id": jbid})
+                    _write_state(jdir, cfg, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": len(day_steps), "job_id": jbid})
                     _cleanup_job_dir(jdir)
                     return
                 _try_parse_file(path, day_steps, seen)
                 pr = 8.0 + 80.0 * (i + 1) / nfiles
-                _write_state_sqlite(
-                    db_path,
-                    jbid,
-                    {
-                        "status": "running",
-                        "progress": min(88.0, pr),
-                        "message": f"file {i+1}/{nfiles}",
-                        "imported": 0,
-                        "total_days": len(day_steps),
-                        "job_id": jbid,
-                    },
-                )
+                _write_state(jdir, cfg, jbid, {"status": "running", "progress": min(88.0, pr), "message": f"file {i+1}/{nfiles}", "imported": 0, "total_days": len(day_steps), "job_id": jbid})
             for dirpath, _, files in os.walk(ext):
                 if _is_cancelled(jdir):
-                    _write_state_sqlite(db_path, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": len(day_steps), "job_id": jbid})
+                    _write_state(jdir, cfg, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": len(day_steps), "job_id": jbid})
                     _cleanup_job_dir(jdir)
                     return
                 for fn in files:
@@ -426,56 +564,22 @@ def run_job(job_dir: str) -> None:
         if day_steps:
             _save_day_steps_snapshot(snap, day_steps)
     if not day_steps:
-        _write_state_sqlite(
-            db_path,
-            jbid,
-            {
-                "status": "error",
-                "message": "no step data in archive",
-                "progress": 0,
-                "imported": 0,
-                "total_days": 0,
-                "job_id": jbid,
-            },
-        )
+        _write_state(jdir, cfg, jbid, {"status": "error", "message": "no step data in archive", "progress": 0, "imported": 0, "total_days": 0, "job_id": jbid})
         return
     if _is_cancelled(jdir):
-        _write_state_sqlite(db_path, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": len(day_steps), "job_id": jbid})
+        _write_state(jdir, cfg, jbid, {"status": "cancelled", "message": "cancelled", "progress": 0, "imported": 0, "total_days": len(day_steps), "job_id": jbid})
         _cleanup_job_dir(jdir)
         return
     if mode == "ask":
-        conf = _count_conflict_days_sqlite(db_path, day_steps)
+        conf = _count_conflict_days(cfg, day_steps)
         if conf > 0:
-            _write_state_sqlite(
-                db_path,
-                jbid,
-                {
-                    "status": "awaiting_conflict",
-                    "message": "conflict_prompt",
-                    "progress": 92.0,
-                    "imported": 0,
-                    "total_days": len(day_steps),
-                    "conflict_days": conf,
-                    "job_id": jbid,
-                },
-            )
+            _write_state(jdir, cfg, jbid, {"status": "awaiting_conflict", "message": "conflict_prompt", "progress": 92.0, "imported": 0, "total_days": len(day_steps), "conflict_days": conf, "job_id": jbid})
             return
         mode = "overwrite"
-    nimp = _import_steps_sqlite(db_path, day_steps, "overwrite" if mode == "overwrite" else "keep")
+    nimp = _import_steps(cfg, day_steps, "overwrite" if mode == "overwrite" else "keep")
     if nimp < 1:
         nimp = len([1 for s in day_steps.values() if s > 0])
-    _write_state_sqlite(
-        db_path,
-        jbid,
-        {
-            "status": "done",
-            "message": "ok",
-            "progress": 100.0,
-            "imported": nimp,
-            "total_days": len(day_steps),
-            "job_id": jbid,
-        },
-    )
+    _write_state(jdir, cfg, jbid, {"status": "done", "message": "ok", "progress": 100.0, "imported": nimp, "total_days": len(day_steps), "job_id": jbid})
     try:
         os.remove(zip_p)
     except OSError:
@@ -495,10 +599,8 @@ def main() -> int:
             cfx = _read_json(os.path.join(job_dir, "job_config.json")) if os.path.isfile(os.path.join(job_dir, "job_config.json")) else {}
         except (OSError, ValueError, json.JSONDecodeError):
             cfx = {}
-        p = os.path.normpath(str(cfx.get("user_sqlite_path", "")))
         jid = os.path.basename(os.path.normpath(job_dir))
-        if os.path.isfile(p):
-            _write_state_sqlite(p, jid, {"status": "error", "message": str(e)[:500], "progress": 0, "imported": 0, "job_id": jid})
+        _write_state(job_dir, cfx, jid, {"status": "error", "message": str(e)[:500], "progress": 0, "imported": 0, "job_id": jid})
         raise
     return 0
 

@@ -44,7 +44,10 @@ function isUserRoot(): bool {
 function logError(string $msg): void { error_log("[StepsApp] $msg"); }
 
 function checkDirectory(string $dir): void {
-    if (!file_exists($dir) && !mkdir($dir, 0755, true)) {
+    if (is_link($dir) && !file_exists($dir)) {
+        @unlink($dir);
+    }
+    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
         logError("Failed to create directory $dir");
         header('Content-Type: application/json');
         exit(json_encode(['status' => 'error', 'message' => 'Failed to create directory']));

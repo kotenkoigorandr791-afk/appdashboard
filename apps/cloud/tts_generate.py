@@ -3,15 +3,27 @@ import sys
 import time
 import shutil
 import subprocess
+SCRIPT_DIR = os.path.dirname(__file__)
+CACHE_DIR = os.path.join(SCRIPT_DIR, "tts_output", ".cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+os.environ.setdefault("HOME", CACHE_DIR)
+os.environ.setdefault("XDG_CACHE_HOME", CACHE_DIR)
+os.environ.setdefault("MPLCONFIGDIR", CACHE_DIR)
 from gtts import gTTS
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'lib'))
+sys.path.insert(0, os.path.join(SCRIPT_DIR, '..', '..', 'lib'))
 import pg_sqlite_compat as sqlite3
 
 # Set PATH if not available (for Windows service/PHP execution)
 if 'PATH' not in os.environ:
     os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
-BASE_DIR = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", ".."))
+BASE_DIR = os.path.realpath(os.path.join(SCRIPT_DIR, "..", ".."))
+
+def safe_message(message):
+    import re
+    message = str(message)
+    message = re.sub(r"\b[A-Za-z]:[\\/][^\s\"'<>)]*", "[hidden-path]", message)
+    return re.sub(r"(^|[\s(])/(?:[^/\s\"'<>)]*/)*[^/\s\"'<>)]*", r"\1[hidden-path]", message)
 
 def db_connection():
     return sqlite3.connect()
@@ -66,7 +78,7 @@ def finalize_audio_file(source_path, target_path, retries=20, delay=0.25):
         except OSError as e:
             last_error = e
             time.sleep(delay)
-    raise Exception(f"Failed to finalize audio file: {last_error}")
+    raise Exception(f"Failed to finalize audio file: {safe_message(last_error)}")
 
 def find_ffmpeg():
     ffmpeg = shutil.which("ffmpeg")
@@ -93,7 +105,7 @@ def adjust_speed_with_ffmpeg(input_file, output_file, speed):
     ]
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
-        raise Exception(f"ffmpeg atempo failed: {result.stderr[-500:]}")
+        raise Exception(f"ffmpeg atempo failed: {safe_message(result.stderr[-500:])}")
 
 def generate_tts(text_file, output_file, language, speed, progress_id):
     try:
@@ -126,7 +138,7 @@ def generate_tts(text_file, output_file, language, speed, progress_id):
                 except OSError as e:
                     print(f"Warning: Could not delete temp file {os.path.basename(temp_file)}: {e}", file=sys.stderr)
             except Exception as e:
-                print(f"Speed adjustment failed: {e}, using original speed", file=sys.stderr)
+                print(f"Speed adjustment failed: {safe_message(e)}, using original speed", file=sys.stderr)
                 wait_for_readable(temp_file)
                 finalize_audio_file(temp_file, output_file)
         else:
@@ -143,7 +155,7 @@ def generate_tts(text_file, output_file, language, speed, progress_id):
         print(f"TTS generation completed successfully! Audio saved to: {os.path.basename(output_file)}")
 
     except Exception as e:
-        error_msg = f"Error: {str(e)}"
+        error_msg = f"Error: {safe_message(e)}"
         print(error_msg, file=sys.stderr)
         update_progress(progress_id, 0, error_msg, "", "error", error_msg)
         sys.exit(1)

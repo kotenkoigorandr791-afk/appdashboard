@@ -4,6 +4,7 @@ error_reporting(0);
 ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
+require_once dirname(__DIR__, 2) . '/storage_helper.php';
 
 function app_path($relativePath = '') {
     $baseDir = realpath(__DIR__);
@@ -12,17 +13,35 @@ function app_path($relativePath = '') {
     return $baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath);
 }
 function python_bin() {
-    $candidates = ['python3', 'python'];
+    $candidates = ['/usr/bin/python3', 'python3', 'python'];
     foreach ($candidates as $bin) {
+        if (strpos($bin, '/') !== false && is_executable($bin)) return $bin;
         if (strpos($bin, ':\\') !== false && file_exists($bin)) return $bin;
         $path = trim((string)shell_exec('which ' . escapeshellarg($bin) . ' 2>/dev/null'));
         if ($path !== '') return $path;
     }
     return 'python3';
 }
+function transcription_split_root_path(string $relativePath): array {
+    $path = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+    $map = ['.archive' => 'archive', '.temp_files' => 'temp', '.documents' => 'documents', '.photos' => 'photos', '.pdf' => 'pdf', '.trash' => 'trash', '.clientsync' => 'clientsync'];
+    foreach ($map as $prefix => $rootKey) {
+        if ($path === $prefix) return [$rootKey, ''];
+        if (str_starts_with($path, $prefix . '/')) return [$rootKey, substr($path, strlen($prefix) + 1)];
+    }
+    return ['main', $path];
+}
 function resolve_user_file_path($user, $relativePath) {
     $relativePath = trim((string)$relativePath);
     if ($relativePath === '') return null;
+    if (function_exists('appdata_user_full_path')) {
+        [$rootKey, $rootRelativePath] = transcription_split_root_path($relativePath);
+        try {
+            $appDataPath = appdata_user_full_path('cloud', (string)$user, $rootKey, $rootRelativePath, false);
+            if (is_file($appDataPath) || is_dir($appDataPath)) return realpath($appDataPath) ?: $appDataPath;
+        } catch (Throwable $e) {
+        }
+    }
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $candidates = [];
     if (preg_match('/^(?:[a-zA-Z]:[\\\\\\/]|\/)/', $relativePath)) $candidates[] = $relativePath;
@@ -52,6 +71,11 @@ function to_public_relative_path($path) {
     if (preg_match('#/transcription_uploads/(.+)$#', $normalized, $m)) return ltrim($m[1], '/');
     if (preg_match('#/tts_output/(.+)$#', $normalized, $m)) return ltrim($m[1], '/');
     return basename($normalized);
+}
+
+function transcription_safe_message(string $message): string {
+    $message = preg_replace('/\b[A-Za-z]:[\\\\\\/][^\s"\'<>)]*/', '[hidden-path]', $message);
+    return preg_replace('/(^|[\s(])\/(?:[^\/\s"\'<>)]*\/)*[^\/\s"\'<>)]*/', '$1[hidden-path]', $message);
 }
 
 function get_session_email() {
@@ -140,7 +164,9 @@ function handle_sse_stream() {
             }
         } else {
             $progress = (int)$data['percentage'];
-            $message = (string)$data['message'];
+            $message = transcription_safe_message((string)$data['message']);
+            $data['message'] = $message;
+            if (isset($data['error_text'])) $data['error_text'] = transcription_safe_message((string)$data['error_text']);
             $isHeartbeatTick = (time() - $lastSentTime) >= 5;
             if ($lastProgress === -1 || $progress !== $lastProgress || $isHeartbeatTick) {
                 echo "data: " . json_encode($data) . "\n\n";
@@ -196,8 +222,11 @@ if ($action === 'start_transcription') {
     $pythonPath = python_bin();
     $ffmpegPath = trim(shell_exec('which ffmpeg 2>/dev/null') ?: '/usr/bin/ffmpeg');
     $uploadDir = app_path('transcription_uploads');
+    $cacheDir = $uploadDir . DIRECTORY_SEPARATOR . '.cache';
     $normalizedProgressId = uniqid();
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
+    if (!is_dir($cacheDir)) mkdir($cacheDir, 0777, true);
+    @chmod($cacheDir, 0777);
     $uploadJobDir = $uploadDir . DIRECTORY_SEPARATOR . $normalizedProgressId;
     if (!is_dir($uploadJobDir)) mkdir($uploadJobDir, 0777, true);
     $sourcePath = resolve_user_file_path($user, $audioPath);
@@ -213,7 +242,7 @@ if ($action === 'start_transcription') {
     }
     // Verify the copied file exists and is readable
     if (!file_exists($filePath) || !is_readable($filePath)) {
-        echo json_encode(['success' => false,'error' => 'Copied file is not accessible: ' . $filePath]);
+        echo json_encode(['success' => false,'error' => 'Copied file is not accessible']);
         exit;
     }
     // Use realpath to get absolute path, keep Windows backslashes
@@ -229,7 +258,7 @@ if ($action === 'start_transcription') {
         exit;
     }
     if (!file_exists($ffmpegPath)) {
-        echo json_encode(['success' => false,'error' => 'FFmpeg not found at: ' . $ffmpegPath]);
+        echo json_encode(['success' => false,'error' => 'FFmpeg not found']);
         exit;
     }
     exec("\"$ffmpegPath\" -version 2>&1", $ffmpegOutput, $ffmpegReturn);
@@ -244,7 +273,8 @@ if ($action === 'start_transcription') {
         pclose(popen($runCommand, "r"));
         $success = true;
     } else {
-        exec($command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1 &', $output, $returnCode);
+        $env = 'HOME=' . escapeshellarg($cacheDir) . ' XDG_CACHE_HOME=' . escapeshellarg($cacheDir) . ' MPLCONFIGDIR=' . escapeshellarg($cacheDir) . ' TORCH_HOME=' . escapeshellarg($cacheDir) . ' PYTHONUNBUFFERED=1 ';
+        exec($env . $command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1 &', $output, $returnCode);
         $success = ($returnCode === 0);
     }
     if ($success) {
@@ -261,7 +291,7 @@ if ($action === 'get_progress') {
         echo json_encode(['progress' => 0,'message' => '','transcription' => '','isProcessing' => false,'isActive' => false,'timestamp' => 0,'stale_seconds' => 0]);
         exit;
     }
-    echo json_encode(['progress' => (int)$data['progress'],'message' => (string)$data['message'],'transcription' => (string)$data['transcription'],'isProcessing' => (bool)$data['isProcessing'],'isActive' => (bool)$data['isActive'],'timestamp' => (int)$data['timestamp'],'stale_seconds' => (int)$data['stale_seconds']]);
+    echo json_encode(['progress' => (int)$data['progress'],'message' => transcription_safe_message((string)$data['message']),'transcription' => (string)$data['transcription'],'isProcessing' => (bool)$data['isProcessing'],'isActive' => (bool)$data['isActive'],'timestamp' => (int)$data['timestamp'],'stale_seconds' => (int)$data['stale_seconds']]);
     exit;
 }
 if ($action === 'find_active_progress') {

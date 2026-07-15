@@ -112,37 +112,59 @@
         <?php if($isHomeDashboard): ?>
         #top-bar{justify-content:flex-start;}
         #top-bar-title{flex:0 0 auto;margin-left:12px;}
-        #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-top:0;}
-        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;margin-left:12px;}
-        #home-root-button svg{width:21px;height:21px;}
-        #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
+        #menu-button{position:static;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transform:none;}
+        #home-root-button{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--primary-color);text-decoration:none;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);flex:0 0 auto;margin-left:12px;border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+        #home-root-button svg{width:22px;height:22px;}
+        #home-root-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
+        #menu-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
         #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
         #top-bar #notifications-btn{position:absolute;right:64px;top:5px;margin-left:0;}
-        #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
+        #menu-button .menu-button-glyph{width:auto;height:auto;}
+        #menu-button .menu-button-glyph svg{width:22px;height:22px;}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
-        #menu-button .menu-button-glyph{width:100%;height:100%;font-size:calc(var(--shell-menu-button-height) * 0.5);transform:translateY(-1px);text-shadow:0 2px 4px rgba(0,0,0,0.16);}
+        #menu-button .menu-button-glyph{width:100%;height:100%;}
+        #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-height) * 0.5);height:calc(var(--shell-menu-button-height) * 0.5);}
 	        @media (max-width:768px){
 	            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
 	            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
-	            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
+	            #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
 	        }
         <?php endif; ?>
         #sidebar{position:fixed;top:50px;left:-320px;width:320px;height:calc(100% - 50px);background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
+        <?php if(!$isHomeDashboard): ?>
+        #sidebar{top:0;height:100%;border-radius:0;}
+        <?php endif; ?>
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:58px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.28);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
         .notifications-actions{display:flex;gap:8px;align-items:center;}
         .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
-        #notifications-list{overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;}
-        .notification-row{border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;background:var(--bg-color);}
-        .notification-row.unread{border-color:color-mix(in srgb,var(--primary-color) 60%,var(--border-color));}
-        .notification-row-title{font-weight:700;font-size:14px;margin-bottom:4px;}
-        .notification-row-meta{font-size:11px;opacity:.65;margin-bottom:4px;}
-        .notification-row-message{font-size:13px;line-height:1.35;opacity:.85;white-space:pre-wrap;}
+        #notifications-list{overflow:auto;padding:4px 0;display:flex;flex-direction:column;}
+        .notification-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;transition:background .15s;position:relative;}
+        .notification-row+.notification-row{border-top:1px solid color-mix(in srgb,var(--border-color) 50%,transparent);}
+        .notification-row:hover{background:var(--group-block-bg);}
+        .notification-row.unread{background:color-mix(in srgb,var(--primary-color) 6%,transparent);}
+        .notification-row.unread:hover{background:color-mix(in srgb,var(--primary-color) 10%,transparent);}
+        .notification-row-icon{flex-shrink:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:2px;}
+        .notification-row-icon svg{width:18px;height:18px;}
+        .notification-row-icon.severity-info{background:color-mix(in srgb,#3b82f6 14%,transparent);color:#3b82f6;}
+        .notification-row-icon.severity-warning{background:color-mix(in srgb,#f59e0b 14%,transparent);color:#f59e0b;}
+        .notification-row-icon.severity-error{background:color-mix(in srgb,#ef4444 14%,transparent);color:#ef4444;}
+        .notification-row-icon.severity-success{background:color-mix(in srgb,#22c55e 14%,transparent);color:#22c55e;}
+        .notification-row-icon.severity-critical{background:color-mix(in srgb,#dc2626 14%,transparent);color:#dc2626;}
+        .notification-row-icon.severity-default{background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-color);}
+        .notification-row-body{flex:1;min-width:0;}
+        .notification-row-title{font-weight:600;font-size:13px;line-height:1.3;margin-bottom:2px;}
+        .notification-row-meta{font-size:11px;opacity:.55;margin-bottom:2px;}
+        .notification-row-message{font-size:12px;line-height:1.4;opacity:.7;white-space:pre-wrap;}
+        .notification-row-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--primary-color);flex-shrink:0;margin-top:6px;}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+        <?php if(!$isHomeDashboard): ?>
+        #app-list-container{-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 40px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 40px),transparent 100%);}
+        <?php endif; ?>
         #app-list-container::-webkit-scrollbar{display:none;}
         #bottom-bar{position:absolute;bottom:20px;left:20px;right:20px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
         .search-container{position:relative;flex:1 1 auto;min-width:0;}
@@ -298,9 +320,9 @@
         .flag-pl { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 6"><rect fill="%23fff" width="9" height="6"/><rect fill="%23dc143c" y="3" width="9" height="3"/></svg>'); }
         .flag-cz { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect fill="%23ffffff" width="30" height="20"/><rect fill="%23d7141a" y="10" width="30" height="10"/><polygon points="0,0 15,10 0,20" fill="%2311457e"/></svg>'); }
         .custom-select-wrap{position:relative;flex:0 0 200px;max-width:200px;height:32px;}
-        .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);cursor:pointer;user-select:none;height:32px;box-sizing:border-box;font-size:14px;line-height:1.2;}
+        .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);cursor:pointer;user-select:none;height:32px;box-sizing:border-box;font-size:14px;line-height:1.2;}
         .custom-select-trigger:hover{border-color:var(--primary-color);}
-        .custom-select-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+        .custom-select-text{display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
         .custom-select-arrow{flex-shrink:0;opacity:.6;transition:transform .2s;}
         .custom-select-wrap.open .custom-select-arrow{transform:rotate(180deg);}
         .custom-select-dropdown{display:none;position:fixed;background:var(--modal-bg);border:1px solid var(--border-color);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:10003;overflow:hidden;min-width:160px;}
@@ -309,6 +331,7 @@
         .custom-select-option span:first-child{min-width:0;}
         .custom-select-option:hover{background:var(--group-block-bg);}
         .custom-select-option.active{color:var(--primary-color);font-weight:600;}
+        .custom-select-option svg{flex-shrink:0;opacity:.7;}
         .custom-select-badge{display:inline-block;padding:1px 6px;margin-left:6px;background:var(--primary-color);color:#fff;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;}
         .custom-select-flag{width:20px;height:15px;display:inline-block;background-size:cover;background-position:center;border-radius:2px;flex-shrink:0;}
         .custom-select-flag.flag-ru{position:relative;overflow:hidden;}
@@ -369,7 +392,7 @@
             #content.has-app-rail.rail-top-on-mobile .app-rail-service-name{display:block;writing-mode:horizontal-tb;transform:none;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--text-color);opacity:.7;white-space:nowrap;padding:0 8px;max-width:110px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;user-select:none;}
         }
         /* border-box: height includes padding — otherwise padding is added outside height and the grid is clipped by #content (last tiles unreachable). */
-        #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));}
+        #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 60px);mask-image:linear-gradient(to bottom,transparent 0px,black 60px);}
         /* Fill viewport; use dvh on mobile so iframe/content match visible area (100vh exceeds it when browser chrome is shown). */
         @supports (height:100dvh){
             #content{height:100dvh;min-height:100dvh;max-height:100dvh;}
@@ -455,6 +478,7 @@
         .settings-buttons-divider{width:1px;align-self:stretch;min-height:34px;background:var(--border-color);opacity:.75;flex:0 0 1px;}
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
+        @media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:10000;}
         #shortcuts-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;max-width:640px;max-height:90vh;overflow:auto;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shortcuts{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -630,7 +654,7 @@
 <?php if($showTopBarTitle): ?>
 <div id="top-bar">
     <?php if($isHomeDashboard): ?>
-    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button>
+    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
     <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
     <?php endif; ?>
     <div id="top-bar-title">Shell Application</div>
@@ -1446,7 +1470,7 @@ endif; // showOtpPage
     </div>
 </div>
 <?php if($path!=='/login'&&$path!=='/register'):?>
-    <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button><?php endif; ?>
+    <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button><?php endif; ?>
     <div id="sidebar">
         <div id="app-list-container">
             <ul id="app-list">
@@ -1479,12 +1503,12 @@ endif; // showOtpPage
                             <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                         <div class="custom-select-dropdown" id="lang-dropdown">
-                            <div class="custom-select-option" data-value="en"><span class="custom-select-flag flag flag-gb"></span><span>English</span></div>
-                            <div class="custom-select-option" data-value="ru"><span class="custom-select-flag flag flag-ru"></span><span>Русский</span></div>
-                            <div class="custom-select-option" data-value="uk"><span class="custom-select-flag flag flag-ua"></span><span>Українська</span></div>
-                            <div class="custom-select-option" data-value="be"><span class="custom-select-flag flag flag-by"></span><span>Беларуская</span></div>
-                            <div class="custom-select-option" data-value="pl"><span class="custom-select-flag flag flag-pl"></span><span>Polski</span></div>
-                            <div class="custom-select-option" data-value="cs"><span class="custom-select-flag flag flag-cz"></span><span>Čeština</span></div>
+                            <div class="custom-select-option" data-value="en"><span>English</span><span class="custom-select-flag flag flag-gb"></span></div>
+                            <div class="custom-select-option" data-value="ru"><span>Русский</span><span class="custom-select-flag flag flag-ru"></span></div>
+                            <div class="custom-select-option" data-value="uk"><span>Українська</span><span class="custom-select-flag flag flag-ua"></span></div>
+                            <div class="custom-select-option" data-value="be"><span>Беларуская</span><span class="custom-select-flag flag flag-by"></span></div>
+                            <div class="custom-select-option" data-value="pl"><span>Polski</span><span class="custom-select-flag flag flag-pl"></span></div>
+                            <div class="custom-select-option" data-value="cs"><span>Čeština</span><span class="custom-select-flag flag flag-cz"></span></div>
                         </div>
                     </div>
                 </div>
@@ -1497,9 +1521,9 @@ endif; // showOtpPage
                             <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                         <div class="custom-select-dropdown" id="theme-dropdown">
-                            <div class="custom-select-option" data-value="light"><span><?php echo my_htmlspecialchars($translations['theme_light']); ?></span></div>
-                            <div class="custom-select-option" data-value="dark"><span><?php echo my_htmlspecialchars($translations['theme_dark']); ?></span></div>
-                            <div class="custom-select-option" data-value="auto"><span><?php echo my_htmlspecialchars($translations['theme_auto']); ?></span></div>
+                            <div class="custom-select-option" data-value="light"><span><?php echo my_htmlspecialchars($translations['theme_light']); ?></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></div>
+                            <div class="custom-select-option" data-value="dark"><span><?php echo my_htmlspecialchars($translations['theme_dark']); ?></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></div>
+                            <div class="custom-select-option" data-value="auto"><span><?php echo my_htmlspecialchars($translations['theme_auto']); ?></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></div>
                         </div>
                     </div>
                 </div>
@@ -3486,7 +3510,18 @@ var T=<?php echo json_encode([
                 const dt=new Date((Number(n.created_at)||0)*1000).toLocaleString();
                 const app=n.app_id?` · ${escHtml(n.app_id)}`:'';
                 const msg=n.message?`<div class="notification-row-message">${escHtml(n.message)}</div>`:'';
-                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${escHtml(n.severity||'info')}${app} · ${dt}</div>${msg}</div>`;
+                const sev=escHtml((n.severity||'info').toLowerCase());
+                const icons={
+                    info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+                    warning:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+                    error:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+                    success:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+                    critical:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+                };
+                const iconClass=icons[sev]?'severity-'+sev:'severity-default';
+                const iconHtml=icons[sev]||icons.info;
+                const unreadDot=Number(n.is_read)?'':`<div class="notification-row-unread-dot"></div>`;
+                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-icon ${iconClass}">${iconHtml}</div><div class="notification-row-body"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${sev}${app} · ${dt}</div>${msg}</div>${unreadDot}</div>`;
             }
             async function loadNotifications(showBrowser){
                 if(!btn||!list)return;
@@ -3495,7 +3530,7 @@ var T=<?php echo json_encode([
                     const d=await r.json();
                     if(!d.ok)return;
                     setBadge(Number(d.unread)||0);
-                    list.innerHTML=(d.items||[]).map(rowHtml).join('')||'<div class="notification-row"><div class="notification-row-message">No notifications</div></div>';
+                    list.innerHTML=(d.items||[]).map(rowHtml).join('')||'<div class="notification-row" style="justify-content:center;opacity:.5;padding:24px 16px;"><div class="notification-row-message">No notifications</div></div>';
                     const newest=(d.items||[])[0];
                     if(showBrowser&&newest&&Number(newest.id)>lastSeenId&&Number(newest.is_read)===0&&'Notification'in window&&Notification.permission==='granted'){
                         new Notification(newest.title||'Notification',{body:newest.message||newest.app_id||''});
@@ -3753,13 +3788,20 @@ var T=<?php echo json_encode([
                     var txt='';
                     options.forEach(function(o){
                         if(o.getAttribute('data-value')===val){
-                            txt=o.querySelector('span:last-child')?o.querySelector('span:last-child').textContent:o.querySelector('span').textContent;
+                            txt=o.querySelector('span:first-child')?o.querySelector('span:first-child').textContent:o.querySelector('span').textContent;
                             o.classList.add('active');
                         }else{
                             o.classList.remove('active');
                         }
                     });
-                    trigger.querySelector('.custom-select-text').textContent=txt;
+                    var textEl=trigger.querySelector('.custom-select-text');
+                    textEl.textContent='';
+                    var activeOpt=dropdown.querySelector('.custom-select-option[data-value="'+val+'"]');
+                    textEl.appendChild(document.createTextNode(txt));
+                    if(activeOpt){
+                        var icon=activeOpt.querySelector('.custom-select-flag,svg');
+                        if(icon)textEl.appendChild(icon.cloneNode(true));
+                    }
                 }
                 function positionDropdown(){
                     var r=trigger.getBoundingClientRect();

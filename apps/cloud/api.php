@@ -8,6 +8,32 @@ require_once __DIR__ . '/includes/cloud_group_chat.php';
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
 use PhpOffice\PhpPresentation\IOFactory as PresentationIOFactory;
+function cloud_public_scheme(): string {
+    $forwarded = (string)($_SERVER['HTTP_FORWARDED'] ?? '');
+    if ($forwarded !== '' && preg_match('/(?:^|[;,]\s*)proto=(https?)/i', $forwarded, $m)) {
+        return strtolower($m[1]);
+    }
+    $xfp = strtolower(trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0] ?? ''));
+    if ($xfp === 'https' || $xfp === 'http') return $xfp;
+    if (strtolower((string)($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '')) === 'on') return 'https';
+    if (strtolower((string)($_SERVER['HTTP_FRONT_END_HTTPS'] ?? '')) === 'on') return 'https';
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') return 'https';
+    if (strtolower((string)($_SERVER['REQUEST_SCHEME'] ?? '')) === 'https') return 'https';
+    if ((string)($_SERVER['SERVER_PORT'] ?? '') === '443') return 'https';
+    return 'http';
+}
+function cloud_public_host(): string {
+    $forwarded = (string)($_SERVER['HTTP_FORWARDED'] ?? '');
+    if ($forwarded !== '' && preg_match('/(?:^|[;,]\s*)host=([^;,]+)/i', $forwarded, $m)) {
+        return trim($m[1], "\" \t");
+    }
+    $xfh = trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''))[0] ?? '');
+    if ($xfh !== '') return $xfh;
+    return (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+}
+function cloud_public_origin(): string {
+    return cloud_public_scheme() . '://' . cloud_public_host();
+}
 if (PHP_SAPI === 'cli' && isset($argv[1])) {
     $_POST['action'] = (string)$argv[1];
     if (isset($argv[2])) $_POST['job_id'] = (string)$argv[2];
@@ -19,8 +45,7 @@ $__cloudOrigin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
 $__cloudAllowedOrigins = array_filter(array_map('trim', explode(',', (string)getenv('APP_CORS_ORIGINS'))));
 $__cloudHost = (string)($_SERVER['HTTP_HOST'] ?? '');
 if ($__cloudHost !== '') {
-    $__cloudScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $__cloudAllowedOrigins[] = $__cloudScheme . '://' . $__cloudHost;
+    $__cloudAllowedOrigins[] = cloud_public_origin();
 }
 $__cloudAllowedOrigins = array_values(array_unique($__cloudAllowedOrigins));
 if ($__cloudOrigin !== '' && in_array($__cloudOrigin, $__cloudAllowedOrigins, true)) {

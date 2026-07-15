@@ -82,30 +82,32 @@ function zeep_delete_tree(string $dir): void {
     }
     @rmdir($dir);
 }
+function zeep_python_has_import_deps(string $python): bool {
+    $cmd = escapeshellarg($python) . ' -c ' . escapeshellarg('import pyzipper, psycopg2') . (DIRECTORY_SEPARATOR === '\\' ? ' 2>nul' : ' 2>/dev/null');
+    @exec($cmd, $o, $rc);
+    return (int)$rc === 0;
+}
 function zeep_find_python(): string {
     $candidates = [];
     $interpreterFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'python_interpreter.txt';
     if (is_file($interpreterFile)) {
         $line = trim((string)@file_get_contents($interpreterFile));
-        if ($line !== '' && is_file($line)) {
+        if ($line !== '') {
             $candidates[] = $line;
         }
     }
     if (DIRECTORY_SEPARATOR === '\\' && is_file('C:\\Compilers\\Python\\python.exe')) {
         $candidates[] = 'C:\\Compilers\\Python\\python.exe';
     }
-    $candidates = array_merge($candidates, [dirname(__DIR__) . '/venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/bin/python3', 'py', 'python', 'python3']);
+    $utilsDir = dirname(__DIR__);
+    $hostUtilsDir = str_replace('/var/www/AppDashboard', '/opt/docker/appdashboard/code', $utilsDir);
+    $candidates = array_merge($candidates, [$utilsDir . '/venv/Scripts/python.exe', $utilsDir . '/.venv/Scripts/python.exe', $utilsDir . '/.venv/bin/python3', $hostUtilsDir . '/.venv/bin/python3', 'py', 'python', 'python3']);
     foreach ($candidates as $p) {
-        if (strpos($p, '/') !== false || strpos($p, '\\') !== false) {
-            if (is_file($p)) {
-                return $p;
-            }
-        } else {
-            $o = [];
-            @exec(escapeshellcmd($p) . ' -c ' . escapeshellarg('print(1)') . ' 2>nul', $o, $rc);
-            if ((int)$rc === 0) {
-                return $p;
-            }
+        if ((strpos($p, '/') !== false || strpos($p, '\\') !== false) && !is_file($p)) {
+            continue;
+        }
+        if (zeep_python_has_import_deps($p)) {
+            return $p;
         }
     }
     return 'python3';
@@ -144,6 +146,18 @@ function zeep_spawn_worker(string $jobPath): bool {
     exec($cmd);
     return true;
 }
+function zeep_run_worker_now(string $jobPath): bool {
+    $py = zeep_find_python();
+    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'zeep_import_worker.py');
+    if ($script === false || !is_file($script)) {
+        return false;
+    }
+    $jobPath = realpath($jobPath) ?: $jobPath;
+    $log = $jobPath . DIRECTORY_SEPARATOR . 'worker.log';
+    $cmd = escapeshellarg($py) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($jobPath) . ' >>' . escapeshellarg($log) . ' 2>&1';
+    @exec($cmd, $out, $rc);
+    return (int)$rc === 0;
+}
 function zeep_job_cfg(array $jobIdParts): array {
     $email = get_current_user_email() ?: ('folder_' . basename(ZEEP_USER_DIR));
     $userSchema = app_user_schema_id('steps', $email);
@@ -179,12 +193,52 @@ function zeep_load_parsed_rows(string $jobPath): array {
     });
     return $rows;
 }
+function zeep_load_file_state(string $jobPath): ?array {
+    $path = $jobPath . DIRECTORY_SEPARATOR . 'state.json';
+    if (!is_file($path)) {
+        return null;
+    }
+    $state = json_decode((string)@file_get_contents($path), true);
+    return is_array($state) ? $state : null;
+}
+function zeep_refresh_state_from_file(AppDatabase $db, string $jobId, array $state, int $updatedAt): array {
+    $jobPath = ZEEP_JOBS_DIR . $jobId;
+    $fileState = zeep_load_file_state($jobPath);
+    if (!is_array($fileState)) {
+        return $state;
+    }
+    $fileTime = (int)@filemtime($jobPath . DIRECTORY_SEPARATOR . 'state.json');
+    $status = (string)($state['status'] ?? '');
+    $fileStatus = (string)($fileState['status'] ?? '');
+    if ($fileTime >= $updatedAt || in_array($status, zeep_active_statuses(), true) || $fileStatus !== '') {
+        if (!isset($fileState['job_id']) || (string)$fileState['job_id'] === '') {
+            $fileState['job_id'] = $jobId;
+        }
+        try { zeep_job_save($db, $jobId, $fileState); } catch (Throwable $e) {}
+        return $fileState;
+    }
+    return $state;
+}
 function zeep_active_statuses(): array {
     return ['running', 'awaiting_confirm', 'awaiting_conflict'];
 }
 function zeep_norm_password(string $password): string {
     $password = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}\x{2060}]/u', '', $password);
     return trim($password);
+}
+function zeep_norm_import_date(string $date): string {
+    $date = trim($date);
+    if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+        return $date;
+    }
+    if (preg_match('/^(\d{1,2})-(\d{1,2})-(\d{2}|\d{4})$/', $date, $m)) {
+        $year = (int)$m[3];
+        if ($year < 100) {
+            $year += $year < 70 ? 2000 : 1900;
+        }
+        return sprintf('%04d-%02d-%02d', $year, (int)$m[2], (int)$m[1]);
+    }
+    return '';
 }
 try {
     $db = getUserDB(ZEEP_USER_DIR);
@@ -261,6 +315,10 @@ if ($action === 'active_job' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     $st = $zt['state'];
     $mt = (int)($zt['updated_at'] ?? 0);
     $jid = (string)($zt['job_id'] ?? '');
+    if (is_array($st) && strlen($jid) >= 8) {
+        $st = zeep_refresh_state_from_file($db, $jid, $st, $mt);
+        $mt = time();
+    }
     $status = is_array($st) ? (string)($st['status'] ?? '') : '';
     if (is_array($st) && in_array($status, zeep_active_statuses(), true) && strlen($jid) >= 8) {
         if ($status === 'running' && $mt > 0 && (time() - $mt) > 1800) {
@@ -285,6 +343,10 @@ if ($action === 'job_status' && isset($_GET['job'])) {
     }
     $st = $zt['state'];
     $mt = (int)($zt['updated_at'] ?? 0);
+    if (is_array($st)) {
+        $st = zeep_refresh_state_from_file($db, $jid, $st, $mt);
+        $mt = time();
+    }
     if (is_array($st) && ($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) > 1800) {
         $st = array_merge($st, ['status' => 'error', 'message' => 'stale_job']);
     }
@@ -304,7 +366,9 @@ if ($action === 'preview' && isset($_GET['job'])) {
         exit;
     }
     $st = is_array($zt['state'] ?? null) ? $zt['state'] : [];
-    if (($st['status'] ?? '') !== 'awaiting_confirm') {
+    $st = zeep_refresh_state_from_file($db, $jid, $st, (int)($zt['updated_at'] ?? 0));
+    $statusNow = (string)($st['status'] ?? '');
+    if (!in_array($statusNow, ['awaiting_confirm', 'awaiting_conflict'], true)) {
         echo json_encode(['ok' => false, 'error' => 'state']);
         exit;
     }
@@ -373,6 +437,11 @@ if ($action === 'resolve_conflict' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'PO
         exit;
     }
     $st = is_array($zt['state'] ?? null) ? $zt['state'] : [];
+    $st = zeep_refresh_state_from_file($db, $jid, $st, (int)($zt['updated_at'] ?? 0));
+    if (($st['status'] ?? '') === 'done') {
+        echo json_encode(['ok' => true, 'job_id' => $jid, 'state' => $st]);
+        exit;
+    }
     if (($st['status'] ?? '') !== 'awaiting_conflict') {
         echo json_encode(['ok' => false, 'error' => 'state']);
         exit;
@@ -396,11 +465,17 @@ if ($action === 'resolve_conflict' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'PO
         zeep_job_save($db, $jid, array_merge($st, ['status' => 'running', 'message' => 'apply', 'progress' => 93.0, 'job_id' => $jid]));
     } catch (Exception $e) {
     }
-    if (!zeep_spawn_worker($jobPath)) {
+    if (!zeep_run_worker_now($jobPath)) {
         echo json_encode(['ok' => false, 'error' => 'worker']);
         exit;
     }
-    echo json_encode(['ok' => true, 'job_id' => $jid]);
+    $state = zeep_load_file_state($jobPath);
+    if (is_array($state)) {
+        try { zeep_job_save($db, $jid, $state); } catch (Throwable $e) {}
+    } else {
+        $state = zeep_job_load($db)['state'] ?? [];
+    }
+    echo json_encode(['ok' => true, 'job_id' => $jid, 'state' => $state]);
     exit;
 }
 if ($action === 'confirm_zeep' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -415,8 +490,14 @@ if ($action === 'confirm_zeep' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
         exit;
     }
     $st = is_array($zt['state'] ?? null) ? $zt['state'] : [];
-    if (($st['status'] ?? '') !== 'awaiting_confirm') {
+    $st = zeep_refresh_state_from_file($db, $jid, $st, (int)($zt['updated_at'] ?? 0));
+    $statusNow = (string)($st['status'] ?? '');
+    if (!in_array($statusNow, ['awaiting_confirm', 'awaiting_conflict'], true)) {
         echo json_encode(['ok' => false, 'error' => 'state']);
+        exit;
+    }
+    if ($statusNow === 'awaiting_conflict' && !isset($_POST['rows'])) {
+        echo json_encode(['ok' => true, 'job_id' => $jid]);
         exit;
     }
     $rawRows = (string)($_POST['rows'] ?? '');
@@ -430,8 +511,8 @@ if ($action === 'confirm_zeep' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
         if (!is_array($r)) {
             continue;
         }
-        $d = (string)($r['date'] ?? '');
-        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) {
+        $d = zeep_norm_import_date((string)($r['date'] ?? ($r['dmy'] ?? '')));
+        if ($d === '') {
             continue;
         }
         $s = (int)($r['steps'] ?? -1);
