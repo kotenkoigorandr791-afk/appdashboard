@@ -46,14 +46,14 @@ if ($action !== '') {
         exit;
     }
     if ($action === 'uptime') {
-        monitorEnsureUptimeSchema();
-        echo json_encode(['ok' => true] + monitorFetchUptimePayload(), JSON_UNESCAPED_UNICODE);
+        $containers = monitorCollectDockerContainers();
+        echo json_encode(['ok' => true, 'docker_containers' => $containers] + monitorFetchUptimePayloadForContainers($containers), JSON_UNESCAPED_UNICODE);
         exit;
     }
     if ($action === 'run_uptime_checks') {
         $containers = monitorCollectDockerContainers();
         monitorRunUptimeChecks($containers);
-        echo json_encode(['ok' => true] + monitorFetchUptimePayload(), JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => true, 'docker_containers' => $containers] + monitorFetchUptimePayloadForContainers($containers), JSON_UNESCAPED_UNICODE);
         exit;
     }
     if ($action === 'docker_history') {

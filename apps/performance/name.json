@@ -9,6 +9,12 @@
         "width": 45,
         "height": 45
     },
+    "menu_button_mobile": {
+        "left": 8,
+        "top": 6,
+        "width": 36,
+        "height": 36
+    },
     "pl": "Monitor serwera",
     "cs": "Monitor serveru"
 }
