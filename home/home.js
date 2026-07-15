@@ -3,7 +3,8 @@
     en: {
       hero_title: 'Secure Cloud Shell Access',
       hero_desc1: 'ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.',
-      hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification.',
+      hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, media galleries, interactive maps, server monitoring, recipe management, expense tracking, health tracking, and network utilities — all accessible through a single account.',
+      loading_app: 'Opening app...',
       signin: 'Sign in', register: 'Register', otp_button: 'One Time PIN',
       features_title: 'Server applications overview', apps_heading: 'Installed applications',
       promo_title: 'Unlock every app — free',
@@ -21,7 +22,8 @@
     uk: {
       hero_title: 'Безпечний доступ до хмарної консолі',
       hero_desc1: 'ServerKherson — це веб-застосунок для безпечного доступу та керування серверами.',
-      hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю.',
+      hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю. Платформа пропонує різноманітні застосунки: хмарне керування файлами, медіа-галереї, інтерактивні мапи, моніторинг сервера, рецепти, облік витрат, трекер активності та мережеві утиліти — все доступне через єдиний обліковий запис.',
+      loading_app: 'Відкриття застосунку...',
       signin: 'Увійти', register: 'Реєстрація', otp_button: 'Одноразовий PIN',
       features_title: 'Огляд серверних застосунків', apps_heading: 'Окремі застосунки',
       promo_title: 'Увесь потенціал — безкоштовно',
@@ -39,7 +41,8 @@
     ru: {
       hero_title: 'Безопасный доступ к облачной консоли',
       hero_desc1: 'ServerKherson — это веб-приложение для безопасного доступа и управления серверами.',
-      hero_desc2: 'Мы используем Google OAuth для защиты аккаунтов. Запрашивается только базовая информация профиля.',
+      hero_desc2: 'Мы используем Google OAuth для защиты аккаунтов. Запрашивается только базовая информация профиля. Платформа предлагает разнообразные приложения: облачное управление файлами, медиа-галереи, интерактивные карты, мониторинг сервера, рецепты, учёт расходов, трекер активности и сетевые утилиты — всё доступно через единую учётную запись.',
+      loading_app: 'Открытие приложения...',
       signin: 'Войти', register: 'Регистрация', otp_button: 'Одноразовый PIN',
       features_title: 'Обзор серверных приложений', apps_heading: 'Отдельные приложения',
       promo_title: 'Весь потенциал — бесплатно',
@@ -57,7 +60,8 @@
     be: {
       hero_title: 'Бяспечны доступ да хмарнай кансолі',
       hero_desc1: 'ServerKherson — гэта вэб-праграма для бяспечнага доступу да сервераў.',
-      hero_desc2: 'Мы выкарыстоўваем Google OAuth для абароны ўліковых запісаў. Запытваецца толькі базавая інфармацыя профілю.',
+      hero_desc2: 'Мы выкарыстоўваем Google OAuth для абароны ўліковых запісаў. Запытваецца толькі базавая інфармацыя профілю. Платформа прапануе разнастайныя прыкладанні: воблачнае кіраванне файламі, медыя-галерэі, інтерактыўныя мапы, маніторынг сервера, рэцэпты, улік выдаткаў, трэкер актыўнасці і сеткавыя ўтыліты — усё даступна праз адзіны ўліковы запіс.',
+      loading_app: 'Адкрыццё прыкладання...',
       signin: 'Увайсці', register: 'Рэгістрацыя', otp_button: 'Аднаразовы PIN',
       features_title: 'Агляд серверных прыкладанняў', apps_heading: 'Асобныя прыкладанні',
       promo_title: 'Увесь патэнцыял — бясплатна',
@@ -75,7 +79,8 @@
     pl: {
       hero_title: 'Bezpieczny dostęp do powłoki chmurowej',
       hero_desc1: 'ServerKherson to aplikacja webowa umożliwiająca bezpieczny dostęp do zdalnych serwerów.',
-      hero_desc2: 'Używamy Google OAuth do ochrony kont. Pobierane są tylko podstawowe dane profilu.',
+      hero_desc2: 'Używamy Google OAuth do ochrony kont. Pobierane są tylko podstawowe dane profilu. Platforma oferuje różnorodne aplikacje: zarządzanie plikami w chmurze, galerie mediów, interaktywne mapy, monitorowanie serwera, przepisy, śledzenie wydatków, tracker aktywności i narzędzia sieciowe — wszystko dostępne przez jedno konto.',
+      loading_app: 'Otwieranie aplikacji...',
       signin: 'Zaloguj się', register: 'Rejestracja', otp_button: 'Jednorazowy PIN',
       features_title: 'Przegląd aplikacji serwerowych', apps_heading: 'Zainstalowane aplikacje',
       promo_title: 'Pełny potencjał — za darmo',
@@ -93,7 +98,8 @@
     cs: {
       hero_title: 'Bezpečný přístup ke cloudovému shellu',
       hero_desc1: 'ServerKherson je webová aplikace umožňující bezpečný přístup ke vzdáleným serverům.',
-      hero_desc2: 'Pro ochranu účtů používáme Google OAuth. Jsou vyžadovány pouze základní informace z profilu.',
+      hero_desc2: 'Pro ochranu účtů používáme Google OAuth. Jsou vyžadovány pouze základní informace z profilu. Platforma nabízí různé aplikace: cloudovou správu souborů, mediální galerie, interaktivní mapy, monitorování serveru, recepty, sledování výdajů, tracker aktivity a síťové nástroje — vše dostupné přes jeden účet.',
+      loading_app: 'Otevírání aplikace...',
       signin: 'Přihlásit se', register: 'Registrace', otp_button: 'Jednorázový PIN',
       features_title: 'Přehled serverových aplikací', apps_heading: 'Nainstalované aplikace',
       promo_title: 'Plný potenciál — zdarma',
@@ -637,19 +643,31 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     const sp = document.createElement('div');
     sp.className = 'portal-spotlight-card';
     sp.innerHTML = `<div class="portal-head-row">${ICONS.portal}<span class="portal-badge">${t.portal_badge}</span></div><h3>${t.portal_title}</h3><p class="short-desc">${t.apps.portal}</p>`;
-    sp.addEventListener('click', () => showModal('portal', l));
+    sp.addEventListener('click', () => {
+      const t = I18N[l] || I18N.en;
+      const timer = setTimeout(() => loadingOverlay(t.loading_app), 500);
+      showModal('portal', l);
+      clearTimeout(timer);
+    });
     spotlight.appendChild(sp);
     grid.innerHTML = '';
     APPS.forEach(app => {
       const card = document.createElement('div');
       card.className = 'feature-card';
       card.innerHTML = `${ICONS[app.id] || ICONS.cloud}<h3>${app.name}</h3><p class="short-desc">${t.apps[app.id] || ''}</p>`;
-      card.addEventListener('click', () => showModal(app.id, l));
+      card.addEventListener('click', () => {
+        const t2 = I18N[l] || I18N.en;
+        const timer = setTimeout(() => loadingOverlay(t2.loading_app), 500);
+        showModal(app.id, l);
+        clearTimeout(timer);
+      });
       grid.appendChild(card);
     });
   }
 
   function showModal(id, l) {
+    const ol = $('pageLoadingOverlay');
+    if (ol) ol.remove();
     const t = I18N[l] || I18N.en;
     const name = id === 'portal' ? t.portal_title : (APPS.find(a => a.id === id)?.name || id);
     modalTitle.textContent = name;
@@ -740,6 +758,14 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     document.querySelectorAll('#themeToggle button').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
   }
 
+  function loadingOverlay(t) {
+    const existing = $('pageLoadingOverlay');
+    if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'pageLoadingOverlay'; overlay.className = 'loading-overlay';
+    overlay.textContent = t; document.body.appendChild(overlay);
+  }
+
   function bindAuthLink(el) {
     if (!el) return;
     el.addEventListener('click', e => {
@@ -748,6 +774,7 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
       el.textContent = t.waiting_btn || 'Waiting...';
       el.style.pointerEvents = 'none';
       el.style.opacity = '0.7';
+      const timer = setTimeout(() => loadingOverlay(t.loading_app || 'Opening app...'), 500);
       const url = new URL(el.href, location.origin);
       url.searchParams.set('lang', lang);
       url.searchParams.set('theme', theme);

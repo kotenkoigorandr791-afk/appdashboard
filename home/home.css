@@ -42,6 +42,7 @@ body.light-theme .site-header {
   border-bottom-color: rgba(26,43,51,0.1);
 }
 .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.header-sep { display: none; }
 .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; }
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; flex-shrink: 0; }
@@ -503,16 +504,33 @@ body.light-theme footer { border-top-color: rgba(26,43,51,0.1); }
 .social-link:hover { opacity: 1; text-decoration: underline; }
 .social-link svg { width: 17px; height: 17px; fill: currentColor; }
 
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 9999; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(7,17,30,0.85); backdrop-filter: blur(8px);
+  color: #deeeff; font-size: 16px; font-weight: 600;
+  animation: loadFadeIn .2s ease;
+}
+body.light-theme .loading-overlay {
+  background: rgba(237,244,251,0.88); color: #1a2b38;
+}
+@keyframes loadFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .site-header { flex-direction: column; align-items: stretch; padding: 12px 8px; height: auto; min-height: 66px; }
   .header-left { justify-content: flex-start; width: 100%; position: relative; gap: 0; min-height: 42px; }
   .header-left .nav-open-btn { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); flex-shrink: 0; z-index: 2; margin: 0; }
   .header-right { justify-content: center; }
+  .header-sep { display: block; height: 0; border: 0; border-top: 1px dashed rgba(255,255,255,0.12); width: 100%; margin: 2px 0; }
+  body.light-theme .header-sep { border-top-color: rgba(26,43,51,0.12); }
   .brand { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none; white-space: nowrap; }
   .brand h1 { text-align: center; }
-  .theme-toggle { justify-content: center; }
-  .lang-selector { align-self: center; }
+  .theme-toggle { order: 1; justify-content: center; }
+  .lang-selector { order: 2; align-self: center; }
+  #calendarBtn { order: 3; }
+  #calendarPopover { order: 4; }
   .hero { padding: 40px 0 34px; }
   .buttons { flex-direction: column; align-items: center; }
   .buttons a, .buttons button { width: 100%; max-width: 280px; text-align: center; }
