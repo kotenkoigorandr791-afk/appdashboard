@@ -20,9 +20,9 @@
             }
 
             initTaskProgress() {
-                const accent = (document.body.dataset.accentColor || '85b503').replace(/^#/, '');
-                const theme = document.body.dataset.theme || 'dark';
-                this.taskProgress = new FileLoadProgress({ theme, color: '#' + accent });
+                this.taskProgress = {
+                    show() {}, reset() {}, set() {}, startCreep() {}, stopCreep() {}, complete() {}, hide() {}, fail() {}
+                };
             }
 
             sanitizeMessage(message) {
@@ -44,6 +44,7 @@
                     audioContainer: document.getElementById('audio-container'),
                     progressContainer: document.getElementById('progress-container'),
                     progressBar: document.getElementById('progress-bar'),
+                    progressText: document.getElementById('progress-text'),
                     status: document.getElementById('status'),
                     ttsLanguage: document.getElementById('tts-language'),
                     ttsSpeed: document.getElementById('tts-speed')
@@ -115,7 +116,7 @@
                         throw new Error(result.error || 'Generation failed');
                     }
                 } catch (error) {
-                    console.error('Generation error:', error);
+                    console.error('Generation error:', this.sanitizeMessage(error.message));
                     this.showStatus(this.translations.error_prefix + ': ' + error.message, 'error');
                     this.resetUI();
                 }
@@ -139,7 +140,7 @@
                             setTimeout(checkProgress, 1000);
                         }
                     } catch (error) {
-                        console.error('Progress check error:', error);
+                        console.error('Progress check error:', this.sanitizeMessage(error.message));
                         this.showStatus(this.translations.error_prefix + ': ' + error.message, 'error');
                         this.resetUI();
                     }
@@ -191,10 +192,6 @@
                     }, '*');
                 }
 
-                // Auto-cleanup temporary files after generation completes
-                setTimeout(() => {
-                    this.cleanupTempFiles();
-                }, 2000);
             }
 
             stopGeneration() {
@@ -214,7 +211,7 @@
 
                 try {
                     this.elements.saveServerBtn.disabled = true;
-                    this.showStatus('Saving to server...', 'info');
+                    this.showStatus(this.translations.saving_to_server || 'Saving to server...', 'info');
 
                     const formData = new FormData();
                     formData.append('action', 'save_audio_to_server');
@@ -230,7 +227,7 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        this.showStatus('Audio saved', 'success');
+                        this.showStatus(this.translations.audio_saved || 'Audio saved', 'success');
 
                         // Notify parent window to refresh file list
                         if (window.parent) {
@@ -248,7 +245,7 @@
                         throw new Error(result.error || 'Failed to save audio');
                     }
                 } catch (error) {
-                    console.error('Save error:', error);
+                    console.error('Save error:', this.sanitizeMessage(error.message));
                     this.showStatus(this.translations.error_prefix + ': ' + error.message, 'error');
                 } finally {
                     this.elements.saveServerBtn.disabled = false;
@@ -261,7 +258,7 @@
                 try {
                     await fetch(`<?= htmlspecialchars($ttsApiUrl) ?>?action=cleanup_audio&progress_id=${this.progressId}`);
                 } catch (error) {
-                    console.error('Cleanup error:', error);
+                    console.error('Cleanup error:', this.sanitizeMessage(error.message));
                 }
             }
 
@@ -272,7 +269,12 @@
                 this.taskProgress.set(progressValue);
                 if (this.elements.progressBar) {
                     this.elements.progressBar.style.width = progressValue + '%';
-                    this.elements.progressBar.textContent = Math.round(progressValue) + '%';
+                }
+                if (this.elements.progressText) {
+                    this.elements.progressText.textContent = Math.round(progressValue) + '%';
+                }
+                if (this.elements.progressContainer) {
+                    this.elements.progressContainer.style.display = progressValue > 0 && progressValue < 100 ? 'inline-flex' : 'none';
                 }
                 if (message) {
                     this.showStatus(message, 'info');

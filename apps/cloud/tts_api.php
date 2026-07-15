@@ -14,17 +14,35 @@ function app_path($relativePath = '') {
 }
 
 function python_bin() {
-    $candidates = ['python3', 'python'];
+    $candidates = ['/usr/bin/python3', 'python3', 'python'];
     foreach ($candidates as $bin) {
+        if (strpos($bin, '/') !== false && is_executable($bin)) return $bin;
         if (strpos($bin, ':\\') !== false && file_exists($bin)) return $bin;
         $path = trim((string)shell_exec('which ' . escapeshellarg($bin) . ' 2>/dev/null'));
         if ($path !== '') return $path;
     }
     return 'python3';
 }
+function tts_split_root_path(string $relativePath): array {
+    $path = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
+    $map = ['.archive' => 'archive', '.temp_files' => 'temp', '.documents' => 'documents', '.photos' => 'photos', '.pdf' => 'pdf', '.trash' => 'trash', '.clientsync' => 'clientsync'];
+    foreach ($map as $prefix => $rootKey) {
+        if ($path === $prefix) return [$rootKey, ''];
+        if (str_starts_with($path, $prefix . '/')) return [$rootKey, substr($path, strlen($prefix) + 1)];
+    }
+    return ['main', $path];
+}
 function resolve_user_file_path($user, $relativePath) {
     $relativePath = trim((string)$relativePath);
     if ($relativePath === '') return null;
+    if (function_exists('appdata_user_full_path')) {
+        [$rootKey, $rootRelativePath] = tts_split_root_path($relativePath);
+        try {
+            $appDataPath = appdata_user_full_path('cloud', (string)$user, $rootKey, $rootRelativePath, false);
+            if (is_file($appDataPath) || is_dir($appDataPath)) return realpath($appDataPath) ?: $appDataPath;
+        } catch (Throwable $e) {
+        }
+    }
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $candidates = [];
     if (preg_match('/^(?:[a-zA-Z]:[\\\\\\/]|\/)/', $relativePath)) $candidates[] = $relativePath;
@@ -51,8 +69,11 @@ function resolve_user_file_path($user, $relativePath) {
 
 const TTS_OUTPUT_DIR = __DIR__ . '/tts_output';
 @mkdir(TTS_OUTPUT_DIR, 0777, true);
+@mkdir(TTS_OUTPUT_DIR . '/.cache', 0777, true);
+@chmod(TTS_OUTPUT_DIR . '/.cache', 0777);
 
 require_once __DIR__ . '/../../lib/app_db.php';
+require_once dirname(__DIR__, 2) . '/storage_helper.php';
 
 function getDB() {
     static $db = null;
@@ -94,6 +115,11 @@ function invalidate_file_tree($email) {
     } catch (Exception $e) {
         cloud_safe_error_log("invalidate_file_tree failed: " . $e->getMessage());
     }
+}
+
+function tts_safe_message(string $message): string {
+    $message = preg_replace('/\b[A-Za-z]:[\\\\\\/][^\s"\'<>)]*/', '[hidden-path]', $message);
+    return preg_replace('/(^|[\s(])\/(?:[^\/\s"\'<>)]*\/)*[^\/\s"\'<>)]*/', '$1[hidden-path]', $message);
 }
 
 function ensure_tts_tables() {
@@ -164,11 +190,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
         echo json_encode([
             'progress' => (int)$row['percentage'],
-            'message' => $row['message'],
+            'message' => tts_safe_message((string)$row['message']),
             'status' => $row['status'],
             'audio_url' => $row['audio_url'],
             'audio_data' => $audioData,
-            'error' => $row['error_text']
+            'error' => tts_safe_message((string)$row['error_text'])
         ]);
         exit;
     }
@@ -328,7 +354,7 @@ if ($action === 'generate_tts') {
     $pythonScript = app_path('tts_generate.py');
 
     if (!file_exists($pythonScript)) {
-        echo json_encode(['success' => false, 'error' => 'TTS script not found: ' . $pythonScript]);
+        echo json_encode(['success' => false, 'error' => 'TTS script not found']);
         exit;
     }
 
@@ -345,23 +371,20 @@ if ($action === 'generate_tts') {
                escapeshellarg($progressId);
 
     $logFile = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . $progressId . '.log';
+    $cacheDir = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . '.cache';
 
     if (substr(php_uname(), 0, 7) === "Windows") {
         $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($logFile) . ' 2>&1');
         pclose(popen($runCommand, "r"));
     } else {
-        exec($command . ' > ' . escapeshellarg($logFile) . ' 2>&1 &');
+        $env = 'HOME=' . escapeshellarg($cacheDir) . ' XDG_CACHE_HOME=' . escapeshellarg($cacheDir) . ' MPLCONFIGDIR=' . escapeshellarg($cacheDir) . ' PYTHONUNBUFFERED=1 ';
+        exec($env . $command . ' > ' . escapeshellarg($logFile) . ' 2>&1 &');
     }
 
     echo json_encode([
         'success' => true,
         'message' => 'TTS generation started',
-        'progress_id' => $progressId,
-        'debug' => [
-            'temp_file' => $tempTextFileAbs,
-            'output_file' => $outputPathAbs,
-            'log_file' => $logFile
-        ]
+        'progress_id' => $progressId
     ]);
     exit;
 }
@@ -408,8 +431,9 @@ if ($action === 'save_audio_to_server') {
         echo json_encode(['success' => false, 'error' => 'Text file not found']);
         exit;
     }
-    $textDir = dirname($textPath);
-    $textBasename = pathinfo($textPath, PATHINFO_FILENAME);
+    [$targetRootKey, $rootRelativeTextPath] = tts_split_root_path($textPath);
+    $textDir = dirname($rootRelativeTextPath);
+    $textBasename = pathinfo($rootRelativeTextPath, PATHINFO_FILENAME);
     $targetDir = realpath(dirname($resolvedTextPath));
 
     if (!$targetDir) {
@@ -423,7 +447,9 @@ if ($action === 'save_audio_to_server') {
 
     // Copy audio file to target location
     if (copy($sourceAudioPath, $targetPath)) {
-        $relativePath = str_replace(DIRECTORY_SEPARATOR, '/', trim($textDir, '/\\') . DIRECTORY_SEPARATOR . $targetFilename);
+        $relativePath = $textDir === '.' || $textDir === ''
+            ? $targetFilename
+            : str_replace(DIRECTORY_SEPARATOR, '/', trim($textDir, '/\\') . DIRECTORY_SEPARATOR . $targetFilename);
 
         // Invalidate file tree cache so the new file appears in the tree
         $email = get_session_email();

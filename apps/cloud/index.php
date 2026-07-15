@@ -41,14 +41,17 @@ $menuBtnToolbarTop = $menuBtnClearTop + 10;
 $menuBtnMobileClearTop = max(0, ($menuBtnMobile['top'] + $menuBtnMobile['height']) - 30);
 $menuBtnMobileToolbarTop = $menuBtnMobileClearTop + 8;
 
-$cloudScriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/index.php'));
-if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === '') {
-    $cloudApiBase = '/api.php';
-    $cloudAiBase = '/ai.php';
-} else {
-    $cloudApiBase = rtrim($cloudScriptDir, '/') . '/api.php';
-    $cloudAiBase = rtrim($cloudScriptDir, '/') . '/ai.php';
+$cloudScriptName = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '/index.php');
+$cloudRequestPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '';
+$cloudScriptDir = str_replace('\\', '/', dirname($cloudScriptName));
+if (str_contains($cloudRequestPath, '/apps/cloud')) {
+    $cloudScriptDir = '/apps/cloud';
+} elseif ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === '') {
+    $cloudScriptDir = '/apps/cloud';
 }
+$cloudAppBase = rtrim($cloudScriptDir, '/');
+$cloudApiBase = $cloudAppBase . '/api.php';
+$cloudAiBase = $cloudAppBase . '/ai.php';
 
 ?><!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($safeLang, ENT_QUOTES); ?>">
@@ -193,6 +196,7 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
       lang: "<?php echo htmlspecialchars($safeLang, ENT_QUOTES); ?>",
       theme: "<?php echo htmlspecialchars($safeTheme, ENT_QUOTES); ?>",
       color: "<?php echo htmlspecialchars($color, ENT_QUOTES); ?>",
+      appBase: "<?php echo htmlspecialchars($cloudAppBase, ENT_QUOTES, 'UTF-8'); ?>",
       apiBase: "<?php echo htmlspecialchars($cloudApiBase, ENT_QUOTES, 'UTF-8'); ?>",
       aiApiBase: "<?php echo htmlspecialchars($cloudAiBase, ENT_QUOTES, 'UTF-8'); ?>",
       collabWsUrl: "<?php
@@ -218,8 +222,8 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
 
 
 <script defer src="assets/completions.js"></script>
-<script defer src="assets/app.js?v=21"></script>
-<script defer src="assets/app/editors-and-tree.js?v=7"></script>
+<script defer src="assets/app.js?v=22"></script>
+<script defer src="assets/app/editors-and-tree.js?v=8"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -231,13 +235,13 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
 <script defer src="assets/app/cloud-group-chat.js?v=8"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
-<script defer src="assets/settings/sync-modals.js?v=1"></script>
+<script defer src="assets/settings/sync-modals.js?v=3"></script>
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
-<script defer src="assets/ai-agent-skeleton.js?v=9"></script>
-<script defer src="assets/ai-assistant.js?v=30"></script>
+<script defer src="assets/ai-agent-skeleton.js?v=10"></script>
+<script defer src="assets/ai-assistant.js?v=31"></script>
 <script defer src="assets/monaco-editor.js?v=8"></script>
 
 
@@ -1940,6 +1944,10 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
       <p style="color:var(--fg-secondary);font-size:13px;margin-bottom:16px;" data-i18n="syncTokenDescription">
         Generate a WebDAV token. Use your account email as the login and this token as the password.
       </p>
+      <div style="margin-bottom:12px;">
+        <label for="sync-token-name" style="display:block;font-size:12px;color:var(--fg-secondary);margin-bottom:6px;" data-i18n="syncTokenNameLabel">Connection name</label>
+        <input id="sync-token-name" type="text" autocomplete="off" placeholder="My computer" data-i18n-placeholder="syncTokenNamePlaceholder" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--fg);">
+      </div>
       
       <!-- Generate button -->
       <div style="margin-bottom:20px;">
@@ -1975,6 +1983,18 @@ if ($cloudScriptDir === '/' || $cloudScriptDir === '.' || $cloudScriptDir === ''
           </button>
         </div>
         <div style="font-size:11px;color:var(--fg-secondary);line-height:1.45;margin-bottom:8px;" data-i18n="webdavScriptHint">Download the script, run it, and enter your sudo password if the system asks to install davfs2 or mount the folder.</div>
+        <div id="webdav-linux-command-wrap" style="display:none;margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--fg-secondary);margin-bottom:6px;" data-i18n="webdavLinuxCommandLabel">Linux command after downloading:</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <code id="webdav-linux-command" style="flex:1;background:var(--panel);padding:10px;border-radius:6px;font-size:12px;word-break:break-all;font-family:monospace;"></code>
+            <button id="btn-copy-webdav-linux-command" class="btn secondary small" title="Copy command">
+              <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
           <button id="btn-download-webdav-script" class="btn primary small" style="display:inline-flex;align-items:center;gap:6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">

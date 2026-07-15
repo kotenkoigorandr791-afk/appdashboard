@@ -254,7 +254,14 @@ function loadTranscriptionEditorToTab(tab) {
         
         let currentUser = currentUserState.user || 'default';
         currentUser = currentUser.replace(/\s+/g, '_');
-        const transcriptionEditorUrl = `utilities/projects/transcription-editor/public/index.php?path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&lang=${lang}&theme=${theme}&color=${encodeURIComponent(color)}&root=${getResolvedTabRoot(tab)}`;
+        const transcriptionEditorUrl = buildCloudProjectUrl('utilities/projects/transcription-editor/public/index.php', {
+            path: tab.path,
+            user: currentUser,
+            lang,
+            theme,
+            color,
+            root: getResolvedTabRoot(tab)
+        });
         iframe.src = transcriptionEditorUrl;
         iframe.style.width = '100%';
         iframe.style.height = '100%';
@@ -300,7 +307,14 @@ function loadTTSEditorToTab(tab) {
 
         let currentUser = currentUserState.user || 'default';
         currentUser = currentUser.replace(/\s+/g, '_');
-        const ttsEditorUrl = `utilities/projects/tts-editor/public/index.php?path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&lang=${lang}&theme=${theme}&color=${encodeURIComponent(color)}&root=${getResolvedTabRoot(tab)}`;
+        const ttsEditorUrl = buildCloudProjectUrl('utilities/projects/tts-editor/public/index.php', {
+            path: tab.path,
+            user: currentUser,
+            lang,
+            theme,
+            color,
+            root: getResolvedTabRoot(tab)
+        });
         iframe.src = ttsEditorUrl;
         iframe.style.width = '100%';
         iframe.style.height = '100%';

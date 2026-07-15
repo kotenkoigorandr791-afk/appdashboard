@@ -27,6 +27,8 @@ def _load_pg_config() -> dict[str, str]:
     for path in (
         os.environ.get("APP_DB_CONFIG", ""),
         "/opt/AppDashboard/data/db.env",
+        "/opt/docker/appdashboard/code/data/db.env",
+        os.path.normpath(os.path.join(os.path.dirname(__file__), "../../../../data/db.env")),
         os.path.normpath(os.path.join(os.path.dirname(__file__), "../../../data/db.env")),
     ):
         if not path or not os.path.isfile(path):

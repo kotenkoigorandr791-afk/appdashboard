@@ -169,19 +169,39 @@
         }
 
         .progress-container {
-            display: none !important;
+            width: 132px;
+            height: 28px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--panel);
         }
 
         .progress-bar {
             width: 0%;
-            height: 20px;
+            height: 4px;
             background: var(--accent);
-            border-radius: 4px;
+            border-radius: 999px;
             transition: width 0.3s;
-            text-align: center;
-            color: white;
+        }
+
+        .progress-track {
+            flex: 1;
+            height: 4px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: var(--border);
+        }
+
+        .progress-text {
+            min-width: 32px;
+            color: var(--fg);
             font-size: 12px;
-            line-height: 20px;
+            line-height: 1;
+            text-align: right;
         }
 
         .status {
@@ -256,6 +276,10 @@
                     </select>
                 </div>
 
+                <div class="progress-container" id="progress-container">
+                    <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+                    <span class="progress-text" id="progress-text">0%</span>
+                </div>
                 <button id="btn-generate" class="btn primary"><?php echo $t['generate_audio']; ?></button>
                 <button id="btn-stop" class="btn danger" style="display: none;"><?php echo $t['stop_generation']; ?></button>
                 <button id="btn-save-server" class="btn primary" style="display: none;">
@@ -267,10 +291,6 @@
                     <span><?php echo $t['save']; ?></span>
                 </button>
             </div>
-        </div>
-
-        <div class="progress-container" id="progress-container">
-            <div class="progress-bar" id="progress-bar">0%</div>
         </div>
 
         <div class="status" id="status"></div>

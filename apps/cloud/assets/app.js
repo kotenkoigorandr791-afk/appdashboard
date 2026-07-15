@@ -61,6 +61,17 @@ function buildOnlyOfficeEditorUrl(tab, currentUser, lang, theme, color, root) {
   });
   return `onlyoffice_editor.php?${params.toString()}`;
 }
+function buildCloudProjectUrl(projectPath, params = {}) {
+    const base = (window.APP_CONFIG && window.APP_CONFIG.appBase)
+        ? window.APP_CONFIG.appBase
+        : new URL(window.APP_CONFIG?.apiBase || '/apps/cloud/api.php', window.location.href).pathname.replace(/\/api\.php$/, '');
+    const url = new URL(`${base.replace(/\/+$/, '')}/${String(projectPath).replace(/^\/+/, '')}`, window.location.origin);
+    Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) url.searchParams.set(key, value);
+    });
+    return url.pathname + url.search;
+}
+window.buildCloudProjectUrl = buildCloudProjectUrl;
 function waitForStylesheetsReady(timeoutMs = 2000) {
   const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
   const pending = links.filter((link) => !link.sheet).map((link) => new Promise((resolve) => {
@@ -2041,9 +2052,23 @@ function refreshAllEditorIframes() {
                     } else if (tab.latexEditor) {
                         newUrl = `utilities/projects/latex-editor/public/index.php?path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&lang=${currentLang}&theme=${currentTheme}&color=${encodeURIComponent(currentColor)}&root=${root}`;
                     } else if (tab.transcriptionEditor) {
-                        newUrl = `utilities/projects/transcription-editor/public/index.php?path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&lang=${currentLang}&theme=${currentTheme}&color=${encodeURIComponent(currentColor)}&root=${root}`;
+                        newUrl = buildCloudProjectUrl('utilities/projects/transcription-editor/public/index.php', {
+                            path: tab.path,
+                            user: currentUser,
+                            lang: currentLang,
+                            theme: currentTheme,
+                            color: currentColor,
+                            root
+                        });
                     } else if (tab.ttsEditor) {
-                        newUrl = `utilities/projects/tts-editor/public/index.php?path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&lang=${currentLang}&theme=${currentTheme}&color=${encodeURIComponent(currentColor)}&root=${root}`;
+                        newUrl = buildCloudProjectUrl('utilities/projects/tts-editor/public/index.php', {
+                            path: tab.path,
+                            user: currentUser,
+                            lang: currentLang,
+                            theme: currentTheme,
+                            color: currentColor,
+                            root
+                        });
                     } else if (tab.onlyOfficeEditor) {
                         newUrl = buildOnlyOfficeEditorUrl(tab, currentUser, currentLang, currentTheme, currentColor, root);
                     } else if (tab.zipViewer) {

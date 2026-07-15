@@ -611,10 +611,8 @@ if ($action === 'client_token_generate') {
     
     $result = generate_client_token($email, $deviceId, $deviceName, $platform, $expiresInDays);
     if (!empty($result['ok'])) {
-        $scheme = ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https') ? 'https' : 'http';
-        $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
         $result['username'] = $email;
-        $result['webdav_url'] = "{$scheme}://{$host}/webdav/";
+        $result['webdav_url'] = cloud_public_origin() . '/webdav/';
     }
     json_out($result);
 }
@@ -3422,6 +3420,131 @@ if ($action === 'refresh_storage_usage') {
         json_out(['ok' => false, 'error' => $fresh['error'] ?? 'scan failed'], 500);
     }
     json_out($fresh);
+}
+
+if (!function_exists('cloud_ai_ensure_chat_tables')) {
+    function cloud_ai_ensure_chat_tables(AppDatabase $db): void {
+        $db->exec("CREATE TABLE IF NOT EXISTS cloud_ai_assistant_chats (
+            id BIGSERIAL PRIMARY KEY,
+            email TEXT NOT NULL,
+            question TEXT NOT NULL,
+            answer TEXT NOT NULL,
+            model TEXT NOT NULL DEFAULT '',
+            file_name TEXT NOT NULL DEFAULT '',
+            time_seconds REAL NULL,
+            tokens INTEGER NULL,
+            speed REAL NULL,
+            meta_json TEXT NOT NULL DEFAULT '',
+            created_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint)
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_ai_assistant_chats_email_created ON cloud_ai_assistant_chats(email, created_at DESC)");
+        $db->exec("CREATE TABLE IF NOT EXISTS cloud_ai_assistant_user_settings (
+            email TEXT PRIMARY KEY,
+            settings_json TEXT NOT NULL DEFAULT '{}',
+            updated_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            auto_confirm_agent_edits INTEGER NOT NULL DEFAULT 0
+        )");
+        try {
+            $db->exec("ALTER TABLE cloud_ai_assistant_chats ADD COLUMN IF NOT EXISTS meta_json TEXT NOT NULL DEFAULT ''");
+        } catch (Throwable $e) {
+        }
+    }
+}
+
+if ($action === 'ai_chat_append') {
+    $email = get_session_email();
+    if (!$email) json_out(['success' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
+    cloud_ai_ensure_chat_tables($db);
+    $stmt = $db->prepare("INSERT INTO cloud_ai_assistant_chats
+        (email, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
+        VALUES (:email, :question, :answer, :model, :file_name, :time_seconds, :tokens, :speed, :meta_json, extract(epoch from now())::bigint)");
+    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':question', (string)($_POST['question'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':answer', (string)($_POST['answer'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':model', (string)($_POST['model'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':file_name', (string)($_POST['file_name'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':time_seconds', is_numeric($_POST['time_seconds'] ?? null) ? (float)$_POST['time_seconds'] : null, SQLITE3_FLOAT);
+    $stmt->bindValue(':tokens', is_numeric($_POST['tokens'] ?? null) ? (int)$_POST['tokens'] : null, SQLITE3_INTEGER);
+    $stmt->bindValue(':speed', is_numeric($_POST['speed'] ?? null) ? (float)$_POST['speed'] : null, SQLITE3_FLOAT);
+    $stmt->bindValue(':meta_json', (string)($_POST['meta_json'] ?? ''), SQLITE3_TEXT);
+    $ok = $stmt->execute();
+    json_out(['success' => (bool)$ok, 'id' => method_exists($db, 'lastInsertRowID') ? $db->lastInsertRowID() : null]);
+}
+
+if ($action === 'ai_chat_load') {
+    $email = get_session_email();
+    if (!$email) json_out(['success' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
+    cloud_ai_ensure_chat_tables($db);
+    $limit = max(1, min(50, (int)($_POST['limit'] ?? 5)));
+    $offset = max(0, (int)($_POST['offset'] ?? 0));
+    $stmt = $db->prepare("SELECT id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at
+        FROM cloud_ai_assistant_chats
+        WHERE email = :email
+        ORDER BY created_at DESC, id DESC
+        LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':limit', $limit + 1, SQLITE3_INTEGER);
+    $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+    $res = $stmt->execute();
+    $items = [];
+    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        $items[] = $row;
+    }
+    $hasMore = count($items) > $limit;
+    if ($hasMore) $items = array_slice($items, 0, $limit);
+    json_out(['success' => true, 'items' => $items, 'has_more' => $hasMore]);
+}
+
+if ($action === 'ai_chat_clear') {
+    $email = get_session_email();
+    if (!$email) json_out(['success' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
+    cloud_ai_ensure_chat_tables($db);
+    $stmt = $db->prepare("DELETE FROM cloud_ai_assistant_chats WHERE email = :email");
+    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt->execute();
+    json_out(['success' => true]);
+}
+
+if ($action === 'ai_user_settings_get') {
+    $email = get_session_email();
+    if (!$email) json_out(['success' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
+    cloud_ai_ensure_chat_tables($db);
+    $stmt = $db->prepare("SELECT settings_json FROM cloud_ai_assistant_user_settings WHERE email = :email LIMIT 1");
+    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $settings = $row ? (json_decode((string)$row['settings_json'], true) ?: []) : [];
+    json_out(['success' => true, 'settings' => $settings]);
+}
+
+if ($action === 'ai_user_settings_set') {
+    $email = get_session_email();
+    if (!$email) json_out(['success' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
+    cloud_ai_ensure_chat_tables($db);
+    $settings = [
+        'selected_model' => (string)($_POST['selected_model'] ?? ''),
+        'selected_role' => (string)($_POST['selected_role'] ?? ''),
+        'chat_mode' => (string)($_POST['chat_mode'] ?? 'chat'),
+        'remember_previous' => filter_var($_POST['remember_previous'] ?? false, FILTER_VALIDATE_BOOLEAN),
+        'notify_on_complete' => filter_var($_POST['notify_on_complete'] ?? false, FILTER_VALIDATE_BOOLEAN),
+    ];
+    $json = json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $stmt = $db->prepare("INSERT INTO cloud_ai_assistant_user_settings (email, settings_json, updated_at)
+        VALUES (:email, :settings_json, extract(epoch from now())::bigint)
+        ON CONFLICT(email) DO UPDATE SET settings_json = excluded.settings_json, updated_at = excluded.updated_at");
+    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':settings_json', $json, SQLITE3_TEXT);
+    $stmt->execute();
+    json_out(['success' => true, 'settings' => $settings]);
 }
 
 if ($action === 'get_folder_state') {

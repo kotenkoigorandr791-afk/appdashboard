@@ -121,7 +121,7 @@
                 const storageKey = 'transcription_progress_' + this.audioPath;
                 const data = {
                     progressId: this.progressId,
-                    progress: parseInt(this.elements.progressBar.textContent) || 0,
+                    progress: this.currentProgress || 0,
                     message: this.elements.status.textContent,
                     transcription: this.elements.transcriptionText.value,
                     timestamp: Date.now()
@@ -163,11 +163,9 @@
             }
 
             initProgressOverlays() {
-                const accent = (document.body.dataset.accentColor || '85b503').replace(/^#/, '');
-                const theme = document.body.dataset.theme || 'dark';
-                const opts = { theme, color: '#' + accent };
-                this.fileLoadProgress = new FileLoadProgress(opts);
-                this.taskProgress = new FileLoadProgress(opts);
+                const noop = { show() {}, reset() {}, set() {}, startCreep() {}, stopCreep() {}, complete() {}, hide() {}, fail() {}, async fetchBlob(url) { const response = await fetch(url); if (!response.ok) throw new Error('Failed to load file'); return response.blob(); } };
+                this.fileLoadProgress = noop;
+                this.taskProgress = noop;
             }
 
             initializeElements() {
@@ -179,6 +177,7 @@
                     transcriptionText: document.getElementById('transcription-text'),
                     progressContainer: document.getElementById('progress-container'),
                     progressBar: document.getElementById('progress-bar'),
+                    progressText: document.getElementById('progress-text'),
                     status: document.getElementById('status'),
                     fileInfo: document.getElementById('file-info'),
                     audioPlayerContainer: document.getElementById('audio-player-container'),
@@ -290,7 +289,12 @@
                 this.taskProgress.set(progressValue);
                 if (this.elements.progressBar) {
                     this.elements.progressBar.style.width = progressValue + '%';
-                    this.elements.progressBar.textContent = Math.round(progressValue) + '%';
+                }
+                if (this.elements.progressText) {
+                    this.elements.progressText.textContent = Math.round(progressValue) + '%';
+                }
+                if (this.elements.progressContainer) {
+                    this.elements.progressContainer.style.display = progressValue > 0 && progressValue < 100 ? 'inline-flex' : 'none';
                 }
                 if (message) {
                     const localizedMessage = this.translateBackendMessage(message);
@@ -547,7 +551,7 @@
                         this.showStatus(this.translations.waiting_transcription, 'info');
                     }
                 } catch (error) {
-                    console.error('Error checking progress:', error);
+                    console.error('Error checking progress:', this.sanitizeMessage(error.message));
                     this.showDebug(this.logText('error_prefix', 'Error') + ': ' + error.message);
                 }
             }
@@ -611,7 +615,7 @@
                         this.showDebug('Temporary file deleted');
                     }
                 } catch (error) {
-                    console.error('Failed to delete temporary file:', error);
+                    console.error('Failed to delete temporary file:', this.sanitizeMessage(error.message));
                 }
             }
 
@@ -661,9 +665,9 @@
                         throw new Error(result.error || 'Failed to save transcription');
                     }
                 } catch (error) {
-                    console.error('Save error:', error);
-                    this.showStatus('Error: ' + error.message, 'error');
-                    this.showDebug('Save error: ' + error.message);
+                    console.error('Save error:', this.sanitizeMessage(error.message));
+                    this.showStatus('Error: ' + this.sanitizeMessage(error.message), 'error');
+                    this.showDebug('Save error: ' + this.sanitizeMessage(error.message));
                 } finally {
                     this.elements.saveBtn.disabled = false;
                     this.elements.saveBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg><span>Save</span>';

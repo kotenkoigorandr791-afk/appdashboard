@@ -1772,6 +1772,10 @@
                 await showAlert((translations.zeep_err_worker || translations.takeout_err_worker || 'Error') + (d && d.error ? ' ' + zlZeepApiError(d.error) : ''));
                 return;
             }
+            if (d.state && d.state.status) {
+                zlOnState(d.state);
+                return;
+            }
             zlStartPoll(jid);
         }
         function zlOnState(st) {
@@ -1930,21 +1934,34 @@
             pendingVideoCleanup = { jobId: '', outputBasename: '' };
             pendingVideoOcrPreview = [];
             let rows = [];
+            let previewOk = false;
+            let previewError = '';
             try {
                 const d = await fetch(ZL_API + '?action=preview&job=' + encodeURIComponent(jid), { credentials: 'same-origin' }).then((r) => r.json());
-                if (d && d.ok && Array.isArray(d.rows)) rows = d.rows;
-            } catch (e) {}
+                previewOk = !!(d && d.ok);
+                previewError = d && d.error ? String(d.error) : '';
+                if (previewOk && Array.isArray(d.rows)) rows = d.rows;
+            } catch (e) {
+                previewError = 'network';
+            }
             pendingVideoRows = [];
             rows.forEach((r) => {
                 const iso = String(r.date || '').trim();
                 const s = parseInt(String(r.steps), 10);
                 if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || isNaN(s) || s < 0) return;
-                pendingVideoRows.push({ date: videoIsoToDmy(iso), steps: s, t: '' });
+                pendingVideoRows.push({ date: videoIsoToDmy(iso), isoDate: iso, steps: s, t: '' });
             });
+            if (!previewOk || !pendingVideoRows.length) {
+                pendingZeepJobId = null;
+                await showAlert(previewError ? zlZeepApiError(previewError) : (translations.zeep_preview_empty || translations.video_no_data || 'No data'));
+                return;
+            }
             const titleEl = document.getElementById('video-confirm-title');
             if (titleEl) titleEl.innerHTML = '<i class="fas fa-clipboard-list"></i> ' + videoEscapeHtml(translations.zeep_confirm_title || translations.video_confirm_title || 'Preview');
             const subEl = document.getElementById('video-confirm-sub');
             const emptyHint = document.getElementById('video-confirm-empty-hint');
+            const phoneGuide = document.getElementById('video-confirm-phone-guide-segment');
+            if (phoneGuide) phoneGuide.style.display = 'none';
             if (subEl) subEl.textContent = translations.zeep_confirm_sub || translations.video_confirm_sub || '';
             if (emptyHint) {
                 emptyHint.style.display = !pendingVideoRows.length ? '' : 'none';
@@ -1969,7 +1986,13 @@
                 await showAlert(translations.zeep_preview_empty || translations.video_no_data || 'No data');
                 return false;
             }
-            const isoRows = pendingVideoRows.map((r) => ({ date: videoDmyToSortKey(r.date), steps: parseInt(String(r.steps), 10) || 0 }));
+            const isoRows = pendingVideoRows
+                .map((r) => ({ date: videoDmyToSortKey(r.date) || String(r.isoDate || ''), steps: parseInt(String(r.steps), 10) || 0 }))
+                .filter((r) => /^\d{4}-\d{2}-\d{2}$/.test(r.date) && r.steps >= 0);
+            if (!isoRows.length) {
+                await showAlert(translations.zeep_err_rows || translations.video_no_data || 'No data');
+                return false;
+            }
             const jid = pendingZeepJobId;
             pendingZeepJobId = null;
             const fd = new FormData();
@@ -2194,7 +2217,9 @@
             return videoIsoLikeToDmy(r.date || '');
         }
         function videoDmyToSortKey(d) {
-            const p = String(d).trim().split('-');
+            const raw = String(d || '').trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+            const p = raw.split('-');
             if (p.length !== 3) return '';
             const yy = parseInt(p[2], 10);
             if (isNaN(yy)) return '';
@@ -2426,6 +2451,8 @@
             const emptyHint = document.getElementById('video-confirm-empty-hint');
             const otitle = document.getElementById('video-confirm-ocr-title');
             const titleEl = document.getElementById('video-confirm-title');
+            const phoneGuide = document.getElementById('video-confirm-phone-guide-segment');
+            if (phoneGuide) phoneGuide.style.display = '';
             if (titleEl) titleEl.innerHTML = '<i class="fas fa-clipboard-list"></i> ' + videoEscapeHtml(translations.video_confirm_title || 'Recognized steps');
             if (subEl) subEl.textContent = translations.video_confirm_sub || '';
             if (emptyHint) {

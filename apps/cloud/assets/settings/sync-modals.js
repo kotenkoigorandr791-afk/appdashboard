@@ -49,9 +49,13 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   const btnDownloadScript = document.getElementById('btn-download-webdav-script');
   const btnDownloadLinuxScript = document.getElementById('btn-download-linux-webdav-script');
   const btnDownloadWindowsScript = document.getElementById('btn-download-windows-webdav-script');
+  const btnCopyLinuxCommand = document.getElementById('btn-copy-webdav-linux-command');
   const tokenDisplay = document.getElementById('sync-token-display');
   const tokenValue = document.getElementById('sync-token-value');
   const usernameValue = document.getElementById('sync-username-value');
+  const tokenNameInput = document.getElementById('sync-token-name');
+  const linuxCommandWrap = document.getElementById('webdav-linux-command-wrap');
+  const linuxCommandValue = document.getElementById('webdav-linux-command');
   const tokenInfo = document.getElementById('token-info');
   const tokensList = document.getElementById('sync-tokens-list');
   const tokensListContainer = document.getElementById('tokens-list-container');
@@ -112,6 +116,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     if (currentToken) {
       tokenValue.textContent = currentToken;
       if (usernameValue) usernameValue.textContent = currentUsername || '';
+      if (linuxCommandValue) linuxCommandValue.textContent = linuxConnectCommand();
+      if (linuxCommandWrap) linuxCommandWrap.style.display = detectedDesktopOS() === 'windows' ? 'none' : 'block';
       if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = false;
       if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = false;
       if (btnDownloadScript) btnDownloadScript.disabled = false;
@@ -119,6 +125,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     } else {
       tokenValue.textContent = '';
       if (usernameValue) usernameValue.textContent = '';
+      if (linuxCommandValue) linuxCommandValue.textContent = '';
+      if (linuxCommandWrap) linuxCommandWrap.style.display = 'none';
       if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = true;
       if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = true;
       if (btnDownloadScript) btnDownloadScript.disabled = true;
@@ -213,13 +221,25 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
 
   async function generateToken() {
     const defaultGenerateLabel = `<svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path></svg><span>${tr('generateToken', 'Generate New Token')}</span>`;
+    const tokenName = (tokenNameInput?.value || '').trim();
+    if (!tokenName) {
+      flashStatus(`✗ ${tr('syncTokenNameRequired', 'Enter a connection name')}`);
+      tokenNameInput?.focus();
+      return;
+    }
     try {
       btnGenerate.disabled = true;
       btnGenerate.innerHTML = `<span>${tr('generating', 'Generating...')}</span>`;
+      const body = new URLSearchParams({
+        action: 'client_token_generate',
+        device_id: `webdav-${Date.now()}`,
+        device_name: tokenName,
+        platform: 'WebDAV'
+      });
       const response = await fetch('api.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'action=client_token_generate&device_id=webdav&device_name=WebDAV&platform=WebDAV'
+        body
       });
       const data = await response.json();
       btnGenerate.disabled = false;
@@ -401,8 +421,13 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       url: currentWebdavUrl || `${window.location.origin}/webdav/`,
       username: currentUsername || '',
       token: currentToken || '',
-      iconUrl: new URL('apps/cloud/icon.png', window.location.origin + '/').href
+      iconUrl: new URL('project/views/icon.png', window.location.origin + '/').href,
+      iconIcoUrl: new URL('project/views/icon.ico', window.location.origin + '/').href
     };
+  }
+
+  function linuxConnectCommand() {
+    return 'cd ~/Downloads && chmod +x appdashboard-webdav-connect.sh && ./appdashboard-webdav-connect.sh';
   }
 
   function linuxWebdavScript() {
@@ -474,10 +499,43 @@ unmount_mount_dir() {
     sleep 1
   done
 }
+choose_action() {
+  case "\${1:-}" in
+    --mount|mount) echo "mount"; return 0 ;;
+    --unmount|unmount|--umount|umount) echo "unmount"; return 0 ;;
+  esac
+  if command -v kdialog >/dev/null 2>&1 && [ -n "\${DISPLAY:-}" ]; then
+    run_as_user kdialog --title "AppDashboard Cloud" --menu "Choose an action for the WebDAV folder:" mount "Mount folder" unmount "Unmount folder" 2>/dev/null || echo "cancel"
+    return 0
+  fi
+  if command -v zenity >/dev/null 2>&1 && [ -n "\${DISPLAY:-}" ]; then
+    run_as_user zenity --list --title="AppDashboard Cloud" --text="Choose an action for the WebDAV folder:" --column="Action" --column="Description" mount "Mount folder" unmount "Unmount folder" 2>/dev/null || echo "cancel"
+    return 0
+  fi
+  printf '%s\\n' "AppDashboard Cloud"
+  printf '%s\\n' "1) Mount folder"
+  printf '%s\\n' "2) Unmount folder"
+  printf '%s' "Choose an action [1/2]: "
+  read answer
+  case "$answer" in
+    2) echo "unmount" ;;
+    *) echo "mount" ;;
+  esac
+}
+ACTION="$(choose_action "\${1:-}")"
+if [ "$ACTION" = "cancel" ]; then
+  echo "Action cancelled."
+  exit 0
+fi
+if [ "$ACTION" = "unmount" ]; then
+  unmount_mount_dir
+  echo "Folder unmounted: $MOUNT_DIR"
+  exit 0
+fi
 if mount_is_healthy; then
   write_kde_icon_file
   write_desktop_link
-  echo "Already mounted: $MOUNT_DIR"
+  echo "Folder is already mounted: $MOUNT_DIR"
   exit 0
 fi
 if ! run_as_user ls -ld "$MOUNT_DIR" >/dev/null 2>&1; then
@@ -541,11 +599,8 @@ EOF
     n=$((n + 1))
     sleep 1
   done
-  if findmnt -rn -M "$MOUNT_DIR" -o FSTYPE 2>/dev/null | grep -q '^fuse.rclone$'; then
-    echo "Mounted: $MOUNT_DIR"
-    exit 0
-  fi
   cat "$RCLONE_LOG_FILE" 2>/dev/null || true
+  unmount_mount_dir
   echo "Failed to mount with rclone."
   exit 1
 fi
@@ -597,6 +652,7 @@ $WebDavUrl = ${psQuote(cfg.url)}
 $Username = ${psQuote(cfg.username)}
 $Token = ${psQuote(cfg.token)}
 $IconUrl = ${psQuote(cfg.iconUrl)}
+$IconIcoUrl = ${psQuote(cfg.iconIcoUrl)}
 $Drive = 'Z:'
 $Name = 'AppDashboard Cloud'
 function Convert-WebDavToUnc([string]$Url) {
@@ -622,15 +678,7 @@ New-Item -ItemType Directory -Force -Path $IconDir | Out-Null
 $IconFile = Join-Path $IconDir 'cloud.png'
 $IconIco = Join-Path $IconDir 'cloud.ico'
 try { Invoke-WebRequest -Uri $IconUrl -OutFile $IconFile -UseBasicParsing } catch {}
-try {
-  Add-Type -AssemblyName System.Drawing
-  $Bitmap = [System.Drawing.Bitmap]::FromFile($IconFile)
-  $Icon = [System.Drawing.Icon]::FromHandle($Bitmap.GetHicon())
-  $Stream = [System.IO.File]::Open($IconIco, [System.IO.FileMode]::Create)
-  $Icon.Save($Stream)
-  $Stream.Close()
-  $Bitmap.Dispose()
-} catch {}
+try { Invoke-WebRequest -Uri $IconIcoUrl -OutFile $IconIco -UseBasicParsing } catch {}
 $Shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) "$Name.lnk"
 $Shell = New-Object -ComObject WScript.Shell
 $Link = $Shell.CreateShortcut($Shortcut)
@@ -678,6 +726,12 @@ Write-Host "Connected $Name as $Drive"
     btnCopyUsername.addEventListener('click', async () => {
       const ok = await copyUsername();
       if (ok) showSuccessCheck(btnCopyUsername);
+    });
+  }
+  if (btnCopyLinuxCommand) {
+    btnCopyLinuxCommand.addEventListener('click', async () => {
+      const ok = await copyValue(linuxConnectCommand(), tr('noCommandToCopy', 'No command to copy'));
+      if (ok) showSuccessCheck(btnCopyLinuxCommand);
     });
   }
   if (btnDownloadLinuxScript) {

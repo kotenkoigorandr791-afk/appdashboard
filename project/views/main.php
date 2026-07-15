@@ -112,23 +112,29 @@
         <?php if($isHomeDashboard): ?>
         #top-bar{justify-content:flex-start;}
         #top-bar-title{flex:0 0 auto;margin-left:12px;}
-        #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;margin-top:0;}
-        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;margin-left:12px;}
-        #home-root-button svg{width:21px;height:21px;}
-        #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
+        #menu-button{position:static;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transform:none;}
+        #home-root-button{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--primary-color);text-decoration:none;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);flex:0 0 auto;margin-left:12px;border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
+        #home-root-button svg{width:22px;height:22px;}
+        #home-root-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
+        #menu-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
         #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
         #top-bar #notifications-btn{position:absolute;right:64px;top:5px;margin-left:0;}
-        #menu-button .menu-button-glyph{width:auto;height:auto;font-size:24px;transform:none;text-shadow:0 2px 4px rgba(0,0,0,0.2);}
+        #menu-button .menu-button-glyph{width:auto;height:auto;}
+        #menu-button .menu-button-glyph svg{width:22px;height:22px;}
         <?php else: ?>
         #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
-        #menu-button .menu-button-glyph{width:100%;height:100%;font-size:calc(var(--shell-menu-button-height) * 0.5);transform:translateY(-1px);text-shadow:0 2px 4px rgba(0,0,0,0.16);}
+        #menu-button .menu-button-glyph{width:100%;height:100%;}
+        #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-height) * 0.5);height:calc(var(--shell-menu-button-height) * 0.5);}
 	        @media (max-width:768px){
 	            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
 	            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
-	            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
+	            #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
 	        }
         <?php endif; ?>
         #sidebar{position:fixed;top:50px;left:-320px;width:320px;height:calc(100% - 50px);background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
+        <?php if(!$isHomeDashboard): ?>
+        #sidebar{top:0;height:100%;border-radius:0;}
+        <?php endif; ?>
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:58px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.28);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
@@ -298,9 +304,9 @@
         .flag-pl { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 6"><rect fill="%23fff" width="9" height="6"/><rect fill="%23dc143c" y="3" width="9" height="3"/></svg>'); }
         .flag-cz { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect fill="%23ffffff" width="30" height="20"/><rect fill="%23d7141a" y="10" width="30" height="10"/><polygon points="0,0 15,10 0,20" fill="%2311457e"/></svg>'); }
         .custom-select-wrap{position:relative;flex:0 0 200px;max-width:200px;height:32px;}
-        .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);cursor:pointer;user-select:none;height:32px;box-sizing:border-box;font-size:14px;line-height:1.2;}
+        .custom-select-trigger{display:flex;align-items:center;justify-content:space-between;padding:0 8px 0 12px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);cursor:pointer;user-select:none;height:32px;box-sizing:border-box;font-size:14px;line-height:1.2;}
         .custom-select-trigger:hover{border-color:var(--primary-color);}
-        .custom-select-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+        .custom-select-text{display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;}
         .custom-select-arrow{flex-shrink:0;opacity:.6;transition:transform .2s;}
         .custom-select-wrap.open .custom-select-arrow{transform:rotate(180deg);}
         .custom-select-dropdown{display:none;position:fixed;background:var(--modal-bg);border:1px solid var(--border-color);border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.15);z-index:10003;overflow:hidden;min-width:160px;}
@@ -309,6 +315,7 @@
         .custom-select-option span:first-child{min-width:0;}
         .custom-select-option:hover{background:var(--group-block-bg);}
         .custom-select-option.active{color:var(--primary-color);font-weight:600;}
+        .custom-select-option svg{flex-shrink:0;opacity:.7;}
         .custom-select-badge{display:inline-block;padding:1px 6px;margin-left:6px;background:var(--primary-color);color:#fff;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;}
         .custom-select-flag{width:20px;height:15px;display:inline-block;background-size:cover;background-position:center;border-radius:2px;flex-shrink:0;}
         .custom-select-flag.flag-ru{position:relative;overflow:hidden;}
@@ -369,7 +376,8 @@
             #content.has-app-rail.rail-top-on-mobile .app-rail-service-name{display:block;writing-mode:horizontal-tb;transform:none;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--text-color);opacity:.7;white-space:nowrap;padding:0 8px;max-width:110px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;user-select:none;}
         }
         /* border-box: height includes padding — otherwise padding is added outside height and the grid is clipped by #content (last tiles unreachable). */
-        #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));}
+        #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));position:relative;}
+        #app-grid::before{content:'';position:sticky;top:0;left:0;right:0;height:60px;background:linear-gradient(to bottom,var(--bg-color) 0%,transparent 100%);pointer-events:none;z-index:1;display:block;grid-column:1/-1;margin:0 -20px;padding:0 20px;}
         /* Fill viewport; use dvh on mobile so iframe/content match visible area (100vh exceeds it when browser chrome is shown). */
         @supports (height:100dvh){
             #content{height:100dvh;min-height:100dvh;max-height:100dvh;}
@@ -455,6 +463,7 @@
         .settings-buttons-divider{width:1px;align-self:stretch;min-height:34px;background:var(--border-color);opacity:.75;flex:0 0 1px;}
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
+        @media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:10000;}
         #shortcuts-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;max-width:640px;max-height:90vh;overflow:auto;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shortcuts{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -630,7 +639,7 @@
 <?php if($showTopBarTitle): ?>
 <div id="top-bar">
     <?php if($isHomeDashboard): ?>
-    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button>
+    <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
     <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
     <?php endif; ?>
     <div id="top-bar-title">Shell Application</div>
@@ -1446,7 +1455,7 @@ endif; // showOtpPage
     </div>
 </div>
 <?php if($path!=='/login'&&$path!=='/register'):?>
-    <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true">&#9776;</span></button><?php endif; ?>
+    <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button><?php endif; ?>
     <div id="sidebar">
         <div id="app-list-container">
             <ul id="app-list">
@@ -1479,12 +1488,12 @@ endif; // showOtpPage
                             <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                         <div class="custom-select-dropdown" id="lang-dropdown">
-                            <div class="custom-select-option" data-value="en"><span class="custom-select-flag flag flag-gb"></span><span>English</span></div>
-                            <div class="custom-select-option" data-value="ru"><span class="custom-select-flag flag flag-ru"></span><span>Русский</span></div>
-                            <div class="custom-select-option" data-value="uk"><span class="custom-select-flag flag flag-ua"></span><span>Українська</span></div>
-                            <div class="custom-select-option" data-value="be"><span class="custom-select-flag flag flag-by"></span><span>Беларуская</span></div>
-                            <div class="custom-select-option" data-value="pl"><span class="custom-select-flag flag flag-pl"></span><span>Polski</span></div>
-                            <div class="custom-select-option" data-value="cs"><span class="custom-select-flag flag flag-cz"></span><span>Čeština</span></div>
+                            <div class="custom-select-option" data-value="en"><span>English</span><span class="custom-select-flag flag flag-gb"></span></div>
+                            <div class="custom-select-option" data-value="ru"><span>Русский</span><span class="custom-select-flag flag flag-ru"></span></div>
+                            <div class="custom-select-option" data-value="uk"><span>Українська</span><span class="custom-select-flag flag flag-ua"></span></div>
+                            <div class="custom-select-option" data-value="be"><span>Беларуская</span><span class="custom-select-flag flag flag-by"></span></div>
+                            <div class="custom-select-option" data-value="pl"><span>Polski</span><span class="custom-select-flag flag flag-pl"></span></div>
+                            <div class="custom-select-option" data-value="cs"><span>Čeština</span><span class="custom-select-flag flag flag-cz"></span></div>
                         </div>
                     </div>
                 </div>
@@ -1497,9 +1506,9 @@ endif; // showOtpPage
                             <svg class="custom-select-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                         </div>
                         <div class="custom-select-dropdown" id="theme-dropdown">
-                            <div class="custom-select-option" data-value="light"><span><?php echo my_htmlspecialchars($translations['theme_light']); ?></span></div>
-                            <div class="custom-select-option" data-value="dark"><span><?php echo my_htmlspecialchars($translations['theme_dark']); ?></span></div>
-                            <div class="custom-select-option" data-value="auto"><span><?php echo my_htmlspecialchars($translations['theme_auto']); ?></span></div>
+                            <div class="custom-select-option" data-value="light"><span><?php echo my_htmlspecialchars($translations['theme_light']); ?></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></div>
+                            <div class="custom-select-option" data-value="dark"><span><?php echo my_htmlspecialchars($translations['theme_dark']); ?></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></div>
+                            <div class="custom-select-option" data-value="auto"><span><?php echo my_htmlspecialchars($translations['theme_auto']); ?></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></svg></div>
                         </div>
                     </div>
                 </div>
@@ -3753,13 +3762,20 @@ var T=<?php echo json_encode([
                     var txt='';
                     options.forEach(function(o){
                         if(o.getAttribute('data-value')===val){
-                            txt=o.querySelector('span:last-child')?o.querySelector('span:last-child').textContent:o.querySelector('span').textContent;
+                            txt=o.querySelector('span:first-child')?o.querySelector('span:first-child').textContent:o.querySelector('span').textContent;
                             o.classList.add('active');
                         }else{
                             o.classList.remove('active');
                         }
                     });
-                    trigger.querySelector('.custom-select-text').textContent=txt;
+                    var textEl=trigger.querySelector('.custom-select-text');
+                    textEl.textContent='';
+                    var activeOpt=dropdown.querySelector('.custom-select-option[data-value="'+val+'"]');
+                    textEl.appendChild(document.createTextNode(txt));
+                    if(activeOpt){
+                        var icon=activeOpt.querySelector('.custom-select-flag,svg');
+                        if(icon)textEl.appendChild(icon.cloneNode(true));
+                    }
                 }
                 function positionDropdown(){
                     var r=trigger.getBoundingClientRect();

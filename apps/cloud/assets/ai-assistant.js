@@ -7554,7 +7554,7 @@
                 : rebuildMessageWithMentions(message, aiState.mentionPlacements || []);
         const attachmentsForRequest = Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments;
 
-        addMessageToUI('user', userFacingMessage);
+        addMessageToUI('user', userFacingMessage, false);
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
             syncMentionedAttachmentsFromInput('');
