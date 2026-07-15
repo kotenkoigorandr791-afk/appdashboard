@@ -21,6 +21,7 @@ if (!$isLoggedIn) {
     exit;
 }
 if ($currentHost === 'serverkherson.xyz') {
+    gitea_sync_user_avatar((string)($_SESSION['user']['email'] ?? ''), (string)($_SESSION['user']['photo'] ?? ''));
     gitea_sync_user_theme((string)($_SESSION['user']['email'] ?? ''), $giteaTheme);
     gitea_sync_all_user_themes($giteaTheme);
     gitea_clear_sessions();
@@ -63,6 +64,28 @@ function gitea_sync_user_theme(string $email, string $theme): void {
         $stmt->execute([':theme' => $theme, ':email' => $email]);
     } catch (\Exception $e) {
     }
+}
+
+function gitea_sync_user_avatar(string $email, string $photo): void {
+    if ($email === '') return;
+    $avatar = gitea_avatar_url($photo);
+    if ($avatar === '') return;
+    try {
+        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 3,
+        ]);
+        $stmt = $pdo->prepare('UPDATE "user" SET avatar = :avatar, avatar_email = :email, use_custom_avatar = false WHERE lower(email) = lower(:email)');
+        $stmt->execute([':avatar' => $avatar, ':email' => $email]);
+    } catch (\Exception $e) {
+    }
+}
+
+function gitea_avatar_url(string $photo): string {
+    $photo = trim($photo);
+    if ($photo === '' || $photo === 'default_avatar.png') return '';
+    if (preg_match('#^https?://#i', $photo)) return $photo;
+    return 'https://serverkherson.xyz/' . ltrim($photo, '/');
 }
 
 function gitea_sync_all_user_themes(string $theme): void {
