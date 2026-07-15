@@ -1364,7 +1364,7 @@ async function runUptimeChecks() {
     const resp = await fetch(url.href, { credentials: 'same-origin', cache: 'no-store' });
     if (resp.ok) {
         const data = await resp.json();
-        displayUptimeMonitoring(data, lastKnownDockerContainers);
+        displayUptimeMonitoring(data, data.docker_containers || lastKnownDockerContainers);
     }
 }
 

@@ -1,7 +1,8 @@
 {
   "hero_title": "Secure Cloud Shell Access",
   "hero_desc1": "ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.",
-  "hero_desc2": "We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification.",
+  "hero_desc2": "We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, media galleries, interactive maps, server monitoring, recipe management, expense tracking, health tracking, and network utilities — all accessible through a single account.",
+  "loading_app": "Opening app...",
   "signin": "Sign in",
   "register": "Register",
   "otp_button": "One Time PIN",

@@ -31,7 +31,8 @@
 .user-role { font-size: 0.85rem; color: var(--primary-color); }
 .stats-grid { justify-content: center; }
 .section-strip { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 10px 14px; margin: 18px 0 24px; border: 1px solid color-mix(in srgb, var(--border-color) 82%, var(--primary-color) 18%); border-radius: 14px; background: linear-gradient(180deg, color-mix(in srgb, var(--card-bg) 86%, var(--primary-color) 6%), color-mix(in srgb, var(--card-bg) 96%, transparent)); box-shadow: 0 8px 24px rgba(0,0,0,0.08); overflow-x: auto; scrollbar-width: thin; }
-.section-strip-button { appearance: none; border: 1px solid transparent; background: transparent; color: var(--text-color); font-size: 0.95rem; font-weight: 600; padding: 10px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap; transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease; }
+.section-strip-button { appearance: none; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; background: transparent; color: var(--text-color); font-size: 0.95rem; font-weight: 600; padding: 10px 16px; border-radius: 10px; cursor: pointer; white-space: nowrap; transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, transform 0.2s ease; }
+.section-strip-button svg { width: 18px; height: 18px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .section-strip-button:hover { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color)); background: color-mix(in srgb, var(--primary-color) 10%, transparent); }
 .section-strip-button.active { color: #fff; background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 90%, #e7f07a), color-mix(in srgb, var(--primary-color) 72%, #5b7400)); border-color: color-mix(in srgb, var(--primary-color) 70%, #fff); box-shadow: 0 10px 22px color-mix(in srgb, var(--primary-color) 26%, transparent); }
 .monitor-section { display: none; animation: monitorSectionFade 0.18s ease; }
@@ -44,6 +45,8 @@
     .user-info { flex-direction: row; align-items: center; }
     .header-title h1 { font-size: 1.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .user-info { justify-content: center; order: 3; margin-top: 10px; }
+    .section-strip { justify-content: stretch; }
+    .section-strip-button { min-width: 0; white-space: normal; line-height: 1.2; }
 }
 .connection-status button {
     margin-left: 10px;

@@ -109,7 +109,7 @@
         #top-bar{justify-content:flex-start;}
         #top-bar-title{flex:1 1 auto;margin-left:0;text-align:center;}
         #menu-button{position:static;background:none;width:36px;height:36px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;display:flex;align-items:center;justify-content:center;border-radius:50%;}
-        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;}
+        #home-root-button{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-color);text-decoration:none;background:none;flex:0 0 auto;margin-left:0;}
         #home-root-button svg{width:21px;height:21px;}
         #home-root-button:hover,#menu-button:hover{background:var(--group-block-bg);opacity:1;}
         #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
@@ -433,7 +433,7 @@
         .policy-links{display:flex;justify-content:center;align-items:center;gap:15px;margin-top:20px;padding-top:20px;border-top:1px solid var(--border-color);text-align:center;width:100%;}
         .policy-link{color:var(--primary-color);text-decoration:none;font-size:14px;transition:opacity 0.3s;}
         .policy-link:hover{opacity:0.8;text-decoration:underline;}
-        .policy-dot{color:var(--border-color);font-size:8px;width:4px;height:4px;background:currentColor;border-radius:50%;}
+        .policy-dot{width:4px;height:4px;border-radius:50%;background:var(--text-color);flex-shrink:0;}
         .device-icon,.browser-icon{width:24px;height:24px;display:inline-block;vertical-align:middle;margin-right:8px;}
         .device-browser-info{display:flex;align-items:center;gap:10px;}
         .device-browser-item{display:flex;align-items:center;gap:5px;}
@@ -1422,7 +1422,7 @@ endif; // showOtpPage
             <input type="color" name="color" value="<?php echo my_htmlspecialchars($config['color']); ?>">
         </div>
         <div class="policy-links">
-            <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
+            <a href="/terms?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
             <span class="policy-dot"></span>
             <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
         </div>

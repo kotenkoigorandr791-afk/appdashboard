@@ -485,20 +485,27 @@ function oauth_route_gitea_user(): void {
     exit;
 }
 
-function oauth_sync_plane_admin(string $email, bool $isAdmin): void {
-    oauth_sync_plane_user($email, $isAdmin, '');
+function oauth_sync_plane_admin(string $email, bool $isAdmin, string $theme = ''): void {
+    oauth_sync_plane_user($email, $isAdmin, '', $theme);
 }
 
-function oauth_sync_plane_user(string $email, bool $isAdmin, string $avatar): void {
+function oauth_sync_plane_user(string $email, bool $isAdmin, string $avatar, string $theme = ''): void {
     if ($email === '') return;
     try {
-        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=plane', 'plane', '2f7fc8329b05207b856e768e22355197a5003655b4279aa1', [
+        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=plane', 'plane', 'plane', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_TIMEOUT => 3,
         ]);
         if ($avatar !== '') {
             $stmt = $pdo->prepare('UPDATE users SET avatar = :avatar, updated_at = now() WHERE lower(email) = lower(:email)');
             $stmt->execute([':avatar' => $avatar, ':email' => $email]);
+        }
+        if (in_array($theme, ['light', 'dark'], true)) {
+            $planeTheme = $theme === 'dark'
+                ? ['theme' => 'dark', 'primary' => '#3f76ff', 'background' => '#0f172a', 'sidebarBackground' => '#111827', 'text' => '#f8fafc', 'sidebarText' => '#f8fafc', 'palette' => '#0f172a,#f8fafc,#3f76ff,#111827,#f8fafc', 'darkPalette' => '#0f172a,#f8fafc,#3f76ff,#111827,#f8fafc']
+                : ['theme' => 'light', 'primary' => '#3f76ff', 'background' => '#ffffff', 'sidebarBackground' => '#f8fafc', 'text' => '#111827', 'sidebarText' => '#111827', 'palette' => '#ffffff,#111827,#3f76ff,#f8fafc,#111827', 'darkPalette' => ''];
+            $stmt = $pdo->prepare('UPDATE profiles p SET theme = CAST(:theme AS jsonb), updated_at = now() FROM users u WHERE p.user_id = u.id AND lower(u.email) = lower(:email)');
+            $stmt->execute([':theme' => json_encode($planeTheme, JSON_UNESCAPED_SLASHES), ':email' => $email]);
         }
         if (!$isAdmin) {
             $stmt = $pdo->prepare('DELETE FROM instance_admins WHERE user_id IN (SELECT id FROM users WHERE lower(email) = lower(:email))');

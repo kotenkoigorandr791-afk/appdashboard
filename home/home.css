@@ -42,6 +42,7 @@ body.light-theme .site-header {
   border-bottom-color: rgba(26,43,51,0.1);
 }
 .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.header-sep { display: none; }
 .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: relative; }
 .brand { display: flex; align-items: center; gap: 8px; }
 .brand-icon { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; flex-shrink: 0; }
@@ -148,6 +149,8 @@ body.light-theme .nav-drawer-head { border-bottom-color: rgba(26,43,51,0.1); }
   display: flex; align-items: center; gap: 12px;
 }
 .nav-drawer-links svg { width: 19px; height: 19px; flex: 0 0 auto; opacity: .82; }
+#navGoFeaturesBtn { align-items: center; }
+#navGoFeaturesBtn svg { margin-top: 0; vertical-align: middle; }
 .nav-drawer-links button:hover { background: rgba(255,255,255,0.1); }
 body.light-theme .nav-drawer-links button { background: rgba(255,255,255,0.6); border-color: rgba(26,43,51,0.1); }
 body.light-theme .nav-drawer-links button:hover { background: rgba(255,255,255,0.92); }
@@ -249,7 +252,7 @@ body.light-theme .cal-dot-1 { background: #9be9a8; }
 body.light-theme .cal-dot-2 { background: #40c463; }
 body.light-theme .cal-dot-3 { background: #216e39; }
 @media (max-width: 480px) {
-  .calendar-popover { right: -60px; width: 290px; }
+  .calendar-popover { right: 0; width: 290px; max-width: calc(100vw - 16px); }
 }
 
 /* ── Buttons ── */
@@ -335,14 +338,14 @@ body.light-theme .portal-spotlight-card {
 body.light-theme .portal-spotlight-card:hover {
   box-shadow: 0 20px 54px rgba(26,43,51,0.2), 0 0 22px rgba(30,100,180,0.1);
 }
+.portal-head-row { display: flex; justify-content: space-between; align-items: flex-start; }
 .portal-badge {
-  position: absolute; top: 18px; right: 22px;
   font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
   color: #9fd4ff; background: rgba(74,144,226,0.18); padding: 4px 12px; border-radius: 20px;
 }
 body.light-theme .portal-badge { color: #1a64b4; background: rgba(26,100,180,0.1); }
-.portal-spotlight-card svg { width: 40px; height: 40px; stroke-width: 1.6; margin-bottom: 14px; }
-.portal-spotlight-card h3 { font-size: 21px; font-weight: 700; margin: 0 0 9px; padding-right: 120px; }
+.portal-spotlight-card svg { width: 40px; height: 40px; stroke-width: 1.6; }
+.portal-spotlight-card h3 { font-size: 21px; font-weight: 700; margin: 14px 0 9px; }
 .portal-spotlight-card .short-desc { font-size: 14.5px; opacity: 0.83; line-height: 1.5; }
 
 /* ── Feature Cards ── */
@@ -501,18 +504,36 @@ body.light-theme footer { border-top-color: rgba(26,43,51,0.1); }
 .social-link:hover { opacity: 1; text-decoration: underline; }
 .social-link svg { width: 17px; height: 17px; fill: currentColor; }
 
+/* ── Loading overlay ── */
+.loading-overlay {
+  position: fixed; inset: 0; z-index: 9999; display: flex;
+  align-items: center; justify-content: center;
+  background: rgba(7,17,30,0.85); backdrop-filter: blur(8px);
+  color: #deeeff; font-size: 16px; font-weight: 600;
+  animation: loadFadeIn .2s ease;
+}
+body.light-theme .loading-overlay {
+  background: rgba(237,244,251,0.88); color: #1a2b38;
+}
+@keyframes loadFadeIn { from { opacity: 0; } to { opacity: 1; } }
+
 /* ── Responsive ── */
 @media (max-width: 600px) {
-  .site-header { flex-direction: column; align-items: stretch; padding: 12px 16px; height: auto; min-height: 66px; }
-  .header-left, .header-right { justify-content: center; }
+  .site-header { flex-direction: column; align-items: stretch; padding: 12px 8px; height: auto; min-height: 66px; }
+  .header-left { justify-content: flex-start; width: 100%; position: relative; gap: 0; min-height: 42px; }
+  .header-left .nav-open-btn { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); flex-shrink: 0; z-index: 2; margin: 0; }
+  .header-right { justify-content: center; }
+  .header-sep { display: block; height: 0; border: 0; border-top: 1px dashed rgba(255,255,255,0.12); width: 100%; margin: 2px 0; }
+  body.light-theme .header-sep { border-top-color: rgba(26,43,51,0.12); }
+  .brand { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none; white-space: nowrap; }
   .brand h1 { text-align: center; }
-  .theme-toggle { justify-content: center; }
-  .lang-selector { align-self: center; }
+  .theme-toggle { order: 1; justify-content: center; }
+  .lang-selector { order: 2; align-self: center; }
+  #calendarBtn { order: 3; }
+  #calendarPopover { order: 4; }
   .hero { padding: 40px 0 34px; }
   .buttons { flex-direction: column; align-items: center; }
   .buttons a, .buttons button { width: 100%; max-width: 280px; text-align: center; }
-  .portal-spotlight-card h3 { padding-right: 0; }
-  .portal-badge { position: static; display: inline-block; margin-bottom: 10px; }
 }
 
 /* ── News Section ──────────────────────────────────────────────────────────── */
@@ -673,6 +694,7 @@ body.light-theme .explore-widget-inner {
   background: rgba(74,144,226,0.18); color: #9fd4ff;
   display: flex; align-items: center; justify-content: center;
 }
+.explore-widget-icon svg { width: 22px; height: 22px; display: block; }
 body.light-theme .explore-widget-icon { background: rgba(30,100,180,0.1); color: #1a64b4; }
 .explore-widget-head-text { flex: 1; min-width: 0; }
 .explore-widget-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
@@ -710,10 +732,10 @@ body.light-theme .explore-app-item:hover {
   color: inherit; opacity: 0.7;
 }
 body.light-theme .explore-app-icon { background: rgba(0,0,0,0.05); }
-.explore-app-icon svg { width: 18px; height: 18px; }
+.explore-app-icon svg { width: 20px; height: 20px; display: block; flex: 0 0 auto; }
 .explore-app-name { font-size: 13px; font-weight: 600; }
 .explore-app-desc { font-size: 11px; opacity: 0.55; line-height: 1.35; margin-top: 1px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }
-@media (max-width: 480px) { .explore-widget { right: 12px; bottom: 12px; width: calc(100vw - 24px); } }
+@media (max-width: 480px) { .explore-widget { right: 12px; bottom: 12px; width: calc(100vw - 24px); } .explore-widget-head { padding: 12px 38px 10px 12px; } .explore-widget-icon { width: 34px; height: 34px; } .explore-widget-icon svg { width: 18px; height: 18px; } }
 @media (max-width: 600px) {
   .news-section { padding: 40px 16px 30px; }
   .news-canvas.layout-mode .news-card { width: 260px; }

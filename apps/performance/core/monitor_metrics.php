@@ -1484,7 +1484,7 @@ function monitorSyncDockerChecks(array $containers): void {
             $id = (string)($container['id'] ?? '');
             if ($id === '') continue;
             $currentIds[] = "'" . AppDatabase::escapeString($id) . "'";
-            $exists = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_uptime_checks WHERE docker_container_id = '" . SQLite3::escapeString($id) . "'");
+            $exists = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_uptime_checks WHERE docker_container_id = '" . AppDatabase::escapeString($id) . "'");
             if ($exists > 0) continue;
             $name = 'Docker: ' . (string)($container['name'] ?? substr($id, 0, 12));
             $stmt->bindValue(':name', $name, SQLITE3_TEXT);
@@ -1751,6 +1751,55 @@ function monitorFetchUptimePayload(int $historyLimit = 24): array {
     return ['checks' => $checks, 'summary' => $summary];
 }
 
+function monitorBuildDockerChecksFromContainers(array $containers): array {
+    $checks = [];
+    $summary = ['up' => 0, 'down' => 0, 'unknown' => 0, 'total' => 0];
+    foreach ($containers as $idx => $container) {
+        if (!is_array($container)) continue;
+        $id = (string)($container['id'] ?? '');
+        if ($id === '') continue;
+        $state = strtolower((string)($container['state'] ?? ''));
+        $health = strtolower((string)($container['health'] ?? ''));
+        $status = $state === 'running' && ($health === '' || $health === 'healthy') ? 'up' : 'down';
+        $message = $health !== '' ? $state . '/' . $health : ($state !== '' ? $state : 'unknown');
+        $summary[$status]++;
+        $summary['total']++;
+        $checks[] = [
+            'id' => -($idx + 1),
+            'name' => 'Docker: ' . (string)($container['name'] ?? substr($id, 0, 12)),
+            'type' => 'docker',
+            'target' => (string)($container['name'] ?? $id),
+            'docker_container_id' => $id,
+            'docker_container_name' => (string)($container['name'] ?? ''),
+            'enabled' => 1,
+            'auto_discovered' => 1,
+            'last_status' => $status,
+            'last_latency_ms' => null,
+            'last_http_status' => null,
+            'last_message' => $message,
+            'last_checked_at' => time(),
+            'history' => [['checked_at' => time(), 'status' => $status, 'latency_ms' => null]],
+        ];
+    }
+    return ['checks' => $checks, 'summary' => $summary];
+}
+
+function monitorFetchUptimePayloadForContainers(array $containers, int $historyLimit = 24): array {
+    monitorSyncDockerChecks($containers);
+    $payload = monitorFetchUptimePayload($historyLimit);
+    $hasDocker = false;
+    foreach (($payload['checks'] ?? []) as $check) {
+        if (is_array($check) && (string)($check['type'] ?? '') === 'docker') {
+            $hasDocker = true;
+            break;
+        }
+    }
+    if (!$hasDocker && $containers !== []) {
+        return monitorBuildDockerChecksFromContainers($containers);
+    }
+    return $payload;
+}
+
 function monitorFetchDockerHistory(string $containerId, string $period = '24h'): array {
     monitorEnsureUptimeSchema();
     $db = monitorGetDbSafe();
@@ -1866,7 +1915,7 @@ function monitorCollectMetricsPayload(bool $includeSmart = false, bool $includeD
         'drives' => $drives,
         'smart' => $smartDiagnostics,
         'docker_containers' => $dockerContainers,
-        'uptime_monitoring' => monitorFetchUptimePayload(),
+        'uptime_monitoring' => monitorFetchUptimePayloadForContainers($dockerContainers),
         'status' => 'ok',
         'context' => [
             'source' => 'apps/performance/bin/monitor_collector.php',
@@ -1976,7 +2025,10 @@ function monitorFetchDisplayPayloadFromDb(): array {
             }
         }
         $modules = monitorLoadModulesFromDb();
-        $dockerContainers = is_array($context['docker_containers'] ?? null) ? $context['docker_containers'] : monitorCollectDockerContainers();
+        $dockerContainers = monitorCollectDockerContainers();
+        if ($dockerContainers === [] && is_array($context['docker_containers'] ?? null)) {
+            $dockerContainers = $context['docker_containers'];
+        }
         $createdAt = (int)($row['created_at'] ?? time());
         return [
             'cpu_usage' => (float)($row['cpu_percent'] ?? 0),
@@ -1988,7 +2040,7 @@ function monitorFetchDisplayPayloadFromDb(): array {
             'drives' => $drives,
             'smart' => $smart,
             'docker_containers' => $dockerContainers,
-            'uptime_monitoring' => monitorFetchUptimePayload(),
+            'uptime_monitoring' => monitorFetchUptimePayloadForContainers($dockerContainers),
             'nginx_modules' => $modules['nginx_modules'] ?? [],
             'php_modules' => $modules['php_modules'] ?? [],
             'monitor_snapshot_id' => $snapshotId,
