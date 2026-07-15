@@ -4,7 +4,7 @@ define('APP_ROOT', dirname(__DIR__, 2));
 require APP_ROOT . '/db.php';
 require APP_ROOT . '/project/oauth.php';
 $clientId = 'plane';
-$issuer = trim((string)($argv[1] ?? 'https://serverkherson.xyz'), '/');
+$issuer = trim((string)($argv[1] ?? 'https://serverkherson.xyz/plane-oauth'), '/');
 $planeUrl = trim((string)($argv[2] ?? 'https://plane.serverkherson.xyz'), '/');
 $db = getDB();
 ensureOAuthProviderSchema($db);

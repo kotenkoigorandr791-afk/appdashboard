@@ -669,6 +669,7 @@ function oauth_route_omniroute_bridge(): void {
 }
 
 function oauth_dispatch(string $path): void {
+    if (str_starts_with($path, '/plane-oauth/')) $path = substr($path, 12);
     switch ($path) {
         case '/.well-known/openid-configuration': oauth_route_discovery(); return;
         case '/.well-known/jwks.json': oauth_route_jwks(); return;
