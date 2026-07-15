@@ -124,13 +124,19 @@ function oauth_sanitize_username(string $raw): string {
     return $u;
 }
 
+function oauth_user_picture_url(string $photo): string {
+    $photo = trim($photo);
+    if ($photo === '' || $photo === 'default_avatar.png') return '';
+    if (preg_match('#^https?://#i', $photo)) return $photo;
+    return oauth_issuer() . '/' . ltrim($photo, '/');
+}
+
 function oauth_build_user_claims(array $user): array {
     $email = (string)$user['email'];
     $local = strstr($email, '@', true);
     $username = oauth_sanitize_username($local !== false ? $local : $email);
     $name = trim((string)($user['name'] ?? '')) ?: $username;
-    $photo = trim((string)($user['photo'] ?? ''));
-    $picture = $photo !== '' ? oauth_issuer() . '/' . ltrim($photo, '/') : '';
+    $picture = oauth_user_picture_url((string)($user['photo'] ?? ''));
     return [
         'sub' => $email,
         'email' => $email,
@@ -475,17 +481,25 @@ function oauth_route_gitea_user(): void {
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
     sleep(2);
-    oauth_sync_plane_admin($syncEmail, $syncIsAdmin);
+    oauth_sync_plane_user($syncEmail, $syncIsAdmin, (string)$claims['picture']);
     exit;
 }
 
 function oauth_sync_plane_admin(string $email, bool $isAdmin): void {
+    oauth_sync_plane_user($email, $isAdmin, '');
+}
+
+function oauth_sync_plane_user(string $email, bool $isAdmin, string $avatar): void {
     if ($email === '') return;
     try {
         $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=plane', 'plane', '2f7fc8329b05207b856e768e22355197a5003655b4279aa1', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_TIMEOUT => 3,
         ]);
+        if ($avatar !== '') {
+            $stmt = $pdo->prepare('UPDATE users SET avatar = :avatar, updated_at = now() WHERE lower(email) = lower(:email)');
+            $stmt->execute([':avatar' => $avatar, ':email' => $email]);
+        }
         if (!$isAdmin) {
             $stmt = $pdo->prepare('DELETE FROM instance_admins WHERE user_id IN (SELECT id FROM users WHERE lower(email) = lower(:email))');
             $stmt->execute([':email' => $email]);
