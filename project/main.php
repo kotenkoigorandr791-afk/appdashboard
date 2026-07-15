@@ -1523,7 +1523,7 @@ if($selectedApp){foreach($apps as $appData){if($appData['folder']===$selectedApp
 $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
-<?php $railTopApps=['immich','gitea']; ?>
+<?php $railTopApps=['immich','gitea','plane']; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell<?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps))?' rail-top-on-mobile':''; ?>"<?php endif;?>>
     <?php if($showAppFrame):?>
         <?php if($showAppRail):?>

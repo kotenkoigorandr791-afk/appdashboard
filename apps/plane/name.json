@@ -1,0 +1,20 @@
+{
+    "en": "Plane",
+    "ru": "Plane",
+    "uk": "Plane",
+    "be": "Plane",
+    "pl": "Plane",
+    "cs": "Plane",
+    "menu_button": {
+        "left": 7,
+        "top": 12,
+        "width": 36,
+        "height": 36
+    },
+    "menu_button_mobile": {
+        "left": 8,
+        "top": 6,
+        "width": 36,
+        "height": 36
+    }
+}
