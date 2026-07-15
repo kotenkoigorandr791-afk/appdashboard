@@ -20,7 +20,7 @@ if (!$isLoggedIn) {
 }
 if ($currentHost === 'serverkherson.xyz') {
     oauth_sync_plane_admin((string)($_SESSION['user']['email'] ?? ''), (int)($_SESSION['user']['role'] ?? 0) >= 2);
-    header('Location: https://plane.serverkherson.xyz/auth/gitea?next_path=/');
+    header('Location: https://plane.serverkherson.xyz/auth/gitea/?next_path=/');
     exit;
 }
 $bridgeToken = oauth_create_bridge_token(session_id());

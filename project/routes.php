@@ -4,7 +4,7 @@
 $requestUri=$_SERVER['REQUEST_URI'];
 $path=parse_url($requestUri,PHP_URL_PATH);
 
-if (in_array($path, ['/.well-known/openid-configuration', '/.well-known/jwks.json', '/authorize', '/token', '/userinfo', '/oauth-bridge', '/omniroute-bridge', '/login/oauth/authorize', '/login/oauth/access_token', '/api/v1/user', '/api/v1/user/emails'], true)) {
+if (in_array($path, ['/.well-known/openid-configuration', '/.well-known/jwks.json', '/authorize', '/token', '/userinfo', '/oauth-bridge', '/omniroute-bridge', '/login/oauth/authorize', '/login/oauth/access_token', '/api/v1/user', '/api/v1/user/emails', '/plane-oauth/login/oauth/authorize', '/plane-oauth/login/oauth/access_token', '/plane-oauth/api/v1/user', '/plane-oauth/api/v1/user/emails'], true)) {
     oauth_dispatch($path);
     exit;
 }
