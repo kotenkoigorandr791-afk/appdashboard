@@ -141,14 +141,30 @@
         .notifications-actions{display:flex;gap:8px;align-items:center;}
         .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
-        #notifications-list{overflow:auto;padding:8px;display:flex;flex-direction:column;gap:8px;}
-        .notification-row{border:1px solid var(--border-color);border-radius:8px;padding:10px 12px;background:var(--bg-color);}
-        .notification-row.unread{border-color:color-mix(in srgb,var(--primary-color) 60%,var(--border-color));}
-        .notification-row-title{font-weight:700;font-size:14px;margin-bottom:4px;}
-        .notification-row-meta{font-size:11px;opacity:.65;margin-bottom:4px;}
-        .notification-row-message{font-size:13px;line-height:1.35;opacity:.85;white-space:pre-wrap;}
+        #notifications-list{overflow:auto;padding:4px 0;display:flex;flex-direction:column;}
+        .notification-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;transition:background .15s;position:relative;}
+        .notification-row+.notification-row{border-top:1px solid color-mix(in srgb,var(--border-color) 50%,transparent);}
+        .notification-row:hover{background:var(--group-block-bg);}
+        .notification-row.unread{background:color-mix(in srgb,var(--primary-color) 6%,transparent);}
+        .notification-row.unread:hover{background:color-mix(in srgb,var(--primary-color) 10%,transparent);}
+        .notification-row-icon{flex-shrink:0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-top:2px;}
+        .notification-row-icon svg{width:18px;height:18px;}
+        .notification-row-icon.severity-info{background:color-mix(in srgb,#3b82f6 14%,transparent);color:#3b82f6;}
+        .notification-row-icon.severity-warning{background:color-mix(in srgb,#f59e0b 14%,transparent);color:#f59e0b;}
+        .notification-row-icon.severity-error{background:color-mix(in srgb,#ef4444 14%,transparent);color:#ef4444;}
+        .notification-row-icon.severity-success{background:color-mix(in srgb,#22c55e 14%,transparent);color:#22c55e;}
+        .notification-row-icon.severity-critical{background:color-mix(in srgb,#dc2626 14%,transparent);color:#dc2626;}
+        .notification-row-icon.severity-default{background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-color);}
+        .notification-row-body{flex:1;min-width:0;}
+        .notification-row-title{font-weight:600;font-size:13px;line-height:1.3;margin-bottom:2px;}
+        .notification-row-meta{font-size:11px;opacity:.55;margin-bottom:2px;}
+        .notification-row-message{font-size:12px;line-height:1.4;opacity:.7;white-space:pre-wrap;}
+        .notification-row-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--primary-color);flex-shrink:0;margin-top:6px;}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+        <?php if(!$isHomeDashboard): ?>
+        #app-list-container{-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 40px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 40px),transparent 100%);}
+        <?php endif; ?>
         #app-list-container::-webkit-scrollbar{display:none;}
         #bottom-bar{position:absolute;bottom:20px;left:20px;right:20px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
         .search-container{position:relative;flex:1 1 auto;min-width:0;}
@@ -376,8 +392,7 @@
             #content.has-app-rail.rail-top-on-mobile .app-rail-service-name{display:block;writing-mode:horizontal-tb;transform:none;font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--text-color);opacity:.7;white-space:nowrap;padding:0 8px;max-width:110px;overflow:hidden;text-overflow:ellipsis;flex-shrink:0;user-select:none;}
         }
         /* border-box: height includes padding — otherwise padding is added outside height and the grid is clipped by #content (last tiles unreachable). */
-        #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));position:relative;}
-        #app-grid::before{content:'';position:sticky;top:0;left:0;right:0;height:60px;background:linear-gradient(to bottom,var(--bg-color) 0%,transparent 100%);pointer-events:none;z-index:1;display:block;grid-column:1/-1;margin:0 -20px;padding:0 20px;}
+        #app-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;box-sizing:border-box;padding:20px;padding-top:calc(70px + 12px);padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;height:100%;max-height:100%;scrollbar-color:var(--primary-color) var(--group-block-bg);align-content:flex-start;scroll-padding-top:12px;scroll-padding-bottom:max(32px,env(safe-area-inset-bottom,0px));-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 60px);mask-image:linear-gradient(to bottom,transparent 0px,black 60px);}
         /* Fill viewport; use dvh on mobile so iframe/content match visible area (100vh exceeds it when browser chrome is shown). */
         @supports (height:100dvh){
             #content{height:100dvh;min-height:100dvh;max-height:100dvh;}
@@ -3495,7 +3510,18 @@ var T=<?php echo json_encode([
                 const dt=new Date((Number(n.created_at)||0)*1000).toLocaleString();
                 const app=n.app_id?` · ${escHtml(n.app_id)}`:'';
                 const msg=n.message?`<div class="notification-row-message">${escHtml(n.message)}</div>`:'';
-                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${escHtml(n.severity||'info')}${app} · ${dt}</div>${msg}</div>`;
+                const sev=escHtml((n.severity||'info').toLowerCase());
+                const icons={
+                    info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>',
+                    warning:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>',
+                    error:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
+                    success:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>',
+                    critical:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+                };
+                const iconClass=icons[sev]?'severity-'+sev:'severity-default';
+                const iconHtml=icons[sev]||icons.info;
+                const unreadDot=Number(n.is_read)?'':`<div class="notification-row-unread-dot"></div>`;
+                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-icon ${iconClass}">${iconHtml}</div><div class="notification-row-body"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${sev}${app} · ${dt}</div>${msg}</div>${unreadDot}</div>`;
             }
             async function loadNotifications(showBrowser){
                 if(!btn||!list)return;
@@ -3504,7 +3530,7 @@ var T=<?php echo json_encode([
                     const d=await r.json();
                     if(!d.ok)return;
                     setBadge(Number(d.unread)||0);
-                    list.innerHTML=(d.items||[]).map(rowHtml).join('')||'<div class="notification-row"><div class="notification-row-message">No notifications</div></div>';
+                    list.innerHTML=(d.items||[]).map(rowHtml).join('')||'<div class="notification-row" style="justify-content:center;opacity:.5;padding:24px 16px;"><div class="notification-row-message">No notifications</div></div>';
                     const newest=(d.items||[])[0];
                     if(showBrowser&&newest&&Number(newest.id)>lastSeenId&&Number(newest.is_read)===0&&'Notification'in window&&Notification.permission==='granted'){
                         new Notification(newest.title||'Notification',{body:newest.message||newest.app_id||''});

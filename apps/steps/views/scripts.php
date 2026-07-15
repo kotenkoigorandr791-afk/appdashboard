@@ -1233,6 +1233,27 @@
                 }
             }, 0);
         }
+
+        function updateLocalDataSilent(date, steps, rowIndex) {
+            const dateParts = date.split('-');
+            const day = dateParts[0];
+            const month = dateParts[1];
+            const year = dateParts[2];
+            const fullYear = parseInt(year) < 70 ? `20${year}` : `19${year}`;
+            const searchDate = `${fullYear}-${month}-${day}`;
+            let found = false;
+            for (let i = 0; i < stepsData.length; i++) {
+                if (stepsData[i].date === searchDate) {
+                    stepsData[i].steps = steps;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                stepsData.push({ date: searchDate, steps: steps });
+                stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+            }
+        }
         
         function finishEditing(save = true) {
     if (!editingCell) return;
@@ -1291,6 +1312,8 @@
             if (!confirm) return;
             const targets = Array.from(selectedCells).filter(cell => parseInt(cell.getAttribute('data-col'), 10) === 1);
             if (targets.length === 0) return;
+
+            const items = [];
             for (const cell of targets) {
                 const row = parseInt(cell.getAttribute('data-row'), 10);
                 if (Number.isNaN(row)) continue;
@@ -1299,9 +1322,31 @@
                 const dateCell = rowEl.querySelector('td[data-col="0"]');
                 if (!dateCell) continue;
                 const dateStr = dateCell.textContent.trim();
-                const ok = await persistTableRow(dateStr, 0, row);
-                if (!ok) return;
-                cell.textContent = '0';
+                items.push({ date: dateStr, steps: 0, row: row, cell: cell });
+            }
+            if (items.length === 0) return;
+
+            try {
+                const formData = new FormData();
+                formData.append('save_table_data_batch', '1');
+                formData.append('items', JSON.stringify(items.map(i => ({ date: i.date, steps: i.steps }))));
+                const response = await fetch('', { method: 'POST', body: formData });
+                const data = await response.json();
+                if (data.status !== 'success') {
+                    await showAlert(`${translations.save_error || 'Error saving data'}: ${data.message}`);
+                    return;
+                }
+                for (const item of items) {
+                    updateLocalDataSilent(item.date, 0, item.row);
+                    item.cell.textContent = '0';
+                }
+                renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                updateCalendar(currentLocale);
+                updateStatsNotification();
+                updateGoalNotification();
+            } catch (err) {
+                await showAlert(`${translations.save_error || 'Error saving data'}: ${err.message}`);
+                return;
             }
             clearSelection();
             await showAlert(translations.cells_cleared || 'Cells cleared successfully');

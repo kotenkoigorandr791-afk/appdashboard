@@ -6,6 +6,22 @@ function upsertStep(AppDatabase $db, string $date, int $steps): void {
     $stmt->bindValue(':s', $steps, SQLITE3_INTEGER);
     $stmt->execute();
 }
+function upsertStepsBatch(AppDatabase $db, array $items): void {
+    $pdo = $db->getPdo();
+    $pdo->beginTransaction();
+    try {
+        $stmt = $db->prepare('INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)');
+        foreach ($items as $item) {
+            $stmt->bindValue(':d', $item['date'], SQLITE3_TEXT);
+            $stmt->bindValue(':s', (int)$item['steps'], SQLITE3_INTEGER);
+            $stmt->execute();
+        }
+        $pdo->commit();
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        throw $e;
+    }
+}
 function normalizeStoredDate(string $raw): ?string {
     $s = trim($raw);
     if (preg_match('/^(\d{4})-(\d{1,2})-(\d{1,2})$/', $s, $m)) {
