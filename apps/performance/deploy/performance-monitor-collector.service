@@ -7,6 +7,7 @@ Wants=network-online.target
 Type=simple
 User=www-data
 Group=www-data
+SupplementaryGroups=docker
 WorkingDirectory=/var/www/AppDashboard/apps/performance
 ExecStart=/usr/bin/php /var/www/AppDashboard/apps/performance/bin/monitor_collector.php --loop
 Restart=always

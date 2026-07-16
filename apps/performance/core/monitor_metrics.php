@@ -1247,11 +1247,26 @@ function monitorEnsureUptimeSchema(): void {
 }
 
 function monitorDockerCommand(string $args): ?string {
-    $output = @shell_exec('docker ' . $args . ' 2>/dev/null');
-    if (!is_string($output) || trim($output) === '') {
-        return null;
+    $bins = [];
+    $envBin = getenv('MONITOR_DOCKER_BIN');
+    if (is_string($envBin) && trim($envBin) !== '') {
+        $bins[] = trim($envBin);
     }
-    return $output;
+    foreach (['/usr/bin/docker', '/usr/local/bin/docker', 'docker'] as $bin) {
+        $bins[] = $bin;
+    }
+    $commands = [];
+    foreach (array_values(array_unique($bins)) as $bin) {
+        $commands[] = $bin . ' ' . $args;
+        $commands[] = 'sudo -n ' . $bin . ' ' . $args;
+    }
+    foreach ($commands as $command) {
+        $output = @shell_exec($command . ' 2>/dev/null');
+        if (is_string($output) && trim($output) !== '') {
+            return $output;
+        }
+    }
+    return null;
 }
 
 function formatBytesHuman(float $bytes): string {
@@ -1337,7 +1352,7 @@ function monitorDockerApiContainers(): array {
     }
     $containers = [];
     foreach ($sources as $source) {
-        $rows = monitorDockerApiRequest('/containers/json?all=1', $source);
+        $rows = monitorDockerApiRequest('/containers/json', $source);
         if (!is_array($rows)) continue;
         foreach ($rows as $row) {
             if (!is_array($row)) continue;
@@ -1369,7 +1384,7 @@ function monitorCollectDockerContainers(): array {
     if ($apiContainers !== []) {
         return $apiContainers;
     }
-    $raw = monitorDockerCommand("ps -a --no-trunc --format '{{json .}}'");
+    $raw = monitorDockerCommand("ps --no-trunc --format '{{json .}}'");
     if ($raw === null) return [];
     $containers = [];
     foreach (explode("\n", trim($raw)) as $line) {

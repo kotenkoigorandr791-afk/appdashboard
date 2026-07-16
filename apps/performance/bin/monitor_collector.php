@@ -69,17 +69,6 @@ if (!$loop) {
     exit($runOnce());
 }
 while (true) {
-    $cmd = escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__);
-    $descriptors = [
-        0 => ['file', '/dev/null', 'r'],
-        1 => ['file', '/dev/null', 'w'],
-        2 => ['file', '/dev/null', 'w'],
-    ];
-    $process = proc_open($cmd, $descriptors, $pipes, $root);
-    if (is_resource($process)) {
-        proc_close($process);
-    } else {
-        error_log('monitor_collector failed to start child collector process');
-    }
+    $runOnce();
     sleep($intervalSec);
 }
