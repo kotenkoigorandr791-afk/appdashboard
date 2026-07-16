@@ -259,6 +259,81 @@
 
   function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
+  function mdToHtml(text) {
+    if (!text) return '';
+    let html = escH(text);
+    // code blocks
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+    // inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // headings
+    html = html.replace(/^###### (.+)$/gm, '<h6>$1</h6>');
+    html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    // horizontal rules
+    html = html.replace(/^---$/gm, '<hr>');
+    // blockquotes
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+    // images
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" loading="lazy">');
+    // links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    // strikethrough
+    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+    // bold+italic
+    html = html.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
+    // bold
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // italic
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // ordered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ol>$&</ol>');
+    // unordered lists
+    html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, function(m) { return m.includes('<ol>') ? m : '<ul>' + m.replace(/<ol>/g,'').replace(/<\/ol>/g,'') + '</ul>'; });
+    // paragraphs (double newline)
+    html = html.replace(/\n\n/g, '</p><p>');
+    html = '<p>' + html + '</p>';
+    // clean empty paragraphs and wrapping
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p><hr><\/p>/g, '<hr>');
+    html = html.replace(/<p><\/?([ou]l)>/g, '<$1>');
+    html = html.replace(/<\/([ou]l)><\/p>/g, '</$1>');
+    html = html.replace(/<p><h([1-6])>/g, '<h$1>');
+    html = html.replace(/<\/(h[1-6])><\/p>/g, '</$1>');
+    html = html.replace(/<p><blockquote>/g, '<blockquote>');
+    html = html.replace(/<\/blockquote><\/p>/g, '</blockquote>');
+    html = html.replace(/<p><pre>/g, '<pre>');
+    html = html.replace(/<\/pre><\/p>/g, '</pre>');
+    html = html.replace(/<p><img /g, '<img ');
+    html = html.replace(/<\/p><\/li>/g, '</li>');
+    html = html.replace(/<li><p>/g, '<li>');
+    return html;
+  }
+
+  function stripMarkdown(text) {
+    if (!text) return '';
+    let s = text;
+    s = s.replace(/```[\s\S]*?```/g, '');
+    s = s.replace(/`([^`]+)`/g, '$1');
+    s = s.replace(/^#{1,6} /gm, '');
+    s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '$1');
+    s = s.replace(/\*\*([^*]+)\*\*/g, '$1');
+    s = s.replace(/\*([^*]+)\*/g, '$1');
+    s = s.replace(/~~([^~]+)~~/g, '$1');
+    s = s.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
+    s = s.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    s = s.replace(/^[-*] /gm, '');
+    s = s.replace(/^\d+\. /gm, '');
+    s = s.replace(/^&gt; /gm, '');
+    s = s.replace(/---/g, '');
+    return s.trim();
+  }
+
   function fmtDate(ts) {
     if (!ts) return '';
     const d = new Date(ts * 1000);
@@ -342,7 +417,7 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
 <div class="news-card-body">
   ${isToday(item.created_at) ? `<div class="news-new-badge"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>${escH(t.news_toast_label)}</div>` : ''}
   <div class="news-card-title">${escH(item.title)}</div>
-  ${item.body ? `<div class="news-card-preview">${escH(item.body)}</div>` : ''}
+  ${item.body ? `<div class="news-card-preview">${escH(stripMarkdown(item.body))}</div>` : ''}
   <div class="news-card-date">${fmtDate(item.created_at)}</div>
 </div>`;
       card.addEventListener('click', () => openNewsModal(item));
@@ -403,7 +478,7 @@ ${item.photo ? `<img class="news-card-img" src="/${escH(item.photo)}" alt="" loa
             ${isToday(item.created_at) ? `<div class="news-new-badge"><svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>${escH(t.news_toast_label)}</div>` : ''}
             <div class="news-feed-title">${escH(item.title)}</div>
             <div class="news-feed-date">${fmtDate(item.created_at)}</div>
-            ${hasBody ? `<div class="news-feed-preview">${escH(item.body)}</div>` : ''}
+            ${hasBody ? `<div class="news-feed-preview">${escH(stripMarkdown(item.body))}</div>` : ''}
             <div class="news-feed-readmore"${hasBody ? '' : ' style="display:none"'}>${escH(t.news_read_more)} →</div>
           </div>
         </div>`;
@@ -560,7 +635,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="">` : ''}
 <div class="news-article-surface">
   <h2>${escH(item.title)}</h2>
   <div class="news-modal-date">${fmtDate(item.created_at)}</div>
-  <p>${escH(item.body || '')}</p>
+  <div class="news-md-body">${mdToHtml(item.body || '')}</div>
 </div>
 ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
   <button class="news-modal-nav-btn prev-btn" data-news-dir="-1"${idx <= 0 ? ' disabled' : ''}>
@@ -966,6 +1041,11 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
   });
 
   $('year').textContent = new Date().getFullYear();
+
+  // Auto-hide header brand after 30s to save reading space
+  setTimeout(() => {
+    document.querySelector('.site-header')?.classList.add('brand-hidden');
+  }, 30000);
 
   const params = new URLSearchParams(location.search);
   setTheme(params.get('theme') || 'dark');

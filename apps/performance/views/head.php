@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title><?= htmlspecialchars($t['title']) ?></title>
-<link rel="stylesheet" href="style.css?v=7">
+<link rel="stylesheet" href="/apps/performance/style.css?v=<?= is_file(__DIR__ . '/../style.css') ? filemtime(__DIR__ . '/../style.css') : '8' ?>">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root { --primary-color: <?= $color ?>; --error-color: #ff4444; --warning-color: #ff8800; }

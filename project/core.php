@@ -2423,7 +2423,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         if ($currentTitle || $currentBody) {
             $systemMsg .= 'The user is editing an existing article. Current title: "' . $currentTitle . '". Current content: "' . $currentBody . '". ';
         }
-        $systemMsg .= 'Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.';
+        $systemMsg .= 'Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.';
             $selectedModel = trim((string)($input['model'] ?? ''));
             $model = cloud_ai_normalize_model_id(
                 in_array($selectedModel, $aiCfg['models']) ? $selectedModel : 

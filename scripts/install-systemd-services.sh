@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if getent group docker >/dev/null 2>&1; then
+  usermod -aG docker www-data || true
+fi
 units=(
   "$ROOT/webssh/ap-ssh-ws.service"
   "$ROOT/apps/cloud/cloud-sync-ws.service"
@@ -21,3 +24,4 @@ for unit in "${units[@]}"; do
   systemctl restart "$name"
   systemctl --no-pager --full status "$name" | sed -n '1,5p'
 done
+systemctl restart php8.3-fpm 2>/dev/null || systemctl restart php-fpm 2>/dev/null || true
