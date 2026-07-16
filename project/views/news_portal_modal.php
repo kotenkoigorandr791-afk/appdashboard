@@ -314,7 +314,7 @@ window.addEventListener('newsPortalOpened', initializeNewsPortal);
       </div>
       <div class="npo-settings-field" style="margin-bottom:0;">
         <label><?php echo my_htmlspecialchars($translations['system_prompt'] ?? 'System prompt'); ?></label>
-        <textarea id="npo-system-prompt">You are a news article writer. Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be a few paragraphs of plain text without markdown.</textarea>
+        <textarea id="npo-system-prompt">You are a news article writer. Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.</textarea>
       </div>
     </div>
     <?php endif; ?>
@@ -658,7 +658,6 @@ ${item.photo
         if (data.title) document.getElementById('npo-edit-title').value = data.title;
         if (data.body) document.getElementById('npo-edit-body').value = data.body;
         aiStatus.textContent = '<?php echo my_htmlspecialchars($translations['done'] ?? 'Done!'); ?>';
-        setTimeout(() => { aiStatus.textContent = ''; aiPanel.classList.remove('open'); }, 1200);
       } else {
         aiStatus.textContent = data.error || 'AI error';
       }
