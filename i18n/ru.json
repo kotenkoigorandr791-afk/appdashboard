@@ -555,5 +555,13 @@
     "icon_sort": "Порядок иконок",
     "icon_sort_alpha": "По алфавиту",
     "icon_sort_popular": "По популярности",
-    "icon_sort_recommended": "Рекомендовано"
+    "icon_sort_recommended": "Рекомендовано",
+    "user_analytics": "Аналитика пользователей",
+    "total_users": "Всего пользователей",
+    "active_users": "Активные пользователи",
+    "verified_users": "Подтверждённые",
+    "admins": "Администраторы",
+    "managers": "Менеджеры",
+    "guests": "Гости",
+    "pending_users": "Ожидающие"
 }

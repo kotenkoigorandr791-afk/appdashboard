@@ -144,6 +144,16 @@ header { display: block; margin-bottom: 30px; padding-bottom: 20px; border-botto
 .uptime-enabled input { width: auto; }
 .uptime-form-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
 
+/* ---------- UPTIME ADD DROPDOWN ---------- */
+.uptime-add-dropdown { position: relative; display: inline-flex; }
+.uptime-add-dropdown-menu { display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; min-width: 220px; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,.22); overflow: hidden; }
+.uptime-add-dropdown-menu.open { display: block; }
+.uptime-add-dropdown-menu button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 14px; border: none; background: transparent; color: var(--text-color); font-size: .88rem; font-weight: 650; cursor: pointer; text-align: left; transition: background .15s ease; }
+.uptime-add-dropdown-menu button:hover { background: var(--hover-color); color: var(--primary-color); }
+.uptime-add-dropdown-menu button svg { width: 16px; height: 16px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- EXPORT BUTTON ICON ---------- */
+
 /* ---------- SMART ---------- */
 .smart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
 .smart-meta { min-width: 0; }

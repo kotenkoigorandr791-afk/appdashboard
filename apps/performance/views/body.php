@@ -129,7 +129,13 @@
                     <h2><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime Monitoring') ?></h2>
                     <div class="uptime-toolbar-actions">
                         <?php if ($userRole >= 2): ?>
-                        <button class="btn-primary icon-button" type="button" onclick="openUptimeCheckModal()"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></button>
+                        <div class="uptime-add-dropdown" id="uptimeAddDropdown">
+                            <button class="btn-primary icon-button" type="button" onclick="toggleUptimeAddDropdown(event)"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></button>
+                            <div class="uptime-add-dropdown-menu" id="uptimeAddDropdownMenu">
+                                <button type="button" onclick="openUptimeCheckModal(); closeUptimeAddDropdown();"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> <?= htmlspecialchars($t['add_manually'] ?? 'Add manually') ?></button>
+                                <button type="button" onclick="importChecksFromJson(); closeUptimeAddDropdown();"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <?= htmlspecialchars($t['import_from_json'] ?? 'Import from JSON') ?></button>
+                            </div>
+                        </div>
                         <?php endif; ?>
                         <button id="toggleAllDockerMetricsBtn" class="btn-secondary icon-button" type="button" onclick="toggleAllDockerMetrics()"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span>Expand all</span></button>
                         <button class="btn-secondary icon-button" type="button" onclick="runUptimeChecks()"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['run_checks'] ?? 'Run checks') ?></button>
