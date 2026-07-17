@@ -1,9 +1,21 @@
+function guardFilenameInput(input) {
+  if (window.CloudFilenameGuard) window.CloudFilenameGuard.attach(input);
+}
+function validateCloudFilename(name, input) {
+  const result = window.CloudFilenameGuard ? window.CloudFilenameGuard.validate(name) : { ok: !/[\\/:*?"<>|]/.test(String(name || '')) };
+  if (result.ok) return true;
+  flashStatus(t(i18n, result.code === 'empty' ? 'enterNewName' : 'invalidFolderName'));
+  input?.focus();
+  input?.select();
+  return false;
+}
 function newFolder(basePath) {
   // Guard: ensure basePath is always a string
   if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
   newFolderState.basePath = (typeof basePath === 'string') ? basePath : '';
   const modal = document.getElementById('new-folder-modal');
   const folderNameInput = document.getElementById('new-folder-name');
+  guardFilenameInput(folderNameInput);
   folderNameInput.value = '';
   translateModalElements(modal);
   modal.classList.remove('hidden');
@@ -17,13 +29,7 @@ function createNewFolder() {
     folderNameInput.focus();
     return;
   }
-  const forbiddenChars = /[\\/:*?"<>|]/;
-  if (forbiddenChars.test(name)) {
-    flashStatus(t(i18n, 'invalidFolderName'));
-    folderNameInput.focus();
-    folderNameInput.select();
-    return;
-  }
+  if (!validateCloudFilename(name, folderNameInput)) return;
   const path = newFolderState.basePath ? `${String(newFolderState.basePath)}/${name}` : name;
   document.getElementById('new-folder-modal').classList.add('hidden');
   const mkdirRoot = getCurrentCloudRoot();
@@ -45,6 +51,7 @@ function initCreateFolderModal() {
   const newFolderNameInput = document.getElementById('new-folder-name');
   const btnCancelNewFolder = document.getElementById('btn-cancel-new-folder');
   const btnCreateFolder = document.getElementById('btn-create-folder');
+  guardFilenameInput(newFolderNameInput);
   btnCancelNewFolder.addEventListener('click', () => {
     newFolderModal.classList.add('hidden');
   });
@@ -71,6 +78,7 @@ function newFile(basePath) {
   const fileNameInput = document.getElementById('new-file-name');
   const extensionSelect = document.getElementById('file-extension-select');
   const customExtensionInput = document.getElementById('custom-extension-input');
+  guardFilenameInput(fileNameInput);
   fileNameInput.value = '';
   customExtensionInput.value = '';
   customExtensionInput.classList.add('hidden');
@@ -113,13 +121,7 @@ async function commitInlineTreeRename() {
     cancelInlineTreeRename();
     return;
   }
-  const forbiddenChars = /[\\/:*?"<>|]/;
-  if (forbiddenChars.test(newFullFileName)) {
-    flashStatus(t(i18n, 'invalidFolderName'));
-    input?.focus();
-    input?.select();
-    return;
-  }
+  if (!validateCloudFilename(newFullFileName, input)) return;
   const oldPath = path;
   const directory = oldPath.includes('/') ? oldPath.substring(0, oldPath.lastIndexOf('/') + 1) : '';
   const newPath = directory + newFullFileName;
@@ -179,6 +181,7 @@ function startInlineTreeRename(path) {
   input.className = 'tree-rename-input';
   input.value = originalName;
   input.setAttribute('aria-label', t(i18n, 'rename') || 'Rename');
+  guardFilenameInput(input);
   label.classList.add('hidden');
   node.classList.add('tree-renaming');
   node.insertBefore(input, label.nextSibling);
@@ -266,10 +269,15 @@ function initFileModals() {
   const btnCancelNewFile = document.getElementById('btn-cancel-new-file');
   const btnCreateFile = document.getElementById('btn-create-file');
   const renameModal = document.getElementById('rename-modal');
+  const renameFileNameInput = document.getElementById('rename-file-name');
   const renameExtensionSelect = document.getElementById('rename-extension-select');
   const renameCustomExtension = document.getElementById('rename-custom-extension-input');
   const btnCancelRename = document.getElementById('btn-cancel-rename');
   const btnConfirmRename = document.getElementById('btn-confirm-rename');
+  guardFilenameInput(newFileNameInput);
+  guardFilenameInput(newFileCustomExtension);
+  guardFilenameInput(renameFileNameInput);
+  guardFilenameInput(renameCustomExtension);
   newFileExtensionSelect.addEventListener('change', function() {
     if (this.value === 'custom') {
       newFileCustomExtension.classList.remove('hidden');
@@ -301,7 +309,7 @@ function initFileModals() {
     renameModal.classList.add('hidden');
   });
   btnConfirmRename.addEventListener('click', confirmRenameFile);
-  document.getElementById('rename-file-name').addEventListener('keypress', (e) => {
+  renameFileNameInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
       confirmRenameFile();
     }
@@ -340,6 +348,7 @@ function confirmRenameFile() {
     newExtension = extensionSelect.value;
   }
   const newFullFileName = newName + newExtension;
+  if (!validateCloudFilename(newFullFileName, fileNameInput)) return;
   const oldPath = renameState.oldPath;
   const directory = oldPath.substring(0, oldPath.lastIndexOf('/') + 1);
   const newPath = directory + newFullFileName;
@@ -397,6 +406,7 @@ function createNewFile() {
     extension = '.txt';
   }
   const fullFileName = name + extension;
+  if (!validateCloudFilename(fullFileName, fileNameInput)) return;
   const path = newFileState.basePath ? `${String(newFileState.basePath)}/${fullFileName}` : fullFileName;
   document.getElementById('new-file-modal').classList.add('hidden');
   const createRoot = getCurrentCloudRoot();
@@ -806,10 +816,12 @@ function getContextMenuIconSvg(iconName) {
     return icons[iconName] || '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="2"/></svg>';
 }
 function isZipFile(path) {
-    const ext = path.split('.').pop().toLowerCase();
-    return ext === 'zip';
+    const name = String(path || '').toLowerCase();
+    if (name.endsWith('.tar.gz') || name.endsWith('.tgz')) return true;
+    const ext = name.split('.').pop();
+    return ['zip', '7z', 'tar'].includes(ext);
 }
-async function extractArchive(filePath, extractToPath = null) {
+async function extractArchive(filePath, extractToPath = null, password = '') {
     if (!isZipFile(filePath)) {
         flashStatus(t(i18n, 'notAZipFile'));
         return;
@@ -819,6 +831,8 @@ async function extractArchive(filePath, extractToPath = null) {
         const response = await api('extract_archive', {
             archive_path: filePath,
             extract_to: extractToPath || '',
+            format: typeof getArchiveFormatFromName === 'function' ? getArchiveFormatFromName(filePath) : '',
+            password: password || '',
             async: '1'
         }, 'POST');
         const result = response.job_id ? await waitForArchiveJob(response.job_id, t(i18n, 'extractingArchive')) : response;
@@ -865,6 +879,10 @@ function showExtractDialog(filePath) {
                 <div class="current-folder" style="margin: 10px 0; padding: 10px; background: var(--panel); border-radius: 4px;">
                     ${t(i18n, 'selectedFolder')} <span id="current-folder-path">/</span>
                 </div>
+                <div class="form-group" style="margin-top: 12px;">
+                    <label>${t(i18n, 'password') || 'Password'}</label>
+                    <input id="extract-archive-password" type="password" autocomplete="current-password" placeholder="${t(i18n, 'password') || 'Password'}" style="width:100%;">
+                </div>
             </div>
             <div class="modal-footer">
                 <button id="btn-extract-here" class="btn secondary">${t(i18n, 'extractHere')}</button>
@@ -877,13 +895,15 @@ function showExtractDialog(filePath) {
     loadFolderTreeForExtract();
     document.getElementById('btn-cancel-extract').addEventListener('click', () => modal.remove());
     document.getElementById('btn-extract-here').addEventListener('click', () => {
+        const password = document.getElementById('extract-archive-password')?.value || '';
         modal.remove();
-        extractArchive(filePath, '');
+        extractArchive(filePath, '', password);
     });
     document.getElementById('btn-confirm-extract').addEventListener('click', () => {
         const targetDir = window.selectedExtractFolder || '';
+        const password = document.getElementById('extract-archive-password')?.value || '';
         modal.remove();
-        extractArchive(filePath, targetDir);
+        extractArchive(filePath, targetDir, password);
     });
     modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
     modal.addEventListener('click', (e) => {
@@ -1009,9 +1029,16 @@ async function archiveFolder(folderPath) {
     flashStatus(t(i18n, 'selectFolderToArchive'));
     return;
   }
+  const options = typeof window.showArchiveOptionsModal === 'function'
+    ? await window.showArchiveOptionsModal(`${folderPath.split('/').pop()}_${Date.now()}.zip`)
+    : { archiveName: '', format: 'zip', password: '' };
+  if (!options) return;
   try {
     const result = await api('archive_folder', { 
       folder_path: folderPath,
+      archive_name: options.archiveName,
+      format: options.format,
+      password: options.password,
       async: '1'
     }, 'POST');
     const completed = result.job_id ? await waitForArchiveJob(result.job_id, t(i18n, 'archivingFolder')) : result;

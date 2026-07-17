@@ -2114,6 +2114,8 @@ document.documentElement.style.setProperty('--chat-color-border', '<?php echo $c
 <?php if(isset($domainError)&&$domainError):?><script>document.addEventListener('DOMContentLoaded',function(){if(typeof showTempNotification==='function'){showTempNotification(<?php echo json_encode($translations['domain_save_error']); ?>,'error');}});</script><?php endif;?>
 <script>
 var T=<?php echo json_encode([
+    'loading_btn'=>$translations['loading_btn']??'Loading...',
+    'logging_out'=>$translations['logging_out']??'Logging out...',
     'add_trusted_device'=>$translations['add_trusted_device']??'Add This Device',
     'add_trusted_device_confirm'=>$translations['add_trusted_device_confirm']??'Add this device to your trusted list?',
     'device_added_trusted'=>$translations['device_added_trusted']??'Device added to trusted list',
@@ -3767,6 +3769,40 @@ var T=<?php echo json_encode([
         if(authTabs.length > 0){ authTabs.forEach(tab=>{tab.addEventListener('click',function(){const tabName=this.getAttribute('data-tab');authTabs.forEach(t=>t.classList.remove('active'));this.classList.add('active');authContents.forEach(content=>{content.classList.remove('active');if(content.id===tabName+'-content'){content.classList.add('active');}});});}); }
         if(showForgotLink){showForgotLink.addEventListener('click',function(){authTabs.forEach(t=>t.classList.remove('active'));authContents.forEach(content=>{content.classList.remove('active');if(content.id==='forgot-content'){content.classList.add('active');}});});}
         document.querySelectorAll('.auth-link[data-tab]').forEach(link=>{link.addEventListener('click',function(){const tabName=this.getAttribute('data-tab');authTabs.forEach(tab=>{if(tab.getAttribute('data-tab')===tabName){tab.click();}});});});
+        document.querySelectorAll('.auth-button[type="submit"]').forEach(btn=>{
+            btn.closest('form')?.addEventListener('submit',function(){
+                if(btn.dataset.loading) return false;
+                btn.dataset.loading='1';
+                btn.textContent=T.loading_btn||'Loading...';
+                btn.style.pointerEvents='none';
+                btn.style.opacity='0.7';
+            });
+        });
+        (function(){
+            var logoutForm=document.querySelector('form button[name="logout"]')?.closest('form');
+            if(!logoutForm)return;
+            logoutForm.addEventListener('submit',function(e){
+                e.preventDefault();
+                var overlay=document.createElement('div');
+                overlay.style.cssText='position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;transition:opacity 0.6s ease,background 0.6s ease;';
+                var text=document.createElement('div');
+                text.textContent=T.logging_out||'Logging out...';
+                text.style.cssText='color:#fff;font-size:20px;font-weight:600;letter-spacing:0.5px;opacity:0;transition:opacity 0.5s ease 0.2s;';
+                overlay.appendChild(text);
+                document.body.appendChild(overlay);
+                requestAnimationFrame(function(){
+                    overlay.style.background='rgba(0,0,0,0.85)';
+                    overlay.style.opacity='1';
+                    text.style.opacity='1';
+                });
+                setTimeout(function(){
+                    var input=document.createElement('input');
+                    input.type='hidden';input.name='logout';input.value='1';
+                    logoutForm.appendChild(input);
+                    logoutForm.submit();
+                },800);
+            });
+        })();
         if(emailButton){emailButton.addEventListener('click',()=>{closeAllModals();if(emailModal){emailModal.style.display='flex';}});if(closeEmail){closeEmail.addEventListener('click',()=>{if(emailModal){emailModal.style.display='none';}});}if(emailModal){emailModal.addEventListener('click',(e)=>{if(e.target===emailModal){emailModal.style.display='none';}});}}
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
         if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}

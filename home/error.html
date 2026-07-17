@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <title>ServerKherson</title>
+  <link rel="icon" type="image/png" href="/home/icon.png">
+  <link rel="stylesheet" href="/home/home.css">
+  <link rel="stylesheet" href="/home/error.css">
+</head>
+<body data-error-code='<!--# echo var="status" default="500" -->'>
+  <header class="site-header">
+    <div class="header-left">
+      <a class="brand error-brand" href="/">
+        <img src="/home/icon.png" alt="ServerKherson" class="brand-icon">
+        <h1>ServerKherson</h1>
+      </a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle" id="themeToggle">
+        <button data-theme="dark" class="active">Dark</button>
+        <button data-theme="light">Light</button>
+      </div>
+      <div class="lang-selector" id="langSelector" data-value="en">
+        <button type="button" class="lang-selector-btn" id="langSelectorButton" aria-haspopup="listbox" aria-expanded="false" aria-label="Language">
+          <span class="lang-flag lang-flag-en"></span>
+          <span class="lang-selector-label">English</span>
+          <span class="lang-selector-chevron"></span>
+        </button>
+        <div class="lang-selector-menu" id="langSelectorMenu" role="listbox">
+          <button type="button" class="lang-selector-option active" data-lang="en" role="option" aria-selected="true"><span class="lang-flag lang-flag-en"></span><span>English</span></button>
+          <button type="button" class="lang-selector-option" data-lang="uk" role="option" aria-selected="false"><span class="lang-flag lang-flag-uk"></span><span>Українська</span></button>
+          <button type="button" class="lang-selector-option" data-lang="ru" role="option" aria-selected="false"><span class="lang-flag lang-flag-ru"></span><span>Русский</span></button>
+          <button type="button" class="lang-selector-option" data-lang="be" role="option" aria-selected="false"><span class="lang-flag lang-flag-be"></span><span>Беларуская</span></button>
+          <button type="button" class="lang-selector-option" data-lang="pl" role="option" aria-selected="false"><span class="lang-flag lang-flag-pl"></span><span>Polski</span></button>
+          <button type="button" class="lang-selector-option" data-lang="cs" role="option" aria-selected="false"><span class="lang-flag lang-flag-cs"></span><span>Čeština</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+  <main class="error-page">
+    <section class="error-panel">
+      <div class="error-status">
+        <span id="errorCode">500</span>
+        <span id="errorStatusText">Server error</span>
+      </div>
+      <div class="error-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 9v4"/>
+          <path d="M12 17h.01"/>
+          <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>
+        </svg>
+      </div>
+      <h2 id="errorTitle">Something went wrong</h2>
+      <p id="errorMessage">The service could not complete this request. Try again or contact the administrator.</p>
+      <div class="error-meta">
+        <div><span id="pathLabel">Path</span><strong id="errorPath"></strong></div>
+        <div><span id="timeLabel">Time</span><strong id="errorTime"></strong></div>
+      </div>
+      <div class="error-actions">
+        <button type="button" class="btn-primary" id="retryBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v7h-7"/></svg>
+          <span data-i18n="retry">Try again</span>
+        </button>
+        <a href="/" class="btn-secondary" id="homeBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span data-i18n="home">Home</span>
+        </a>
+        <button type="button" class="btn-secondary" id="adminBtn">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2Zm0 4-8 5-8-5V6l8 5 8-5v2Z"/></svg>
+          <span data-i18n="contact">Write administrator</span>
+        </button>
+      </div>
+    </section>
+  </main>
+  <script src="/home/error.js"></script>
+</body>
+</html>

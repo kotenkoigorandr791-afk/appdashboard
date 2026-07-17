@@ -1019,8 +1019,8 @@ async function fetchFileTree() {
     try {
         const data = await api('get_file_tree', {}, 'GET');
         if (data && data.ok && Array.isArray(data.items)) {
-            cachedFileTree = data.items;
-            return data.items;
+            cachedFileTree = typeof dedupeTreeItemsByPath === 'function' ? dedupeTreeItemsByPath(data.items) : data.items;
+            return cachedFileTree;
         }
     } catch (err) {
         console.warn('fetchFileTree: failed', err);
@@ -1432,6 +1432,7 @@ function treeNodeRename(oldPath, newPath, newName) {
 function buildTreeFromFlatItems(flatItems) {
     const savedSort = localStorage.getItem('treeSortType');
     if (savedSort) sortState.currentSort = savedSort;
+    flatItems = typeof dedupeTreeItemsByPath === 'function' ? dedupeTreeItemsByPath(flatItems) : flatItems;
 
     // Group by parent path
     const childrenOf = {};

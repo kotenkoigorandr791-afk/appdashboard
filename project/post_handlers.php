@@ -2325,6 +2325,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             removeUserFromActiveSessions($_SESSION['user']['email'],session_id());
         }
         setTrustedDeviceLogoutSuppression();
+        clearTrustedDeviceHintCookie();
+        clearTrustedDeviceManifestCookie();
+        clearTrustedDeviceCookie();
         session_destroy();
         header('Location: /');
         exit;

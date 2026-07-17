@@ -72,6 +72,16 @@ function buildCloudProjectUrl(projectPath, params = {}) {
     return url.pathname + url.search;
 }
 window.buildCloudProjectUrl = buildCloudProjectUrl;
+function dedupeTreeItemsByPath(items) {
+    const map = new Map();
+    (Array.isArray(items) ? items : []).forEach((item) => {
+        const path = String(item?.path || '').replace(/^\/+/, '').replace(/\/+/g, '/');
+        if (!path) return;
+        map.set(path, { ...item, path });
+    });
+    return Array.from(map.values());
+}
+window.dedupeTreeItemsByPath = dedupeTreeItemsByPath;
 function waitForStylesheetsReady(timeoutMs = 2000) {
   const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
   const pending = links.filter((link) => !link.sheet).map((link) => new Promise((resolve) => {
@@ -2519,7 +2529,14 @@ function loadHtmlEditorToTab(tab) {
         const color = urlParams.get('color') || '#85b503';
         let currentUser = currentUserState.user || 'default';
         currentUser = currentUser.replace(/\s+/g, '_');
-        const htmlEditorUrl = `utilities/projects/html-editor/public/index.php?path=${encodeURIComponent(tab.path)}&user=${encodeURIComponent(currentUser)}&lang=${lang}&theme=${theme}&color=${encodeURIComponent(color)}&root=${getResolvedTabRoot(tab)}`;
+        const htmlEditorUrl = buildCloudProjectUrl('utilities/projects/html-editor/public/index.php', {
+            path: tab.path,
+            user: currentUser,
+            lang,
+            theme,
+            color,
+            root: getResolvedTabRoot(tab)
+        });
         iframe.src = htmlEditorUrl;
         applyFullScreenStyles(iframe);
         viewer.appendChild(iframe);
@@ -6705,15 +6722,19 @@ function applyLangSwitcherVisibility(hidden) {
     if (!switcher) return;
     switcher.classList.toggle('hidden', !!hidden);
 }
+let buildTreeRequestId = 0;
 async function buildTree(path) {
+    const requestId = ++buildTreeRequestId;
+    const requestRoot = getCurrentCloudRoot();
     const tree = document.getElementById('tree');
     tree.innerHTML = '';
     if (isTrashRoot()) {
         tree.classList.remove('is-empty');
         await renderTrashView();
+        if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
         return;
     }
-    const useFlatCache = getCurrentCloudRoot() === 'main' && !isCloudGroupRoot(getCurrentCloudRoot());
+    const useFlatCache = requestRoot === 'main' && !isCloudGroupRoot(requestRoot);
 
     // Only use full-tree cache for root-level calls (path === '' or undefined).
     // Sub-path calls (rare) fall back to the old list-based renderNodes path.
@@ -6723,11 +6744,12 @@ async function buildTree(path) {
         if (items === null) {
             items = await fetchFileTree();
         }
+        if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
 
         // If cache returned something (even an empty array), render from it
         if (items !== null) {
             const hiddenRoots = ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'];
-            const visibleItems = items.filter((item) => {
+            const visibleItems = dedupeTreeItemsByPath(items).filter((item) => {
                 if (hiddenRoots.some((root) => item.path === root || item.path.startsWith(root + '/'))) {
                     return false;
                 }
@@ -6748,17 +6770,19 @@ async function buildTree(path) {
     const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
     const listPath = browsePath || path || '';
     const root = await api('list', { path: listPath }, 'GET');
+    if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
     const savedSort = localStorage.getItem('treeSortType');
     if (savedSort) sortState.currentSort = savedSort;
-    root.items = sortItems(root.items, sortState.currentSort);
+    root.items = sortItems(dedupeTreeItemsByPath(root.items), sortState.currentSort);
     let renderItems = root.items;
     let renderBase = listPath;
-    if (getCurrentCloudRoot() === 'clientsync' && !path) {
+    if (requestRoot === 'clientsync' && !path) {
         const topDirs = root.items.filter(i => i.type === 'dir');
         if (topDirs.length === 1) {
             try {
                 const inner = await api('list', { path: topDirs[0].path }, 'GET');
-                renderItems = sortItems(inner.items, sortState.currentSort);
+                if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
+                renderItems = sortItems(dedupeTreeItemsByPath(inner.items), sortState.currentSort);
                 renderBase = topDirs[0].path;
             } catch (_) {}
         }
@@ -6810,12 +6834,14 @@ function isTreeAutoRefreshIdle() {
 }
 
 async function refreshMainTreeIncrementally() {
+    if (getCurrentCloudRoot() !== 'main') return;
     const data = await api('get_file_tree', {}, 'GET');
+    if (getCurrentCloudRoot() !== 'main') return;
     if (!data?.ok || !Array.isArray(data.items)) return;
 
     const previousItems = Array.isArray(cachedFileTree) ? cachedFileTree : [];
     const previousMap = new Map(previousItems.map((item) => [item.path, item]));
-    const nextItems = data.items;
+    const nextItems = dedupeTreeItemsByPath(data.items);
     const nextMap = new Map(nextItems.map((item) => [item.path, item]));
     cachedFileTree = nextItems;
 
@@ -6949,6 +6975,7 @@ async function applyCompileFileChangesToTree(fileChanges, { root = getCurrentClo
 window.applyCompileFileChangesToTree = applyCompileFileChangesToTree;
 
 async function refreshScopedRootIncrementally(root) {
+    if (root !== getCurrentCloudRoot()) return;
     const scopeParents = getOpenTreeFolderPaths();
     const listResults = await Promise.all(scopeParents.map(async (parentPath) => {
         try {
@@ -6958,6 +6985,7 @@ async function refreshScopedRootIncrementally(root) {
             return null;
         }
     }));
+    if (root !== getCurrentCloudRoot()) return;
 
     const fetchedPaths = new Set();
     const fetchedItems = [];
@@ -7739,34 +7767,181 @@ async function waitForArchiveJob(jobId, label) {
         await new Promise(resolve => setTimeout(resolve, 900));
     }
 }
+function getArchiveFormatFromName(path) {
+    const name = String(path || '').toLowerCase();
+    if (name.endsWith('.tar.gz') || name.endsWith('.tgz')) return 'tar.gz';
+    const ext = name.split('.').pop();
+    return ['zip', '7z', 'tar'].includes(ext) ? ext : 'zip';
+}
+function replaceArchiveNameExtension(name, format) {
+    const ext = format === 'tar.gz' ? 'tar.gz' : format;
+    const base = String(name || '').replace(/(\.tar\.gz|\.tgz|\.zip|\.7z|\.tar)$/i, '');
+    return `${base || 'archive'}.${ext}`;
+}
+function generateStrongArchivePassword(length = 18) {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*_-+=';
+    const bytes = new Uint32Array(length);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (value) => chars[value % chars.length]).join('');
+}
+function downloadTemporaryArchive(url, name) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name || '';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+}
+function showArchiveOptionsModal(defaultName = '') {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        const label = (key, fallback) => {
+            const value = typeof t === 'function' ? t(window.i18n || {}, key) : '';
+            return value && value !== key ? value : fallback;
+        };
+        const safeName = escapeHtml(defaultName || `selected_${Date.now()}.zip`);
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 460px;">
+                <div class="modal-header">
+                    <h3>${escapeHtml(label('createArchive', 'Create archive'))}</h3>
+                    <button class="icon-btn close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <style>
+                        .archive-checkbox{display:flex;align-items:center;gap:10px;margin-top:12px;cursor:pointer;user-select:none}
+                        .archive-checkbox input{position:absolute;opacity:0;pointer-events:none}
+                        .archive-checkbox-box{width:18px;height:18px;border:1px solid var(--border);border-radius:5px;background:var(--panel);display:inline-flex;align-items:center;justify-content:center;color:#fff;transition:all .16s ease}
+                        .archive-checkbox input:checked + .archive-checkbox-box{background:var(--accent);border-color:var(--accent)}
+                        .archive-checkbox input:checked + .archive-checkbox-box::after{content:"";width:8px;height:4px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-top:-2px}
+                        .archive-password-row{display:flex;gap:6px;margin-top:10px}
+                        .archive-password-row.hidden{display:none}
+                        .archive-password-row input{flex:1;min-width:0}
+                        .archive-password-row .icon-btn{width:34px;height:34px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--fg);display:flex;align-items:center;justify-content:center}
+                    </style>
+                    <div class="form-group">
+                        <label>${escapeHtml(label('fileName', 'File name'))}</label>
+                        <input id="archive-options-name" type="text" value="${safeName}" style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>${escapeHtml(label('archiveType', 'Archive type'))}</label>
+                        <select id="archive-options-format" style="width:100%;">
+                            <option value="zip">ZIP</option>
+                            <option value="7z">7Z</option>
+                            <option value="tar">TAR</option>
+                            <option value="tar.gz">TAR.GZ</option>
+                        </select>
+                    </div>
+                    <label class="archive-checkbox">
+                        <input id="archive-options-encrypt" type="checkbox">
+                        <span class="archive-checkbox-box" aria-hidden="true"></span>
+                        <span>${escapeHtml(label('encryptArchive', 'Encrypt archive'))}</span>
+                    </label>
+                    <div id="archive-password-row" class="archive-password-row hidden">
+                        <input id="archive-options-password" type="password" autocomplete="new-password" placeholder="${escapeHtml(label('password', 'Password'))}">
+                        <button id="archive-password-toggle" class="icon-btn" type="button" title="${escapeHtml(label('showPassword', 'Show password'))}">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button id="archive-password-generate" class="icon-btn" type="button" title="${escapeHtml(label('suggestPassword', 'Suggest strong password'))}">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="m17.8 6.2 1.4-1.4"/><path d="m10.8 13.2-1.4 1.4"/><path d="m17.8 11.8 1.4 1.4"/><path d="m10.8 4.8-1.4-1.4"/><path d="M4 20 14 10"/><path d="m5 15 4 4"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="archive-options-cancel" class="btn secondary">${escapeHtml(label('cancel', 'Cancel'))}</button>
+                    <button id="archive-options-create" class="btn primary">${escapeHtml(label('create', 'Create'))}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const nameInput = modal.querySelector('#archive-options-name');
+        const formatSelect = modal.querySelector('#archive-options-format');
+        const encryptInput = modal.querySelector('#archive-options-encrypt');
+        const passwordInput = modal.querySelector('#archive-options-password');
+        const passwordRow = modal.querySelector('#archive-password-row');
+        const passwordToggle = modal.querySelector('#archive-password-toggle');
+        const passwordGenerate = modal.querySelector('#archive-password-generate');
+        if (window.CloudFilenameGuard) window.CloudFilenameGuard.attach(nameInput);
+        const syncPassword = () => {
+            const canEncrypt = ['zip', '7z'].includes(formatSelect.value);
+            encryptInput.disabled = !canEncrypt;
+            if (!canEncrypt) encryptInput.checked = false;
+            passwordRow.classList.toggle('hidden', !encryptInput.checked || !canEncrypt);
+        };
+        formatSelect.addEventListener('change', () => {
+            nameInput.value = replaceArchiveNameExtension(nameInput.value, formatSelect.value);
+            syncPassword();
+        });
+        encryptInput.addEventListener('change', syncPassword);
+        passwordToggle.addEventListener('click', () => {
+            const visible = passwordInput.type === 'text';
+            passwordInput.type = visible ? 'password' : 'text';
+            passwordToggle.title = visible ? label('showPassword', 'Show password') : label('hidePassword', 'Hide password');
+            passwordInput.focus();
+        });
+        passwordGenerate.addEventListener('click', () => {
+            passwordInput.value = generateStrongArchivePassword();
+            passwordInput.type = 'text';
+            passwordInput.focus();
+            passwordInput.select();
+        });
+        const close = (value = null) => {
+            modal.remove();
+            resolve(value);
+        };
+        modal.querySelector('.close-btn').addEventListener('click', () => close());
+        modal.querySelector('#archive-options-cancel').addEventListener('click', () => close());
+        modal.addEventListener('click', (event) => { if (event.target === modal) close(); });
+        modal.querySelector('#archive-options-create').addEventListener('click', () => {
+            const archiveName = nameInput.value.trim();
+            const format = formatSelect.value;
+            const password = encryptInput.checked ? passwordInput.value : '';
+            if (!archiveName) {
+                flashStatus(label('enterFileName', 'Enter file name'));
+                nameInput.focus();
+                return;
+            }
+            if (encryptInput.checked && !password) {
+                flashStatus(label('passwordRequired', 'Password required'));
+                passwordInput.focus();
+                return;
+            }
+            close({ archiveName, format, password });
+        });
+        syncPassword();
+        nameInput.focus();
+    });
+}
+window.showArchiveOptionsModal = showArchiveOptionsModal;
 async function downloadSelectedItems() {
     const selectedItems = Array.from(selectionState.selectedItems);
     if (selectedItems.length === 0) {
         flashStatus(t(window.i18n, 'noItemsSelected'));
         return;
     }
+    const options = await showArchiveOptionsModal(`selected_${Date.now()}.zip`);
+    if (!options) return;
 
     try {
         const response = await api('create_archive', {
             items: JSON.stringify(selectedItems),
-            archive_name: `selected_${Date.now()}.zip`,
+            archive_name: options.archiveName,
+            format: options.format,
+            password: options.password,
+            temporary: '1',
             async: '1'
         }, 'POST');
         const result = response.job_id ? await waitForArchiveJob(response.job_id, t(window.i18n, 'creatingArchive')) : response;
         if (result.cancelled) {
             flashStatus(t(window.i18n, 'cancelled') || 'Cancelled');
+        } else if (result.success !== false && result.download_url) {
+            downloadTemporaryArchive(result.download_url, result.archive_name);
+            flashStatus(t(window.i18n, 'archiveCreatedAndDownloading'));
         } else if (result.success !== false && result.archive_path) {
             const archivePath = result.archive_path;
-            // Запускаем скачивание созданного архива
             downloadPath(archivePath);
             flashStatus(t(window.i18n, 'archiveCreatedAndDownloading'));
-
-            clearSelection();
-            // Архив будет удален сервером после скачивания, обновляем дерево
-            setTimeout(async () => {
-                cachedFileTree = null;
-                await buildTree('');
-            }, 1000);
         } else {
             flashStatus(t(window.i18n, 'archiveCreationFailed') + ': ' + (result.error || 'Unknown error'));
         }
@@ -9282,7 +9457,8 @@ async function api(action, params={}, method='POST') {
     try {
       data = text ? JSON.parse(text) : {};
     } catch (_) {
-      throw new Error(`API error: ${res.status} ${res.statusText}`);
+      const preview = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180);
+      throw new Error(preview || `API error: ${res.status} ${res.statusText}`);
     }
     if (!res.ok || data.error) throw new Error(data.error || `API error: ${res.status} ${res.statusText}`);
     if (USER_USAGE_REFRESH_ACTIONS.has(action)) {
