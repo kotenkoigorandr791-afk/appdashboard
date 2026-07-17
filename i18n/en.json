@@ -264,6 +264,8 @@
     "save_domain": "Save Domain",
     "domain_saved": "Domain saved successfully",
     "domain_save_error": "Error saving domain",
+    "loading_btn": "Loading...",
+    "logging_out": "Logging out...",
     "login": "Login",
     "logout": "Logout",
     "email": "Email",

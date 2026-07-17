@@ -308,6 +308,8 @@
     "last_updated": "Poslední aktualizace",
     "light_theme": "Světlý",
     "linux": "Linux",
+    "loading_btn": "Načítání...",
+    "logging_out": "Odhlášení...",
     "loading_docs": "Načítání dokumentace...",
     "login": "Přihlášení",
     "login_ip_locked": "Příliš mnoho neúspěšných pokusů o přihlášení. Zkuste znovu za %d sekund.",

@@ -308,6 +308,8 @@
     "last_updated": "Ostatnia aktualizacja",
     "light_theme": "Jasny",
     "linux": "Linux",
+    "loading_btn": "Ładowanie...",
+    "logging_out": "Wylogowywanie...",
     "loading_docs": "Ładowanie dokumentacji...",
     "login": "Logowanie",
     "login_ip_locked": "Zbyt wiele nieudanych prób logowania. Spróbuj ponownie za %d sekund.",

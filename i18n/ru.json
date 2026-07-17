@@ -264,6 +264,8 @@
     "save_domain": "Сохранить домен",
     "domain_saved": "Домен успешно сохранен",
     "domain_save_error": "Ошибка сохранения домена",
+    "loading_btn": "Загрузка...",
+    "logging_out": "Выход из аккаунта...",
     "login": "Войти",
     "logout": "Выйти",
     "email": "Email",

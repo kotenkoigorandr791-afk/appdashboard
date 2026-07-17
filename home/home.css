@@ -535,6 +535,11 @@ body.light-theme .loading-overlay {
   .lang-selector { order: 2; align-self: center; }
   #calendarBtn { order: 3; }
   #calendarPopover { order: 4; }
+  .site-header.brand-hidden { flex-direction: row; height: 50px; min-height: auto; padding: 0 8px; align-items: center; }
+  .site-header.brand-hidden .header-left { width: auto; min-height: auto; }
+  .site-header.brand-hidden .header-left .brand { display: none !important; }
+  .site-header.brand-hidden .header-sep { display: none; }
+  .site-header.brand-hidden .header-right { justify-content: flex-end; flex-wrap: nowrap; flex: 1; gap: 8px; }
   .hero { padding: 40px 0 34px; }
   .buttons { flex-direction: column; align-items: center; }
   .buttons a, .buttons button { width: 100%; max-width: 280px; text-align: center; }

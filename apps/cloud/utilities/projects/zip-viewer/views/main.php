@@ -669,6 +669,10 @@
         <i class="fa-solid fa-cubes"></i>
         <span><?= count($files) ?> <?= $i18n['files'] ?></span>
     </div>
+    <form method="post" style="display:flex;align-items:center;gap:6px;">
+        <input type="password" name="archive_password" value="<?= htmlspecialchars($archivePassword) ?>" autocomplete="current-password" placeholder="Password" style="width:130px;padding:5px 8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:4px;font-size:12px;">
+        <button class="btn" type="submit"><i class="fa-solid fa-lock-open"></i></button>
+    </form>
 </header>
 
 <div id="app-modal" class="app-modal-overlay" aria-hidden="true">
@@ -700,6 +704,10 @@
                 <div style="padding:60px 20px; text-align:center; color:#e74c3c; font-size:16px;">
                     <i class="fa-solid fa-circle-exclamation" style="margin-right:10px;"></i>
                     <?= htmlspecialchars($error) ?>
+                    <form method="post" style="max-width:320px;margin:18px auto 0;display:flex;gap:8px;">
+                        <input type="password" name="archive_password" autocomplete="current-password" placeholder="Password" style="flex:1;padding:8px;border:1px solid var(--border);background:var(--panel);color:var(--fg);border-radius:4px;">
+                        <button class="btn" type="submit">Open</button>
+                    </form>
                 </div>
             <?php elseif (empty($files)): ?>
                 <div class="empty-folder">

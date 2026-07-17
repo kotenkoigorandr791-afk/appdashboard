@@ -98,11 +98,87 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
     }
     return null;
 }
+function zip_viewer_archive_format(string $path): string {
+    $lower = strtolower($path);
+    if (str_ends_with($lower, '.tar.gz') || str_ends_with($lower, '.tgz')) return 'tar.gz';
+    $ext = strtolower(pathinfo($lower, PATHINFO_EXTENSION));
+    return in_array($ext, ['zip', '7z', 'tar'], true) ? $ext : 'zip';
+}
+function zip_viewer_run(array $command): array {
+    $pipes = [];
+    $proc = @proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+    if (!is_resource($proc)) return [1, '', 'Failed to start archive command'];
+    $stdout = stream_get_contents($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $code = proc_close($proc);
+    return [$code, (string)$stdout, (string)$stderr];
+}
+function zip_viewer_command_path(string $command): string {
+    $fallbacks = [
+        '7z' => ['/usr/bin/7z', '/usr/bin/7za', '/bin/7z', '/bin/7za'],
+    ];
+    foreach ($fallbacks[$command] ?? [] as $path) {
+        if (is_file($path) && is_executable($path)) return $path;
+    }
+    return $command;
+}
+function zip_viewer_password_arg(string $password): array {
+    return $password !== '' ? ['-p' . $password] : [];
+}
+function zip_viewer_list_archive(string $archivePath, string $password = ''): array {
+    $cmd = array_merge([zip_viewer_command_path('7z'), 'l', '-slt'], zip_viewer_password_arg($password), [$archivePath]);
+    [$code, $stdout, $stderr] = zip_viewer_run($cmd);
+    if ($code !== 0) throw new RuntimeException(trim($stderr ?: $stdout) ?: 'Cannot open archive');
+    $items = [];
+    $block = [];
+    foreach (preg_split('/\R/', $stdout) as $line) {
+        if (trim($line) === '') {
+            if (!empty($block['Path']) && ($block['Path'] !== $archivePath) && !is_file($block['Path'])) {
+                $attr = (string)($block['Attributes'] ?? '');
+                $items[] = [
+                    'name' => str_replace('\\', '/', (string)$block['Path']),
+                    'is_dir' => str_contains($attr, 'D') || str_ends_with((string)$block['Path'], '/'),
+                    'stat' => [
+                        'size' => (int)($block['Size'] ?? 0),
+                        'mtime' => !empty($block['Modified']) ? strtotime((string)$block['Modified']) : time(),
+                    ],
+                ];
+            }
+            $block = [];
+            continue;
+        }
+        if (strpos($line, ' = ') !== false) {
+            [$key, $value] = explode(' = ', $line, 2);
+            $block[$key] = $value;
+        }
+    }
+    if (!empty($block['Path']) && ($block['Path'] !== $archivePath) && !is_file($block['Path'])) {
+        $attr = (string)($block['Attributes'] ?? '');
+        $items[] = [
+            'name' => str_replace('\\', '/', (string)$block['Path']),
+            'is_dir' => str_contains($attr, 'D') || str_ends_with((string)$block['Path'], '/'),
+            'stat' => [
+                'size' => (int)($block['Size'] ?? 0),
+                'mtime' => !empty($block['Modified']) ? strtotime((string)$block['Modified']) : time(),
+            ],
+        ];
+    }
+    return $items;
+}
+function zip_viewer_read_archive_file(string $archivePath, string $filePath, string $password = ''): ?string {
+    $cmd = array_merge([zip_viewer_command_path('7z'), 'x', '-so'], zip_viewer_password_arg($password), [$archivePath, $filePath]);
+    [$code, $stdout, $stderr] = zip_viewer_run($cmd);
+    return $code === 0 ? $stdout : null;
+}
 if ((!$archivePath || !is_file($archivePath)) && $pathParam !== '') {
     $resolvedArchive = resolve_user_file_path($user, urldecode($pathParam), $root);
     if ($resolvedArchive) $archivePath = $resolvedArchive;
 }
 $archiveName = basename($archivePath);
+$archivePassword = isset($_POST['archive_password']) ? (string)$_POST['archive_password'] : (string)($_GET['password'] ?? '');
+$archiveFormat = zip_viewer_archive_format($archiveName);
 
 // Сохраняем информацию о родительском архиве для навигации
 $archiveChain = [];
@@ -142,28 +218,17 @@ if ($officeDownload && isset($_GET['file']) && isset($_GET['user'])) {
     $downloadUser = $_GET['user'];
     
     if (!empty($archivePath) && file_exists($archivePath)) {
-        $zip = new ZipArchive();
-        if ($zip->open($archivePath) === true) {
-            $stream = $zip->getStream($downloadFile);
-            if ($stream) {
-                $data = stream_get_contents($stream);
-                fclose($stream);
-                $zip->close();
-                
-                $filename = basename($downloadFile);
-                $filesize = strlen($data);
-                
-                header('Content-Type: application/octet-stream');
-                header('Content-Disposition: attachment; filename="' . $filename . '"');
-                header('Content-Length: ' . $filesize);
-                header('Cache-Control: private');
-                header('Pragma: private');
-                header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-                
-                echo $data;
-                exit;
-            }
-            $zip->close();
+        $data = zip_viewer_read_archive_file($archivePath, $downloadFile, $archivePassword);
+        if ($data !== null) {
+            $filename = basename($downloadFile);
+            header('Content-Type: application/octet-stream');
+            header('Content-Disposition: attachment; filename="' . $filename . '"');
+            header('Content-Length: ' . strlen($data));
+            header('Cache-Control: private');
+            header('Pragma: private');
+            header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
+            echo $data;
+            exit;
         }
     }
     
@@ -177,23 +242,16 @@ if ($officeDownload && isset($_GET['file']) && isset($_GET['user'])) {
 // ============================================
 if ($downloadFromZip && isset($_GET['file']) && !empty($archivePath) && file_exists($archivePath)) {
     $downloadFile = urldecode($_GET['file']);
-    $zip = new ZipArchive();
-    if ($zip->open($archivePath) === true) {
-        $stream = $zip->getStream($downloadFile);
-        if ($stream) {
-            $data = stream_get_contents($stream);
-            fclose($stream);
-            $zip->close();
-            $filename = basename($downloadFile);
-            header('Content-Type: application/octet-stream');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
-            header('Content-Length: ' . strlen($data));
-            header('Cache-Control: private');
-            header('Pragma: private');
-            echo $data;
-            exit;
-        }
-        $zip->close();
+    $data = zip_viewer_read_archive_file($archivePath, $downloadFile, $archivePassword);
+    if ($data !== null) {
+        $filename = basename($downloadFile);
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . strlen($data));
+        header('Cache-Control: private');
+        header('Pragma: private');
+        echo $data;
+        exit;
     }
     header('HTTP/1.0 404 Not Found');
     echo 'File not found';
@@ -206,17 +264,12 @@ if ($downloadFromZip && isset($_GET['file']) && !empty($archivePath) && file_exi
 if ($officeView && !$error) {
     $officeFilePath = urldecode($officeView);
     
-    $zip = new ZipArchive();
-    if ($zip->open($archivePath) === true) {
-        $fileExists = false;
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            if ($zip->getNameIndex($i) === $officeFilePath) {
-                $fileExists = true;
-                break;
-            }
+    $fileExists = false;
+    try {
+        foreach (zip_viewer_list_archive($archivePath, $archivePassword) as $entry) {
+            if (($entry['name'] ?? '') === $officeFilePath) { $fileExists = true; break; }
         }
-        $zip->close();
-    }
+    } catch (Throwable $e) {}
     
     if (!$fileExists) {
         die('File not found in archive');
@@ -244,8 +297,9 @@ if ($officeView && !$error) {
         return "$h.$p.$s";
     }
     
+    $passwordParam = $archivePassword !== '' ? '&password=' . urlencode($archivePassword) : '';
     $docUrl = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] 
-              . '?office_download=1&file=' . urlencode($officeFilePath) . '&user=' . $VIEWER_USER . '&archive=' . urlencode($archivePath);
+              . '?office_download=1&file=' . urlencode($officeFilePath) . '&user=' . $VIEWER_USER . '&archive=' . urlencode($archivePath) . $passwordParam;
     
     $cbUrl = 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF'] 
              . '?office_callback=1&file=' . urlencode($officeFilePath) . '&user=' . $VIEWER_USER . '&archive=' . urlencode($archivePath);
@@ -325,23 +379,16 @@ if (empty($archivePath)) {
 } elseif (!file_exists($archivePath)) {
     $error = $i18n['archive_not_found'] . ' ' . htmlspecialchars($archiveName);
 } else {
-    $zip = new ZipArchive();
-    if ($zip->open($archivePath) !== true) {
-        $error = $i18n['cannot_open'] . ' ' . $zip->getStatusString();
-        $zip = null;
+    try {
+        $allFiles = zip_viewer_list_archive($archivePath, $archivePassword);
+        $zip = true;
+    } catch (Throwable $e) {
+        $error = $i18n['cannot_open'] . ' ' . $e->getMessage();
+        $zip = false;
     }
 }
 
 if ($zip && !$error) {
-    for ($i = 0; $i < $zip->numFiles; $i++) {
-        $name = $zip->getNameIndex($i);
-        $allFiles[] = [
-            'name' => $name,
-            'is_dir' => str_ends_with($name, '/'),
-            'stat' => $zip->statIndex($i)
-        ];
-    }
-    
     $seen = [];
     
     foreach ($allFiles as $file) {
@@ -425,7 +472,6 @@ if ($zip && !$error) {
         return strnatcasecmp($a['name'], $b['name']);
     });
     
-    $zip->close();
 }
 
 function formatBytes($bytes, $precision = 2) {
@@ -439,7 +485,7 @@ function formatBytes($bytes, $precision = 2) {
 }
 
 function buildUrl($params = []) {
-    global $lang, $theme, $folderColor, $archivePath, $archiveChain;
+    global $lang, $theme, $folderColor, $archivePath, $archiveChain, $archivePassword;
     
     $defaultParams = [
         'archive' => urlencode($archivePath),
@@ -447,6 +493,7 @@ function buildUrl($params = []) {
         'theme' => $theme,
         'folderColor' => $folderColor
     ];
+    if ($archivePassword !== '') $defaultParams['password'] = $archivePassword;
     
     // Добавляем цепочку архивов для навигации
     if (count($archiveChain) > 1) {
@@ -535,46 +582,33 @@ $mimeType = '';
 $pdfData = '';
 
 if ($viewFile && $zip && !$error) {
-    $zip = new ZipArchive();
-    if ($zip->open($archivePath) === true) {
+    if (true) {
         $ext = strtolower(pathinfo($viewFile, PATHINFO_EXTENSION));
         $officeExts = ['doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp'];
         
         if (in_array($ext, $officeExts)) {
-            $zip->close();
             header('Location: ' . buildUrl(['office_view' => $viewFile, 'view' => null]));
             exit;
         }
         
-        if ($ext === 'zip') {
-            $zip->close();
-            
+        if (in_array($ext, ['zip', '7z', 'tar'], true) || str_ends_with(strtolower($viewFile), '.tar.gz') || str_ends_with(strtolower($viewFile), '.tgz')) {
             // Извлекаем вложенный архив во временный файл
             $tempDir = sys_get_temp_dir();
-            $tempZipFile = $tempDir . '/' . uniqid('nested_') . '.zip';
+            $nestedExt = str_ends_with(strtolower($viewFile), '.tar.gz') ? 'tar.gz' : $ext;
+            $tempZipFile = $tempDir . '/' . uniqid('nested_') . '.' . $nestedExt;
             
-            $innerZip = new ZipArchive();
-            if ($innerZip->open($archivePath) === true) {
-                $stream = $innerZip->getStream($viewFile);
-                if ($stream) {
-                    $data = stream_get_contents($stream);
-                    fclose($stream);
-                    file_put_contents($tempZipFile, $data);
-
-                    // Перенаправляем на просмотр вложенного архива БЕЗ параметра path (корень архива)
-                    header('Location: ' . $_SERVER['PHP_SELF'] . '?archive=' . urlencode($tempZipFile) .
-                           '&parent=' . urlencode(json_encode($archiveChain)) .
-                           '&lang=' . $lang . '&theme=' . $theme . '&folderColor=' . urlencode($folderColor));
-                    exit;
-                }
-                $innerZip->close();
+            $data = zip_viewer_read_archive_file($archivePath, $viewFile, $archivePassword);
+            if ($data !== null) {
+                file_put_contents($tempZipFile, $data);
+                header('Location: ' . $_SERVER['PHP_SELF'] . '?archive=' . urlencode($tempZipFile) .
+                       '&parent=' . urlencode(json_encode($archiveChain)) .
+                       '&lang=' . $lang . '&theme=' . $theme . '&folderColor=' . urlencode($folderColor));
+                exit;
             }
         }
         
-        $stream = $zip->getStream($viewFile);
-        if ($stream) {
-            $data = stream_get_contents($stream);
-            fclose($stream);
+        $data = zip_viewer_read_archive_file($archivePath, $viewFile, $archivePassword);
+        if ($data !== null) {
 
             if (in_array($ext, ['mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv'])) {
                 $previewType = 'video';
@@ -660,7 +694,6 @@ if ($viewFile && $zip && !$error) {
             $previewType = 'text';
             $previewContent = $i18n['cannot_read'];
         }
-        $zip->close();
     }
 }
 
