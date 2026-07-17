@@ -207,6 +207,8 @@
         .role-select{padding:5px;border-radius:4px;border:1px solid var(--border-color);background:var(--modal-bg);color:var(--text-color);}
         #users-search{width:100%;padding:10px;margin-bottom:15px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);box-sizing:border-box;padding-left:34px;}
 
+
+
         /* Telegram Bot Modal */
         #tg-bot-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);justify-content:center;align-items:center;z-index:11000;}
         #tg-bot-content{background:var(--modal-bg);padding:40px 24px 24px 24px;border-radius:12px;color:var(--text-color);position:relative;width:90%;max-width:480px;max-height:90vh;overflow-y:auto;z-index:11001;}
@@ -6662,9 +6664,9 @@ function wireEvents(){
                         .map(function(r){return r.dataset.email;}).sort().join('|');
                     if(newEmails !== window._apUserSnapshot){
                         window._apUserSnapshot = newEmails;
-                        // New users detected — update table silently
                         var tbody=dynRoot&&dynRoot.querySelector('#ap-users-table tbody');
                         if(tbody) tbody.innerHTML=d.rows;
+                        apUpdateUserAnalytics();
                         if(typeof showTempNotification!=='undefined')
                             showTempNotification(<?php echo json_encode($translations['refresh_users']??'Users list updated'); ?>,'info');
                     }
@@ -6911,7 +6913,34 @@ function apSaveField(email,field,value){
     if(field==='theme')    fd.append('user_themes['+email+']',value);
     if(field==='color')    fd.append('user_colors['+email+']',value);
     if(field==='verified') fd.append('user_verified['+email+']',value);
-    fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){setStatus(st,d.message||(d.success?'\u2713 Saved':T.error),d.success?'success':'error');}).catch(function(){setStatus(st,T.error+': network','error');});
+    fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+        setStatus(st,d.message||(d.success?'\u2713 Saved':T.error),d.success?'success':'error');
+        if(field==='role'||field==='verified') apUpdateUserAnalytics();
+    }).catch(function(){setStatus(st,T.error+': network','error');});
+}
+
+function apUpdateUserAnalytics(){
+    if(!dynRoot)return;
+    var rows=dynRoot.querySelectorAll('#ap-users-table tbody tr[data-email]');
+    var total=rows.length,verified=0,admins=0,managers=0,guests=0,pending=0;
+    rows.forEach(function(r){
+        var pend=r.querySelector('span[style*="Pending"]')||r.querySelector('span[style*="#ff9800"]');
+        if(pend){pending++;return;}
+        var vBtn=r.querySelector('.ap-verified-toggle');
+        if(vBtn&&vBtn.dataset.value==='1')verified++;
+        var roleSel=r.querySelector('select[data-field="role"]');
+        if(roleSel){
+            var v=parseInt(roleSel.value)||0;
+            if(v===2)admins++;else if(v===1)managers++;else guests++;
+        }else{
+            var lockSpan=r.querySelector('span[style*="font-weight:700"]');
+            if(lockSpan)admins++;else guests++;
+        }
+    });
+    var s=function(id,v){var e=dynRoot.querySelector(id);if(e)e.textContent=v;};
+    s('#ap-analytics-total',total);s('#ap-analytics-verified',verified);
+    s('#ap-analytics-admins',admins);s('#ap-analytics-managers',managers);
+    s('#ap-analytics-guests',guests);s('#ap-analytics-pending',pending);
 }
 
 window.refreshUsersList=function(){
@@ -6922,6 +6951,7 @@ window.refreshUsersList=function(){
     fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
         if(d.success&&tbody)tbody.innerHTML=d.rows;
         if(btn){btn.disabled=false;btn.style.opacity='1';}
+        apUpdateUserAnalytics();
         if(typeof showTempNotification!=='undefined')showTempNotification(T.refresh_users,'success');
     }).catch(function(){if(btn){btn.disabled=false;btn.style.opacity='1';}});
 };

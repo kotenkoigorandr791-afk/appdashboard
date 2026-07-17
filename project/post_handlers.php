@@ -1333,6 +1333,35 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['user_management']??'User Management'); ?></span></div>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['user_management']??'User Management'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_users_subtitle']??'View, edit roles, and delete registered users.'); ?></div>
+            <!-- User Analytics Summary -->
+            <div class="ap-card" style="margin-bottom:14px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['total_users']??'Total Users'); ?></div>
+                        <div id="ap-analytics-total" style="font-size:22px;font-weight:700;margin-top:2px;"><?php echo count($_apAllU); ?></div>
+                    </div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['verified_users']??'Verified'); ?></div>
+                        <div id="ap-analytics-verified" style="font-size:22px;font-weight:700;margin-top:2px;color:var(--primary-color);"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['verified']); })); ?></div>
+                    </div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['admins']??'Admins'); ?></div>
+                        <div id="ap-analytics-admins" style="font-size:22px;font-weight:700;margin-top:2px;color:#dc3545;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 2; })); ?></div>
+                    </div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['managers']??'Managers'); ?></div>
+                        <div id="ap-analytics-managers" style="font-size:22px;font-weight:700;margin-top:2px;color:#ffc107;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 1; })); ?></div>
+                    </div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['guests']??'Guests'); ?></div>
+                        <div id="ap-analytics-guests" style="font-size:22px;font-weight:700;margin-top:2px;color:#28a745;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 0; })); ?></div>
+                    </div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['pending_users']??'Pending'); ?></div>
+                        <div id="ap-analytics-pending" style="font-size:22px;font-weight:700;margin-top:2px;color:#ff9800;"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['_pending']); })); ?></div>
+                    </div>
+                </div>
+            </div>
             <div class="ap-card">
                 <div class="ap-card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><?php echo my_htmlspecialchars($translations['users_list']??'Users List'); ?></div>
                 <input type="text" class="ap-search-bar" id="ap-users-search" placeholder="<?php echo my_htmlspecialchars($translations['search_users']??'Search users...'); ?>">

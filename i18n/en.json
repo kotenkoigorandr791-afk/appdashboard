@@ -564,5 +564,13 @@
     "icon_sort": "Icon order",
     "icon_sort_alpha": "Alphabetical",
     "icon_sort_popular": "By popularity",
-    "icon_sort_recommended": "Recommended"
+    "icon_sort_recommended": "Recommended",
+    "user_analytics": "User Analytics",
+    "total_users": "Total Users",
+    "active_users": "Active Users",
+    "verified_users": "Verified",
+    "admins": "Admins",
+    "managers": "Managers",
+    "guests": "Guests",
+    "pending_users": "Pending"
 }

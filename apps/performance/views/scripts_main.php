@@ -1171,8 +1171,9 @@ function displayUptimeMonitoring(payload, dockerContainers) {
                 <div class="uptime-history">${bars || '<span class="uptime-history-empty">No checks</span>'}</div>
                 <div class="uptime-check-message">${escapeHtml(check.last_message || '')}</div>
                 <div class="uptime-card-actions">
-                    ${isDocker && dockerContainer ? `<button class="btn-secondary" type="button" onclick="toggleDockerMetrics(${Number(check.id)})">${expanded ? 'Hide metrics' : 'Show metrics'}</button>` : ''}
-                    ${userRole >= 2 ? `<button class="btn-secondary" type="button" onclick="editUptimeCheckById(${Number(check.id)})">Edit</button>${canDelete ? `<button class="btn-secondary" type="button" onclick="deleteUptimeCheck(${Number(check.id)})">Delete</button>` : ''}` : ''}
+                    ${isDocker && dockerContainer ? `<button class="btn-secondary icon-button" type="button" onclick="toggleDockerMetrics(${Number(check.id)})">${expanded ? '<svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg> Hide metrics' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg> Show metrics'}</button>` : ''}
+                    ${userRole >= 2 ? `<button class="btn-secondary icon-button" type="button" onclick="editUptimeCheckById(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Edit</button>${canDelete ? `<button class="btn-secondary icon-button" type="button" onclick="deleteUptimeCheck(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete</button>` : ''}` : ''}
+                    <button class="btn-secondary icon-button" type="button" onclick="exportCheckAsJson(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
                 </div>
                 ${dockerDetails}
             </div>`;
@@ -1376,6 +1377,23 @@ function resetUptimeForm() {
     form.elements.enabled.checked = true;
 }
 
+function toggleUptimeAddDropdown(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('uptimeAddDropdownMenu');
+    if (!menu) return;
+    menu.classList.toggle('open');
+}
+
+function closeUptimeAddDropdown() {
+    const menu = document.getElementById('uptimeAddDropdownMenu');
+    if (menu) menu.classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+    const dropdown = document.getElementById('uptimeAddDropdown');
+    if (dropdown && !dropdown.contains(e.target)) closeUptimeAddDropdown();
+});
+
 function openUptimeCheckModal() {
     const modal = document.getElementById('uptimeCheckModal');
     if (!modal) return;
@@ -1441,6 +1459,81 @@ async function deleteUptimeCheck(id) {
         await runUptimeChecks();
     }
 }
+function exportCheckAsJson(id) {
+    const check = uptimeChecksById[Number(id)];
+    if (!check) return;
+    const exportData = {
+        name: check.name || '',
+        type: check.type || 'http',
+        target: check.target || '',
+        method: check.method || 'GET',
+        expected_status: Number(check.expected_status) || 200,
+        keyword: check.keyword || '',
+        interval_sec: Number(check.interval_sec) || 60,
+        timeout_sec: Number(check.timeout_sec) || 10,
+        enabled: Number(check.enabled || 0) === 1
+    };
+    const json = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (check.name || 'uptime-check').replace(/[^a-zA-Z0-9_-]/g, '_') + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function importChecksFromJson() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.multiple = true;
+    input.onchange = async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+        let imported = 0;
+        let errors = 0;
+        for (const file of files) {
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+                const checks = Array.isArray(data) ? data : [data];
+                for (const item of checks) {
+                    if (!item.name || !item.target) { errors++; continue; }
+                    const payload = {
+                        name: item.name || '',
+                        type: item.type || 'http',
+                        target: item.target || '',
+                        method: item.method || 'GET',
+                        expected_status: item.expected_status || 200,
+                        keyword: item.keyword || '',
+                        interval_sec: item.interval_sec || 60,
+                        timeout_sec: item.timeout_sec || 10,
+                        enabled: item.enabled !== undefined ? (item.enabled ? 1 : 0) : 1
+                    };
+                    const url = new URL(serverMonitorUrl.href);
+                    url.searchParams.set('action', 'save_uptime_check');
+                    const resp = await fetch(url.href, {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (resp.ok) imported++;
+                    else errors++;
+                }
+            } catch (err) {
+                errors++;
+            }
+        }
+        if (imported > 0) await runUptimeChecks();
+        alert(`Imported: ${imported}, Errors: ${errors}`);
+    };
+    input.click();
+}
+
 function fillTable(id, list, nameKey, statusKey) {
     const body = document.getElementById(id);
     body.innerHTML = '';
