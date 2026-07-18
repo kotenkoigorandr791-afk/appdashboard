@@ -735,6 +735,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // тФАтФАтФА HTML-╨▓╤Л╨▓╨╛╨┤ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
 ob_clean();
+header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Content-Type: text/html; charset=UTF-8');
 ?>
 <!DOCTYPE html>
@@ -919,7 +920,7 @@ header('Content-Type: text/html; charset=UTF-8');
         .view-btn.active, .view-btn:hover { opacity: 0.8; }
         
         .chart-container { position: relative; margin-bottom: 20px; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 820px; margin-left: auto; margin-right: auto; box-sizing: border-box; }
-        .chart-nav { flex-shrink: 0; align-self: center; font-size: 24px; background: var(--modal-bg); border: 1px solid var(--border-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .chart-nav { flex-shrink: 0; align-self: center; font-size: 24px; background: var(--modal-bg); border: 1px solid var(--border-color); border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-color); }
         .chart-nav:hover { background: var(--primary-color); color: #fff; }
         .chart-main { position: relative; flex: 1 1 auto; min-width: 0; max-width: 720px; width: 100%; padding-top: 40px; }
         .chart-label { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 15px; font-weight: 700; text-align: center; pointer-events: none;
@@ -3088,7 +3089,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 goalNotifRevealTimer = null;
                 goalNotifRevealDone = true;
                 if (Date.now() >= getPanelNotifSnoozeUntil('goal')) el.style.display = 'block';
-            }, Math.floor(Math.random() * 60000));
+            }, Math.floor(Math.random() * 5000) + 5000);
         }
         function updateStatsNotification() {
             const steps = stepsData.map(entry => entry.steps), 
@@ -3128,35 +3129,21 @@ header('Content-Type: text/html; charset=UTF-8');
             if (statsNotifRevealDone) el.style.display = 'block';
         }
         function updateGoalNotification() {
-            const today = formatLocalYMD(new Date()), 
-                  todayData = stepsData.find(entry => entry.date === today) || { steps: 0 };
-            const remainingSteps = Math.max(0, userSettings.goal_steps - todayData.steps);
-            const weekStart = new Date();
-            weekStart.setDate(weekStart.getDate() - mondayWeekOffset(weekStart));
-            const weekData = Array.from({length: 7}, (_, i) => { 
-                const date = new Date(weekStart); 
-                date.setDate(weekStart.getDate() + i); 
-                return (stepsData.find(entry => entry.date === formatLocalYMD(date)) || { steps: 0 }).steps; 
-            });
-            const weeklyTotal = weekData.reduce((sum, steps) => sum + steps, 0), 
-                  remainingWeeklySteps = Math.max(0, userSettings.goal_steps * 7 - weeklyTotal);
+            const monthStart = new Date();
+            monthStart.setDate(1);
+            const currentMonth = monthStart.getMonth();
+            const currentYear = monthStart.getFullYear();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const goalPerDay = userSettings.goal_steps;
             const el = document.getElementById('goal-notification');
             document.getElementById('goal-content').innerHTML = `
                 <div class="notification-item">
-                    <span>${translations.today_steps}</span>
-                    <span class="notification-value">${formatNumber(todayData.steps)}</span>
+                    <span>${translations.goal_daily_hint || 'пройти нужно каждый день по'}</span>
+                    <span class="notification-value">${formatNumber(goalPerDay)}</span>
                 </div>
                 <div class="notification-item">
-                    <span>${translations.remaining_steps}</span>
-                    <span class="notification-value">${formatNumber(remainingSteps)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.this_week}</span>
-                    <span class="notification-value">${formatNumber(weeklyTotal)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.remaining_weekly_steps}</span>
-                    <span class="notification-value">${formatNumber(remainingWeeklySteps)}</span>
+                    <span>${translations.goal_days_hint || 'ходить нужно'}</span>
+                    <span class="notification-value">${daysInMonth} ${translations.days || 'дней'}</span>
                 </div>`;
             if (!el) return;
             if (Date.now() < getPanelNotifSnoozeUntil('goal')) {

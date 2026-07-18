@@ -549,35 +549,21 @@
             if (statsNotifRevealDone) el.style.display = 'block';
         }
         function updateGoalNotification() {
-            const today = formatLocalYMD(new Date()), 
-                  todayData = stepsData.find(entry => entry.date === today) || { steps: 0 };
-            const remainingSteps = Math.max(0, userSettings.goal_steps - todayData.steps);
-            const weekStart = new Date();
-            weekStart.setDate(weekStart.getDate() - mondayWeekOffset(weekStart));
-            const weekData = Array.from({length: 7}, (_, i) => { 
-                const date = new Date(weekStart); 
-                date.setDate(weekStart.getDate() + i); 
-                return (stepsData.find(entry => entry.date === formatLocalYMD(date)) || { steps: 0 }).steps; 
-            });
-            const weeklyTotal = weekData.reduce((sum, steps) => sum + steps, 0), 
-                  remainingWeeklySteps = Math.max(0, userSettings.goal_steps * 7 - weeklyTotal);
+            const monthStart = new Date();
+            monthStart.setDate(1);
+            const currentMonth = monthStart.getMonth();
+            const currentYear = monthStart.getFullYear();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            const goalPerDay = userSettings.goal_steps;
             const el = document.getElementById('goal-notification');
             document.getElementById('goal-content').innerHTML = `
                 <div class="notification-item">
-                    <span>${translations.today_steps}</span>
-                    <span class="notification-value">${formatNumber(todayData.steps)}</span>
+                    <span>${translations.goal_daily_hint || 'пройти нужно каждый день по'}</span>
+                    <span class="notification-value">${formatNumber(goalPerDay)}</span>
                 </div>
                 <div class="notification-item">
-                    <span>${translations.remaining_steps}</span>
-                    <span class="notification-value">${formatNumber(remainingSteps)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.this_week}</span>
-                    <span class="notification-value">${formatNumber(weeklyTotal)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.remaining_weekly_steps}</span>
-                    <span class="notification-value">${formatNumber(remainingWeeklySteps)}</span>
+                    <span>${translations.goal_days_hint || 'ходить нужно'}</span>
+                    <span class="notification-value">${daysInMonth} ${translations.days || 'дней'}</span>
                 </div>`;
             if (!el) return;
             if (Date.now() < getPanelNotifSnoozeUntil('goal')) {
