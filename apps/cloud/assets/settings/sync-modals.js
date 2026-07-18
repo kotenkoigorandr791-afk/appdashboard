@@ -248,7 +248,7 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       if (data.ok && data.token) {
         currentToken = data.token;
         currentUsername = data.username || '';
-        currentWebdavUrl = data.webdav_url || `${window.location.origin}/webdav/`;
+        currentWebdavUrl = data.webdav_url || window.location.origin.replace(/^https?:\/\//, (s) => s === 'https://' ? 'webdavs://' : 'webdav://') + '/webdav/';
         currentTokenHash = data.token_hash || null;
         tokenValue.textContent = data.token;
         if (usernameValue) usernameValue.textContent = currentUsername;
@@ -418,7 +418,7 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
 
   function webdavConfig() {
     return {
-      url: currentWebdavUrl || `${window.location.origin}/webdav/`,
+      url: currentWebdavUrl || window.location.origin.replace(/^https?:\/\//, (s) => s === 'https://' ? 'webdavs://' : 'webdav://') + '/webdav/',
       username: currentUsername || '',
       token: currentToken || '',
       iconUrl: new URL('project/views/icon.png', window.location.origin + '/').href,
@@ -431,11 +431,12 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   }
 
   function linuxWebdavScript() {
-    const cfg = webdavConfig();
-    const davUrl = cfg.url.replace(/^https:\/\//, 'webdavs://').replace(/^http:\/\//, 'webdav://');
-    return `#!/usr/bin/env sh
+      const cfg = webdavConfig();
+      const davUrl = cfg.url.replace(/^https:\/\//, 'webdavs://').replace(/^http:\/\//, 'webdav://');
+      const httpUrl = cfg.url.replace(/^webdavs:\/\//, 'https://').replace(/^webdav:\/\//, 'http://');
+      return `#!/usr/bin/env sh
 set -eu
-WEBDAV_URL=${shellQuote(cfg.url)}
+WEBDAV_URL=${shellQuote(httpUrl)}
 WEBDAV_BROWSER_URL=${shellQuote(davUrl)}
 WEBDAV_USER=${shellQuote(cfg.username)}
 WEBDAV_TOKEN=${shellQuote(cfg.token)}
@@ -658,13 +659,13 @@ $Name = 'AppDashboard Cloud'
 function Convert-WebDavToUnc([string]$Url) {
   $u = [Uri]$Url
   $path = $u.AbsolutePath.TrimEnd('/')
-  if ($u.Scheme -eq 'https') { return "\\\\$($u.Host)@SSL\\DavWWWRoot$path" }
+  if ($u.Scheme -eq 'https' -or $u.Scheme -eq 'webdavs') { return "\\\\$($u.Host)@SSL\\DavWWWRoot$path" }
   return "\\\\$($u.Host)\\DavWWWRoot$path"
 }
 try {
   Set-Service WebClient -StartupType Automatic -ErrorAction SilentlyContinue
   Start-Service WebClient -ErrorAction SilentlyContinue
-  if ([Uri]$WebDavUrl -as [Uri] -and ([Uri]$WebDavUrl).Scheme -eq 'http') {
+  if ([Uri]$WebDavUrl -as [Uri] -and (([Uri]$WebDavUrl).Scheme -eq 'http' -or ([Uri]$WebDavUrl).Scheme -eq 'webdav')) {
     New-Item -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters' -Force | Out-Null
     New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters' -Name BasicAuthLevel -Value 2 -PropertyType DWord -Force | Out-Null
     Restart-Service WebClient -ErrorAction SilentlyContinue

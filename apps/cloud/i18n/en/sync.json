@@ -28,5 +28,11 @@
     "downloadConnectScriptLinux": "Download Linux/macOS connect script",
     "downloadConnectScriptWindows": "Download Windows connect script",
     "downloadLinuxScript": "Linux/macOS SH",
-    "downloadWindowsScript": "Windows PS1"
+    "downloadWindowsScript": "Windows PS1",
+    "syncTokenNameLabel": "Connection name",
+    "syncTokenNamePlaceholder": "My computer",
+    "syncTokenNameRequired": "Enter a connection name",
+    "noActiveTokens": "No active tokens yet.",
+    "selectTokenToManage": "Select a device to manage its token.",
+    "noUsernameToCopy": "No username to copy"
 }

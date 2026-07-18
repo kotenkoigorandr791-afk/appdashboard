@@ -297,6 +297,7 @@
   "fileMovedToTrash": "Файл перемещен в корзину",
   "folderMovedToTrash": "Папка перемещена в корзину",
   "clearHistory": "Очистить историю",
+  "clearHistoryTitle": "Очистить историю чата",
   "clearHistoryConfirm": "Вы уверены, что хотите очистить историю чата? Это действие нельзя отменить.",
   "videoFile": "Видеофайл",
   "audioFile": "Аудиофайл",

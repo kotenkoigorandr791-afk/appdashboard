@@ -28,5 +28,11 @@
     "downloadConnectScriptLinux": "Скачать скрипт подключения Linux/macOS",
     "downloadConnectScriptWindows": "Скачать скрипт подключения Windows",
     "downloadLinuxScript": "Linux/macOS SH",
-    "downloadWindowsScript": "Windows PS1"
+    "downloadWindowsScript": "Windows PS1",
+    "syncTokenNameLabel": "Имя подключения",
+    "syncTokenNamePlaceholder": "Мой компьютер",
+    "syncTokenNameRequired": "Введите имя подключения",
+    "noActiveTokens": "Нет активных токенов",
+    "selectTokenToManage": "Выберите устройство для управления токеном",
+    "noUsernameToCopy": "Нет имени пользователя для копирования"
 }

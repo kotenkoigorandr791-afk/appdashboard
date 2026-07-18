@@ -8,6 +8,7 @@ import logging
 import subprocess
 import socket
 import hashlib
+import tempfile
 from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 import pg_sqlite_compat as sqlite3
@@ -45,6 +46,11 @@ LABEL_TO_CMD = {
     'back to users': '/menu_back_users',
     'full statistics': '/stats',
     'quick status': '/status',
+    'uptime charts': '/uptime_charts',
+    'uptime графики': '/uptime_charts',
+    'графики uptime': '/uptime_charts',
+    'графики аптайма': '/uptime_charts',
+    'графики мониторинга': '/uptime_charts',
     '💾 backup': '/backup_status',
     '🐳 docker': '/docker_status',
     'latest errors': '/errors_recent',
@@ -70,6 +76,14 @@ LABEL_TO_CMD = {
     'logout': '/logout',
     'status': '/status',
 }
+
+
+def _label_key(text: str) -> str:
+    return re.sub(r'\s+', ' ', re.sub(r'[^\w/]+', ' ', text or '', flags=re.UNICODE)).strip().lower()
+
+
+COMMAND_ALIASES = {k.strip().lower(): v for k, v in LABEL_TO_CMD.items()}
+COMMAND_ALIASES.update({_label_key(k): v for k, v in LABEL_TO_CMD.items()})
 
 
 def get_db():
@@ -455,6 +469,7 @@ def admin_reply_keyboard(chat_id: str, is_root: bool = False, menu: Optional[str
     if current == 'admin_monitoring':
         rows = [
             [{'text': 'Full statistics'}, {'text': 'Quick status'}],
+            [{'text': 'Uptime charts'}],
             [{'text': '💾 Backup'}, {'text': '🐳 Docker'}],
             [{'text': 'Back to menu'}],
         ]
@@ -970,6 +985,136 @@ def build_docker_monitor_message(data: dict) -> str:
     return '\n'.join(lines)
 
 
+def monitor_table_exists(name: str) -> bool:
+    if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', name):
+        return False
+    with get_db() as db:
+        row = db.execute(
+            f"SELECT 1 FROM sqlite_master WHERE type='table' AND name='{name}' LIMIT 1"
+        ).fetchone()
+        return row is not None
+
+
+def fetch_uptime_chart_data(hours: int = 24, limit: int = 6) -> list[dict]:
+    if not monitor_table_exists('monitor_uptime_checks') or not monitor_table_exists('monitor_uptime_results'):
+        return []
+    since = int(time.time()) - hours * 3600
+    checks = []
+    with get_db() as db:
+        rows = db.execute(
+            """SELECT c.id,c.name,c.type,c.target
+               FROM monitor_uptime_checks c
+               WHERE c.enabled=1 AND EXISTS (
+                   SELECT 1 FROM monitor_uptime_results r WHERE r.check_id=c.id AND r.checked_at>=?
+               )
+               ORDER BY c.auto_discovered ASC, c.name ASC
+               LIMIT ?""",
+            (since, limit),
+        ).fetchall()
+        for row in rows:
+            hist = db.execute(
+                """SELECT checked_at,status,latency_ms
+                   FROM monitor_uptime_results
+                   WHERE check_id=? AND checked_at>=?
+                   ORDER BY checked_at ASC""",
+                (row['id'], since),
+            ).fetchall()
+            if len(hist) > 240:
+                step = max(1, len(hist) // 240)
+                hist = hist[::step]
+            checks.append({
+                'name': str(row['name'] or 'Unnamed'),
+                'type': str(row['type'] or ''),
+                'target': str(row['target'] or ''),
+                'history': hist,
+            })
+    return checks
+
+
+def render_uptime_chart_png(checks: list[dict], hours: int = 24) -> Optional[str]:
+    if not checks:
+        return None
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except Exception as e:
+        log.error(f'Pillow import failed: {e}')
+        return None
+    width = 1200
+    panel_h = 150
+    top = 70
+    height = top + len(checks) * panel_h + 40
+    img = Image.new('RGB', (width, height), '#101418')
+    draw = ImageDraw.Draw(img)
+    try:
+        font_title = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 26)
+        font = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 18)
+        font_small = ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 14)
+    except Exception:
+        font_title = font = font_small = ImageFont.load_default()
+    draw.text((28, 22), f'Uptime monitoring, last {hours}h', fill='#f3f4f6', font=font_title)
+    now = int(time.time())
+    since = now - hours * 3600
+    for idx, check in enumerate(checks):
+        y = top + idx * panel_h
+        x0, y0, x1, y1 = 28, y + 38, width - 28, y + 116
+        hist = list(check.get('history') or [])
+        up = sum(1 for h in hist if str(h['status']) == 'up')
+        availability = round(up / len(hist) * 100, 2) if hist else 0
+        latest = hist[-1] if hist else {}
+        title = f"{check['name'][:44]}  {availability:.2f}%"
+        draw.text((28, y + 8), title, fill='#e5e7eb', font=font)
+        meta = f"{check['type']} {check['target'][:70]}  last: {latest.get('status', 'unknown')}"
+        draw.text((width - 520, y + 12), meta, fill='#9ca3af', font=font_small)
+        draw.rectangle((x0, y0, x1, y1), outline='#334155', fill='#151b22')
+        for i in range(1, 4):
+            gy = y0 + int((y1 - y0) * i / 4)
+            draw.line((x0, gy, x1, gy), fill='#24303b')
+        latencies = [int(h['latency_ms'] or 0) for h in hist if h['latency_ms'] is not None and int(h['latency_ms'] or 0) >= 0]
+        max_latency = max(latencies) if latencies else 1
+        max_latency = max(max_latency, 100)
+        points = []
+        for h in hist:
+            ts = int(h['checked_at'])
+            x = x0 + int((max(min(ts, now), since) - since) / max(1, now - since) * (x1 - x0))
+            status = str(h['status'])
+            if status != 'up':
+                draw.line((x, y0, x, y1), fill='#ef4444', width=3)
+                continue
+            latency = int(h['latency_ms'] or 0)
+            py = y1 - int(min(latency, max_latency) / max_latency * (y1 - y0 - 8)) - 4
+            points.append((x, py))
+            draw.rectangle((x - 2, y1 + 9, x + 2, y1 + 18), fill='#22c55e')
+        if len(points) > 1:
+            draw.line(points, fill='#38bdf8', width=3)
+        for x, py in points[-20:]:
+            draw.ellipse((x - 3, py - 3, x + 3, py + 3), fill='#7dd3fc')
+        draw.text((x0, y1 + 24), time.strftime('%H:%M', time.localtime(since)), fill='#9ca3af', font=font_small)
+        draw.text((x1 - 52, y1 + 24), time.strftime('%H:%M', time.localtime(now)), fill='#9ca3af', font=font_small)
+        draw.text((x1 - 120, y0 + 6), f'max {max_latency} ms', fill='#9ca3af', font=font_small)
+    tmp = tempfile.NamedTemporaryFile(prefix='appdashboard-uptime-', suffix='.png', delete=False)
+    tmp.close()
+    img.save(tmp.name, 'PNG')
+    return tmp.name
+
+
+def send_uptime_charts(token: str, chat_id: str, kb: dict) -> None:
+    checks = fetch_uptime_chart_data()
+    if not checks:
+        tg_send(token, chat_id, 'No uptime monitoring history available.', parse_mode='', reply_markup=kb)
+        return
+    path = render_uptime_chart_png(checks)
+    if not path:
+        tg_send(token, chat_id, 'Could not render uptime chart image.', parse_mode='', reply_markup=kb)
+        return
+    try:
+        tg_send_photo(token, chat_id, path, 'Uptime monitoring charts', reply_markup=kb)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
 def build_status_message(s: dict) -> str:
     cpu = s['cpu']
     mem_pct = s['mem'][0]
@@ -1010,6 +1155,7 @@ HELP_ADMIN = (
     '<code>────────────────────────</code>\n\n'
     '<b>Administrator</b>\n'
     'Monitoring → Full statistics, Quick status, 💾 Backup, 🐳 Docker\n'
+    'Monitoring → Uptime charts sends uptime monitoring graphs as PNG\n'
     'Errors → Latest errors, Top errors\n'
     'Users → user management inside the bot\n'
     'Database → DB statistics, tables list, VACUUM for root\n'
@@ -1054,6 +1200,26 @@ def tg_send(token: str, chat_id: str, text: str, parse_mode: str = 'HTML', reply
         log.error(f'tg_send error: {e}')
 
 
+def tg_send_photo(token: str, chat_id: str, path: str, caption: str = '', reply_markup: Optional[dict] = None) -> None:
+    url = f'https://api.telegram.org/bot{token}/sendPhoto'
+    data = {'chat_id': chat_id, 'caption': caption}
+    if reply_markup is not None:
+        data['reply_markup'] = json.dumps(reply_markup)
+    try:
+        with open(path, 'rb') as f:
+            r = requests.post(url, data=data, files={'photo': f}, timeout=30)
+        resp = r.json()
+        if not resp.get('ok'):
+            log.warning(
+                'tg_send_photo non-ok chat=%s code=%s desc=%s',
+                chat_id,
+                resp.get('error_code'),
+                resp.get('description'),
+            )
+    except Exception as e:
+        log.error(f'tg_send_photo error: {e}')
+
+
 def tg_get_updates(token: str, offset: int) -> list:
     url = f'https://api.telegram.org/bot{token}/getUpdates'
     try:
@@ -1080,8 +1246,7 @@ def resolve_command(text: str) -> str:
     sc = normalize_tg_command(t)
     if sc.startswith('/'):
         return sc
-    key = t.strip().lower()
-    return LABEL_TO_CMD.get(key, '')
+    return COMMAND_ALIASES.get(t.lower(), '') or COMMAND_ALIASES.get(_label_key(t), '')
 
 
 def role_name(role: int) -> str:
@@ -1634,6 +1799,11 @@ def dispatch_admin_command(
     elif cmd == '/status':
         menu = 'admin_monitoring' if state.get('menu') != 'admin_main' else 'admin_main'
         tg_send(token, chat_id, build_status_message(get_live_stats()), reply_markup=admin_reply_keyboard(chat_id, is_root, menu))
+    elif cmd == '/uptime_charts':
+        set_admin_menu(chat_id, 'admin_monitoring')
+        admin_kb = admin_reply_keyboard(chat_id, is_root, 'admin_monitoring')
+        tg_send(token, chat_id, 'Rendering uptime charts…', parse_mode='', reply_markup=admin_kb)
+        send_uptime_charts(token, chat_id, admin_kb)
     elif cmd == '/backup_status':
         set_admin_menu(chat_id, 'admin_monitoring')
         admin_kb = admin_reply_keyboard(chat_id, is_root, 'admin_monitoring')

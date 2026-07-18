@@ -20,5 +20,11 @@
     "syncToken": "Token synchronizacji pulpitu",
     "manageSyncTokens": "Zarządzaj tokenami synchronizacji",
     "syncTokenTitle": "Tokeny synchronizacji desktopowej",
-    "syncTokenDescription": "Generuj tokeny dla klientów synchronizacji desktopowej."
+    "syncTokenDescription": "Generuj tokeny dla klientów synchronizacji desktopowej.",
+    "syncTokenNameLabel": "Nazwa połączenia",
+    "syncTokenNamePlaceholder": "Mój komputer",
+    "syncTokenNameRequired": "Wprowadź nazwę połączenia",
+    "noActiveTokens": "Brak aktywnych tokenów",
+    "selectTokenToManage": "Wybierz urządzenie do zarządzania tokenem",
+    "noUsernameToCopy": "Brak nazwy użytkownika do skopiowania"
 }

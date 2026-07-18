@@ -20,5 +20,11 @@
     "syncToken": "Desktop Sync Token",
     "manageSyncTokens": "Spravovat synchronizační tokeny",
     "syncTokenTitle": "Desktop synchronizační tokeny",
-    "syncTokenDescription": "Generujte tokeny pro desktopové synchronizační klienty."
+    "syncTokenDescription": "Generujte tokeny pro desktopové synchronizační klienty.",
+    "syncTokenNameLabel": "Název připojení",
+    "syncTokenNamePlaceholder": "Můj počítač",
+    "syncTokenNameRequired": "Zadejte název připojení",
+    "noActiveTokens": "Zatím žádné aktivní tokeny",
+    "selectTokenToManage": "Vyberte zařízení pro správu tokenu",
+    "noUsernameToCopy": "Žádné uživatelské jméno ke kopírování"
 }

@@ -297,6 +297,7 @@
   "fileMovedToTrash": "Plik został przeniesiony do Kosza",
   "folderMovedToTrash": "Folder został przeniesiony do Kosza",
   "clearHistory": "Wyczyść historię",
+  "clearHistoryTitle": "Wyczyść historię czatu",
   "clearHistoryConfirm": "Czy na pewno chcesz wyczyścić historię czatów? Tej akcji nie można cofnąć.",
   "videoFile": "Plik wideo",
   "audioFile": "Plik audio",
