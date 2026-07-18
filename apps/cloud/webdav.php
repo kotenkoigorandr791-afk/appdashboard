@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 define('CLOUD_WEBDAV_BOOT', true);
+require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/api.php';
 use Sabre\DAV;
 use Sabre\DAV\FS;

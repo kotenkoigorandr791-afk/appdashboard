@@ -297,6 +297,7 @@
   "fileMovedToTrash": "File moved to Trash",
   "folderMovedToTrash": "Folder moved to Trash",
   "clearHistory": "Clear History",
+  "clearHistoryTitle": "Clear Chat History",
   "clearHistoryConfirm": "Are you sure you want to clear the chat history? This action cannot be undone.",
   "videoFile": "Video File",
   "audioFile": "Audio File",

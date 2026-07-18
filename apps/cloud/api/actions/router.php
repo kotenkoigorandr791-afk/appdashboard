@@ -625,7 +625,7 @@ if ($action === 'client_token_generate') {
     $result = generate_client_token($email, $deviceId, $deviceName, $platform, $expiresInDays);
     if (!empty($result['ok'])) {
         $result['username'] = $email;
-        $result['webdav_url'] = cloud_public_origin() . '/webdav/';
+                $result['webdav_url'] = (cloud_public_scheme() === 'https' ? 'webdavs://' : 'webdav://') . cloud_public_host() . '/webdav/';
     }
     json_out($result);
 }

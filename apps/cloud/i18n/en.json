@@ -387,6 +387,7 @@
     "fileMovedToTrash": "File moved to Trash",
     "folderMovedToTrash": "Folder moved to Trash",
     "clearHistory": "Clear History",
+    "clearHistoryTitle": "Clear Chat History",
     "clearHistoryConfirm": "Are you sure you want to clear the chat history? This action cannot be undone.",
     "historyCleared": "Chat history cleared",
     "clearHistoryError": "Failed to clear history: ",
@@ -1068,6 +1069,7 @@
     "featRootFolders": "Six root workspaces: Folders (main storage), Archive, Temporary Files, Documents (encrypted), Photos, PDF",
     "featEncryptedDocs": "AES-encrypted Documents folder — files are encrypted server-side and only accessible by the owner",
     "sectionEditors": "Editors & Viewers",
+    "sectionViewers": "Viewers",
     "featMonacoEditor": "Monaco Editor (VS Code engine) with syntax highlighting, IntelliSense, code folding, minimap, multi-cursor editing, and find/replace with regex",
     "featCodeMirror": "CodeMirror editor as alternative with 25+ language modes (JavaScript, TypeScript, Python, PHP, HTML, CSS, SQL, YAML, TOML, Shell, Ruby, Go, Swift, Kotlin, Lua, Perl, R, Vue, Octave, LaTeX, and more)",
     "featAutoSave": "Auto-save with configurable interval",
@@ -1157,5 +1159,11 @@
     "groupChatDeleteConfirmText": "Are you sure you want to permanently delete the group \"{name}\" and all its files?",
     "groupChatDeleteConfirmSimple": "Delete this group and all its files permanently?",
     "groupChatDeleted": "Chat deleted",
+    "syncTokenNameLabel": "Connection name",
+    "syncTokenNamePlaceholder": "My computer",
+    "syncTokenNameRequired": "Enter a connection name",
+    "noActiveTokens": "No active tokens yet.",
+    "selectTokenToManage": "Select a device to manage its token.",
+    "noUsernameToCopy": "No username to copy",
     "czech": "Czech"
 }

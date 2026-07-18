@@ -297,6 +297,7 @@
   "fileMovedToTrash": "Soubor byl přesunut do koše",
   "folderMovedToTrash": "Složka byla přesunuta do koše",
   "clearHistory": "Vymazat historii",
+  "clearHistoryTitle": "Vymazat historii chatu",
   "clearHistoryConfirm": "Opravdu chcete vymazat historii chatu? Tuto akci nelze vrátit zpět.",
   "videoFile": "Video soubor",
   "audioFile": "Zvukový soubor",

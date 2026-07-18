@@ -387,6 +387,7 @@
     "fileMovedToTrash": "Файл перемещен в корзину",
     "folderMovedToTrash": "Папка перемещена в корзину",
     "clearHistory": "Очистить историю",
+    "clearHistoryTitle": "Очистить историю чата",
     "clearHistoryConfirm": "Вы уверены, что хотите очистить историю чата? Это действие нельзя отменить.",
     "historyCleared": "История чата очищена",
     "clearHistoryError": "Не удалось очистить историю: ",
@@ -1068,6 +1069,7 @@
     "featRootFolders": "Шесть корневых рабочих пространств: Папки (основное хранилище), Архив, Временные файлы, Документы (зашифрованные), Фото, PDF",
     "featEncryptedDocs": "Зашифрованная папка Документы с AES — файлы шифруются на сервере и доступны только владельцу",
     "sectionEditors": "Редакторы и просмотрщики",
+    "sectionViewers": "Просмотрщики",
     "featMonacoEditor": "Monaco Editor (движок VS Code) с подсветкой синтаксиса, IntelliSense, свёртыванием кода, миникартой, мультикурсорным редактированием и поиском/заменой с regex",
     "featCodeMirror": "CodeMirror как альтернативный редактор с 25+ языковыми режимами (JavaScript, TypeScript, Python, PHP, HTML, CSS, SQL, YAML, TOML, Shell, Ruby, Go, Swift, Kotlin, Lua, Perl, R, Vue, Octave, LaTeX и другие)",
     "featAutoSave": "Автосохранение с настраиваемым интервалом",
@@ -1157,5 +1159,11 @@
     "groupChatDeleteConfirmText": "Вы уверены, что хотите безвозвратно удалить группу «{name}» и все её файлы?",
     "groupChatDeleteConfirmSimple": "Удалить группу и все её файлы безвозвратно?",
     "groupChatDeleted": "Чат удалён",
+    "syncTokenNameLabel": "Имя подключения",
+    "syncTokenNamePlaceholder": "Мой компьютер",
+    "syncTokenNameRequired": "Введите имя подключения",
+    "noActiveTokens": "Нет активных токенов",
+    "selectTokenToManage": "Выберите устройство для управления токеном",
+    "noUsernameToCopy": "Нет имени пользователя для копирования",
     "czech": "Чешский"
 }

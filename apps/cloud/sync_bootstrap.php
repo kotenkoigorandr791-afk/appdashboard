@@ -30,7 +30,7 @@ echo cloud_sync_encode([
     'ok' => true,
     'protocol' => 'webdav',
     'transport' => 'webdav',
-    'webdav_url' => "{$scheme}://{$host}/webdav/",
+    'webdav_url' => ($scheme === 'https' ? 'webdavs://' : 'webdav://') . $host . '/webdav/',
     'username' => $email,
     'default_root' => 'main',
     'message' => 'Use WebDAV with your account email as username and a generated DAV token as password.',
