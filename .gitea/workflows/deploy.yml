@@ -22,7 +22,7 @@ jobs:
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
-          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
           sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh
           sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
@@ -48,7 +48,7 @@ jobs:
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
-          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
           sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh
           sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh

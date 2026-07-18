@@ -101,10 +101,11 @@ def ensure_schema() -> None:
                 telegram_user_id TEXT NOT NULL DEFAULT ''
             )
         """)
+        db.commit()
         try:
             db.execute("ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''")
         except psycopg2.Error:
-            pass
+            db.rollback()
         db.execute("""
             CREATE TABLE IF NOT EXISTS tg_bot_link_tokens (
                 token_hash TEXT PRIMARY KEY,
@@ -116,6 +117,7 @@ def ensure_schema() -> None:
                 used_chat_id TEXT NOT NULL DEFAULT ''
             )
         """)
+        db.commit()
         for sql in (
             "ALTER TABLE tg_bot_link_tokens ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
             "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_at INTEGER",
@@ -123,9 +125,9 @@ def ensure_schema() -> None:
         ):
             try:
                 db.execute(sql)
+                db.commit()
             except psycopg2.Error:
-                pass
-        db.commit()
+                db.rollback()
 
 
 def get_token() -> str:
