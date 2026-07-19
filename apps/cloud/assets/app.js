@@ -82,6 +82,22 @@ function dedupeTreeItemsByPath(items) {
     return Array.from(map.values());
 }
 window.dedupeTreeItemsByPath = dedupeTreeItemsByPath;
+function dedupeRenderedTreeNodesByPath(root = document.getElementById('tree')) {
+    if (!root) return;
+    const seen = new Set();
+    root.querySelectorAll('.node[data-path]').forEach((node) => {
+        const path = String(node.dataset.path || '').replace(/^\/+/, '').replace(/\/+/g, '/');
+        if (!path) return;
+        if (!seen.has(path)) {
+            seen.add(path);
+            return;
+        }
+        const children = node.nextElementSibling;
+        if (children && children.classList.contains('children')) children.remove();
+        node.remove();
+    });
+}
+window.dedupeRenderedTreeNodesByPath = dedupeRenderedTreeNodesByPath;
 function waitForStylesheetsReady(timeoutMs = 2000) {
   const links = Array.from(document.querySelectorAll('link[rel="stylesheet"]'));
   const pending = links.filter((link) => !link.sheet).map((link) => new Promise((resolve) => {
@@ -315,10 +331,12 @@ function getCloudRootDisplayName(root = 'main') {
         if (g) return g.name;
     }
     const key = CLOUD_ROOT_DISPLAY_KEYS[root] || 'folders';
-    return (typeof t === 'function' ? t(window.i18n || {}, key) : '') || root || 'Folders';
+    if (window.i18n && window.i18n[key]) return t(window.i18n, key);
+    return root || 'Folders';
 }
 function buildMoveRootToolbarHtml(activeRoot = 'main', options = {}) {
     const i18nRef = window.i18n || {};
+    if (!window.i18n) return '';
     const excludeGroups = !!options.excludeGroups;
     const btnStyle = 'width:40px;height:40px;border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;flex-shrink:0';
     const mkBtn = (key, title, icon, extraClass = '') => {
@@ -6723,22 +6741,25 @@ function applyLangSwitcherVisibility(hidden) {
     switcher.classList.toggle('hidden', !!hidden);
 }
 let buildTreeRequestId = 0;
+let treeBuildInFlightRequestId = 0;
 async function buildTree(path) {
     const requestId = ++buildTreeRequestId;
+    treeBuildInFlightRequestId = requestId;
     const requestRoot = getCurrentCloudRoot();
     const tree = document.getElementById('tree');
     tree.innerHTML = '';
-    if (isTrashRoot()) {
-        tree.classList.remove('is-empty');
-        await renderTrashView();
-        if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
-        return;
-    }
-    const useFlatCache = requestRoot === 'main' && !isCloudGroupRoot(requestRoot);
+    try {
+        if (isTrashRoot()) {
+            tree.classList.remove('is-empty');
+            await renderTrashView();
+            if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
+            return;
+        }
+        const useFlatCache = requestRoot === 'main' && !isCloudGroupRoot(requestRoot);
 
     // Only use full-tree cache for root-level calls (path === '' or undefined).
     // Sub-path calls (rare) fall back to the old list-based renderNodes path.
-    if (!path && useFlatCache) {
+        if (!path && useFlatCache) {
         // Try cache first
         let items = cachedFileTree;
         if (items === null) {
@@ -6757,44 +6778,47 @@ async function buildTree(path) {
             });
             const container = buildTreeFromFlatItems(visibleItems);
             tree.appendChild(container);
+            dedupeRenderedTreeNodesByPath(tree);
             const browsePath = getTreeBrowsePath();
             tree.classList.toggle('is-empty', countDirectTreeChildren(visibleItems, browsePath) === 0);
             scheduleTreeAutoShift();
             if (typeof updateTreeBrowseHeader === 'function') updateTreeBrowseHeader();
             if (typeof syncAllTreeChildrenGuides === 'function') syncAllTreeChildrenGuides(tree);
-            return;
+                return;
+            }
         }
-    }
 
-    // Fallback: path-scoped call or cache unavailable — use old list-based approach
-    const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
-    const listPath = browsePath || path || '';
-    const root = await api('list', { path: listPath }, 'GET');
-    if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
-    const savedSort = localStorage.getItem('treeSortType');
-    if (savedSort) sortState.currentSort = savedSort;
-    root.items = sortItems(dedupeTreeItemsByPath(root.items), sortState.currentSort);
-    let renderItems = root.items;
-    let renderBase = listPath;
-    if (requestRoot === 'clientsync' && !path) {
-        const topDirs = root.items.filter(i => i.type === 'dir');
-        if (topDirs.length === 1) {
-            try {
-                const inner = await api('list', { path: topDirs[0].path }, 'GET');
-                if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
-                renderItems = sortItems(dedupeTreeItemsByPath(inner.items), sortState.currentSort);
-                renderBase = topDirs[0].path;
-            } catch (_) {}
+        const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
+        const listPath = browsePath || path || '';
+        const root = await api('list', { path: listPath }, 'GET');
+        if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
+        const savedSort = localStorage.getItem('treeSortType');
+        if (savedSort) sortState.currentSort = savedSort;
+        root.items = sortItems(dedupeTreeItemsByPath(root.items), sortState.currentSort);
+        let renderItems = root.items;
+        let renderBase = listPath;
+        if (requestRoot === 'clientsync' && !path) {
+            const topDirs = root.items.filter(i => i.type === 'dir');
+            if (topDirs.length === 1) {
+                try {
+                    const inner = await api('list', { path: topDirs[0].path }, 'GET');
+                    if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
+                    renderItems = sortItems(dedupeTreeItemsByPath(inner.items), sortState.currentSort);
+                    renderBase = topDirs[0].path;
+                } catch (_) {}
+            }
         }
+        const container = renderNodes(renderItems, renderBase, 0);
+        tree.appendChild(container);
+        dedupeRenderedTreeNodesByPath(tree);
+        tree.classList.toggle('is-empty', renderItems.length === 0);
+        await restoreFolderState();
+        scheduleTreeAutoShift();
+        if (typeof updateTreeBrowseHeader === 'function') updateTreeBrowseHeader();
+        if (typeof syncAllTreeChildrenGuides === 'function') syncAllTreeChildrenGuides(tree);
+    } finally {
+        if (treeBuildInFlightRequestId === requestId) treeBuildInFlightRequestId = 0;
     }
-    const container = renderNodes(renderItems, renderBase, 0);
-    tree.appendChild(container);
-    // Показываем сообщение только если действительно нет элементов
-    tree.classList.toggle('is-empty', renderItems.length === 0);
-    await restoreFolderState();
-    scheduleTreeAutoShift();
-    if (typeof updateTreeBrowseHeader === 'function') updateTreeBrowseHeader();
-    if (typeof syncAllTreeChildrenGuides === 'function') syncAllTreeChildrenGuides(tree);
 }
 window.buildTree = buildTree;
 
@@ -6863,6 +6887,7 @@ async function refreshMainTreeIncrementally() {
                 treeNodeAdd(item, { openParents: false, highlight: false });
             }
         });
+    dedupeRenderedTreeNodesByPath();
 
     const tree = document.getElementById('tree');
     if (tree) {
@@ -7005,6 +7030,7 @@ async function refreshScopedRootIncrementally(root) {
                 treeNodeAdd(item, { openParents: false, highlight: false });
             }
         });
+    dedupeRenderedTreeNodesByPath();
 
     const scopedParents = new Set(scopeParents);
     document.querySelectorAll('#tree .node[data-path]').forEach((node) => {
@@ -7023,6 +7049,7 @@ async function refreshScopedRootIncrementally(root) {
 
 async function runTreeAutoRefresh() {
     if (treeAutoRefreshInFlight || !isTreeAutoRefreshIdle()) return;
+    if (treeBuildInFlightRequestId) return;
     const root = getCurrentCloudRoot();
     if (root === 'trash') return;
 
@@ -7771,7 +7798,7 @@ function getArchiveFormatFromName(path) {
     const name = String(path || '').toLowerCase();
     if (name.endsWith('.tar.gz') || name.endsWith('.tgz')) return 'tar.gz';
     const ext = name.split('.').pop();
-    return ['zip', '7z', 'tar'].includes(ext) ? ext : 'zip';
+    return ['zip', '7z', 'rar', 'tar'].includes(ext) ? ext : 'zip';
 }
 function replaceArchiveNameExtension(name, format) {
     const ext = format === 'tar.gz' ? 'tar.gz' : format;
@@ -7900,6 +7927,13 @@ function showArchiveOptionsModal(defaultName = '') {
             if (!archiveName) {
                 flashStatus(label('enterFileName', 'Enter file name'));
                 nameInput.focus();
+                return;
+            }
+            const nameCheck = window.CloudFilenameGuard ? window.CloudFilenameGuard.validate(archiveName) : { ok: !/[\\/:*?"<>|]/.test(archiveName) };
+            if (!nameCheck.ok) {
+                flashStatus(label('invalidFolderName', 'Invalid name'));
+                nameInput.focus();
+                nameInput.select();
                 return;
             }
             if (encryptInput.checked && !password) {

@@ -7,6 +7,21 @@
             sites: [],
             token: ''
         };
+
+        function t(key, params = {}) {
+            const lang = config.language || 'en';
+            const dict = translations[lang] || translations.en || {};
+            let str = dict[key];
+            if (str === undefined) {
+                console.warn('Translation missing for key: "' + key + '"');
+                str = key;
+            }
+            Object.keys(params).forEach(p => {
+                str = str.replaceAll('{' + p + '}', params[p]);
+            });
+            return str;
+        }
+
         let currentSite = null;
         let editIndex = null;
         let actionModalCallback = null;

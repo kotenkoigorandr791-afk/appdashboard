@@ -26,5 +26,15 @@
     "syncTokenNameRequired": "Wprowadź nazwę połączenia",
     "noActiveTokens": "Brak aktywnych tokenów",
     "selectTokenToManage": "Wybierz urządzenie do zarządzania tokenem",
-    "noUsernameToCopy": "Brak nazwy użytkownika do skopiowania"
+    "noUsernameToCopy": "Brak nazwy użytkownika do skopiowania",
+    "webdavScriptHint": "Pobierz skrypt Linux, uruchom poniższe polecenie, a następnie wybierz montowanie lub odmontowanie.",
+    "webdavWindowsHint": "Windows: w Eksploratorze plików otwórz Ten komputer, wybierz Mapuj dysk sieciowy i użyj tego adresu folderu.",
+    "webdavLinuxCommandLabel": "Polecenie Linux po pobraniu:",
+    "webdavWindowsAddressLabel": "Folder dysku sieciowego Windows:",
+    "noCommandToCopy": "Brak polecenia do skopiowania",
+    "downloadConnectScript": "Pobierz skrypt połączenia",
+    "downloadConnectScriptLinux": "Pobierz skrypt połączenia Linux",
+    "downloadConnectScriptWindows": "Pobierz skrypt połączenia Windows",
+    "downloadLinuxScript": "Linux/macOS SH",
+    "downloadWindowsScript": "Windows PS1"
 }

@@ -8,6 +8,7 @@ $color = isset($_GET['color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', $_GET['color
 
 // Load translations and config with UTF-8
 $translations = ap_load_i18n_all_langs($appDir);
+$GLOBALS['_t_i18n'] = $translations[$lang] ?? [];
 
 // Load config from database or fallback to default
 $db = getDB();

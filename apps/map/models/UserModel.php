@@ -148,26 +148,30 @@ $currentUserIsRoot = ($currentUserRole === 2);
 $safeUsername = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $currentUser);
 
 // User-specific directories and files
-$USER_DIR = APPS_DATA_DIR . $safeUsername . '/';
+$USER_DIR = rtrim(APPS_DATA_DIR, '/') . '/' . $safeUsername . '/';
 $UPLOAD_DIR = $USER_DIR . 'uploads/';
 $ROUTES_FILE = $USER_DIR . 'routes.csv';
 $FAVORITES_FILE = $USER_DIR . 'favorites.json';
 
+// Normalize paths to resolve any .. or . components
+$USER_DIR = realpath($USER_DIR) ?: $USER_DIR;
+$UPLOAD_DIR = realpath($UPLOAD_DIR) ?: $UPLOAD_DIR;
+$ROUTES_FILE = realpath($ROUTES_FILE) ?: $ROUTES_FILE;
+$FAVORITES_FILE = realpath($FAVORITES_FILE) ?: $FAVORITES_FILE;
+
 // Create user directory structure
-if (!file_exists(APPS_DATA_DIR)) {
-    mkdir(APPS_DATA_DIR, 0755, true);
-}
-if (!file_exists($USER_DIR)) {
-    mkdir($USER_DIR, 0755, true);
-}
-if (!file_exists($UPLOAD_DIR)) {
-    mkdir($UPLOAD_DIR, 0755, true);
-}
-if (!file_exists($ROUTES_FILE)) {
-    file_put_contents($ROUTES_FILE, '');
-}
-if (!file_exists($FAVORITES_FILE)) {
-    file_put_contents($FAVORITES_FILE, json_encode([]));
+@mkdir(APPS_DATA_DIR, 0755, true);
+@mkdir($USER_DIR, 0755, true);
+@mkdir($UPLOAD_DIR, 0755, true);
+
+// Create files only if directories exist
+if (is_dir($USER_DIR)) {
+    if (!file_exists($ROUTES_FILE)) {
+        file_put_contents($ROUTES_FILE, '');
+    }
+    if (!file_exists($FAVORITES_FILE)) {
+        file_put_contents($FAVORITES_FILE, json_encode([]));
+    }
 }
 
 // Initialize location sharing database on page load

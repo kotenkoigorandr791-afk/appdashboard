@@ -819,7 +819,18 @@ function isZipFile(path) {
     const name = String(path || '').toLowerCase();
     if (name.endsWith('.tar.gz') || name.endsWith('.tgz')) return true;
     const ext = name.split('.').pop();
-    return ['zip', '7z', 'tar'].includes(ext);
+    return ['zip', '7z', 'rar', 'tar'].includes(ext);
+}
+async function archivePasswordRequired(filePath) {
+    try {
+        const result = await api('archive_password_required', {
+            archive_path: filePath,
+            format: typeof getArchiveFormatFromName === 'function' ? getArchiveFormatFromName(filePath) : ''
+        }, 'GET');
+        return !!result.password_required;
+    } catch (_) {
+        return false;
+    }
 }
 async function extractArchive(filePath, extractToPath = null, password = '') {
     if (!isZipFile(filePath)) {
@@ -879,9 +890,14 @@ function showExtractDialog(filePath) {
                 <div class="current-folder" style="margin: 10px 0; padding: 10px; background: var(--panel); border-radius: 4px;">
                     ${t(i18n, 'selectedFolder')} <span id="current-folder-path">/</span>
                 </div>
-                <div class="form-group" style="margin-top: 12px;">
+                <div id="extract-password-group" class="form-group" style="margin-top: 12px;display:none;">
                     <label>${t(i18n, 'password') || 'Password'}</label>
-                    <input id="extract-archive-password" type="password" autocomplete="current-password" placeholder="${t(i18n, 'password') || 'Password'}" style="width:100%;">
+                    <div style="display:flex;gap:6px;">
+                        <input id="extract-archive-password" type="password" autocomplete="current-password" placeholder="${t(i18n, 'password') || 'Password'}" style="width:100%;min-width:0;">
+                        <button id="extract-password-toggle" class="icon-btn" type="button" title="${t(i18n, 'showPassword') || 'Show password'}">
+                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -893,6 +909,18 @@ function showExtractDialog(filePath) {
     `;
     document.body.appendChild(modal);
     loadFolderTreeForExtract();
+    const passwordGroup = document.getElementById('extract-password-group');
+    const passwordInput = document.getElementById('extract-archive-password');
+    const passwordToggle = document.getElementById('extract-password-toggle');
+    archivePasswordRequired(filePath).then((required) => {
+        if (required && passwordGroup) passwordGroup.style.display = '';
+    });
+    passwordToggle?.addEventListener('click', () => {
+        const visible = passwordInput.type === 'text';
+        passwordInput.type = visible ? 'password' : 'text';
+        passwordToggle.title = visible ? (t(i18n, 'showPassword') || 'Show password') : (t(i18n, 'hidePassword') || 'Hide password');
+        passwordInput.focus();
+    });
     document.getElementById('btn-cancel-extract').addEventListener('click', () => modal.remove());
     document.getElementById('btn-extract-here').addEventListener('click', () => {
         const password = document.getElementById('extract-archive-password')?.value || '';

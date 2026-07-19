@@ -16,6 +16,24 @@ if (!function_exists('cloud_dedupe_tree_items')) {
         return array_values($deduped);
     }
 }
+if (!function_exists('cloud_validate_file_name')) {
+    function cloud_validate_file_name(string $name): ?string {
+        if (trim($name) === '') return 'empty name';
+        if ($name !== basename($name) || preg_match('/[\\\\\/:*?"<>|\x00-\x1F]/', $name)) return 'invalid name';
+        if ($name === '.' || $name === '..') return 'invalid name';
+        if (preg_match('/[. ]$/', $name)) return 'invalid name';
+        if (preg_match('/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i', $name)) return 'reserved name';
+        return null;
+    }
+    function cloud_validate_relative_path_names(string $path): ?string {
+        foreach (explode('/', trim(str_replace('\\', '/', $path), '/')) as $part) {
+            if ($part === '') continue;
+            $error = cloud_validate_file_name($part);
+            if ($error !== null) return $error;
+        }
+        return null;
+    }
+}
 
 if ($action === 'get_encryption_notice_status') {
     $email = get_session_email();
@@ -673,6 +691,7 @@ if ($action === 'rename') {
   $old_path = safe_path((string)($_POST['old_path'] ?? ''));
   $new_name = trim((string)($_POST['new_name'] ?? ''));
   if ($old_path==='' || $new_name==='') json_out(['error'=>'bad params'], 400);
+  if (($nameError = cloud_validate_file_name($new_name)) !== null) json_out(['error'=>$nameError], 400);
   remap_clientsync_path($rootKey, $old_path);
   $base = user_root($user, $rootKey);
   $old_dir = dirname($old_path);
@@ -758,6 +777,7 @@ if ($action === 'create_file') {
   
   
   if ($path==='') json_out(['error'=>'path required'], 400);
+  if (($nameError = cloud_validate_relative_path_names($path)) !== null) json_out(['error'=>$nameError], 400);
   $full = $base . '/' . $path;
   
 
@@ -768,6 +788,9 @@ if ($action === 'create_file') {
   
   // Создаем директорию, если ее нет
   $dir = dirname($full);
+  if (file_exists($dir) && !is_dir($dir)) {
+    json_out(['error'=>'parent is not directory'], 409);
+  }
   if (!is_dir($dir)) {
     @mkdir($dir, 0775, true);
   }
@@ -1189,6 +1212,7 @@ if ($action === 'mkdir') {
   
   $path = safe_path((string)($_POST['path'] ?? ''));
   if ($path==='') json_out(['error'=>'path required'], 400);
+  if (($nameError = cloud_validate_relative_path_names($path)) !== null) json_out(['error'=>$nameError], 400);
   $rootKey = get_requested_root_key();
   cloud_group_require_write($rootKey);
   remap_clientsync_path($rootKey, $path);
@@ -1206,7 +1230,7 @@ if ($action === 'mkdir') {
   $base = user_root($user, $rootKey);
   $dir = $base . '/' . $path;
 
-  if (is_dir($dir)) {
+  if (file_exists($dir)) {
     json_out(['error'=>'exists'], 409);
   }
 
@@ -1269,10 +1293,14 @@ if ($action === 'upload') {
     $base = user_root($user, $rootKey);
     $targetDir = $base . '/' . dirname($final_target_path);
     $fileName  = basename($final_target_path);
+    if (($nameError = cloud_validate_relative_path_names($final_target_path)) !== null) json_out(['error'=>$nameError], 400);
     $mtimeFromClientRaw = (int)($_POST['mtime'] ?? 0);
     $mtimeFromClientTime = $mtimeFromClientRaw > 20000000000 ? ((float)$mtimeFromClientRaw / 1000.0) : (float)$mtimeFromClientRaw;
 
     // Создаем целевую директорию если её нет
+    if (file_exists($targetDir) && !is_dir($targetDir)) {
+        json_out(['error'=>'target is not directory'], 409);
+    }
     if (!is_dir($targetDir)) {
         if (!mkdir($targetDir, 0755, true)) {
             json_out(['error'=>'Cannot create directory'], 500);
@@ -1890,6 +1918,7 @@ function cloud_archive_safe_extract_path(string $base, string $name): ?string {
 function cloud_archive_command_path(string $command): string {
     $fallbacks = [
         'zip' => ['/usr/bin/zip', '/bin/zip'],
+        'unzip' => ['/usr/bin/unzip', '/bin/unzip'],
         '7z' => ['/usr/bin/7z', '/usr/bin/7za', '/bin/7z', '/bin/7za'],
         'tar' => ['/usr/bin/tar', '/bin/tar'],
         'php' => ['/usr/bin/php', '/usr/local/bin/php', PHP_BINARY],
@@ -1919,10 +1948,10 @@ function cloud_archive_run(array $command, ?string $cwd = null): array {
 function cloud_archive_normalize_format(string $format, string $name = ''): string {
     $format = strtolower(trim($format));
     $name = strtolower(trim($name));
-    if (in_array($format, ['zip', '7z', 'tar', 'tar.gz', 'tgz'], true)) return $format === 'tgz' ? 'tar.gz' : $format;
+    if (in_array($format, ['zip', '7z', 'rar', 'tar', 'tar.gz', 'tgz'], true)) return $format === 'tgz' ? 'tar.gz' : $format;
     if (str_ends_with($name, '.tar.gz') || str_ends_with($name, '.tgz')) return 'tar.gz';
     $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-    return in_array($ext, ['zip', '7z', 'tar'], true) ? $ext : 'zip';
+    return in_array($ext, ['zip', '7z', 'rar', 'tar'], true) ? $ext : 'zip';
 }
 function cloud_archive_format_extension(string $format): string {
     return $format === 'tar.gz' ? 'tar.gz' : $format;
@@ -1930,15 +1959,38 @@ function cloud_archive_format_extension(string $format): string {
 function cloud_archive_password_supported(string $format): bool {
     return in_array($format, ['zip', '7z'], true);
 }
+function cloud_archive_is_encrypted_message(string $message): bool {
+    return preg_match('/encrypted|password|wrong password|can not open encrypted/i', $message) === 1;
+}
+function cloud_archive_requires_password(string $archivePath, string $format): bool {
+    if (!in_array($format, ['zip', '7z', 'rar'], true)) return false;
+    if ($format === 'zip' && cloud_archive_command_exists('unzip')) {
+        $cmd = [cloud_archive_command_path('unzip'), '-Z', '-v', $archivePath];
+        [$code, $stdout, $stderr] = cloud_archive_run($cmd);
+        if ($code !== 0) return cloud_archive_is_encrypted_message($stderr . "\n" . $stdout);
+        return stripos($stdout, 'file security status:                           encrypted') !== false;
+    }
+    if (!cloud_archive_command_exists('7z')) return false;
+    $cmd = [cloud_archive_command_path('7z'), 'l', '-slt', $archivePath];
+    [$code, $stdout, $stderr] = cloud_archive_run($cmd);
+    if ($code !== 0) return cloud_archive_is_encrypted_message($stderr . "\n" . $stdout);
+    foreach (preg_split('/\R/', $stdout) as $line) {
+        if (preg_match('/^Encrypted = \+/', $line)) return true;
+    }
+    return false;
+}
 function cloud_archive_sanitize_name(string $name, string $format): string {
     $ext = cloud_archive_format_extension($format);
-    $name = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', trim($name));
+    $name = trim($name);
     if ($name === '') $name = 'selected_' . date('Y-m-d_H-i-s') . '.' . $ext;
     $lower = strtolower($name);
     if ($format === 'tar.gz') {
         if (!str_ends_with($lower, '.tar.gz') && !str_ends_with($lower, '.tgz')) $name .= '.tar.gz';
     } elseif (!str_ends_with($lower, '.' . $ext)) {
         $name .= '.' . $ext;
+    }
+    if (($nameError = cloud_validate_file_name($name)) !== null) {
+        throw new RuntimeException($nameError);
     }
     return $name;
 }
@@ -2023,11 +2075,17 @@ function cloud_archive_extract_file(string $archivePath, string $extractPath, st
     }
     $before = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($extractPath, RecursiveDirectoryIterator::SKIP_DOTS));
     $beforeCount = iterator_count($before);
-    if (in_array($format, ['zip', '7z'], true)) {
-        if (!cloud_archive_command_exists('7z')) throw new RuntimeException('7z command not available');
-        $cmd = [cloud_archive_command_path('7z'), 'x', '-y', '-o' . $extractPath];
-        if ($password !== '') $cmd[] = '-p' . $password;
-        $cmd[] = $archivePath;
+    if (in_array($format, ['zip', '7z', 'rar'], true)) {
+        if ($format === 'zip' && cloud_archive_command_exists('unzip')) {
+            $cmd = [cloud_archive_command_path('unzip'), '-o'];
+            if ($password !== '') array_push($cmd, '-P', $password);
+            array_push($cmd, $archivePath, '-d', $extractPath);
+        } else {
+            if (!cloud_archive_command_exists('7z')) throw new RuntimeException('7z command not available');
+            $cmd = [cloud_archive_command_path('7z'), 'x', '-y', '-o' . $extractPath];
+            if ($password !== '') $cmd[] = '-p' . $password;
+            $cmd[] = $archivePath;
+        }
     } elseif ($format === 'tar') {
         if (!cloud_archive_command_exists('tar')) throw new RuntimeException('tar command not available');
         $cmd = [cloud_archive_command_path('tar'), '-xf', $archivePath, '-C', $extractPath];
@@ -2043,7 +2101,15 @@ function cloud_archive_extract_file(string $archivePath, string $extractPath, st
     return max(0, iterator_count($after) - $beforeCount);
 }
 function cloud_archive_list_paths(string $archivePath, string $format, string $password = ''): array {
-    if (in_array($format, ['zip', '7z'], true)) {
+    if (in_array($format, ['zip', '7z', 'rar'], true)) {
+        if ($format === 'zip' && cloud_archive_command_exists('unzip')) {
+            $cmd = [cloud_archive_command_path('unzip'), '-Z', '-1'];
+            if ($password !== '') array_push($cmd, '-P', $password);
+            $cmd[] = $archivePath;
+            [$code, $stdout, $stderr] = cloud_archive_run($cmd);
+            if ($code !== 0) throw new RuntimeException(trim($stderr ?: $stdout) ?: 'Cannot list archive');
+            return array_values(array_filter(preg_split('/\R/', $stdout), static fn($path) => $path !== ''));
+        }
         if (!cloud_archive_command_exists('7z')) throw new RuntimeException('7z command not available');
         $cmd = [cloud_archive_command_path('7z'), 'l', '-slt'];
         if ($password !== '') $cmd[] = '-p' . $password;
@@ -2080,11 +2146,7 @@ function cloud_archive_create_selected_job(string $jobId, array $payload): void 
         if (!$temporary) {
             $archive_path = $base . '/' . $archive_name;
         }
-        if (!$temporary && file_exists($archive_path)) {
-            $path_info = pathinfo($archive_name);
-            $archive_name = $path_info['filename'] . '_' . time() . '.' . $path_info['extension'];
-            $archive_path = $base . '/' . $archive_name;
-        }
+        if (!$temporary && file_exists($archive_path)) throw new RuntimeException('exists');
         $total = max(1, count($items));
         cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 20, 'processed' => 0, 'total' => $total]);
         $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.' . cloud_archive_format_extension($format);
@@ -2225,6 +2287,17 @@ if ($action === 'archive_job_cancel') {
     cloud_archive_write_job($jobId, ['cancel_requested' => true]);
     json_out(['success' => true]);
 }
+if ($action === 'archive_password_required') {
+    $user = get_current_user_from_sessions();
+    $rootKey = get_requested_root_key();
+    $base = user_root($user, $rootKey);
+    $archive_path = safe_path((string)($_GET['archive_path'] ?? $_POST['archive_path'] ?? ''));
+    $format = cloud_archive_normalize_format((string)($_GET['format'] ?? $_POST['format'] ?? ''), $archive_path);
+    if ($archive_path === '') json_out(['error' => 'archive_path is required'], 400);
+    $full_archive_path = $base . '/' . $archive_path;
+    if (!is_file($full_archive_path)) json_out(['error' => 'Archive not found'], 404);
+    json_out(['success' => true, 'password_required' => cloud_archive_requires_password($full_archive_path, $format)]);
+}
 if ($action === 'archive_worker_run') {
     $jobId = preg_replace('/[^a-f0-9]/', '', (string)($_POST['job_id'] ?? ''));
     $token = (string)($_POST['worker_token'] ?? '');
@@ -2258,16 +2331,16 @@ if ($action === 'create_archive') {
     if (!is_array($items) || empty($items)) {
         json_out(['error' => 'No items selected'], 400);
     }
+    try {
+        $archive_name = cloud_archive_sanitize_name((string)$archive_name, $format);
+    } catch (Throwable $e) {
+        json_out(['error' => $e->getMessage()], 400);
+    }
     if ((string)($_POST['async'] ?? '') === '1') {
         cloud_archive_start_job('create_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name, 'format' => $format, 'password' => $password, 'temporary' => (string)($_POST['temporary'] ?? '') === '1', 'type' => 'create_archive'], 'cloud_archive_create_selected_job');
     }
-    $archive_name = cloud_archive_sanitize_name((string)$archive_name, $format);
     $archive_path = $base . '/' . $archive_name;
-    if (file_exists($archive_path)) {
-        $path_info = pathinfo($archive_name);
-        $archive_name = $path_info['filename'] . '_' . time() . '.' . $path_info['extension'];
-        $archive_path = $base . '/' . $archive_name;
-    }
+    if (file_exists($archive_path)) json_out(['error' => 'exists'], 409);
     $tmp_path = cloud_archive_tmp_dir() . '/' . bin2hex(random_bytes(8)) . '.' . cloud_archive_format_extension($format);
     try {
         $added_count = cloud_archive_create_file($base, $items, $tmp_path, $format, $password);
@@ -2852,7 +2925,11 @@ if ($action === 'archive_folder') {
         json_out(['error' => 'Folder not found'], 404);
     }
     $folder_name = basename($folder_path);
-    $archive_name = cloud_archive_sanitize_name((string)($_POST['archive_name'] ?? ($folder_name . '_' . date('Y-m-d_H-i-s'))), $format);
+    try {
+        $archive_name = cloud_archive_sanitize_name((string)($_POST['archive_name'] ?? ($folder_name . '_' . date('Y-m-d_H-i-s'))), $format);
+    } catch (Throwable $e) {
+        json_out(['error' => $e->getMessage()], 400);
+    }
     $archive_path = dirname($full_path) . '/' . $archive_name;
     if (file_exists($archive_path)) json_out(['error' => 'Archive already exists'], 409);
     $tmp_path = cloud_archive_tmp_dir() . '/' . bin2hex(random_bytes(8)) . '.' . cloud_archive_format_extension($format);
@@ -2971,6 +3048,9 @@ if ($action === 'convert_file') {
     if ($source_path === '' || $target_format === '') {
         json_out(['error' => 'source_path and target_format required'], 400);
     }
+    if (!preg_match('/^[a-z0-9]{1,16}$/i', $target_format)) {
+        json_out(['error' => 'invalid target format'], 400);
+    }
     
     $source_full = $base . '/' . $source_path;
     
@@ -2990,6 +3070,7 @@ if ($action === 'convert_file') {
             $output_path = rtrim($output_path, '/') . '/' . $source_filename . '.' . $target_format;
         }
     }
+    if (($nameError = cloud_validate_relative_path_names($output_path)) !== null) json_out(['error'=>$nameError], 400);
     
     $output_full = $base . '/' . $output_path;
     
@@ -3000,6 +3081,9 @@ if ($action === 'convert_file') {
     
     // Создаем директорию для выходного файла если нужно
     $output_dir = dirname($output_full);
+    if (file_exists($output_dir) && !is_dir($output_dir)) {
+        json_out(['error' => 'target is not directory'], 409);
+    }
     if (!is_dir($output_dir)) {
         @mkdir($output_dir, 0775, true);
     }

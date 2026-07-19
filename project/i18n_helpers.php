@@ -51,6 +51,36 @@ function ap_i18n_lang_exists_in_dir(string $dir, string $lang): bool {
     return is_readable($base . '/' . $lang . '.json') || is_dir($base . '/' . $lang);
 }
 function ap_i18n_t(array $translations, string $key, string $default = ''): string {
+    if (!array_key_exists($key, $translations)) {
+        error_log('Translation missing for key: "' . $key . '"');
+    }
     $v = $translations[$key] ?? $default;
     return is_string($v) ? $v : $default;
+}
+
+/**
+ * Translation wrapper with warning on missing key.
+ * Mirrors the JS t(i18n, key, params) from the cloud app.
+ * Falls back to the key string itself when translation is missing.
+ * Supports {param} interpolation.
+ */
+function ap_i18n_t_warn(array $translations, string $key, array $params = []): string {
+    $str = $translations[$key] ?? null;
+    if ($str === null) {
+        error_log('Translation missing for key: "' . $key . '"');
+        $str = $key;
+    }
+    foreach ($params as $p => $v) {
+        $str = str_replace('{' . $p . '}', (string)$v, $str);
+    }
+    return $str;
+}
+
+/**
+ * Global convenience wrapper for translations.
+ * Requires $GLOBALS['_t_i18n'] to be set to the current language's translations array.
+ * Use t('key') in view files for translation with missing-key warning.
+ */
+function t(string $key, array $params = []): string {
+    return ap_i18n_t_warn($GLOBALS['_t_i18n'] ?? [], $key, $params);
 }

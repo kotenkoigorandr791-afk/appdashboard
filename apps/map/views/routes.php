@@ -866,6 +866,11 @@ function renderMainPage($pagination) {
             window.bindPartialNavigation();
 
             const langTexts = <?= json_encode($lang_array) ?>;
+            function t(key, fallback = '') {
+                if (langTexts[key] !== undefined && langTexts[key] !== null) return langTexts[key];
+                console.warn('[i18n] Missing translation key: "' + key + '"');
+                return fallback || key;
+            }
             const routes = <?= json_encode($pagination['routes']) ?>;
             const existingToken = <?= json_encode($existingToken ?: null) ?>;
             
@@ -2526,6 +2531,11 @@ function renderTablePage($pagination) {
             window.bindPartialNavigation();
 
             const langTexts = <?= json_encode($lang_array) ?>;
+            function t(key, fallback = '') {
+                if (langTexts[key] !== undefined && langTexts[key] !== null) return langTexts[key];
+                console.warn('[i18n] Missing translation key: "' + key + '"');
+                return fallback || key;
+            }
             const existingToken = <?= json_encode($existingToken ?: null) ?>;
 
             document.addEventListener('DOMContentLoaded', () => {

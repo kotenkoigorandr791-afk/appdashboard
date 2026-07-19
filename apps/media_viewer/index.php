@@ -19,6 +19,7 @@ $currentUserPhoto = $currentUser !== 'Guest' ? getCurrentUserPhoto() : '';
 $notificationDismissed = isNotificationDismissed(session_id() ?: ($_COOKIE['PHPSESSID'] ?? ''));
 
 $translations = loadTranslations($lang);
+$GLOBALS['_t_i18n'] = $translations;
 
 $roleText = $translations['guest'] ?? 'Guest';
 if ($userRole == 1) {

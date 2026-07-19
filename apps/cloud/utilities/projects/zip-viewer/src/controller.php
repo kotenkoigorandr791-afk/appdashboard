@@ -30,8 +30,7 @@ $parentArchive = isset($_GET['parent']) ? urldecode($_GET['parent']) : null;
 $currentPath = '';
 if (isset($_GET['path'])) {
     $pathValue = $_GET['path'];
-    // Игнорируем path, если он указывает на сам архив (содержит расширение .zip или абсолютный путь)
-    $isArchivePath = (stripos($pathValue, '.zip') !== false) ||
+    $isArchivePath = preg_match('/\.(zip|7z|rar|tar|tgz|tar\.gz)(?:$|[?#])/i', $pathValue) ||
                      (preg_match('/^[a-zA-Z]:[\\\\\/]/', $pathValue)) ||
                      (strpos($pathValue, '\\') !== false);
 
@@ -102,7 +101,7 @@ function zip_viewer_archive_format(string $path): string {
     $lower = strtolower($path);
     if (str_ends_with($lower, '.tar.gz') || str_ends_with($lower, '.tgz')) return 'tar.gz';
     $ext = strtolower(pathinfo($lower, PATHINFO_EXTENSION));
-    return in_array($ext, ['zip', '7z', 'tar'], true) ? $ext : 'zip';
+    return in_array($ext, ['zip', '7z', 'rar', 'tar'], true) ? $ext : 'zip';
 }
 function zip_viewer_run(array $command): array {
     $pipes = [];
@@ -118,16 +117,64 @@ function zip_viewer_run(array $command): array {
 function zip_viewer_command_path(string $command): string {
     $fallbacks = [
         '7z' => ['/usr/bin/7z', '/usr/bin/7za', '/bin/7z', '/bin/7za'],
+        'unzip' => ['/usr/bin/unzip', '/bin/unzip'],
     ];
     foreach ($fallbacks[$command] ?? [] as $path) {
         if (is_file($path) && is_executable($path)) return $path;
     }
     return $command;
 }
+function zip_viewer_command_exists(string $command): bool {
+    $path = zip_viewer_command_path($command);
+    return $path !== $command || is_executable($path);
+}
 function zip_viewer_password_arg(string $password): array {
     return $password !== '' ? ['-p' . $password] : [];
 }
+function zip_viewer_is_encrypted_message(string $message): bool {
+    return preg_match('/encrypted|password|wrong password|can not open encrypted/i', $message) === 1;
+}
+function zip_viewer_archive_requires_password(string $archivePath): bool {
+    $format = zip_viewer_archive_format($archivePath);
+    if (!in_array($format, ['zip', '7z', 'rar'], true)) return false;
+    if ($format === 'zip' && zip_viewer_command_exists('unzip')) {
+        $cmd = [zip_viewer_command_path('unzip'), '-Z', '-v', $archivePath];
+        [$code, $stdout, $stderr] = zip_viewer_run($cmd);
+        if ($code !== 0) return zip_viewer_is_encrypted_message($stderr . "\n" . $stdout);
+        return stripos($stdout, 'file security status:                           encrypted') !== false;
+    }
+    if (!zip_viewer_command_exists('7z')) return false;
+    $cmd = [zip_viewer_command_path('7z'), 'l', '-slt', $archivePath];
+    [$code, $stdout, $stderr] = zip_viewer_run($cmd);
+    if ($code !== 0) return zip_viewer_is_encrypted_message($stderr . "\n" . $stdout);
+    foreach (preg_split('/\R/', $stdout) as $line) {
+        if (preg_match('/^Encrypted = \+/', $line)) return true;
+    }
+    return false;
+}
 function zip_viewer_list_archive(string $archivePath, string $password = ''): array {
+    if (zip_viewer_archive_format($archivePath) === 'zip' && zip_viewer_command_exists('unzip')) {
+        $cmd = [zip_viewer_command_path('unzip'), '-Z', '-l'];
+        if ($password !== '') array_push($cmd, '-P', $password);
+        $cmd[] = $archivePath;
+        [$code, $stdout, $stderr] = zip_viewer_run($cmd);
+        if ($code !== 0) throw new RuntimeException(trim($stderr ?: $stdout) ?: 'Cannot open archive');
+        $items = [];
+        foreach (preg_split('/\R/', $stdout) as $line) {
+            if (!preg_match('/^([dl-][rwx-]{9})\s+\S+\s+\S+\s+(\d+)\s+\S+\s+\d+\s+\S+\s+(\d{2}-\w{3}-\d{2})\s+(\d{2}:\d{2})\s+(.+)$/', $line, $matches)) continue;
+            $path = str_replace('\\', '/', $matches[5]);
+            $items[] = [
+                'name' => $path,
+                'is_dir' => $matches[1][0] === 'd' || str_ends_with($path, '/'),
+                'stat' => [
+                    'size' => (int)$matches[2],
+                    'mtime' => strtotime($matches[3] . ' ' . $matches[4]) ?: time(),
+                ],
+            ];
+        }
+        return $items;
+    }
+    if (!zip_viewer_command_exists('7z')) throw new RuntimeException('7z command not available');
     $cmd = array_merge([zip_viewer_command_path('7z'), 'l', '-slt'], zip_viewer_password_arg($password), [$archivePath]);
     [$code, $stdout, $stderr] = zip_viewer_run($cmd);
     if ($code !== 0) throw new RuntimeException(trim($stderr ?: $stdout) ?: 'Cannot open archive');
@@ -168,6 +215,14 @@ function zip_viewer_list_archive(string $archivePath, string $password = ''): ar
     return $items;
 }
 function zip_viewer_read_archive_file(string $archivePath, string $filePath, string $password = ''): ?string {
+    if (zip_viewer_archive_format($archivePath) === 'zip' && zip_viewer_command_exists('unzip')) {
+        $cmd = [zip_viewer_command_path('unzip'), '-p'];
+        if ($password !== '') array_push($cmd, '-P', $password);
+        array_push($cmd, $archivePath, $filePath);
+        [$code, $stdout, $stderr] = zip_viewer_run($cmd);
+        return $code === 0 ? $stdout : null;
+    }
+    if (!zip_viewer_command_exists('7z')) return null;
     $cmd = array_merge([zip_viewer_command_path('7z'), 'x', '-so'], zip_viewer_password_arg($password), [$archivePath, $filePath]);
     [$code, $stdout, $stderr] = zip_viewer_run($cmd);
     return $code === 0 ? $stdout : null;
@@ -179,6 +234,7 @@ if ((!$archivePath || !is_file($archivePath)) && $pathParam !== '') {
 $archiveName = basename($archivePath);
 $archivePassword = isset($_POST['archive_password']) ? (string)$_POST['archive_password'] : (string)($_GET['password'] ?? '');
 $archiveFormat = zip_viewer_archive_format($archiveName);
+$archiveNeedsPassword = $archivePath !== '' && is_file($archivePath) && zip_viewer_archive_requires_password($archivePath);
 
 // Сохраняем информацию о родительском архиве для навигации
 $archiveChain = [];
@@ -457,7 +513,7 @@ if ($zip && !$error) {
                     'path' => $fullPath
                 ];
             }
-            if (in_array($ext, ['zip'])) {
+            if (in_array($ext, ['zip', '7z', 'rar'], true) || str_ends_with(strtolower($itemName), '.tar.gz') || str_ends_with(strtolower($itemName), '.tgz')) {
                 $zipFiles[] = [
                     'name' => $itemName,
                     'path' => $fullPath
@@ -591,8 +647,7 @@ if ($viewFile && $zip && !$error) {
             exit;
         }
         
-        if (in_array($ext, ['zip', '7z', 'tar'], true) || str_ends_with(strtolower($viewFile), '.tar.gz') || str_ends_with(strtolower($viewFile), '.tgz')) {
-            // Извлекаем вложенный архив во временный файл
+        if (in_array($ext, ['zip', '7z', 'rar', 'tar'], true) || str_ends_with(strtolower($viewFile), '.tar.gz') || str_ends_with(strtolower($viewFile), '.tgz')) {
             $tempDir = sys_get_temp_dir();
             $nestedExt = str_ends_with(strtolower($viewFile), '.tar.gz') ? 'tar.gz' : $ext;
             $tempZipFile = $tempDir . '/' . uniqid('nested_') . '.' . $nestedExt;

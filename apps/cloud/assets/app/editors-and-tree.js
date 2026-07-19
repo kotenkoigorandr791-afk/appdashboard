@@ -1253,6 +1253,7 @@ function treeNodeAdd(item, options = {}) {
     const childrenBlock = fragment.querySelector('.children');
     if (childrenBlock) parentChildren.appendChild(childrenBlock);
   }
+  if (typeof dedupeRenderedTreeNodesByPath === 'function') dedupeRenderedTreeNodesByPath(tree);
 
   if (options.highlight !== false) highlightNewTreeNode(itemPath);
 

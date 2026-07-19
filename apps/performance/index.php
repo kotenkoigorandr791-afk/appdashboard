@@ -12,6 +12,7 @@ $theme = $themeRaw === 'dark' ? 'dark' : 'light';
 $color = isset($_GET['color']) ? htmlspecialchars($_GET['color']) : '#85b503';
 
 $t = $translations[$lang];
+$GLOBALS['_t_i18n'] = $t;
 $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
 $serverMonitorEndpoint = rtrim($scriptDir === '/' ? '' : $scriptDir, '/') . '/server_monitor.php';
 

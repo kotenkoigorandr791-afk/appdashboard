@@ -5,8 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>ONLYOFFICE - <?php echo htmlspecialchars(basename($officeFilePath)); ?></title>
         <script src="<?php echo $DOC_SERV_URL; ?>/web-apps/apps/api/documents/api.js"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
         <style>
+            .fa-solid::before { content: "•"; }
+            .fa-arrow-left::before { content: "←"; }
+            .fa-file-word::before { content: "DOC"; font-size: 10px; }
+            .fa-user::before { content: "●"; }
             body, html {
                 margin: 0;
                 padding: 0;

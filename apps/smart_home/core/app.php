@@ -2337,6 +2337,7 @@ if (!is_file($migrationFlag)) {
 
 // ─── HTML Template ──────────────────────────────────────────────────────────────
 $t = ap_load_i18n_from_dir(SH_APP_DIR, $lang);
+$GLOBALS['_t_i18n'] = $t;
 $availableIcons = ['smart-device','light-bulb','torch','lamp','smart-plug','sensor','climate','fan','kettle','security'];
 $availableTypes = ['pending','generic_sensor','smart_torch','smart_lamp','smart_socket','sonoff_relay'];
 $typeNames = [

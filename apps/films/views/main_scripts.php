@@ -6,9 +6,18 @@ const currentTheme = '<?php echo $theme; ?>';
 const currentColor = '<?php echo $color; ?>';
 const userAccessLevel = <?php echo $user_access_level; ?>;
 const i18n = <?php echo json_encode($t, JSON_UNESCAPED_UNICODE); ?>;
-function getTranslation(key) {
-    const v = i18n[key];
-    return (typeof v === 'string') ? v : key;
+function getTranslation(key, params = {}) {
+    let v = i18n[key];
+    if (v === undefined) {
+        console.warn('Translation missing for key: "' + key + '"');
+        v = key;
+    }
+    if (params) {
+        Object.keys(params).forEach(p => {
+            v = v.replaceAll('{' + p + '}', params[p]);
+        });
+    }
+    return v;
 }
 
 // Apply theme class to body

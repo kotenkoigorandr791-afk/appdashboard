@@ -15,6 +15,7 @@ handleViewerApi($userRole);
 
 $lang = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $viewerI18n = ap_load_i18n_all_langs(__DIR__);
+$GLOBALS['_t_i18n'] = $viewerI18n[$lang] ?? [];
 $theme = isset($_GET['theme']) ? $_GET['theme'] : 'light';
 $color = isset($_GET['color']) ? $_GET['color'] : '#4285f4';
 

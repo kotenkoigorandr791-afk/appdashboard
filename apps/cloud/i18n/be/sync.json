@@ -26,5 +26,15 @@
     "syncTokenNameRequired": "Увядзіце назву падключэння",
     "noActiveTokens": "Няма актыўных токенаў",
     "selectTokenToManage": "Выберыце прыладу для кіравання токанам",
-    "noUsernameToCopy": "Няма імя карыстальніка для капіравання"
+    "noUsernameToCopy": "Няма імя карыстальніка для капіравання",
+    "webdavScriptHint": "Спампуйце Linux-скрыпт, запусціце каманду ніжэй, затым выберыце мантаванне або адмантаванне.",
+    "webdavWindowsHint": "Windows: у Правадыру адкрыйце Гэты камп'ютар, выберыце Падключыць сеткавы дыск і ўкажыце гэты адрас папкі.",
+    "webdavLinuxCommandLabel": "Каманда для Linux пасля спампоўкі:",
+    "webdavWindowsAddressLabel": "Папка сеткавага дыска Windows:",
+    "noCommandToCopy": "Няма каманды для капіравання",
+    "downloadConnectScript": "Спампаваць скрыпт падключэння",
+    "downloadConnectScriptLinux": "Спампаваць Linux-скрыпт падключэння",
+    "downloadConnectScriptWindows": "Спампаваць Windows-скрыпт падключэння",
+    "downloadLinuxScript": "Linux/macOS SH",
+    "downloadWindowsScript": "Windows PS1"
 }

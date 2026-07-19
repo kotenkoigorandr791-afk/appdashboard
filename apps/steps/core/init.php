@@ -5,6 +5,7 @@ $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';
 $color        = $_GET['color'] ?? '#007bff';
 $translations = ap_load_i18n_from_dir(__DIR__ . '/..', $language);
+$GLOBALS['_t_i18n'] = $translations;
 $stepsVideoOcrTess = ['en' => 'eng', 'ru' => 'rus', 'uk' => 'ukr', 'be' => 'bel', 'pl' => 'pol', 'cs' => 'ces'][$language] ?? 'eng';
 
 $userEmail       = get_current_user_email();

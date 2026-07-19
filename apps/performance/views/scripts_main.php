@@ -31,6 +31,20 @@ const UPDATE_INTERVAL = 120000;
 const SECTION_STORAGE_KEY = 'server_monitor_active_section';
 const MAX_DATA_POINTS = 180;
 const lang = '<?= $lang ?>';
+
+function t(key, params = {}) {
+    const dict = translations.ui[lang] || {};
+    let str = dict[key];
+    if (str === undefined || str === '') {
+        console.warn('Translation missing for key: "' + key + '"');
+        str = key;
+    }
+    Object.keys(params).forEach(p => {
+        str = str.replaceAll('{' + p + '}', params[p]);
+    });
+    return str;
+}
+
 const serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES) ?>, window.location.origin);
 const serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES) ?>, window.location.origin);
 

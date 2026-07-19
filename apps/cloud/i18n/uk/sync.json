@@ -26,5 +26,15 @@
     "syncTokenNameRequired": "Введіть ім'я підключення",
     "noActiveTokens": "Немає активних токенів",
     "selectTokenToManage": "Виберіть пристрій для керування токеном",
-    "noUsernameToCopy": "Немає імені користувача для копіювання"
+    "noUsernameToCopy": "Немає імені користувача для копіювання",
+    "webdavScriptHint": "Завантажте Linux-скрипт, запустіть команду нижче, потім виберіть монтування або розмонтування.",
+    "webdavWindowsHint": "Windows: у Провіднику відкрийте Цей комп'ютер, виберіть Підключити мережевий диск і вкажіть цю адресу папки.",
+    "webdavLinuxCommandLabel": "Команда для Linux після завантаження:",
+    "webdavWindowsAddressLabel": "Папка мережевого диска Windows:",
+    "noCommandToCopy": "Немає команди для копіювання",
+    "downloadConnectScript": "Завантажити скрипт підключення",
+    "downloadConnectScriptLinux": "Завантажити Linux-скрипт підключення",
+    "downloadConnectScriptWindows": "Завантажити Windows-скрипт підключення",
+    "downloadLinuxScript": "Linux/macOS SH",
+    "downloadWindowsScript": "Windows PS1"
 }

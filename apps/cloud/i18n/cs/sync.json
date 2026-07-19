@@ -26,5 +26,15 @@
     "syncTokenNameRequired": "Zadejte název připojení",
     "noActiveTokens": "Zatím žádné aktivní tokeny",
     "selectTokenToManage": "Vyberte zařízení pro správu tokenu",
-    "noUsernameToCopy": "Žádné uživatelské jméno ke kopírování"
+    "noUsernameToCopy": "Žádné uživatelské jméno ke kopírování",
+    "webdavScriptHint": "Stáhněte Linux skript, spusťte příkaz níže a poté vyberte připojení nebo odpojení.",
+    "webdavWindowsHint": "Windows: v Průzkumníku otevřete Tento počítač, zvolte Připojit síťovou jednotku a použijte tuto adresu složky.",
+    "webdavLinuxCommandLabel": "Linux příkaz po stažení:",
+    "webdavWindowsAddressLabel": "Složka síťové jednotky Windows:",
+    "noCommandToCopy": "Žádný příkaz ke kopírování",
+    "downloadConnectScript": "Stáhnout připojovací skript",
+    "downloadConnectScriptLinux": "Stáhnout Linux připojovací skript",
+    "downloadConnectScriptWindows": "Stáhnout Windows připojovací skript",
+    "downloadLinuxScript": "Linux/macOS SH",
+    "downloadWindowsScript": "Windows PS1"
 }

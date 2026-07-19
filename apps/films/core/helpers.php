@@ -8,6 +8,9 @@ function films_t(string $key): string {
         $lang = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
         $t = ap_load_i18n_from_dir(dirname(__DIR__), $lang);
     }
+    if (!array_key_exists($key, $t)) {
+        error_log('Translation missing for key: "' . $key . '"');
+    }
     $v = $t[$key] ?? $key;
     return is_string($v) ? $v : $key;
 }

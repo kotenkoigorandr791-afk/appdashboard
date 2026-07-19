@@ -34,6 +34,7 @@ require __DIR__ . '/controllers/StreamController.php';
 require __DIR__ . '/controllers/ApiController.php';
 
 $t = $translations[$lang];
+$GLOBALS['_t_i18n'] = $t;
 $movies = getVisibleMovies();
 foreach ($movies as &$movie) {
     $comments = loadComments($movie['id']);

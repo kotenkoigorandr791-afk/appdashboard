@@ -91,6 +91,18 @@ document.addEventListener('DOMContentLoaded', function() {
     if (items.length > 0 && !document.querySelector('.file-item.selected')) {
         items[0].classList.add('selected');
     }
+    document.querySelectorAll('.password-toggle').forEach((button) => {
+        button.addEventListener('click', function() {
+            const input = this.closest('form')?.querySelector('.archive-password-input');
+            const icon = this.querySelector('i');
+            if (!input || !icon) return;
+            const visible = input.type === 'text';
+            input.type = visible ? 'password' : 'text';
+            icon.className = visible ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
+            this.title = visible ? 'Show password' : 'Hide password';
+            input.focus();
+        });
+    });
 });
 
 <?php if ($previewType === 'monaco'): ?>

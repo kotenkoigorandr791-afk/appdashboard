@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
     <title><?= htmlspecialchars($archiveName) ?> — <?= $i18n['title'] ?></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css" />
@@ -39,6 +38,27 @@
             --plyr-color-main: <?= $folderColor ?>;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        .fa-solid::before, .fa-regular::before { content: "•"; }
+        .fa-arrow-left::before { content: "←"; }
+        .fa-arrow-up::before { content: "↑"; }
+        .fa-home::before { content: "⌂"; }
+        .fa-file-zipper::before { content: "▣"; }
+        .fa-cubes::before { content: "▦"; }
+        .fa-lock-open::before { content: "⌕"; }
+        .fa-eye::before { content: "◉"; }
+        .fa-eye-slash::before { content: "◎"; }
+        .fa-circle-exclamation::before { content: "!"; }
+        .fa-folder-open::before { content: "□"; }
+        .fa-folder::before { content: "▸"; }
+        .fa-music::before { content: "♪"; }
+        .fa-video::before { content: "▶"; }
+        .fa-image::before { content: "▧"; }
+        .fa-file-pdf::before { content: "PDF"; font-size: 10px; }
+        .fa-file-word::before, .fa-file-lines::before { content: "DOC"; font-size: 10px; }
+        .fa-file::before { content: "□"; }
+        .fa-chevron-left::before { content: "‹"; }
+        .fa-chevron-right::before { content: "›"; }
+        .fa-list::before { content: "☰"; }
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: var(--bg); color: var(--fg); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
         header { 
@@ -594,6 +614,20 @@
             justify-content: flex-end;
             padding: 0 16px 16px;
         }
+        .password-field {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .password-field input {
+            min-width: 0;
+        }
+        .password-toggle {
+            width: 30px;
+            height: 30px;
+            justify-content: center;
+            padding: 0;
+        }
     </style>
 </head>
 <body>
@@ -669,10 +703,13 @@
         <i class="fa-solid fa-cubes"></i>
         <span><?= count($files) ?> <?= $i18n['files'] ?></span>
     </div>
-    <form method="post" style="display:flex;align-items:center;gap:6px;">
-        <input type="password" name="archive_password" value="<?= htmlspecialchars($archivePassword) ?>" autocomplete="current-password" placeholder="Password" style="width:130px;padding:5px 8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:4px;font-size:12px;">
-        <button class="btn" type="submit"><i class="fa-solid fa-lock-open"></i></button>
-    </form>
+    <?php if ($archiveNeedsPassword): ?>
+        <form method="post" class="password-field">
+            <input class="archive-password-input" type="password" name="archive_password" value="<?= htmlspecialchars($archivePassword) ?>" autocomplete="current-password" placeholder="Password" style="width:130px;padding:5px 8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);border-radius:4px;font-size:12px;">
+            <button class="btn password-toggle" type="button" title="Show password"><i class="fa-solid fa-eye"></i></button>
+            <button class="btn" type="submit"><i class="fa-solid fa-lock-open"></i></button>
+        </form>
+    <?php endif; ?>
 </header>
 
 <div id="app-modal" class="app-modal-overlay" aria-hidden="true">
@@ -704,10 +741,13 @@
                 <div style="padding:60px 20px; text-align:center; color:#e74c3c; font-size:16px;">
                     <i class="fa-solid fa-circle-exclamation" style="margin-right:10px;"></i>
                     <?= htmlspecialchars($error) ?>
-                    <form method="post" style="max-width:320px;margin:18px auto 0;display:flex;gap:8px;">
-                        <input type="password" name="archive_password" autocomplete="current-password" placeholder="Password" style="flex:1;padding:8px;border:1px solid var(--border);background:var(--panel);color:var(--fg);border-radius:4px;">
-                        <button class="btn" type="submit">Open</button>
-                    </form>
+                    <?php if ($archiveNeedsPassword): ?>
+                        <form method="post" class="password-field" style="max-width:360px;margin:18px auto 0;">
+                            <input class="archive-password-input" type="password" name="archive_password" autocomplete="current-password" placeholder="Password" style="flex:1;padding:8px;border:1px solid var(--border);background:var(--panel);color:var(--fg);border-radius:4px;">
+                            <button class="btn password-toggle" type="button" title="Show password"><i class="fa-solid fa-eye"></i></button>
+                            <button class="btn" type="submit">Open</button>
+                        </form>
+                    <?php endif; ?>
                 </div>
             <?php elseif (empty($files)): ?>
                 <div class="empty-folder">
@@ -731,7 +771,7 @@
                     
                     $ext = strtolower(pathinfo($item['name'], PATHINFO_EXTENSION));
                     $isOffice = in_array($ext, ['doc', 'docx', 'odt', 'rtf', 'txt', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp']);
-                    $isZip = ($ext === 'zip');
+                    $isZip = in_array($ext, ['zip', '7z', 'rar'], true) || str_ends_with(strtolower($item['name']), '.tar.gz') || str_ends_with(strtolower($item['name']), '.tgz');
                     ?>
                     <div class="file-item <?= ($viewFile === $item['path'] || (!$viewFile && $currentPath === $item['path'])) ? 'selected' : '' ?>"
                          data-type="<?= $item['type'] ?>"

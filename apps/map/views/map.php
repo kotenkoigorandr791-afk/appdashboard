@@ -226,6 +226,11 @@ function renderAllRoutesMap() {
             const routes = <?= json_encode($routes) ?>;
             const colors = <?= json_encode($colors) ?>;
             const langTexts = <?= json_encode($lang_array) ?>;
+            function t(key, fallback = '') {
+                if (langTexts[key] !== undefined && langTexts[key] !== null) return langTexts[key];
+                console.warn('[i18n] Missing translation key: "' + key + '"');
+                return fallback || key;
+            }
             
             const map = L.map("map", { attributionControl: false }).setView([50.0, 30.0], 3);
             

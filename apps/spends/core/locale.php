@@ -5,6 +5,7 @@ $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';
 $primaryColor = $_GET['color'] ?? '#007bff';
 $translations = ap_load_i18n_from_dir(__DIR__ . '/..', $language);
+$GLOBALS['_t_i18n'] = $translations;
 if ($translations === []) $translations = [
     'settings_title'          => 'Settings',
     'settings_saved'          => 'Settings saved',

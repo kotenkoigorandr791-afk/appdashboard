@@ -17,6 +17,23 @@
     <script>
         var translations = <?php echo json_encode($tftI18n, JSON_UNESCAPED_UNICODE); ?>;
     </script>
+    <script>
+        function t(key, params) {
+            if (!params) params = {};
+            var dict = translations[currentLang] || translations.en || {};
+            var str = dict[key];
+            if (str === undefined) {
+                console.warn('Translation missing for key: "' + key + '"');
+                str = key;
+            }
+            for (var p in params) {
+                if (params.hasOwnProperty(p)) {
+                    str = str.replace('{' + p + '}', params[p]);
+                }
+            }
+            return str;
+        }
+    </script>
     <script>var require = { paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } };</script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
     <script>

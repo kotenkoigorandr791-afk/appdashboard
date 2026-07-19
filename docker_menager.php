@@ -110,10 +110,10 @@ foreach (array_unique(['en', $lang]) as $translationLang) {
     }
 }
 $dockerExtraTranslations = [
-    'en' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Update the stack', 'docker_stack_updated' => 'Stack updated', 'docker_invalid_stack' => 'Invalid stack ID', 'docker_stack_not_found' => 'Stack not found', 'docker_stack_file' => 'Compose file', 'docker_edit_stack' => 'Edit stack'],
-    'ru' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Обновить stack', 'docker_stack_updated' => 'Stack обновлён', 'docker_invalid_stack' => 'Некорректный ID stack', 'docker_stack_not_found' => 'Stack не найден', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редактировать stack'],
-    'uk' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Оновити stack', 'docker_stack_updated' => 'Stack оновлено', 'docker_invalid_stack' => 'Некоректний ID stack', 'docker_stack_not_found' => 'Stack не знайдено', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редагувати stack'],
-    'be' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Абнавіць stack', 'docker_stack_updated' => 'Stack абноўлены', 'docker_invalid_stack' => 'Некарэктны ID stack', 'docker_stack_not_found' => 'Stack не знойдзены', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Рэдагаваць stack']
+    'en' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Update the stack', 'docker_stack_updated' => 'Stack updated', 'docker_invalid_stack' => 'Invalid stack ID', 'docker_stack_not_found' => 'Stack not found', 'docker_stack_file' => 'Compose file', 'docker_edit_stack' => 'Edit stack', 'docker_compose_detect' => 'Compose file', 'docker_compose_detect_btn' => 'Auto-detect', 'docker_compose_no_access' => 'Docker socket not accessible', 'docker_compose_not_found' => 'Compose file not detected', 'docker_compose_readonly' => 'Compose file auto-detected via Docker Compose CLI. Read-only view.', 'docker_compose_create_hint' => 'To manage through Portainer, create a stack manually in Portainer.'],
+    'ru' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Обновить stack', 'docker_stack_updated' => 'Stack обновлён', 'docker_invalid_stack' => 'Некорректный ID stack', 'docker_stack_not_found' => 'Stack не найден', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редактировать stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Определить', 'docker_compose_no_access' => 'Docker сокет недоступен', 'docker_compose_not_found' => 'Файл compose не обнаружен', 'docker_compose_readonly' => 'Compose файл автоопределён через Docker Compose CLI. Только чтение.', 'docker_compose_create_hint' => 'Чтобы управлять через Portainer, создайте стек вручную в Portainer.'],
+    'uk' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Оновити stack', 'docker_stack_updated' => 'Stack оновлено', 'docker_invalid_stack' => 'Некоректний ID stack', 'docker_stack_not_found' => 'Stack не знайдено', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редагувати stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Визначити', 'docker_compose_no_access' => 'Docker сокет недоступний', 'docker_compose_not_found' => 'Файл compose не виявлено', 'docker_compose_readonly' => 'Compose файл автовизначено через Docker Compose CLI. Тільки читання.', 'docker_compose_create_hint' => 'Щоб керувати через Portainer, створіть стек вручну в Portainer.'],
+    'be' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Абнавіць stack', 'docker_stack_updated' => 'Stack абноўлены', 'docker_invalid_stack' => 'Некарэктны ID stack', 'docker_stack_not_found' => 'Stack не знойдзены', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Рэдагаваць stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Вызначыць', 'docker_compose_no_access' => 'Docker сокет недаступны', 'docker_compose_not_found' => 'Файл compose не выяўлены', 'docker_compose_readonly' => 'Compose файл аўтавызначаны праз Docker Compose CLI. Толькі чытанне.', 'docker_compose_create_hint' => 'Каб кіраваць праз Portainer, стварыце стэк уручную ў Portainer.']
 ];
 foreach ($dockerExtraTranslations as $translationLang => $translations) {
     $i18n[$translationLang] = array_merge($translations, $i18n[$translationLang] ?? []);
@@ -349,6 +349,76 @@ function dockerPullImage($imageRef) {
     $q = http_build_query(['fromImage' => $from, 'tag' => $tag], '', '&', PHP_QUERY_RFC3986);
     return callPortainerAPI(dockerApi('images/create?' . $q), 'POST', null, 600);
 }
+function dockerFindHostContainer() {
+    global $containers;
+    $list = is_array($containers['data'] ?? null) ? $containers['data'] : [];
+    foreach ($list as $c) {
+        $labels = $c['Labels'] ?? [];
+        $name = str_replace('/', '', $c['Names'][0] ?? '');
+        if (!empty($labels['io.portainer.server'])) return $c['Id'];
+        if (stripos($name, 'portainer') !== false) return $c['Id'];
+    }
+    foreach ($list as $c) {
+        if (($c['State'] ?? '') === 'running') return $c['Id'];
+    }
+    return null;
+}
+
+function decodeDockerStream($raw) {
+    $output = '';
+    $offset = 0;
+    $len = strlen($raw);
+    while ($offset + 8 <= $len) {
+        $hdr = substr($raw, $offset, 8);
+        $frameLen = unpack('N', substr($hdr, 4, 4))[1];
+        $offset += 8;
+        $frameLen = min($frameLen, $len - $offset);
+        if ($frameLen > 0) $output .= substr($raw, $offset, $frameLen);
+        $offset += $frameLen;
+    }
+    return trim($output);
+}
+
+function dockerExecReadOutput($containerId, $command, $timeout = 30) {
+    global $jwtToken;
+    $epId = getDockerEndpointId();
+    $createResult = callPortainerAPI(
+        dockerApi('containers/' . rawurlencode($containerId) . '/exec'),
+        'POST',
+        ['Cmd' => ['sh', '-c', $command], 'AttachStdout' => true, 'AttachStderr' => true, 'Tty' => false],
+        $timeout
+    );
+    if ($createResult['code'] !== 201 || !is_array($createResult['data']) || empty($createResult['data']['Id'])) return null;
+    $execId = $createResult['data']['Id'];
+    $url = PORTAINER_URL . '/api/' . dockerApi('exec/' . rawurlencode($execId) . '/start');
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['Detach' => false, 'Tty' => false]));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $jwtToken, 'Content-Type: application/json']);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    $raw = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    if ($httpCode !== 200 || $raw === false || $raw === '') return null;
+    if (($httpCode === 401 || $httpCode === 403) && tryRefreshDockerToken()) {
+        return dockerExecReadOutput($containerId, $command, $timeout);
+    }
+    return decodeDockerStream($raw);
+}
+
+function detectComposeFile($projectName) {
+    $hostContainerId = dockerFindHostContainer();
+    if ($hostContainerId === null) return [null, t('docker_compose_no_access')];
+    $escaped = escapeshellarg($projectName);
+    $cmd = 'docker compose -p ' . $escaped . ' config 2>&1; docker-compose -p ' . $escaped . ' config 2>&1';
+    $output = dockerExecReadOutput($hostContainerId, $cmd);
+    if ($output === null || trim($output) === '') return [null, t('docker_compose_not_found')];
+    if (preg_match('/command not found|not a docker command|no such command|is not a docker command/i', $output)) return [null, t('docker_compose_not_found') . ' (CLI)'];
+    return [$output, null];
+}
+
 function dockerRecreateContainer($id, $imageOverride = null) {
     $insp = dockerContainerInspect($id);
     if ($insp['code'] !== 200 || !is_array($insp['data'])) {
@@ -680,6 +750,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
     header('Location: ' . dockerUrl(['view' => 'stack_editor', 'id' => $stackId, 'action' => null, 'message' => dockerActionMessage($result, [200, 204], 'docker_stack_updated')]));
     exit;
 }
+if ($view === 'compose_project' && isset($_GET['project'])) {
+    $projectName = trim((string)$_GET['project']);
+    if ($projectName === '') { viewPageShell(t('error'), '<h1>Invalid project</h1>'); exit; }
+    [$content, $error] = detectComposeFile($projectName);
+    $innerHtml = '<div class="view-panel"><div class="log-toolbar"><h1>' . htmlspecialchars(t('docker_compose_detect') . ' · ' . $projectName, ENT_QUOTES, 'UTF-8') . '</h1></div>';
+    if ($error !== null) {
+        $innerHtml .= '<p style="color:var(--danger);margin-bottom:12px;padding:10px 12px;background:rgba(255,50,50,0.08);border-radius:8px;">' . htmlspecialchars($error, ENT_QUOTES, 'UTF-8') . '</p>';
+        $innerHtml .= '<p style="color:var(--muted);font-size:13px;">' . htmlspecialchars(t('docker_compose_create_hint'), ENT_QUOTES, 'UTF-8') . '</p>';
+    } else {
+        $innerHtml .= '<textarea readonly spellcheck="false" style="width:100%;min-height:62vh;resize:vertical;background:rgba(0,0,0,.16);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . htmlspecialchars($content, ENT_QUOTES, 'UTF-8') . '</textarea>';
+        $innerHtml .= '<p style="color:var(--muted);margin-top:8px;font-size:12px;">' . htmlspecialchars(t('docker_compose_readonly'), ENT_QUOTES, 'UTF-8') . '</p>';
+    }
+    $innerHtml .= '</div>';
+    viewPageShell(t('docker_compose_detect'), $innerHtml);
+    exit;
+}
+
 if ($view === 'stack_editor' && isset($_GET['id'])) {
     $stackId = (string)$_GET['id'];
     if (!validStackIdParam($stackId)) {
@@ -1488,7 +1575,7 @@ function ico($n) {
             <div class="section-header"><div class="section-title-wrap"><?php echo ico('layers'); ?><div class="section-title">Stacks</div></div></div>
             <div class="table-container containers-table-wrap"><table><thead><tr><th>Name</th><th>Containers</th><th>Type</th><th><?php echo htmlspecialchars(t('docker_stack_file'), ENT_QUOTES, 'UTF-8'); ?></th><th>Open</th></tr></thead><tbody>
             <?php if (!empty($stacksMap)): foreach ($stacksMap as $stackName => $stackData): $sc=(int)($stackData['containers']??0); $stackId=$stackData['id'] ?? null; $stackType=(int)($stackData['type'] ?? 0); ?>
-                <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars(strtolower((string)$stackName), ENT_QUOTES, 'UTF-8'); ?>"><td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars((string)$stackName, ENT_QUOTES, 'UTF-8'); ?></strong></span></td><td><?php echo $sc; ?></td><td><?php echo $stackType === 2 ? 'Compose' : ($stackType === 1 ? 'Swarm' : ''); ?></td><td><?php if ($stackId !== null): ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'stack_editor', 'id' => (string)$stackId, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_stack_editor') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_edit_stack'), ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><span class="tag-pill"><?php echo htmlspecialchars(t('unavailable'), ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?></td><td><a class="stack-open-btn" href="#" onclick="event.preventDefault();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);">Show containers</a></td></tr>
+                <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars(strtolower((string)$stackName), ENT_QUOTES, 'UTF-8'); ?>"><td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars((string)$stackName, ENT_QUOTES, 'UTF-8'); ?></strong></span></td><td><?php echo $sc; ?></td><td><?php echo $stackType === 2 ? 'Compose' : ($stackType === 1 ? 'Swarm' : ''); ?></td><td><?php if ($stackId !== null): ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'stack_editor', 'id' => (string)$stackId, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_stack_editor') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_edit_stack'), ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'compose_project', 'project' => (string)$stackName, 'id' => null, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_compose_detect') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_compose_detect_btn'), ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?></td><td><a class="stack-open-btn" href="#" onclick="event.preventDefault();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);">Show containers</a></td></tr>
                 <tr class="c-actions" style="display:none"><td colspan="5"><div class="c-panel"><div class="c-panel-hint">Containers in stack</div><?php if (!empty($containersInStack[$stackName])): ?><div class="stack-container-grid"><?php foreach ($containersInStack[$stackName] as $stackContainer): $scState = (string)$stackContainer['state']; ?><div class="stack-container-card" onclick="event.stopPropagation();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackContainer['name'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);" title="Click to navigate to this container"><div class="stack-card-top"><span class="scc-name"><?php echo htmlspecialchars((string)$stackContainer['name'], ENT_QUOTES, 'UTF-8'); ?></span><span class="status-badge status-<?php echo $scState === 'running' ? 'running' : ($scState === 'exited' ? 'exited' : ($scState === 'paused' ? 'paused' : 'created')); ?>"><?php echo ico('dot'); ?> <?php echo htmlspecialchars($scState, ENT_QUOTES, 'UTF-8'); ?></span></div><div class="stack-card-image"><?php echo ico('cube'); ?> <span class="mono-clip"><?php echo htmlspecialchars((string)$stackContainer['image'], ENT_QUOTES, 'UTF-8'); ?></span></div></div><?php endforeach; ?></div><?php else: ?><div class="detail-list"><div>No containers</div></div><?php endif; ?></div></td></tr>
             <?php endforeach; else: ?><tr><td colspan="5" style="text-align:center;padding:40px;">No stacks found</td></tr><?php endif; ?>
             </tbody></table></div>
