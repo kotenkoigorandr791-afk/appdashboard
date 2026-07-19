@@ -1534,6 +1534,7 @@ $defaultTranslations['news_settings_tab'] = 'Settings';
 $defaultTranslations['news_draft'] = 'Draft';
 $defaultTranslations['news_published'] = 'Published';
 $defaultTranslations['news_add_button'] = 'Add Article';
+$defaultTranslations['weather_perm_denied'] = 'Please allow location access';
 $language = ap_i18n_lang_exists($config['language']) ? $config['language'] : 'en';
 $translations = ap_merge_i18n($defaultTranslations, $language);
 

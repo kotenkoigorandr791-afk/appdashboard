@@ -572,5 +572,17 @@
     "admins": "Admins",
     "managers": "Managers",
     "guests": "Guests",
-    "pending_users": "Pending"
+    "pending_users": "Pending",
+    "weather_loading": "Loading weather...",
+    "weather_denied": "Location access denied. Enable it to see local weather.",
+    "weather_denied_msg": "Please allow location access in your browser settings to see local weather",
+    "weather_allow_location": "Allow location",
+    "weather_no_geo": "Geolocation not supported",
+    "weather_timeout": "Weather request timed out",
+    "weather_no_data": "No weather data",
+    "weather_fetch_error": "Failed to load weather",
+    "weather_unknown": "Unknown location",
+    "weather_settings_hint": "Go to browser site settings and allow location",
+    "weather_perm_denied": "Please allow location access",
+    "shell_application": "Shell Application"
 }

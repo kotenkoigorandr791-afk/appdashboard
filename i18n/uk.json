@@ -539,5 +539,7 @@
     "icon_sort": "Порядок іконок",
     "icon_sort_alpha": "За алфавітом",
     "icon_sort_popular": "За популярністю",
-    "icon_sort_recommended": "Рекомендовано"
+    "icon_sort_recommended": "Рекомендовано",
+    "weather_perm_denied": "Будь ласка, дозвольте доступ до геолокації",
+    "shell_application": "Оболонка (Shell Application)"
 }

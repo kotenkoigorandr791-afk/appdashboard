@@ -633,5 +633,6 @@
     "icon_sort": "Kolejność ikon",
     "icon_sort_alpha": "Alfabetycznie",
     "icon_sort_popular": "Według popularności",
-    "icon_sort_recommended": "Polecane"
+    "icon_sort_recommended": "Polecane",
+    "weather_perm_denied": "Proszę zezwolić na dostęp do lokalizacji"
 }

@@ -539,5 +539,7 @@
     "icon_sort": "Парадак іконак",
     "icon_sort_alpha": "Па алфавіце",
     "icon_sort_popular": "Папулярнасць",
-    "icon_sort_recommended": "Рэкамендавана"
+    "icon_sort_recommended": "Рэкамендавана",
+    "weather_perm_denied": "Калі ласка, дазвольце доступ да геалакацыі",
+    "shell_application": "Абалонка (Shell Application)"
 }

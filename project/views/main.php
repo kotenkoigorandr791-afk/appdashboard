@@ -650,6 +650,73 @@
         body {
             position: relative;
         }
+
+        /* Weather widget in top-bar */
+        .weather-widget {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0 12px;
+            font-size: 13px;
+            color: var(--text-color);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .weather-widget .weather-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            color: var(--primary-color);
+        }
+        .weather-widget .weather-icon svg {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
+        .weather-widget .weather-temp {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .weather-widget .weather-location-sep {
+            opacity: 0.4;
+            font-size: 14px;
+            margin: 0 2px;
+        }
+        .weather-widget .weather-pin-icon {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+        .weather-widget .weather-location {
+            opacity: 0.75;
+            font-size: 12px;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .weather-widget .weather-wind {
+            opacity: 0.7;
+            font-size: 12px;
+        }
+        .weather-widget .weather-perm {
+            font-size: 12px;
+            color: #f59e0b;
+            cursor: default;
+        }
+        @media (max-width: 600px) {
+            .weather-widget .weather-location-sep,
+            .weather-widget .weather-pin-icon,
+            .weather-widget .weather-location,
+            .weather-widget .weather-wind {
+                display: none;
+            }
+            .weather-widget {
+                margin: 0 6px;
+                gap: 4px;
+            }
+        }
     </style>
 </head>
 <body<?php if($path==='/main'&&$selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps))): ?> class="shell-app-open"<?php endif; ?>>
@@ -660,7 +727,16 @@
     <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
     <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
     <?php endif; ?>
-    <div id="top-bar-title">Shell Application</div>
+    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'Shell Application'); ?></div>
+    <div class="weather-widget" id="weatherWidget">
+        <span class="weather-icon" id="weatherIcon"></span>
+        <span class="weather-temp" id="weatherTemp">--°C</span>
+        <span class="weather-location-sep">|</span>
+        <svg class="weather-pin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+        <span class="weather-location" id="weatherLocation">--</span>
+        <span class="weather-wind" id="weatherWind"></span>
+        <span class="weather-perm" id="weatherPerm" style="display:none"><?php echo my_htmlspecialchars($translations['weather_perm_denied'] ?? 'Please allow location access'); ?></span>
+    </div>
     <?php if($path==='/main'&&!($selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps)))):?>
         <button type="button" id="notifications-btn" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
@@ -10871,6 +10947,155 @@ if(iframe.contentDocument&&iframe.contentDocument.readyState!=='loading')inject(
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',injectAppMobileChrome);
 else injectAppMobileChrome();
+})();
+</script>
+<script>
+(function(){
+    function weatherSvg(code) {
+        // SVG icons use currentColor, inherits var(--primary-color) from .weather-icon
+        if (code === 0) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+        }
+        if (code >= 1 && code <= 2) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M8 2v1M8 14v1M2 8h1M13 8h1M3.5 3.5l.7.7M12.5 12.5l.7.7M3.5 12.5l.7-.7M12.5 3.5l-.7.7"/><path d="M17.5 19H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 19Z"/></svg>';
+        }
+        if (code === 3) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>';
+        }
+        if (code >= 45 && code <= 48) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 11h14M5 15h14M5 19h14"/></svg>';
+        }
+        if (code >= 51 && code <= 57) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="M8 16v2M12 16v2M16 16v2"/></svg>';
+        }
+        if (code >= 61 && code <= 67) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="M6 16v4M10 16v4M14 16v4M18 16v4"/></svg>';
+        }
+        if (code >= 71 && code <= 77) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><circle cx="8" cy="18" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="16" cy="18" r="1"/></svg>';
+        }
+        if (code >= 80 && code <= 82) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="M8 16v3M12 16v3M16 16v3"/></svg>';
+        }
+        if (code >= 85 && code <= 86) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><circle cx="8" cy="18" r="1"/><circle cx="14" cy="19" r="1"/></svg>';
+        }
+        if (code >= 95) {
+            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="m12 14-2 5h3l-1 4 4-6h-3Z"/></svg>';
+        }
+        // fallback
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>';
+    }
+
+    function initWeather() {
+        var widget = document.getElementById('weatherWidget');
+        var iconEl = document.getElementById('weatherIcon');
+        var tempEl = document.getElementById('weatherTemp');
+        var locEl = document.getElementById('weatherLocation');
+        var windEl = document.getElementById('weatherWind');
+        var permEl = document.getElementById('weatherPerm');
+        if (!widget) return;
+
+        // ---- localStorage cache: reuse data for 1 hour ----
+        var cacheKey = 'ap_weather_data';
+        try {
+            var cached = JSON.parse(localStorage.getItem(cacheKey));
+            if (cached && cached.ts && Date.now() - cached.ts < 3600000) {
+                iconEl.innerHTML = weatherSvg(cached.code);
+                tempEl.textContent = (cached.temp || '--') + '\u00b0C';
+                locEl.textContent = cached.city || '';
+                if (cached.wind != null) {
+                    windEl.textContent = cached.wind + ' km/h';
+                }
+                return; // use cached data, do not call APIs again
+            }
+        } catch(e) {}
+        // -----------------------------------------------------
+
+        if (!navigator.geolocation) {
+            permEl.style.display = 'inline';
+            return;
+        }
+
+        function saveToCache(temp, code, wind, city) {
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify({
+                    ts: Date.now(),
+                    temp: temp,
+                    code: code,
+                    wind: wind,
+                    city: city || ''
+                }));
+            } catch(e) {}
+        }
+
+        function fetchWeather(lat, lng) {
+            fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&current=temperature_2m,weather_code,wind_speed_10m&timezone=auto')
+                .then(function(r){ return r.json(); })
+                .then(function(data) {
+                    var c = data.current;
+                    if (!c) return;
+                    var temp = Math.round(c.temperature_2m);
+                    var code = c.weather_code;
+                    var wind = Math.round(c.wind_speed_10m);
+                    iconEl.innerHTML = weatherSvg(code);
+                    tempEl.textContent = temp + '\u00b0C';
+                    windEl.textContent = wind + ' km/h';
+                    saveToCache(temp, code, wind, locEl.textContent);
+                })
+                .catch(function() {
+                    widget.style.display = 'none';
+                });
+        }
+
+        function fetchCity(lat, lng) {
+            var locale = document.documentElement.lang || 'en';
+            fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lng + '&localityLanguage=' + locale)
+                .then(function(r){ return r.json(); })
+                .then(function(data) {
+                    var city = data.city || data.locality || data.principalSubdivision || '';
+                    locEl.textContent = city;
+                    // update cache with city name (temp/code/wind may already be cached)
+                    try {
+                        var cur = JSON.parse(localStorage.getItem(cacheKey));
+                        if (cur && cur.ts) {
+                            cur.city = city;
+                            localStorage.setItem(cacheKey, JSON.stringify(cur));
+                        }
+                    } catch(e){}
+                })
+                .catch(function() {
+                    locEl.textContent = '';
+                });
+        }
+
+        function success(pos) {
+            var lat = pos.coords.latitude;
+            var lng = pos.coords.longitude;
+            fetchWeather(lat, lng);
+            fetchCity(lat, lng);
+        }
+
+        function error(err) {
+            if (err.code === err.PERMISSION_DENIED) {
+                permEl.style.display = 'inline';
+                iconEl.innerHTML = weatherSvg(-1);
+                tempEl.textContent = '--\u00b0C';
+                windEl.textContent = '';
+                locEl.textContent = '';
+            } else {
+                widget.style.display = 'none';
+            }
+        }
+
+        navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initWeather);
+    } else {
+        initWeather();
+    }
 })();
 </script>
 </body>
