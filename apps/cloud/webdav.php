@@ -1,7 +1,15 @@
 <?php
 declare(strict_types=1);
 define('CLOUD_WEBDAV_BOOT', true);
-require_once __DIR__ . '/vendor/autoload.php';
+$cloudAutoloader = require_once __DIR__ . '/vendor/autoload.php';
+if (!class_exists('Sabre\\DAV\\FS\\Directory')) {
+    if (is_object($cloudAutoloader) && method_exists($cloudAutoloader, 'addPsr4')) {
+        $cloudAutoloader->addPsr4('Sabre\\', __DIR__ . '/vendor/sabre/dav/lib');
+    }
+    if (!class_exists('Sabre\\DAV\\FS\\Directory')) {
+        throw new RuntimeException('SabreDAV filesystem backend is not installed');
+    }
+}
 require_once __DIR__ . '/api.php';
 use Sabre\DAV;
 use Sabre\DAV\FS;
