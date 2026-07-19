@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 set -eu
+if ! docker inspect -f '{{.State.Running}}' immich_server 2>/dev/null | grep -q '^true$'; then
+  exit 0
+fi
 patched="$(docker exec -i immich_server sh -s <<'SH'
 set -eu
 file=/build/www/index.html
