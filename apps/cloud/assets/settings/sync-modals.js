@@ -54,6 +54,9 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
   const tokenValue = document.getElementById('sync-token-value');
   const usernameValue = document.getElementById('sync-username-value');
   const tokenNameInput = document.getElementById('sync-token-name');
+  const scriptHint = document.getElementById('webdav-script-hint');
+  const windowsAddressWrap = document.getElementById('webdav-windows-address-wrap');
+  const windowsAddressValue = document.getElementById('webdav-windows-address');
   const linuxCommandWrap = document.getElementById('webdav-linux-command-wrap');
   const linuxCommandValue = document.getElementById('webdav-linux-command');
   const tokenInfo = document.getElementById('token-info');
@@ -117,16 +120,19 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       tokenValue.textContent = currentToken;
       if (usernameValue) usernameValue.textContent = currentUsername || '';
       if (linuxCommandValue) linuxCommandValue.textContent = linuxConnectCommand();
-      if (linuxCommandWrap) linuxCommandWrap.style.display = detectedDesktopOS() === 'windows' ? 'none' : 'block';
+      if (windowsAddressValue) windowsAddressValue.textContent = windowsExplorerAddress();
       if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = false;
       if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = false;
       if (btnDownloadScript) btnDownloadScript.disabled = false;
+      updatePlatformUi();
       tokenDisplay.style.display = 'block';
     } else {
       tokenValue.textContent = '';
       if (usernameValue) usernameValue.textContent = '';
       if (linuxCommandValue) linuxCommandValue.textContent = '';
+      if (windowsAddressValue) windowsAddressValue.textContent = '';
       if (linuxCommandWrap) linuxCommandWrap.style.display = 'none';
+      if (windowsAddressWrap) windowsAddressWrap.style.display = 'none';
       if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = true;
       if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = true;
       if (btnDownloadScript) btnDownloadScript.disabled = true;
@@ -416,6 +422,25 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     return 'unix';
   }
 
+  function updatePlatformUi() {
+    const os = detectedDesktopOS();
+    const isWindows = os === 'windows';
+    if (scriptHint) {
+      scriptHint.textContent = isWindows
+        ? tr('webdavWindowsHint', 'Windows: in File Explorer, open This PC, choose Map network drive, then use this folder address.')
+        : tr('webdavScriptHint', 'Download the script, run it, and enter your sudo password if the system asks to install davfs2 or mount the folder.');
+    }
+    if (linuxCommandWrap) linuxCommandWrap.style.display = !isWindows && currentToken ? 'block' : 'none';
+    if (windowsAddressWrap) windowsAddressWrap.style.display = isWindows && currentToken ? 'block' : 'none';
+    if (btnDownloadLinuxScript) btnDownloadLinuxScript.style.display = isWindows ? 'none' : 'inline-flex';
+    if (btnDownloadWindowsScript) btnDownloadWindowsScript.style.display = isWindows ? 'inline-flex' : 'none';
+    if (btnDownloadScript) {
+      btnDownloadScript.querySelector('span').textContent = isWindows
+        ? tr('downloadConnectScriptWindows', 'Download Windows connect script')
+        : tr('downloadConnectScriptLinux', 'Download Linux connect script');
+    }
+  }
+
   function webdavConfig() {
     return {
       url: currentWebdavUrl || window.location.origin.replace(/^https?:\/\//, (s) => s === 'https://' ? 'webdavs://' : 'webdav://') + '/webdav/',
@@ -428,6 +453,16 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
 
   function linuxConnectCommand() {
     return 'cd ~/Downloads && chmod +x appdashboard-webdav-connect.sh && ./appdashboard-webdav-connect.sh';
+  }
+
+  function windowsExplorerAddress() {
+    const cfg = webdavConfig();
+    const url = cfg.url.replace(/^webdavs:\/\//, 'https://').replace(/^webdav:\/\//, 'http://');
+    const parsed = new URL(url);
+    const path = parsed.pathname.replace(/\/$/, '').replace(/\//g, '\\');
+    return parsed.protocol === 'https:'
+      ? `\\\\${parsed.host}@SSL\\DavWWWRoot${path}`
+      : `\\\\${parsed.host}\\DavWWWRoot${path}`;
   }
 
   function linuxWebdavScript() {
@@ -464,11 +499,6 @@ RCLONE_LOG_FILE="$TARGET_HOME/.cache/appdashboard-rclone.log"
 LOG_FILE="\$(mktemp "\${TMPDIR:-/tmp}/appdashboard-webdav-mount.XXXXXX")"
 mount_is_healthy() {
   findmnt -rn -M "$MOUNT_DIR" >/dev/null 2>&1 && run_as_user ls "$MOUNT_DIR" >/dev/null 2>&1
-}
-write_kde_icon_file() {
-  [ -s "$ICON_FILE" ] || return 0
-  run_as_user sh -c 'printf "%s\n%s\n" "[Desktop Entry]" "Icon=$2" > "$1/.directory"' sh "$MOUNT_DIR" "$ICON_FILE" 2>/dev/null || true
-  chown "$TARGET_UID:$TARGET_GID" "$MOUNT_DIR/.directory" 2>/dev/null || true
 }
 write_desktop_link() {
   [ -d "$USER_DESKTOP_DIR" ] || return 0
@@ -534,7 +564,6 @@ if [ "$ACTION" = "unmount" ]; then
   exit 0
 fi
 if mount_is_healthy; then
-  write_kde_icon_file
   write_desktop_link
   echo "Folder is already mounted: $MOUNT_DIR"
   exit 0
@@ -543,6 +572,9 @@ if ! run_as_user ls -ld "$MOUNT_DIR" >/dev/null 2>&1; then
   unmount_mount_dir
 fi
 mkdir -p "$MOUNT_DIR" "$ICON_DIR" "$DESKTOP_DIR" "$RCLONE_CONFIG_DIR" "$TARGET_HOME/.cache"
+if ! findmnt -rn -M "$MOUNT_DIR" >/dev/null 2>&1; then
+  rm -f "$MOUNT_DIR/.directory"
+fi
 if command -v curl >/dev/null 2>&1; then curl -fsSL "$ICON_URL" -o "$ICON_FILE" || true; fi
 if command -v wget >/dev/null 2>&1 && [ ! -s "$ICON_FILE" ]; then wget -qO "$ICON_FILE" "$ICON_URL" || true; fi
 if [ -s "$ICON_FILE" ]; then chown "$TARGET_UID:$TARGET_GID" "$ICON_FILE" 2>/dev/null || true; fi
@@ -557,9 +589,6 @@ chmod +x "$DESKTOP_FILE" 2>/dev/null || true
 chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.local" "$MOUNT_DIR" 2>/dev/null || true
 if mountpoint -q "$MOUNT_DIR" && ! mount_is_healthy; then
   $SUDO_CMD umount -l "$MOUNT_DIR" 2>/dev/null || true
-fi
-if ! mountpoint -q "$MOUNT_DIR"; then
-  write_kde_icon_file
 fi
 write_desktop_link
 if command -v gio >/dev/null 2>&1; then
@@ -581,7 +610,6 @@ EOF
   chown -R "$TARGET_UID:$TARGET_GID" "$RCLONE_CONFIG_DIR" "$TARGET_HOME/.cache" 2>/dev/null || true
   chmod 600 "$RCLONE_CONFIG_FILE" 2>/dev/null || true
   if mount_is_healthy; then
-    write_kde_icon_file
     echo "Already mounted: $MOUNT_DIR"
     exit 0
   fi
@@ -590,7 +618,6 @@ EOF
   n=0
   while [ "$n" -lt 45 ]; do
     if mount_is_healthy; then
-      write_kde_icon_file
       if command -v gio >/dev/null 2>&1; then
         run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
       fi
@@ -701,11 +728,7 @@ Write-Host "Connected $Name as $Drive"
 
   openBtn.addEventListener('click', () => {
     modal.classList.remove('hidden');
-    if (btnDownloadScript) {
-      btnDownloadScript.querySelector('span').textContent = detectedDesktopOS() === 'windows'
-        ? tr('downloadConnectScriptWindows', 'Download Windows connect script')
-        : tr('downloadConnectScriptLinux', 'Download Linux/macOS connect script');
-    }
+    updatePlatformUi();
     loadTokens();
   });
   closeBtn.addEventListener('click', () => modal.classList.add('hidden'));

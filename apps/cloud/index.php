@@ -1983,7 +1983,11 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
             </svg>
           </button>
         </div>
-        <div style="font-size:11px;color:var(--fg-secondary);line-height:1.45;margin-bottom:8px;" data-i18n="webdavScriptHint">Download the script, run it, and enter your sudo password if the system asks to install davfs2 or mount the folder.</div>
+        <div id="webdav-script-hint" style="font-size:11px;color:var(--fg-secondary);line-height:1.45;margin-bottom:8px;" data-i18n="webdavScriptHint">Download the script, run it, and enter your sudo password if the system asks to install davfs2 or mount the folder.</div>
+        <div id="webdav-windows-address-wrap" style="display:none;margin-bottom:8px;">
+          <div style="font-size:11px;color:var(--fg-secondary);margin-bottom:6px;" data-i18n="webdavWindowsAddressLabel">Windows network drive folder:</div>
+          <code id="webdav-windows-address" style="display:block;background:var(--panel);padding:10px;border-radius:6px;font-size:12px;word-break:break-all;font-family:monospace;"></code>
+        </div>
         <div id="webdav-linux-command-wrap" style="display:none;margin-bottom:8px;">
           <div style="font-size:11px;color:var(--fg-secondary);margin-bottom:6px;" data-i18n="webdavLinuxCommandLabel">Linux command after downloading:</div>
           <div style="display:flex;align-items:center;gap:8px;">
