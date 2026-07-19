@@ -236,7 +236,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/app/cloud-group-chat.js?v=8"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
-<script defer src="assets/settings/sync-modals.js?v=3"></script>
+<script defer src="assets/settings/sync-modals.js?v=4"></script>
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>

@@ -50,6 +50,18 @@ final class CloudWebDavDirectory extends FS\Directory {
     public function childExists($name) {
         return !$this->isHiddenRootEntry((string)$name) && parent::childExists($name);
     }
+    public function getQuotaInfo() {
+        try {
+            $absolute = realpath($this->path);
+            if ($absolute === false) return [0, 0];
+            $total = disk_total_space($absolute);
+            $free = disk_free_space($absolute);
+            if ($total === false || $free === false) return [0, 0];
+            return [$total - $free, $free];
+        } catch (Throwable $e) {
+            return [0, 0];
+        }
+    }
     public function delete() {
         parent::delete();
         $this->changed();

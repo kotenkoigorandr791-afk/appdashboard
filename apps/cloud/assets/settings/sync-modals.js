@@ -121,8 +121,6 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       if (usernameValue) usernameValue.textContent = currentUsername || '';
       if (linuxCommandValue) linuxCommandValue.textContent = linuxConnectCommand();
       if (windowsAddressValue) windowsAddressValue.textContent = windowsExplorerAddress();
-      if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = false;
-      if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = false;
       if (btnDownloadScript) btnDownloadScript.disabled = false;
       updatePlatformUi();
       tokenDisplay.style.display = 'block';
@@ -133,8 +131,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       if (windowsAddressValue) windowsAddressValue.textContent = '';
       if (linuxCommandWrap) linuxCommandWrap.style.display = 'none';
       if (windowsAddressWrap) windowsAddressWrap.style.display = 'none';
-      if (btnDownloadLinuxScript) btnDownloadLinuxScript.disabled = true;
-      if (btnDownloadWindowsScript) btnDownloadWindowsScript.disabled = true;
+      if (btnDownloadLinuxScript) btnDownloadLinuxScript.style.display = 'none';
+      if (btnDownloadWindowsScript) btnDownloadWindowsScript.style.display = 'none';
       if (btnDownloadScript) btnDownloadScript.disabled = true;
       tokenInfo.textContent = '';
       tokenDisplay.style.display = 'none';
@@ -432,8 +430,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     }
     if (linuxCommandWrap) linuxCommandWrap.style.display = !isWindows && currentToken ? 'block' : 'none';
     if (windowsAddressWrap) windowsAddressWrap.style.display = isWindows && currentToken ? 'block' : 'none';
-    if (btnDownloadLinuxScript) btnDownloadLinuxScript.style.display = isWindows ? 'none' : 'inline-flex';
-    if (btnDownloadWindowsScript) btnDownloadWindowsScript.style.display = isWindows ? 'inline-flex' : 'none';
+    if (btnDownloadLinuxScript) btnDownloadLinuxScript.style.display = 'none';
+    if (btnDownloadWindowsScript) btnDownloadWindowsScript.style.display = 'none';
     if (btnDownloadScript) {
       btnDownloadScript.querySelector('span').textContent = isWindows
         ? tr('downloadConnectScriptWindows', 'Download Windows connect script')
@@ -594,6 +592,53 @@ write_desktop_link
 if command -v gio >/dev/null 2>&1; then
   run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
 fi
+if command -v curl >/dev/null 2>&1; then
+  HTTP_CODE="$(curl -k -sS -o /dev/null -w "%{http_code}" -u "$WEBDAV_USER:$WEBDAV_TOKEN" -X PROPFIND -H "Depth: 0" "$WEBDAV_URL" 2>/dev/null || true)"
+  case "$HTTP_CODE" in
+    200|207|301|302) ;;
+    401|403)
+      echo "WebDAV authentication failed. Generate a new token and download a fresh script."
+      exit 1
+      ;;
+    500|502|503|504)
+      echo "WebDAV server returned HTTP $HTTP_CODE. Try again after the server update is applied."
+      exit 1
+      ;;
+  esac
+fi
+if ! command -v mount.davfs >/dev/null 2>&1; then
+  install_package davfs2
+fi
+if command -v mount.davfs >/dev/null 2>&1; then
+  mkdir -p "$TARGET_HOME/.davfs2"
+  touch "$TARGET_HOME/.davfs2/secrets"
+  chmod 600 "$TARGET_HOME/.davfs2/secrets"
+  chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2" 2>/dev/null || true
+  grep -vF "$WEBDAV_URL" "$TARGET_HOME/.davfs2/secrets" > "$TARGET_HOME/.davfs2/secrets.tmp" || true
+  printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$TARGET_HOME/.davfs2/secrets.tmp"
+  mv "$TARGET_HOME/.davfs2/secrets.tmp" "$TARGET_HOME/.davfs2/secrets"
+  chown "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2/secrets" 2>/dev/null || true
+  if [ -z "$SUDO_CMD" ] || command -v sudo >/dev/null 2>&1; then
+    ROOT_SECRETS_TMP="$(mktemp "\${TMPDIR:-/tmp}/appdashboard-davfs2-secrets.XXXXXX")"
+    $SUDO_CMD sh -c "touch /etc/davfs2/secrets && chmod 600 /etc/davfs2/secrets"
+    $SUDO_CMD grep -vF "$WEBDAV_URL" /etc/davfs2/secrets > "$ROOT_SECRETS_TMP" || true
+    printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$ROOT_SECRETS_TMP"
+    $SUDO_CMD mv "$ROOT_SECRETS_TMP" /etc/davfs2/secrets
+    $SUDO_CMD chmod 600 /etc/davfs2/secrets
+  fi
+  if mount_is_healthy; then
+    echo "Already mounted: $MOUNT_DIR"
+    exit 0
+  elif $SUDO_CMD mount -t davfs "$WEBDAV_URL" "$MOUNT_DIR" -o "uid=$TARGET_UID,gid=$TARGET_GID,rw,file_mode=664,dir_mode=775" 2>"$LOG_FILE"; then
+    if command -v gio >/dev/null 2>&1; then
+      run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
+    fi
+    echo "Mounted: $MOUNT_DIR"
+    exit 0
+  else
+    cat "$LOG_FILE" 2>/dev/null || true
+  fi
+fi
 if ! command -v rclone >/dev/null 2>&1; then
   install_package rclone
 fi
@@ -629,41 +674,6 @@ EOF
   done
   cat "$RCLONE_LOG_FILE" 2>/dev/null || true
   unmount_mount_dir
-  echo "Failed to mount with rclone."
-  exit 1
-fi
-if ! command -v mount.davfs >/dev/null 2>&1; then
-  install_package davfs2
-fi
-  if command -v mount.davfs >/dev/null 2>&1; then
-  mkdir -p "$TARGET_HOME/.davfs2"
-  touch "$TARGET_HOME/.davfs2/secrets"
-  chmod 600 "$TARGET_HOME/.davfs2/secrets"
-  chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2" 2>/dev/null || true
-  grep -vF "$WEBDAV_URL" "$TARGET_HOME/.davfs2/secrets" > "$TARGET_HOME/.davfs2/secrets.tmp" || true
-  printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$TARGET_HOME/.davfs2/secrets.tmp"
-  mv "$TARGET_HOME/.davfs2/secrets.tmp" "$TARGET_HOME/.davfs2/secrets"
-  chown "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2/secrets" 2>/dev/null || true
-  if [ -z "$SUDO_CMD" ] || command -v sudo >/dev/null 2>&1; then
-    ROOT_SECRETS_TMP="$(mktemp "\${TMPDIR:-/tmp}/appdashboard-davfs2-secrets.XXXXXX")"
-    $SUDO_CMD sh -c "touch /etc/davfs2/secrets && chmod 600 /etc/davfs2/secrets"
-    $SUDO_CMD grep -vF "$WEBDAV_URL" /etc/davfs2/secrets > "$ROOT_SECRETS_TMP" || true
-    printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$ROOT_SECRETS_TMP"
-    $SUDO_CMD mv "$ROOT_SECRETS_TMP" /etc/davfs2/secrets
-    $SUDO_CMD chmod 600 /etc/davfs2/secrets
-  fi
-  if mount_is_healthy; then
-    echo "Already mounted: $MOUNT_DIR"
-    exit 0
-  elif $SUDO_CMD mount -t davfs "$WEBDAV_URL" "$MOUNT_DIR" -o "uid=$TARGET_UID,gid=$TARGET_GID,rw,file_mode=664,dir_mode=775" 2>"$LOG_FILE"; then
-    if command -v gio >/dev/null 2>&1; then
-      run_as_user gio set -t string "$MOUNT_DIR" metadata::custom-icon "file://$ICON_FILE" 2>/dev/null || true
-    fi
-    echo "Mounted: $MOUNT_DIR"
-    exit 0
-  else
-    cat "$LOG_FILE" 2>/dev/null || true
-  fi
 fi
 echo "Opening WebDAV location. For a permanent mounted folder install davfs2, then rerun this script."
 if command -v dolphin >/dev/null 2>&1; then run_as_user nohup dolphin "$WEBDAV_BROWSER_URL" >/dev/null 2>&1 &
