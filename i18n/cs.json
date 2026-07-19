@@ -633,5 +633,6 @@
     "icon_sort": "Řazení ikon",
     "icon_sort_alpha": "Abecedně",
     "icon_sort_popular": "Podle oblíbenosti",
-    "icon_sort_recommended": "Doporučeno"
+    "icon_sort_recommended": "Doporučeno",
+    "weather_perm_denied": "Prosím, povolte přístup k poloze"
 }

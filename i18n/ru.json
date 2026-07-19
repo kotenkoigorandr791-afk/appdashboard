@@ -563,5 +563,7 @@
     "admins": "Администраторы",
     "managers": "Менеджеры",
     "guests": "Гости",
-    "pending_users": "Ожидающие"
+    "pending_users": "Ожидающие",
+    "weather_perm_denied": "Пожалуйста, разрешите доступ к геолокации",
+    "shell_application": "Оболочка (Shell Application)"
 }

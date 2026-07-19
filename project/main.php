@@ -570,6 +570,158 @@
         body {
             position: relative;
         }
+        /* Weather Widget */
+        .weather-widget {
+            background: var(--modal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 20px;
+            margin: 0 0 20px 0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            min-height: 72px;
+        }
+        .weather-widget:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+        }
+        .weather-icon-wrap {
+            flex-shrink: 0;
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--group-block-bg);
+            transition: background 0.3s;
+        }
+        .weather-icon-wrap svg {
+            width: 48px;
+            height: 48px;
+        }
+        .weather-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .weather-city {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 2px 0;
+            color: var(--text-color);
+        }
+        .weather-temp-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .weather-temp {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-color);
+            line-height: 1;
+        }
+        .weather-desc {
+            font-size: 13px;
+            color: var(--text-color);
+            opacity: 0.75;
+        }
+        .weather-wind {
+            font-size: 13px;
+            color: var(--text-color);
+            opacity: 0.75;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .weather-wind svg {
+            width: 16px;
+            height: 16px;
+        }
+        .weather-loading {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+            opacity: 0.6;
+            font-size: 14px;
+        }
+        .weather-loading-spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: weatherSpin 0.8s linear infinite;
+        }
+        @keyframes weatherSpin {
+            to { transform: rotate(360deg); }
+        }
+        .weather-error {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+            font-size: 14px;
+            opacity: 0.75;
+        }
+        .weather-error svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+            stroke: #ff9800;
+        }
+        .weather-deny-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-left: auto;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+        }
+        .weather-deny-btn:hover {
+            opacity: 0.85;
+        }
+        /* Weather icon colors */
+        .weather-icon-sunny { color: #f59e0b; }
+        .weather-icon-cloudy { color: #94a3b8; }
+        .weather-icon-rainy { color: #60a5fa; }
+        .weather-icon-snowy { color: #bae6fd; }
+        .weather-icon-foggy { color: #cbd5e1; }
+        .weather-icon-storm { color: #7c3aed; }
+        .weather-icon-partly { color: #f59e0b; }
+        .weather-icon-drizzle { color: #93c5fd; }
+        @media (max-width: 480px) {
+            .weather-widget {
+                padding: 12px 14px;
+                gap: 12px;
+                min-height: 60px;
+            }
+            .weather-icon-wrap {
+                width: 48px;
+                height: 48px;
+            }
+            .weather-icon-wrap svg {
+                width: 36px;
+                height: 36px;
+            }
+            .weather-temp {
+                font-size: 22px;
+            }
+            .weather-city {
+                font-size: 14px;
+            }
+        }
     </style>
 </head>
 <body<?php if($path==='/main'&&$selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps))): ?> class="shell-app-open"<?php endif; ?>>
@@ -1542,6 +1694,12 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             <span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
         </button>
         <?php endif; ?>
+        <div id="weatherWidget" class="weather-widget" style="display:none;">
+            <div class="weather-loading">
+                <div class="weather-loading-spinner"></div>
+                <span><?php echo my_htmlspecialchars($translations['weather_loading'] ?? 'Loading weather...'); ?></span>
+            </div>
+        </div>
         <div id="app-grid">
             <?php foreach($apps as $name=>$appData):?>
                 <?php $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
@@ -2034,6 +2192,16 @@ var T=<?php echo json_encode([
     'unknown_error'=>$translations['unknown_error']??'Unknown error',
     'failed_to_load_file'=>$translations['failed_to_load_file']??'Failed to load file:',
     'recording_release_to_send'=>$translations['recording_release_to_send']??'Recording... Release to send',
+    'weather_loading'=>$translations['weather_loading']??'Loading weather...',
+    'weather_denied'=>$translations['weather_denied']??'Location access denied. Enable it to see local weather.',
+    'weather_denied_msg'=>$translations['weather_denied_msg']??'Please allow location access in your browser settings to see local weather',
+    'weather_allow_location'=>$translations['weather_allow_location']??'Allow location',
+    'weather_no_geo'=>$translations['weather_no_geo']??'Geolocation not supported',
+    'weather_timeout'=>$translations['weather_timeout']??'Weather request timed out',
+    'weather_no_data'=>$translations['weather_no_data']??'No weather data',
+    'weather_fetch_error'=>$translations['weather_fetch_error']??'Failed to load weather',
+    'weather_unknown'=>$translations['weather_unknown']??'Unknown location',
+    'weather_settings_hint'=>$translations['weather_settings_hint']??'Go to browser site settings and allow location',
 ]); ?>;
     document.addEventListener('DOMContentLoaded',function(){
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -10483,6 +10651,237 @@ if(iframe.contentDocument&&iframe.contentDocument.readyState!=='loading')inject(
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',injectAppMobileChrome);
 else injectAppMobileChrome();
+})();
+</script>
+
+<!-- Weather Widget Script -->
+<script>
+/* Weather Widget - uses Open-Meteo (no API key required) */
+(function(){
+var weatherWidget = document.getElementById('weatherWidget');
+if(!weatherWidget) return;
+
+/* Simple HTML escaper (available globally but we define locally for safety) */
+function escHtml(str) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(str));
+    return d.innerHTML;
+}
+
+/* ── SVG icons for each weather type ── */
+var WEATHER_ICONS = {
+    sunny: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+    partly_cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M17.66 6.34l1.41-1.41"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" opacity="0.5"/></svg>',
+    cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+    overcast: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h18M3 18h18M3 12h18" opacity="0.4"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" opacity="0.6"/></svg>',
+    fog: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
+    drizzle: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2m0 16v2M16 12v2M8 12v2M4 16h16" opacity="0.5"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" opacity="0.8"/><line x1="8" y1="16" x2="8" y2="17"/><line x1="12" y1="16" x2="12" y2="17"/><line x1="16" y1="16" x2="16" y2="17"/></svg>',
+    rain: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z"/><line x1="8" y1="16" x2="7" y2="19"/><line x1="12" y1="16" x2="11" y2="21"/><line x1="16" y1="16" x2="15" y2="19"/></svg>',
+    snow: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z"/><circle cx="8" cy="18" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="16" cy="18" r="1"/><circle cx="10" cy="22" r="1"/><circle cx="14" cy="22" r="1"/></svg>',
+    thunderstorm: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 0 0 0-4h-1.5m-9-1A4 4 0 0 1 8 6a5 5 0 0 1 8.9-2.6A3.5 3.5 0 0 1 17 11.5"/><polyline points="13 13 11 17 14 17 12 21"/></svg>',
+    windy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5"/></svg>'
+};
+
+/* ── WMO Weather Codes ── */
+function getWeatherInfo(code, isDay) {
+    var key, desc;
+    if(code === 0) {
+        key = 'sunny';
+        desc = 'Clear sky';
+    } else if(code <= 2) {
+        key = isDay ? 'partly_cloudy' : 'cloudy';
+        desc = code === 1 ? 'Mainly clear' : 'Partly cloudy';
+    } else if(code === 3) {
+        key = 'overcast';
+        desc = 'Overcast';
+    } else if(code >= 45 && code <= 48) {
+        key = 'fog';
+        desc = 'Foggy';
+    } else if(code >= 51 && code <= 55) {
+        key = 'drizzle';
+        desc = 'Drizzle';
+    } else if(code >= 61 && code <= 65) {
+        key = 'rain';
+        desc = 'Rain';
+    } else if(code >= 71 && code <= 77) {
+        key = 'snow';
+        desc = 'Snow';
+    } else if(code >= 80 && code <= 82) {
+        key = 'rain';
+        desc = 'Rain showers';
+    } else if(code >= 95 && code <= 99) {
+        key = 'thunderstorm';
+        desc = 'Thunderstorm';
+    } else {
+        key = 'cloudy';
+        desc = 'Cloudy';
+    }
+    return { key: key, desc: desc };
+}
+
+/* ── Icon class mapping ── */
+var ICON_CLASSES = {
+    sunny: 'weather-icon-sunny',
+    partly_cloudy: 'weather-icon-partly',
+    cloudy: 'weather-icon-cloudy',
+    overcast: 'weather-icon-cloudy',
+    fog: 'weather-icon-foggy',
+    drizzle: 'weather-icon-drizzle',
+    rain: 'weather-icon-rainy',
+    snow: 'weather-icon-snowy',
+    thunderstorm: 'weather-icon-storm',
+    windy: 'weather-icon-cloudy'
+};
+
+/* ── Render the widget ── */
+function renderWeather(city, temp, windSpeed, code, isDay) {
+    var info = getWeatherInfo(code, isDay);
+    var iconSvg = WEATHER_ICONS[info.key] || WEATHER_ICONS.cloudy;
+    var iconClass = ICON_CLASSES[info.key] || 'weather-icon-cloudy';
+    
+    weatherWidget.style.display = 'flex';
+    weatherWidget.innerHTML = 
+        '<div class="weather-icon-wrap ' + iconClass + '">' + iconSvg + '</div>' +
+        '<div class="weather-info">' +
+            '<div class="weather-city">' + escHtml(city) + '</div>' +
+            '<div class="weather-temp-row">' +
+                '<span class="weather-temp">' + Math.round(temp) + '°C</span>' +
+                '<span class="weather-desc">' + escHtml(info.desc) + '</span>' +
+                '<span class="weather-wind">' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5"/></svg>' +
+                    escHtml(windSpeed) + ' m/s' +
+                '</span>' +
+            '</div>' +
+        '</div>';
+}
+
+/* ── Show error state ── */
+function showWeatherError(message, showBtn) {
+    weatherWidget.style.display = 'flex';
+    var html = '<div class="weather-error">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+        '<span>' + escHtml(message) + '</span>';
+    if(showBtn) {
+        html += '<button type="button" class="weather-deny-btn" onclick="openLocationSettings()">' +
+            (T.weather_allow_location || 'Allow location') +
+        '</button>';
+    }
+    html += '</div>';
+    weatherWidget.innerHTML = html;
+}
+
+/* ── Show loading state ── */
+function showWeatherLoading() {
+    weatherWidget.style.display = 'flex';
+    weatherWidget.innerHTML = 
+        '<div class="weather-loading">' +
+            '<div class="weather-loading-spinner"></div>' +
+            '<span>' + (T.weather_loading || 'Loading weather...') + '</span>' +
+        '</div>';
+}
+
+/* ── Location settings helper ── */
+window.openLocationSettings = function() {
+    if(typeof showTempNotification === 'function') {
+        showTempNotification(T.weather_denied_msg || 'Please allow location access in your browser settings to see local weather', 'error');
+    }
+    // Try opening browser location settings
+    if(navigator.permissions && navigator.permissions.query) {
+        navigator.permissions.query({name:'geolocation'}).then(function(result) {
+            if(result.state === 'denied') {
+                // Inform user to change settings manually
+                if(typeof showTempNotification === 'function') {
+                    showTempNotification(T.weather_settings_hint || 'Go to browser site settings and allow location', 'info');
+                }
+            }
+        });
+    }
+};
+
+/* ── Main init ── */
+function initWeather() {
+    if(!navigator.geolocation) {
+        showWeatherError(T.weather_no_geo || 'Geolocation not supported', false);
+        return;
+    }
+    
+    showWeatherLoading();
+    
+    var timeoutId = setTimeout(function() {
+        showWeatherError(T.weather_timeout || 'Weather request timed out', false);
+    }, 15000);
+    
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            clearTimeout(timeoutId);
+            var lat = position.coords.latitude;
+            var lon = position.coords.longitude;
+            
+            /* Fetch weather data from Open-Meteo */
+            var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true&timezone=auto';
+            
+            fetch(weatherUrl)
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if(!data || !data.current_weather) {
+                        showWeatherError(T.weather_no_data || 'No weather data', false);
+                        return;
+                    }
+                    var cw = data.current_weather;
+                    var temp = cw.temperature;
+                    var windSpeed = cw.windspeed;
+                    var code = cw.weathercode;
+                    var isDay = cw.is_day !== 0;
+                    
+                    /* Reverse geocode for city name */
+                    var geoUrl = 'https://geocoding-api.open-meteo.com/v1/reverse?latitude=' + lat + '&longitude=' + lon + '&language=en';
+                    fetch(geoUrl)
+                        .then(function(r2) { return r2.json(); })
+                        .then(function(geo) {
+                            var city = '';
+                            if(geo && geo.results && geo.results.length > 0) {
+                                city = geo.results[0].name || '';
+                                if(geo.results[0].country) {
+                                    city += ', ' + geo.results[0].country;
+                                }
+                            }
+                            if(!city) {
+                                city = T.weather_unknown || 'Unknown location';
+                            }
+                            renderWeather(city, temp, windSpeed, code, isDay);
+                        })
+                        .catch(function() {
+                            renderWeather(T.weather_unknown || 'Unknown location', temp, windSpeed, code, isDay);
+                        });
+                })
+                .catch(function() {
+                    showWeatherError(T.weather_fetch_error || 'Failed to load weather', false);
+                });
+        },
+        function(error) {
+            clearTimeout(timeoutId);
+            if(error.code === error.PERMISSION_DENIED) {
+                showWeatherError(T.weather_denied || 'Location access denied. Enable it to see local weather.', true);
+            } else if(error.code === error.TIMEOUT) {
+                showWeatherError(T.weather_timeout || 'Location request timed out', false);
+            } else {
+                showWeatherError(T.weather_no_geo || 'Could not determine location', false);
+            }
+        },
+        {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000
+        }
+    );
+}
+
+/* Start weather widget when DOM is ready */
+if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initWeather);
+} else {
+    initWeather();
+}
 })();
 </script>
 </body>
