@@ -105,7 +105,7 @@
         #notifications-btn + #support-chat-btn{margin-left:0;}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
-	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
+	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1002;padding:0;border:none;outline:none;width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);}
 	        <?php if(!empty($selectedAppMenuButtonScroll)): ?>#menu-button{position:absolute;}<?php endif; ?>
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
@@ -133,7 +133,7 @@
         <?php endif; ?>
         #sidebar{position:fixed;top:50px;left:-320px;width:320px;height:calc(100% - 50px);background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
         <?php if(!$isHomeDashboard): ?>
-        #sidebar{top:0;height:100%;border-radius:0;}
+        #sidebar{top:0;height:100%;border-radius:0;display:flex;flex-direction:column;}
         <?php endif; ?>
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:58px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.28);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
@@ -162,11 +162,12 @@
         .notification-row-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--primary-color);flex-shrink:0;margin-top:6px;}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
-        <?php if(!$isHomeDashboard): ?>
-        #app-list-container{-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 40px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 40px),transparent 100%);}
-        <?php endif; ?>
         #app-list-container::-webkit-scrollbar{display:none;}
         #bottom-bar{position:absolute;bottom:20px;left:20px;right:20px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+        <?php if(!$isHomeDashboard): ?>
+        #app-list-container{padding-top:0;max-height:none;flex:1;min-height:0;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 60px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 60px),transparent 100%);}
+        #bottom-bar{position:relative;bottom:auto;left:auto;right:auto;flex-shrink:0;padding-top:8px;}
+        <?php endif; ?>
         .search-container{position:relative;flex:1 1 auto;min-width:0;}
         .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.65;pointer-events:none;}
         #search-bar{width:100%;padding:10px;box-sizing:border-box;border-radius:8px;border:1px solid var(--border-color);padding-right:35px;padding-left:34px;background:var(--modal-bg);color:var(--text-color);caret-color:var(--text-color);-webkit-text-fill-color:var(--text-color);}
@@ -662,6 +663,22 @@
             white-space: nowrap;
             flex-shrink: 0;
         }
+        #sidebarWeatherWidget {
+            flex-shrink: 0;
+            display: flex;
+            width: 100%;
+            box-sizing: border-box;
+            margin: calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) - 20px + 8px) 0 16px 0;
+            justify-content: center;
+            border-radius: 12px;
+            flex-wrap: wrap;
+            padding: 10px 0;
+            background: color-mix(in srgb, var(--group-block-bg) 70%, transparent);
+            border: 1px solid var(--border-color);
+        }
+        @media (max-width:768px){
+            #sidebarWeatherWidget{margin-top:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) - 20px + 8px);}
+        }
         .weather-widget .weather-icon {
             display: inline-flex;
             align-items: center;
@@ -759,14 +776,14 @@
     <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
     <?php endif; ?>
     <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'Shell Application'); ?></div>
-    <div class="weather-widget" id="weatherWidget">
-        <span class="weather-icon" id="weatherIcon"></span>
-        <span class="weather-temp" id="weatherTemp">--°C</span>
+    <div class="weather-widget weather-widget-instance" id="weatherWidget">
+        <span class="weather-icon"></span>
+        <span class="weather-temp">--°C</span>
         <span class="weather-location-sep">|</span>
         <svg class="weather-pin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-        <span class="weather-location" id="weatherLocation">--</span>
-        <span class="weather-wind" id="weatherWind"></span>
-        <span class="weather-perm" id="weatherPerm" style="display:none"><?php echo my_htmlspecialchars($translations['weather_perm_denied'] ?? 'Please allow location access'); ?></span>
+        <span class="weather-location">--</span>
+        <span class="weather-wind"></span>
+        <span class="weather-perm" style="display:none"><?php echo my_htmlspecialchars($translations['weather_perm_denied'] ?? 'Please allow location access'); ?></span>
     </div>
     <?php if($path==='/main'&&!($selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps)))):?>
         <button type="button" id="notifications-btn" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
@@ -1582,6 +1599,17 @@ endif; // showOtpPage
 <?php if($path!=='/login'&&$path!=='/register'):?>
     <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button><?php endif; ?>
     <div id="sidebar">
+        <?php if(!$isHomeDashboard): ?>
+        <div class="weather-widget weather-widget-instance" id="sidebarWeatherWidget">
+            <span class="weather-icon"></span>
+            <span class="weather-temp">--°C</span>
+            <span class="weather-location-sep">|</span>
+            <svg class="weather-pin-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+            <span class="weather-location">--</span>
+            <span class="weather-wind"></span>
+            <span class="weather-perm" style="display:none"><?php echo my_htmlspecialchars($translations['weather_perm_denied'] ?? 'Please allow location access'); ?></span>
+        </div>
+        <?php endif; ?>
         <div id="app-list-container">
             <ul id="app-list">
                 <?php foreach($groupedApps as $letter=>$group):?><div class="group-letter"><?php echo my_htmlspecialchars($letter); ?></div><div class="group-block"><ul><?php foreach($group as $name=>$appData):?><li data-tooltip="<?php echo my_htmlspecialchars($translations['open_app_tooltip'].' '.$name); ?>"><a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><span class="sidebar-app-name"><?php echo my_htmlspecialchars($name); ?></span><span class="sidebar-app-icon-wrap"><?php if(!empty($appData['is_svg'])): ?><span class="sidebar-app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');" aria-hidden="true"></span><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="" class="sidebar-app-icon"><?php endif; ?></span></a><span class="tooltip"></span></li><?php endforeach;?></ul></div><?php endforeach;?>
@@ -11060,32 +11088,44 @@ else injectAppMobileChrome();
     }
 
     function initWeather() {
-        var widget = document.getElementById('weatherWidget');
-        var iconEl = document.getElementById('weatherIcon');
-        var tempEl = document.getElementById('weatherTemp');
-        var locEl = document.getElementById('weatherLocation');
-        var windEl = document.getElementById('weatherWind');
-        var permEl = document.getElementById('weatherPerm');
-        if (!widget) return;
+        var widgets = document.querySelectorAll('.weather-widget-instance');
+        if (widgets.length === 0) return;
 
         // ---- localStorage cache: reuse data for 1 hour ----
         var cacheKey = 'ap_weather_data';
         try {
             var cached = JSON.parse(localStorage.getItem(cacheKey));
             if (cached && cached.ts && Date.now() - cached.ts < 3600000) {
-                iconEl.innerHTML = weatherSvg(cached.code);
-                tempEl.textContent = (cached.temp || '--') + '\u00b0C';
-                locEl.textContent = cached.city || '';
-                if (cached.wind != null) {
-                    windEl.textContent = cached.wind + ' km/h';
-                }
+                applyToWidgets(weatherSvg(cached.code), (cached.temp || '--') + '\u00b0C', cached.city || '', cached.wind != null ? cached.wind + ' km/h' : null);
                 return; // use cached data, do not call APIs again
             }
         } catch(e) {}
         // -----------------------------------------------------
 
+        function applyToWidgets(iconHtml, tempStr, locStr, windStr) {
+            widgets.forEach(function(widget) {
+                var iconEl = widget.querySelector('.weather-icon');
+                var tempEl = widget.querySelector('.weather-temp');
+                var locEl = widget.querySelector('.weather-location');
+                var windEl = widget.querySelector('.weather-wind');
+                
+                if(iconEl && iconHtml !== null) iconEl.innerHTML = iconHtml;
+                if(tempEl && tempStr !== null) tempEl.textContent = tempStr;
+                if(locEl && locStr !== null) locEl.textContent = locStr;
+                if(windEl && windStr !== null) windEl.textContent = windStr;
+            });
+        }
+        
+        function showPermError() {
+            widgets.forEach(function(widget) {
+                var permEl = widget.querySelector('.weather-perm');
+                if(permEl) permEl.style.display = 'inline';
+            });
+            applyToWidgets(weatherSvg(-1), '--\u00b0C', '', '');
+        }
+
         if (!navigator.geolocation) {
-            permEl.style.display = 'inline';
+            showPermError();
             return;
         }
 
@@ -11110,13 +11150,18 @@ else injectAppMobileChrome();
                     var temp = Math.round(c.temperature_2m);
                     var code = c.weather_code;
                     var wind = Math.round(c.wind_speed_10m);
-                    iconEl.innerHTML = weatherSvg(code);
-                    tempEl.textContent = temp + '\u00b0C';
-                    windEl.textContent = wind + ' km/h';
-                    saveToCache(temp, code, wind, locEl.textContent);
+                    
+                    applyToWidgets(weatherSvg(code), temp + '\u00b0C', null, wind + ' km/h');
+
+                    // get loc from one of the widgets
+                    var locStr = '';
+                    var sampleLoc = widgets[0].querySelector('.weather-location');
+                    if(sampleLoc) locStr = sampleLoc.textContent;
+                    
+                    saveToCache(temp, code, wind, locStr);
                 })
                 .catch(function() {
-                    widget.style.display = 'none';
+                    widgets.forEach(function(w) { w.style.display = 'none'; });
                 });
         }
 
@@ -11126,7 +11171,7 @@ else injectAppMobileChrome();
                 .then(function(r){ return r.json(); })
                 .then(function(data) {
                     var city = data.city || data.locality || data.principalSubdivision || '';
-                    locEl.textContent = city;
+                    applyToWidgets(null, null, city, null);
                     // update cache with city name (temp/code/wind may already be cached)
                     try {
                         var cur = JSON.parse(localStorage.getItem(cacheKey));
@@ -11137,7 +11182,7 @@ else injectAppMobileChrome();
                     } catch(e){}
                 })
                 .catch(function() {
-                    locEl.textContent = '';
+                    applyToWidgets(null, null, '', null);
                 });
         }
 
@@ -11150,13 +11195,9 @@ else injectAppMobileChrome();
 
         function error(err) {
             if (err.code === err.PERMISSION_DENIED) {
-                permEl.style.display = 'inline';
-                iconEl.innerHTML = weatherSvg(-1);
-                tempEl.textContent = '--\u00b0C';
-                windEl.textContent = '';
-                locEl.textContent = '';
+                showPermError();
             } else {
-                widget.style.display = 'none';
+                widgets.forEach(function(w) { w.style.display = 'none'; });
             }
         }
 

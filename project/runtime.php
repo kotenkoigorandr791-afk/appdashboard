@@ -77,6 +77,7 @@ $visitStats=loadVisitStats();
 $visitStatsTotals=array_map(function($d){return array_sum((array)$d);}, $visitStats);
 
 $appsDir='apps/';
+$appsFsDir=(defined('APP_ROOT') ? APP_ROOT . '/' : '') . $appsDir;
 $apps=[];
 $groupedApps=[];
 // Default shell menu button geometry for app pages.
@@ -84,8 +85,9 @@ $defaultMenuButton=['left'=>20,'top'=>13,'width'=>40,'height'=>40];
 	$shellParseMenuButton=function(array $nameData,string $key,array $defaults):array{
     $button=$defaults;
     if(isset($nameData[$key])&&is_array($nameData[$key])){
+        $aliases=['left'=>'x','top'=>'y'];
         foreach($defaults as $k=>$defaultValue){
-            $rawValue=$nameData[$key][$k]??null;
+            $rawValue=$nameData[$key][$k]??($nameData[$key][$aliases[$k]??'']??null);
             if(is_numeric($rawValue)){
                 $button[$k]=max(0,(int)$rawValue);
             }
@@ -106,8 +108,8 @@ $defaultMenuButton=['left'=>20,'top'=>13,'width'=>40,'height'=>40];
 	    return $style;
 	};
 $_shellUserRole=(int)($_SESSION['user']['role']??0);
-if(is_dir($appsDir)){
-    $subdirs=array_filter(glob($appsDir.'*'),'is_dir');
+if(is_dir($appsFsDir)){
+    $subdirs=array_filter(glob($appsFsDir.'*'),'is_dir');
     foreach($subdirs as $subdir){
         $nameFile=$subdir.'/name.json';
         $iconFileSvg=$subdir.'/icon.svg';
@@ -120,7 +122,7 @@ if(is_dir($appsDir)){
             $name=$nameData[$language]??($nameData['en']??basename($subdir));
             $menuButton=$shellParseMenuButton($nameData,'menu_button',$defaultMenuButton);
             $menuButtonMobile=$shellParseMenuButton($nameData,'menu_button_mobile',$menuButton);
-            $icon=file_exists($iconFileSvg)?$iconFileSvg:(file_exists($iconFilePng)?$iconFilePng:'default_icon.png');
+            $icon=file_exists($iconFileSvg)?$appsDir.$folder.'/icon.svg':(file_exists($iconFilePng)?$appsDir.$folder.'/icon.png':'default_icon.png');
             $totalVisits=$visitStatsTotals[$folder]??0;
             $appRailApps=['gitea','immich','plane','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
@@ -168,6 +170,17 @@ if($selectedApp){
             $selectedAppMenuButtonStyle=is_array($appData['menu_button_style']??null)?$appData['menu_button_style']:[];
             $selectedAppMenuButtonMobileStyle=is_array($appData['menu_button_mobile_style']??null)?$appData['menu_button_mobile_style']:[];
             break;
+        }
+    }
+    $selectedNameFile=$appsFsDir.basename((string)$selectedApp).'/name.json';
+    if(is_file($selectedNameFile)){
+        $selectedNameData=json_decode((string)file_get_contents($selectedNameFile),true);
+        if(is_array($selectedNameData)){
+            $selectedAppMenuButton=$shellParseMenuButton($selectedNameData,'menu_button',$defaultMenuButton);
+            $selectedAppMenuButtonMobile=$shellParseMenuButton($selectedNameData,'menu_button_mobile',$selectedAppMenuButton);
+            $selectedAppMenuButtonScroll=!empty($selectedNameData['menu_button_scroll']);
+            $selectedAppMenuButtonStyle=$shellParseMenuButtonStyle($selectedNameData,'menu_button_style');
+            $selectedAppMenuButtonMobileStyle=$shellParseMenuButtonStyle($selectedNameData,'menu_button_mobile_style');
         }
     }
 }

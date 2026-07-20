@@ -6,6 +6,32 @@ header("Content-type: text/css; charset: UTF-8");
 $theme = isset($_GET['theme']) && in_array($_GET['theme'], ['light', 'dark']) ? $_GET['theme'] : 'light';
 $color = isset($_GET['color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', $_GET['color']) ? $_GET['color'] : '#78a300';
 
+function adjust_color_brightness($hex, $factor) {
+    $hex = ltrim($hex, '#');
+    $r = hexdec(substr($hex, 0, 2));
+    $g = hexdec(substr($hex, 2, 2));
+    $b = hexdec(substr($hex, 4, 2));
+    $r = min(255, max(0, round($r * $factor)));
+    $g = min(255, max(0, round($g * $factor)));
+    $b = min(255, max(0, round($b * $factor)));
+    return sprintf('#%02x%02x%02x', $r, $g, $b);
+}
+
+function color_mix_hex($base, $mix, $amount) {
+    $base = ltrim($base, '#');
+    $mix = ltrim($mix, '#');
+    $r = round(hexdec(substr($base, 0, 2)) * (1 - $amount) + hexdec(substr($mix, 0, 2)) * $amount);
+    $g = round(hexdec(substr($base, 2, 2)) * (1 - $amount) + hexdec(substr($mix, 2, 2)) * $amount);
+    $b = round(hexdec(substr($base, 4, 2)) * (1 - $amount) + hexdec(substr($mix, 4, 2)) * $amount);
+    return sprintf('#%02x%02x%02x', $r, $g, $b);
+}
+
+$photo_border_color = color_mix_hex(adjust_color_brightness($color, 1.12), $theme === 'dark' ? '#ffd166' : '#0f8b8d', 0.28);
+
+$btn_border_color = adjust_color_brightness($color, 0.58);
+
+$btn_gradient_end = adjust_color_brightness($color, 0.80);
+
 // Определяем цвета для обеспечения контрастности
 $text_color = $theme === 'light' ? '#000000' : '#ffffff';
 $scrollbar_thumb = $theme === 'light' ? '#b8b8b8' : '#4a4a4a';
@@ -17,9 +43,17 @@ $grouping_bg = $theme === 'light' ? 'rgba(137, 137, 137, 0.7)' : 'rgba(88, 88, 8
 
 :root {
     --primary-color: <?php echo $color; ?>;
+    --photo-border-color: <?php echo $photo_border_color; ?>;
+    --recipe-line-border-color: <?php echo color_mix_hex($color, $theme === 'dark' ? '#8fd3ff' : '#006d77', 0.34); ?>;
+    --recipe-item-border-color: <?php echo color_mix_hex($color, $theme === 'dark' ? '#ffb86b' : '#b45f06', 0.28); ?>;
+    --btn-border-color: <?php echo $btn_border_color; ?>;
+    --btn-gradient-end: <?php echo $btn_gradient_end; ?>;
     --bg-color: <?php echo $theme === 'light' ? '#ffffff' : '#333333'; ?>;
     --text-color: <?php echo $text_color; ?>;
-    --border-radius: 8px;
+    --btn-bg-color: <?php echo adjust_color_brightness($color, $theme === 'dark' ? 0.70 : 0.65); ?>;
+    --btn-hover-bg: <?php echo adjust_color_brightness($color, $theme === 'dark' ? 0.60 : 0.55); ?>;
+    --border-radius: 16px;
+    --btn-border-radius: 24px;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     --hover-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
     --glow: 0 0 8px var(--primary-color);
@@ -106,46 +140,25 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .sidebar button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 2px solid var(--primary-color);
+    border: none;
     padding: 12px;
     cursor: pointer;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     transition: all 0.3s ease;
     box-shadow: var(--shadow);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
-<?php if ($theme === 'light'): ?>
-/* Blur-gradient effect for light theme buttons */
-.sidebar button {
-    position: relative;
-    overflow: hidden;
-}
 
-.sidebar button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    filter: blur(4px);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-.sidebar button:hover::before {
-    left: 100%;
-}
-<?php endif; ?>
 
 .sidebar button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-2px);
     box-shadow: var(--hover-shadow);
 }
@@ -256,43 +269,22 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .card-actions button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 2px solid var(--primary-color);
+    border: none;
     padding: 5px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
-<?php if ($theme === 'light'): ?>
-/* Blur-gradient effect for light theme card action buttons */
-.card-actions button {
-    position: relative;
-    overflow: hidden;
-}
 
-.card-actions button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    filter: blur(4px);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-.card-actions button:hover::before {
-    left: 100%;
-}
-<?php endif; ?>
 
 .card-actions button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: scale(1.1);
     box-shadow: var(--hover-shadow);
 }
@@ -330,12 +322,16 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .modal-content::-webkit-scrollbar-track {
-    background: var(--bg-color);
+    background: transparent;
+    margin: 16px 0;
 }
 
 .modal-content::-webkit-scrollbar-thumb {
     background: <?php echo $scrollbar_thumb; ?>;
     border-radius: var(--border-radius);
+    border-top: 16px solid transparent;
+    border-bottom: 16px solid transparent;
+    background-clip: padding-box;
 }
 
 .modal-content::-webkit-scrollbar-thumb:hover {
@@ -352,13 +348,14 @@ body::-webkit-scrollbar-thumb:hover {
     max-height: 200px;
     object-fit: contain;
     border-radius: var(--border-radius);
+    border: 2px solid var(--photo-border-color);
 }
 
 .recipe-view h3 {
     margin-top: 25px;
     margin-bottom: 15px;
     padding-bottom: 10px;
-    border-bottom: 2px solid var(--primary-color);
+    border-bottom: 2px solid var(--recipe-line-border-color);
     color: var(--primary-color);
     font-size: 1.3em;
 }
@@ -379,7 +376,7 @@ body::-webkit-scrollbar-thumb:hover {
     height: 50px;
     object-fit: cover;
     border-radius: var(--border-radius);
-    border: 1px solid var(--primary-color);
+    border: 1px solid var(--recipe-item-border-color);
 }
 
 .ingredient-image.faded {
@@ -399,11 +396,11 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .complete-button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 2px solid var(--primary-color);
+    border: none;
     padding: 8px 16px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
@@ -412,32 +409,10 @@ body::-webkit-scrollbar-thumb:hover {
     gap: 5px;
 }
 
-<?php if ($theme === 'light'): ?>
-/* Blur-gradient effect for light theme complete buttons */
-.complete-button {
-    position: relative;
-    overflow: hidden;
-}
 
-.complete-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    filter: blur(4px);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-.complete-button:hover::before {
-    left: 100%;
-}
-<?php endif; ?>
 
 .complete-button:hover {
+    background-color: var(--btn-hover-bg) !important;
     box-shadow: var(--hover-shadow);
 }
 
@@ -513,45 +488,24 @@ form textarea {
 }
 
 form button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
+    border: none;
     padding: 10px 20px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow), var(--glow);
     transition: transform 0.2s;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
-<?php if ($theme === 'light'): ?>
-/* Blur-gradient effect for light theme form buttons */
-form button {
-    position: relative;
-    overflow: hidden;
-}
 
-form button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    filter: blur(4px);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-form button:hover::before {
-    left: 100%;
-}
-<?php endif; ?>
 
 form button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-2px);
 }
 
@@ -608,11 +562,11 @@ form button:hover {
 }
 
 .product-card-actions button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
+    border: none;
     padding: 3px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
@@ -621,35 +575,14 @@ form button:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
-<?php if ($theme === 'light'): ?>
-/* Blur-gradient effect for light theme product card action buttons */
-.product-card-actions button {
-    position: relative;
-    overflow: hidden;
-}
 
-.product-card-actions button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    filter: blur(4px);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-.product-card-actions button:hover::before {
-    left: 100%;
-}
-<?php endif; ?>
 
 .product-card-actions button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: scale(1.1);
     box-shadow: var(--hover-shadow);
 }
@@ -782,20 +715,22 @@ form button:hover {
 
 .cropper-actions button {
     margin: 0 10px;
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
+    border: none;
     padding: 10px 20px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow), var(--glow);
     transition: transform 0.2s;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
 .cropper-actions button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-2px);
     box-shadow: var(--hover-shadow);
 }
@@ -873,9 +808,10 @@ form button:hover {
 }
 .btn-load-image-url {
     padding: 10px 16px;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--primary-color);
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    border-radius: var(--btn-border-radius);
+    border: none;
+    background-color: var(--btn-bg-color);
+    border: none;
     color: var(--text-color);
     cursor: pointer;
     align-self: flex-start;
@@ -928,32 +864,35 @@ form button:hover {
 }
 
 .step button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 2px solid var(--primary-color);
+    border: none;
     padding: 8px 16px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
 .search-button {
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
+    border: none;
     padding: 10px 20px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow), var(--glow);
     transition: transform 0.2s;
     position: relative;
     overflow: hidden;
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
 }
 
 .search-button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-2px);
     box-shadow: var(--hover-shadow);
 }
@@ -980,9 +919,10 @@ form button:hover {
     justify-content: center;
     min-height: 40px;
     padding: 10px 16px;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--primary-color);
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    border-radius: var(--btn-border-radius);
+    border: none;
+    background-color: var(--btn-bg-color);
+    border: none;
     color: var(--text-color);
     cursor: pointer;
     box-shadow: var(--shadow);
@@ -994,35 +934,13 @@ form button:hover {
 }
 
 .image-tool-btn-secondary {
-    background: rgba(120, 163, 0, 0.12);
+    background: rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.12);
 }
 
-<?php if ($theme === 'light'): ?>
-/* Blur-gradient effect for light theme step buttons */
-.step button {
-    position: relative;
-    overflow: hidden;
-}
 
-.step button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
-    filter: blur(4px);
-    transition: left 0.5s ease;
-    pointer-events: none;
-}
-
-.step button:hover::before {
-    left: 100%;
-}
-<?php endif; ?>
 
 .step button:hover {
+    background-color: var(--btn-hover-bg) !important;
     box-shadow: var(--hover-shadow);
 }
 
@@ -1252,7 +1170,7 @@ form button:hover {
     padding: 20px 30px;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
-    border: 2px solid var(--primary-color);
+    border: 2px solid var(--btn-border-color);
     font-size: 16px;
     z-index: 9999;
 }
@@ -1285,7 +1203,7 @@ form button:hover {
     padding: 16px 18px;
     border: 1px solid var(--primary-color);
     border-radius: calc(var(--border-radius) + 2px);
-    background: linear-gradient(180deg, rgba(120, 163, 0, 0.12), rgba(120, 163, 0, 0.04));
+    background: linear-gradient(180deg, rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.12), rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.04));
     box-shadow: var(--shadow);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -1301,11 +1219,11 @@ form button:hover {
 }
 
 .product-management-btn {
-    background: rgba(120, 163, 0, 0.12);
+    background: rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.12);
     color: var(--text-color);
-    border: 2px solid var(--primary-color);
+    border: none;
     padding: 10px 18px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
@@ -1316,12 +1234,15 @@ form button:hover {
 }
 
 .product-management-btn:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-1px);
     box-shadow: var(--hover-shadow);
 }
 
 .product-management-btn-primary {
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.7));
+    background-color: var(--btn-bg-color);
+    border: none;
+    border-color: transparent;
 }
 
 .product-management-search {
@@ -1405,8 +1326,8 @@ form button:hover {
     padding: 14px 12px 16px;
     box-sizing: border-box;
     border-radius: var(--border-radius);
-    border: 1px solid rgba(120, 163, 0, 0.35);
-    background: rgba(120, 163, 0, 0.06);
+    border: 1px solid rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.35);
+    background: rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.06);
 }
 #addProductModal .add-product-form {
     display: flex;
@@ -1455,10 +1376,10 @@ form button:hover {
     gap: 12px;
 }
 #addProductModal .add-product-inner {
-    background: rgba(120, 163, 0, 0.1);
+    background: rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.1);
     border-radius: var(--border-radius);
     padding: 12px 14px;
-    border: 1px solid rgba(120, 163, 0, 0.35);
+    border: 1px solid rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.35);
     box-sizing: border-box;
 }
 #addProductModal .add-product-inner--switch {
@@ -1525,14 +1446,16 @@ form button:hover {
     min-width: 160px;
     padding: 12px 28px;
     font-size: 16px;
-    border-radius: var(--border-radius);
-    border: 2px solid var(--primary-color);
-    background: linear-gradient(135deg, var(--primary-color), rgba(120, 163, 0, 0.75));
+    border-radius: var(--btn-border-radius);
+    border: none;
+    background-color: var(--btn-bg-color);
+    border: none;
     color: var(--text-color);
     cursor: pointer;
     box-shadow: var(--shadow), var(--glow);
 }
 #addProductModal .add-product-submit-btn:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-1px);
     box-shadow: var(--hover-shadow);
 }
@@ -1629,11 +1552,11 @@ input[type="file"]:required {
     text-align: center;
     margin: 20px auto 20px auto;
     box-sizing: border-box;
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
+    border: none;
     padding: 10px 20px;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow), var(--glow);
     transition: transform 0.2s;
@@ -1641,6 +1564,7 @@ input[type="file"]:required {
 }
 
 .search-button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-2px);
 }
 
@@ -1780,7 +1704,7 @@ input[type="file"]:required {
 .lang-btn {
     background-color: var(--bg-color);
     color: var(--text-color);
-    border: 2px solid var(--primary-color);
+    border: 2px solid var(--btn-border-color);
     padding: 5px 10px;
     border-radius: var(--border-radius);
     cursor: pointer;
@@ -1842,7 +1766,7 @@ input[type="file"]:required {
     font-size: 16px;
     background-color: var(--primary-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
+    border: 1px solid var(--btn-border-color);
     border-radius: var(--border-radius);
     cursor: pointer;
     transition: all 0.3s ease;
@@ -1983,10 +1907,10 @@ input[type="file"]:required {
 .share-actions button {
     padding: 10px 20px;
     font-size: 14px;
-    background-color: var(--primary-color);
+    background-color: var(--btn-bg-color);
     color: var(--text-color);
-    border: 1px solid var(--primary-color);
-    border-radius: var(--border-radius);
+    border: none;
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     transition: all 0.3s ease;
     font-weight: bold;
@@ -1994,6 +1918,7 @@ input[type="file"]:required {
 }
 
 .share-actions button:hover {
+    background-color: var(--btn-hover-bg) !important;
     transform: translateY(-2px);
     box-shadow: var(--hover-shadow);
 }
@@ -2032,13 +1957,16 @@ input[type="file"]:required {
 }
 
 .share-preview-wrapper::-webkit-scrollbar-track {
-    background: var(--bg-color);
-    border-radius: var(--border-radius);
+    background: transparent;
+    margin: 16px 0;
 }
 
 .share-preview-wrapper::-webkit-scrollbar-thumb {
     background: var(--primary-color);
     border-radius: var(--border-radius);
+    border-top: 16px solid transparent;
+    border-bottom: 16px solid transparent;
+    background-clip: padding-box;
 }
 
 .share-preview-wrapper::-webkit-scrollbar-thumb:hover {
@@ -2051,8 +1979,8 @@ input[type="file"]:required {
     top: 10px;
     right: 10px;
     z-index: 10000 !important;
-    background-color: var(--primary-color);
-    border: 2px solid var(--primary-color);
+    background-color: var(--btn-bg-color);
+    border: 2px solid var(--btn-border-color);
     border-radius: 50%;
     width: 40px;
     height: 40px;
@@ -2085,13 +2013,26 @@ input[type="file"]:required {
 
 /* ==================== МОБИЛЬНАЯ ВЕРСИЯ ==================== */
 @media (max-width: 768px) {
+    body {
+        padding-top: 86px;
+    }
+    .main-content {
+        margin-right: 0;
+    }
     .recipe-search-container {
+        position: fixed;
+        top: 20px;
+        left: 12px;
+        right: 87px;
+        z-index: 999;
         width: auto;
-        margin: 0 74px 16px 0;
+        max-width: none;
+        margin: 0;
         padding: 0;
     }
 
     .sidebar {
+        position: fixed !important;
         width: 65px !important;
         right: 10px !important;
         top: 20px !important;
@@ -2119,7 +2060,7 @@ input[type="file"]:required {
         top: 10px !important;
         right: 10px !important;
         z-index: 1001;
-        background: var(--primary-color);
+        background: var(--btn-bg-color);
         border-radius: 50%;
         width: 36px;
         height: 36px;
@@ -2670,7 +2611,7 @@ input[type="file"]:required {
 .image-preview-container.dragover {
     border-style: solid;
     box-shadow: var(--glow);
-    background: rgba(120, 163, 0, 0.12);
+    background: rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.12);
 }
 
 .image-preview {
@@ -2941,7 +2882,7 @@ input[type="file"]:required {
     .cropper-actions button {
         padding: 10px 30px;
         border: none;
-        border-radius: var(--border-radius);
+        border-radius: var(--btn-border-radius);
         cursor: pointer;
         font-size: 16px;
         transition: all 0.3s ease;
@@ -2950,7 +2891,7 @@ input[type="file"]:required {
     .btn-apply {
         background-color: var(--primary-color);
         color: white;
-        border: 2px solid var(--primary-color);
+        border: 2px solid var(--btn-border-color);
     }
 
     .btn-apply:hover {
@@ -3366,7 +3307,7 @@ input[type="file"]:required {
 .ai-workspace-save-row button {
     padding: 12px 20px;
     border: none;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     background: linear-gradient(135deg, #c47f1e, #0f8b8d);
     color: #fff;
     cursor: pointer;
@@ -3459,7 +3400,7 @@ input[type="file"]:required {
 }
 .ai-insert-menu button {
     padding: 8px 12px;
-    border: 1px solid var(--ai-surface-border);
+    border: none;
     border-radius: 6px;
     background: var(--bg-color);
     color: var(--text-color);
@@ -3471,7 +3412,7 @@ input[type="file"]:required {
 .ai-insert-menu button:hover,
 .ai-insert-menu button:focus {
     outline: none;
-    border-color: var(--ai-prompt-border);
+    border-color: transparent;
     background: color-mix(in srgb, var(--ai-prompt-border) 10%, var(--bg-color));
 }
 .ai-preview-step.ai-step-new-highlight {
@@ -3670,7 +3611,7 @@ input[type="file"]:required {
 .ai-pending-actions button {
     padding: 8px 14px;
     border: none;
-    border-radius: var(--border-radius);
+    border-radius: var(--btn-border-radius);
     cursor: pointer;
     font-size: 13px;
     font-weight: 600;
@@ -3840,6 +3781,44 @@ input[type="file"]:required {
         grid-template-columns: 1fr;
     }
     #aiRecipeWorkspaceModal .modal-content.ai-recipe-workspace {
+        width: 100vw !important;
+        max-width: none !important;
+        height: 100dvh !important;
+        max-height: none !important;
         padding: 50px 12px 12px 12px;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+    .ai-workspace-header,
+    .ai-workspace-body,
+    .ai-workspace-zone,
+    #aiRecipePreviewForm,
+    .ai-preview-image-block,
+    .ai-preview-image-row,
+    .ai-preview-image-meta,
+    #aiPreviewImageUrl {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        min-width: 0;
+    }
+    .ai-workspace-zone {
+        padding: 14px;
+    }
+    .ai-preview-image-meta {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .ai-image-source-label,
+    .ai-refresh-image-btn,
+    .ai-choose-image-btn {
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .ai-image-source-label {
+        overflow-wrap: anywhere;
+    }
+    #aiPreviewImageUrl {
+        min-width: 0;
     }
 }

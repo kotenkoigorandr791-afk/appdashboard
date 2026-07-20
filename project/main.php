@@ -101,7 +101,7 @@
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
-	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1000;padding:0;border:none;outline:none;}
+	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1002;padding:0;border:none;outline:none;width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);}
 	        <?php if(!empty($selectedAppMenuButtonScroll)): ?>#menu-button{position:absolute;}<?php endif; ?>
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
@@ -123,11 +123,12 @@
 	            #menu-button .menu-button-glyph{font-size:calc(var(--shell-menu-button-mobile-height) * 0.5);}
 	        }
         <?php endif; ?>
-        #sidebar{position:fixed;top:0;left:-320px;width:320px;height:100%;background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;}
+        #sidebar{position:fixed;top:0;left:-320px;width:320px;height:100%;background-color:var(--sidebar-bg);transition:left 0.3s;padding:20px 20px 20px 20px;box-sizing:border-box;z-index:999;border-top-right-radius:20px;border-bottom-right-radius:20px;display:flex;flex-direction:column;}
         #sidebar.open{left:0;}
-        #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
         #app-list-container::-webkit-scrollbar{display:none;}
         #bottom-bar{position:absolute;bottom:20px;left:20px;right:20px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
+        #app-list-container{margin-top:0;padding-top:0;max-height:none;flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 60px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 60px),transparent 100%);}
+        #bottom-bar{position:relative;bottom:auto;left:auto;right:auto;flex-shrink:0;padding-top:8px;}
         .search-container{position:relative;flex:1 1 auto;min-width:0;}
         .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.65;pointer-events:none;}
         #search-bar{width:100%;padding:10px;box-sizing:border-box;border-radius:8px;border:1px solid var(--border-color);padding-right:35px;padding-left:34px;background:var(--modal-bg);color:var(--text-color);caret-color:var(--text-color);-webkit-text-fill-color:var(--text-color);}

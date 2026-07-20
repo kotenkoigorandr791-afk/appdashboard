@@ -42,6 +42,7 @@
         const recipes = <?php echo json_encode($recipes, JSON_UNESCAPED_UNICODE); ?>;
         const translations = <?php echo json_encode($translations[$lang] ?? $translations['en'] ?? [], JSON_UNESCAPED_UNICODE); ?>;
         const currentLang = '<?php echo $lang; ?>';
+        window.RecipeColorTone?.apply({ color: '<?php echo $color; ?>', theme: '<?php echo $theme; ?>' });
         const itemsPerPage = <?php echo $config['items_per_page']; ?>;
         
         const userRole = <?php echo $userRole; ?>;
@@ -64,6 +65,14 @@
             editProduct: { originalFile: null, removed: false, busy: false }
         };
         let cropperUiAbort = null;
+        async function parseJsonResponse(response) {
+            const text = await response.text();
+            try {
+                return JSON.parse(text);
+            } catch (error) {
+                throw new Error(response.ok ? 'Invalid JSON response' : `Request failed (${response.status})`);
+            }
+        }
         
         // Языки для переключения
         const languages = {
@@ -113,7 +122,7 @@
             }
 
             const response = await fetch(`?get_recipe_full=1&recipe_id=${encodeURIComponent(recipe.id)}`);
-            const result = await response.json();
+            const result = await parseJsonResponse(response);
             if (!result || !result.success || !result.data) {
                 throw new Error('Failed to load recipe steps');
             }
@@ -163,7 +172,7 @@
                     context: 'food'
                 })
             });
-            const data = await response.json();
+            const data = await parseJsonResponse(response);
             if (!data || !data.success) {
                 throw new Error('Translation request failed');
             }
@@ -474,7 +483,7 @@
 
         function refreshProducts() {
             fetch('?get_products=1')
-                .then(response => response.json())
+                .then(response => parseJsonResponse(response))
                 .then(productsList => {
                     products.splice(0, products.length, ...productsList);
                     renderProductGrid(productsList);
@@ -494,7 +503,7 @@
             const colorParam = urlParams.get('color') || '#78a300';
 
             fetch(`?get_recipes=1&lang=${lang}&theme=${themeParam}&color=${encodeURIComponent(colorParam)}`)
-                .then(response => response.json())
+                .then(response => parseJsonResponse(response))
                 .then(data => {
                     if (data.recipes) {
                         // Update the global recipes array
@@ -792,7 +801,7 @@
                     method: 'POST',
                     body: formData
                 });
-                const result = await response.json();
+                const result = await parseJsonResponse(response);
                 showNotification(result.message, result.success ? 'success' : 'error');
                 closeModal('editProductModal');
                 if (result.success) {
@@ -865,7 +874,7 @@
 
             // Fetch full recipe from database
             fetch(`?get_recipe_full=1&recipe_id=${recipeId}`)
-                .then(response => response.json())
+                .then(response => parseJsonResponse(response))
                 .then(recipe => {
                     if (!recipe || !recipe.success) {
                         showNotification('Failed to load recipe', 'error');
@@ -988,9 +997,10 @@
         }
 
         function switchRecipeLanguage(recipeId, langCode) {
-            fetch(`recipes/${recipeId}/recipe.json`)
-                .then(response => response.json())
-                .then(recipe => {
+            fetch(`?get_recipe_full=1&recipe_id=${recipeId}`)
+                .then(response => parseJsonResponse(response))
+                .then(responseData => {
+                    const recipe = responseData.success ? responseData.data : responseData;
                     const recipeView = document.getElementById('recipeViewContent');
                     
                     let langButtons = '<div class="language-switcher">';
@@ -1101,7 +1111,7 @@
 
             // Fetch full recipe from database
             fetch(`?get_recipe_full=1&recipe_id=${recipeId}`)
-                .then(response => response.json())
+                .then(response => parseJsonResponse(response))
                 .then(recipe => {
                     if (!recipe || !recipe.success) {
                         showNotification('Failed to load recipe for editing', 'error');
@@ -1177,7 +1187,7 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=delete_recipe&recipe_id=${recipeId}`
             })
-            .then(response => response.json())
+            .then(response => parseJsonResponse(response))
             .then(result => {
                 if (result.success) {
                     showNotification(result.message, 'success');
@@ -1292,7 +1302,7 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `action=delete_product&product_id=${productId}`
             })
-            .then(response => response.json())
+            .then(response => parseJsonResponse(response))
             .then(result => {
                 if (result.success) {
                     showNotification(result.message, 'success');
@@ -1814,7 +1824,7 @@
                     method: 'POST',
                     body: formData
                 });
-                const result = await response.json();
+                const result = await parseJsonResponse(response);
                 
                 if (result.success) {
                     showNotification(result.message, 'success');
@@ -1868,7 +1878,7 @@
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: `action=save_config&config=${encodeURIComponent(JSON.stringify(config))}`
                 });
-                const result = await response.json();
+                const result = await parseJsonResponse(response);
                 if (result.success) {
                     showNotification(result.message, 'success');
                     closeModal('settingsModal');
@@ -2130,7 +2140,7 @@
                     body: JSON.stringify({ url: url }),
                     credentials: 'same-origin'
                 });
-                const j = await r.json();
+                const j = await parseJsonResponse(r);
                 if (!j.success) {
                     let msg = translations.image_url_fetch_failed;
                     if (j.message === 'invalid_url') msg = translations.image_url_invalid;
@@ -2749,7 +2759,7 @@
                     method: 'POST',
                     body: formData
                 });
-                const result = await response.json();
+                const result = await parseJsonResponse(response);
 
                 if (result.success) {
                     showNotification(result.message, 'success');
@@ -2791,7 +2801,7 @@
 
                 // Fetch full recipe from database
                 const response = await fetch(`?get_recipe_full=1&recipe_id=${recipeId}`);
-                const recipeData = await response.json();
+                const recipeData = await parseJsonResponse(response);
                 
                 if (!recipeData || !recipeData.success) {
                     throw new Error('Failed to load recipe');
@@ -3069,7 +3079,7 @@
                 credentials: 'same-origin',
                 body: JSON.stringify({ action: 'config' })
             });
-            const j = await r.json();
+            const j = await parseJsonResponse(r);
             if (!j.success || !j.config) throw new Error('config');
             aiRecipeConfig = j.config;
             const sel = document.getElementById('aiRecipeModel');
@@ -3817,7 +3827,7 @@
                 credentials: 'same-origin',
                 body: JSON.stringify(body)
             });
-            return r.json();
+            return parseJsonResponse(r);
         }
 
         function parseSseBlock(block) {
@@ -3946,7 +3956,7 @@
                 credentials: 'same-origin',
                 body: JSON.stringify({ url })
             });
-            const j = await r.json();
+            const j = await parseJsonResponse(r);
             if (!j.success) return null;
             const bin = atob(j.data);
             const bytes = new Uint8Array(bin.length);
