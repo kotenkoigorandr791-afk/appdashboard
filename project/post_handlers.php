@@ -1633,14 +1633,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div id="ap-analysis-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;"></div>
                 
                 <!-- Pie Chart and Popular Apps Grid -->
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+                <div class="ap-analysis-grid">
                     <!-- Pie Chart -->
-                    <div style="background:var(--group-block-bg);border-radius:8px;padding:14px;border:1px solid var(--border-color);">
+                    <div class="ap-analysis-box">
                         <div style="font-weight:600;margin-bottom:10px;font-size:13px;"><?php echo my_htmlspecialchars($translations['stats_load_distribution']??'App Load Distribution'); ?></div>
                         <div style="position:relative;height:280px;"><canvas id="ap-pie-canvas"></canvas></div>
                     </div>
                     <!-- Popular Apps -->
-                    <div style="background:var(--group-block-bg);border-radius:8px;padding:14px;border:1px solid var(--border-color);">
+                    <div class="ap-analysis-box">
                         <div style="font-weight:600;margin-bottom:10px;font-size:13px;"><?php echo my_htmlspecialchars($translations['stats_popular_apps']??'Most Popular Apps'); ?></div>
                         <div id="ap-popular-apps" style="max-height:280px;overflow-y:auto;"></div>
                     </div>

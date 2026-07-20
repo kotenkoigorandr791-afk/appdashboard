@@ -692,15 +692,10 @@
         .weather-deny-btn:hover {
             opacity: 0.85;
         }
-        /* Weather icon colors */
-        .weather-icon-sunny { color: #f59e0b; }
-        .weather-icon-cloudy { color: #94a3b8; }
-        .weather-icon-rainy { color: #60a5fa; }
-        .weather-icon-snowy { color: #bae6fd; }
-        .weather-icon-foggy { color: #cbd5e1; }
-        .weather-icon-storm { color: #7c3aed; }
-        .weather-icon-partly { color: #f59e0b; }
-        .weather-icon-drizzle { color: #93c5fd; }
+        /* Weather icon colors - now using inline colors in SVG */
+        .weather-icon-wrap {
+            color: inherit;
+        }
         @media (max-width: 480px) {
             .weather-widget {
                 padding: 12px 14px;
@@ -4809,6 +4804,36 @@ var T=<?php echo json_encode([
     border-radius: 6px;
 }
 #ap-stats-hot-table { height: calc(100vh - 320px); min-height: 400px; width: 100%; }
+#ap-stats-analysis,
+#ap-stats-analysis * {
+    box-sizing: border-box;
+}
+.ap-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.ap-analysis-box {
+    min-width: 0;
+    max-width: 100%;
+    background: var(--group-block-bg);
+    border-radius: 8px;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+}
+@media (max-width: 768px) {
+    #ap-stats-analysis {
+        padding: 14px !important;
+        overflow: hidden;
+    }
+    .ap-analysis-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+    #ap-pie-canvas {
+        max-width: 100%;
+    }
+}
 
 /* Handsontable light theme (default) */
 #ap-stats-hot-table .handsontable th,
@@ -10668,18 +10693,18 @@ function escHtml(str) {
     return d.innerHTML;
 }
 
-/* ── SVG icons for each weather type ── */
+/* ── SVG icons for each weather type (colorful) ── */
 var WEATHER_ICONS = {
-    sunny: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
-    partly_cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M17.66 6.34l1.41-1.41"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" opacity="0.5"/></svg>',
-    cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
-    overcast: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h18M3 18h18M3 12h18" opacity="0.4"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" opacity="0.6"/></svg>',
-    fog: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="3" y1="18" x2="21" y2="18"/></svg>',
-    drizzle: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2m0 16v2M16 12v2M8 12v2M4 16h16" opacity="0.5"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" opacity="0.8"/><line x1="8" y1="16" x2="8" y2="17"/><line x1="12" y1="16" x2="12" y2="17"/><line x1="16" y1="16" x2="16" y2="17"/></svg>',
-    rain: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z"/><line x1="8" y1="16" x2="7" y2="19"/><line x1="12" y1="16" x2="11" y2="21"/><line x1="16" y1="16" x2="15" y2="19"/></svg>',
-    snow: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z"/><circle cx="8" cy="18" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="16" cy="18" r="1"/><circle cx="10" cy="22" r="1"/><circle cx="14" cy="22" r="1"/></svg>',
-    thunderstorm: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 0 0 0-4h-1.5m-9-1A4 4 0 0 1 8 6a5 5 0 0 1 8.9-2.6A3.5 3.5 0 0 1 17 11.5"/><polyline points="13 13 11 17 14 17 12 21"/></svg>',
-    windy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5"/></svg>'
+    sunny: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5" fill="#FFD700" opacity="0.2"/><circle cx="12" cy="12" r="5" stroke="#FFD700" stroke-width="2"/><line x1="12" y1="1" x2="12" y2="3" stroke="#FFD700"/><line x1="12" y1="21" x2="12" y2="23" stroke="#FFD700"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="#FFD700"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="#FFD700"/><line x1="1" y1="12" x2="3" y2="12" stroke="#FFD700"/><line x1="21" y1="12" x2="23" y2="12" stroke="#FFD700"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="#FFD700"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="#FFD700"/></svg>',
+    partly_cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M17.66 6.34l1.41-1.41" stroke="#FFD700"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1"/></svg>',
+    cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" fill="#94A3B8" stroke="#64748B"/></svg>',
+    overcast: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 15h18M3 18h18M3 12h18" stroke="#94A3B8" opacity="0.6"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" fill="#64748B" opacity="0.8"/></svg>',
+    fog: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12" stroke="#CBD5E1"/><line x1="3" y1="15" x2="21" y2="15" stroke="#CBD5E1"/><line x1="3" y1="18" x2="21" y2="18" stroke="#CBD5E1"/><line x1="3" y1="9" x2="21" y2="9" stroke="#CBD5E1" opacity="0.6"/></svg>',
+    drizzle: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" fill="#93C5FD" opacity="0.6" stroke="#60A5FA"/><line x1="8" y1="16" x2="8" y2="17" stroke="#60A5FA"/><line x1="12" y1="16" x2="12" y2="17" stroke="#60A5FA"/><line x1="16" y1="16" x2="16" y2="17" stroke="#60A5FA"/><line x1="10" y1="18" x2="10" y2="19" stroke="#60A5FA"/><line x1="14" y1="18" x2="14" y2="19" stroke="#60A5FA"/></svg>',
+    rain: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" fill="#60A5FA" opacity="0.4" stroke="#3B82F6"/><line x1="8" y1="16" x2="7" y2="19" stroke="#3B82F6"/><line x1="12" y1="16" x2="11" y2="21" stroke="#3B82F6"/><line x1="16" y1="16" x2="15" y2="19" stroke="#3B82F6"/><line x1="10" y1="18" x2="9" y2="20" stroke="#3B82F6"/><line x1="14" y1="18" x2="13" y2="20" stroke="#3B82F6"/></svg>',
+    snow: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" fill="#BAE6FD" opacity="0.6" stroke="#0EA5E9"/><circle cx="8" cy="18" r="1.5" fill="#FFFFFF"/><circle cx="12" cy="20" r="1.5" fill="#FFFFFF"/><circle cx="16" cy="18" r="1.5" fill="#FFFFFF"/><circle cx="10" cy="22" r="1.2" fill="#FFFFFF"/><circle cx="14" cy="22" r="1.2" fill="#FFFFFF"/><path d="M10 24h4" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    thunderstorm: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 18a2 2 0 0 0 0-4h-1.5m-9-1A4 4 0 0 1 8 6a5 5 0 0 1 8.9-2.6A3.5 3.5 0 0 1 17 11.5" stroke="#7C3AED"/><polyline points="13 13 11 17 14 17 12 21" stroke="#A855F7"/><polygon points="13,4 11,8 15,8 13,12" fill="#FEF3C7" stroke="#F59E0B" stroke-width="1"/></svg>',
+    windy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5" stroke="#94A3B8"/><path d="M15 10c0 2-1 4-3 4s-3-2-3-4" stroke="#64748B" stroke-width="1.5" opacity="0.7"/></svg>'
 };
 
 /* ── WMO Weather Codes ── */
@@ -10719,36 +10744,21 @@ function getWeatherInfo(code, isDay) {
     return { key: key, desc: desc };
 }
 
-/* ── Icon class mapping ── */
-var ICON_CLASSES = {
-    sunny: 'weather-icon-sunny',
-    partly_cloudy: 'weather-icon-partly',
-    cloudy: 'weather-icon-cloudy',
-    overcast: 'weather-icon-cloudy',
-    fog: 'weather-icon-foggy',
-    drizzle: 'weather-icon-drizzle',
-    rain: 'weather-icon-rainy',
-    snow: 'weather-icon-snowy',
-    thunderstorm: 'weather-icon-storm',
-    windy: 'weather-icon-cloudy'
-};
-
 /* ── Render the widget ── */
 function renderWeather(city, temp, windSpeed, code, isDay) {
     var info = getWeatherInfo(code, isDay);
     var iconSvg = WEATHER_ICONS[info.key] || WEATHER_ICONS.cloudy;
-    var iconClass = ICON_CLASSES[info.key] || 'weather-icon-cloudy';
     
     weatherWidget.style.display = 'flex';
     weatherWidget.innerHTML = 
-        '<div class="weather-icon-wrap ' + iconClass + '">' + iconSvg + '</div>' +
+        '<div class="weather-icon-wrap">' + iconSvg + '</div>' +
         '<div class="weather-info">' +
             '<div class="weather-city">' + escHtml(city) + '</div>' +
             '<div class="weather-temp-row">' +
                 '<span class="weather-temp">' + Math.round(temp) + '°C</span>' +
                 '<span class="weather-desc">' + escHtml(info.desc) + '</span>' +
                 '<span class="weather-wind">' +
-                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5"/></svg>' +
+                    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5"/></svg>' +
                     escHtml(windSpeed) + ' m/s' +
                 '</span>' +
             '</div>' +

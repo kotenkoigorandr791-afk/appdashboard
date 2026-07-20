@@ -666,13 +666,14 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            width: 22px;
-            height: 22px;
+            width: 36px;
+            height: 30px;
             color: var(--primary-color);
         }
-        .weather-widget .weather-icon svg {
-            width: 22px;
-            height: 22px;
+        .weather-widget .weather-icon svg,
+        .weather-widget .weather-icon img {
+            width: 36px;
+            height: 30px;
             display: block;
         }
         .weather-widget .weather-temp {
@@ -706,14 +707,44 @@
             cursor: default;
         }
         @media (max-width: 600px) {
-            .weather-widget .weather-location-sep,
-            .weather-widget .weather-pin-icon,
-            .weather-widget .weather-location,
+            #top-bar {
+                position: fixed;
+            }
+            #top-bar-title,
+            #weatherWidget {
+                left: 50%;
+                max-width: calc(100vw - 176px);
+                overflow: hidden;
+                position: absolute;
+                text-overflow: ellipsis;
+                transform: translateX(-50%);
+                transition: opacity .18s ease, visibility .18s ease;
+            }
+            #top-bar-title {
+                margin-left: 0;
+                white-space: nowrap;
+            }
+            #weatherWidget {
+                justify-content: center;
+                margin: 0;
+                visibility: hidden;
+                opacity: 0;
+            }
+            #top-bar.mobile-info-show-weather #top-bar-title {
+                visibility: hidden;
+                opacity: 0;
+            }
+            #top-bar.mobile-info-show-weather #weatherWidget {
+                visibility: visible;
+                opacity: 1;
+            }
             .weather-widget .weather-wind {
                 display: none;
             }
+            .weather-widget .weather-location {
+                max-width: 82px;
+            }
             .weather-widget {
-                margin: 0 6px;
                 gap: 4px;
             }
         }
@@ -5083,6 +5114,36 @@ var T=<?php echo json_encode([
     border-radius: 6px;
 }
 #ap-stats-hot-table { height: calc(100vh - 320px); min-height: 400px; width: 100%; }
+#ap-stats-analysis,
+#ap-stats-analysis * {
+    box-sizing: border-box;
+}
+.ap-analysis-grid {
+    display: grid;
+    grid-template-columns: repeat(2,minmax(0,1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+.ap-analysis-box {
+    min-width: 0;
+    max-width: 100%;
+    background: var(--group-block-bg);
+    border-radius: 8px;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+}
+@media (max-width: 768px) {
+    #ap-stats-analysis {
+        padding: 14px !important;
+        overflow: hidden;
+    }
+    .ap-analysis-grid {
+        grid-template-columns: minmax(0,1fr);
+    }
+    #ap-pie-canvas {
+        max-width: 100%;
+    }
+}
 
 /* Handsontable light theme (default) */
 #ap-stats-hot-table .handsontable th,
@@ -10951,40 +11012,51 @@ else injectAppMobileChrome();
 </script>
 <script>
 (function(){
+    var weatherIconBase = '/project/assets/weather-icons/animated/';
+    function weatherIconName(code) {
+        if (code === 0) return 'clear-day';
+        if (code >= 1 && code <= 2) return 'cloudy-2-day';
+        if (code === 3) return 'cloudy';
+        if (code >= 45 && code <= 48) return 'fog';
+        if (code >= 51 && code <= 57) return 'rainy-1';
+        if (code >= 61 && code <= 67) return 'rainy-3';
+        if (code >= 71 && code <= 77) return 'snowy-3';
+        if (code >= 80 && code <= 82) return 'rainy-2';
+        if (code >= 85 && code <= 86) return 'snowy-2';
+        if (code >= 95) return 'thunderstorms';
+        return 'cloudy';
+    }
     function weatherSvg(code) {
-        // SVG icons use currentColor, inherits var(--primary-color) from .weather-icon
-        if (code === 0) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
+        return '<img src="' + weatherIconBase + weatherIconName(code) + '.svg" alt="" loading="lazy" decoding="async">';
+    }
+    function initMobileTopBarRotation() {
+        var topBar = document.getElementById('top-bar');
+        var title = document.getElementById('top-bar-title');
+        var weather = document.getElementById('weatherWidget');
+        if (!topBar || !title || !weather) return;
+        var mq = window.matchMedia('(max-width: 600px)');
+        var timer = null;
+        function stop() {
+            if (timer) {
+                clearInterval(timer);
+                timer = null;
+            }
+            topBar.classList.remove('mobile-info-show-weather');
         }
-        if (code >= 1 && code <= 2) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="4"/><path d="M8 2v1M8 14v1M2 8h1M13 8h1M3.5 3.5l.7.7M12.5 12.5l.7.7M3.5 12.5l.7-.7M12.5 3.5l-.7.7"/><path d="M17.5 19H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 19Z"/></svg>';
+        function sync() {
+            if (!mq.matches) {
+                stop();
+                return;
+            }
+            if (timer) return;
+            topBar.classList.remove('mobile-info-show-weather');
+            timer = setInterval(function(){
+                topBar.classList.toggle('mobile-info-show-weather');
+            }, 5000);
         }
-        if (code === 3) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>';
-        }
-        if (code >= 45 && code <= 48) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M5 11h14M5 15h14M5 19h14"/></svg>';
-        }
-        if (code >= 51 && code <= 57) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="M8 16v2M12 16v2M16 16v2"/></svg>';
-        }
-        if (code >= 61 && code <= 67) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="M6 16v4M10 16v4M14 16v4M18 16v4"/></svg>';
-        }
-        if (code >= 71 && code <= 77) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><circle cx="8" cy="18" r="1"/><circle cx="12" cy="20" r="1"/><circle cx="16" cy="18" r="1"/></svg>';
-        }
-        if (code >= 80 && code <= 82) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="M8 16v3M12 16v3M16 16v3"/></svg>';
-        }
-        if (code >= 85 && code <= 86) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><circle cx="8" cy="18" r="1"/><circle cx="14" cy="19" r="1"/></svg>';
-        }
-        if (code >= 95) {
-            return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 13H9a5 5 0 1 1 4.8-6.2A4 4 0 1 1 17.5 13Z"/><path d="m12 14-2 5h3l-1 4 4-6h-3Z"/></svg>';
-        }
-        // fallback
-        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>';
+        sync();
+        if (typeof mq.addEventListener === 'function') mq.addEventListener('change', sync);
+        else if (typeof mq.addListener === 'function') mq.addListener(sync);
     }
 
     function initWeather() {
@@ -11092,8 +11164,12 @@ else injectAppMobileChrome();
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initWeather);
+        document.addEventListener('DOMContentLoaded', function(){
+            initMobileTopBarRotation();
+            initWeather();
+        });
     } else {
+        initMobileTopBarRotation();
         initWeather();
     }
 })();
