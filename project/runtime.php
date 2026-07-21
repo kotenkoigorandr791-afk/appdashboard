@@ -108,6 +108,7 @@ $defaultMenuButton=['left'=>20,'top'=>13,'width'=>40,'height'=>40];
 	    return $style;
 	};
 $_shellUserRole=(int)($_SESSION['user']['role']??0);
+$iconStyle=in_array(($config['icon_style']??''),['monochrome','multicolor','animated'],true)?$config['icon_style']:'animated';
 if(is_dir($appsFsDir)){
     $subdirs=array_filter(glob($appsFsDir.'*'),'is_dir');
     foreach($subdirs as $subdir){
@@ -122,11 +123,32 @@ if(is_dir($appsFsDir)){
             $name=$nameData[$language]??($nameData['en']??basename($subdir));
             $menuButton=$shellParseMenuButton($nameData,'menu_button',$defaultMenuButton);
             $menuButtonMobile=$shellParseMenuButton($nameData,'menu_button_mobile',$menuButton);
-            $icon=file_exists($iconFileSvg)?$appsDir.$folder.'/icon.svg':(file_exists($iconFilePng)?$appsDir.$folder.'/icon.png':'default_icon.png');
+            $styleIconFs=$subdir.'/icons/'.$iconStyle.'.svg';
+            if(is_file($styleIconFs)){
+                $icon=$appsDir.$folder.'/icons/'.$iconStyle.'.svg';
+                $iconMasked=($iconStyle==='monochrome');
+            }elseif(file_exists($iconFileSvg)){
+                $icon=$appsDir.$folder.'/icon.svg';
+                $iconMasked=true;
+            }elseif(file_exists($iconFilePng)){
+                $icon=$appsDir.$folder.'/icon.png';
+                $iconMasked=false;
+            }else{
+                $icon='default_icon.png';
+                $iconMasked=false;
+            }
             $totalVisits=$visitStatsTotals[$folder]??0;
             $appRailApps=['gitea','immich','plane','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
-	            $apps[$name]=['name'=>$name,'folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true)];
+            $descFile=$subdir.'/description.json';
+            $description='';
+            if(is_file($descFile)){
+                $descData=json_decode((string)file_get_contents($descFile),true);
+                if(is_array($descData)){
+                    $description=(string)($descData[$language]??($descData['en']??''));
+                }
+            }
+	            $apps[$name]=['name'=>$name,'folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'icon_masked'=>$iconMasked,'icon_style'=>$iconStyle,'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true),'description'=>$description];
         }
     }
     $iconSortOrder=$config['icon_sort_order']??'alpha';

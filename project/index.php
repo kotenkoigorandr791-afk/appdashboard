@@ -44,7 +44,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             exit;
         }
     }
-    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/')) {
+    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/')) {
         $__relative = ltrim(rawurldecode($__path), '/');
         $__target = realpath(APP_ROOT . '/' . $__relative);
         $__root = realpath(APP_ROOT);

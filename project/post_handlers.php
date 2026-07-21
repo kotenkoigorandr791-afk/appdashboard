@@ -591,6 +591,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $newTheme=$_POST['theme'];
     $newColor=ap_sanitize_hex_color((string)($_POST['color'] ?? ''));
     $newIconSortOrder=in_array(($_POST['icon_sort_order']??''),['alpha','popularity'],true)?$_POST['icon_sort_order']:'alpha';
+    $newIconStyle=in_array(($_POST['icon_style']??''),['monochrome','multicolor','animated'],true)?$_POST['icon_style']:'animated';
+    $newWallpaper=in_array(($_POST['wallpaper']??''),$allowedWallpapers,true)?$_POST['wallpaper']:'default';
     if(isset($_SESSION['user']['email'])){
         $userEmail=$_SESSION['user']['email'];
         $users=loadUsers();
@@ -599,15 +601,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $users[$userEmail]['theme']=$newTheme;
             $users[$userEmail]['color']=$newColor;
             $users[$userEmail]['icon_sort_order']=$newIconSortOrder;
+            $users[$userEmail]['icon_style']=$newIconStyle;
+            $users[$userEmail]['wallpaper']=$newWallpaper;
             saveUsers($users);
             $_SESSION['user']['language']=$newLanguage;
             $_SESSION['user']['theme']=$newTheme;
             $_SESSION['user']['color']=$newColor;
             $_SESSION['user']['icon_sort_order']=$newIconSortOrder;
+            $_SESSION['user']['icon_style']=$newIconStyle;
+            $_SESSION['user']['wallpaper']=$newWallpaper;
             $config['language']=$newLanguage;
             $config['theme']=$newTheme;
             $config['color']=$newColor;
             $config['icon_sort_order']=$newIconSortOrder;
+            $config['icon_style']=$newIconStyle;
+            $config['wallpaper']=$newWallpaper;
             $language=$newLanguage;
             $translations=$allTranslations[$language]??[];
             $translations=array_map(fn($v)=>$v??'',array_merge($defaultTranslations,$translations));

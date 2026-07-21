@@ -309,7 +309,9 @@ function recordAppMetric(string $userEmail, string $appId, string $metric, float
 // ─────────────────────────────────────────────────────────────────────────────
 function initDB(AppDatabase $db): void {
     if (app_db_is_pgsql()) {
-        $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'");
+        try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Throwable $e) {}
+        try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Throwable $e) {}
+        try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Throwable $e) {}
         ensure_cloud_encryption_consents_schema($db);
         ensureTrustedDevicesSchema($db);
         ensureTrustedDeviceCookiesSchema($db);
@@ -344,6 +346,9 @@ function initDB(AppDatabase $db): void {
 
     // Backfill icon_sort_order column for existing databases
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
+    // Backfill icon_style column for existing databases (monochrome|multicolor|animated)
+    try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
 
     // ── Pending users (awaiting email verification) ──────────────────────────
     // No FK to users — pending users do NOT yet exist in the users table
@@ -919,8 +924,8 @@ function loadUsers(): array {
     // Ensure root@root always exists
     if (!isset($users['root@root'])) {
         $rootPw = password_hash('root', PASSWORD_DEFAULT);
-        $db->exec("INSERT OR IGNORE INTO users(email,name,password,photo,role,verified,language,theme,color,icon_sort_order)
-                   VALUES('root@root','Root Administrator','$rootPw','default_avatar.png',2,1,'en','light','#007bff','alpha')");
+        $db->exec("INSERT OR IGNORE INTO users(email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style)
+                   VALUES('root@root','Root Administrator','$rootPw','default_avatar.png',2,1,'en','light','#007bff','alpha','animated')");
         $users['root@root'] = [
             'email'      => 'root@root',
             'name'       => 'Root Administrator',
@@ -932,6 +937,7 @@ function loadUsers(): array {
             'theme'      => 'light',
             'color'      => '#007bff',
             'icon_sort_order' => 'alpha',
+            'icon_style' => 'animated',
             'created_at' => date('Y-m-d H:i:s'),
         ];
     }
@@ -968,13 +974,15 @@ function saveUsers(array $users): void {
                 theme = :theme,
                 color = :color,
                 icon_sort_order = :icon_sort_order,
+                icon_style = :icon_style,
+                wallpaper = :wallpaper,
                 created_at = :created_at
                 WHERE email = :email");
         } else {
             // Используем INSERT для новых пользователей
             $stmt = $db->prepare("INSERT INTO users 
-                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, created_at)
-                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :created_at)");
+                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at)
+                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at)");
         }
         
         $stmt->bindValue(':email',      $email);
@@ -987,6 +995,8 @@ function saveUsers(array $users): void {
         $stmt->bindValue(':theme',      $u['theme']      ?? 'light');
         $stmt->bindValue(':color',      $u['color']      ?? '#007bff');
         $stmt->bindValue(':icon_sort_order', $u['icon_sort_order'] ?? 'alpha');
+        $stmt->bindValue(':icon_style', $u['icon_style'] ?? 'animated');
+        $stmt->bindValue(':wallpaper',  $u['wallpaper']  ?? 'default');
         $stmt->bindValue(':created_at', $u['created_at'] ?? date('Y-m-d H:i:s'));
         $stmt->execute();
     }
@@ -1022,11 +1032,13 @@ function upsertUser(string $email, array $fields): void {
         'theme'      => 'light',
         'color'      => '#007bff',
         'icon_sort_order' => 'alpha',
+        'icon_style' => 'animated',
+        'wallpaper' => 'default',
         'created_at' => date('Y-m-d H:i:s'),
     ], $current, $fields);
     $stmt = $db->prepare("INSERT OR REPLACE INTO users
-        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,created_at)
-        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:created_at)");
+        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at)
+        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at)");
     $stmt->bindValue(':email',      $email);
     $stmt->bindValue(':name',       $merged['name']);
     $stmt->bindValue(':password',   $merged['password']);
@@ -1037,6 +1049,8 @@ function upsertUser(string $email, array $fields): void {
     $stmt->bindValue(':theme',      $merged['theme']);
     $stmt->bindValue(':color',      $merged['color']);
     $stmt->bindValue(':icon_sort_order', $merged['icon_sort_order']);
+    $stmt->bindValue(':icon_style', $merged['icon_style'] ?? 'animated');
+    $stmt->bindValue(':wallpaper',  $merged['wallpaper'] ?? 'default');
     $stmt->bindValue(':created_at', $merged['created_at']);
     $stmt->execute();
 }
