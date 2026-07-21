@@ -338,13 +338,15 @@ class CustomAudioPlayer {
         align-items: center;
         min-width: 0;
         width: 100%;
-        max-width: 320px;
+        max-width: min(320px, 100%);
         min-height: 48px;
         padding: 7px 10px;
         border: 0;
         border-radius: 18px;
         background: color-mix(in srgb, var(--panel, #2a2a2a) 82%, var(--bg, #1a1a1a));
         box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border, #444) 55%, transparent);
+        box-sizing: border-box;
+        overflow: hidden;
       }
 
       .custom-audio-player.cap-voice-message .cap-play-btn {
@@ -355,6 +357,7 @@ class CustomAudioPlayer {
         background: var(--accent, #85b503);
         color: #fff;
         box-shadow: 0 6px 18px color-mix(in srgb, var(--accent, #85b503) 28%, transparent);
+        flex-shrink: 0;
       }
 
       .custom-audio-player.cap-voice-message .cap-play-btn:hover {
@@ -373,12 +376,16 @@ class CustomAudioPlayer {
         font-weight: 600;
         color: var(--muted, #888);
         text-align: right;
+        flex-shrink: 0;
+        white-space: nowrap;
       }
 
       .custom-audio-player.cap-voice-message .cap-seek-container {
         grid-area: wave;
         padding: 4px 0;
         min-width: 0;
+        width: 100%;
+        overflow: hidden;
       }
 
       .custom-audio-player.cap-voice-message .cap-seek-bar {
@@ -386,7 +393,9 @@ class CustomAudioPlayer {
         border: 0;
         border-radius: 0;
         background: transparent;
-        overflow: visible;
+        overflow: hidden;
+        width: 100%;
+        min-width: 0;
       }
 
       .custom-audio-player.cap-voice-message .cap-seek-progress {
@@ -405,10 +414,15 @@ class CustomAudioPlayer {
         gap: 2px;
         padding: 4px 0;
         overflow: hidden;
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
       .custom-audio-player.cap-voice-message .cap-wave-bar {
-        min-width: 2px;
+        flex: 1 1 0;
+        min-width: 0;
+        max-width: 100%;
         background: color-mix(in srgb, var(--fg, #fff) 26%, transparent);
         opacity: 1;
       }

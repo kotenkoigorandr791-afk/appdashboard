@@ -1400,6 +1400,7 @@ body.group-chat-open .layout{padding-right:0}
 .group-chat-resize-h{position:absolute;bottom:-4px;left:0;right:0;height:8px;cursor:ns-resize;z-index:2}
 .group-chat-panel--detached .group-chat-resize{right:-4px;left:auto;bottom:-4px;top:auto;width:14px;height:14px;cursor:nwse-resize}
 .group-chat-media{position:relative;max-width:240px}
+.group-chat-media--audio{max-width:100%;min-width:0;width:100%;overflow:hidden}
 .group-chat-media--loading::before{content:'';position:absolute;inset:0;border-radius:10px;background:linear-gradient(90deg,color-mix(in srgb,var(--border) 30%,transparent) 25%,color-mix(in srgb,var(--border) 50%,transparent) 50%,color-mix(in srgb,var(--border) 30%,transparent) 75%);background-size:200% 100%;animation:group-chat-media-shimmer 1.2s infinite}
 @keyframes group-chat-media-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .group-chat-media-thumb,.group-chat-media-preview{max-width:240px;max-height:180px;width:auto;height:auto;object-fit:cover;border-radius:10px;display:block;cursor:pointer;background:color-mix(in srgb,var(--panel) 70%,var(--bg))}
@@ -1424,7 +1425,7 @@ body.group-chat-open .layout{padding-right:0}
 .group-chat-empty{text-align:center;color:var(--muted);padding:24px 12px;font-size:13px}
 .group-chat-row{display:flex;justify-content:flex-start}
 .group-chat-row--own{justify-content:flex-end}
-.group-chat-bubble{max-width:88%;padding:10px 12px;border-radius:16px;background:color-mix(in srgb,var(--panel) 80%,var(--bg));border:1px solid color-mix(in srgb,var(--border) 80%,transparent);font-size:14px;line-height:1.45}
+.group-chat-bubble{max-width:88%;min-width:0;padding:10px 12px;border-radius:16px;background:color-mix(in srgb,var(--panel) 80%,var(--bg));border:1px solid color-mix(in srgb,var(--border) 80%,transparent);font-size:14px;line-height:1.45}
 .group-chat-row--own .group-chat-bubble{background:color-mix(in srgb,var(--accent) 22%,var(--panel));border-color:color-mix(in srgb,var(--accent) 35%,var(--border))}
 .group-chat-sender{font-size:11px;color:var(--muted);margin-bottom:4px;word-break:break-all}
 .group-chat-text{word-wrap:break-word}

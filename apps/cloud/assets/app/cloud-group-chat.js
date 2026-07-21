@@ -933,7 +933,8 @@
             .group-chat-media--audio {
                 width: 100%;
                 min-width: 0;
-                max-width: min(300px, 100%);
+                max-width: 100%;
+                overflow: hidden;
             }
             .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) {
                 padding: 6px 10px;
@@ -947,6 +948,18 @@
                 min-width: 0;
                 max-width: 100%;
                 box-sizing: border-box;
+            }
+            .group-chat-media--audio .cap-voice-message .cap-seek-container,
+            .group-chat-media--audio .cap-voice-message .cap-seek-bar,
+            .group-chat-media--audio .cap-voice-message .cap-waveform {
+                min-width: 0;
+                max-width: 100%;
+            }
+            .group-chat-media--audio .cap-voice-message .cap-wave-bar {
+                min-width: 0;
+            }
+            .group-chat-media--audio .cap-voice-message .cap-time-duration {
+                flex-shrink: 0;
             }
             .group-chat-row--own .group-chat-media--audio .cap-voice-message {
                 background: color-mix(in srgb, var(--accent, #85b503) 18%, var(--panel, #2a2a2a));
@@ -965,7 +978,7 @@
                 height: 28px;
                 border-radius: 8px;
             }
-            .group-chat-media--audio .custom-audio-player .cap-wave-bar {
+            .group-chat-media--audio .custom-audio-player:not(.cap-voice-message) .cap-wave-bar {
                 min-width: 1.5px;
             }
             .group-chat-media--audio .custom-audio-player .cap-vol-slider {

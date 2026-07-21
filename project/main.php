@@ -718,6 +718,277 @@
                 font-size: 14px;
             }
         }
+
+        /* ── Weather Forecast Modal ── */
+        .weather-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 200000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(6px);
+            animation: fadeIn 0.25s ease;
+        }
+        .weather-modal-overlay.active {
+            display: flex;
+        }
+        .weather-modal {
+            background: var(--bg-color);
+            border-radius: 24px;
+            width: 92%;
+            max-width: 680px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+            animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            padding: 28px 24px 24px;
+        }
+        .weather-modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--group-block-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        .weather-modal-close:hover {
+            background: var(--border-color);
+        }
+        .weather-modal-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .weather-modal-header-icon {
+            flex-shrink: 0;
+            width: 52px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: var(--group-block-bg);
+        }
+        .weather-modal-header-icon svg {
+            width: 40px;
+            height: 40px;
+        }
+        .weather-modal-header-info {
+            flex: 1;
+        }
+        .weather-modal-city {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .weather-modal-current {
+            font-size: 14px;
+            color: var(--text-color);
+            opacity: 0.7;
+            margin-top: 2px;
+        }
+        .weather-modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-color);
+            margin: 0 0 14px 0;
+        }
+        /* ── Weekly Forecast Grid ── */
+        .weather-weekly {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+        .weather-day-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: 14px;
+            background: var(--group-block-bg);
+            transition: background 0.2s;
+        }
+        .weather-day-row:hover {
+            background: var(--border-color);
+        }
+        .weather-day-name {
+            width: 40px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color);
+            flex-shrink: 0;
+        }
+        .weather-day-date {
+            width: 44px;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+        .weather-day-icon-wrap {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .weather-day-icon-wrap svg {
+            width: 30px;
+            height: 30px;
+        }
+        .weather-day-desc {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-color);
+            opacity: 0.7;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .weather-day-temps {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .weather-day-temp-high {
+            color: var(--text-color);
+        }
+        .weather-day-temp-low {
+            color: var(--text-color);
+            opacity: 0.5;
+        }
+        .weather-day-precip {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-size: 12px;
+            color: #3b82f6;
+            flex-shrink: 0;
+            min-width: 32px;
+            justify-content: flex-end;
+        }
+        .weather-day-precip svg {
+            width: 14px;
+            height: 14px;
+        }
+        /* ── Temperature Chart ── */
+        .weather-chart-wrapper {
+            background: var(--group-block-bg);
+            border-radius: 16px;
+            padding: 16px 16px 12px;
+            margin-top: 16px;
+            position: relative;
+        }
+        .weather-chart-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color);
+            margin-bottom: 12px;
+        }
+        .weather-chart-container {
+            width: 100%;
+            position: relative;
+        }
+        .weather-chart-container canvas {
+            width: 100%;
+            height: 200px;
+            display: block;
+            border-radius: 8px;
+        }
+        .weather-chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 10px;
+            font-size: 12px;
+            color: var(--text-color);
+            opacity: 0.7;
+        }
+        .weather-chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .weather-chart-legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        /* ── Scrollbar for modal ── */
+        .weather-modal::-webkit-scrollbar {
+            width: 6px;
+        }
+        .weather-modal::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .weather-modal::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 3px;
+        }
+        @media (max-width: 500px) {
+            .weather-modal {
+                padding: 20px 16px 16px;
+                border-radius: 20px;
+            }
+            .weather-day-name {
+                width: 32px;
+                font-size: 12px;
+            }
+            .weather-day-date {
+                width: 36px;
+                font-size: 11px;
+            }
+            .weather-day-icon-wrap svg {
+                width: 24px;
+                height: 24px;
+            }
+            .weather-day-desc {
+                font-size: 12px;
+            }
+            .weather-day-temps {
+                font-size: 12px;
+                gap: 4px;
+            }
+            .weather-chart-container canvas {
+                height: 160px;
+            }
+            .weather-modal-header-icon {
+                width: 42px;
+                height: 42px;
+            }
+            .weather-modal-header-icon svg {
+                width: 32px;
+                height: 32px;
+            }
+            .weather-modal-city {
+                font-size: 17px;
+            }
+        }
     </style>
 </head>
 <body<?php if($path==='/main'&&$selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps))): ?> class="shell-app-open"<?php endif; ?>>
@@ -10680,21 +10951,58 @@ else injectAppMobileChrome();
 })();
 </script>
 
-<!-- Weather Widget Script -->
-<script>
-/* Weather Widget - uses Open-Meteo (no API key required) */
-(function(){
-var weatherWidget = document.getElementById('weatherWidget');
-if(!weatherWidget) return;
 
-/* Simple HTML escaper (available globally but we define locally for safety) */
+<!-- Weather Widget Forecast Modal -->
+<div id="weatherModalOverlay" class="weather-modal-overlay" onclick="closeWeatherModal(event)">
+    <div class="weather-modal" onclick="event.stopPropagation()">
+        <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="Close">&times;</button>
+        <div id="weatherModalContent">
+            <div class="weather-loading" style="display:flex;justify-content:center;padding:40px 0;">
+                <div class="weather-loading-spinner"></div>
+                <span>Loading forecast...</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+/* ── Enhanced Weather Widget with 7-Day Forecast Modal ── */
+(function(){
+var weatherWidget, weatherStore;
+
+function init() {
+    weatherStore = { city: '', lat: 0, lon: 0, current: null, daily: null };
+    weatherWidget = document.getElementById('weatherWidget');
+    if(!weatherWidget) return;
+    
+    /* Set cursor and click handler */
+    weatherWidget.style.cursor = 'pointer';
+    weatherWidget.title = 'Click to see 7-day forecast';
+    weatherWidget.addEventListener('click', function(e) {
+        showWeatherModal();
+    });
+    
+    initWeather();
+}
+
+if(document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
+
+/* ── Store for modal data ─ */
+
+/* Simple HTML escaper */
 function escHtml(str) {
     var d = document.createElement('div');
     d.appendChild(document.createTextNode(str));
     return d.innerHTML;
 }
 
-/* ── SVG icons for each weather type (colorful) ── */
+var WEEKDAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+/* ── SVG icons for each weather type ── */
 var WEATHER_ICONS = {
     sunny: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="#FFD700" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5" fill="#FFD700" opacity="0.2"/><circle cx="12" cy="12" r="5" stroke="#FFD700" stroke-width="2"/><line x1="12" y1="1" x2="12" y2="3" stroke="#FFD700"/><line x1="12" y1="21" x2="12" y2="23" stroke="#FFD700"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="#FFD700"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78" stroke="#FFD700"/><line x1="1" y1="12" x2="3" y2="12" stroke="#FFD700"/><line x1="21" y1="12" x2="23" y2="12" stroke="#FFD700"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36" stroke="#FFD700"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22" stroke="#FFD700"/></svg>',
     partly_cloudy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M17.66 6.34l1.41-1.41" stroke="#FFD700"/><path d="M8 12a4 4 0 0 1 4-4 4 4 0 0 1 3.5 2.1 3 3 0 0 1 .5 5.9H8a4 4 0 0 1 0-8z" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1"/></svg>',
@@ -10708,12 +11016,18 @@ var WEATHER_ICONS = {
     windy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a3 3 0 0 1 0 6H9m0 0H4m5 0h4a3 3 0 0 1 0 6H9m0 0H5" stroke="#94A3B8"/><path d="M15 10c0 2-1 4-3 4s-3-2-3-4" stroke="#64748B" stroke-width="1.5" opacity="0.7"/></svg>'
 };
 
+/* ── Smaller icon set for daily rows ── */
+var DAILY_ICONS = {};
+for(var k in WEATHER_ICONS) {
+    DAILY_ICONS[k] = WEATHER_ICONS[k].replace(/width="48"/g,'').replace(/height="48"/g,'');
+}
+
 /* ── WMO Weather Codes ── */
 function getWeatherInfo(code, isDay) {
     var key, desc;
     if(code === 0) {
         key = 'sunny';
-        desc = 'Clear sky';
+        desc = 'Clear';
     } else if(code <= 2) {
         key = isDay ? 'partly_cloudy' : 'cloudy';
         desc = code === 1 ? 'Mainly clear' : 'Partly cloudy';
@@ -10745,11 +11059,25 @@ function getWeatherInfo(code, isDay) {
     return { key: key, desc: desc };
 }
 
+/* ── Format date ── */
+function formatDate(dateStr) {
+    var d = new Date(dateStr + 'T12:00:00');
+    return d.getDate();
+}
+function getDayName(dateStr) {
+    var d = new Date(dateStr + 'T12:00:00');
+    var today = new Date();
+    today.setHours(12,0,0,0);
+    var diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+    if(diff === 0) return 'Today';
+    if(diff === 1) return 'Tomorrow';
+    return WEEKDAY_NAMES[d.getDay()];
+}
+
 /* ── Render the widget ── */
 function renderWeather(city, temp, windSpeed, code, isDay) {
     var info = getWeatherInfo(code, isDay);
     var iconSvg = WEATHER_ICONS[info.key] || WEATHER_ICONS.cloudy;
-    
     weatherWidget.style.display = 'flex';
     weatherWidget.innerHTML = 
         '<div class="weather-icon-wrap">' + iconSvg + '</div>' +
@@ -10764,6 +11092,7 @@ function renderWeather(city, temp, windSpeed, code, isDay) {
                 '</span>' +
             '</div>' +
         '</div>';
+    /* Cursor is already set via addEventListener above */
 }
 
 /* ── Show error state ── */
@@ -10796,11 +11125,9 @@ window.openLocationSettings = function() {
     if(typeof showTempNotification === 'function') {
         showTempNotification(T.weather_denied_msg || 'Please allow location access in your browser settings to see local weather', 'error');
     }
-    // Try opening browser location settings
     if(navigator.permissions && navigator.permissions.query) {
         navigator.permissions.query({name:'geolocation'}).then(function(result) {
             if(result.state === 'denied') {
-                // Inform user to change settings manually
                 if(typeof showTempNotification === 'function') {
                     showTempNotification(T.weather_settings_hint || 'Go to browser site settings and allow location', 'info');
                 }
@@ -10808,6 +11135,311 @@ window.openLocationSettings = function() {
         });
     }
 };
+
+/* ═══════════════════════════════════════════════
+   ── WEATHER MODAL: Weekly Forecast & Chart ──
+   ═══════════════════════════════════════════════ */
+var modalOverlay = document.getElementById('weatherModalOverlay');
+var modalContent = document.getElementById('weatherModalContent');
+
+function showWeatherModal() {
+    if(!modalOverlay) return;
+    
+    /* If daily data is already loaded, show it immediately */
+    if(weatherStore.daily && weatherStore.daily.time) {
+        showModalWithData();
+        return;
+    }
+    
+    /* If we have coordinates, try to load forecast on demand */
+    if(weatherStore.lat && weatherStore.lon) {
+        modalContent.innerHTML = '<div class="weather-loading" style="display:flex;justify-content:center;padding:40px 0;">' +
+            '<div class="weather-loading-spinner"></div>' +
+            '<span>Loading forecast...</span>' +
+        '</div>';
+        modalOverlay.style.display = 'flex';
+        modalOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        
+        var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + weatherStore.lat + '&longitude=' + weatherStore.lon +
+            '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum' +
+            '&timezone=auto&forecast_days=7';
+        fetch(url)
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if(data && data.daily) {
+                    weatherStore.daily = data.daily;
+                    showModalWithData();
+                } else {
+                    modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">No forecast data available</div>';
+                }
+            })
+            .catch(function() {
+                modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">Failed to load forecast</div>';
+            });
+        return;
+    }
+    
+    modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">No forecast data available</div>';
+    modalOverlay.style.display = 'flex';
+    modalOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function showModalWithData() {
+    modalOverlay.style.display = 'flex';
+    modalOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    renderWeeklyForecast();
+}
+
+window.closeWeatherModal = function(e) {
+    if(e && e.target !== modalOverlay && e.target !== e.currentTarget) return;
+    if(modalOverlay) {
+        modalOverlay.style.display = 'none';
+        modalOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+};
+
+/* Close on Escape key */
+document.addEventListener('keydown', function(e) {
+    if(e.key === 'Escape' && modalOverlay && modalOverlay.classList.contains('active')) {
+        closeWeatherModal();
+    }
+});
+
+/* ── Render 7-day forecast & chart ── */
+function renderWeeklyForecast() {
+    var daily = weatherStore.daily;
+    var current = weatherStore.current;
+    var city = weatherStore.city;
+    if(!daily || !daily.time) {
+        modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">No forecast data available</div>';
+        return;
+    }
+    
+    var html = '';
+    
+    /* Header with current weather */
+    var curInfo = current ? getWeatherInfo(current.weathercode, current.is_day !== 0) : { key:'sunny', desc:'Clear' };
+    var curIcon = current ? (WEATHER_ICONS[curInfo.key] || WEATHER_ICONS.cloudy) : WEATHER_ICONS.sunny;
+    html += '<div class="weather-modal-header">' +
+        '<div class="weather-modal-header-icon">' + curIcon + '</div>' +
+        '<div class="weather-modal-header-info">' +
+            '<div class="weather-modal-city">' + escHtml(city) + '</div>' +
+            '<div class="weather-modal-current">' +
+                (current ? Math.round(current.temperature) + '°C &middot; ' + escHtml(curInfo.desc) + ' &middot; Wind ' + current.windspeed + ' m/s' : '') +
+            '</div>' +
+        '</div>' +
+    '</div>';
+    
+    /* 7-day rows */
+    html += '<div class="weather-weekly">';
+    for(var i = 0; i < daily.time.length; i++) {
+        var dateStr = daily.time[i];
+        var wCode = daily.weathercode[i];
+        var isDay = 1;
+        var wInfo = getWeatherInfo(wCode, isDay);
+        var iconSvg = WEATHER_ICONS[wInfo.key] || WEATHER_ICONS.cloudy;
+        var dayName = getDayName(dateStr);
+        var dayDate = formatDate(dateStr);
+        var high = Math.round(daily.temperature_2m_max[i]);
+        var low = Math.round(daily.temperature_2m_min[i]);
+        var precip = daily.precipitation_sum ? Math.round(daily.precipitation_sum[i] * 10) / 10 : 0;
+        
+        html += '<div class="weather-day-row">' +
+            '<div class="weather-day-name">' + escHtml(dayName) + '</div>' +
+            '<div class="weather-day-date">' + dayDate + '</div>' +
+            '<div class="weather-day-icon-wrap">' + iconSvg + '</div>' +
+            '<div class="weather-day-desc">' + escHtml(wInfo.desc) + '</div>' +
+            '<div class="weather-day-temps">' +
+                '<span class="weather-day-temp-high">' + high + '°</span>' +
+                '<span class="weather-day-temp-low">' + low + '°</span>' +
+            '</div>' +
+            '<div class="weather-day-precip">' +
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#3b82f6" stroke="none"><path d="M12 2C7.58 2 4 5.58 4 10c0 3.5 2.33 6.35 5.5 7.5L12 22l2.5-4.5C17.67 16.35 20 13.5 20 10c0-4.42-3.58-8-8-8z"/></svg>' +
+                (precip > 0 ? precip + 'mm' : '0') +
+            '</div>' +
+        '</div>';
+    }
+    html += '</div>';
+    
+    /* Temperature chart */
+    html += '<div class="weather-chart-wrapper">' +
+        '<div class="weather-chart-title">Temperature trend (7 days)</div>' +
+        '<div class="weather-chart-container">' +
+            '<canvas id="weatherChartCanvas" width="600" height="200"></canvas>' +
+        '</div>' +
+        '<div class="weather-chart-legend">' +
+            '<div class="weather-chart-legend-item"><span class="weather-chart-legend-dot" style="background:#ef4444"></span> High</div>' +
+            '<div class="weather-chart-legend-item"><span class="weather-chart-legend-dot" style="background:#3b82f6"></span> Low</div>' +
+        '</div>' +
+    '</div>';
+    
+    modalContent.innerHTML = html;
+    
+    /* Draw chart after DOM update */
+    setTimeout(function() {
+        drawTemperatureChart(daily);
+    }, 50);
+}
+
+/* ── Draw temperature chart using Canvas ── */
+function drawTemperatureChart(daily) {
+    var canvas = document.getElementById('weatherChartCanvas');
+    if(!canvas || !daily || !daily.time || daily.time.length === 0) return;
+    
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width;
+    var H = canvas.height;
+    var pad = { top: 20, right: 20, bottom: 32, left: 40 };
+    var chartW = W - pad.left - pad.right;
+    var chartH = H - pad.top - pad.bottom;
+    
+    var n = daily.time.length;
+    var highs = [];
+    var lows = [];
+    for(var i = 0; i < n; i++) {
+        highs.push(daily.temperature_2m_max[i]);
+        lows.push(daily.temperature_2m_min[i]);
+    }
+    
+    /* Find min/max for scaling */
+    var allTemps = highs.concat(lows);
+    var minTemp = Math.min.apply(null, allTemps);
+    var maxTemp = Math.max.apply(null, allTemps);
+    var range = maxTemp - minTemp;
+    if(range < 2) { minTemp -= 1; maxTemp += 1; range = 2; }
+    var padding = range * 0.1;
+    minTemp -= padding;
+    maxTemp += padding;
+    range = maxTemp - minTemp;
+    
+    function yFromTemp(t) { return pad.top + chartH - ((t - minTemp) / range) * chartH; }
+    function xFromIdx(idx) { return pad.left + (idx / (n - 1)) * chartW; }
+    
+    /* Clear */
+    ctx.clearRect(0, 0, W, H);
+    
+    /* Detect dark mode */
+    var isDark = document.body.classList.contains('dark-theme') || 
+                 getComputedStyle(document.body).getPropertyValue('--bg-color')?.trim()?.startsWith('#1') ||
+                 false;
+    var textColor = isDark ? '#94a3b8' : '#64748b';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    
+    /* ── Draw horizontal grid lines ── */
+    ctx.strokeStyle = gridColor;
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    var gridSteps = 5;
+    for(var g = 0; g <= gridSteps; g++) {
+        var y = pad.top + (g / gridSteps) * chartH;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(W - pad.right, y);
+        ctx.stroke();
+        
+        /* Temperature labels */
+        var tempVal = maxTemp - (g / gridSteps) * range;
+        ctx.fillStyle = textColor;
+        ctx.font = '10px sans-serif';
+        ctx.textAlign = 'right';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(Math.round(tempVal) + '°', pad.left - 6, y);
+    }
+    ctx.setLineDash([]);
+    
+    /* ── Draw day labels on x-axis ── */
+    ctx.fillStyle = textColor;
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    for(var d = 0; d < n; d++) {
+        var x = xFromIdx(d);
+        var dayLabel = getDayName(daily.time[d]);
+        ctx.fillText(dayLabel, x, H - pad.bottom + 8);
+    }
+    
+    /* ── Helper: draw a curved line ── */
+    function drawCurvedLine(data, color, fillColor) {
+        ctx.beginPath();
+        for(var i = 0; i < n; i++) {
+            var x = xFromIdx(i);
+            var y = yFromTemp(data[i]);
+            if(i === 0) {
+                ctx.moveTo(x, y);
+            } else {
+                var prevX = xFromIdx(i - 1);
+                var prevY = yFromTemp(data[i - 1]);
+                var cpX1 = (prevX + x) / 2;
+                var cpX2 = (prevX + x) / 2;
+                ctx.bezierCurveTo(cpX1, prevY, cpX2, y, x, y);
+            }
+        }
+        
+        /* Fill area under curve */
+        if(fillColor) {
+            var lastX = xFromIdx(n - 1);
+            var lastY = yFromTemp(data[n - 1]);
+            ctx.lineTo(lastX, pad.top + chartH);
+            ctx.lineTo(xFromIdx(0), pad.top + chartH);
+            ctx.closePath();
+            ctx.fillStyle = fillColor;
+            ctx.fill();
+            
+            /* Redraw the line on top */
+            ctx.beginPath();
+            for(var j = 0; j < n; j++) {
+                var x2 = xFromIdx(j);
+                var y2 = yFromTemp(data[j]);
+                if(j === 0) {
+                    ctx.moveTo(x2, y2);
+                } else {
+                    var px2 = xFromIdx(j - 1);
+                    var py2 = yFromTemp(data[j - 1]);
+                    ctx.bezierCurveTo((px2 + x2) / 2, py2, (px2 + x2) / 2, y2, x2, y2);
+                }
+            }
+        }
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+    }
+    
+    /* ── Draw low temp area (behind high) ── */
+    drawCurvedLine(lows, '#3b82f6', 'rgba(59,130,246,0.10)');
+    
+    /* ── Draw high temp line ── */
+    drawCurvedLine(highs, '#ef4444', 'rgba(239,68,68,0.08)');
+    
+    /* ── Draw data points ── */
+    function drawPoints(data, color) {
+        for(var i = 0; i < n; i++) {
+            var x = xFromIdx(i);
+            var y = yFromTemp(data[i]);
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+            
+            /* Temperature value above point */
+            ctx.fillStyle = color;
+            ctx.font = 'bold 10px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(Math.round(data[i]) + '°', x, y - 8);
+        }
+    }
+    drawPoints(lows, '#3b82f6');
+    drawPoints(highs, '#ef4444');
+}
 
 /* ── Main init ── */
 function initWeather() {
@@ -10827,22 +11459,31 @@ function initWeather() {
             clearTimeout(timeoutId);
             var lat = position.coords.latitude;
             var lon = position.coords.longitude;
+            weatherStore.lat = lat;
+            weatherStore.lon = lon;
             
-            /* Fetch weather data from Open-Meteo */
-            var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true&timezone=auto';
+            /* Fetch current + 7-day forecast from Open-Meteo */
+            var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+                '&current=temperature_2m,weathercode,windspeed,is_day' +
+                '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum' +
+                '&timezone=auto&forecast_days=7';
             
             fetch(weatherUrl)
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
-                    if(!data || !data.current_weather) {
+                    var cur = data.current_weather || data.current;
+                    if(!data || !cur) {
                         showWeatherError(T.weather_no_data || 'No weather data', false);
                         return;
                     }
-                    var cw = data.current_weather;
-                    var temp = cw.temperature;
+                    var cw = data.current_weather || data.current;
+                    weatherStore.current = cw;
+                    weatherStore.daily = data.daily || null;
+                    
+                    var temp = cw.temperature || cw.temperature_2m;
                     var windSpeed = cw.windspeed;
-                    var code = cw.weathercode;
-                    var isDay = cw.is_day !== 0;
+                    var code = cw.weathercode || cw.weather_code;
+                    var isDay = (cw.is_day !== undefined) ? cw.is_day !== 0 : 1;
                     
                     /* Reverse geocode for city name */
                     var geoUrl = 'https://geocoding-api.open-meteo.com/v1/reverse?latitude=' + lat + '&longitude=' + lon + '&language=en';
@@ -10859,10 +11500,12 @@ function initWeather() {
                             if(!city) {
                                 city = T.weather_unknown || 'Unknown location';
                             }
+                            weatherStore.city = city;
                             renderWeather(city, temp, windSpeed, code, isDay);
                         })
                         .catch(function() {
-                            renderWeather(T.weather_unknown || 'Unknown location', temp, windSpeed, code, isDay);
+                            weatherStore.city = T.weather_unknown || 'Unknown location';
+                            renderWeather(weatherStore.city, temp, windSpeed, code, isDay);
                         });
                 })
                 .catch(function() {
@@ -10887,12 +11530,6 @@ function initWeather() {
     );
 }
 
-/* Start weather widget when DOM is ready */
-if(document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initWeather);
-} else {
-    initWeather();
-}
 })();
 </script>
 </body>
