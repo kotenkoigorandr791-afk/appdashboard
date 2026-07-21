@@ -5,13 +5,13 @@
     "be": "Манітор Сервера",
     "menu_button": {
         "left": 16,
-        "top": 16,
+        "top": 20,
         "width": 45,
         "height": 45
     },
     "menu_button_mobile": {
         "left": 8,
-        "top": 6,
+        "top": 10,
         "width": 36,
         "height": 36
     },

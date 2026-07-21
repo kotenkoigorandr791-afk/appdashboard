@@ -17,6 +17,14 @@
             <span class="user-role"><?= htmlspecialchars($userRoleName) ?></span>
         </div>
     </div>
+    <div class="side-menu-section-buttons">
+        <button class="side-menu-section-button active" type="button" data-section-target="graphs" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
+        <button class="side-menu-section-button" type="button" data-section-target="uptime" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime') ?></button>
+        <button class="side-menu-section-button" type="button" data-section-target="disk" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><?= htmlspecialchars($t['disk']) ?></button>
+        <button class="side-menu-section-button" type="button" data-section-target="nginx" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M9 9v6"/><path d="m9 9 6 6"/><path d="M15 9v6"/></svg><?= htmlspecialchars($t['nginx_modules']) ?></button>
+        <button class="side-menu-section-button" type="button" data-section-target="php" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
+    </div>
+    <div class="side-menu-divider"></div>
     <div class="side-menu-actions">
         <a class="side-menu-link" href="monitor_stats.php?lang=<?= urlencode($lang) ?>&theme=<?= urlencode($theme) ?>&color=<?= urlencode($color) ?>">Monitoring Charts</a>
         <?php if ($showPhpInfoButton): ?>
@@ -34,11 +42,11 @@
             </div>
         </div>
         <?php endif; ?>
-        <button class="btn-secondary" type="button" onclick="refreshData(); closeSideMenu();"><?= htmlspecialchars($t['refresh']) ?></button>
+        <button class="btn-secondary icon-button" type="button" onclick="refreshData(); closeSideMenu();"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg> <?= htmlspecialchars($t['refresh']) ?></button>
     </div>
 </aside>
 
-<div class="container">
+<div class="fixed-header">
     <header>
         <div class="header-wrapper">
             <div class="header-top-row">
@@ -46,7 +54,6 @@
                     <h1><?= htmlspecialchars($t['title']) ?></h1>
                 </div>
                 <div class="header-buttons">
-                    <button class="btn-secondary mobile-refresh-btn" onclick="refreshData()" title="<?= htmlspecialchars($t['refresh']) ?>">↻</button>
                     <button class="side-menu-toggle" type="button" onclick="openSideMenu()" aria-label="Open menu" title="Menu">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-square-menu-icon lucide-square-menu">
                             <rect width="18" height="18" x="3" y="3" rx="2"></rect>
@@ -64,14 +71,9 @@
             </div>
         </div>
     </header>
+</div>
 
-    <nav class="section-strip" aria-label="Monitor Sections">
-        <button class="section-strip-button active" type="button" data-section-target="graphs"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
-        <button class="section-strip-button" type="button" data-section-target="uptime"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime') ?></button>
-        <button class="section-strip-button" type="button" data-section-target="disk"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><?= htmlspecialchars($t['disk']) ?></button>
-        <button class="section-strip-button" type="button" data-section-target="nginx"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M9 9v6"/><path d="m9 9 6 6"/><path d="M15 9v6"/></svg><?= htmlspecialchars($t['nginx_modules']) ?></button>
-        <button class="section-strip-button" type="button" data-section-target="php"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
-    </nav>
+<div class="container scrollable-content">
 
     <section id="monitorSection-graphs" class="monitor-section active" data-section-panel="graphs">
         <div class="section-cluster">
@@ -196,6 +198,7 @@
             </tbody>
         </table>
     </section>
+</div>
 </div>
 
 <?php if ($userRole >= 2): ?>
