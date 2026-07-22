@@ -736,8 +736,60 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
         showModal(app.id, l);
         clearTimeout(timer);
       });
+      card.addEventListener('mouseenter', (e) => handleAppMouseEnter(e, card, app.name, t.apps[app.id] || ''));
+      card.addEventListener('mouseleave', hideAppTooltip);
+      card.addEventListener('mousemove', (e) => updateTooltipPosition(e, card));
       grid.appendChild(card);
     });
+  }
+
+  let tooltipTimer = null;
+  let appTooltip = null;
+
+  function handleAppMouseEnter(e, card, name, desc) {
+    if (tooltipTimer) clearTimeout(tooltipTimer);
+    tooltipTimer = setTimeout(() => {
+      showAppTooltip(card, name, desc);
+    }, 3000);
+  }
+
+  function hideAppTooltip() {
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer);
+      tooltipTimer = null;
+    }
+    if (appTooltip) {
+      appTooltip.classList.remove('visible');
+      appTooltip = null;
+    }
+  }
+
+  function showAppTooltip(card, name, desc) {
+    hideAppTooltip();
+    appTooltip = document.createElement('div');
+    appTooltip.className = 'app-tooltip';
+    appTooltip.textContent = `${name}${desc ? ' — ' + desc : ''}`;
+    document.body.appendChild(appTooltip);
+    updateTooltipPosition(null, card);
+    appTooltip.classList.add('visible');
+  }
+
+  function updateTooltipPosition(e, card) {
+    if (!appTooltip) return;
+    const cardRect = card.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const tooltipWidth = appTooltip.offsetWidth || 200;
+    const midpoint = cardRect.left + cardRect.width / 2;
+    const isRightSide = midpoint > viewportWidth / 2;
+    const sideClass = isRightSide ? 'right-side' : 'left-side';
+    appTooltip.classList.remove('left-side', 'right-side');
+    appTooltip.classList.add(sideClass);
+    if (isRightSide) {
+      appTooltip.style.left = `${cardRect.right + 10}px`;
+    } else {
+      appTooltip.style.left = `${cardRect.left - tooltipWidth - 10}px`;
+    }
+    appTooltip.style.top = `${cardRect.top + cardRect.height / 2 - appTooltip.offsetHeight / 2}px`;
   }
 
   function showModal(id, l) {

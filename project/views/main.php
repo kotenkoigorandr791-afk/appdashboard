@@ -373,8 +373,10 @@
         .app-desc-popover{display:none;position:fixed;z-index:100050;max-width:min(320px,calc(100vw - 24px));padding:0;border:none;background:transparent;color:var(--text-color);pointer-events:none;overflow:visible;}
         .app-desc-popover.visible{display:block;}
         .app-desc-popover-inner{position:relative;display:block;padding:14px 18px;border-radius:14px;background:var(--modal-bg);border:1px solid var(--border-color);box-shadow:var(--glass-shadow);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));font-size:13px;line-height:1.5;overflow:visible;}
-        .app-desc-popover-inner::before{content:'';position:absolute;left:-7px;top:50%;width:14px;height:14px;background:inherit;border-left:1px solid var(--border-color);border-bottom:1px solid var(--border-color);transform:translateY(-50%) rotate(45deg);backdrop-filter:inherit;-webkit-backdrop-filter:inherit;}
-        .app-desc-text{display:block;overflow:visible;word-break:break-word;}
+        .app-desc-popover-inner::before{content:'';position:absolute;top:50%;width:14px;height:14px;background:inherit;border-left:1px solid var(--border-color);border-bottom:1px solid var(--border-color);transform:translateY(-50%) rotate(45deg);backdrop-filter:inherit;-webkit-backdrop-filter:inherit;}
+        .app-desc-popover.left-side .app-desc-popover-inner::before{left:-7px;}
+        .app-desc-popover.right-side .app-desc-popover-inner::before{right:-7px;transform:translateY(-50%) rotate(-135deg);}
+        .app-desc-text{display:block;overflow:visible;word-break:break-word;text-align:center;}
         .tooltip{backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border:1px solid var(--border-color);border-radius:10px;box-shadow:var(--glass-shadow);}
         .modal-scroll-body{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;}
         #shared-files-content,#sessions-content,#profile-content,#qr-content,#email-form,#users-content,#stats-content,#tg-bot-content,#delete-user-content,#reset-user-password-content,#edit-stats-content,#shortcuts-content{overflow:hidden;}
@@ -4530,26 +4532,43 @@ var T=<?php echo json_encode([
             var grid=document.getElementById('app-grid');
             if(!pop||!grid)return;
             var hideTimer=null;
-            function hidePop(){if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}pop.classList.remove('visible');}
+            var showTimer=null;
+            function hidePop(){if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}if(showTimer){clearTimeout(showTimer);showTimer=null;}pop.classList.remove('visible');pop.classList.remove('left-side','right-side');}
             function show(el){
                 var desc=el.getAttribute('data-app-desc')||'';
                 var textEl=pop.querySelector('.app-desc-text');
                 if(!desc||!textEl){hidePop();return;}
                 textEl.textContent=desc;
-                pop.classList.add('visible');
                 var r=el.getBoundingClientRect();
                 var pw=pop.offsetWidth||260;
                 var ph=pop.offsetHeight||48;
+                var viewportWidth=window.innerWidth;
+                var tileCenter=r.left+r.width/2;
+                var isRightSide=tileCenter>viewportWidth/2;
                 var left=r.right+14;
-                if(left+pw>window.innerWidth-8) left=Math.max(8,r.left-pw-14);
+                var placeLeft=(left+pw>viewportWidth-8)||isRightSide;
+                if(placeLeft){
+                    left=Math.max(8,r.left-pw-14);
+                    pop.classList.add('right-side');
+                    pop.classList.remove('left-side');
+                }else{
+                    pop.classList.add('left-side');
+                    pop.classList.remove('right-side');
+                }
                 var top=r.top+r.height/2-ph/2;
                 top=Math.min(window.innerHeight-ph-8, Math.max(8, top));
                 pop.style.left=left+'px';
                 pop.style.top=top+'px';
+                pop.classList.add('visible');
             }
             grid.addEventListener('mouseover',function(e){
                 var tile=e.target.closest('.app-tile-link');
-                if(tile&&grid.contains(tile)){if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}show(tile);return;}
+                if(tile&&grid.contains(tile)){
+                    if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+                    if(showTimer){clearTimeout(showTimer);}
+                    showTimer=setTimeout(function(){show(tile);},3000);
+                    return;
+                }
                 hidePop();
             });
             grid.addEventListener('mouseleave',function(){hidePop();});

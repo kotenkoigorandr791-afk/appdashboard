@@ -455,6 +455,39 @@ body.light-theme .feature-card:hover {
 .feature-card h3 { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
 .feature-card .short-desc { font-size: 13px; line-height: 1.5; opacity: 0.68; }
 
+/* App Tooltip */
+.app-tooltip {
+  position: fixed; pointer-events: none;
+  background: rgba(10,18,28,0.96); color: #e0ecf5; padding: 8px 14px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+  border: 1px solid rgba(255,255,255,0.12); box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+  z-index: 10000; max-width: 280px; text-align: center;
+  opacity: 0; transition: opacity 0.2s;
+}
+body.light-theme .app-tooltip {
+  background: #fff; color: #1a2b38; border-color: rgba(0,0,0,0.1);
+  box-shadow: 0 8px 28px rgba(0,0,0,0.15);
+}
+.app-tooltip.visible { opacity: 1; }
+.app-tooltip::after {
+  content: ''; position: absolute; width: 0; height: 0;
+  border: 6px solid transparent; pointer-events: none;
+}
+.app-tooltip.left-side::after {
+  right: -6px; top: 50%; transform: translateY(-50%);
+  border-left-color: rgba(10,18,28,0.96);
+}
+body.light-theme .app-tooltip.left-side::after {
+  border-left-color: #fff;
+}
+.app-tooltip.right-side::after {
+  left: -6px; top: 50%; transform: translateY(-50%);
+  border-right-color: rgba(10,18,28,0.96);
+}
+body.light-theme .app-tooltip.right-side::after {
+  border-right-color: #fff;
+}
+
 /* ── Modal ── */
 .modal {
   display: none; position: fixed; inset: 0;
