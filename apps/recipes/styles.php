@@ -39,6 +39,26 @@ $scrollbar_thumb_hover = $theme === 'light' ? '#9f9f9f' : '#5a5a5a';
 $scrollbar_track = $theme === 'light' ? '#ececec' : '#1e1e1e';
 $background_image = $theme === 'light' ? 'url("light-background.jpg")' : 'url("dark-background.jpg")';
 $grouping_bg = $theme === 'light' ? 'rgba(137, 137, 137, 0.7)' : 'rgba(88, 88, 88, 0.77)';
+
+$nameData = is_file(__DIR__ . '/name.json') ? json_decode((string)file_get_contents(__DIR__ . '/name.json'), true) : [];
+if (!is_array($nameData)) {
+    $nameData = [];
+}
+$parseMenuBtn = static function (array $data, string $key, array $fallback): array {
+    $btn = isset($data[$key]) && is_array($data[$key]) ? $data[$key] : $fallback;
+    $parsed = $fallback;
+    foreach (['left', 'top', 'width', 'height'] as $k) {
+        if (isset($btn[$k]) && is_numeric($btn[$k])) {
+            $parsed[$k] = max(0, (int)$btn[$k]);
+        }
+    }
+    return $parsed;
+};
+$defaultMenuBtn = ['left' => 16, 'top' => 16, 'width' => 40, 'height' => 40];
+$menuBtn = $parseMenuBtn($nameData, 'menu_button', $defaultMenuBtn);
+$menuBtnMobile = $parseMenuBtn($nameData, 'menu_button_mobile', $menuBtn);
+$menuBtnReserve = $menuBtn['left'] + $menuBtn['width'] + 12;
+$menuBtnMobileReserve = $menuBtnMobile['left'] + $menuBtnMobile['width'] + 10;
 ?>
 
 :root {
@@ -71,6 +91,9 @@ $grouping_bg = $theme === 'light' ? 'rgba(137, 137, 137, 0.7)' : 'rgba(88, 88, 8
     --ai-manual-bg: <?php echo $theme === 'dark' ? '#172230' : '#f2f7fd'; ?>;
     --ai-surface: <?php echo $theme === 'dark' ? '#20252a' : '#ffffff'; ?>;
     --ai-surface-border: <?php echo $theme === 'dark' ? '#424b55' : '#d8e0e6'; ?>;
+    --menu-button-reserve: <?php echo (int)$menuBtnReserve; ?>px;
+    --menu-button-mobile-reserve: <?php echo (int)$menuBtnMobileReserve; ?>px;
+    --app-top-bar-height: 72px;
 }
 * {
     scrollbar-width: thin;
@@ -101,8 +124,7 @@ body {
     background-attachment: fixed;
     color: var(--text-color);
     margin: 0;
-    padding: 20px;
-    display: flex;
+    padding: 0;
     min-height: 100vh;
 }
 
@@ -128,31 +150,51 @@ body::-webkit-scrollbar-thumb:hover {
     background: <?php echo $scrollbar_thumb_hover; ?>;
 }
 
-.sidebar {
-    width: 80px;
+.app-top-bar {
     position: fixed;
-    right: 20px;
-    top: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    min-height: var(--app-top-bar-height);
+    box-sizing: border-box;
+    padding: 10px 20px 10px max(16px, var(--menu-button-reserve));
+    background: color-mix(in srgb, var(--bg-color) 18%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid color-mix(in srgb, var(--primary-color) 14%, transparent);
+    box-shadow: none;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    margin-left: auto;
+    height: 44px;
 }
 
 .sidebar button {
     background-color: var(--btn-bg-color);
     color: var(--text-color);
     border: none;
-    padding: 12px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
     cursor: pointer;
     border-radius: var(--btn-border-radius);
     transition: all 0.3s ease;
     box-shadow: var(--shadow);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background-color: var(--btn-bg-color);
-    border: none;
+    flex-shrink: 0;
 }
 
 
@@ -169,23 +211,29 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .main-content {
-    flex-grow: 1;
-    margin-right: 100px;
     display: flex;
     flex-direction: column;
+    padding: calc(var(--app-top-bar-height) + 16px) 20px 20px;
+    box-sizing: border-box;
 }
 
 .recipe-search-container {
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto 20px;
-    padding: 0 20px;
+    flex: 1;
+    min-width: 0;
+    max-width: 640px;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    height: 44px;
 }
 
 .recipe-search-wrapper {
     position: relative;
     display: flex;
     align-items: center;
+    width: 100%;
+    height: 44px;
 }
 
 .recipe-search-icon {
@@ -198,10 +246,12 @@ body::-webkit-scrollbar-thumb:hover {
 
 .recipe-search-input {
     width: 100%;
-    padding: 12px 12px 12px 45px;
+    height: 44px;
+    box-sizing: border-box;
+    padding: 0 12px 0 45px;
     border: 2px solid var(--primary-color);
     border-radius: 25px;
-    background-color: var(--bg-color);
+    background-color: color-mix(in srgb, var(--bg-color) 72%, transparent);
     color: var(--text-color);
     font-size: 16px;
     box-shadow: var(--shadow);
@@ -223,7 +273,7 @@ body::-webkit-scrollbar-thumb:hover {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 25px;
-    padding: 0px 0px 20px 45px;
+    padding: 0 0 20px;
     flex-grow: 1;
 }
 
@@ -2013,30 +2063,43 @@ input[type="file"]:required {
 
 /* ==================== МОБИЛЬНАЯ ВЕРСИЯ ==================== */
 @media (max-width: 768px) {
-    body {
-        padding-top: 86px;
+    :root {
+        --app-top-bar-height: 68px;
+    }
+    .app-top-bar {
+        padding: 8px 10px 8px max(10px, var(--menu-button-mobile-reserve));
+        gap: 8px;
     }
     .main-content {
-        margin-right: 0;
+        padding: calc(var(--app-top-bar-height) + 12px) 12px 16px;
     }
     .recipe-search-container {
-        position: fixed;
-        top: 20px;
-        left: 12px;
-        right: 87px;
-        z-index: 999;
-        width: auto;
         max-width: none;
-        margin: 0;
-        padding: 0;
     }
-
     .sidebar {
-        position: fixed !important;
-        width: 65px !important;
-        right: 10px !important;
-        top: 20px !important;
-        gap: 15px !important;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+    .sidebar::-webkit-scrollbar {
+        display: none;
+    }
+    .sidebar button {
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        flex-shrink: 0;
+    }
+    .sidebar {
+        height: 40px;
+    }
+    .recipe-search-container,
+    .recipe-search-wrapper {
+        height: 40px;
+    }
+    .recipe-search-input {
+        height: 40px;
     }
 
     /* Базовые стили для мобильных модальных окон */

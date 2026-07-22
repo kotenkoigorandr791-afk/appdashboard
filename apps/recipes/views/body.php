@@ -3,38 +3,7 @@
     <div class="loading ai-loading" id="aiLoading" style="display: none;"><?php echo $translations[$lang]['ai_generating']; ?></div>
     <div class="notification-container" id="notification-container"></div>
     
-    <div class="sidebar">
-        <button onclick="openAddRecipeChoice()" title="<?php echo $translations[$lang]['add_recipe']; ?>">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
-                <path d="M12 4v16m8-8H4"></path>
-            </svg>
-        </button>
-        <button onclick="openModal('productModal')" title="<?php echo $translations[$lang]['open_products']; ?>">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
-                <path d="M3 3h18v18H3z"></path>
-                <path d="M12 8v8m-4-4h8"></path>
-            </svg>
-        </button>
-        <button onclick="openModal('searchRecipeModal')" title="<?php echo $translations[$lang]['search_recipe']; ?>">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <path d="M21 21l-4.35-4.35"></path>
-            </svg>
-        </button>
-        <button onclick="openModal('settingsModal')" title="<?php echo $translations[$lang]['settings']; ?>">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-            </svg>
-        </button>
-        <button id="continueRecipeBtn" onclick="continueRecipe()" title="<?php echo $translations[$lang]['continue_recipe']; ?>" style="display: <?php echo $current_recipe ? 'inline-flex' : 'none'; ?>;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
-                <path d="M5 4v16l11-8z"></path>
-            </svg>
-        </button>
-    </div>
-
-    <div class="main-content">
+    <header class="app-top-bar">
         <div class="recipe-search-container">
             <div class="recipe-search-wrapper">
                 <svg class="recipe-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
@@ -44,6 +13,39 @@
                 <input type="text" id="recipeSearchInput" class="recipe-search-input" placeholder="<?php echo $translations[$lang]['search_recipe']; ?>" oninput="filterRecipes()">
             </div>
         </div>
+        <div class="sidebar">
+            <button onclick="openAddRecipeChoice()" title="<?php echo $translations[$lang]['add_recipe']; ?>">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
+                    <path d="M12 4v16m8-8H4"></path>
+                </svg>
+            </button>
+            <button onclick="openModal('productModal')" title="<?php echo $translations[$lang]['open_products']; ?>">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
+                    <path d="M3 3h18v18H3z"></path>
+                    <path d="M12 8v8m-4-4h8"></path>
+                </svg>
+            </button>
+            <button onclick="openModal('searchRecipeModal')" title="<?php echo $translations[$lang]['search_recipe']; ?>">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="M21 21l-4.35-4.35"></path>
+                </svg>
+            </button>
+            <button onclick="openModal('settingsModal')" title="<?php echo $translations[$lang]['settings']; ?>">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+            </button>
+            <button id="continueRecipeBtn" onclick="continueRecipe()" title="<?php echo $translations[$lang]['continue_recipe']; ?>" style="display: <?php echo $current_recipe ? 'inline-flex' : 'none'; ?>;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>" stroke-width="2">
+                    <path d="M5 4v16l11-8z"></path>
+                </svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="main-content">
         <div class="recipe-grid" id="recipeGrid">
             <?php 
             $page = isset($_GET['recipe_page']) ? (int)$_GET['recipe_page'] : 1;

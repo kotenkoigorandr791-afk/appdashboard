@@ -9684,62 +9684,14 @@ function showTabContextMenu(e, tabId) {
     menu.style.zIndex = '1000';
     menu.style.visibility = 'hidden';
     menu.style.opacity = '0';
-    const path = tab.path; // Полный путь к файлу
-    const type = 'file'; // Для вкладок всегда файл
-    const isText = isTextFile(path);
-    const isImage = isEditableImage(path);
-    const isAudio = isEditableAudio(path);
-    const isMarkdown = isMarkdownFile(path); // Добавляем проверку на Markdown
-    const isTxtFile = path.toLowerCase().endsWith('.txt');
-    const options = [
-        ...((() => {
-            const actionItems = [];
-            const hideEdit = tab.markdownEditor || tab.htmlEditor || tab.latexEditor || tab.photoEditor ||
-                tab.transcriptionEditor || tab.onlyOfficeEditor || tab.ttsEditor || tab.zipViewer ||
-                (typeof shouldHideEditMenuOption === 'function' && shouldHideEditMenuOption(path));
-            if (type === 'file' && !hideEdit && ((typeof isMonacoEditFile === 'function' && isMonacoEditFile(path)) || isImage || isAudio || isOfficeFile(path))) {
-                actionItems.push({
-                    label: t(window.i18n, 'edit'),
-                    icon: 'edit',
-                    action: () => {
-                        if (typeof isMonacoEditFile === 'function' && isMonacoEditFile(path)) openFileInTab(path, true);
-                        else if (isImage) openPhotoEditor(path);
-                        else if (isAudio) openTranscriptionEditor(path);
-                        else if (isOfficeFile(path)) openOnlyOfficeEditor(path);
-                    }
-                });
-            }
-            if (isConvertibleFile(path)) {
-                actionItems.push({ label: t(window.i18n, 'convert'), icon: 'convert', action: () => showConvertDialog(path) });
-            }
-            actionItems.push({ label: t(window.i18n, 'rename'), icon: 'rename', action: () => renamePath(path) });
-            actionItems.push({ label: t(window.i18n, 'move'), icon: 'move', action: () => showMoveDialog(path, type) });
-            actionItems.push({ label: t(window.i18n, 'copy'), icon: 'copy', action: () => showCopyDialog(path, type) });
-            return actionItems.length ? [{ type: 'group', label: t(window.i18n, 'actions'), icon: 'layout-panel-top', items: actionItems }] : [];
-        })()),
-        ...(type === 'file' && isTxtFile ? [
-            { label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) }
-        ] : []),
-        ...(type === 'file' && isZipFile(path) ? [
-            { label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') }
-        ] : []),
-        { label: t(window.i18n, 'refresh'), icon: 'refresh', action: () => refreshTabContent(tabId) },
-        ...(type === 'file' && isOfficeFile(path) ? [{
-            label: t(window.i18n, 'editWithOnlyOffice'),
-            icon: 'office',
-            action: () => openOnlyOfficeEditor(path),
-            title: t(window.i18n, 'editWithOnlyOfficeTooltip')
-        }] : []),
-        { label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) },
-        { label: t(window.i18n, 'close'), icon: 'close', action: () => closeTab(tabId) },
-        { label: t(window.i18n, 'closeOthers'), icon: 'close-others', action: () => {
-            tabsState.tabs = tabsState.tabs.filter(t => t.id === tabId);
-            tabsState.activeTabId = tabId;
-            renderTabs();
-            saveTabsState();
-        }},
-        { label: t(window.i18n, 'delete'), icon: 'delete', action: () => deletePath(path, 'file', tab.title) }
-    ];
+    const path = tab.path;
+    const type = 'file';
+    const hideEdit = tab.markdownEditor || tab.htmlEditor || tab.latexEditor || tab.photoEditor ||
+        tab.transcriptionEditor || tab.onlyOfficeEditor || tab.ttsEditor || tab.zipViewer ||
+        (typeof shouldHideEditMenuOption === 'function' && shouldHideEditMenuOption(path));
+    const options = typeof buildFileContextMenuOptions === 'function'
+        ? buildFileContextMenuOptions(path, type, { includeSelect: false, hideEdit, tabId, tabTitle: tab.title })
+        : [];
     if (options.length === 0) {
         options.push({ label: t(window.i18n, 'noActions'), action: () => {} });
     }

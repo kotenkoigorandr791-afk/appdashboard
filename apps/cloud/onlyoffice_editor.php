@@ -83,6 +83,60 @@ function cloud_onlyoffice_safe_name(string $path, string $fallback = 'file'): st
     $base = basename(str_replace('\\', '/', $path));
     return $base !== '' ? $base : $fallback;
 }
+function cloud_onlyoffice_public_scheme(): string {
+    $forwarded = (string)($_SERVER['HTTP_FORWARDED'] ?? '');
+    if ($forwarded !== '' && preg_match('/(?:^|[;,]\s*)proto=(https?)/i', $forwarded, $m)) {
+        return strtolower($m[1]);
+    }
+    $xfp = strtolower(trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0] ?? ''));
+    if ($xfp === 'https' || $xfp === 'http') return $xfp;
+    if (strtolower((string)($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '')) === 'on') return 'https';
+    if (strtolower((string)($_SERVER['HTTP_FRONT_END_HTTPS'] ?? '')) === 'on') return 'https';
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') return 'https';
+    if (strtolower((string)($_SERVER['REQUEST_SCHEME'] ?? '')) === 'https') return 'https';
+    if ((string)($_SERVER['SERVER_PORT'] ?? '') === '443') return 'https';
+    return 'https';
+}
+function cloud_onlyoffice_public_host(): string {
+    $forwarded = (string)($_SERVER['HTTP_FORWARDED'] ?? '');
+    if ($forwarded !== '' && preg_match('/(?:^|[;,]\s*)host=([^;,]+)/i', $forwarded, $m)) {
+        return trim($m[1], "\" \t");
+    }
+    $xfh = trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''))[0] ?? '');
+    if ($xfh !== '') return $xfh;
+    return (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+}
+function cloud_onlyoffice_public_origin(): string {
+    return cloud_onlyoffice_public_scheme() . '://' . cloud_onlyoffice_public_host();
+}
+function cloud_onlyoffice_user_photo_raw(?string $email): string {
+    if (!$email) return 'default_avatar.png';
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('SELECT photo FROM users WHERE email = :email');
+        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $result = $stmt->execute();
+        $row = $result->fetchArray(SQLITE3_ASSOC);
+        if ($row && !empty($row['photo'])) return (string)$row['photo'];
+    } catch (Throwable $e) {
+    }
+    return 'default_avatar.png';
+}
+function cloud_onlyoffice_user_image_url(?string $email): string {
+    $photo = trim(cloud_onlyoffice_user_photo_raw($email));
+    $origin = cloud_onlyoffice_public_origin();
+    if ($photo === '' || $photo === 'default_avatar.png') {
+        return $origin . '/default_avatar.png';
+    }
+    if (filter_var($photo, FILTER_VALIDATE_URL)) {
+        if (preg_match('#^https://lh3\.googleusercontent\.com/#i', $photo)) {
+            return $origin . '/main?api=avatar_proxy&u=' . rawurlencode($photo);
+        }
+        return $photo;
+    }
+    if (str_starts_with($photo, '/')) return $origin . $photo;
+    return $origin . '/' . ltrim($photo, '/');
+}
 
 // ---------- ОБРАБОТКА СКАЧИВАНИЯ ФАЙЛА ----------
 if (isset($_GET['action']) && $_GET['action'] === 'download') {
@@ -262,6 +316,7 @@ $docKey = md5($fullPath . '|' . $fileMtime);
 $editorEmail = cloud_path_session_email();
 $editorUserId = $editorEmail ? ('user_' . md5($editorEmail)) : ('user_' . md5($user));
 $editorUserName = $editorEmail ?: $user;
+$editorUserImage = cloud_onlyoffice_user_image_url($editorEmail);
 
 $editorMode = 'edit';
 $groupId = cloud_parse_group_id($rootKey);
@@ -305,6 +360,7 @@ $docConfig = [
         'user' => [
             'id' => $editorUserId,
             'name' => $editorUserName,
+            'image' => $editorUserImage,
         ],
         'customization' => [
             'goback' => [

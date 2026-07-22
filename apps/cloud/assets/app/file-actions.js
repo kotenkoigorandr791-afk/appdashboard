@@ -604,6 +604,90 @@ function renderContextMenuOptions(menu, options, hooks = {}) {
 }
 window.renderContextMenuOptions = renderContextMenuOptions;
 
+function buildFileActionGroupItems(path, type, opts = {}) {
+    const actionItems = [];
+    const includeSelect = opts.includeSelect === true && type === 'file';
+    const hideEdit = opts.hideEdit || (typeof shouldHideEditMenuOption === 'function' && shouldHideEditMenuOption(path));
+    if (includeSelect) {
+        actionItems.push({
+            label: selectionState.active ? t(window.i18n, 'deselect') : t(window.i18n, 'select'),
+            icon: selectionState.active ? 'deselect' : 'select',
+            action: () => toggleSelectionMode()
+        });
+    }
+    if (path) actionItems.push({ label: t(window.i18n, 'rename'), icon: 'rename', action: () => renamePath(path) });
+    if (path) actionItems.push({ label: t(window.i18n, 'move'), icon: 'move', action: () => showMoveDialog(path, type) });
+    if (path) actionItems.push({ label: t(window.i18n, 'copy'), icon: 'copy', action: () => showCopyDialog(path, type) });
+    if (type === 'file' && path && !hideEdit && (isMonacoEditFile(path) || isEditableImage(path) || isEditableAudio(path) || (typeof isOfficeFile === 'function' && isOfficeFile(path)))) {
+        actionItems.push({
+            label: t(window.i18n, 'edit'),
+            icon: 'edit',
+            action: () => {
+                if (isMonacoEditFile(path)) openFileInTab(path, true);
+                else if (isEditableImage(path)) openPhotoEditor(path);
+                else if (isEditableAudio(path)) openTranscriptionEditor(path);
+                else if (typeof openOnlyOfficeEditor === 'function') openOnlyOfficeEditor(path);
+            }
+        });
+    }
+    if (type === 'file' && path && isConvertibleFile(path)) {
+        actionItems.push({ label: t(window.i18n, 'convert'), icon: 'convert', action: () => showConvertDialog(path) });
+    }
+    if (path && type === 'dir') {
+        actionItems.push({ label: t(window.i18n, 'archiveFolder'), icon: 'archive-folder', action: () => archiveFolder(path) });
+    }
+    return actionItems;
+}
+
+function buildFileContextMenuOptions(path, type, opts = {}) {
+    const options = [];
+    const actionItems = buildFileActionGroupItems(path, type, opts);
+    if (actionItems.length) {
+        options.push({ type: 'group', label: t(window.i18n, 'actions'), icon: 'layout-panel-top', items: actionItems });
+    }
+    if (type === 'file' && path.toLowerCase().endsWith('.txt')) {
+        options.push({ label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) });
+    }
+    if (type === 'file' && isZipFile(path)) {
+        options.push({ label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') });
+    }
+    if (opts.tabId != null) {
+        options.push({ label: t(window.i18n, 'refresh'), icon: 'refresh', action: () => refreshTabContent(opts.tabId) });
+        if (type === 'file' && typeof isOfficeFile === 'function' && isOfficeFile(path)) {
+            options.push({
+                label: t(window.i18n, 'editWithOnlyOffice'),
+                icon: 'office',
+                action: () => openOnlyOfficeEditor(path),
+                title: t(window.i18n, 'editWithOnlyOfficeTooltip')
+            });
+        }
+    }
+    if (path) options.push({ label: t(window.i18n, 'share'), icon: 'share', action: () => shareItem(path, type) });
+    if (path) options.push({ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) });
+    if (opts.tabId != null) {
+        options.push({ label: t(window.i18n, 'close'), icon: 'close', action: () => closeTab(opts.tabId) });
+        options.push({
+            label: t(window.i18n, 'closeOthers'),
+            icon: 'close-others',
+            action: () => {
+                tabsState.tabs = tabsState.tabs.filter((entry) => entry.id === opts.tabId);
+                tabsState.activeTabId = opts.tabId;
+                renderTabs();
+                saveTabsState();
+            }
+        });
+    }
+    if (path) {
+        options.push({
+            label: t(window.i18n, 'delete'),
+            icon: 'delete',
+            action: () => (opts.tabId != null ? deletePath(path, 'file', opts.tabTitle) : deletePath(path))
+        });
+    }
+    return options;
+}
+window.buildFileContextMenuOptions = buildFileContextMenuOptions;
+
 function showContextMenu(e, path, type, name) {
     // Guard: if path is an object (item was passed instead of item.path), extract fields
     if (path !== null && typeof path === 'object') {
@@ -708,43 +792,7 @@ function showContextMenu(e, path, type, name) {
             ...(type !== 'file' ? [
                 { label: t(window.i18n, 'upload'), icon: 'upload', action: () => openUploadDialog(basePath) },
             ] : []),
-            ...((() => {
-                const actionItems = [];
-                if (type === 'file') {
-                    actionItems.push({
-                        label: selectionState.active ? t(window.i18n, 'deselect') : t(window.i18n, 'select'),
-                        icon: selectionState.active ? 'deselect' : 'select',
-                        action: () => toggleSelectionMode()
-                    });
-                }
-                if (path) actionItems.push({ label: t(window.i18n, 'rename'), icon: 'rename', action: () => renamePath(path) });
-                if (path) actionItems.push({ label: t(window.i18n, 'move'), icon: 'move', action: () => showMoveDialog(path, type) });
-                if (path) actionItems.push({ label: t(window.i18n, 'copy'), icon: 'copy', action: () => showCopyDialog(path, type) });
-                if (type === 'file' && path && !shouldHideEditMenuOption(path) && (isMonacoEditFile(path) || isEditableImage(path) || isEditableAudio(path) || (typeof isOfficeFile === 'function' && isOfficeFile(path)))) {
-                    actionItems.push({ label: t(window.i18n, 'edit'), icon: 'edit', action: () => {
-                        if (isMonacoEditFile(path)) openFileInTab(path, true);
-                        else if (isEditableImage(path)) openPhotoEditor(path);
-                        else if (isEditableAudio(path)) openTranscriptionEditor(path);
-                        else if (typeof openOnlyOfficeEditor === 'function') openOnlyOfficeEditor(path);
-                    }});
-                }
-                if (type === 'file' && path && isConvertibleFile(path)) {
-                    actionItems.push({ label: t(window.i18n, 'convert'), icon: 'convert', action: () => showConvertDialog(path) });
-                }
-                if (path && type === 'dir') {
-                    actionItems.push({ label: t(window.i18n, 'archiveFolder'), icon: 'archive-folder', action: () => archiveFolder(path) });
-                }
-                return actionItems.length ? [{ type: 'group', label: t(window.i18n, 'actions'), icon: 'layout-panel-top', items: actionItems }] : [];
-            })()),
-            ...(type === 'file' && path.toLowerCase().endsWith('.txt') ? [
-                { label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) }
-            ] : []),
-            ...(type === 'file' && isZipFile(path) ? [
-                { label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') }
-            ] : []),
-            ...(path ? [{ label: t(window.i18n, 'share'), icon: 'share', action: () => shareItem(path, type) }] : []),
-            ...(path ? [{ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) }] : []),
-            ...(path ? [{ label: t(window.i18n, 'delete'), icon: 'delete', action: () => deletePath(path) }] : [])
+            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file' })
         );
     }
     if (options.length === 0) {
