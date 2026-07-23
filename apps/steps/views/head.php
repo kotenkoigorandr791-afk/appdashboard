@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars($translations['steps_counter_title']); ?></title>
-    <?php $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg'; ?>
+    <?php
+    $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
+    $nameConfig = json_decode((string) @file_get_contents(__DIR__ . '/../name.json'), true);
+    $menuButton = is_array($nameConfig['menu_button'] ?? null) ? $nameConfig['menu_button'] : [];
+    $menuButtonLeft = (int) ($menuButton['left'] ?? 16);
+    $menuButtonTop = (int) ($menuButton['top'] ?? 16);
+    $menuButtonWidth = (int) ($menuButton['width'] ?? 40);
+    $menuButtonHeight = (int) ($menuButton['height'] ?? 40);
+    ?>
     <link rel="preload" as="image" href="<?php echo htmlspecialchars($bgFull); ?>" fetchpriority="high">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
@@ -23,6 +31,12 @@
             --chart-color: <?php echo $theme === 'dark' ? '#fff' : '#000'; ?>; 
             --scrollbar-thumb: <?php echo $theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'; ?>; 
             --glass-blur: 16px;
+            --menu-button-left: <?php echo $menuButtonLeft; ?>px;
+            --menu-button-top: <?php echo $menuButtonTop; ?>px;
+            --menu-button-width: <?php echo $menuButtonWidth; ?>px;
+            --menu-button-height: <?php echo $menuButtonHeight; ?>px;
+            --topbar-height: calc(var(--menu-button-top) + var(--menu-button-height) + 8px);
+            --topbar-left-pad: calc(var(--menu-button-left) + var(--menu-button-width) + 8px);
         }
         .view-selector,
         .chart-nav,
@@ -310,7 +324,7 @@
         #video-crop-modal .cropper-dashed { display: none !important; }
         #video-crop-modal .video-crop-actions { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 14px; margin-top: 18px; }
         
-        body { margin: 0; padding: 20px; font-family: Arial, sans-serif; background: transparent; color: var(--text-color); transition: color 0.3s ease; position: relative; min-height: 100vh; }
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background: transparent; color: var(--text-color); transition: color 0.3s ease; position: relative; min-height: 100vh; }
         
         #bg-layer {
             position: fixed;
@@ -326,12 +340,50 @@
         
         .app-steps {
             background: transparent;
-            padding: 20px;
+            padding: calc(var(--topbar-height) + 16px) 20px 20px;
             text-align: center;
             max-width: 100%;
             width: 100%;
             margin: 0 auto;
             position: relative;
+            box-sizing: border-box;
+        }
+        .app-topbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9000;
+            min-height: var(--topbar-height);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 8px 16px 8px var(--topbar-left-pad);
+            box-sizing: border-box;
+            background: var(--modal-bg);
+            border-bottom: 1px solid var(--border-color);
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+            backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+        }
+        .app-topbar h1 {
+            min-width: 0;
+            margin: 0;
+            font-size: 1.5em;
+            line-height: 1.2;
+            text-align: left;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .app-topbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .app-main {
+            width: 100%;
             box-sizing: border-box;
         }
         
@@ -404,10 +456,8 @@
         .goal-icon { width: 20px; height: 20px; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); cursor: pointer; }
         .goal-summary { margin-top: 20px; padding: 10px; background: var(--group-block-bg); border-radius: 8px; border: 1px solid var(--border-color); }
         
-        /* Кнопки меню с одинаковыми иконками */
         #info-button, #settings-button, #add-steps-button, #excel-button { 
-            position: absolute; 
-            top: 5px; 
+            position: static; 
             background: none; 
             border: none; 
             cursor: pointer; 
@@ -424,16 +474,8 @@
         #info-button:hover, #settings-button:hover, #add-steps-button:hover, #excel-button:hover { 
             background: rgba(0, 123, 255, 0.1); 
         }
-        #info-button { right: 60px; }
-        #settings-button { right: 110px; }
-        #add-steps-button { right: 210px; }
-        #excel-button { right: 160px; }
-        
-        /* Круглое фото пользователя — крайнее правое */
         #user-button {
-            position: absolute;
-            top: 5px;
-            right: 10px;
+            position: static;
             width: 40px;
             height: 40px;
             border-radius: 50%;
@@ -1453,35 +1495,35 @@
             
             .app-steps { 
                 max-width: 100%; 
-                padding: 10px; 
+                padding: calc(var(--topbar-height) + 10px) 10px 10px; 
                 margin: 0; 
             }
             
-            .app-steps h1 { 
-                font-size: 1.2em; 
-                margin-top: 5px; 
-                margin-bottom: 5px; 
-                margin-right: 200px; 
-                text-align: left; 
+            .app-topbar {
+                min-height: var(--topbar-height);
+                gap: 8px;
+                padding: 6px 10px 6px var(--topbar-left-pad);
+            }
+            
+            .app-topbar h1 { 
+                display: none;
             }
             
             #info-button, #settings-button, #add-steps-button, #excel-button { 
-                top: 5px; 
                 font-size: 20px;
                 width: 35px;
                 height: 35px;
             }
-            #info-button { right: 60px; }
-            #settings-button { right: 105px; }
-            #add-steps-button { right: 195px; }
-            #excel-button { right: 150px; }
             
-            /* Круглое фото пользователя для мобильных */
+            .app-topbar-actions {
+                width: 100%;
+                justify-content: flex-end;
+                gap: 5px;
+            }
+            
             #user-button {
                 width: 35px;
                 height: 35px;
-                right: 10px;
-                top: 5px;
             }
             
             .goal-icon { width: 12px; height: 12px; right: 1px; left: auto; top: 50%; transform: translateY(-50%); }

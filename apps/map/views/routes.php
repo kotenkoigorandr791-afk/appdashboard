@@ -14,7 +14,7 @@ function renderMainPage($pagination) {
         <title><?= $lang_array['app_title'] ?></title>
         <link href="leaflet/leaflet.css" rel="stylesheet">
         <style data-page-style="route-page">
-            :root { --primary-color: <?= $color ?>; --bg-color: <?= $theme === 'dark' ? '#1a1a1a' : '#ffffff' ?>; --text-color: <?= $theme === 'dark' ? '#ffffff' : '#000000' ?>; --card-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-thumb: <?= $theme === 'dark' ? '#555' : '#ccc' ?>; --radius-sm: 14px; --radius-md: 20px; --radius-lg: 28px; --glass-bg: <?= $theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.58)' ?>; --glass-border: <?= $theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)' ?>; }
+            :root { --primary-color: <?= $color ?>; --bg-color: <?= $theme === 'dark' ? '#1a1a1a' : '#ffffff' ?>; --text-color: <?= $theme === 'dark' ? '#ffffff' : '#000000' ?>; --card-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-thumb: <?= $theme === 'dark' ? '#555' : '#ccc' ?>; --radius-sm: 14px; --radius-md: 20px; --radius-lg: 28px; --glass-bg: <?= $theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.58)' ?>; --glass-border: <?= $theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)' ?>; --topbar-height: 88px; }
             ::-webkit-scrollbar { width: 12px; height: 12px; }
             ::-webkit-scrollbar-track { background: var(--scrollbar-bg); border-radius: 6px; }
             ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 6px; border: 2px solid var(--scrollbar-bg); }
@@ -22,8 +22,10 @@ function renderMainPage($pagination) {
             * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg); }
             .osm-dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: all 0.3s ease; overflow-x: hidden; }
-            header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 2rem; background-color: var(--card-bg); margin: 12px 45px 2rem; position: relative; border-radius: var(--radius-lg); }
+            body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: all 0.3s ease; overflow: hidden; }
+            header { position: fixed; top: 0; left: 0; right: 0; z-index: 1100; height: var(--topbar-height); display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 12px 45px 12px 64px; background-color: var(--card-bg); border-bottom: 1px solid var(--glass-border); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+            main { height: calc(100vh - var(--topbar-height)); margin-top: var(--topbar-height); overflow-y: auto; overflow-x: hidden; padding: 1rem 45px 2rem; }
+            .topbar-title { flex-shrink: 0; min-width: 0; max-width: min(32vw, 360px); font-size: 1.35rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .header-left { display: none; }
             .header-left h1 { margin: 0; font-size: 1.5rem; }
             .user-info { font-size: 0.9rem; color: var(--primary-color); background: var(--bg-color); padding: 0.3rem 0.8rem; border-radius: 20px; }
@@ -58,9 +60,9 @@ function renderMainPage($pagination) {
             }
             .display-mode a.active { background-color: var(--primary-color); color: white; }
             .display-mode svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
-            .controls { display: flex; gap: 1rem; align-items: center; width: 100%; }
+            .controls { display: flex; gap: 1rem; align-items: center; flex: 1; min-width: 0; }
             .search-container { display: flex; align-items: center; background: var(--bg-color); border-radius: var(--radius-md); padding: 0.85rem 1rem; border: 1px solid var(--glass-border); gap: 0.75rem; flex: 1; min-width: 0; box-shadow: inset 0 1px 0 rgba(255,255,255,0.12); }
-            .search-container input { border: none; background: transparent; color: var(--text-color); outline: none; padding: 0; flex: 1; font-size: 1rem; }
+            .search-container input { border: none; background: transparent; color: var(--text-color); outline: none; padding: 0; flex: 1; min-width: 0; font-size: 1rem; }
             .search-icon { width: 16px; height: 16px; fill: #666; }
             .btn { padding: 0.5rem; border: none; border-radius: 999px; background-color: var(--primary-color); color: white; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.2s ease; width: 44px; height: 44px; }
             .btn:hover { opacity: 0.9; }
@@ -252,7 +254,10 @@ function renderMainPage($pagination) {
             }
             
             @media (max-width: 768px) { 
-                header { margin: 12px 45px 1.5rem; padding: 1rem; }
+                :root { --topbar-height: 82px; }
+                header { padding: 10px 16px 10px 52px; }
+                main { padding: 0.75rem 16px 1.5rem; }
+                .topbar-title { display: none; }
                 .controls { gap: 0.75rem; }
                 .search-container { width: 100%; }
                 .side-menu { width: min(340px, 92vw); }
@@ -274,8 +279,13 @@ function renderMainPage($pagination) {
                 .modal-content { padding: 1.5rem; }
             }
             @media (max-width: 480px) { 
-                header { margin: 12px 45px 1rem; padding: 0.75rem; }
-                .controls { gap: 0.5rem; }
+                :root { --topbar-height: 76px; }
+                header { padding: 8px 10px 8px 52px; }
+                main { padding: 0.5rem 10px 1rem; }
+                .controls { gap: 0.5rem; width: 100%; }
+                .search-container { padding: 0.55rem 0.75rem; }
+                .select-mode-btn { width: 36px; height: 36px; padding: 0; justify-content: center; }
+                .select-mode-btn span { display: none; }
                 .btn { width: 36px; height: 36px; }
                 .modal-content { padding: 1rem; }
                 .modal-close { top: 1rem; right: 1rem; width: 42px; height: 42px; min-width: 42px; }
@@ -520,6 +530,7 @@ function renderMainPage($pagination) {
     </head>
     <body>
         <header>
+            <h1 class="topbar-title"><?= $lang_array['app_title'] ?></h1>
             <div class="controls">
                 <div class="search-container">
                     <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
@@ -1663,7 +1674,7 @@ function renderTablePage($pagination) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title><?= $lang_array['app_title'] ?> - <?= $lang_array['table_view'] ?></title>
         <style data-page-style="route-page">
-            :root { --primary-color: <?= $color ?>; --bg-color: <?= $theme === 'dark' ? '#1a1a1a' : '#ffffff' ?>; --text-color: <?= $theme === 'dark' ? '#ffffff' : '#000000' ?>; --card-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-thumb: <?= $theme === 'dark' ? '#555' : '#ccc' ?>; --border-color: <?= $theme === 'dark' ? '#444' : '#ddd' ?>; --hover-color: <?= $theme === 'dark' ? '#3a3a3a' : '#eaeaea' ?>; --radius-sm: 14px; --radius-md: 20px; --radius-lg: 28px; --glass-bg: <?= $theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.58)' ?>; --glass-border: <?= $theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)' ?>; }
+            :root { --primary-color: <?= $color ?>; --bg-color: <?= $theme === 'dark' ? '#1a1a1a' : '#ffffff' ?>; --text-color: <?= $theme === 'dark' ? '#ffffff' : '#000000' ?>; --card-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-bg: <?= $theme === 'dark' ? '#2d2d2d' : '#f5f5f5' ?>; --scrollbar-thumb: <?= $theme === 'dark' ? '#555' : '#ccc' ?>; --border-color: <?= $theme === 'dark' ? '#444' : '#ddd' ?>; --hover-color: <?= $theme === 'dark' ? '#3a3a3a' : '#eaeaea' ?>; --radius-sm: 14px; --radius-md: 20px; --radius-lg: 28px; --glass-bg: <?= $theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.58)' ?>; --glass-border: <?= $theme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(0,0,0,0.1)' ?>; --topbar-height: 88px; }
             ::-webkit-scrollbar { width: 12px; height: 12px; }
             ::-webkit-scrollbar-track { background: var(--scrollbar-bg); border-radius: 6px; }
             ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 6px; border: 2px solid var(--scrollbar-bg); }
@@ -1671,8 +1682,10 @@ function renderTablePage($pagination) {
             * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg); }
             .osm-dark-tiles { filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9); }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: all 0.3s ease; overflow-x: hidden; }
-            header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1.25rem 2rem; background-color: var(--card-bg); margin: 12px 45px 2rem; position: relative; border-radius: var(--radius-lg); }
+            body { font-family: Arial, sans-serif; background-color: var(--bg-color); color: var(--text-color); transition: all 0.3s ease; overflow: hidden; }
+            header { position: fixed; top: 0; left: 0; right: 0; z-index: 1100; height: var(--topbar-height); display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 12px 45px 12px 64px; background-color: var(--card-bg); border-bottom: 1px solid var(--glass-border); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+            main { height: calc(100vh - var(--topbar-height)); margin-top: var(--topbar-height); overflow-y: auto; overflow-x: hidden; padding: 1rem 45px 2rem; }
+            .topbar-title { flex-shrink: 0; min-width: 0; max-width: min(32vw, 360px); font-size: 1.35rem; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
             .header-left { display: none; }
             .header-left h1 { margin: 0; font-size: 1.5rem; }
             .user-info { font-size: 0.9rem; color: var(--primary-color); background: var(--bg-color); padding: 0.3rem 0.8rem; border-radius: 20px; }
@@ -1707,7 +1720,7 @@ function renderTablePage($pagination) {
             }
             .display-mode a.active { background-color: var(--primary-color); color: white; }
             .display-mode svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
-            .controls { display: flex; gap: 1rem; align-items: center; width: 100%; }
+            .controls { display: flex; gap: 1rem; align-items: center; flex: 1; min-width: 0; }
             .search-container { 
                 display: flex;
                 align-items: center; 
@@ -1732,7 +1745,7 @@ function renderTablePage($pagination) {
                 transform: none;
                 box-shadow: none;
             }
-            .search-container input { border: none; background: transparent; color: var(--text-color); outline: none; padding: 0; flex: 1; font-size: 1rem; }
+            .search-container input { border: none; background: transparent; color: var(--text-color); outline: none; padding: 0; flex: 1; min-width: 0; font-size: 1rem; }
             .search-icon { width: 16px; height: 16px; fill: #666; }
             .btn { padding: 0.5rem; border: none; border-radius: 999px; background-color: var(--primary-color); color: white; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: opacity 0.2s ease; min-width: 44px; height: 44px; }
             .btn:hover { opacity: 0.9; }
@@ -1885,7 +1898,10 @@ function renderTablePage($pagination) {
             .modal-close:active { transform: scale(0.9) rotate(8deg); background: rgba(220, 38, 38, 0.2); }
             .modal-close svg { width: 18px; height: 18px; stroke: currentColor; }
             @media (max-width: 768px) { 
-                header { margin: 12px 45px 1.5rem; padding: 1rem; }
+                :root { --topbar-height: 82px; }
+                header { padding: 10px 16px 10px 52px; }
+                main { padding: 0.75rem 16px 1.5rem; }
+                .topbar-title { display: none; }
                 .controls { gap: 0.75rem; }
                 .search-container { width: 100%; }
                 .side-menu { width: min(340px, 92vw); }
@@ -1908,7 +1924,11 @@ function renderTablePage($pagination) {
                 }
             }
             @media (max-width: 480px) {
-                header { margin: 12px 45px 1rem; padding: 0.75rem; }
+                :root { --topbar-height: 76px; }
+                header { padding: 8px 10px 8px 52px; }
+                main { padding: 0.5rem 10px 1rem; }
+                .controls { gap: 0.5rem; width: 100%; }
+                .search-container { padding: 0.55rem 0.75rem; }
                 .btn { min-width: 40px; height: 40px; }
                 .modal-close { top: 1rem; right: 1rem; width: 42px; height: 42px; min-width: 42px; }
                 .menu-action { min-height: 50px; border-radius: 18px; }
@@ -2152,6 +2172,7 @@ function renderTablePage($pagination) {
     </head>
     <body>
         <header>
+            <h1 class="topbar-title"><?= $lang_array['app_title'] ?></h1>
             <div class="controls">
                 <div class="search-container">
                     <svg class="search-icon" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>

@@ -30,6 +30,8 @@ $sideRailGap = 16;
         --menu-button-mobile-reserve: <?php echo (int)$menuBtnMobileReserve; ?>px;
         --menu-button-clear-top: <?php echo (int)$menuBtnClearTop; ?>px;
         --menu-button-mobile-clear-top: <?php echo (int)$menuBtnMobileClearTop; ?>px;
+        --top-bar-offset: 12px;
+        --top-bar-height: max(82px, calc(var(--menu-button-clear-top) + 18px));
         --side-rail-width: <?php echo (int)$sideRailWidth; ?>px;
         --side-rail-offset: <?php echo (int)$sideRailOffset; ?>px;
         --side-rail-gap: <?php echo (int)$sideRailGap; ?>px;
@@ -64,7 +66,7 @@ $sideRailGap = 16;
     body {
         font-family: "Avenir Next", "Segoe UI", system-ui, -apple-system, sans-serif;
         margin: 0;
-        padding: max(28px, var(--menu-button-clear-top)) calc(var(--side-rail-offset) + var(--side-rail-width) + var(--side-rail-gap)) 28px max(56px, var(--menu-button-reserve));
+        padding: calc(var(--top-bar-height) + 40px) calc(var(--side-rail-offset) + var(--side-rail-width) + var(--side-rail-gap) + 28px) 28px 28px;
         transition: background var(--transition-speed), color var(--transition-speed);
         background-image:
             radial-gradient(circle at top left, <?php echo $color; ?>20 0, transparent 24%),
@@ -79,7 +81,7 @@ $sideRailGap = 16;
         display: flex;
         flex-direction: column;
         -webkit-tap-highlight-color: transparent;
-        overflow: hidden;
+        overflow-x: hidden;
     }
     button, input, select, textarea { font: inherit; }
     * {
@@ -104,18 +106,22 @@ $sideRailGap = 16;
     svg { display: block; width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .container { max-width: 1440px; margin: 0 auto; width: 100%; position: relative; display: flex; flex-direction: column; }
     .header {
-        display: grid;
-        grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 1fr);
-        gap: 18px;
-        align-items: stretch;
-        margin-bottom: 30px;
-        padding: 24px 36px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 0;
+        padding: 14px 36px 14px max(36px, var(--menu-button-reserve));
         background: var(--surface);
         border: 1px solid var(--line);
-        border-radius: 28px;
+        border-radius: 0 0 28px 28px;
         box-shadow: var(--shadow);
         backdrop-filter: blur(18px);
-        position: relative;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        min-height: var(--top-bar-height);
+        max-height: var(--top-bar-height);
+        z-index: 2400;
         overflow: hidden;
     }
     .header::after {
@@ -159,6 +165,20 @@ $sideRailGap = 16;
         line-height: 1.45;
     }
     .header-center { display: flex; flex-direction: column; justify-content: center; gap: 14px; position: relative; z-index: 1; }
+    .main-summary {
+        display: grid;
+        grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.2fr) minmax(280px, auto);
+        gap: 16px;
+        align-items: center;
+        width: 100%;
+        margin-bottom: 24px;
+        padding: 18px 22px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+    }
     .search-bar { position: relative; width: 100%; margin: 0; }
     .mobile-menu-button {
         display: none;
@@ -1106,7 +1126,7 @@ $sideRailGap = 16;
     .install-desc { color: var(--text-soft); margin-bottom: 15px; font-size: 14px; }
     .download-btn { display: inline-block; padding: 10px 20px; background: <?php echo $color; ?>c8; color: white; text-decoration: none; border-radius: 8px; transition: all var(--transition-speed); font-size: 14px; backdrop-filter: blur(4px); }
     .download-btn:hover { background: <?php echo adjustBrightness($color, -10); ?>cc; transform: translateY(-2px); }
-    .mobile-menu { display: block; position: fixed; top: 0; right: 0; width: min(320px, 88vw); height: 100%; background: var(--surface-strong); z-index: 4000; padding: 20px; box-shadow: -12px 0 30px rgba(0,0,0,0.18); transform: translateX(100%); transition: transform var(--transition-speed); overflow-y: auto; border-left: 1px solid var(--line); }
+    .mobile-menu { display: block; position: fixed; top: var(--top-bar-height); right: 0; width: min(320px, 88vw); height: calc(100% - var(--top-bar-height)); background: var(--surface-strong); z-index: 4000; padding: 20px; box-shadow: -12px 0 30px rgba(0,0,0,0.18); transform: translateX(100%); transition: transform var(--transition-speed); overflow-y: auto; border-left: 1px solid var(--line); }
     .mobile-menu.active { transform: translateX(0); }
     .mobile-menu-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
     .mobile-menu-title { font-size: 20px; font-weight: 600; color: var(--primary-color); margin: 0; }
@@ -1114,13 +1134,13 @@ $sideRailGap = 16;
     .mobile-menu-content { display: flex; flex-direction: column; gap: 15px; }
     .side-rail {
         position: fixed;
-        top: 28px;
+        top: calc(var(--top-bar-height) + 16px);
         right: 28px;
         width: 96px;
         display: flex;
         flex-direction: column;
         gap: 16px;
-        z-index: 2500;
+        z-index: 2300;
     }
     .rail-actions {
         display: flex;
@@ -1193,14 +1213,14 @@ $sideRailGap = 16;
     .access-manager { background: #4CAF50; color: white; }
     .access-admin { background: #F44336; color: white; }
     @media (max-width: 1200px) {
+        :root {
+            --top-bar-height: max(82px, calc(var(--menu-button-clear-top) + 18px));
+        }
         body {
-            padding-top: max(28px, var(--menu-button-clear-top));
-            padding-right: calc(var(--side-rail-offset) + var(--side-rail-width) + var(--side-rail-gap));
             padding-bottom: 28px;
-            padding-left: max(40px, var(--menu-button-reserve));
         }
         .grid { --grid-columns: 2 !important; gap: 18px; }
-        .header { grid-template-columns: 1fr; }
+        .main-summary { grid-template-columns: 1fr; }
         .album-card { aspect-ratio: 1; min-height: 0; }
         .album-info { padding: 12px 14px 14px; }
         .album-title { font-size: 15px; }
@@ -1209,12 +1229,15 @@ $sideRailGap = 16;
         .album-open-indicator { width: 30px; height: 30px; border-radius: 10px; margin-left: 4px; }
     }
     @media (max-width: 768px) {
+        :root {
+            --top-bar-height: max(78px, calc(var(--menu-button-mobile-clear-top) + 18px));
+        }
         body {
-            padding: max(var(--menu-button-mobile-clear-top), 80px) 16px 16px var(--menu-button-mobile-reserve);
+            padding: calc(var(--top-bar-height) + 16px) 16px 16px;
         }
         .desktop-rail { display: none; }
         .mobile-menu-button { display: block; }
-        .header { padding: 18px 22px; gap: 14px; margin-top: 0; }
+        .header { padding: 12px 76px 12px max(22px, var(--menu-button-mobile-reserve)); margin-top: 0; }
         .header-description { max-width: none; }
         .header-metrics { gap: 10px; }
         .metric-pill { flex: 1 1 calc(50% - 10px); min-width: 0; }
@@ -1228,7 +1251,10 @@ $sideRailGap = 16;
         .install-grid { grid-template-columns: 1fr; }
     }
     @media (max-width: 480px) {
-        .header { border-radius: 24px; padding: 16px; }
+        :root {
+            --top-bar-height: max(76px, calc(var(--menu-button-mobile-clear-top) + 18px));
+        }
+        .header { border-radius: 0 0 24px 24px; padding: 10px 76px 10px max(16px, var(--menu-button-mobile-reserve)); }
         .grid { --grid-columns: 2 !important; gap: 12px; }
         .album-card { border-radius: 22px; }
         .album-info { padding: 12px; }

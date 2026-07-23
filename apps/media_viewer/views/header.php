@@ -13,6 +13,11 @@ $totalViews = array_sum($stats);
         <circle cx="11" cy="11" r="6"></circle>
         <path d="M20 20l-4.2-4.2"></path>
     </symbol>
+    <symbol id="icon-menu" viewBox="0 0 24 24">
+        <path d="M4 7h16"></path>
+        <path d="M4 12h16"></path>
+        <path d="M4 17h16"></path>
+    </symbol>
     <symbol id="icon-user" viewBox="0 0 24 24">
         <circle cx="12" cy="8" r="3.5"></circle>
         <path d="M5 19c1.8-3 4.2-4.5 7-4.5S17.2 16 19 19"></path>
@@ -44,8 +49,8 @@ $totalViews = array_sum($stats);
     </symbol>
 </svg>
 <div class="container">
-    <button class="mobile-menu-button" onclick="toggleMobileMenu()" aria-label="<?php echo $translations['user_info'] ?? 'User info'; ?>">
-        <span class="icon glyph"><svg viewBox="0 0 24 24"><use href="#icon-user"></use></svg></span>
+    <button class="mobile-menu-button" onclick="toggleMobileMenu()" aria-label="<?php echo $translations['menu'] ?? 'Menu'; ?>">
+        <span class="icon glyph"><svg viewBox="0 0 24 24"><use href="#icon-menu"></use></svg></span>
     </button>
     <aside id="mobileMenu" class="mobile-menu">
         <div class="mobile-menu-header">
@@ -151,28 +156,28 @@ $totalViews = array_sum($stats);
                     </h1>
                 </div>
             </div>
-            <p class="header-description">Browse albums in a cleaner gallery layout with fast search and access-aware collections.</p>
         </div>
-        <div class="header-center">
-            <div class="search-bar">
-                <span class="search-icon">
-                    <svg viewBox="0 0 24 24"><use href="#icon-search"></use></svg>
-                </span>
-                <input type="text" id="searchInput" placeholder="<?php echo $translations['search_placeholder'] ?? 'Search albums...'; ?>">
+    </div>
+    <div class="main-summary">
+        <p class="header-description">Browse albums in a cleaner gallery layout with fast search and access-aware collections.</p>
+        <div class="search-bar">
+            <span class="search-icon">
+                <svg viewBox="0 0 24 24"><use href="#icon-search"></use></svg>
+            </span>
+            <input type="text" id="searchInput" placeholder="<?php echo $translations['search_placeholder'] ?? 'Search albums...'; ?>">
+        </div>
+        <div class="header-metrics">
+            <div class="metric-pill">
+                <span class="metric-value"><?php echo count($visibleAlbums); ?></span>
+                <span class="metric-label"><?php echo $translations['album_name'] ?? 'Albums'; ?></span>
             </div>
-            <div class="header-metrics">
-                <div class="metric-pill">
-                    <span class="metric-value"><?php echo count($visibleAlbums); ?></span>
-                    <span class="metric-label"><?php echo $translations['album_name'] ?? 'Albums'; ?></span>
-                </div>
-                <div class="metric-pill">
-                    <span class="metric-value"><?php echo $totalViews; ?></span>
-                    <span class="metric-label"><?php echo $translations['views'] ?? 'Views'; ?></span>
-                </div>
-                <div class="metric-pill">
-                    <span class="metric-value"><?php echo $roleText; ?></span>
-                    <span class="metric-label"><?php echo $translations['access_level'] ?? 'Access'; ?></span>
-                </div>
+            <div class="metric-pill">
+                <span class="metric-value"><?php echo $totalViews; ?></span>
+                <span class="metric-label"><?php echo $translations['views'] ?? 'Views'; ?></span>
+            </div>
+            <div class="metric-pill">
+                <span class="metric-value"><?php echo $roleText; ?></span>
+                <span class="metric-label"><?php echo $translations['access_level'] ?? 'Access'; ?></span>
             </div>
         </div>
     </div>

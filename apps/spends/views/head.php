@@ -1,3 +1,8 @@
+<?php
+$nameConfig = json_decode(file_get_contents(__DIR__ . '/../name.json'), true) ?: [];
+$menuButton = $nameConfig['menu_button'] ?? [];
+$menuSafeWidth = (int)($menuButton['left'] ?? 16) + (int)($menuButton['width'] ?? 40) + 10;
+?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($language) ?>">
 <head>
@@ -20,6 +25,8 @@
             --scrollbar-track: <?= $theme==='dark'?'#1f1f1f':'#f1f4f8' ?>;
             --scrollbar-thumb: <?= $theme==='dark'?'#555':'#8a97ab' ?>;
             --scrollbar-thumb-hover: <?= $theme==='dark'?'#6b6b6b':'#6f8098' ?>;
+            --top-bar-height: 64px;
+            --menu-safe-width: <?= $menuSafeWidth ?>px;
         }
         
         /* Custom scrollbar styling */
@@ -45,11 +52,11 @@
             scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
         }
         
-        body { margin:0; padding:10px; font-family:Arial; background:var(--bg-color); color:var(--text-color); overflow-x:hidden; }
+        body { margin:0; padding:0; font-family:Arial; background:var(--bg-color); color:var(--text-color); overflow-x:hidden; }
         body.modal-open { overflow:hidden!important; }
-        .app-expenses { max-width:100%; margin:auto; position:relative; box-sizing:border-box; }
-        .header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; position:relative; flex-wrap:wrap; gap:10px; padding-left:60px; }
-        .header h2 { margin:0; white-space:nowrap; font-size:1.2rem; }
+        .app-expenses { max-width:100%; margin:auto; position:relative; box-sizing:border-box; padding:calc(var(--top-bar-height) + 10px) 10px 10px; }
+        .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; position:fixed; top:0; left:0; right:0; z-index:900; min-height:var(--top-bar-height); margin:0; padding:10px 10px 10px calc(var(--menu-safe-width) + 10px); box-sizing:border-box; background:var(--bg-color); border-bottom:1px solid var(--border-color); box-shadow:0 2px 8px rgba(0,0,0,.08); }
+        .header h2 { margin:0; white-space:nowrap; font-size:1.2rem; min-width:0; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto; }
         .header-buttons { display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
         .header-btn { background:none; border:none; cursor:pointer; font-size:20px; color:var(--text-color); padding:6px; border-radius:4px; transition:background 0.2s; display:flex; align-items:center; justify-content:center; overflow:visible; }
         .header-btn:hover { background:rgba(var(--primary-color-rgb),0.2); }
@@ -101,7 +108,7 @@
         .search-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:#666; pointer-events:none; }
         .add-date-btn { background:var(--primary-color); color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:4px; transition:opacity 0.2s; }
         .add-date-btn:hover { opacity:0.9; }
-        .data-table-container { overflow-x:auto; margin:10px 0; max-width:100%; max-height:95vh; overflow-y:auto; }
+        .data-table-container { overflow-x:auto; margin:10px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 20px); overflow-y:auto; }
         .data-table { width:100%; border-collapse:collapse; table-layout:auto; }
         .data-table th, .data-table td { border:1px solid var(--border-color); padding:5px; text-align:center; min-width:80px; box-sizing:border-box; }
         .data-table th.income-separator, .data-table td.income-separator { border-left:3px solid rgba(var(--primary-color-rgb),.45)!important; }
@@ -251,9 +258,10 @@
         }
 
         @media (max-width:768px) {
+            :root { --top-bar-height: 64px; }
             .ocr-shell .ocrw-shell { padding-top:74px!important; }
-            .header { justify-content:center; }
-            .header h2 { font-size:1rem; }
+            .header { justify-content:flex-end; align-content:center; }
+            .header h2 { display:none; }
             .header-buttons { gap:5px; justify-content:center; width:100%; }
             .header-btn { padding:4px; }
             .chart-container { max-width:100%; }

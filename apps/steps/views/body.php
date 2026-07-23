@@ -3,24 +3,27 @@
     <div id="bg-layer" aria-hidden="true"></div>
     <script>(function(){var s=<?php echo json_encode($bgFull); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
     <div class="app-steps">
-        <button id="info-button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
-            <i class="fas fa-info-circle"></i>
-        </button>
-        <button id="settings-button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
-            <i class="fas fa-cog"></i>
-        </button>
-        <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
-            <i class="fas fa-plus"></i>
-        </button>
-        <button id="excel-button" title="<?php echo htmlspecialchars($translations['excel_view'] ?? 'Excel View'); ?>">
-            <i class="fas fa-table"></i>
-        </button>
-        <div id="user-button" title="<?php echo htmlspecialchars($userName); ?>">
-            <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="User">
+        <div class="app-topbar">
+            <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
+            <div class="app-topbar-actions">
+                <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <button id="excel-button" title="<?php echo htmlspecialchars($translations['excel_view'] ?? 'Excel View'); ?>">
+                    <i class="fas fa-table"></i>
+                </button>
+                <button id="settings-button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button id="info-button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
+                    <i class="fas fa-info-circle"></i>
+                </button>
+                <div id="user-button" title="<?php echo htmlspecialchars($userName); ?>">
+                    <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="User">
+                </div>
+            </div>
         </div>
-        
-        <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
-        
+        <div class="app-main">
         <div class="view-selector">
             <button class="view-btn active" data-view="year"><?php echo htmlspecialchars($translations['year']); ?></button>
             <button class="view-btn" data-view="month"><?php echo htmlspecialchars($translations['month']); ?></button>
@@ -98,6 +101,7 @@
             </div>
         </div>
         <div id="worker-progress-widget"></div>
+        </div>
         
         <!-- Info Modal -->
         <div id="info-modal" style="display:none;">
