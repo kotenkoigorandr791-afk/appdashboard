@@ -2591,8 +2591,12 @@ function deleteDirectory($dir){
 
 // ── News Portal API ───────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'news') {
-    $newsFile = APP_ROOT . '/data/news.json';
-    $uploadsDir = APP_ROOT . '/uploads/news/';
+    $newsDataDir = rtrim((string)(getenv('APP_NEWS_DATA_DIR') ?: '/opt/AppDashboard/data/news'), '/');
+    $newsFile = $newsDataDir . '/news.json';
+    $layoutFile = $newsDataDir . '/news_layout.json';
+    $uploadsDir = $newsDataDir . '/uploads/';
+    if (!is_dir($newsDataDir)) @mkdir($newsDataDir, 0775, true);
+    if (!is_dir($uploadsDir)) @mkdir($uploadsDir, 0775, true);
     $db = getDB();
     $userRole = (int)($_SESSION['user']['role'] ?? -1);
     $userEmail = (string)($_SESSION['user']['email'] ?? '');
@@ -2608,6 +2612,13 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     }
     function newsBool($value): bool {
         return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
+    }
+    function newsPhotoUrl(string $photo): string {
+        $photo = trim($photo);
+        if (preg_match('#^uploads/news/([^/]+)$#', $photo, $m)) {
+            return '/main?api=news&action=photo&file=' . rawurlencode($m[1]);
+        }
+        return $photo;
     }
     function newsTableColumns(AppDatabase $db, string $table): array {
         $res = $db->query("PRAGMA table_info($table)");
@@ -2672,6 +2683,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
             $row['published'] = newsBool($row['published'] ?? 0);
             $row['created_at'] = (int)($row['created_at'] ?? 0);
             $row['updated_at'] = isset($row['updated_at']) ? (int)$row['updated_at'] : null;
+            $row['photo'] = newsPhotoUrl((string)($row['photo'] ?? ''));
             $items[] = $row;
         }
         return $items;
@@ -2683,9 +2695,27 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
 
     if ($action === 'list') {
         $items = newsLoadAllDb($db, $canEdit);
-        $layoutFile = APP_ROOT . '/data/news_layout.json';
         $layout = is_file($layoutFile) ? (json_decode(file_get_contents($layoutFile), true) ?: []) : [];
         echo json_encode(['ok' => true, 'items' => $items, 'can_edit' => $canEdit, 'layout' => $layout]);
+        exit;
+    }
+
+    if ($action === 'photo') {
+        $filename = basename((string)($_GET['file'] ?? ''));
+        if (!preg_match('/^[a-f0-9]{32}\.(jpg|png|webp|gif)$/i', $filename)) {
+            http_response_code(404);
+            exit;
+        }
+        $path = $uploadsDir . $filename;
+        if (!is_file($path)) {
+            http_response_code(404);
+            exit;
+        }
+        $mime = apSecDetectMimeFromFile($path);
+        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true)) $mime = 'application/octet-stream';
+        header('Content-Type: ' . $mime);
+        header('Cache-Control: public, max-age=31536000, immutable');
+        readfile($path);
         exit;
     }
 
@@ -2768,7 +2798,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
                 $clean[preg_replace('/[^a-f0-9]/i', '', $id)] = ['x' => (int)($pos['x'] ?? 0), 'y' => (int)($pos['y'] ?? 0)];
             }
         }
-        $layoutFile = APP_ROOT . '/data/news_layout.json';
         file_put_contents($layoutFile, json_encode($clean, JSON_PRETTY_PRINT));
         echo json_encode(['ok' => true]);
         exit;
@@ -2829,7 +2858,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
             echo json_encode(['ok' => false, 'error' => 'upload_error']); exit;
         }
-        if (!is_dir($uploadsDir)) mkdir($uploadsDir, 0755, true);
         $file = $_FILES['photo'];
         $mime = apSecDetectMimeFromFile($file['tmp_name']);
         if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'])) {
@@ -2838,7 +2866,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'][$mime];
         $filename = apSecRandomFilename($ext);
         move_uploaded_file($file['tmp_name'], $uploadsDir . $filename);
-        echo json_encode(['ok' => true, 'url' => 'uploads/news/' . $filename]);
+        echo json_encode(['ok' => true, 'url' => '/main?api=news&action=photo&file=' . rawurlencode($filename)]);
         exit;
     }
 
