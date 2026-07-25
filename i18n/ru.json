@@ -319,6 +319,7 @@
     "oauth_not_linked": "Провайдер не привязан",
     "oauth_unlink_password_required": "Установите пароль перед отвязкой единственного способа входа",
     "oauth_not_connected": "Не подключено",
+    "github_sso_hint": "Если в GitHub вы входите через Google, на странице GitHub нажмите «Continue with Google». Сообщение про passkey можно игнорировать.",
     "connected_accounts": "Подключённые аккаунты",
     "connected": "Подключено",
     "connect": "Подключить",

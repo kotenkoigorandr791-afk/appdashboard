@@ -319,6 +319,7 @@
     "oauth_not_linked": "Provider is not linked",
     "oauth_unlink_password_required": "Set a password before unlinking your only sign-in method",
     "oauth_not_connected": "Not connected",
+    "github_sso_hint": "If your GitHub account uses Google sign-in, click Continue with Google on the GitHub page. The passkey warning can be ignored.",
     "connected_accounts": "Connected accounts",
     "connected": "Connected",
     "connect": "Connect",

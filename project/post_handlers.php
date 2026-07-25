@@ -2409,21 +2409,7 @@ if(isset($_GET['code']) || isset($_GET['error']) || oauthIsOAuthPath(oauthReques
         }else{
             try{
                 if($__oauthPath === '/login/oauth/callback'){
-                    $provider = (string)($_GET['provider'] ?? '');
-                    if($provider===''){
-                        $stateRaw = (string)($_GET['state'] ?? '');
-                        $payload = json_decode(base64_decode($stateRaw, true) ?: '', true);
-                        if(is_array($payload) && !empty($payload['csrf'])){
-                            $stored = $_SESSION['oauth_state_' . (string)$payload['csrf']] ?? null;
-                            if(is_array($stored) && !empty($stored['provider'])){
-                                $provider = (string)$stored['provider'];
-                            }
-                        }
-                    }
-                    if($provider===''){
-                        throw new RuntimeException($translations['oauth_state_invalid']??'OAuth session expired. Please try again.');
-                    }
-                    oauthHandleCallback($provider, (string)$_GET['code'], (string)($_GET['state'] ?? ''), 'login');
+                    oauthHandleCallback((string)($_GET['provider'] ?? ''), (string)$_GET['code'], (string)($_GET['state'] ?? ''), 'login');
                 }elseif($__oauthPath==='/login'){
                     oauthHandleLegacyGoogleCallback((string)$_GET['code']);
                 }

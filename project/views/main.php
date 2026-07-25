@@ -1447,6 +1447,9 @@ endif; // showOtpPage
                     </a>
                     <?php endif; ?>
                 </div>
+                <?php if(oauthProviderConfigured('github')): ?>
+                <p style="text-align:center;font-size:12px;opacity:.75;margin:4px 16px 0;line-height:1.45;"><?php echo my_htmlspecialchars($translations['github_sso_hint'] ?? 'If your GitHub account uses Google sign-in, choose Continue with Google on the GitHub page (ignore the passkey error).'); ?></p>
+                <?php endif; ?>
                 <div style="text-align:center;margin-top:15px;">
                     <span><?php echo my_htmlspecialchars($translations['dont_have_account']); ?></span>
                     <span class="auth-link" data-tab="register"><?php echo my_htmlspecialchars($translations['register']); ?></span>
@@ -1470,6 +1473,9 @@ endif; // showOtpPage
                     </a>
                     <?php endif; ?>
                 </div>
+                <?php if(oauthProviderConfigured('github')): ?>
+                <p style="text-align:center;font-size:12px;opacity:.75;margin:4px 16px 0;line-height:1.45;"><?php echo my_htmlspecialchars($translations['github_sso_hint'] ?? 'If your GitHub account uses Google sign-in, choose Continue with Google on the GitHub page (ignore the passkey error).'); ?></p>
+                <?php endif; ?>
                 <div style="text-align:center;margin-top:15px;">
                     <span><?php echo my_htmlspecialchars($translations['already_have_account']); ?></span>
                     <span class="auth-link" data-tab="login"><?php echo my_htmlspecialchars($translations['login']); ?></span>

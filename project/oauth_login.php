@@ -32,18 +32,53 @@ function oauthNormalizeProvider(string $provider): string {
     return $provider;
 }
 
+function oauthStateTtl(): int {
+    return 3600;
+}
+
+function oauthSetCsrfCookie(string $csrf): void {
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    setcookie('oauth_csrf', $csrf, [
+        'expires' => time() + oauthStateTtl(),
+        'path' => '/',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function oauthClearCsrfCookie(): void {
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    setcookie('oauth_csrf', '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
 function oauthCreateState(string $provider, string $mode = 'login'): string {
     oauthNormalizeProvider($provider);
     if (!in_array($mode, ['login', 'link'], true)) {
         throw new InvalidArgumentException('Invalid OAuth mode');
     }
     $csrf = bin2hex(random_bytes(16));
+    $createdAt = time();
     $_SESSION['oauth_state_' . $csrf] = [
         'provider' => $provider,
         'mode' => $mode,
-        'created_at' => time(),
+        'created_at' => $createdAt,
     ];
-    return base64_encode(json_encode(['csrf' => $csrf], JSON_UNESCAPED_SLASHES));
+    oauthSetCsrfCookie($csrf);
+    return base64_encode(json_encode([
+        'csrf' => $csrf,
+        'provider' => $provider,
+        'mode' => $mode,
+        'ts' => $createdAt,
+    ], JSON_UNESCAPED_SLASHES));
 }
 
 function oauthConsumeState(string $stateRaw): ?array {
@@ -51,13 +86,29 @@ function oauthConsumeState(string $stateRaw): ?array {
     if (!is_array($payload) || empty($payload['csrf'])) {
         return null;
     }
+    $ttl = oauthStateTtl();
     $key = 'oauth_state_' . (string)$payload['csrf'];
     $stored = $_SESSION[$key] ?? null;
     unset($_SESSION[$key]);
-    if (!is_array($stored) || (time() - (int)($stored['created_at'] ?? 0)) > 900) {
-        return null;
+    if (is_array($stored) && (time() - (int)($stored['created_at'] ?? 0)) <= $ttl) {
+        oauthClearCsrfCookie();
+        return $stored;
     }
-    return $stored;
+    $cookieCsrf = (string)($_COOKIE['oauth_csrf'] ?? '');
+    $createdAt = (int)($payload['ts'] ?? 0);
+    if ($cookieCsrf !== ''
+        && hash_equals($cookieCsrf, (string)$payload['csrf'])
+        && !empty($payload['provider'])
+        && $createdAt > 0
+        && (time() - $createdAt) <= $ttl) {
+        oauthClearCsrfCookie();
+        return [
+            'provider' => (string)$payload['provider'],
+            'mode' => (string)($payload['mode'] ?? 'login'),
+            'created_at' => $createdAt,
+        ];
+    }
+    return null;
 }
 
 function oauthStartUrl(string $provider, string $mode = 'login'): string {
@@ -93,6 +144,7 @@ function oauthStartUrl(string $provider, string $mode = 'login'): string {
         'client_id' => $clientId,
         'redirect_uri' => $redirectUri,
         'state' => $state,
+        'allow_signup' => 'true',
     ];
     if (str_starts_with($clientId, 'Iv1.')) {
         $params['scope'] = 'read:user user:email';
@@ -368,18 +420,25 @@ function oauthHandleLinkFlow(array $profile): void {
 
 function oauthHandleCallback(string $provider, string $code, ?string $stateRaw, string $modeFallback = 'login'): void {
     global $authError, $translations;
-    $provider = oauthNormalizeProvider($provider);
     $mode = $modeFallback;
     if ($stateRaw !== null && $stateRaw !== '') {
         $state = oauthConsumeState($stateRaw);
         if ($state === null) {
             throw new RuntimeException($translations['oauth_state_invalid'] ?? 'OAuth session expired. Please try again.');
         }
-        if (($state['provider'] ?? '') !== $provider) {
+        $stateProvider = (string)($state['provider'] ?? '');
+        if ($provider !== '' && $stateProvider !== '' && $provider !== $stateProvider) {
             throw new RuntimeException($translations['oauth_state_invalid'] ?? 'OAuth session expired. Please try again.');
+        }
+        if ($stateProvider !== '') {
+            $provider = $stateProvider;
         }
         $mode = (string)($state['mode'] ?? 'login');
     }
+    if ($provider === '') {
+        throw new RuntimeException($translations['oauth_state_invalid'] ?? 'OAuth session expired. Please try again.');
+    }
+    $provider = oauthNormalizeProvider($provider);
     $profile = oauthFetchProfile($provider, $code);
     if ($mode === 'link') {
         oauthHandleLinkFlow($profile);
