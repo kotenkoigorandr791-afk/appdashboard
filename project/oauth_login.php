@@ -110,6 +110,76 @@ function oauthHttpRequest(string $method, string $url, array $headers = [], ?str
     return ['status' => $status, 'body' => (string)$response];
 }
 
+function oauthGitHubAuthHeaders(string $accessToken): array {
+    return [
+        'Accept: application/vnd.github+json',
+        'Authorization: Bearer ' . $accessToken,
+        'User-Agent: AppDashboard-OAuth',
+        'X-GitHub-Api-Version: 2022-11-28',
+    ];
+}
+
+function oauthPickGitHubEmail(array $emails): string {
+    if ($emails === [] || isset($emails['message'])) {
+        return '';
+    }
+    $primaryVerified = '';
+    $verified = '';
+    $primary = '';
+    $any = '';
+    foreach ($emails as $entry) {
+        if (!is_array($entry) || empty($entry['email'])) {
+            continue;
+        }
+        $addr = trim((string)$entry['email']);
+        if ($addr === '') {
+            continue;
+        }
+        $any = $any ?: $addr;
+        if (!empty($entry['primary'])) {
+            $primary = $addr;
+            if (!empty($entry['verified'])) {
+                $primaryVerified = $addr;
+            }
+        }
+        if (!empty($entry['verified'])) {
+            $verified = $verified ?: $addr;
+        }
+    }
+    return $primaryVerified ?: $verified ?: $primary ?: $any;
+}
+
+function oauthGitHubNoreplyEmail(array $userData): string {
+    $id = trim((string)($userData['id'] ?? ''));
+    $login = trim((string)($userData['login'] ?? ''));
+    if ($id === '' || $login === '') {
+        return '';
+    }
+    return $id . '+' . $login . '@users.noreply.github.com';
+}
+
+function oauthResolveGitHubEmail(array $userData, array $authHeaders): string {
+    global $translations;
+    $email = trim((string)($userData['email'] ?? ''));
+    if ($email !== '') {
+        return $email;
+    }
+    $emailsResponse = oauthHttpRequest('GET', 'https://api.github.com/user/emails', $authHeaders);
+    $emails = json_decode($emailsResponse['body'], true);
+    $email = is_array($emails) ? oauthPickGitHubEmail($emails) : '';
+    if ($email !== '') {
+        return $email;
+    }
+    if ($emailsResponse['status'] === 403) {
+        error_log('GitHub /user/emails forbidden — enable Email read permission on the GitHub App');
+    }
+    $email = oauthGitHubNoreplyEmail($userData);
+    if ($email !== '') {
+        return $email;
+    }
+    throw new RuntimeException($translations['github_email_unavailable'] ?? 'GitHub did not provide an email address. Enable Email read permission on the GitHub App or make a verified email public in GitHub profile settings.');
+}
+
 function oauthFetchGoogleProfile(string $code): array {
     global $authConfig;
     require_once APP_ROOT . '/vendor/autoload.php';
@@ -164,40 +234,13 @@ function oauthFetchGitHubProfile(string $code): array {
         throw new RuntimeException($tokenData['error_description'] ?? $tokenData['error'] ?? 'GitHub token exchange failed');
     }
     $accessToken = (string)$tokenData['access_token'];
-    $authHeaders = [
-        'Accept: application/vnd.github+json',
-        'Authorization: Bearer ' . $accessToken,
-        'User-Agent: AppDashboard-OAuth',
-    ];
+    $authHeaders = oauthGitHubAuthHeaders($accessToken);
     $userResponse = oauthHttpRequest('GET', 'https://api.github.com/user', $authHeaders);
     $userData = json_decode($userResponse['body'], true);
     if (!is_array($userData) || empty($userData['id'])) {
         throw new RuntimeException('GitHub user profile unavailable');
     }
-    $email = trim((string)($userData['email'] ?? ''));
-    if ($email === '') {
-        $emailsResponse = oauthHttpRequest('GET', 'https://api.github.com/user/emails', $authHeaders);
-        $emails = json_decode($emailsResponse['body'], true);
-        if (is_array($emails)) {
-            foreach ($emails as $entry) {
-                if (!empty($entry['primary']) && !empty($entry['verified']) && !empty($entry['email'])) {
-                    $email = trim((string)$entry['email']);
-                    break;
-                }
-            }
-            if ($email === '') {
-                foreach ($emails as $entry) {
-                    if (!empty($entry['verified']) && !empty($entry['email'])) {
-                        $email = trim((string)$entry['email']);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    if ($email === '') {
-        throw new RuntimeException('GitHub did not provide a verified email address');
-    }
+    $email = oauthResolveGitHubEmail($userData, $authHeaders);
     return [
         'provider' => 'github',
         'provider_user_id' => (string)$userData['id'],
