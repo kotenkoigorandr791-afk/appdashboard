@@ -691,6 +691,7 @@
                     <div class="image-preview-media">
                         <img class="image-preview" id="editProductPreviewImg" alt="<?php echo $translations[$lang]['click_to_edit_image']; ?>">
                         <button type="button" class="image-preview-clear" id="editProductImageClearBtn" onclick="clearExistingImage('editProduct', event)" aria-label="Remove image">×</button>
+                        <button type="button" class="image-preview-replace" id="editProductImageReplaceBtn" onclick="replacePhoto('editProduct')" style="display:none;"><?php echo $translations[$lang]['replace_photo'] ?? 'Replace photo'; ?></button>
                     </div>
                     <span class="image-preview-hint"><?php echo $translations[$lang]['click_to_edit_image']; ?></span>
                 </div>

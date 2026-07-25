@@ -187,8 +187,8 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 .npo-tab.active{opacity:1;border-bottom-color:var(--primary-color,#38bdf8);}
 #npo-add-btn{display:flex;align-items:center;gap:7px;margin:0 12px 0 16px;padding:8px 18px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
 #npo-add-btn:hover{opacity:.88;}
-#npo-settings-btn{width:34px;height:34px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
-#npo-settings-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
+#npo-settings-btn,#npo-prompt-btn{width:34px;height:34px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
+#npo-settings-btn:hover,#npo-prompt-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
 #npo-settings-popover{display:none;position:absolute;right:58px;top:48px;width:min(420px,calc(100vw - 24px));padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--modal-bg);box-shadow:0 16px 48px rgba(0,0,0,.28);z-index:12002;}
 #npo-settings-popover.open{display:block;}
 .npo-settings-field{margin-bottom:12px;}
@@ -282,6 +282,34 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 #npo-canvas-status{font-size:12px;min-height:18px;}
 /* Empty state */
 #npo-editor-empty{display:flex;align-items:center;justify-content:center;flex:1;min-height:0;text-align:center;opacity:.45;font-size:15px;padding:48px;}
+/* Prompt modal */
+#npo-prompt-toolbar{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
+.npo-prompt-toggle{display:flex;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;flex-shrink:0;}
+.npo-prompt-toggle-btn{padding:5px 14px;border:none;background:none;color:var(--text-color);font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap;}
+.npo-prompt-toggle-btn.active{background:var(--primary-color,#38bdf8);color:#fff;}
+.npo-prompt-toggle-btn:first-child{border-right:1px solid var(--border-color);}
+#npo-prompt-code-wrap pre{background:#1a1d24!important;border:1px solid var(--border-color);border-radius:10px;padding:14px!important;overflow-x:auto;margin:0!important;min-height:320px;font-size:13px;line-height:1.55;}
+body.theme-light #npo-prompt-code-wrap pre{background:#f4f6f8!important;}
+#npo-prompt-code-wrap pre code.hljs{padding:0!important;background:transparent!important;overflow:visible!important;}
+#npo-prompt-preview{display:none;width:100%;min-height:320px;padding:14px;border:1px solid var(--border-color);border-radius:10px;background:var(--modal-bg);color:var(--text-color);font-size:14px;line-height:1.65;box-sizing:border-box;overflow-y:auto;white-space:normal;word-wrap:break-word;}
+#npo-prompt-preview a{color:var(--primary-color,#38bdf8);text-decoration:underline;}
+#npo-prompt-preview h1,#npo-prompt-preview h2,#npo-prompt-preview h3,#npo-prompt-preview h4{margin:16px 0 8px;font-weight:700;}
+#npo-prompt-preview h1{font-size:20px;color:var(--primary-color,#38bdf8);}
+#npo-prompt-preview h2{font-size:17px;color:color-mix(in srgb,var(--primary-color) 80%,var(--text-color));}
+#npo-prompt-preview h3{font-size:15px;}
+#npo-prompt-preview p{margin:6px 0;}
+#npo-prompt-preview code{background:color-mix(in srgb,#7c3aed 14%,transparent);padding:2px 6px;border-radius:4px;font-size:13px;font-family:'Courier New',monospace;}
+#npo-prompt-preview pre{background:#1a1d24;border:1px solid var(--border-color);border-radius:8px;padding:12px;overflow-x:auto;margin:10px 0;}
+body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
+#npo-prompt-preview pre code{padding:0!important;background:transparent!important;font-size:13px;line-height:1.5;display:block;}
+#npo-prompt-preview ul,#npo-prompt-preview ol{padding-left:22px;margin:6px 0;}
+#npo-prompt-preview li{margin:3px 0;}
+#npo-prompt-preview blockquote{border-left:3px solid var(--primary-color,#38bdf8);margin:8px 0;padding:4px 14px;opacity:.8;background:color-mix(in srgb,var(--group-block-bg) 50%,transparent);border-radius:0 6px 6px 0;}
+#npo-prompt-preview hr{border:none;border-top:1px solid var(--border-color);margin:12px 0;}
+#npo-prompt-preview table{border-collapse:collapse;width:100%;margin:10px 0;}
+#npo-prompt-preview table td,#npo-prompt-preview table th{border:1px solid var(--border-color);padding:6px 10px;text-align:left;}
+#npo-prompt-preview table th{background:var(--group-block-bg);font-weight:700;}
+#npo-prompt-preview img{max-width:100%;border-radius:8px;margin:8px 0;}
 /* Responsive */
 @media(max-width:760px){
   #npo-sidebar{width:100%;max-height:200px;border-right:none;border-bottom:1px solid var(--border-color);}
@@ -303,6 +331,9 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
       <?php if ($newsCanEdit): ?>
       <button id="npo-settings-btn" type="button" aria-label="<?php echo my_htmlspecialchars($translations['settings_title'] ?? 'Settings'); ?>">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94a7.43 7.43 0 0 0 .05-.94 7.43 7.43 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.18 7.18 0 0 0-1.63-.94L14.39 2.8a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.18 7.18 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.65 8.86a.5.5 0 0 0 .12.64l2.03 1.58a7.43 7.43 0 0 0-.05.94c0 .32.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.05.71 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
+      </button>
+      <button id="npo-prompt-btn" type="button" title="<?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News writing prompt'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News writing prompt'); ?>">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       </button>
       <?php endif; ?>
       <button id="npo-back" type="button" class="ap-close-btn-style">&times;</button>
@@ -400,6 +431,50 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
     </div>
   </div>
 </div>
+
+<!-- ── News Writing Prompt Modal ──────────────────────────────────────────── -->
+<div id="npo-prompt-modal" style="display:none;position:fixed;inset:0;z-index:13000;background:rgba(6,10,16,0.48);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);justify-content:center;align-items:center;">
+  <div style="background:var(--modal-bg);border:1px solid var(--border-color);border-radius:16px;width:min(700px,calc(100vw - 32px));max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.38);overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border-color);flex-shrink:0;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color,#38bdf8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span style="font-size:16px;font-weight:700;flex:1;"><?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News Writing Prompt'); ?></span>
+      <button type="button" id="npo-prompt-refresh-btn" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--group-block-bg);color:var(--text-color);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        <?php echo my_htmlspecialchars($translations['refresh_token'] ?? 'Refresh token'); ?>
+      </button>
+      <button type="button" id="npo-prompt-copy-btn" style="padding:6px 14px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        <?php echo my_htmlspecialchars($translations['copy'] ?? 'Copy'); ?>
+      </button>
+      <button type="button" id="npo-prompt-close" style="width:32px;height:32px;border:none;background:none;color:var(--text-color);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.55;">&times;</button>
+    </div>
+    <div id="npo-prompt-toolbar" style="padding:12px 20px 0;flex-shrink:0;">
+      <div class="npo-prompt-toggle">
+        <button type="button" class="npo-prompt-toggle-btn active" data-view="code">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Code
+        </button>
+        <button type="button" class="npo-prompt-toggle-btn" data-view="preview">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Preview
+        </button>
+      </div>
+    </div>
+    <div style="padding:12px 20px;flex:1;overflow-y:auto;min-height:200px;">
+      <div id="npo-prompt-loading" style="display:flex;align-items:center;justify-content:center;padding:48px;opacity:.5;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite;margin-right:10px;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+        <?php echo my_htmlspecialchars($translations['loading'] ?? 'Loading...'); ?>
+      </div>
+      <div id="npo-prompt-code-wrap" style="display:none;"><pre><code id="npo-prompt-code" class="hljs" style="white-space:pre-wrap;word-wrap:break-word;"></code></pre></div>
+      <div id="npo-prompt-preview"></div>
+    </div>
+    <div id="npo-prompt-status" style="padding:6px 20px 10px;font-size:12px;min-height:16px;opacity:.6;"></div>
+  </div>
+</div>
+
+<style>
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+</style>
 
 <script>
 (function(){
@@ -769,6 +844,195 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
     const btn = document.getElementById('npo-save-btn');
     if (btn) btn.disabled = on;
   }
+
+  // ── News Writing Prompt Modal ──────────────────────────────────────────────
+  const promptModal = document.getElementById('npo-prompt-modal');
+  const promptBtn = document.getElementById('npo-prompt-btn');
+  const promptClose = document.getElementById('npo-prompt-close');
+  const promptCode = document.getElementById('npo-prompt-code');
+  const promptCodeWrap = document.getElementById('npo-prompt-code-wrap');
+  const promptPreview = document.getElementById('npo-prompt-preview');
+  const promptLoading = document.getElementById('npo-prompt-loading');
+  const promptStatus = document.getElementById('npo-prompt-status');
+  const promptCopyBtn = document.getElementById('npo-prompt-copy-btn');
+  const promptRefreshBtn = document.getElementById('npo-prompt-refresh-btn');
+  const promptToggleBtns = document.querySelectorAll('.npo-prompt-toggle-btn');
+
+  let promptRawText = '';
+
+  function renderMarkdown(md) {
+    const escHtml = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const blocks = [];
+    const inline = [];
+    let html = String(md).replace(/```([\w-]*)\n([\s\S]*?)```/g, (m, lang, code) => {
+      const key = `{{NPOCODEBLOCK${blocks.length}}}`;
+      const langAttr = lang ? ` class="language-${escHtml(lang)}"` : '';
+      blocks.push(`<pre><code${langAttr}>${escHtml(code.trimEnd())}</code></pre>`);
+      return key;
+    });
+    html = escHtml(html).replace(/`([^`\n]+)`/g, (m, code) => {
+      const key = `{{NPOINLINECODE${inline.length}}}`;
+      inline.push(`<code>${code}</code>`);
+      return key;
+    });
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+    html = html.replace(/^(?:---|\*\*\*|___)\s*$/gm, '<hr>');
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+    html = html.replace(/^\d+\. (.+)$/gm, '<oli>$1</oli>');
+    html = html.replace(/(<oli>.*<\/oli>\n?)+/g, '<ol>$&</ol>').replace(/<oli>/g,'<li>').replace(/<\/oli>/g,'</li>');
+    html = html.replace(/^[\*\-\+] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/___(.+?)___/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" loading="lazy">');
+    html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+    html = html.replace(/^(?!\s*$)(?!<\/?(?:h[1-6]|ul|ol|li|pre|blockquote|hr|table|img|p)(?:\s|>))(.+)$/gm, '<p>$1</p>');
+    html = html.replace(/<p><\/p>/g, '');
+    html = html.replace(/<p><li>/g, '<li>');
+    html = html.replace(/<\/li><\/p>/g, '</li>');
+    html = html.replace(/{{NPOINLINECODE(\d+)}}/g, (m, i) => inline[Number(i)] || '');
+    html = html.replace(/<p>{{NPOCODEBLOCK(\d+)}}<\/p>/g, (m, i) => blocks[Number(i)] || '');
+    html = html.replace(/{{NPOCODEBLOCK(\d+)}}/g, (m, i) => blocks[Number(i)] || '');
+    return html;
+  }
+
+  function applyHighlighting(codeEl) {
+    if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+      document.querySelectorAll('#npo-prompt-code-wrap pre code').forEach((block) => {
+        hljs.highlightElement(block);
+      });
+    }
+  }
+
+  function updatePromptView(viewMode) {
+    if (viewMode === 'preview') {
+      promptCodeWrap.style.display = 'none';
+      promptPreview.style.display = 'block';
+      promptPreview.innerHTML = renderMarkdown(promptRawText);
+      if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+        promptPreview.querySelectorAll('pre code').forEach((block) => {
+          hljs.highlightElement(block);
+        });
+      }
+    } else {
+      promptCodeWrap.style.display = 'block';
+      promptPreview.style.display = 'none';
+      promptCode.textContent = promptRawText;
+      applyHighlighting(promptCode);
+    }
+  }
+
+  promptToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      promptToggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updatePromptView(btn.dataset.view);
+    });
+  });
+
+  async function loadWritingPrompt() {
+    if (!promptModal) return;
+    promptLoading.style.display = 'flex';
+    promptCodeWrap.style.display = 'none';
+    promptPreview.style.display = 'none';
+    promptStatus.textContent = '';
+    try {
+      const res = await fetch('/main?api=news&action=get_writing_prompt', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        promptRawText = data.prompt || '';
+        promptLoading.style.display = 'none';
+        const activeView = document.querySelector('.npo-prompt-toggle-btn.active');
+        updatePromptView(activeView ? activeView.dataset.view : 'code');
+        promptStatus.textContent = 'Token expires in ' + Math.round(data.token_expires_in / 60) + ' min. API: ' + data.api_url;
+      } else {
+        promptStatus.textContent = 'Failed to load prompt: ' + (data.error || 'unknown error');
+        promptLoading.style.display = 'none';
+      }
+    } catch (e) {
+      promptStatus.textContent = 'Error loading prompt: ' + e.message;
+      promptLoading.style.display = 'none';
+    }
+  }
+
+  promptBtn?.addEventListener('click', () => {
+    promptModal.style.display = 'flex';
+    // Reset to code view
+    promptToggleBtns.forEach(b => b.classList.remove('active'));
+    document.querySelector('.npo-prompt-toggle-btn[data-view="code"]')?.classList.add('active');
+    loadWritingPrompt();
+  });
+
+  promptClose?.addEventListener('click', () => {
+    promptModal.style.display = 'none';
+  });
+
+  promptModal?.addEventListener('click', (e) => {
+    if (e.target === promptModal) promptModal.style.display = 'none';
+  });
+
+  promptCopyBtn?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(promptRawText);
+      promptCopyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      setTimeout(() => {
+        promptCopyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+      }, 2000);
+    } catch {
+      // Fallback: create temporary textarea
+      const ta = document.createElement('textarea');
+      ta.value = promptRawText;
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      promptCopyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+      setTimeout(() => {
+        promptCopyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy';
+      }, 2000);
+    }
+  });
+
+  promptRefreshBtn?.addEventListener('click', () => {
+    loadWritingPrompt();
+  });
+
+  // Load highlight.js from CDN
+  (function() {
+    if (typeof hljs !== 'undefined') return;
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css';
+    document.head.appendChild(link);
+    
+    // Also add light theme that can be overridden
+    const linkLight = document.createElement('link');
+    linkLight.rel = 'stylesheet';
+    linkLight.href = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css';
+    linkLight.media = '(prefers-color-scheme: light)';
+    document.head.appendChild(linkLight);
+    
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
+    script.onload = () => {
+      // If prompt is already loaded, re-highlight
+      if (promptRawText) {
+        applyHighlighting();
+      }
+    };
+    document.body.appendChild(script);
+  })();
 
   window.openNewsPortal = openNewsPortal;
 })();

@@ -2753,6 +2753,34 @@ input[type="file"]:required {
     filter: none;
 }
 
+.image-preview-replace {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--btn-bg-color);
+    color: var(--text-color);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+    transition: background 0.2s, transform 0.15s;
+    z-index: 2;
+    line-height: 1;
+}
+.image-preview-replace:hover {
+    background: var(--btn-hover-bg) !important;
+    transform: scale(1.05);
+}
+.image-preview-replace:active {
+    transform: scale(0.96);
+}
+
 #editProductModal #editProductBgActions {
     margin-bottom: 16px;
 }

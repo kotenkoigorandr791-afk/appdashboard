@@ -1,4 +1,16 @@
 #!/usr/bin/env python3
+"""Background removal script for recipe images.
+
+Supports rembg (AI-based) with a numpy/scipy fallback.
+NUMBA_DISABLE_CACHING is set to avoid numba cache-locator errors
+in restricted filesystem environments (e.g. read-only /usr).
+"""
+import os
+
+# Disable numba JIT caching to avoid "no locator available" errors
+# when pymatting (used by rembg) compiles its kd-tree kernel.
+os.environ.setdefault("NUMBA_DISABLE_CACHING", "1")
+
 import json
 import sys
 from collections import deque
@@ -13,7 +25,7 @@ except ModuleNotFoundError:
     ndimage = None
 try:
     from rembg import new_session, remove as rembg_remove
-except ModuleNotFoundError:
+except Exception:
     new_session = None
     rembg_remove = None
 

@@ -1072,7 +1072,7 @@ $rgb = hexToRgb($color);
 $isDark = $theme === 'dark';
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($lang) ?>" style="background:<?= $isDark ? '#333' : '#f8f9fc' ?>">
+<html lang="<?= htmlspecialchars($lang) ?>" style="background:<?= $isDark ? '#0f1419' : '#f8f9fc' ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
@@ -1099,16 +1099,16 @@ $isDark = $theme === 'dark';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
 <style>
 :root {
-  --bg:        <?= $isDark ? '#333333' : '#f8f9fc' ?>;
-  --bg2:       <?= $isDark ? '#444444' : '#ffffff' ?>;
-  --bg3:       <?= $isDark ? '#555555' : '#f0f2f8' ?>;
+  --bg:        <?= $isDark ? '#0f1419' : '#f8f9fc' ?>;
+  --bg2:       <?= $isDark ? 'rgba(18,24,32,0.8)' : '#ffffff' ?>;
+  --bg3:       <?= $isDark ? 'rgba(255,255,255,0.10)' : '#f0f2f8' ?>;
 
-  --border:    <?= $isDark ? '#666666' : '#dde1ed' ?>;
-  --border2:   <?= $isDark ? '#777777' : '#c5cce0' ?>;
+  --border:    <?= $isDark ? 'rgba(255,255,255,0.14)' : '#dde1ed' ?>;
+  --border2:   <?= $isDark ? 'rgba(255,255,255,0.22)' : '#c5cce0' ?>;
 
-  --text:      <?= $isDark ? '#ffffff' : '#1a1f36' ?>;
-  --text-dim:  <?= $isDark ? '#dddddd' : '#5a6282' ?>;
-  --text-muted:<?= $isDark ? '#bbbbbb' : '#9aa3be' ?>;
+  --text:      <?= $isDark ? '#f4f7fb' : '#1a1f36' ?>;
+  --text-dim:  <?= $isDark ? 'rgba(255,255,255,0.65)' : '#5a6282' ?>;
+  --text-muted:<?= $isDark ? 'rgba(255,255,255,0.42)' : '#9aa3be' ?>;
 
   --accent:    <?= $color ?>;
   --accent-r:  <?= $rgb['r'] ?>;
@@ -1146,6 +1146,7 @@ $isDark = $theme === 'dark';
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;height:100dvh;overflow:hidden}
+html{color-scheme:<?= $isDark ? 'dark' : 'light' ?>}
 body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
 @media (max-width: 768px) {
   body{font-size:12px}
@@ -1153,6 +1154,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
 *{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
 
 /* Layout */
@@ -1375,6 +1377,16 @@ table.dt tbody tr:hover{background:var(--bg3)}
 .history-actions{display:flex;gap:8px;margin-top:6px}
 .history-actions button{background:none;border:1px solid var(--border);border-radius:3px;padding:2px 8px;font-size:10px;cursor:pointer}
 .history-actions button:hover{border-color:var(--accent);color:var(--accent)}
+#ins-modal .mbox{overflow:hidden;display:flex;flex-direction:column}
+#im-fields{padding:14px 17px;overflow:auto;min-height:0;flex:1}
+.ins-field{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--border)}
+.ins-field:last-child{border-bottom:none}
+.ins-field label{font-size:10px;color:var(--text-dim);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.ins-field label.pk{color:var(--accent)}
+.ins-field input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:7px 9px;font-size:12px;font-family:var(--font-ui);outline:none;transition:border-color var(--transition)}
+.ins-field input:focus{border-color:var(--accent)}
+.ins-field input::placeholder{color:var(--text-muted)}
+.ins-ftr{display:flex;justify-content:flex-end;gap:8px;padding:0 17px 14px;flex-wrap:wrap}
 .empty-history{text-align:center;padding:40px;color:var(--text-muted)}
 .confirm-modal .mbox{max-width:440px}
 .confirm-msg{font-size:13px;line-height:1.5;color:var(--text);white-space:pre-wrap}
@@ -1635,7 +1647,7 @@ body.embed-mode table{font-size:11px}
 body.embed-mode thead th,body.embed-mode tbody td{padding:6px 8px}
 </style>
 </head>
-<body style="background:<?= $isDark ? '#333' : '#f8f9fc' ?>" class="<?= $embedMode ? 'embed-mode' : '' ?>">
+<body style="background:<?= $isDark ? '#0f1419' : '#f8f9fc' ?>" class="<?= $embedMode ? 'embed-mode' : '' ?>">
 <div id="app">
 
 <div id="topbar">
@@ -2143,8 +2155,7 @@ function initSQLEditor() {
   const textarea = document.getElementById('sql-editor');
   if (!textarea) return;
   
-  const isDarkTheme = document.documentElement.style.getPropertyValue('--bg') === '#333' || 
-                      document.documentElement.style.getPropertyValue('--bg') === '#333333';
+  const isDarkTheme = document.documentElement.style.getPropertyValue('--bg') === '#0f1419';
   
   sqlEditor = CodeMirror.fromTextArea(textarea, {
     mode: 'text/x-sql',
@@ -2216,14 +2227,15 @@ function applyTheme(theme, color) {
   const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
   const root = document.documentElement;
-  root.style.setProperty('--bg',         isDark ? '#333' : '#f8f9fc');
-  root.style.setProperty('--bg2',        isDark ? '#1e1e1e' : '#ffffff');
-  root.style.setProperty('--bg3',        isDark ? '#252525' : '#f0f2f8');
-  root.style.setProperty('--border',     isDark ? '#333333' : '#dde1ed');
-  root.style.setProperty('--border2',    isDark ? '#444444' : '#c5cce0');
-  root.style.setProperty('--text',       isDark ? '#e0e0e0' : '#1a1f36');
-  root.style.setProperty('--text-dim',   isDark ? '#b0b0b0' : '#5a6282');
-  root.style.setProperty('--text-muted', isDark ? '#808080' : '#9aa3be');
+  root.style.colorScheme = isDark ? 'dark' : 'light';
+  root.style.setProperty('--bg',         isDark ? '#0f1419' : '#f8f9fc');
+  root.style.setProperty('--bg2',        isDark ? 'rgba(18,24,32,0.8)' : '#ffffff');
+  root.style.setProperty('--bg3',        isDark ? 'rgba(255,255,255,0.10)' : '#f0f2f8');
+  root.style.setProperty('--border',     isDark ? 'rgba(255,255,255,0.14)' : '#dde1ed');
+  root.style.setProperty('--border2',    isDark ? 'rgba(255,255,255,0.22)' : '#c5cce0');
+  root.style.setProperty('--text',       isDark ? '#f4f7fb' : '#1a1f36');
+  root.style.setProperty('--text-dim',   isDark ? 'rgba(255,255,255,0.65)' : '#5a6282');
+  root.style.setProperty('--text-muted', isDark ? 'rgba(255,255,255,0.42)' : '#9aa3be');
   root.style.setProperty('--accent',     color);
   root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
   root.style.setProperty('--accent-mid', `rgba(${r},${g},${b},0.25)`);

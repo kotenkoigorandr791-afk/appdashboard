@@ -179,18 +179,18 @@ if (is_dir($docsDir)) {
         }
 
         [data-theme="dark"] {
-            --bg-base:      #454446;
-            --bg-raised:    #333333;
-            --bg-overlay:   #444442;
-            --bg-hover:     #555555;
-            --border:       #5A5A5A;
-            --border-lit:   #6B6B6B;
-            --text-primary:   #E0E0E0;
-            --text-secondary: #A0A0A0;
-            --text-muted:     #8A8A8A;
-            --code-bg: #2a2a2a;
-            --table-border: #5A5A5A;
-            --table-header-bg: #3a3a3a;
+            --bg-base:      #0f1419;
+            --bg-raised:    rgba(18,24,32,0.8);
+            --bg-overlay:   rgba(255,255,255,0.10);
+            --bg-hover:     rgba(255,255,255,0.12);
+            --border:       rgba(255,255,255,0.14);
+            --border-lit:   rgba(255,255,255,0.22);
+            --text-primary:   #f4f7fb;
+            --text-secondary: rgba(255,255,255,0.65);
+            --text-muted:     rgba(255,255,255,0.42);
+            --code-bg: rgba(18,24,32,0.9);
+            --table-border: rgba(255,255,255,0.14);
+            --table-header-bg: rgba(255,255,255,0.08);
         }
 
         [data-theme="light"] {
@@ -208,10 +208,13 @@ if (is_dir($docsDir)) {
             --table-header-bg: #f6f8fa;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--border-lit) var(--bg-base); }
 
         html {
             scroll-behavior: smooth;
+            color-scheme: <?php echo $theme === 'dark' ? 'dark' : 'light'; ?>;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-lit) var(--bg-base);
         }
 
         body {
@@ -231,7 +234,7 @@ if (is_dir($docsDir)) {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(255, 255, 255, 0.8);
+            background: var(--bg-raised);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
@@ -242,10 +245,6 @@ if (is_dir($docsDir)) {
             flex-wrap: wrap;
             gap: 16px;
             box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        [data-theme="dark"] .doc-header {
-            background: rgba(51, 51, 51, 0.8);
         }
 
         .doc-header-left {

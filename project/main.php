@@ -358,6 +358,10 @@
         .notification-close{background:none;border:none;color:var(--text-color);cursor:pointer;opacity:0.4;padding:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;font-size:16px;}
         .notification-close:hover{opacity:0.8;background:rgba(128,128,128,0.15);}
         .notification-countdown{position:absolute;bottom:0;left:0;height:3px;background:var(--primary-color);border-radius:0 0 0 8px;transition:width 1s linear;}
+        .notification-copy{background:none;border:none;cursor:pointer;opacity:0.8;padding:0 4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;}
+        .notification-copy:hover{opacity:1;background:rgba(128,128,128,0.15);}
+        .notification-copy svg{width:16px;height:16px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
+
         #shared-files-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:10000;}
         #shared-files-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;height:80vh;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shared-files{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -775,6 +779,30 @@
         }
         .weather-modal-close:hover {
             background: var(--border-color);
+        }
+        .weather-wind-chart-btn {
+            position: absolute;
+            top: 16px;
+            right: 60px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--group-block-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        .weather-wind-chart-btn:hover {
+            background: var(--border-color);
+        }
+        .weather-wind-chart-btn svg {
+            width: 18px;
+            height: 18px;
         }
         .weather-modal-header {
             display: flex;
@@ -3750,6 +3778,12 @@ var T=<?php echo json_encode([
                     ${iconPath}
                 </svg>
                 <span class="notification-content">${message}</span>
+                <button class="notification-copy" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
                 <button class="notification-close">&times;</button>
             `;
             document.body.appendChild(notification);
@@ -3758,6 +3792,15 @@ var T=<?php echo json_encode([
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 250);
             });
+            const copyBtn = notification.querySelector('.notification-copy');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(message).then(() => {
+                    if (typeof showTempNotification === 'function') {
+                        showTempNotification('Copied!', 'success');
+                    }
+                }).catch(err => console.error('Failed to copy: ', err));
+            });
+
             setTimeout(() => { notification.classList.add('show'); }, 50);
             setTimeout(() => {
                 notification.classList.remove('show');
@@ -3801,6 +3844,12 @@ var T=<?php echo json_encode([
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span class="notification-content">${T.new_device_notification}</span>
+                <button class="notification-copy" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
                 <button class="add-trusted-device-btn" style="background:#4CAF50;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;white-space:nowrap;">${T.add_device_trusted}</button>
                 <button class="notification-close">&times;</button>
                 <div class="notification-countdown" style="width:100%;"></div>
@@ -3827,6 +3876,14 @@ var T=<?php echo json_encode([
             });
 
             const addBtn = notification.querySelector('.add-trusted-device-btn');
+            const copyBtn = notification.querySelector('.notification-copy');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(T.new_device_notification).then(() => {
+                    if (typeof showTempNotification === 'function') {
+                        showTempNotification('Copied!', 'success');
+                    }
+                }).catch(err => console.error('Failed to copy: ', err));
+            });
             addBtn.addEventListener('click', () => {
                 // Add this device as trusted
                 clearInterval(countdownInterval);
@@ -10981,6 +11038,9 @@ else injectAppMobileChrome();
 <div id="weatherModalOverlay" class="weather-modal-overlay" onclick="closeWeatherModal(event)">
     <div class="weather-modal" onclick="event.stopPropagation()">
         <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="Close">&times;</button>
+        <button type="button" class="weather-wind-chart-btn" id="weatherWindChartBtn" onclick="toggleWindChart()" title="Show wind chart" style="display:none;">
+            <svg id="weatherWindChartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+        </button>
         <div id="weatherModalContent">
             <div class="weather-loading" style="display:flex;justify-content:center;padding:40px 0;">
                 <div class="weather-loading-spinner"></div>
@@ -10994,6 +11054,7 @@ else injectAppMobileChrome();
 /* ── Enhanced Weather Widget with 7-Day Forecast Modal ── */
 (function(){
 var weatherWidget, weatherStore;
+var windChartVisible = false;
 
 function init() {
     weatherStore = { city: '', lat: 0, lon: 0, current: null, daily: null };
@@ -11187,7 +11248,7 @@ function showWeatherModal() {
         document.body.style.overflow = 'hidden';
         
         var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + weatherStore.lat + '&longitude=' + weatherStore.lon +
-            '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum' +
+            '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max' +
             '&timezone=auto&forecast_days=7';
         fetch(url)
             .then(function(r) { return r.json(); })
@@ -11215,6 +11276,11 @@ function showModalWithData() {
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
+    windChartVisible = false;
+    var windBtn = document.getElementById('weatherWindChartBtn');
+    if (windBtn) {
+        windBtn.style.display = (weatherStore.daily && weatherStore.daily.windspeed_10m_max) ? 'flex' : 'none';
+    }
     renderWeeklyForecast();
 }
 
@@ -11466,6 +11532,88 @@ function drawTemperatureChart(daily) {
     drawPoints(highs, '#ef4444');
 }
 
+/* ── Wind chart toggle & draw ── */
+function toggleWindChart() {
+    var btn = document.getElementById('weatherWindChartBtn');
+    if (!windChartVisible) {
+        windChartVisible = true;
+        drawWindChart(weatherStore.daily);
+        if (btn) btn.title = T.weather_wind_chart_back || 'Back to forecast';
+    } else {
+        windChartVisible = false;
+        renderWeeklyForecast();
+        if (btn) btn.title = T.weather_wind_chart_btn || 'Show wind chart';
+    }
+}
+function drawWindChart(daily) {
+    if (!daily || !daily.time || !daily.windspeed_10m_max) return;
+    var n = daily.time.length;
+    var winds = [];
+    for (var i = 0; i < n; i++) {
+        winds.push(daily.windspeed_10m_max[i] != null ? daily.windspeed_10m_max[i] : 0);
+    }
+    var isDark = document.body.classList.contains('dark-theme') ||
+                 getComputedStyle(document.body).getPropertyValue('--bg-color')?.trim()?.startsWith('#1') ||
+                 false;
+    var bg = isDark ? '#1e293b' : '#ffffff';
+    var textColor = isDark ? '#94a3b8' : '#64748b';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    var lineColor = '#10b981';
+    var fillColor = 'rgba(16,185,129,0.10)';
+    var minW = Math.min.apply(null, winds);
+    var maxW = Math.max.apply(null, winds);
+    var range = maxW - minW;
+    if (range < 2) { minW = Math.max(0, minW - 1); maxW = maxW + 1; range = maxW - minW; }
+    var padVal = range * 0.15;
+    minW = Math.max(0, minW - padVal);
+    maxW += padVal;
+    range = maxW - minW;
+    var vw = 640, vh = 280;
+    var pad = { top: 40, right: 20, bottom: 60, left: 50 };
+    var cW = vw - pad.left - pad.right;
+    var cH = vh - pad.top - pad.bottom;
+    function yP(v) { return pad.top + cH - ((v - minW) / range) * cH; }
+    function xP(idx) { return n <= 1 ? pad.left + cW / 2 : pad.left + (idx / (n - 1)) * cW; }
+    var title = T.weather_wind_chart_title || 'Wind speed';
+    var unit = T.weather_wind_speed_unit || 'km/h';
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + vw + ' ' + vh + '" style="width:100%;height:auto;display:block;font-family:sans-serif;">';
+    svg += '<rect width="' + vw + '" height="' + vh + '" fill="' + bg + '" rx="12"/>';
+    svg += '<text x="' + (vw / 2) + '" y="24" text-anchor="middle" fill="' + textColor + '" font-size="14" font-weight="600">' + escHtml(title) + '</text>';
+    var gridSteps = 4;
+    for (var g = 0; g <= gridSteps; g++) {
+        var gy = pad.top + (g / gridSteps) * cH;
+        var gVal = maxW - (g / gridSteps) * range;
+        svg += '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (vw - pad.right) + '" y2="' + gy + '" stroke="' + gridColor + '" stroke-width="1" stroke-dasharray="4,4"/>';
+        svg += '<text x="' + (pad.left - 6) + '" y="' + gy + '" text-anchor="end" dominant-baseline="middle" fill="' + textColor + '" font-size="10">' + Math.round(gVal) + '</text>';
+    }
+    var pts = [];
+    for (var i = 0; i < n; i++) {
+        pts.push({ x: xP(i), y: yP(winds[i]) });
+    }
+    var fillPath = 'M' + pts[0].x + ',' + pts[0].y;
+    for (var i = 1; i < n; i++) {
+        var cx1 = (pts[i - 1].x + pts[i].x) / 2;
+        fillPath += ' C' + cx1 + ',' + pts[i - 1].y + ' ' + cx1 + ',' + pts[i].y + ' ' + pts[i].x + ',' + pts[i].y;
+    }
+    fillPath += ' L' + pts[n - 1].x + ',' + (pad.top + cH) + ' L' + pts[0].x + ',' + (pad.top + cH) + ' Z';
+    svg += '<path d="' + fillPath + '" fill="' + fillColor + '"/>';
+    var linePath = 'M' + pts[0].x + ',' + pts[0].y;
+    for (var i = 1; i < n; i++) {
+        var cx1 = (pts[i - 1].x + pts[i].x) / 2;
+        linePath += ' C' + cx1 + ',' + pts[i - 1].y + ' ' + cx1 + ',' + pts[i].y + ' ' + pts[i].x + ',' + pts[i].y;
+    }
+    svg += '<path d="' + linePath + '" fill="none" stroke="' + lineColor + '" stroke-width="3" stroke-linejoin="round"/>';
+    for (var i = 0; i < n; i++) {
+        svg += '<circle cx="' + pts[i].x + '" cy="' + pts[i].y + '" r="4" fill="#fff" stroke="' + lineColor + '" stroke-width="2.5"/>';
+        svg += '<text x="' + pts[i].x + '" y="' + (pts[i].y - 10) + '" text-anchor="middle" fill="' + lineColor + '" font-size="10" font-weight="bold">' + Math.round(winds[i]) + '</text>';
+        var dayLabel = getDayName(daily.time[i]);
+        svg += '<text x="' + pts[i].x + '" y="' + (pad.top + cH + 18) + '" text-anchor="middle" fill="' + textColor + '" font-size="10">' + escHtml(dayLabel) + '</text>';
+    }
+    svg += '</svg>';
+    var unitLabel = '<div style="text-align:center;margin-top:6px;font-size:12px;opacity:0.6">' + escHtml(unit) + '</div>';
+    modalContent.innerHTML = '<div style="padding:16px 8px;">' + svg + unitLabel + '</div>';
+}
+
 /* ── Main init ── */
 function initWeather() {
     if(!navigator.geolocation) {
@@ -11490,7 +11638,7 @@ function initWeather() {
             /* Fetch current + 7-day forecast from Open-Meteo */
             var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
                 '&current=temperature_2m,weathercode,windspeed,is_day' +
-                '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum' +
+                '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max' +
                 '&timezone=auto&forecast_days=7';
             
             fetch(weatherUrl)

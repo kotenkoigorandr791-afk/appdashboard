@@ -551,14 +551,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $allowedExt=['jpg','jpeg','png','gif','webp'];
             $allowedMime=['image/jpeg','image/png','image/gif','image/webp'];
             if($size<=0 || $size > 10*1024*1024){
-                $profileError='Photo too large or empty';
+                $profileError=$translations['photo_too_large_or_empty'] ?? 'Photo too large or empty';
             } else {
                 $detectedMime=apSecDetectMimeFromFile($tmp);
                 $imgInfo=@getimagesize($tmp);
                 $mimeOk=in_array($detectedMime,$allowedMime,true);
                 $sizeOk=is_array($imgInfo) && in_array((int)($imgInfo[2] ?? 0), [IMAGETYPE_JPEG,IMAGETYPE_PNG,IMAGETYPE_GIF,IMAGETYPE_WEBP], true);
                 if(!$mimeOk || !$sizeOk){
-                    $profileError='Unsupported image type';
+                    $profileError=$translations['unsupported_image_type'] ?? 'Unsupported image type';
                 } else {
                     $fileName=apSecRandomFilename('webp');
                     $filePath=$uploadDir.$fileName;
@@ -586,7 +586,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     }else{
                         if(is_file($tmpUploadPath ?? '')){ @unlink($tmpUploadPath); }
                         if(is_file($filePath)){ @unlink($filePath); }
-                        $profileError='Failed to upload photo';
+                        $profileError=$translations['photo_upload_failed'] ?? 'Failed to upload photo';
                     }
                 }
             }

@@ -135,14 +135,19 @@
         body.wallpaper-custom.theme-dark{background-image:linear-gradient(180deg,rgba(8,12,18,0.08),rgba(8,12,18,0.14));}
         body.wallpaper-custom.theme-light{background-image:linear-gradient(180deg,rgba(255,255,255,0.08),rgba(248,250,252,0.12));}
         html,body{margin:0;padding:0;overflow:hidden;height:100%;}
+        @keyframes shellAppBackgroundFade{from{background-color:var(--bg-color);}to{background-color:#05070a;}}
         body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;background:
           radial-gradient(ellipse at 12% 18%, color-mix(in srgb,var(--primary-color) 28%,transparent) 0%, transparent 42%),
           radial-gradient(ellipse at 88% 12%, color-mix(in srgb,var(--primary-color) 18%,transparent) 0%, transparent 40%),
           radial-gradient(ellipse at 70% 88%, color-mix(in srgb,var(--primary-color) 16%,transparent) 0%, transparent 45%),
           linear-gradient(160deg, color-mix(in srgb,var(--bg-color) 88%,#000) 0%, var(--bg-color) 45%, color-mix(in srgb,var(--bg-color) 82%,var(--primary-color)) 100%);
         }
+        body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;}
+        body.shell-app-open::before{animation:shellLayerFadeOut 140ms ease-out both;}
+        body.shell-app-open.wallpaper-custom::after{animation:shellLayerFadeOut 140ms ease-out both;}
+        @keyframes shellLayerFadeOut{from{opacity:1;}to{opacity:0;}}
         body.wallpaper-custom::before{opacity:0!important;}
-        body.wallpaper-custom::after{content:'';position:fixed;inset:-8px;z-index:-1;pointer-events:none;background-image:var(--wallpaper-url);background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(3px);transform:scale(1.01);opacity:1!important;}
+        body.wallpaper-custom::after{content:'';position:fixed;inset:-8px;z-index:-1;pointer-events:none;background-image:var(--wallpaper-url);background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(3px);transform:scale(1.01);opacity:1;}
         #top-bar,#sidebar,#content{z-index:1;}
         #top-bar{position:fixed;top:0;left:0;width:100%;height:54px;background:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));box-shadow:0 8px 28px rgba(0,0,0,0.08);}
         #top-bar-title{font-weight:bold;font-size:18px;flex:1;min-width:0;text-align:center;position:absolute;left:50%;transform:translateX(-50%);}
@@ -209,6 +214,9 @@
         .notification-row-meta{font-size:11px;opacity:.55;margin-bottom:2px;}
         .notification-row-message{font-size:12px;line-height:1.4;opacity:.7;white-space:pre-wrap;}
         .notification-row-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--primary-color);flex-shrink:0;margin-top:6px;}
+        .notification-row-copy{background:none;border:none;cursor:pointer;opacity:0.55;padding:0 3px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;margin-top:2px;}
+        .notification-row-copy svg{width:13px;height:13px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
+        .notification-row-copy:hover{opacity:1!important;background:rgba(128,128,128,0.15);}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
         #app-list-container::-webkit-scrollbar{display:none;}
@@ -525,6 +533,9 @@
         .notification-close{background:none;border:none;color:var(--text-color);cursor:pointer;opacity:0.4;padding:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;font-size:16px;}
         .notification-close:hover{opacity:0.8;background:rgba(128,128,128,0.15);}
         .notification-countdown{position:absolute;bottom:0;left:0;height:3px;background:var(--primary-color);border-radius:0 0 0 8px;transition:width 1s linear;}
+        .notification-copy{background:none;border:none;cursor:pointer;opacity:0.8;padding:0 4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;}
+        .notification-copy:hover{opacity:1;background:rgba(128,128,128,0.15);}
+        .notification-copy svg{width:16px;height:16px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
         #shared-files-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shared-files-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:80vh;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;box-sizing:border-box;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #close-shared-files{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -910,6 +921,47 @@
         .weather-modal-close:hover {
             background: var(--border-color);
         }
+        .weather-wind-chart-btn {
+            position: absolute;
+            top: 16px;
+            right: 60px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--group-block-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 10;
+        }
+        .weather-wind-chart-btn:hover {
+            background: var(--border-color);
+        }
+        .weather-wind-chart-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+        @media (max-width: 480px) {
+            .weather-modal-close {
+                top: 12px;
+                right: 12px;
+                width: 34px;
+                height: 34px;
+            }
+            .weather-wind-chart-btn {
+                top: 12px;
+                right: 54px;
+                width: 34px;
+                height: 34px;
+            }
+            .weather-modal-header {
+                padding: 56px 16px 16px;
+            }
+        }
         .weather-modal-header {
             display: flex;
             align-items: center;
@@ -955,6 +1007,11 @@
             opacity: 0.75;
             margin-top: 6px;
             line-height: 1.45;
+        }
+        @media (max-width: 480px) {
+            .weather-modal-header {
+                padding: 56px 16px 16px;
+            }
         }
         .weather-modal-body {
             padding: 20px 24px 0;
@@ -1585,6 +1642,7 @@ endif; // showOtpPage
                 </p>
             </div>
             <div class="profile-section">
+                <?php $_showGooglePhotoReset=isset($userOAuthConnections['google']) && (string)($userOAuthConnections['google']['provider_photo']??'')!=='' && str_starts_with((string)($_SESSION['user']['photo']??''),'uploads/avatars/'); ?>
                 <h3><?php echo my_htmlspecialchars($translations['change_photo']); ?></h3>
                 <button type="button" class="change-photo-button" id="show-photo-form">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-repeat-icon lucide-repeat"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>
@@ -1594,8 +1652,8 @@ endif; // showOtpPage
                     <input type="file" name="photo" accept="image/*" class="auth-input">
                     <button type="submit" name="change_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['upload_photo']); ?></button>
                 </form>
-                <?php if(isset($userOAuthConnections['google']) && !str_starts_with((string)($_SESSION['user']['photo']??''),'https://lh3.googleusercontent.com/')): ?>
-                <form method="post" action="/main" class="photo-form" style="margin-top:8px;">
+                <?php if($_showGooglePhotoReset): ?>
+                <form method="post" action="/main" class="photo-form" id="reset-photo-form" style="margin-top:8px;">
                     <button type="submit" name="reset_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['reset_to_default']); ?></button>
                 </form>
                 <?php endif; ?>
@@ -2914,6 +2972,10 @@ var T=<?php echo json_encode([
     'weather_weekday_4'=>$translations['weather_weekday_4']??'Thursday',
     'weather_weekday_5'=>$translations['weather_weekday_5']??'Friday',
     'weather_weekday_6'=>$translations['weather_weekday_6']??'Saturday',
+    'weather_wind_chart_title'=>$translations['weather_wind_chart_title']??'Wind speed',
+    'weather_wind_chart_btn'=>$translations['weather_wind_chart_btn']??'Show wind chart',
+    'weather_wind_chart_back'=>$translations['weather_wind_chart_back']??'Back to forecast',
+    'weather_wind_speed_unit'=>$translations['weather_wind_speed_unit']??'km/h',
 ]); ?>;
     document.addEventListener('DOMContentLoaded',function(){
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2981,6 +3043,7 @@ var T=<?php echo json_encode([
         let currentPasswordVerified=false;
         const showPhotoForm=document.getElementById('show-photo-form');
         const photoForm=document.getElementById('photo-form');
+        const resetPhotoForm=document.getElementById('reset-photo-form');
         const sharedFilesSearch=document.getElementById('shared-files-search');
         const sharedFilesClearSearch=document.getElementById('shared-files-clear-search');
         const sharedFilesTable=document.getElementById('shared-files-table');
@@ -3224,6 +3287,7 @@ var T=<?php echo json_encode([
         if(showPhotoForm) {
             showPhotoForm.addEventListener('click', function(){
                 if(photoForm) photoForm.classList.toggle('active');
+                if(resetPhotoForm) resetPhotoForm.classList.toggle('active');
             });
         }
 
@@ -3762,7 +3826,7 @@ var T=<?php echo json_encode([
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();if(typeof QRCode==='undefined'){qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_library_not_loaded+'</p><p>'+T.qr_refresh_page+'</p></div>';return;}qrCodeElement.innerHTML='';try{const tempContainer=document.createElement('div');const qr=new QRCode(tempContainer,{text:domain,width:256,height:256,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});setTimeout(()=>{const canvas=tempContainer.querySelector('canvas');if(canvas){qrCodeElement.innerHTML='';qrCodeElement.appendChild(canvas);canvas.style.display='block';canvas.style.margin='0 auto';canvas.style.borderRadius='12px';canvas.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';}else{qrCodeElement.innerHTML='<p style="color: red; text-align: center;">'+T.qr_generation_failed+'</p>';}},100);}catch(error){console.error('QR Code error:',error);qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';}}});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
+        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -4211,6 +4275,12 @@ var T=<?php echo json_encode([
                     ${iconPath}
                 </svg>
                 <span class="notification-content">${message}</span>
+                <button class="notification-copy" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
                 <button class="notification-close">&times;</button>
             `;
             document.body.appendChild(notification);
@@ -4218,6 +4288,14 @@ var T=<?php echo json_encode([
             closeBtn.addEventListener('click', () => {
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 250);
+            });
+            const copyBtn = notification.querySelector('.notification-copy');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(message).then(() => {
+                    if (typeof showTempNotification === 'function') {
+                        showTempNotification('Copied!', 'success');
+                    }
+                }).catch(err => console.error('Failed to copy: ', err));
             });
             setTimeout(() => { notification.classList.add('show'); }, 50);
             setTimeout(() => {
@@ -4232,6 +4310,25 @@ var T=<?php echo json_encode([
             const badge=document.getElementById('notifications-unread-badge');
             const enableBtn=document.getElementById('notifications-enable-btn');
             const readBtn=document.getElementById('notifications-mark-read-btn');
+            // Delegate click on copy buttons inside the notifications list
+            if(list){
+                list.addEventListener('click',function(e){
+                    const btn=e.target.closest('.notification-row-copy');
+                    if(!btn)return;
+                    const row=btn.closest('.notification-row');
+                    if(!row)return;
+                    const title=row.querySelector('.notification-row-title')?row.querySelector('.notification-row-title').textContent:'';
+                    const meta=row.querySelector('.notification-row-meta')?row.querySelector('.notification-row-meta').textContent:'';
+                    const msgEl=row.querySelector('.notification-row-message');
+                    const msg=msgEl?msgEl.textContent:'';
+                    const text=title+(meta?'\n'+meta:'')+(msg?'\n'+msg:'');
+                    navigator.clipboard.writeText(text).then(function(){
+                        if(typeof showTempNotification==='function'){
+                            showTempNotification('Copied!','success');
+                        }
+                    }).catch(function(err){console.error('Copy failed: ',err);});
+                });
+            }
             let lastSeenId=0;
             const enableBtnText=enableBtn?enableBtn.querySelector('span'):null;
             const enableBtnLabel=enableBtnText?enableBtnText.textContent:'Enable';
@@ -4263,6 +4360,7 @@ var T=<?php echo json_encode([
                 if(count>0){badge.textContent=count>99?'99+':String(count);badge.style.display='block';}
                 else{badge.style.display='none';}
             }
+            const copySvg='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
             function rowHtml(n){
                 const dt=new Date((Number(n.created_at)||0)*1000).toLocaleString();
                 const app=n.app_id?` · ${escHtml(n.app_id)}`:'';
@@ -4278,7 +4376,7 @@ var T=<?php echo json_encode([
                 const iconClass=icons[sev]?'severity-'+sev:'severity-default';
                 const iconHtml=icons[sev]||icons.info;
                 const unreadDot=Number(n.is_read)?'':`<div class="notification-row-unread-dot"></div>`;
-                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-icon ${iconClass}">${iconHtml}</div><div class="notification-row-body"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${sev}${app} · ${dt}</div>${msg}</div>${unreadDot}</div>`;
+                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-icon ${iconClass}">${iconHtml}</div><div class="notification-row-body"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${sev}${app} · ${dt}</div>${msg}</div><button class="notification-row-copy" title="Copy to clipboard">${copySvg}</button>${unreadDot}</div>`;
             }
             async function loadNotifications(showBrowser){
                 if(!btn||!list)return;
@@ -4372,6 +4470,12 @@ var T=<?php echo json_encode([
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span class="notification-content">${T.new_device_notification}</span>
+                <button class="notification-copy" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
                 <button class="add-trusted-device-btn" style="background:#4CAF50;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;white-space:nowrap;">${T.add_device_trusted}</button>
                 <button class="notification-close">&times;</button>
                 <div class="notification-countdown" style="width:100%;"></div>
@@ -4395,6 +4499,15 @@ var T=<?php echo json_encode([
                 clearInterval(countdownInterval);
                 modalObserver.disconnect();
                 setTimeout(() => notification.remove(), 250);
+            });
+
+            const copyBtn = notification.querySelector('.notification-copy');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(T.new_device_notification).then(() => {
+                    if (typeof showTempNotification === 'function') {
+                        showTempNotification('Copied!', 'success');
+                    }
+                }).catch(err => console.error('Failed to copy: ', err));
             });
 
             const addBtn = notification.querySelector('.add-trusted-device-btn');
@@ -4453,8 +4566,8 @@ var T=<?php echo json_encode([
             if(passwordChangeBox) passwordChangeBox.classList.remove('active');
             resetPasswordChangeForm();
         }
-        if(closeProfile){closeProfile.addEventListener('click',()=>{if(profileModal){profileModal.style.display='none';}closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}});}
-        if(profileModal){profileModal.addEventListener('click',(e)=>{if(e.target===profileModal){profileModal.style.display='none';closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}}});}
+        if(closeProfile){closeProfile.addEventListener('click',()=>{if(profileModal){profileModal.style.display='none';}closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}if(resetPhotoForm){resetPhotoForm.classList.remove('active');}});}
+        if(profileModal){profileModal.addEventListener('click',(e)=>{if(e.target===profileModal){profileModal.style.display='none';closePasswordChangeBox();if(photoForm){photoForm.classList.remove('active');}if(resetPhotoForm){resetPhotoForm.classList.remove('active');}}});}
         document.querySelectorAll('.copy-email-btn').forEach(function(btn){btn.addEventListener('click',function(e){e.preventDefault();var email=this.getAttribute('data-email');var b=this;try{navigator.clipboard.writeText(email).then(function(){b.classList.add('copied');setTimeout(function(){b.classList.remove('copied');},1200);},function(){b.classList.add('failed');setTimeout(function(){b.classList.remove('failed');},1200);});}catch(err){b.classList.add('failed');setTimeout(function(){b.classList.remove('failed');},1200);}});});
         if(showPasswordForm){showPasswordForm.addEventListener('click',()=>{
             if(passwordChangeBox){
@@ -9031,7 +9144,8 @@ if(isset($sharedFilesSuccess))   $flashMessages[] = ['msg'=>$sharedFilesSuccess,
 if(isset($trustedDeviceRestoreNotice) && $trustedDeviceRestoreNotice !== '') $flashMessages[] = ['msg'=>$trustedDeviceRestoreNotice, 'type'=>'error'];
 if(!empty($flashMessages)):
 $openPasswordOnLoad = isset($_POST['change_password']) && (isset($profileError) || isset($profileSuccess));
-$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']);
+$openPhotoOnLoad = isset($_POST['change_photo']) && (isset($profileError) || isset($profileSuccess));
+$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['reset_photo']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']);
 ?>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -9045,6 +9159,13 @@ document.addEventListener('DOMContentLoaded', function(){
     var passwordChangeBox=document.getElementById('password-change-box');
     if(profileModal) profileModal.style.display='flex';
     if(passwordChangeBox) passwordChangeBox.classList.add('active');
+    <?php elseif($openPhotoOnLoad): ?>
+    var profileModal=document.getElementById('profile-modal');
+    var photoForm=document.getElementById('photo-form');
+    var resetPhotoForm=document.getElementById('reset-photo-form');
+    if(profileModal) profileModal.style.display='flex';
+    if(photoForm) photoForm.classList.add('active');
+    if(resetPhotoForm) resetPhotoForm.classList.add('active');
     <?php elseif($openProfileOnLoad): ?>
     var profileModal=document.getElementById('profile-modal');
     if(profileModal) profileModal.style.display='flex';
@@ -11753,7 +11874,10 @@ else injectAppMobileChrome();
 <!-- Weather Widget Forecast Modal -->
 <div id="weatherModalOverlay" class="weather-modal-overlay" onclick="closeWeatherModal(event)">
     <div class="weather-modal" onclick="event.stopPropagation()">
-        <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="Close">&times;</button>
+        <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
+        <button type="button" class="weather-wind-chart-btn" id="weatherWindChartBtn" onclick="toggleWindChart()" title="<?php echo my_htmlspecialchars($translations['weather_wind_chart_btn'] ?? 'Show wind chart'); ?>" style="display:none;">
+            <svg id="weatherWindChartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+        </button>
         <div id="weatherModalContent">
             <div class="weather-loading" style="display:flex;justify-content:center;padding:40px 0;">
                 <div class="weather-loading-spinner"></div>
@@ -11767,10 +11891,18 @@ else injectAppMobileChrome();
 /* ── Enhanced Weather Widget with 7-Day Forecast Modal ── */
 (function(){
 var weatherStore = { city: '', lat: 0, lon: 0, current: null, daily: null };
+var windChartVisible = false;
 var WT = (typeof T !== 'undefined') ? T : {};
 
 function wt(key, fallback) {
     return (WT && WT[key]) ? WT[key] : fallback;
+}
+function getDailyWindSeries(daily) {
+    if (!daily) return null;
+    return daily.wind_speed_10m_max || daily.windspeed_10m_max || null;
+}
+function weatherForecastUrl(lat, lon) {
+    return 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current=temperature_2m,weather_code,wind_speed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=auto&forecast_days=7';
 }
 function escHtml(str) {
     var d = document.createElement('div');
@@ -11869,8 +12001,12 @@ window.apRequestWeatherLocationFromModal = function() {
 function showWeatherModal() {
     if(!modalOverlay) return;
     if(weatherStore.daily && weatherStore.daily.time) {
-        showModalWithData();
-        return;
+        if(!getDailyWindSeries(weatherStore.daily) && weatherStore.lat && weatherStore.lon) {
+            weatherStore.daily = null;
+        } else {
+            showModalWithData();
+            return;
+        }
     }
     if(!weatherStore.lat || !weatherStore.lon) {
         modalOverlay.style.display = 'flex';
@@ -11883,7 +12019,7 @@ function showWeatherModal() {
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
-    var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + weatherStore.lat + '&longitude=' + weatherStore.lon + '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=7';
+    var url = weatherForecastUrl(weatherStore.lat, weatherStore.lon);
     fetch(url)
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -11903,6 +12039,12 @@ function showModalWithData() {
     modalOverlay.style.display = 'flex';
     modalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
+    windChartVisible = false;
+    var windBtn = document.getElementById('weatherWindChartBtn');
+    if (windBtn) {
+        windBtn.style.display = getDailyWindSeries(weatherStore.daily) ? 'flex' : 'none';
+        windBtn.title = wt('weather_wind_chart_btn', 'Show wind chart');
+    }
     renderWeeklyForecast();
 }
 
@@ -12146,6 +12288,85 @@ function drawTemperatureChart(daily) {
         ctx.restore();
     }
 }
+function toggleWindChart() {
+    var btn = document.getElementById('weatherWindChartBtn');
+    if (!windChartVisible) {
+        windChartVisible = true;
+        drawWindChart(weatherStore.daily);
+        if (btn) btn.title = wt('weather_wind_chart_back', 'Back to forecast');
+    } else {
+        windChartVisible = false;
+        renderWeeklyForecast();
+        if (btn) btn.title = wt('weather_wind_chart_btn', 'Show wind chart');
+    }
+}
+function drawWindChart(daily) {
+    var windSeries = getDailyWindSeries(daily);
+    if (!daily || !daily.time || !windSeries) return;
+    var n = daily.time.length;
+    var winds = [];
+    for (var i = 0; i < n; i++) {
+        winds.push(windSeries[i] != null ? windSeries[i] : 0);
+    }
+    var bg = getComputedStyle(document.body).getPropertyValue('--group-block-bg').trim() || '#ffffff';
+    var textColor = getComputedStyle(document.body).getPropertyValue('--text-color').trim() || '#64748b';
+    var gridColor = 'rgba(127,127,127,0.12)';
+    var lineColor = '#10b981';
+    var fillColor = 'rgba(16,185,129,0.10)';
+    var minW = Math.min.apply(null, winds);
+    var maxW = Math.max.apply(null, winds);
+    var range = maxW - minW;
+    if (range < 2) { minW = Math.max(0, minW - 1); maxW = maxW + 1; range = maxW - minW; }
+    var padVal = range * 0.15;
+    minW = Math.max(0, minW - padVal);
+    maxW += padVal;
+    range = maxW - minW;
+    var vw = 640, vh = 280;
+    var pad = { top: 40, right: 20, bottom: 60, left: 50 };
+    var cW = vw - pad.left - pad.right;
+    var cH = vh - pad.top - pad.bottom;
+    function yP(v) { return pad.top + cH - ((v - minW) / range) * cH; }
+    function xP(idx) { return n <= 1 ? pad.left + cW / 2 : pad.left + (idx / (n - 1)) * cW; }
+    var title = wt('weather_wind_chart_title', 'Wind speed');
+    var unit = wt('weather_wind_speed_unit', 'km/h');
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + vw + ' ' + vh + '" style="width:100%;height:auto;display:block;font-family:sans-serif;">';
+    svg += '<rect width="' + vw + '" height="' + vh + '" fill="' + bg + '" rx="12"/>';
+    svg += '<text x="' + (vw / 2) + '" y="24" text-anchor="middle" fill="' + textColor + '" font-size="14" font-weight="600">' + escHtml(title) + '</text>';
+    var gridSteps = 4;
+    for (var g = 0; g <= gridSteps; g++) {
+        var gy = pad.top + (g / gridSteps) * cH;
+        var gVal = maxW - (g / gridSteps) * range;
+        svg += '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (vw - pad.right) + '" y2="' + gy + '" stroke="' + gridColor + '" stroke-width="1" stroke-dasharray="4,4"/>';
+        svg += '<text x="' + (pad.left - 6) + '" y="' + gy + '" text-anchor="end" dominant-baseline="middle" fill="' + textColor + '" font-size="10">' + Math.round(gVal) + '</text>';
+    }
+    var pts = [];
+    for (var i = 0; i < n; i++) {
+        pts.push({ x: xP(i), y: yP(winds[i]) });
+    }
+    var fillPath = 'M' + pts[0].x + ',' + pts[0].y;
+    for (var i = 1; i < n; i++) {
+        var cx1 = (pts[i - 1].x + pts[i].x) / 2;
+        fillPath += ' C' + cx1 + ',' + pts[i - 1].y + ' ' + cx1 + ',' + pts[i].y + ' ' + pts[i].x + ',' + pts[i].y;
+    }
+    fillPath += ' L' + pts[n - 1].x + ',' + (pad.top + cH) + ' L' + pts[0].x + ',' + (pad.top + cH) + ' Z';
+    svg += '<path d="' + fillPath + '" fill="' + fillColor + '"/>';
+    var linePath = 'M' + pts[0].x + ',' + pts[0].y;
+    for (var i = 1; i < n; i++) {
+        var cx1 = (pts[i - 1].x + pts[i].x) / 2;
+        linePath += ' C' + cx1 + ',' + pts[i - 1].y + ' ' + cx1 + ',' + pts[i].y + ' ' + pts[i].x + ',' + pts[i].y;
+    }
+    svg += '<path d="' + linePath + '" fill="none" stroke="' + lineColor + '" stroke-width="3" stroke-linejoin="round"/>';
+    for (var i = 0; i < n; i++) {
+        svg += '<circle cx="' + pts[i].x + '" cy="' + pts[i].y + '" r="4" fill="#fff" stroke="' + lineColor + '" stroke-width="2.5"/>';
+        svg += '<text x="' + pts[i].x + '" y="' + (pts[i].y - 10) + '" text-anchor="middle" fill="' + lineColor + '" font-size="10" font-weight="bold">' + Math.round(winds[i]) + '</text>';
+        var dayLabel = getDayName(daily.time[i]);
+        svg += '<text x="' + pts[i].x + '" y="' + (pad.top + cH + 18) + '" text-anchor="middle" fill="' + textColor + '" font-size="10">' + escHtml(dayLabel) + '</text>';
+    }
+    svg += '</svg>';
+    var unitLabel = '<div style="text-align:center;margin-top:6px;font-size:12px;opacity:0.6">' + escHtml(unit) + '</div>';
+    modalContent.innerHTML = '<div style="padding:16px 8px;">' + svg + unitLabel + '</div>';
+}
+window.toggleWindChart = toggleWindChart;
     function initMobileTopBarRotation() {
         var topBar = document.getElementById('top-bar');
         var title = document.getElementById('top-bar-title');
@@ -12255,7 +12476,7 @@ function drawTemperatureChart(daily) {
         }
 
         function fetchWeather(lat, lng) {
-            fetch('https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lng + '&current=temperature_2m,weather_code,wind_speed_10m&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=auto&forecast_days=7')
+            fetch(weatherForecastUrl(lat, lng))
                 .then(function(r){ return r.json(); })
                 .then(function(data) {
                     var c = data.current;
