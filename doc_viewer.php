@@ -208,10 +208,13 @@ if (is_dir($docsDir)) {
             --table-header-bg: #f6f8fa;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--border-lit) var(--bg-base); }
 
         html {
             scroll-behavior: smooth;
+            color-scheme: <?php echo $theme === 'dark' ? 'dark' : 'light'; ?>;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-lit) var(--bg-base);
         }
 
         body {
@@ -231,7 +234,7 @@ if (is_dir($docsDir)) {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(255, 255, 255, 0.8);
+            background: var(--bg-raised);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
@@ -242,10 +245,6 @@ if (is_dir($docsDir)) {
             flex-wrap: wrap;
             gap: 16px;
             box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
-        }
-
-        [data-theme="dark"] .doc-header {
-            background: rgba(51, 51, 51, 0.8);
         }
 
         .doc-header-left {

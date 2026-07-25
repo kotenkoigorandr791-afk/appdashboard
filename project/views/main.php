@@ -214,6 +214,9 @@
         .notification-row-meta{font-size:11px;opacity:.55;margin-bottom:2px;}
         .notification-row-message{font-size:12px;line-height:1.4;opacity:.7;white-space:pre-wrap;}
         .notification-row-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--primary-color);flex-shrink:0;margin-top:6px;}
+        .notification-row-copy{background:none;border:none;cursor:pointer;opacity:0.55;padding:0 3px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;margin-top:2px;}
+        .notification-row-copy svg{width:13px;height:13px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
+        .notification-row-copy:hover{opacity:1!important;background:rgba(128,128,128,0.15);}
         #sidebar.open{left:0;}
         #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
         #app-list-container::-webkit-scrollbar{display:none;}
@@ -530,6 +533,9 @@
         .notification-close{background:none;border:none;color:var(--text-color);cursor:pointer;opacity:0.4;padding:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;font-size:16px;}
         .notification-close:hover{opacity:0.8;background:rgba(128,128,128,0.15);}
         .notification-countdown{position:absolute;bottom:0;left:0;height:3px;background:var(--primary-color);border-radius:0 0 0 8px;transition:width 1s linear;}
+        .notification-copy{background:none;border:none;cursor:pointer;opacity:0.8;padding:0 4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;}
+        .notification-copy:hover{opacity:1;background:rgba(128,128,128,0.15);}
+        .notification-copy svg{width:16px;height:16px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
         #shared-files-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shared-files-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:80vh;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;box-sizing:border-box;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #close-shared-files{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -3820,7 +3826,7 @@ var T=<?php echo json_encode([
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();if(typeof QRCode==='undefined'){qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_library_not_loaded+'</p><p>'+T.qr_refresh_page+'</p></div>';return;}qrCodeElement.innerHTML='';try{const tempContainer=document.createElement('div');const qr=new QRCode(tempContainer,{text:domain,width:256,height:256,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});setTimeout(()=>{const canvas=tempContainer.querySelector('canvas');if(canvas){qrCodeElement.innerHTML='';qrCodeElement.appendChild(canvas);canvas.style.display='block';canvas.style.margin='0 auto';canvas.style.borderRadius='12px';canvas.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';}else{qrCodeElement.innerHTML='<p style="color: red; text-align: center;">'+T.qr_generation_failed+'</p>';}},100);}catch(error){console.error('QR Code error:',error);qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';}}});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
+        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -4269,6 +4275,12 @@ var T=<?php echo json_encode([
                     ${iconPath}
                 </svg>
                 <span class="notification-content">${message}</span>
+                <button class="notification-copy" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
                 <button class="notification-close">&times;</button>
             `;
             document.body.appendChild(notification);
@@ -4276,6 +4288,14 @@ var T=<?php echo json_encode([
             closeBtn.addEventListener('click', () => {
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 250);
+            });
+            const copyBtn = notification.querySelector('.notification-copy');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(message).then(() => {
+                    if (typeof showTempNotification === 'function') {
+                        showTempNotification('Copied!', 'success');
+                    }
+                }).catch(err => console.error('Failed to copy: ', err));
             });
             setTimeout(() => { notification.classList.add('show'); }, 50);
             setTimeout(() => {
@@ -4290,6 +4310,25 @@ var T=<?php echo json_encode([
             const badge=document.getElementById('notifications-unread-badge');
             const enableBtn=document.getElementById('notifications-enable-btn');
             const readBtn=document.getElementById('notifications-mark-read-btn');
+            // Delegate click on copy buttons inside the notifications list
+            if(list){
+                list.addEventListener('click',function(e){
+                    const btn=e.target.closest('.notification-row-copy');
+                    if(!btn)return;
+                    const row=btn.closest('.notification-row');
+                    if(!row)return;
+                    const title=row.querySelector('.notification-row-title')?row.querySelector('.notification-row-title').textContent:'';
+                    const meta=row.querySelector('.notification-row-meta')?row.querySelector('.notification-row-meta').textContent:'';
+                    const msgEl=row.querySelector('.notification-row-message');
+                    const msg=msgEl?msgEl.textContent:'';
+                    const text=title+(meta?'\n'+meta:'')+(msg?'\n'+msg:'');
+                    navigator.clipboard.writeText(text).then(function(){
+                        if(typeof showTempNotification==='function'){
+                            showTempNotification('Copied!','success');
+                        }
+                    }).catch(function(err){console.error('Copy failed: ',err);});
+                });
+            }
             let lastSeenId=0;
             const enableBtnText=enableBtn?enableBtn.querySelector('span'):null;
             const enableBtnLabel=enableBtnText?enableBtnText.textContent:'Enable';
@@ -4321,6 +4360,7 @@ var T=<?php echo json_encode([
                 if(count>0){badge.textContent=count>99?'99+':String(count);badge.style.display='block';}
                 else{badge.style.display='none';}
             }
+            const copySvg='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
             function rowHtml(n){
                 const dt=new Date((Number(n.created_at)||0)*1000).toLocaleString();
                 const app=n.app_id?` · ${escHtml(n.app_id)}`:'';
@@ -4336,7 +4376,7 @@ var T=<?php echo json_encode([
                 const iconClass=icons[sev]?'severity-'+sev:'severity-default';
                 const iconHtml=icons[sev]||icons.info;
                 const unreadDot=Number(n.is_read)?'':`<div class="notification-row-unread-dot"></div>`;
-                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-icon ${iconClass}">${iconHtml}</div><div class="notification-row-body"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${sev}${app} · ${dt}</div>${msg}</div>${unreadDot}</div>`;
+                return `<div class="notification-row ${Number(n.is_read)?'':'unread'}" data-id="${Number(n.id)||0}"><div class="notification-row-icon ${iconClass}">${iconHtml}</div><div class="notification-row-body"><div class="notification-row-title">${escHtml(n.title||'Notification')}</div><div class="notification-row-meta">${sev}${app} · ${dt}</div>${msg}</div><button class="notification-row-copy" title="Copy to clipboard">${copySvg}</button>${unreadDot}</div>`;
             }
             async function loadNotifications(showBrowser){
                 if(!btn||!list)return;
@@ -4430,6 +4470,12 @@ var T=<?php echo json_encode([
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span class="notification-content">${T.new_device_notification}</span>
+                <button class="notification-copy" title="Copy to clipboard">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                </button>
                 <button class="add-trusted-device-btn" style="background:#4CAF50;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;white-space:nowrap;">${T.add_device_trusted}</button>
                 <button class="notification-close">&times;</button>
                 <div class="notification-countdown" style="width:100%;"></div>
@@ -4453,6 +4499,15 @@ var T=<?php echo json_encode([
                 clearInterval(countdownInterval);
                 modalObserver.disconnect();
                 setTimeout(() => notification.remove(), 250);
+            });
+
+            const copyBtn = notification.querySelector('.notification-copy');
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(T.new_device_notification).then(() => {
+                    if (typeof showTempNotification === 'function') {
+                        showTempNotification('Copied!', 'success');
+                    }
+                }).catch(err => console.error('Failed to copy: ', err));
             });
 
             const addBtn = notification.querySelector('.add-trusted-device-btn');

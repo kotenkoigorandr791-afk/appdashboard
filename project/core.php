@@ -1647,6 +1647,9 @@ $defaultTranslations['news_ai_fills'] = 'Fills title + content';
 $defaultTranslations['news_photo_label'] = 'Photo';
 $defaultTranslations['news_photo_placeholder'] = 'Photo URL or path...';
 $defaultTranslations['news_published_label'] = 'Published';
+$defaultTranslations['news_writing_prompt'] = 'News writing prompt';
+$defaultTranslations['refresh_token'] = 'Refresh token';
+$defaultTranslations['copy'] = 'Copy';
 $defaultTranslations['news_draft_label'] = 'Draft';
 $defaultTranslations['news_created_on'] = 'Created on';
 $defaultTranslations['news_updated_on'] = 'Updated on';
@@ -2745,7 +2748,10 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     }
     newsEnsureDb($db, $newsFile);
 
-    $action = (string)($_GET['action'] ?? $_POST['action'] ?? '');
+    // Support action from query string, POST, or JSON body
+$rawInput = (string)file_get_contents('php://input');
+$jsonInput = $rawInput !== '' ? json_decode($rawInput, true) : null;
+$action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) ? ($jsonInput['action'] ?? '') : ''));
     header('Content-Type: application/json; charset=utf-8');
 
     if ($action === 'list') {
@@ -2925,6 +2931,143 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         exit;
     }
 
+    if ($action === 'get_writing_prompt') {
+        if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
+        
+        $tokenDir = APP_ROOT . '/data';
+        if (!is_dir($tokenDir)) {
+            @mkdir($tokenDir, 0775, true);
+        }
+        $tokenFile = $tokenDir . '/news_writing_token.json';
+        
+        $now = time();
+        $tokenData = [];
+        if (is_file($tokenFile)) {
+            $tokenData = json_decode((string)file_get_contents($tokenFile), true) ?: [];
+        }
+        
+        $token = (string)($tokenData['token'] ?? '');
+        $createdAt = (int)($tokenData['created_at'] ?? 0);
+        $lastUsedAt = (int)($tokenData['last_used_at'] ?? 0);
+        
+        // Token rotation: valid for 1 hour from creation, extended 5 min after last use
+        $tokenExpired = ($now - $createdAt) >= 3600;
+        $graceExpired = ($now - $lastUsedAt) >= 300;
+        $needsNewToken = $token === '' || ($tokenExpired && $graceExpired);
+        
+        if ($needsNewToken) {
+            $token = bin2hex(random_bytes(32));
+            $createdAt = $now;
+            $lastUsedAt = $now;
+            file_put_contents($tokenFile, json_encode([
+                'token' => $token,
+                'created_at' => $createdAt,
+                'last_used_at' => $lastUsedAt,
+            ], JSON_PRETTY_PRINT), LOCK_EX);
+        } else {
+            // Update last used time
+            $lastUsedAt = $now;
+            file_put_contents($tokenFile, json_encode([
+                'token' => $token,
+                'created_at' => $createdAt,
+                'last_used_at' => $lastUsedAt,
+            ], JSON_PRETTY_PRINT), LOCK_EX);
+        }
+        
+        // Build API URL from current request
+        $scheme = 'http';
+        $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+        $cfVisitor = (string)($_SERVER['HTTP_CF_VISITOR'] ?? '');
+        if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || $forwardedProto === 'https'
+            || str_contains($cfVisitor, '"scheme":"https"')) {
+            $scheme = 'https';
+        }
+        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+        $apiUrl = $scheme . '://' . $host . '/main?api=news&action=ai_generate';
+        
+        $tokenExpiresIn = max(0, 3600 - ($now - $createdAt));
+        $graceExpiresIn = max(0, 300 - ($now - $lastUsedAt));
+        $effectiveExpires = max($tokenExpiresIn, $graceExpiresIn);
+        
+        // ── Load recent published articles for context ──
+        $previousArticles = '';
+        $newsItems = [];
+        try {
+            $newsItems = newsLoadAllDb($db, $canEdit);
+            if (!empty($newsItems)) {
+                // Take the 5 most recent published articles
+                $recentNews = array_slice($newsItems, 0, 5);
+                $lines = [];
+                foreach ($recentNews as $ni) {
+                    $pub = !empty($ni['published']) ? 'Published' : 'Draft';
+                    $date = !empty($ni['created_at']) ? date('Y-m-d', (int)$ni['created_at']) : 'unknown date';
+                    $title = (string)($ni['title'] ?? 'Untitled');
+                    $bodyPreview = (string)($ni['body'] ?? '');
+                    $bodyPreview = mb_substr(str_replace(["\r", "\n"], ' ', $bodyPreview), 0, 150);
+                    $lines[] = "- [$pub] \"{$title}\" ({$date}) - {$bodyPreview}...";
+                }
+                $previousArticles = "\n## Recently Published Articles\nReview these previous articles to avoid repeating the same topics:\n" . implode("\n", $lines) . "\n";
+            }
+        } catch (Throwable $e) {
+            // Ignore errors when loading previous articles
+            $previousArticles = '';
+        }
+        
+        $prompt = <<<PROMPT
+You are a professional news writer for an app dashboard project. Your task is to create a news article based on recent git changes in the repository.
+
+## News Writing Rules
+- Write ONLY in English
+- Do NOT use emojis in the title
+- You MAY use emojis in the article body text (use them sparingly and appropriately)
+- Article length: 100-600 words
+- Use content in moderation — don't exaggerate or oversell features
+- The news is for regular end-users — do NOT include any code details, technical implementation specifics, or internal architecture references
+- Only describe visible changes and user-facing features that regular users would see or benefit from
+- Use Markdown formatting for the body (headings, lists, bold, italic as appropriate)
+{$previousArticles}
+## How to Get the Changes
+Run the following command in the server project directory to get recent git changes:
+```bash
+git log --oneline -20 --no-merges
+```
+Then for each relevant commit, get the full diff with:
+```bash
+git show <commit-hash> --stat
+```
+Focus on user-facing changes only. Ignore internal refactoring, dependency updates, or configuration changes that don't affect the user experience.
+
+## Output Format
+Respond with valid JSON only:
+```json
+{"title": "Your News Title Here", "body": "Your markdown article body here..."}
+```
+
+## API Access
+- API URL: {$apiUrl}
+- API Token: {$token}
+- Token expires in: {$effectiveExpires} seconds
+PROMPT;
+        
+        echo json_encode([
+            'ok' => true,
+            'prompt' => $prompt,
+            'token' => $token,
+            'token_expires_in' => $effectiveExpires,
+            'api_url' => $apiUrl,
+            'previous_articles' => !empty($newsItems) ? array_map(function($ni) {
+                return [
+                    'id' => $ni['id'] ?? '',
+                    'title' => $ni['title'] ?? '',
+                    'published' => !empty($ni['published']),
+                    'created_at' => $ni['created_at'] ?? 0,
+                ];
+            }, array_slice($newsItems ?? [], 0, 5)) : [],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
+    }
+    
     echo json_encode(['ok' => false, 'error' => 'unknown_action']);
     exit;
 }

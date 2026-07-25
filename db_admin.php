@@ -1146,6 +1146,7 @@ $isDark = $theme === 'dark';
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;height:100dvh;overflow:hidden}
+html{color-scheme:<?= $isDark ? 'dark' : 'light' ?>}
 body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size:13px;line-height:1.5}
 @media (max-width: 768px) {
   body{font-size:12px}
@@ -1153,6 +1154,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-muted)}
 *{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
 
 /* Layout */
@@ -1375,6 +1377,16 @@ table.dt tbody tr:hover{background:var(--bg3)}
 .history-actions{display:flex;gap:8px;margin-top:6px}
 .history-actions button{background:none;border:1px solid var(--border);border-radius:3px;padding:2px 8px;font-size:10px;cursor:pointer}
 .history-actions button:hover{border-color:var(--accent);color:var(--accent)}
+#ins-modal .mbox{overflow:hidden;display:flex;flex-direction:column}
+#im-fields{padding:14px 17px;overflow:auto;min-height:0;flex:1}
+.ins-field{display:flex;flex-direction:column;gap:4px;padding:8px 0;border-bottom:1px solid var(--border)}
+.ins-field:last-child{border-bottom:none}
+.ins-field label{font-size:10px;color:var(--text-dim);font-weight:600;letter-spacing:.5px;text-transform:uppercase}
+.ins-field label.pk{color:var(--accent)}
+.ins-field input{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);padding:7px 9px;font-size:12px;font-family:var(--font-ui);outline:none;transition:border-color var(--transition)}
+.ins-field input:focus{border-color:var(--accent)}
+.ins-field input::placeholder{color:var(--text-muted)}
+.ins-ftr{display:flex;justify-content:flex-end;gap:8px;padding:0 17px 14px;flex-wrap:wrap}
 .empty-history{text-align:center;padding:40px;color:var(--text-muted)}
 .confirm-modal .mbox{max-width:440px}
 .confirm-msg{font-size:13px;line-height:1.5;color:var(--text);white-space:pre-wrap}
@@ -2215,6 +2227,7 @@ function applyTheme(theme, color) {
   const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
   const root = document.documentElement;
+  root.style.colorScheme = isDark ? 'dark' : 'light';
   root.style.setProperty('--bg',         isDark ? '#0f1419' : '#f8f9fc');
   root.style.setProperty('--bg2',        isDark ? 'rgba(18,24,32,0.8)' : '#ffffff');
   root.style.setProperty('--bg3',        isDark ? 'rgba(255,255,255,0.10)' : '#f0f2f8');
