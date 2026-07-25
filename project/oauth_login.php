@@ -149,13 +149,17 @@ function oauthPickGitHubEmail(array $emails): string {
     return $primaryVerified ?: $verified ?: $primary ?: $any;
 }
 
-function oauthGitHubNoreplyEmail(array $userData): string {
+function oauthGitHubNoreplyCandidates(array $userData): array {
     $id = trim((string)($userData['id'] ?? ''));
     $login = trim((string)($userData['login'] ?? ''));
-    if ($id === '' || $login === '') {
-        return '';
+    $candidates = [];
+    if ($id !== '' && $login !== '') {
+        $candidates[] = $id . '+' . $login . '@users.noreply.github.com';
     }
-    return $id . '+' . $login . '@users.noreply.github.com';
+    if ($login !== '') {
+        $candidates[] = $login . '@users.noreply.github.com';
+    }
+    return $candidates;
 }
 
 function oauthResolveGitHubEmail(array $userData, array $authHeaders): string {
@@ -170,12 +174,15 @@ function oauthResolveGitHubEmail(array $userData, array $authHeaders): string {
     if ($email !== '') {
         return $email;
     }
-    if ($emailsResponse['status'] === 403) {
-        error_log('GitHub /user/emails forbidden — enable Email read permission on the GitHub App');
+    if ($emailsResponse['status'] === 403 || $emailsResponse['status'] === 401) {
+        error_log('GitHub /user/emails HTTP ' . $emailsResponse['status'] . ' — enable Email read permission on the GitHub App');
+    } elseif ($email === '' && $emailsResponse['status'] !== 200) {
+        error_log('GitHub /user/emails HTTP ' . $emailsResponse['status'] . ': ' . substr((string)$emailsResponse['body'], 0, 200));
     }
-    $email = oauthGitHubNoreplyEmail($userData);
-    if ($email !== '') {
-        return $email;
+    foreach (oauthGitHubNoreplyCandidates($userData) as $candidate) {
+        if ($candidate !== '') {
+            return $candidate;
+        }
     }
     throw new RuntimeException($translations['github_email_unavailable'] ?? 'GitHub did not provide an email address. Enable Email read permission on the GitHub App or make a verified email public in GitHub profile settings.');
 }
