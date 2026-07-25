@@ -16,6 +16,8 @@ if (!is_dir(FIT_JOBS_DIR)) {
 if (!is_dir(FIT_UPLOAD_SESSIONS_DIR)) {
     @mkdir(FIT_UPLOAD_SESSIONS_DIR, 0777, true);
 }
+@chmod(FIT_JOBS_DIR, 0777);
+@chmod(FIT_UPLOAD_SESSIONS_DIR, 0777);
 function fit_chunk_session_paths(string $uploadId): array {
     $safe = preg_replace('/[^a-z0-9]/i', '', strtolower($uploadId));
     return [
@@ -69,50 +71,39 @@ function fit_delete_tree(string $dir): void {
     }
     @rmdir($dir);
 }
-function fit_find_python(): string {
+function fit_php_cli(): string {
     $candidates = [];
-    $interpreterFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'python_interpreter.txt';
-    if (is_file($interpreterFile)) {
-        $line = trim((string)@file_get_contents($interpreterFile));
-        if ($line !== '' && is_file($line)) {
-            $candidates[] = $line;
-        }
+    $phpBindir = defined('PHP_BINDIR') ? PHP_BINDIR : '';
+    if ($phpBindir !== '') {
+        $candidates[] = $phpBindir . DIRECTORY_SEPARATOR . 'php';
+        $candidates[] = $phpBindir . DIRECTORY_SEPARATOR . 'php.exe';
     }
-    if (DIRECTORY_SEPARATOR === '\\' && is_file('C:\\Compilers\\Python\\python.exe')) {
-        $candidates[] = 'C:\\Compilers\\Python\\python.exe';
-    }
-    $candidates = array_merge($candidates, [dirname(__DIR__) . '/venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/Scripts/python.exe', dirname(__DIR__) . '/.venv/bin/python3', 'py', 'python', 'python3']);
+    $candidates[] = '/usr/bin/php';
+    $candidates[] = '/usr/local/bin/php';
+    $candidates[] = 'php';
     foreach ($candidates as $p) {
+        if ($p === '') continue;
         if (strpos($p, '/') !== false || strpos($p, '\\') !== false) {
-            if (is_file($p)) {
-                return $p;
-            }
+            if (!is_file($p) || !is_executable($p)) continue;
+            $cmd = escapeshellarg($p) . ' -r ' . escapeshellarg('exit(PHP_SAPI==="cli"?0:1);');
         } else {
-            $o = [];
-            @exec(escapeshellcmd($p) . ' -c ' . escapeshellarg('print(1)') . ' 2>nul', $o, $rc);
-            if ((int)$rc === 0) {
-                return $p;
-            }
+            $cmd = escapeshellcmd($p) . ' -r ' . escapeshellarg('exit(PHP_SAPI==="cli"?0:1);');
         }
+        @exec($cmd, $o, $rc);
+        if ((int)$rc === 0) return $p;
     }
-    return 'python';
+    return 'php';
 }
 function fit_spawn_worker(string $jobPath): bool {
-    $py = fit_find_python();
-    if (strpos($py, ' ') === false) {
-        $pyReal = realpath($py);
-        if ($pyReal) {
-            $py = $pyReal;
-        }
-    }
-    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'takeout_import_worker.py');
+    $php = fit_php_cli();
+    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'takeout_import_worker.php');
     if ($script === false || !is_file($script)) {
         return false;
     }
     $jobPath = realpath($jobPath) ?: $jobPath;
     $log  = $jobPath . DIRECTORY_SEPARATOR . 'worker.log';
     if (DIRECTORY_SEPARATOR === '\\' || strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-        $pys = str_replace('/', '\\', $py);
+        $pys = str_replace('/', '\\', $php);
         $sjs = str_replace('/', '\\', $script);
         $jbs = str_replace('/', '\\', $jobPath);
         $lgs = str_replace('/', '\\', $log);
@@ -133,7 +124,7 @@ function fit_spawn_worker(string $jobPath): bool {
         pclose(popen('cmd /c start /B "" "' . $bats . '"', 'r'));
         return true;
     }
-    $cmd = sprintf('nohup %s %s %s >/dev/null 2>&1 &', escapeshellarg($py), escapeshellarg($script), escapeshellarg($jobPath));
+    $cmd = sprintf('nohup %s %s %s >>%s 2>&1 &', escapeshellarg($php), escapeshellarg($script), escapeshellarg($jobPath), escapeshellarg($log));
     exec($cmd);
     return true;
 }
@@ -163,6 +154,26 @@ function fit_notify_job_once(AppDatabase $db, string $jobId, array $state): arra
     app_metric($email, 'steps', 'fit_takeout_finished', 1, 'job', ['job_id' => $jobId, 'status' => $status, 'imported' => (int)($state['imported'] ?? 0)]);
     $state['notification_sent'] = 1;
     try { fit_takeout_save($db, $jobId, $state); } catch (Throwable $e) {}
+    return $state;
+}
+function fit_load_file_state(string $jobPath): ?array {
+    $path = $jobPath . DIRECTORY_SEPARATOR . 'state.json';
+    if (!is_file($path)) return null;
+    $state = json_decode((string)@file_get_contents($path), true);
+    return is_array($state) ? $state : null;
+}
+function fit_refresh_state_from_file(AppDatabase $db, string $jobId, array $state, int $updatedAt): array {
+    $jobPath = FIT_JOBS_DIR . $jobId;
+    $fileState = fit_load_file_state($jobPath);
+    if (!is_array($fileState)) return $state;
+    $fileTime = (int)@filemtime($jobPath . DIRECTORY_SEPARATOR . 'state.json');
+    $status = (string)($state['status'] ?? '');
+    $fileStatus = (string)($fileState['status'] ?? '');
+    if ($fileTime >= $updatedAt || $status === 'running' || $fileStatus !== '') {
+        if (!isset($fileState['job_id']) || (string)$fileState['job_id'] === '') $fileState['job_id'] = $jobId;
+        try { fit_takeout_save($db, $jobId, $fileState); } catch (Throwable $e) {}
+        return $fileState;
+    }
     return $state;
 }
 try {
@@ -204,6 +215,7 @@ if ($action === 'upload_chunk' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
         exit;
     }
     $tmp = (string)($_FILES['chunk']['tmp_name'] ?? '');
+    @chmod(dirname($dataPath), 0777);
     $in = @fopen($tmp, 'rb');
     $out = @fopen($dataPath, 'ab');
     if (!$in || !$out) {
@@ -235,6 +247,10 @@ if ($action === 'active_job' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     $ft = fit_takeout_load($db);
     $st = $ft['state'];
     $mt = (int)($ft['updated_at'] ?? 0);
+    if (is_array($st) && strlen($jid) >= 8) {
+        $st = fit_refresh_state_from_file($db, $jid, $st, $mt);
+        $mt = time();
+    }
     $jid = (string)($ft['job_id'] ?? '');
     if (is_array($st) && ($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) <= 1800 && strlen($jid) >= 8) {
         echo json_encode(['ok' => true, 'active' => ['job_id' => $jid, 'state' => $st]]);
@@ -256,6 +272,10 @@ if ($action === 'job_status' && isset($_GET['job'])) {
     }
     $st = $ft['state'];
     $mt = (int)($ft['updated_at'] ?? 0);
+    if (is_array($st)) {
+        $st = fit_refresh_state_from_file($db, $jid, $st, $mt);
+        $mt = time();
+    }
     if (($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) > 1800) {
         $st = array_merge($st, ['status' => 'error', 'message' => 'stale_job']);
     }
@@ -365,6 +385,7 @@ if (!@mkdir($jobPath, 0777, true) && !is_dir($jobPath)) {
     echo json_encode(['ok' => false, 'error' => 'mkdir']);
     exit;
 }
+@chmod($jobPath, 0777);
 $zipFile = $jobPath . '/takeout.zip';
 $moved = false;
 if ($token !== '') {
@@ -395,7 +416,7 @@ try {
 $okW = fit_spawn_worker($jobPath);
 if (!$okW) {
     try {
-        fit_takeout_save($db, $jobId, array_merge($state0, ['status' => 'error', 'message' => 'python not started']));
+        fit_takeout_save($db, $jobId, array_merge($state0, ['status' => 'error', 'message' => 'worker not started']));
     } catch (Exception $e) {
     }
     echo json_encode(['ok' => false, 'error' => 'worker', 'job_id' => $jobId]);

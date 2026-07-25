@@ -1777,7 +1777,6 @@
             const x = s.match(/^file (\d+)\/(\d+)$/i);
             if (x) return (translations.takeout_file_n || s).replace(/\{a\}/g, x[1]).replace(/\{b\}/g, x[2]);
             if (s === 'no step data in archive') return translations.takeout_err_none || s;
-            if (s === 'pyzipper not installed') return translations.zeep_err_pyzipper || s;
             if (s === 'stale_job') return translations.video_err_stale_job || s;
             return s;
         }
@@ -1884,8 +1883,11 @@
             const one = () => {
                 fetch(ZL_API + '?action=job_status&job=' + encodeURIComponent(jid), { credentials: 'same-origin' })
                     .then(r => r.json())
-                    .then(d => { if (d && d.ok && d.state) zlOnState(d.state); })
-                    .catch(function() {});
+                    .then(d => {
+                        console.log('[steps zeep status]', d);
+                        if (d && d.ok && d.state) zlOnState(d.state);
+                    })
+                    .catch(function(e) { console.log('[steps zeep status error]', e); });
             };
             one();
             zlPollTimer = setInterval(one, 400);
@@ -2184,8 +2186,11 @@
             const one = () => {
                 fetch(FTO_API + '?action=job_status&job=' + encodeURIComponent(jid), { credentials: 'same-origin' })
                     .then(r => r.json())
-                    .then(d => { if (d && d.ok) ftOnState(d.state); })
-                    .catch(function() {});
+                    .then(d => {
+                        console.log('[steps takeout status]', d);
+                        if (d && d.ok) ftOnState(d.state);
+                    })
+                    .catch(function(e) { console.log('[steps takeout status error]', e); });
             };
             one();
             fitPollTimer = setInterval(one, 400);
@@ -2713,6 +2718,7 @@
                 try {
                     d = await fetch(FTO_API, { method: 'POST', body: fd, credentials: 'same-origin' }).then(r => r.json());
                 } catch (e) { d = null; }
+                console.log('[steps takeout upload]', d);
                 if (!d || !d.ok) { await showAlert((translations.takeout_err_worker || '') + (d && d.error ? ' ' + d.error : '')); return; }
                 ftStartPoll(d.job_id);
             });
@@ -2784,6 +2790,7 @@
                 try {
                     d = await fetch(ZL_API, { method: 'POST', body: fd, credentials: 'same-origin' }).then(r => r.json());
                 } catch (e) { d = null; }
+                console.log('[steps zeep upload]', d);
                 if (!d || !d.ok) {
                     let err = d && d.error ? String(d.error) : '';
                     if (err === 'password') err = translations.zeep_err_password || err;

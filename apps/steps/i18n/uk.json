@@ -150,7 +150,6 @@
     "video_progress": "Прогрес",
     "video_meta_frames": "{cur} \/ {tot} кадрів",
     "video_status_preparing": "Запуск…",
-    "video_status_python": "Завантаження рушія",
     "video_status_ffmpeg": "Витягування кадрів",
     "video_status_ocr_n": "OCR: {n} кадрів",
     "video_status_frame_ab": "Кадр {a} з {b}",

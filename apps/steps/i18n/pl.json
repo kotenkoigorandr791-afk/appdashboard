@@ -150,7 +150,6 @@
     "video_progress": "Postęp",
     "video_meta_frames": "{cur} / {tot} klatek",
     "video_status_preparing": "Rozpoczynanie...",
-    "video_status_python": "Ładowanie silnika rozpoznawania",
     "video_status_ffmpeg": "Wyodrębnianie klatek wideo",
     "video_status_ocr_n": "OCR na {n} klatkach",
     "video_status_frame_ab": "Klatka {a} z {b}",

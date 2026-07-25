@@ -29,6 +29,8 @@ if (!is_dir(ZEEP_JOBS_DIR)) {
 if (!is_dir(ZEEP_UPLOAD_SESSIONS_DIR)) {
     @mkdir(ZEEP_UPLOAD_SESSIONS_DIR, 0777, true);
 }
+@chmod(ZEEP_JOBS_DIR, 0777);
+@chmod(ZEEP_UPLOAD_SESSIONS_DIR, 0777);
 function zeep_chunk_session_paths(string $uploadId): array {
     $safe = preg_replace('/[^a-z0-9]/i', '', strtolower($uploadId));
     return [
@@ -82,46 +84,39 @@ function zeep_delete_tree(string $dir): void {
     }
     @rmdir($dir);
 }
-function zeep_python_has_import_deps(string $python): bool {
-    $cmd = escapeshellarg($python) . ' -c ' . escapeshellarg('import pyzipper, psycopg2') . (DIRECTORY_SEPARATOR === '\\' ? ' 2>nul' : ' 2>/dev/null');
-    @exec($cmd, $o, $rc);
-    return (int)$rc === 0;
-}
-function zeep_find_python(): string {
+function zeep_php_cli(): string {
     $candidates = [];
-    $interpreterFile = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'python_interpreter.txt';
-    if (is_file($interpreterFile)) {
-        $line = trim((string)@file_get_contents($interpreterFile));
-        if ($line !== '') {
-            $candidates[] = $line;
-        }
+    $phpBindir = defined('PHP_BINDIR') ? PHP_BINDIR : '';
+    if ($phpBindir !== '') {
+        $candidates[] = $phpBindir . DIRECTORY_SEPARATOR . 'php';
+        $candidates[] = $phpBindir . DIRECTORY_SEPARATOR . 'php.exe';
     }
-    if (DIRECTORY_SEPARATOR === '\\' && is_file('C:\\Compilers\\Python\\python.exe')) {
-        $candidates[] = 'C:\\Compilers\\Python\\python.exe';
-    }
-    $utilsDir = dirname(__DIR__);
-    $hostUtilsDir = str_replace('/var/www/AppDashboard', '/opt/docker/appdashboard/code', $utilsDir);
-    $candidates = array_merge($candidates, [$utilsDir . '/venv/Scripts/python.exe', $utilsDir . '/.venv/Scripts/python.exe', $utilsDir . '/.venv/bin/python3', $hostUtilsDir . '/.venv/bin/python3', 'py', 'python', 'python3']);
+    $candidates[] = '/usr/bin/php';
+    $candidates[] = '/usr/local/bin/php';
+    $candidates[] = 'php';
     foreach ($candidates as $p) {
-        if ((strpos($p, '/') !== false || strpos($p, '\\') !== false) && !is_file($p)) {
-            continue;
+        if ($p === '') continue;
+        if (strpos($p, '/') !== false || strpos($p, '\\') !== false) {
+            if (!is_file($p) || !is_executable($p)) continue;
+            $cmd = escapeshellarg($p) . ' -r ' . escapeshellarg('exit(PHP_SAPI==="cli"?0:1);');
+        } else {
+            $cmd = escapeshellcmd($p) . ' -r ' . escapeshellarg('exit(PHP_SAPI==="cli"?0:1);');
         }
-        if (zeep_python_has_import_deps($p)) {
-            return $p;
-        }
+        @exec($cmd, $o, $rc);
+        if ((int)$rc === 0) return $p;
     }
-    return 'python3';
+    return 'php';
 }
 function zeep_spawn_worker(string $jobPath): bool {
-    $py = zeep_find_python();
-    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'zeep_import_worker.py');
+    $php = zeep_php_cli();
+    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'zeep_import_worker.php');
     if ($script === false || !is_file($script)) {
         return false;
     }
     $jobPath = realpath($jobPath) ?: $jobPath;
     $log = $jobPath . DIRECTORY_SEPARATOR . 'worker.log';
     if (DIRECTORY_SEPARATOR === '\\' || strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-        $pys = str_replace('/', '\\', $py);
+        $pys = str_replace('/', '\\', $php);
         $sjs = str_replace('/', '\\', $script);
         $jbs = str_replace('/', '\\', $jobPath);
         $lgs = str_replace('/', '\\', $log);
@@ -142,19 +137,19 @@ function zeep_spawn_worker(string $jobPath): bool {
         pclose(popen('cmd /c start /B "" "' . $bats . '"', 'r'));
         return true;
     }
-    $cmd = sprintf('nohup %s %s %s >>%s 2>&1 &', escapeshellarg($py), escapeshellarg($script), escapeshellarg($jobPath), escapeshellarg($log));
+    $cmd = sprintf('nohup %s %s %s >>%s 2>&1 &', escapeshellarg($php), escapeshellarg($script), escapeshellarg($jobPath), escapeshellarg($log));
     exec($cmd);
     return true;
 }
 function zeep_run_worker_now(string $jobPath): bool {
-    $py = zeep_find_python();
-    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'zeep_import_worker.py');
+    $php = zeep_php_cli();
+    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'zeep_import_worker.php');
     if ($script === false || !is_file($script)) {
         return false;
     }
     $jobPath = realpath($jobPath) ?: $jobPath;
     $log = $jobPath . DIRECTORY_SEPARATOR . 'worker.log';
-    $cmd = escapeshellarg($py) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($jobPath) . ' >>' . escapeshellarg($log) . ' 2>&1';
+    $cmd = escapeshellarg($php) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($jobPath) . ' >>' . escapeshellarg($log) . ' 2>&1';
     @exec($cmd, $out, $rc);
     return (int)$rc === 0;
 }
@@ -279,6 +274,7 @@ if ($action === 'upload_chunk' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
         exit;
     }
     $tmp = (string)($_FILES['chunk']['tmp_name'] ?? '');
+    @chmod(dirname($dataPath), 0777);
     $in = @fopen($tmp, 'rb');
     $out = @fopen($dataPath, 'ab');
     if (!$in || !$out) {
@@ -590,6 +586,7 @@ if (!@mkdir($jobPath, 0777, true) && !is_dir($jobPath)) {
     echo json_encode(['ok' => false, 'error' => 'mkdir']);
     exit;
 }
+@chmod($jobPath, 0777);
 $zipFile = $jobPath . '/zeep.zip';
 $moved = false;
 $expectedSize = 0;
@@ -635,7 +632,7 @@ try {
 $okW = zeep_spawn_worker($jobPath);
 if (!$okW) {
     try {
-        zeep_job_save($db, $jobId, array_merge($state0, ['status' => 'error', 'message' => 'python not started']));
+        zeep_job_save($db, $jobId, array_merge($state0, ['status' => 'error', 'message' => 'worker not started']));
     } catch (Exception $e) {
     }
     echo json_encode(['ok' => false, 'error' => 'worker', 'job_id' => $jobId]);

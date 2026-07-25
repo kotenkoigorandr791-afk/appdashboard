@@ -655,9 +655,9 @@ function renderMainPage($pagination) {
                 <?php endforeach; ?>
             </div>
             <div class="pagination">
-                <a href="?page=<?= max(1, $pagination['current_page'] - 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" data-partial-nav="1" class="pagination-btn <?= $pagination['current_page'] <= 1 ? 'disabled' : '' ?>"><?= $lang_array['previous'] ?></a>
+                <a href="?page=<?= max(1, $pagination['current_page'] - 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" class="pagination-btn <?= $pagination['current_page'] <= 1 ? 'disabled' : '' ?>"><?= $lang_array['previous'] ?></a>
                 <span><?= $lang_array['page'] ?> <?= $pagination['current_page'] ?> <?= $lang_array['of'] ?> <?= $pagination['total_pages'] ?></span>
-                <a href="?page=<?= min($pagination['total_pages'], $pagination['current_page'] + 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" data-partial-nav="1" class="pagination-btn <?= $pagination['current_page'] >= $pagination['total_pages'] ? 'disabled' : '' ?>"><?= $lang_array['next'] ?></a>
+                <a href="?page=<?= min($pagination['total_pages'], $pagination['current_page'] + 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" class="pagination-btn <?= $pagination['current_page'] >= $pagination['total_pages'] ? 'disabled' : '' ?>"><?= $lang_array['next'] ?></a>
             </div>
             <div class="stats-overlay" id="stats-overlay">
                 <div class="stats-popup" id="stats-popup">
@@ -2328,9 +2328,9 @@ function renderTablePage($pagination) {
             </div>
             
             <div class="pagination">
-                <a href="?page=<?= max(1, $pagination['current_page'] - 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" data-partial-nav="1" class="pagination-btn <?= $pagination['current_page'] <= 1 ? 'disabled' : '' ?>"><?= $lang_array['previous'] ?></a>
+                <a href="?page=<?= max(1, $pagination['current_page'] - 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" class="pagination-btn <?= $pagination['current_page'] <= 1 ? 'disabled' : '' ?>"><?= $lang_array['previous'] ?></a>
                 <span><?= $lang_array['page'] ?> <?= $pagination['current_page'] ?> <?= $lang_array['of'] ?> <?= $pagination['total_pages'] ?></span>
-                <a href="?page=<?= min($pagination['total_pages'], $pagination['current_page'] + 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" data-partial-nav="1" class="pagination-btn <?= $pagination['current_page'] >= $pagination['total_pages'] ? 'disabled' : '' ?>"><?= $lang_array['next'] ?></a>
+                <a href="?page=<?= min($pagination['total_pages'], $pagination['current_page'] + 1) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&color=<?= urlencode($color) ?>&view_mode=<?= $view_mode ?>&display_mode=<?= $display_mode ?>" class="pagination-btn <?= $pagination['current_page'] >= $pagination['total_pages'] ? 'disabled' : '' ?>"><?= $lang_array['next'] ?></a>
             </div>
 
             <div class="stats-overlay" id="stats-overlay">

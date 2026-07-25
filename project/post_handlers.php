@@ -616,6 +616,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $config['icon_sort_order']=$newIconSortOrder;
             $config['icon_style']=$newIconStyle;
             $config['wallpaper']=$newWallpaper;
+            ap_write_pref_cookies($config);
             $language=$newLanguage;
             $translations=$allTranslations[$language]??[];
             $translations=array_map(fn($v)=>$v??'',array_merge($defaultTranslations,$translations));

@@ -352,7 +352,8 @@ if($path==='/login'||$path==='/register'||(isset($_GET['code'])&&strpos($path,'/
     if(isset($_SESSION['user'])&&!$needsAuth){
         $showLogin=false;
     }else{
-        header('Location: /login' . ($themeFromUrl ? '?theme=' . urlencode($themeFromUrl) : '') . ($langFromUrl ? '&lang=' . urlencode($langFromUrl) : '') . ($colorFromUrl ? '&color=' . urlencode($colorFromUrl) : ''));
+        $loginParams=[];if($themeFromUrl)$loginParams['theme']=$themeFromUrl;if($langFromUrl)$loginParams['lang']=$langFromUrl;if($colorFromUrl)$loginParams['color']=$colorFromUrl;
+        header('Location: /login' . ($loginParams ? '?' . http_build_query($loginParams) : ''));
         exit;
     }
 }elseif($path==='/'||$path===''){

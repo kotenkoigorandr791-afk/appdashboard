@@ -60,7 +60,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <title data-i18n="appTitle">File Space</title>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=25" />
+  <link rel="stylesheet" href="assets/styles.css?v=26" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {

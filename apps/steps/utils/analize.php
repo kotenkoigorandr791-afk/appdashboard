@@ -205,91 +205,6 @@ function steps_notify_video_job_once(?AppDatabase $db, string $jobId, array $sta
     }
     return $state;
 }
-function analize_python_cv2_ok(string $interpreter): bool {
-    if ($interpreter === '') {
-        return false;
-    }
-    $exe = strpos($interpreter, ' ') !== false
-        ? $interpreter
-        : (
-            strpos($interpreter, '/') === 0
-            || (PHP_OS_FAMILY === 'Windows'
-                ? (bool)preg_match('/^[a-zA-Z]:[\\\\\\/]/', $interpreter)
-                : false)
-            ? escapeshellarg($interpreter)
-            : escapeshellcmd($interpreter)
-        );
-    $shellRedir = (PHP_OS_FAMILY === 'Windows') ? ' 2>nul' : ' 2>/dev/null';
-    $o = [];
-    @exec($exe . ' -c ' . escapeshellarg('import cv2') . $shellRedir, $o, $rc);
-    return (int)$rc === 0;
-}
-function analize_find_python(): string {
-    static $memo = null;
-    if ($memo !== null) {
-        return $memo;
-    }
-    $isWin = (\PHP_OS_FAMILY ?? '') === 'Windows' || \DIRECTORY_SEPARATOR === '\\';
-    $interpreterFile = __DIR__ . DIRECTORY_SEPARATOR . 'python_interpreter.txt';
-    if (is_file($interpreterFile)) {
-        foreach (preg_split('/\r\n|\r|\n/', (string)@file_get_contents($interpreterFile)) ?: [] as $rawLine) {
-            $line = trim($rawLine);
-            $lineLow = strtolower($line);
-            if (
-                $line === ''
-                || $line[0] === '#'
-                || (!$isWin && strlen($line) >= 4 && substr($lineLow, -4) === '.exe')
-            ) {
-                continue;
-            }
-            $isPathLike = strpos($line, '/') !== false || strpos($line, '\\') !== false
-                || ($isWin && (bool)preg_match('/^[a-zA-Z]:[\\\\\\/]/', $line));
-            if ($isPathLike) {
-                $okFs = $isWin ? is_file($line) : is_file($line) && @is_executable($line);
-                if ($okFs && analize_python_cv2_ok($line)) {
-                    return $memo = $line;
-                }
-            } elseif (analize_python_cv2_ok($line)) {
-                return $memo = $line;
-            }
-        }
-    }
-    if ($isWin && is_file('C:\\Compilers\\Python\\python.exe') && analize_python_cv2_ok('C:\\Compilers\\Python\\python.exe')) {
-        return $memo = 'C:\\Compilers\\Python\\python.exe';
-    }
-    if ($isWin) {
-        $ordered = [
-            __DIR__ . DIRECTORY_SEPARATOR . 'venv' . DIRECTORY_SEPARATOR . 'Scripts' . DIRECTORY_SEPARATOR . 'python.exe',
-            __DIR__ . DIRECTORY_SEPARATOR . '.venv' . DIRECTORY_SEPARATOR . 'Scripts' . DIRECTORY_SEPARATOR . 'python.exe',
-        ];
-    } else {
-        $ordered = [
-            __DIR__ . '/.venv/bin/python3',
-            __DIR__ . '/venv/bin/python3',
-            __DIR__ . '/.venv/bin/python',
-            __DIR__ . '/venv/bin/python',
-        ];
-    }
-    foreach ($ordered as $p) {
-        if (!(is_file($p) && ($isWin || @is_executable($p)))) {
-            continue;
-        }
-        if (analize_python_cv2_ok($p)) {
-            return $memo = $p;
-        }
-    }
-    foreach ($isWin ? ['py', 'python', 'python3'] : ['python3', 'python'] as $name) {
-        if (analize_python_cv2_ok($name)) {
-            return $memo = $name;
-        }
-    }
-    foreach ($ordered as $p) {
-        if (is_file($p)) {
-            return $memo = $p;
-        }
-    }
-    return $memo = $isWin ? 'python' : 'python3';
-}
 function analize_find_tesseract(): string {
     static $memo = null;
     if ($memo !== null) {
@@ -434,43 +349,8 @@ function analize_extract_sample_frame(string $videoPath, ?string &$debugOut = nu
     return null;
 }
 function analize_spawn_worker(string $jobPath): bool {
-    $py = analize_find_python();
-    $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'video_steps_worker.py');
-    if ($script === false || !is_file($script)) {
-        return false;
-    }
-    $jobPath = realpath($jobPath) ?: $jobPath;
-    $log  = $jobPath . DIRECTORY_SEPARATOR . 'worker.log';
-    if (DIRECTORY_SEPARATOR === '\\' || strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-        $pys = str_replace('/', '\\', $py);
-        $sjs = str_replace('/', '\\', $script);
-        $jbs = str_replace('/', '\\', $jobPath);
-        $lgs = str_replace('/', '\\', $log);
-        $bat = $jobPath . DIRECTORY_SEPARATOR . 'run_video_worker.cmd';
-        $c   = '@echo off' . "\r\n" . '"' . $pys . '" "' . $sjs . '" "' . $jbs . '" 1>>"' . $lgs . '" 2>&1' . "\r\n";
-        if (@file_put_contents($bat, $c) === false) {
-            return false;
-        }
-        $bats = str_replace('/', '\\', $bat);
-        if (class_exists('COM', false)) {
-            try {
-                $s = new COM('WScript.Shell');
-                $s->Run('cmd /c "' . $bats . '"', 0, false);
-                return true;
-            } catch (Exception $e) {
-            }
-        }
-        pclose(popen('cmd /c start /B "" "' . $bats . '"', 'r'));
-        return true;
-    }
-    $logEsc = escapeshellarg($log);
-    $cmd = sprintf('nohup %s %s %s >> %s 2>&1 &', escapeshellarg($py), escapeshellarg($script), escapeshellarg($jobPath), $logEsc);
-    if (!function_exists('exec')) {
-        @file_put_contents($log, "[" . date('c') . "] spawn: exec disabled in PHP\n", FILE_APPEND);
-        return false;
-    }
-    exec($cmd);
-    return true;
+    @file_put_contents((realpath($jobPath) ?: $jobPath) . DIRECTORY_SEPARATOR . 'worker.log', '[' . date('c') . "] video worker is not available\n", FILE_APPEND);
+    return false;
 }
 function analize_delete_tree(string $dir): void {
     if (!is_dir($dir)) {
@@ -904,7 +784,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['current_year'], $_POS
     }
     if (!analize_spawn_worker($jobPath)) {
         $state0['status'] = 'error';
-        $state0['message'] = 'python not started';
+        $state0['message'] = 'worker not available';
         if ($vdb) {
             try {
                 video_job_save($vdb, $jobId, $state0);

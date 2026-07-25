@@ -150,7 +150,6 @@
     "video_progress": "Průběh",
     "video_meta_frames": "{cur} / {tot} snímků",
     "video_status_preparing": "Spouštění úlohy...",
-    "video_status_python": "Načítání rozpoznávacího enginu",
     "video_status_ffmpeg": "Extrahování snímků videa",
     "video_status_ocr_n": "OCR na {n} snímcích",
     "video_status_frame_ab": "Snímek {a} z {b}",
