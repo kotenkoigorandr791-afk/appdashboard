@@ -73,6 +73,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
 require __DIR__ . '/bootstrap.php';
 require __DIR__ . '/core.php';
 require __DIR__ . '/oauth.php';
+require __DIR__ . '/oauth_login.php';
 require __DIR__ . '/routes.php';
 require __DIR__ . '/post_handlers.php';
 require __DIR__ . '/runtime.php';

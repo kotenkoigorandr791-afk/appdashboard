@@ -26,6 +26,7 @@ function app_pg_foreign_key_definitions(): array {
         $fk('client_auth_tokens', 'email', $u),
         $fk('trusted_devices', 'email', $u),
         $fk('tg_bot_sessions', 'email', $u),
+        $fk('oauth_connections', 'email', $u),
         $fk('quick_commands', 'email', $u),
         $fk('support_chat', 'user_email', $u),
         $fk('support_chat', 'sender_email', $u),

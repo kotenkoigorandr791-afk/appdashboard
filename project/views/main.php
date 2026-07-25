@@ -51,7 +51,34 @@
         .google-avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary-color);margin-bottom:10px;}
         .google-email{font-weight:bold;margin-bottom:5px;}
         .google-name{color:var(--text-color);opacity:0.8;}
+        .oauth-providers-bar{display:flex;align-items:center;justify-content:center;gap:18px;margin:18px 0 10px;}
+        .oauth-provider-btn{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;border:1px solid var(--border-color);background:var(--group-block-bg);text-decoration:none;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;box-shadow:0 4px 14px rgba(0,0,0,.08);}
+        .oauth-provider-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.14);}
+        .oauth-provider-btn svg{width:24px;height:24px;display:block;}
+        .oauth-provider-btn.oauth-github{color:#fff;background:#24292f;border-color:#24292f;}
+        .oauth-provider-btn.oauth-google{background:transparent;border-color:var(--border-color);}
         <?php endif; ?>
+        .oauth-accounts-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
+        .oauth-account-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--group-block-bg);}
+        .oauth-account-icon{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .oauth-account-icon svg{width:18px;height:18px;}
+        .oauth-account-icon.oauth-github{background:#24292f;color:#fff;}
+        .oauth-account-icon.oauth-google{background:#fff;border:1px solid rgba(0,0,0,.08);}
+        .oauth-account-icon.oauth-email{background:color-mix(in srgb,var(--primary-color) 18%,transparent);color:var(--primary-color);}
+        .oauth-account-meta{flex:1;min-width:0;}
+        .oauth-account-title{font-weight:600;font-size:13px;line-height:1.2;}
+        .oauth-account-sub{font-size:11px;opacity:.65;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}
+        .oauth-account-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+        .oauth-status-icon{width:28px;height:28px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+        .oauth-status-icon svg{width:14px;height:14px;display:block;}
+        .oauth-status-icon.connected{background:color-mix(in srgb,#22c55e 18%,transparent);color:#16a34a;}
+        .oauth-status-icon.disconnected{background:color-mix(in srgb,var(--text-color) 8%,transparent);color:color-mix(in srgb,var(--text-color) 42%,transparent);}
+        .oauth-action-btn{width:28px;height:28px;border-radius:50%;border:1px solid var(--border-color);background:transparent;color:var(--text-color);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;text-decoration:none;flex-shrink:0;transition:background-color .15s ease,border-color .15s ease,color .15s ease;}
+        .oauth-action-btn svg{width:14px;height:14px;display:block;}
+        .oauth-action-btn:hover{background:color-mix(in srgb,var(--text-color) 8%,transparent);}
+        .oauth-action-btn.connect{color:var(--primary-color);border-color:color-mix(in srgb,var(--primary-color) 35%,transparent);}
+        .oauth-action-btn.unlink{color:#ef4444;border-color:color-mix(in srgb,#ef4444 35%,transparent);}
+        .oauth-action-btn.unlink:hover{background:color-mix(in srgb,#ef4444 12%,transparent);}
         .password-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--primary-color);cursor:pointer;padding:5px;border-radius:4px;transition:background-color 0.3s;z-index:5;}
         .password-toggle:hover{background-color:rgba(0,0,0,0.1);}
         .password-toggle:active{background-color:rgba(0,0,0,0.2);}
@@ -1303,9 +1330,9 @@ endif; // showOtpPage
             <?php else: ?>
             <div id="set-password-content" class="auth-content active">
                 <h2><?php echo my_htmlspecialchars($translations['set_password']); ?></h2>
-                <?php if(isset($_GET['new_google_user'])): ?>
+                <?php if(isset($_GET['new_oauth_user']) || isset($_GET['new_google_user'])): ?>
                 <div class="auth-error" style="margin-bottom:10px;">
-                    <?php echo my_htmlspecialchars($translations['google_user_not_found']); ?>
+                    <?php echo my_htmlspecialchars($translations['oauth_user_not_found'] ?? $translations['google_user_not_found']); ?>
                 </div>
                 <?php elseif(isset($_GET['password_required']) || !empty($_SESSION['pending_set_password_only'])): ?>
                 <div class="auth-error" style="margin-bottom:10px;">
@@ -1324,7 +1351,7 @@ endif; // showOtpPage
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($pendingGoogleData['email']); ?>">
                     <input type="hidden" name="name" value="<?php echo my_htmlspecialchars($pendingGoogleData['name']); ?>">
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">
-                    <input type="hidden" name="reg_method" value="Google">
+                    <input type="hidden" name="reg_method" value="<?php echo my_htmlspecialchars($pendingGoogleData['reg_method'] ?? (($pendingGoogleData['provider'] ?? '') === 'github' ? 'GitHub' : 'Google')); ?>">
                     <div class="password-input-container">
                         <input type="password" name="password" id="register-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['set_password']); ?>" required>
                         <button type="button" class="password-toggle" data-target="register-password">
@@ -1408,9 +1435,18 @@ endif; // showOtpPage
                 <div style="text-align:center;margin:15px 0;">
                     <span class="auth-link" id="show-forgot"><?php echo my_htmlspecialchars($translations['forgot_password']); ?></span>
                 </div>
-                <a href="https://accounts.google.com/o/oauth2/auth?client_id=<?php echo urlencode($authConfig['google_client_id']); ?>&redirect_uri=<?php echo urlencode($googleRedirectUri); ?>&response_type=code&scope=email%20profile" style="text-decoration:none;display:block;text-align:center;margin:10px 0;">
-                    <img src="google.png" alt="Login with Google" style="width:40px;height:40px;cursor:pointer;border-radius:12px;">
-                </a>
+                <div class="oauth-providers-bar">
+                    <?php if(oauthProviderConfigured('github')): ?>
+                    <a href="/login/oauth/start?provider=github" class="oauth-provider-btn oauth-github" title="GitHub" aria-label="GitHub">
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-1.35-3.42-3.3-4.365-3.3-4.365-.825-.705 0-.705 0-.705 1.125 0 1.815 1.215 1.815 1.215 1.02 1.725 2.685 1.23 3.345.945.105-.75.435-1.23.795-1.515-2.79-.315-5.73-1.395-5.73-6.195 0-1.365.495-2.475 1.305-3.345-.135-.315-.57-1.575.135-3.285 0 0 1.065-.33 3.495 1.275a12.06 12.06 0 0 1 3.15-.42c1.065 0 2.145.15 3.15.42 2.43-1.605 3.495-1.275 3.495-1.275.705 1.71.27 2.97.135 3.285.81.87 1.305 1.98 1.305 3.345 0 4.815-2.955 5.865-5.745 6.195.45.39.855 1.155.855 2.325 0 1.68-.015 3.03-.015 3.435 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                    </a>
+                    <?php endif; ?>
+                    <?php if(oauthProviderConfigured('google')): ?>
+                    <a href="/login/oauth/start?provider=google" class="oauth-provider-btn oauth-google" title="Google" aria-label="Google">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    </a>
+                    <?php endif; ?>
+                </div>
                 <div style="text-align:center;margin-top:15px;">
                     <span><?php echo my_htmlspecialchars($translations['dont_have_account']); ?></span>
                     <span class="auth-link" data-tab="register"><?php echo my_htmlspecialchars($translations['register']); ?></span>
@@ -1422,10 +1458,17 @@ endif; // showOtpPage
                     <input type="text" name="name" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['name'] ?? 'Name'); ?>">
                     <button type="submit" name="register_initial" class="auth-button"><?php echo my_htmlspecialchars($translations['register']); ?></button>
                 </form>
-                <div style="text-align:center;margin:15px 0;">
-                    <a href="https://accounts.google.com/o/oauth2/auth?client_id=<?php echo urlencode($authConfig['google_client_id']); ?>&redirect_uri=<?php echo urlencode($googleRedirectUri); ?>&response_type=code&scope=email%20profile" style="text-decoration:none;">
-                        <img src="google.png" alt="Register with Google" style="width:40px;height:40px;cursor:pointer;border-radius:12px;">
+                <div class="oauth-providers-bar">
+                    <?php if(oauthProviderConfigured('github')): ?>
+                    <a href="/login/oauth/start?provider=github" class="oauth-provider-btn oauth-github" title="GitHub" aria-label="GitHub">
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-1.35-3.42-3.3-4.365-3.3-4.365-.825-.705 0-.705 0-.705 1.125 0 1.815 1.215 1.815 1.215 1.02 1.725 2.685 1.23 3.345.945.105-.75.435-1.23.795-1.515-2.79-.315-5.73-1.395-5.73-6.195 0-1.365.495-2.475 1.305-3.345-.135-.315-.57-1.575.135-3.285 0 0 1.065-.33 3.495 1.275a12.06 12.06 0 0 1 3.15-.42c1.065 0 2.145.15 3.15.42 2.43-1.605 3.495-1.275 3.495-1.275.705 1.71.27 2.97.135 3.285.81.87 1.305 1.98 1.305 3.345 0 4.815-2.955 5.865-5.745 6.195.45.39.855 1.155.855 2.325 0 1.68-.015 3.03-.015 3.435 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
                     </a>
+                    <?php endif; ?>
+                    <?php if(oauthProviderConfigured('google')): ?>
+                    <a href="/login/oauth/start?provider=google" class="oauth-provider-btn oauth-google" title="Google" aria-label="Google">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    </a>
+                    <?php endif; ?>
                 </div>
                 <div style="text-align:center;margin-top:15px;">
                     <span><?php echo my_htmlspecialchars($translations['already_have_account']); ?></span>
@@ -1561,6 +1604,61 @@ endif; // showOtpPage
                 </div>
             </div>
             <div class="profile-section">
+                <h3><?php echo my_htmlspecialchars($translations['connected_accounts'] ?? 'Connected accounts'); ?></h3>
+                <div class="oauth-accounts-list">
+                    <div class="oauth-account-item">
+                        <div class="oauth-account-icon oauth-email">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="m4 7 8 6 8-6"/></svg>
+                        </div>
+                        <div class="oauth-account-meta">
+                            <div class="oauth-account-title"><?php echo my_htmlspecialchars($translations['email'] ?? 'Email'); ?></div>
+                            <div class="oauth-account-sub"><?php echo my_htmlspecialchars($_SESSION['user']['email']); ?></div>
+                        </div>
+                        <span class="oauth-status-icon connected" title="<?php echo my_htmlspecialchars($translations['connected'] ?? 'Connected'); ?>">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                        </span>
+                    </div>
+                    <?php foreach(['github' => 'GitHub', 'google' => 'Google'] as $_oauthProvider => $_oauthLabel): ?>
+                    <?php $_oauthLinked = isset($userOAuthConnections[$_oauthProvider]); ?>
+                    <div class="oauth-account-item">
+                        <div class="oauth-account-icon oauth-<?php echo my_htmlspecialchars($_oauthProvider); ?>">
+                            <?php if($_oauthProvider === 'github'): ?>
+                            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-1.35-3.42-3.3-4.365-3.3-4.365-.825-.705 0-.705 0-.705 1.125 0 1.815 1.215 1.815 1.215 1.02 1.725 2.685 1.23 3.345.945.105-.75.435-1.23.795-1.515-2.79-.315-5.73-1.395-5.73-6.195 0-1.365.495-2.475 1.305-3.345-.135-.315-.57-1.575.135-3.285 0 0 1.065-.33 3.495 1.275a12.06 12.06 0 0 1 3.15-.42c1.065 0 2.145.15 3.15.42 2.43-1.605 3.495-1.275 3.495-1.275.705 1.71.27 2.97.135 3.285.81.87 1.305 1.98 1.305 3.345 0 4.815-2.955 5.865-5.745 6.195.45.39.855 1.155.855 2.325 0 1.68-.015 3.03-.015 3.435 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                            <?php else: ?>
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                            <?php endif; ?>
+                        </div>
+                        <div class="oauth-account-meta">
+                            <div class="oauth-account-title"><?php echo my_htmlspecialchars($_oauthLabel); ?></div>
+                            <div class="oauth-account-sub"><?php echo my_htmlspecialchars($_oauthLinked ? ($userOAuthConnections[$_oauthProvider]['provider_email'] ?: $userOAuthConnections[$_oauthProvider]['provider_name'] ?: $_oauthLabel) : ($translations['oauth_not_connected'] ?? 'Not connected')); ?></div>
+                        </div>
+                        <div class="oauth-account-actions">
+                            <?php if($_oauthLinked): ?>
+                            <span class="oauth-status-icon connected" title="<?php echo my_htmlspecialchars($translations['connected'] ?? 'Connected'); ?>">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                            </span>
+                            <form method="post" action="/main" style="margin:0;display:inline-flex;">
+                                <input type="hidden" name="provider" value="<?php echo my_htmlspecialchars($_oauthProvider); ?>">
+                                <button type="submit" name="oauth_unlink" class="oauth-action-btn unlink" title="<?php echo my_htmlspecialchars($translations['unlink'] ?? 'Unlink'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['unlink'] ?? 'Unlink'); ?>">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                                </button>
+                            </form>
+                            <?php else: ?>
+                            <span class="oauth-status-icon disconnected" title="<?php echo my_htmlspecialchars($translations['oauth_not_connected'] ?? 'Not connected'); ?>">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </span>
+                            <?php if(oauthProviderConfigured($_oauthProvider)): ?>
+                            <a href="/login/oauth/start?provider=<?php echo urlencode($_oauthProvider); ?>&mode=link" class="oauth-action-btn connect" title="<?php echo my_htmlspecialchars($translations['connect'] ?? 'Connect'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['connect'] ?? 'Connect'); ?>">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                            </a>
+                            <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <div class="profile-section">
                 <form method="post" action="/main">
                     <button type="submit" name="logout" class="logout-button">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
@@ -1582,6 +1680,9 @@ endif; // showOtpPage
             <?php if(isset($emailSettingsError)):?><div class="auth-error"><?php echo my_htmlspecialchars($emailSettingsError); ?></div><?php endif;?>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['google_client_id']); ?>:</label><input type="text" name="google_client_id" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['google_client_id']); ?>" required></div>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['google_client_secret']); ?>:</label><input type="text" name="google_client_secret" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['google_client_secret']); ?>" required></div>
+            <div class="form-row"><label><?php echo my_htmlspecialchars($translations['github_client_id'] ?? 'GitHub Client ID'); ?>:</label><input type="text" name="github_client_id" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['github_client_id'] ?? ''); ?>"></div>
+            <div class="form-row"><label><?php echo my_htmlspecialchars($translations['github_client_secret'] ?? 'GitHub Client Secret'); ?>:</label><input type="text" name="github_client_secret" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['github_client_secret'] ?? ''); ?>"></div>
+            <div class="form-row"><label><?php echo my_htmlspecialchars($translations['oauth_callback_hint'] ?? 'OAuth callback URL'); ?>:</label><input type="text" class="auth-input" value="<?php echo my_htmlspecialchars(oauthLoginRedirectUri()); ?>" readonly></div>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['smtp_host']); ?>:</label><input type="text" name="smtp_host" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['smtp_host']); ?>" required></div>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['smtp_port']); ?>:</label><input type="number" name="smtp_port" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['smtp_port']); ?>" required></div>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['smtp_username']); ?>:</label><input type="text" name="smtp_username" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['smtp_username']); ?>" required></div>
@@ -7349,6 +7450,8 @@ function wireEvents(){
         // simpler explicit approach:
         fd.set('google_client_id',    (dynRoot.querySelector('#ap-gcid')||{value:''}).value);
         fd.set('google_client_secret',(dynRoot.querySelector('#ap-gcsecret')||{value:''}).value);
+        fd.set('github_client_id',    (dynRoot.querySelector('#ap-ghcid')||{value:''}).value);
+        fd.set('github_client_secret',(dynRoot.querySelector('#ap-ghcsecret')||{value:''}).value);
         fd.set('smtp_host',           (dynRoot.querySelector('#ap-smtp-host')||{value:''}).value);
         fd.set('smtp_port',           (dynRoot.querySelector('#ap-smtp-port')||{value:587}).value);
         fd.set('smtp_username',       (dynRoot.querySelector('#ap-smtp-user')||{value:''}).value);
@@ -8823,6 +8926,12 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
 <?php endif; ?><?php
 // Collect all flash messages from this page load and emit them as push notifications
 $flashMessages = [];
+if(isset($_GET['oauth_linked'])){
+    $flashMessages[] = ['msg'=>$translations['oauth_linked_success'] ?? 'Account linked successfully', 'type'=>'success'];
+}
+if(isset($_GET['oauth_error'])){
+    $flashMessages[] = ['msg'=>(string)$_GET['oauth_error'], 'type'=>'error'];
+}
 if(isset($profileSuccess))       $flashMessages[] = ['msg'=>$profileSuccess,       'type'=>'success'];
 if(isset($profileError))         $flashMessages[] = ['msg'=>$profileError,          'type'=>'error'];
 if(isset($emailSettingsSuccess)) $flashMessages[] = ['msg'=>$emailSettingsSuccess,  'type'=>'success'];
@@ -8833,6 +8942,7 @@ if(isset($sharedFilesSuccess))   $flashMessages[] = ['msg'=>$sharedFilesSuccess,
 if(isset($trustedDeviceRestoreNotice) && $trustedDeviceRestoreNotice !== '') $flashMessages[] = ['msg'=>$trustedDeviceRestoreNotice, 'type'=>'error'];
 if(!empty($flashMessages)):
 $openPasswordOnLoad = isset($_POST['change_password']) && (isset($profileError) || isset($profileSuccess));
+$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']);
 ?>
 <script>
 document.addEventListener('DOMContentLoaded', function(){
@@ -8846,6 +8956,9 @@ document.addEventListener('DOMContentLoaded', function(){
     var passwordChangeBox=document.getElementById('password-change-box');
     if(profileModal) profileModal.style.display='flex';
     if(passwordChangeBox) passwordChangeBox.classList.add('active');
+    <?php elseif($openProfileOnLoad): ?>
+    var profileModal=document.getElementById('profile-modal');
+    if(profileModal) profileModal.style.display='flex';
     <?php endif; ?>
 });
 </script>

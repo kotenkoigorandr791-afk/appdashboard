@@ -4,6 +4,27 @@
 $requestUri=$_SERVER['REQUEST_URI'];
 $path=parse_url($requestUri,PHP_URL_PATH);
 
+if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    try {
+        $provider = (string)($_GET['provider'] ?? '');
+        $mode = (string)($_GET['mode'] ?? 'login');
+        if ($mode === 'link' && !isset($_SESSION['user']['email'])) {
+            header('Location: /login');
+            exit;
+        }
+        header('Location: ' . oauthStartUrl($provider, $mode));
+        exit;
+    } catch (Throwable $e) {
+        error_log('OAuth start error: ' . $e->getMessage());
+        $failMode = (string)($_GET['mode'] ?? 'login');
+        $target = $failMode === 'link'
+            ? '/main?profile=1&oauth_error=' . urlencode($e->getMessage())
+            : '/login?oauth_error=' . urlencode($e->getMessage());
+        header('Location: ' . $target);
+        exit;
+    }
+}
+
 if (in_array($path, ['/.well-known/openid-configuration', '/.well-known/jwks.json', '/authorize', '/token', '/userinfo', '/oauth-bridge', '/omniroute-bridge', '/login/oauth/authorize', '/login/oauth/access_token', '/api/v1/user', '/api/v1/user/emails', '/plane-oauth/login/oauth/authorize', '/plane-oauth/login/oauth/access_token', '/plane-oauth/api/v1/user', '/plane-oauth/api/v1/user/emails'], true)) {
     oauth_dispatch($path);
     exit;
@@ -321,7 +342,7 @@ if($path==='/one-time-pin'){
     $pageTitle=$translations['otp_page_title']??'One-Time PIN Login';
 }
 
-if($path==='/login'||$path==='/register'||(isset($_GET['code'])&&strpos($path,'/login')!==false)){
+if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path==='/login/oauth/start'||(isset($_GET['code'])&&strpos($path,'/login')!==false)){
     $sessionOkEarly=isset($_SESSION['user']['email'],$_SESSION['auth_time'])&&getUserFromActiveSessions(session_id())!==null;
     if($sessionOkEarly&&!isset($_GET['code'])){
         $rq=[];if($themeFromUrl)$rq['theme']=$themeFromUrl;if($langFromUrl)$rq['lang']=$langFromUrl;if($colorFromUrl)$rq['color']=$colorFromUrl;

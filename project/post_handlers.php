@@ -190,11 +190,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $authError=$translations['user_exists'];
             }
         }else{
-            $_SESSION['pending_google_data'] = [
+            $_SESSION['pending_oauth_data'] = [
                 'email' => $email,
                 'name' => $name ?: explode('@', $email)[0],
-                'photo' => 'default_avatar.png'
+                'photo' => 'default_avatar.png',
+                'provider' => 'email',
+                'reg_method' => 'Email',
             ];
+            unset($_SESSION['pending_google_data']);
             header('Location: /register?step=set_password');
             exit;
         }
@@ -217,7 +220,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(isset($users[$email])&&userNeedsPasswordSet($users[$email])&&!empty($users[$email]['verified'])){
                 $users[$email]['password']=password_hash($password,PASSWORD_DEFAULT);
                 upsertUser($email,$users[$email]);
-                unset($_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
+                unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
                 resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
                 clearTrustedDeviceLogoutSuppression();
                 $_SESSION['user']=$users[$email];
@@ -267,7 +270,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     $authSuccess = $translations['verification_link_sent'];
                     $showVerificationMessage = true;
                     $verificationEmail = $email;
-                    unset($_SESSION['pending_google_data']);
+                    unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data']);
                 }else{
                     $authError = 'Failed to send verification email. Check SMTP configuration.';
                 }
@@ -1464,7 +1467,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <h4 style="font-size:13px;font-weight:600;margin:0 0 10px 0;opacity:.8;">Google OAuth 2.0</h4>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['google_client_id']??'Google Client ID'); ?></label><input type="text" id="ap-gcid" value="<?php echo my_htmlspecialchars($_apAuthCfg['google_client_id']??''); ?>" placeholder="xxxx.apps.googleusercontent.com"></div>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['google_client_secret']??'Google Client Secret'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-gcsecret" value="<?php echo my_htmlspecialchars($_apAuthCfg['google_client_secret']??''); ?>" placeholder="GOCSPX-&#x2026;"><button type="button" class="ap-pwd-eye" data-target="ap-gcsecret"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+                    <div class="ap-hint"><?php echo my_htmlspecialchars($translations['oauth_callback_hint']??'OAuth callback URL'); ?>: <code><?php echo my_htmlspecialchars(oauthLoginRedirectUri()); ?></code></div>
                 </div>
+                <div style="margin-bottom:20px;">
+                    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px 0;opacity:.8;">GitHub OAuth</h4>
+                    <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_client_id']??'GitHub Client ID'); ?></label><input type="text" id="ap-ghcid" value="<?php echo my_htmlspecialchars($_apAuthCfg['github_client_id']??''); ?>" placeholder="Iv1.xxxxx"></div>
+                    <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_client_secret']??'GitHub Client Secret'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-ghcsecret" value="<?php echo my_htmlspecialchars($_apAuthCfg['github_client_secret']??''); ?>" placeholder="ghp_&#x2026;"><button type="button" class="ap-pwd-eye" data-target="ap-ghcsecret"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+                    <div class="ap-hint"><?php echo my_htmlspecialchars($translations['oauth_callback_hint']??'OAuth callback URL'); ?>: <code><?php echo my_htmlspecialchars(oauthLoginRedirectUri()); ?></code></div>
                 <div style="margin-bottom:20px;">
                     <h4 style="font-size:13px;font-weight:600;margin:0 0 10px 0;opacity:.8;">SMTP</h4>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_host']??'SMTP Host'); ?></label><input type="text" id="ap-smtp-host" value="<?php echo my_htmlspecialchars($_apAuthCfg['smtp_host']??''); ?>" placeholder="smtp.gmail.com"></div>
@@ -2180,10 +2189,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         echo json_encode($syncResult);
         exit;
     }
+    if(isset($_POST['oauth_unlink']) && isset($_SESSION['user']['email'])){
+        $provider = oauthNormalizeProvider((string)($_POST['provider'] ?? ''));
+        $email = (string)$_SESSION['user']['email'];
+        $users = loadUsers();
+        $connections = getOAuthConnectionsForUser($email);
+        if (!isset($connections[$provider])) {
+            $profileError = $translations['oauth_not_linked'] ?? 'Provider is not linked';
+        } elseif (isset($users[$email]) && userNeedsPasswordSet($users[$email]) && count($connections) <= 1) {
+            $profileError = $translations['oauth_unlink_password_required'] ?? 'Set a password before unlinking your only sign-in method';
+        } else {
+            unlinkOAuthConnection($email, $provider);
+            $profileSuccess = $translations['oauth_unlinked_success'] ?? 'Account unlinked successfully';
+        }
+    }
     if(isset($_POST['save_email_settings']) && $sessionIsAdmin){
         $isAjaxEmail = isset($_POST['ajax']);
         $authConfig['google_client_id']=$_POST['google_client_id']??'';
         $authConfig['google_client_secret']=$_POST['google_client_secret']??'';
+        $authConfig['github_client_id']=$_POST['github_client_id']??'';
+        $authConfig['github_client_secret']=$_POST['github_client_secret']??'';
         $authConfig['smtp_host']=$_POST['smtp_host']??'';
         $authConfig['smtp_port']=intval($_POST['smtp_port']??587);
         $authConfig['smtp_username']=$_POST['smtp_username']??'';
@@ -2372,93 +2397,39 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 }
 
-if(isset($_GET['code'])){
-    require_once 'vendor/autoload.php';
-    $users=loadUsers();
-    $clientIpGoogle=trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]);
-    // Проверка блокировки по IP перед OAuth
-    $googleLockedSec=getIpLockoutSeconds($clientIpGoogle,'login');
-    if($googleLockedSec>0){
-        $authError=sprintf($translations['login_ip_locked']??'Too many failed attempts. Try again in %d seconds.',$googleLockedSec);
-    }else{
-    try{
-        $client=new Google_Client();
-        $client->setClientId($authConfig['google_client_id']);
-        $client->setClientSecret($authConfig['google_client_secret']);
-        $client->setRedirectUri($googleRedirectUri);
-        $token=$client->fetchAccessTokenWithAuthCode($_GET['code']);
-        if(isset($token['error'])){throw new Exception($token['error_description']??$token['error']);}
-        $client->setAccessToken($token);
-        $oauth2=new Google_Service_Oauth2($client);
-        $userInfo=$oauth2->userinfo->get();
-        $email=$userInfo->getEmail();
-        $name=$userInfo->getName();
-        $photo=$userInfo->getPicture();
-        
-        if(empty($email)){throw new Exception('Email not provided by Google');}
-        
-        if(isset($users[$email]) && !empty($users[$email]['verified']) && !userNeedsPasswordSet($users[$email])){
-            resetFailedAttempts($clientIpGoogle,'login');
-            clearTrustedDeviceLogoutSuppression();
-            $_SESSION['user']=$users[$email];
-            $_SESSION['user']['email']=$email;
-            $_SESSION['auth_time']=time();
-            $config=['language'=>$users[$email]['language']??'en','theme'=>$users[$email]['theme']??'light','color'=>$users[$email]['color']??'#007bff'];
-            $language=$config['language'];
-            $translations=$allTranslations[$language]??[];
-            $translations=array_map(fn($v)=>$v??'',array_merge($defaultTranslations,$translations));
-            addUserToActiveSessions($email,session_id(),$_SESSION['user']);
-            
-            // Check if this is a new device
-            $loginFp = getDeviceFingerprint();
-            $isTrusted = isTrustedDevice($email, $loginFp);
-            if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
-                rememberTrustedDeviceBrowserAccount($email);
-                setTrustedDeviceHintCookie($email, $loginFp);
-            }
-            $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-            $det = detectDeviceAndBrowser($ua);
-            $db = getDB();
-            $devCheckStmt = $db->prepare("SELECT COUNT(*) as cnt FROM active_sessions WHERE email = :e AND device = :dev AND browser = :br AND session_id != :sid");
-            $devCheckStmt->bindValue(':e', $email, SQLITE3_TEXT);
-            $devCheckStmt->bindValue(':dev', $det['device'], SQLITE3_TEXT);
-            $devCheckStmt->bindValue(':br', $det['browser'], SQLITE3_TEXT);
-            $devCheckStmt->bindValue(':sid', session_id(), SQLITE3_TEXT);
-            $devResult = $devCheckStmt->execute()->fetchArray(SQLITE3_ASSOC);
-            $hasOtherSession = $devResult && $devResult['cnt'] > 0;
-            if(!$isTrusted && !$hasOtherSession){
-                $_SESSION['new_device_login'] = true;
-            }
-            
-            header('Location: ' . takePostLoginRedirect('/main'));
-            exit;
+if(isset($_GET['code']) || parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/login/oauth/callback'){
+    $__oauthPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    if($_SERVER['REQUEST_METHOD']==='GET' && isset($_GET['code'])){
+        $clientIpOAuth=trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]);
+        $oauthLockedSec=getIpLockoutSeconds($clientIpOAuth,'login');
+        if($oauthLockedSec>0){
+            $authError=sprintf($translations['login_ip_locked']??'Too many failed attempts. Try again in %d seconds.',$oauthLockedSec);
         }else{
-            // New Google user, existing unverified, or verified user without password
-            $isNewUser = !isset($users[$email]);
-            $needsPasswordOnly = isset($users[$email]) && !empty($users[$email]['verified']) && userNeedsPasswordSet($users[$email]);
-            $_SESSION['pending_google_data'] = [
-                'email' => $email,
-                'name'  => $name ?: ($users[$email]['name'] ?? explode('@', $email)[0]),
-                'photo' => $photo ?: ($users[$email]['photo'] ?? 'default_avatar.png')
-            ];
-            if($needsPasswordOnly){
-                $_SESSION['pending_set_password_only'] = true;
-            }else{
-                unset($_SESSION['pending_set_password_only']);
+            try{
+                if($__oauthPath==='/login/oauth/callback'){
+                    $provider = (string)($_GET['provider'] ?? '');
+                    if($provider===''){
+                        $stateRaw = (string)($_GET['state'] ?? '');
+                        $payload = json_decode(base64_decode($stateRaw, true) ?: '', true);
+                        if(is_array($payload) && !empty($payload['csrf'])){
+                            $stored = $_SESSION['oauth_state_' . (string)$payload['csrf']] ?? null;
+                            if(is_array($stored) && !empty($stored['provider'])){
+                                $provider = (string)$stored['provider'];
+                            }
+                        }
+                    }
+                    if($provider===''){
+                        throw new RuntimeException($translations['oauth_state_invalid']??'OAuth session expired. Please try again.');
+                    }
+                    oauthHandleCallback($provider, (string)$_GET['code'], (string)($_GET['state'] ?? ''), 'login');
+                }elseif($__oauthPath==='/login'){
+                    oauthHandleLegacyGoogleCallback((string)$_GET['code']);
+                }
+            }catch(Throwable $e){
+                error_log('OAuth callback error: '.$e->getMessage());
+                recordFailedAttempt($clientIpOAuth,'login');
+                $authError = ($translations['oauth_auth_failed']??'Authentication failed').': '.$e->getMessage();
             }
-            $redirectTarget = '/register?step=set_password';
-            if($isNewUser){
-                $redirectTarget .= '&new_google_user=1';
-            }elseif($needsPasswordOnly){
-                $redirectTarget .= '&password_required=1';
-            }
-            header('Location: '.$redirectTarget);
-            exit;
         }
-    }catch(Exception $e){
-        error_log("Google OAuth Error: ".$e->getMessage());
-        recordFailedAttempt($clientIpGoogle,'login');
-        $authError="Google authentication failed: ".$e->getMessage();
     }
-    } // end if not locked
 }

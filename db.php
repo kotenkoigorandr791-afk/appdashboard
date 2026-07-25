@@ -185,6 +185,25 @@ function ensureTelegramBotSchema(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_link_tokens_email ON tg_bot_link_tokens(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_link_tokens_expires ON tg_bot_link_tokens(expires_at)");
 }
+function ensureOAuthConnectionsSchema(AppDatabase $db): void {
+    if (!app_db_is_pgsql()) {
+        return;
+    }
+    $db->exec("CREATE TABLE IF NOT EXISTS oauth_connections (
+        id BIGSERIAL PRIMARY KEY,
+        email TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        provider_user_id TEXT NOT NULL,
+        provider_email TEXT NOT NULL DEFAULT '',
+        provider_name TEXT NOT NULL DEFAULT '',
+        provider_photo TEXT NOT NULL DEFAULT '',
+        linked_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        UNIQUE(provider, provider_user_id),
+        UNIQUE(email, provider)
+    )");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_oauth_connections_email ON oauth_connections(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_oauth_connections_provider ON oauth_connections(provider, provider_user_id)");
+}
 function ensureNotificationsSchema(AppDatabase $db): void {
     if (app_db_is_pgsql()) {
         $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
@@ -317,6 +336,7 @@ function initDB(AppDatabase $db): void {
         ensureTrustedDeviceCookiesSchema($db);
         ensureSupportChatSchema($db);
         ensureTelegramBotSchema($db);
+        ensureOAuthConnectionsSchema($db);
         ensureNotificationsSchema($db);
         require_once __DIR__ . '/lib/pg_foreign_keys.php';
         ensure_pg_foreign_keys($db);
@@ -443,6 +463,8 @@ function initDB(AppDatabase $db): void {
     $defaults = [
         'google_client_id'     => '',
         'google_client_secret' => '',
+        'github_client_id'     => '',
+        'github_client_secret' => '',
         'omniroute_google_client_id' => '',
         'omniroute_google_client_secret' => '',
         'smtp_host'            => '',
@@ -611,6 +633,7 @@ function initDB(AppDatabase $db): void {
 
     // ── Telegram bot authenticated sessions ─────────────────────────────────
     ensureTelegramBotSchema($db);
+    ensureOAuthConnectionsSchema($db);
 
     // ── Quick Commands for SSH Terminal ──────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS quick_commands (
@@ -1578,7 +1601,7 @@ function setConfig(string $key, string $value): void {
 }
 
 function loadAuthConfig(): array {
-    $keys = ['google_client_id','google_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'];
+    $keys = ['google_client_id','google_client_secret','github_client_id','github_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'];
     $out  = array_fill_keys($keys, '');
     $db = getDB();
     $quoted = implode(',', array_map(static fn($k) => "'" . AppDatabase::escapeString($k) . "'", $keys));
@@ -1591,9 +1614,69 @@ function loadAuthConfig(): array {
 }
 
 function saveAuthConfig(array $cfg): void {
-    foreach (['google_client_id','google_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'] as $k) {
+    foreach (['google_client_id','google_client_secret','github_client_id','github_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'] as $k) {
         if (isset($cfg[$k])) setConfig($k, (string)$cfg[$k]);
     }
+}
+
+function getOAuthConnectionsForUser(string $email): array {
+    ensureOAuthConnectionsSchema(getDB());
+    $db = getDB();
+    $stmt = $db->prepare("SELECT provider, provider_user_id, provider_email, provider_name, provider_photo, linked_at FROM oauth_connections WHERE email = :e ORDER BY provider");
+    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $res = $stmt->execute();
+    $out = [];
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        $out[(string)$row['provider']] = $row;
+    }
+    return $out;
+}
+
+function hasOAuthConnection(string $email, string $provider): bool {
+    $connections = getOAuthConnectionsForUser($email);
+    return isset($connections[$provider]);
+}
+
+function findUserEmailByOAuthProvider(string $provider, string $providerUserId): ?string {
+    ensureOAuthConnectionsSchema(getDB());
+    $db = getDB();
+    $stmt = $db->prepare("SELECT email FROM oauth_connections WHERE provider = :p AND provider_user_id = :id LIMIT 1");
+    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
+    $stmt->bindValue(':id', $providerUserId, SQLITE3_TEXT);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    return $row ? (string)$row['email'] : null;
+}
+
+function linkOAuthConnection(string $email, array $profile): void {
+    ensureOAuthConnectionsSchema(getDB());
+    $db = getDB();
+    $provider = (string)$profile['provider'];
+    $providerUserId = (string)$profile['provider_user_id'];
+    $del = $db->prepare("DELETE FROM oauth_connections WHERE (email = :e AND provider = :p) OR (provider = :p AND provider_user_id = :pid)");
+    $del->bindValue(':e', $email, SQLITE3_TEXT);
+    $del->bindValue(':p', $provider, SQLITE3_TEXT);
+    $del->bindValue(':pid', $providerUserId, SQLITE3_TEXT);
+    $del->execute();
+    $stmt = $db->prepare("INSERT INTO oauth_connections (email, provider, provider_user_id, provider_email, provider_name, provider_photo, linked_at)
+        VALUES (:e, :p, :pid, :pe, :pn, :pp, :la)");
+    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
+    $stmt->bindValue(':pid', $providerUserId, SQLITE3_TEXT);
+    $stmt->bindValue(':pe', (string)($profile['email'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':pn', (string)($profile['name'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':pp', (string)($profile['photo'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':la', time(), SQLITE3_INTEGER);
+    $stmt->execute();
+}
+
+function unlinkOAuthConnection(string $email, string $provider): bool {
+    ensureOAuthConnectionsSchema(getDB());
+    $db = getDB();
+    $stmt = $db->prepare("DELETE FROM oauth_connections WHERE email = :e AND provider = :p");
+    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
+    $stmt->execute();
+    return $db->changes() > 0;
 }
 
 function loadOmnirouteOAuthConfig(): array {

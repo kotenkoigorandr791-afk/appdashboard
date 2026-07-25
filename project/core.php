@@ -329,6 +329,19 @@ function loginUserSession(string $email, array $users): bool {
 $trustedDeviceRestoreNotice = null;
 $trustedDeviceHint = parseTrustedDeviceHintCookie((string)($_COOKIE['trusted_device_hint'] ?? ''));
 
+function oauthLoginRedirectUri(): string {
+    $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    $cfVisitor = (string)($_SERVER['HTTP_CF_VISITOR'] ?? '');
+    $scheme = 'http';
+    if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || $forwardedProto === 'https'
+        || str_contains($cfVisitor, '"scheme":"https"')) {
+        $scheme = 'https';
+    }
+    $host = $_SERVER['HTTP_HOST'] ?? 'serverkherson.xyz';
+    return $scheme . '://' . $host . '/login/oauth/callback';
+}
+
 $PUBLIC_APPS_WITHOUT_AUTH=['test','demo','landing','info','public','shared_file'];
 $app=$_GET['app']??'';
 if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
@@ -336,7 +349,8 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
     $showLogin=false;
 }else{
     $authTimeout=12*60*60;
-    $googleRedirectUri="https://serverkherson.xyz/login";
+    $oauthRedirectUri=oauthLoginRedirectUri();
+    $googleRedirectUri=$oauthRedirectUri;
     $needsAuth=false;
     $trustedDeviceAutoLoginSuppressed = hasTrustedDeviceLogoutSuppression();
     if(isset($_SESSION['user'])&&isset($_SESSION['auth_time'])){

@@ -1,11 +1,14 @@
 <?php
 
 function apRedirectToSetPassword(array $user): void {
-    $_SESSION['pending_google_data'] = [
+    $_SESSION['pending_oauth_data'] = [
         'email' => (string)($user['email'] ?? ''),
         'name' => (string)($user['name'] ?? ''),
         'photo' => (string)($user['photo'] ?? 'default_avatar.png'),
+        'provider' => 'email',
+        'reg_method' => 'Email',
     ];
+    unset($_SESSION['pending_google_data']);
     $_SESSION['pending_set_password_only'] = true;
     header('Location: /register?step=set_password&password_required=1');
     exit;
@@ -228,9 +231,18 @@ if ($isAdmin) {
     $sharedFiles = $currentUserEmail ? loadSharedFiles($currentUserEmail) : [];
 }
 
+$userOAuthConnections = [];
+if(isset($_SESSION['user']['email'])){
+    $userOAuthConnections = getOAuthConnectionsForUser((string)$_SESSION['user']['email']);
+}
+
 $registerStep = 'initial';
-$pendingGoogleData = $_SESSION['pending_google_data'] ?? null;
-if($pendingGoogleData){
+if(!isset($authError) && !empty($_GET['oauth_error'])){
+    $authError = (string)$_GET['oauth_error'];
+}
+$pendingOAuthData = $_SESSION['pending_oauth_data'] ?? $_SESSION['pending_google_data'] ?? null;
+$pendingGoogleData = $pendingOAuthData;
+if($pendingOAuthData){
     $registerStep = 'set_password';
 }
 
