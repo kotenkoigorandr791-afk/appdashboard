@@ -300,6 +300,8 @@
     "current_password_verified": "Бягучы пароль пацверджаны",
     "generate_password": "Згенераваць пароль",
     "photo_updated": "Фота паспяхова абноўлена",
+    "reset_to_default": "Скінуць па змаўчанні",
+    "photo_reset_to_default": "Фота паспяхова скінута на стандартнае",
     "user_profile": "Профіль карыстальніка",
     "close": "Закрыць",
     "email_settings": "Налады email",

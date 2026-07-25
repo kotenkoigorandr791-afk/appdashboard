@@ -187,7 +187,8 @@
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
         .notifications-actions{display:flex;gap:8px;align-items:center;}
-        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;}
+        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;}
+        .notifications-actions button svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
         #notifications-list{overflow:auto;padding:4px 0;display:flex;flex-direction:column;}
         .notification-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;transition:background .15s;position:relative;}
@@ -1086,6 +1087,26 @@
             height: 10px;
             border-radius: 50%;
         }
+        .weather-location-enable {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--primary-color);
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .weather-location-enable svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+        }
         .weather-modal::-webkit-scrollbar {
             width: 6px;
         }
@@ -1565,6 +1586,11 @@ endif; // showOtpPage
                     <input type="file" name="photo" accept="image/*" class="auth-input">
                     <button type="submit" name="change_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['upload_photo']); ?></button>
                 </form>
+                <?php if(isset($userOAuthConnections['google']) && !str_starts_with((string)($_SESSION['user']['photo']??''),'https://lh3.googleusercontent.com/')): ?>
+                <form method="post" action="/main" class="photo-form" style="margin-top:8px;">
+                    <button type="submit" name="reset_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['reset_to_default']); ?></button>
+                </form>
+                <?php endif; ?>
             </div>
             <div class="profile-section" id="password-section">
                 <h3><?php echo my_htmlspecialchars($translations['change_password']); ?></h3>
@@ -2353,8 +2379,8 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
     <div class="notifications-head">
         <span><?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?></span>
         <div class="notifications-actions">
-            <button type="button" id="notifications-enable-btn"><?php echo my_htmlspecialchars($translations['enable'] ?? 'Enable'); ?></button>
-            <button type="button" id="notifications-mark-read-btn"><?php echo my_htmlspecialchars($translations['mark_read'] ?? 'Read'); ?></button>
+            <button type="button" id="notifications-enable-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span><?php echo my_htmlspecialchars($translations['enable'] ?? 'Enable'); ?></span></button>
+            <button type="button" id="notifications-mark-read-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><?php echo my_htmlspecialchars($translations['mark_read'] ?? 'Read'); ?></span></button>
         </div>
     </div>
     <div id="notifications-list"></div>
@@ -2843,6 +2869,11 @@ var T=<?php echo json_encode([
     'failed_to_load_file'=>$translations['failed_to_load_file']??'Failed to load file:',
     'recording_release_to_send'=>$translations['recording_release_to_send']??'Recording... Release to send',
     'weather_loading'=>$translations['weather_loading']??'Loading weather...',
+    'weather_denied'=>$translations['weather_denied']??'Location access denied. Enable it to see local weather.',
+    'weather_denied_msg'=>$translations['weather_denied_msg']??'Please allow location access in your browser settings to see local weather',
+    'weather_allow_location'=>$translations['weather_allow_location']??'Allow location',
+    'weather_no_geo'=>$translations['weather_no_geo']??'Geolocation not supported',
+    'weather_settings_hint'=>$translations['weather_settings_hint']??'Go to browser site settings and allow location',
     'weather_forecast_title'=>$translations['weather_forecast_title']??'7-day forecast',
     'weather_chart_title'=>$translations['weather_chart_title']??'Temperature trend',
     'weather_high'=>$translations['weather_high']??'High',
@@ -4175,7 +4206,8 @@ var T=<?php echo json_encode([
             const enableBtn=document.getElementById('notifications-enable-btn');
             const readBtn=document.getElementById('notifications-mark-read-btn');
             let lastSeenId=0;
-            const enableBtnLabel=enableBtn?enableBtn.textContent:'Enable';
+            const enableBtnText=enableBtn?enableBtn.querySelector('span'):null;
+            const enableBtnLabel=enableBtnText?enableBtnText.textContent:'Enable';
             window.ApNotificationPopover=window.ApNotificationPopover||function(trigger,target){
                 function open(){if(target)target.classList.add('open');}
                 function close(){if(target)target.classList.remove('open');}
@@ -4197,7 +4229,7 @@ var T=<?php echo json_encode([
                 const granted='Notification'in window&&Notification.permission==='granted';
                 enableBtn.disabled=granted;
                 enableBtn.setAttribute('aria-disabled',granted?'true':'false');
-                enableBtn.textContent=granted?'Enabled':enableBtnLabel;
+                if(enableBtnText)enableBtnText.textContent=granted?'Enabled':enableBtnLabel;
             }
             function setBadge(count){
                 if(!badge)return;
@@ -4247,6 +4279,15 @@ var T=<?php echo json_encode([
             if(readBtn){
                 readBtn.addEventListener('click',function(){
                     fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(){loadNotifications(false);});
+                });
+            }
+            if(list){
+                list.addEventListener('click',function(e){
+                    const row=e.target.closest('.notification-row.unread[data-id]');
+                    if(!row||!list.contains(row))return;
+                    const id=Number(row.getAttribute('data-id'))||0;
+                    if(!id)return;
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read',id:id})}).then(function(){loadNotifications(false);});
                 });
             }
             if(enableBtn){
@@ -10485,6 +10526,15 @@ function copyOtpLink(){
                 row.style.transform = 'translateY(0)';
                 row.style.boxShadow = 'none';
             });
+            var avatarWrap = document.createElement('div');
+            avatarWrap.style.cssText = 'display:flex;align-items:center;gap:10px;';
+            if (chat.user_photo) {
+                var avatarImg = document.createElement('img');
+                avatarImg.src = chat.user_photo;
+                avatarImg.style.cssText = 'width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+                avatarImg.onerror = function() { this.src = 'default_avatar.png'; };
+                avatarWrap.appendChild(avatarImg);
+            }
             var title = document.createElement('div');
             title.style.cssText = 'font-weight:600;color:var(--text-color);margin-bottom:6px;font-size:15px;line-height:1.35;';
             var nm = (chat.user_name && String(chat.user_name).trim()) ? String(chat.user_name).trim() : '';
@@ -10503,10 +10553,11 @@ function copyOtpLink(){
                 adm.textContent = ' (Admin)';
                 title.appendChild(adm);
             }
+            avatarWrap.appendChild(title);
             var meta = document.createElement('div');
             meta.style.cssText = 'font-size:13px;color:var(--text-color);opacity:.6;';
             meta.textContent = chat.message_count + ' messages • ' + new Date(chat.last_message_time * 1000).toLocaleString();
-            row.appendChild(title);
+            row.appendChild(avatarWrap);
             row.appendChild(meta);
             row.addEventListener('click', function() {
                 window.selectChat(chat.user_email);
@@ -10555,12 +10606,21 @@ function copyOtpLink(){
                 data.users.forEach(function(u) {
                     var btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.style.cssText = 'display:block;width:100%;text-align:left;padding:12px 14px;margin:0 0 6px 0;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-color);color:var(--text-color);cursor:pointer;font-size:14px;';
-                    if (u.name && String(u.name).trim()) {
-                        btn.innerHTML = escChat(u.name) + '<br><span style="font-size:12px;opacity:0.65;">' + escChat(u.email) + '</span>';
-                    } else {
-                        btn.textContent = u.email;
+                    btn.style.cssText = 'display:flex;align-items:center;width:100%;text-align:left;padding:12px 14px;margin:0 0 6px 0;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-color);color:var(--text-color);cursor:pointer;font-size:14px;gap:10px;';
+                    if (u.photo) {
+                        var img = document.createElement('img');
+                        img.src = u.photo;
+                        img.style.cssText = 'width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+                        img.onerror = function() { this.src = 'default_avatar.png'; };
+                        btn.appendChild(img);
                     }
+                    var info = document.createElement('div');
+                    if (u.name && String(u.name).trim()) {
+                        info.innerHTML = escChat(u.name) + '<br><span style="font-size:12px;opacity:0.65;">' + escChat(u.email) + '</span>';
+                    } else {
+                        info.textContent = u.email;
+                    }
+                    btn.appendChild(info);
                     var em = u.email;
                     btn.addEventListener('click', function() {
                         closeUserSearchModal();
@@ -11742,6 +11802,42 @@ function formatPrecip(value) {
 
 var modalOverlay = document.getElementById('weatherModalOverlay');
 var modalContent = document.getElementById('weatherModalContent');
+var weatherGeoNoticeShown = false;
+
+function renderWeatherGeoPrompt(message) {
+    modalContent.innerHTML = '<div style="text-align:center;padding:42px 24px;opacity:0.86">' +
+        '<div>' + escHtml(message || wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather')) + '</div>' +
+        '<button type="button" class="weather-location-enable" onclick="window.apRequestWeatherLocationFromModal()">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>' +
+            '<span>' + escHtml(wt('weather_allow_location', 'Allow location')) + '</span>' +
+        '</button>' +
+    '</div>';
+}
+
+function notifyWeatherGeoUnavailable(message) {
+    if(weatherGeoNoticeShown) return;
+    weatherGeoNoticeShown = true;
+    if(typeof showTempNotification === 'function') {
+        showTempNotification(message || wt('weather_denied', 'Location access denied. Enable it to see local weather'), 'info');
+    }
+}
+
+window.apRequestWeatherLocationFromModal = function() {
+    if(!navigator.geolocation) {
+        renderWeatherGeoPrompt(wt('weather_no_geo', 'Geolocation not supported'));
+        notifyWeatherGeoUnavailable(wt('weather_no_geo', 'Geolocation not supported'));
+        return;
+    }
+    modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        weatherStore.lat = pos.coords.latitude;
+        weatherStore.lon = pos.coords.longitude;
+        showWeatherModal();
+    }, function() {
+        renderWeatherGeoPrompt(wt('weather_settings_hint', 'Go to browser site settings and allow location'));
+        notifyWeatherGeoUnavailable(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+    }, { enableHighAccuracy: false, timeout: 10000 });
+};
 
 function showWeatherModal() {
     if(!modalOverlay) return;
@@ -11750,24 +11846,10 @@ function showWeatherModal() {
         return;
     }
     if(!weatherStore.lat || !weatherStore.lon) {
-        if(navigator.geolocation) {
-            modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
-            modalOverlay.style.display = 'flex';
-            modalOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                weatherStore.lat = pos.coords.latitude;
-                weatherStore.lon = pos.coords.longitude;
-                showWeatherModal();
-            }, function() {
-                modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">' + escHtml(wt('weather_no_forecast', 'No forecast data available')) + '</div>';
-            }, { enableHighAccuracy: false, timeout: 10000 });
-        } else {
-            modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">' + escHtml(wt('weather_no_forecast', 'No forecast data available')) + '</div>';
-            modalOverlay.style.display = 'flex';
-            modalOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
+        modalOverlay.style.display = 'flex';
+        modalOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        renderWeatherGeoPrompt(navigator.geolocation ? wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather') : wt('weather_no_geo', 'Geolocation not supported'));
         return;
     }
     modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
@@ -11898,13 +11980,20 @@ function drawTemperatureChart(daily) {
     var canvas = document.getElementById('weatherChartCanvas');
     if(!canvas || !daily || !daily.time || daily.time.length === 0) return;
     var rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : null;
+    var cssW = 640;
+    var cssH = window.matchMedia('(max-width: 500px)').matches ? 190 : 220;
     if (rect && rect.width > 0) {
-        canvas.width = Math.max(320, Math.round(rect.width));
-        canvas.height = window.matchMedia('(max-width: 500px)').matches ? 190 : 220;
+        cssW = Math.max(320, Math.round(rect.width));
     }
+    var dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
     var ctx = canvas.getContext('2d');
-    var W = canvas.width;
-    var H = canvas.height;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var W = cssW;
+    var H = cssH;
     var pad = { top: 24, right: 16, bottom: 72, left: 42 };
     var chartW = W - pad.left - pad.right;
     var chartH = H - pad.top - pad.bottom;
@@ -12109,16 +12198,17 @@ function drawTemperatureChart(daily) {
             });
         }
         
-        function showPermError() {
+        function showPermError(message) {
             widgets.forEach(function(widget) {
                 var permEl = widget.querySelector('.weather-perm');
                 if(permEl) permEl.style.display = 'inline';
             });
             applyToWidgets(weatherSvg(-1), '--\u00b0C', '', '');
+            notifyWeatherGeoUnavailable(message);
         }
 
         if (!navigator.geolocation) {
-            showPermError();
+            showPermError(wt('weather_no_geo', 'Geolocation not supported'));
             return;
         }
 
@@ -12197,9 +12287,9 @@ function drawTemperatureChart(daily) {
 
         function error(err) {
             if (err.code === err.PERMISSION_DENIED) {
-                showPermError();
+                showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
             } else {
-                widgets.forEach(function(w) { w.style.display = 'none'; });
+                showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
             }
         }
 

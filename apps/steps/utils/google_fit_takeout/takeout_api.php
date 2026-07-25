@@ -6,6 +6,7 @@ session_start();
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../auth_common.php';
 require_once __DIR__ . '/fit_takeout_state.php';
+require_once __DIR__ . '/../import_worker_common.php';
 $safeName = get_current_user_folder();
 define('FIT_USER_DIR', __DIR__ . '/../../users/' . $safeName);
 define('FIT_JOBS_DIR', FIT_USER_DIR . '/fit_takeout_jobs/');
@@ -102,6 +103,8 @@ function fit_spawn_worker(string $jobPath): bool {
     }
     $jobPath = realpath($jobPath) ?: $jobPath;
     $log  = $jobPath . DIRECTORY_SEPARATOR . 'worker.log';
+    $statePath = $jobPath . DIRECTORY_SEPARATOR . 'state.json';
+    @unlink($statePath);
     if (DIRECTORY_SEPARATOR === '\\' || strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         $pys = str_replace('/', '\\', $php);
         $sjs = str_replace('/', '\\', $script);
@@ -124,9 +127,19 @@ function fit_spawn_worker(string $jobPath): bool {
         pclose(popen('cmd /c start /B "" "' . $bats . '"', 'r'));
         return true;
     }
-    $cmd = sprintf('nohup %s %s %s >>%s 2>&1 &', escapeshellarg($php), escapeshellarg($script), escapeshellarg($jobPath), escapeshellarg($log));
-    exec($cmd);
-    return true;
+    $cmd = sprintf('cd %s && nohup %s %s %s >>%s 2>&1 < /dev/null & echo $!', escapeshellarg($jobPath), escapeshellarg($php), escapeshellarg($script), escapeshellarg($jobPath), escapeshellarg($log));
+    $out = [];
+    $rc = 1;
+    @exec($cmd, $out, $rc);
+    $pid = (int)trim((string)($out[0] ?? ''));
+    if ((int)$rc !== 0 || $pid <= 0) return false;
+    @file_put_contents($jobPath . DIRECTORY_SEPARATOR . 'worker.pid', (string)$pid);
+    for ($i = 0; $i < 20; $i++) {
+        if (is_file($statePath)) return true;
+        if (function_exists('posix_kill') && !@posix_kill($pid, 0)) return is_file($statePath);
+        usleep(100000);
+    }
+    return is_file($statePath);
 }
 require_once __DIR__ . '/../../core/db_helpers.php';
 function fit_takeout_job_cfg(string $jobId): array {
@@ -175,6 +188,24 @@ function fit_refresh_state_from_file(AppDatabase $db, string $jobId, array $stat
         return $fileState;
     }
     return $state;
+}
+function fit_apply_parsed_job(AppDatabase $db, string $jobId, string $jobPath, array $state, string $mode): array {
+    $daySteps = steps_worker_load_snapshot($jobPath . DIRECTORY_SEPARATOR . 'parsed_day_steps.json');
+    if (!$daySteps) return ['ok' => false, 'error' => 'no_data'];
+    if ($mode === 'ask') {
+        $conf = steps_worker_conflicts_app_db($db, $daySteps);
+        if ($conf > 0) {
+            $next = array_merge($state, ['status' => 'awaiting_conflict', 'message' => 'conflict_prompt', 'progress' => 92.0, 'imported' => 0, 'total_days' => count($daySteps), 'conflict_days' => $conf, 'job_id' => $jobId]);
+            fit_takeout_save($db, $jobId, $next);
+            return ['ok' => true, 'state' => $next];
+        }
+        $mode = 'overwrite';
+    }
+    $nimp = steps_worker_import_app_db($db, $daySteps, $mode);
+    if ($nimp < 1) $nimp = count($daySteps);
+    $next = ['status' => 'done', 'message' => 'ok', 'progress' => 100.0, 'imported' => $nimp, 'total_days' => count($daySteps), 'job_id' => $jobId];
+    fit_takeout_save($db, $jobId, $next);
+    return ['ok' => true, 'state' => $next];
 }
 try {
     $db = getUserDB(FIT_USER_DIR);
@@ -247,11 +278,11 @@ if ($action === 'active_job' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
     $ft = fit_takeout_load($db);
     $st = $ft['state'];
     $mt = (int)($ft['updated_at'] ?? 0);
+    $jid = (string)($ft['job_id'] ?? '');
     if (is_array($st) && strlen($jid) >= 8) {
         $st = fit_refresh_state_from_file($db, $jid, $st, $mt);
         $mt = time();
     }
-    $jid = (string)($ft['job_id'] ?? '');
     if (is_array($st) && ($st['status'] ?? '') === 'running' && $mt > 0 && (time() - $mt) <= 1800 && strlen($jid) >= 8) {
         echo json_encode(['ok' => true, 'active' => ['job_id' => $jid, 'state' => $st]]);
         exit;
@@ -345,15 +376,12 @@ if ($action === 'resolve_conflict' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'PO
         echo json_encode(['ok' => false, 'error' => 'config_write']);
         exit;
     }
-    try {
-        fit_takeout_save($db, $jid, array_merge($st, ['status' => 'running', 'message' => 'apply', 'progress' => 93.0, 'job_id' => $jid]));
-    } catch (Exception $e) {
-    }
-    if (!fit_spawn_worker($jobPath)) {
-        echo json_encode(['ok' => false, 'error' => 'worker']);
+    $applied = fit_apply_parsed_job($db, $jid, $jobPath, $st, $mode);
+    if (!$applied['ok']) {
+        echo json_encode(['ok' => false, 'error' => $applied['error'] ?? 'apply']);
         exit;
     }
-    echo json_encode(['ok' => true, 'job_id' => $jid]);
+    echo json_encode(['ok' => true, 'job_id' => $jid, 'state' => $applied['state']]);
     exit;
 }
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' || $action !== 'upload_takeout') {

@@ -300,6 +300,8 @@
     "current_password_verified": "Текущий пароль подтверждён",
     "generate_password": "Генерировать пароль",
     "photo_updated": "Фото успешно обновлено",
+    "reset_to_default": "Сбросить по умолчанию",
+    "photo_reset_to_default": "Фото успешно сброшено на стандартное",
     "user_profile": "Профиль пользователя",
     "close": "Закрыть",
     "email_settings": "Настройки email",

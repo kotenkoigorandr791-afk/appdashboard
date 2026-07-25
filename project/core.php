@@ -1235,7 +1235,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
                             (SELECT MAX(COALESCE(edited_at, created_at)) FROM support_chat t WHERE t.user_email = sc.user_email AND COALESCE(t.is_deleted,0)=0) AS last_message_time,
                             (SELECT COUNT(*) FROM support_chat t2 WHERE t2.user_email = sc.user_email AND COALESCE(t2.is_deleted,0)=0) AS message_count,
                             (SELECT role FROM users WHERE email = sc.user_email LIMIT 1) as user_role,
-                            (SELECT COALESCE(name, '') FROM users WHERE email = sc.user_email LIMIT 1) as user_name
+                            (SELECT COALESCE(name, '') FROM users WHERE email = sc.user_email LIMIT 1) as user_name,
+                            (SELECT photo FROM users WHERE email = sc.user_email LIMIT 1) as user_photo
                             FROM support_chat sc
                             ) chat_rows ORDER BY CASE WHEN last_message_time IS NULL THEN 1 ELSE 0 END ASC, last_message_time DESC");
         if (!$stmt) json_out(['ok' => false, 'error' => 'db_query_failed'], 500);
@@ -1248,6 +1249,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
                 'last_message_time' => (int)$row['last_message_time'],
                 'message_count' => (int)$row['message_count'],
                 'user_role' => (int)($row['user_role'] ?? 0),
+                'user_photo' => app_avatar_src($row['user_photo'] ?? null),
             ];
         }
 
@@ -1294,13 +1296,13 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         }
         $q = trim((string)($_GET['q'] ?? ''));
         if ($q === '') {
-            $result = $db->query("SELECT email, name, role FROM users WHERE role < 2 ORDER BY lower(email) LIMIT 40");
+            $result = $db->query("SELECT email, name, role, photo FROM users WHERE role < 2 ORDER BY lower(email) LIMIT 40");
         } else {
             $esc = static function (string $s): string {
                 return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
             };
             $term = '%' . $esc($q) . '%';
-            $stmt = $db->prepare("SELECT email, name, role FROM users WHERE role < 2 AND (email LIKE :t ESCAPE '\\' OR COALESCE(name, '') LIKE :t ESCAPE '\\') ORDER BY lower(email) LIMIT 40");
+            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE role < 2 AND (email LIKE :t ESCAPE '\\' OR COALESCE(name, '') LIKE :t ESCAPE '\\') ORDER BY lower(email) LIMIT 40");
             $stmt->bindValue(':t', $term, SQLITE3_TEXT);
             $result = $stmt->execute();
         }
@@ -1310,6 +1312,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
                 'email' => $row['email'],
                 'name' => $row['name'] ?? '',
                 'role' => (int)($row['role'] ?? 0),
+                'photo' => app_avatar_src($row['photo'] ?? null),
             ];
         }
         json_out(['ok' => true, 'users' => $users]);

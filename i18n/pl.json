@@ -419,6 +419,8 @@
     "passwords_match": "✓ Hasła są zgodne",
     "pending_verification": "Oczekuje na weryfikację",
     "photo_updated": "Zdjęcie zaktualizowane pomyślnie",
+    "reset_to_default": "Przywróć domyślne",
+    "photo_reset_to_default": "Zdjęcie przywrócone do domyślnego pomyślnie",
     "pretty_print": "Ładny wydruk",
     "prev_match": "Poprzednie",
     "previous_month": "Poprzedni miesiąc",

@@ -419,6 +419,8 @@
     "passwords_match": "✓ Hesla se shodují",
     "pending_verification": "Čeká na ověření",
     "photo_updated": "Fotografie aktualizována úspěšně",
+    "reset_to_default": "Obnovit výchozí",
+    "photo_reset_to_default": "Fotografie úspěšně obnovena na výchozí",
     "pretty_print": "Pěkný tisk",
     "prev_match": "Předchozí",
     "previous_month": "Předchozí měsíc",

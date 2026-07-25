@@ -592,6 +592,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
         }
     }
+    if(isset($_POST['reset_photo'])){
+        apSecRequireSameOrigin();
+        $email=$_SESSION['user']['email']??'';
+        if($email && hasOAuthConnection($email,'google')){
+            $connections=getOAuthConnectionsForUser($email);
+            $googlePhoto=(string)($connections['google']['provider_photo']??'');
+            if($googlePhoto!==''){
+                $users=loadUsers();
+                $oldPhoto=(string)($users[$email]['photo']??'');
+                if(str_starts_with($oldPhoto,'uploads/avatars/')){
+                    $oldAbs=APP_ROOT.'/'.$oldPhoto;
+                    if(is_file($oldAbs)){ @unlink($oldAbs); }
+                }
+                $users[$email]['photo']=$googlePhoto;
+                saveUsers($users);
+                $_SESSION['user']=$users[$email];
+                $_SESSION['user']['email']=$email;
+                $_SESSION['auth_time']=time();
+                $sessionData=getUserFromActiveSessions(session_id());
+                if($sessionData){
+                    $sessionData['user_data']=$_SESSION['user'];
+                    addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                }
+                $profileSuccess=$translations['photo_reset_to_default'];
+            }
+        }
+    }
     if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['settings'])){
     $newLanguage=$_POST['language'];
     $newTheme=$_POST['theme'];

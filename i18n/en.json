@@ -300,6 +300,8 @@
     "current_password_verified": "Current password verified",
     "generate_password": "Generate password",
     "photo_updated": "Photo updated successfully",
+    "reset_to_default": "Reset to default",
+    "photo_reset_to_default": "Photo reset to default successfully",
     "user_profile": "User Profile",
     "close": "Close",
     "email_settings": "Email Settings",
