@@ -329,7 +329,8 @@ function getUrlParams() {
     return {
         lang: params.get('lang'),
         theme: params.get('theme'),
-        color: params.get('color')
+        color: params.get('color'),
+        hideBack: params.get('hideBack')
     };
 }
 
@@ -468,6 +469,7 @@ backHomeBtn.addEventListener("click", () => {
 });
 
 loadSettings();
+if (getUrlParams().hideBack === '1') backHomeBtn.style.display = 'none';
 </script>
 </body>
 </html>
