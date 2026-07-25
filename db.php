@@ -203,6 +203,15 @@ function ensureOAuthConnectionsSchema(AppDatabase $db): void {
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_oauth_connections_email ON oauth_connections(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_oauth_connections_provider ON oauth_connections(provider, provider_user_id)");
+    $db->exec("CREATE TABLE IF NOT EXISTS oauth_pending_links (
+        email TEXT PRIMARY KEY,
+        provider TEXT NOT NULL,
+        provider_user_id TEXT NOT NULL,
+        provider_email TEXT NOT NULL DEFAULT '',
+        provider_name TEXT NOT NULL DEFAULT '',
+        provider_photo TEXT NOT NULL DEFAULT '',
+        created_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint)
+    )");
 }
 function ensureNotificationsSchema(AppDatabase $db): void {
     if (app_db_is_pgsql()) {
@@ -1076,6 +1085,7 @@ function upsertUser(string $email, array $fields): void {
     $stmt->bindValue(':wallpaper',  $merged['wallpaper'] ?? 'default');
     $stmt->bindValue(':created_at', $merged['created_at']);
     $stmt->execute();
+    oauthConsumePendingLink($email);
 }
 
 function deleteUser(string $email): void {
@@ -1647,8 +1657,56 @@ function findUserEmailByOAuthProvider(string $provider, string $providerUserId):
     return $row ? (string)$row['email'] : null;
 }
 
-function linkOAuthConnection(string $email, array $profile): void {
+function saveOAuthPendingLink(string $email, array $profile): void {
     ensureOAuthConnectionsSchema(getDB());
+    $db = getDB();
+    $provider = (string)($profile['provider'] ?? '');
+    $providerUserId = (string)($profile['provider_user_id'] ?? '');
+    if ($provider === '' || $providerUserId === '') {
+        return;
+    }
+    $del = $db->prepare("DELETE FROM oauth_pending_links WHERE email = :e");
+    $del->bindValue(':e', $email, SQLITE3_TEXT);
+    $del->execute();
+    $stmt = $db->prepare("INSERT INTO oauth_pending_links (email, provider, provider_user_id, provider_email, provider_name, provider_photo, created_at)
+        VALUES (:e, :p, :pid, :pe, :pn, :pp, :ca)");
+    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
+    $stmt->bindValue(':pid', $providerUserId, SQLITE3_TEXT);
+    $stmt->bindValue(':pe', (string)($profile['email'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':pn', (string)($profile['name'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':pp', (string)($profile['photo'] ?? ''), SQLITE3_TEXT);
+    $stmt->bindValue(':ca', time(), SQLITE3_INTEGER);
+    $stmt->execute();
+}
+
+function oauthConsumePendingLink(string $email): void {
+    ensureOAuthConnectionsSchema(getDB());
+    $db = getDB();
+    $stmt = $db->prepare("SELECT provider, provider_user_id, provider_email, provider_name, provider_photo FROM oauth_pending_links WHERE email = :e LIMIT 1");
+    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    if (!$row) {
+        return;
+    }
+    $del = $db->prepare("DELETE FROM oauth_pending_links WHERE email = :e");
+    $del->bindValue(':e', $email, SQLITE3_TEXT);
+    $del->execute();
+    linkOAuthConnection($email, [
+        'provider' => (string)$row['provider'],
+        'provider_user_id' => (string)$row['provider_user_id'],
+        'email' => (string)$row['provider_email'],
+        'name' => (string)$row['provider_name'],
+        'photo' => (string)$row['provider_photo'],
+    ], false);
+}
+
+function linkOAuthConnection(string $email, array $profile, bool $allowPending = true): void {
+    ensureOAuthConnectionsSchema(getDB());
+    if ($allowPending && getUserByEmail($email) === null) {
+        saveOAuthPendingLink($email, $profile);
+        return;
+    }
     $db = getDB();
     $provider = (string)$profile['provider'];
     $providerUserId = (string)$profile['provider_user_id'];

@@ -1,5 +1,17 @@
 <?php
 
+function oauthRequestPath(?string $requestUri = null): string {
+    $path = parse_url($requestUri ?? ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/';
+    if (str_starts_with($path, '/project/login/oauth/')) {
+        $path = '/login/oauth/' . substr($path, strlen('/project/login/oauth/'));
+    }
+    return rtrim($path, '/') ?: '/';
+}
+
+function oauthIsOAuthPath(string $path): bool {
+    return $path === '/login/oauth/start' || $path === '/login/oauth/callback';
+}
+
 function oauthSupportedProviders(): array {
     return ['google', 'github'];
 }
@@ -316,6 +328,7 @@ function oauthHandleLoginFlow(array $profile): void {
         'name' => $profile['name'] ?: ($users[$email]['name'] ?? explode('@', $email)[0]),
         'photo' => $profile['photo'] ?: ($users[$email]['photo'] ?? 'default_avatar.png'),
         'provider' => $profile['provider'],
+        'provider_user_id' => $profile['provider_user_id'],
         'reg_method' => $profile['provider'] === 'github' ? 'GitHub' : 'Google',
     ];
     unset($_SESSION['pending_google_data']);

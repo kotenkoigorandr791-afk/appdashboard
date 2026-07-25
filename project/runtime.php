@@ -38,7 +38,7 @@ if(isset($_SESSION['user'])&&!$needsAuth&&$path!=='/login'&&$path!=='/register')
     }
 }
 
-if($needsAuth&&$path!=='/login'&&$path!=='/register'&&$path!=='/one-time-pin'&&!isset($_GET['code'])){
+if($needsAuth&&$path!=='/login'&&$path!=='/register'&&$path!=='/one-time-pin'&&!oauthIsOAuthPath($path)&&!isset($_GET['code'])){
     header('Location: /login' . ($themeFromUrl ? '?theme=' . urlencode($themeFromUrl) : '') . ($langFromUrl ? '&lang=' . urlencode($langFromUrl) : '') . ($colorFromUrl ? '&color=' . urlencode($colorFromUrl) : ''));
     exit;
 }

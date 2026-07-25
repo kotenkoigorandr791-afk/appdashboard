@@ -330,6 +330,10 @@ $trustedDeviceRestoreNotice = null;
 $trustedDeviceHint = parseTrustedDeviceHintCookie((string)($_COOKIE['trusted_device_hint'] ?? ''));
 
 function oauthLoginRedirectUri(): string {
+    $base = rtrim(trim((string)getConfig('tg_webapp_base_url', 'https://serverkherson.xyz')), '/');
+    if ($base !== '' && preg_match('#^https?://#i', $base)) {
+        return $base . '/login/oauth/callback';
+    }
     $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
     $cfVisitor = (string)($_SERVER['HTTP_CF_VISITOR'] ?? '');
     $scheme = 'http';

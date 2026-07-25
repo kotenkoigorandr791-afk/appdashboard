@@ -2397,16 +2397,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 }
 
-if(isset($_GET['code']) || parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) === '/login/oauth/callback'){
-    $__oauthPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-    if($_SERVER['REQUEST_METHOD']==='GET' && isset($_GET['code'])){
+if(isset($_GET['code']) || isset($_GET['error']) || oauthIsOAuthPath(oauthRequestPath())){
+    $__oauthPath = oauthRequestPath();
+    if($_SERVER['REQUEST_METHOD']==='GET' && isset($_GET['error']) && oauthIsOAuthPath($__oauthPath)){
+        $authError = ($translations['oauth_auth_failed']??'Authentication failed').': '.trim((string)($_GET['error_description'] ?? $_GET['error'] ?? 'access_denied'));
+    }elseif($_SERVER['REQUEST_METHOD']==='GET' && isset($_GET['code'])){
         $clientIpOAuth=trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]);
         $oauthLockedSec=getIpLockoutSeconds($clientIpOAuth,'login');
         if($oauthLockedSec>0){
             $authError=sprintf($translations['login_ip_locked']??'Too many failed attempts. Try again in %d seconds.',$oauthLockedSec);
         }else{
             try{
-                if($__oauthPath==='/login/oauth/callback'){
+                if($__oauthPath === '/login/oauth/callback'){
                     $provider = (string)($_GET['provider'] ?? '');
                     if($provider===''){
                         $stateRaw = (string)($_GET['state'] ?? '');

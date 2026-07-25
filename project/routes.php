@@ -2,7 +2,7 @@
 
 
 $requestUri=$_SERVER['REQUEST_URI'];
-$path=parse_url($requestUri,PHP_URL_PATH);
+$path=oauthRequestPath($requestUri);
 
 if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     try {
