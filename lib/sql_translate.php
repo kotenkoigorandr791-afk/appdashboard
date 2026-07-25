@@ -11,7 +11,7 @@ function app_sql_pk_columns(string $table): array {
         'visit_stats' => ['app_id', 'stat_date'],
         'shared_files' => ['share_id'],
         'reset_codes' => ['email'],
-        'verification_tokens' => ['email'],
+        'verification_tokens' => ['token'],
         'pending_users' => ['email'],
         'user_folder_paths' => ['app_key'],
         'app_access_levels' => ['app_id'],

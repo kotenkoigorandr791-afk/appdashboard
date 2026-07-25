@@ -347,6 +347,7 @@ function initDB(AppDatabase $db): void {
         ensureTelegramBotSchema($db);
         ensureOAuthConnectionsSchema($db);
         ensureNotificationsSchema($db);
+        ensureVerificationTokensSchema($db);
         require_once __DIR__ . '/lib/pg_foreign_keys.php';
         ensure_pg_foreign_keys($db);
         return;
@@ -458,10 +459,11 @@ function initDB(AppDatabase $db): void {
     // ── Email verification tokens ─────────────────────────────────────────────
     // No FK to users — tokens are created for pending (not-yet-registered) users
     $db->exec("CREATE TABLE IF NOT EXISTS verification_tokens (
-        email   TEXT PRIMARY KEY,
-        token   TEXT NOT NULL,
+        token   TEXT PRIMARY KEY,
+        email   TEXT NOT NULL,
         expires INTEGER NOT NULL
     )");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)");
 
     // ── Auth/SMTP configuration ──────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS config (
@@ -1131,6 +1133,7 @@ function savePendingUsers(array $pending): void {
 }
 
 function getPendingUser(string $email): ?array {
+    $email = normalizeAuthEmail($email);
     $db   = getDB();
     $stmt = $db->prepare("SELECT * FROM pending_users WHERE email=:e LIMIT 1");
     $stmt->bindValue(':e', $email);
@@ -1569,26 +1572,132 @@ function generateResetCode(): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // VERIFICATION TOKENS
 // ─────────────────────────────────────────────────────────────────────────────
+function normalizeAuthEmail(string $email): string {
+    return strtolower(trim($email));
+}
+function sanitizeVerificationToken(?string $token): string {
+    $token = strtolower(trim((string)$token));
+    if ($token === '') return '';
+    if (preg_match('/^[a-f0-9]{64}$/', $token)) return $token;
+    if (preg_match('/([a-f0-9]{64})/', $token, $m)) return $m[1];
+    return $token;
+}
+function ensureVerificationTokensSchema(AppDatabase $db): void {
+    static $checked = false;
+    if ($checked) return;
+    $checked = true;
+    try {
+        if (app_db_is_pgsql()) {
+            $pkCol = (string)$db->querySingle("SELECT kcu.column_name
+                FROM information_schema.table_constraints tc
+                JOIN information_schema.key_column_usage kcu
+                  ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+                WHERE tc.table_schema = 'public' AND tc.table_name = 'verification_tokens'
+                  AND tc.constraint_type = 'PRIMARY KEY'
+                LIMIT 1");
+            if ($pkCol === 'token') {
+                $db->exec('CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)');
+                return;
+            }
+            $db->exec('CREATE TABLE verification_tokens_v2 (
+                token TEXT PRIMARY KEY,
+                email TEXT NOT NULL,
+                expires BIGINT NOT NULL
+            )');
+            $db->exec('INSERT INTO verification_tokens_v2 (token, email, expires)
+                SELECT token, email, expires FROM verification_tokens
+                ON CONFLICT (token) DO NOTHING');
+            $db->exec('DROP TABLE verification_tokens');
+            $db->exec('ALTER TABLE verification_tokens_v2 RENAME TO verification_tokens');
+            $db->exec('CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)');
+            return;
+        }
+        $pkCol = null;
+        $cols = $db->query('PRAGMA table_info(verification_tokens)');
+        while ($row = $cols->fetchArray(SQLITE3_ASSOC)) {
+            if (!empty($row['pk'])) $pkCol = (string)$row['name'];
+        }
+        if ($pkCol === 'token') return;
+        $db->exec('CREATE TABLE verification_tokens_v2 (
+            token TEXT PRIMARY KEY,
+            email TEXT NOT NULL,
+            expires INTEGER NOT NULL
+        )');
+        $db->exec('INSERT OR IGNORE INTO verification_tokens_v2 (token, email, expires)
+            SELECT token, email, expires FROM verification_tokens');
+        $db->exec('DROP TABLE verification_tokens');
+        $db->exec('ALTER TABLE verification_tokens_v2 RENAME TO verification_tokens');
+        $db->exec('CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)');
+    } catch (Throwable $e) {
+        error_log('[DB] ensureVerificationTokensSchema: ' . $e->getMessage());
+    }
+}
+
 function loadVerificationTokens(): array {
+    ensureVerificationTokensSchema(getDB());
     $db  = getDB();
     $res = $db->query("SELECT * FROM verification_tokens");
     $out = [];
     while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-        $out[$row['email']] = ['token' => $row['token'], 'expires' => (int)$row['expires']];
+        $email = (string)$row['email'];
+        if (!isset($out[$email]) || (int)$row['expires'] > (int)$out[$email]['expires']) {
+            $out[$email] = ['token' => $row['token'], 'expires' => (int)$row['expires']];
+        }
     }
     return $out;
 }
 
 function saveVerificationTokens(array $tokens): void {
+    ensureVerificationTokensSchema(getDB());
     $db = getDB();
     $db->exec("DELETE FROM verification_tokens");
-    $stmt = $db->prepare("INSERT INTO verification_tokens(email,token,expires) VALUES(:e,:t,:ex)");
+    $stmt = $db->prepare("INSERT INTO verification_tokens(token,email,expires) VALUES(:t,:e,:ex)");
     foreach ($tokens as $email => $data) {
-        $stmt->bindValue(':e',  $email);
         $stmt->bindValue(':t',  $data['token']);
+        $stmt->bindValue(':e',  normalizeAuthEmail($email));
         $stmt->bindValue(':ex', (int)$data['expires'], SQLITE3_INTEGER);
         $stmt->execute();
     }
+}
+
+function cleanupExpiredVerificationTokens(): void {
+    ensureVerificationTokensSchema(getDB());
+    $db = getDB();
+    $db->exec('DELETE FROM verification_tokens WHERE expires <= ' . time());
+}
+
+function saveVerificationTokenForEmail(string $email, string $token, int $expires): void {
+    ensureVerificationTokensSchema(getDB());
+    cleanupExpiredVerificationTokens();
+    $email = normalizeAuthEmail($email);
+    $db = getDB();
+    $stmt = $db->prepare("INSERT INTO verification_tokens(token,email,expires) VALUES(:t,:e,:ex)
+        ON CONFLICT(token) DO UPDATE SET email=excluded.email, expires=excluded.expires");
+    $stmt->bindValue(':t', $token);
+    $stmt->bindValue(':e', $email);
+    $stmt->bindValue(':ex', $expires, SQLITE3_INTEGER);
+    $stmt->execute();
+}
+
+function findVerificationTokenRow(string $token): ?array {
+    $token = sanitizeVerificationToken($token);
+    if ($token === '') return null;
+    $db = getDB();
+    $stmt = $db->prepare('SELECT email, token, expires FROM verification_tokens WHERE token = :t LIMIT 1');
+    $stmt->bindValue(':t', $token);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    return $row ?: null;
+}
+
+function findLatestVerificationTokenForEmail(string $email): ?array {
+    ensureVerificationTokensSchema(getDB());
+    $email = normalizeAuthEmail($email);
+    $db = getDB();
+    $stmt = $db->prepare('SELECT email, token, expires FROM verification_tokens WHERE email = :e AND expires > :now ORDER BY expires DESC LIMIT 1');
+    $stmt->bindValue(':e', $email);
+    $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
+    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    return $row ?: null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

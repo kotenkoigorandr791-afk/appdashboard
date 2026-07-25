@@ -1663,37 +1663,86 @@ require_once APP_ROOT . '/ssh_terminal_handler.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-function sendEmailWithLogo($to, $subject, $body) {
-    global $authConfig;
-    $mail = new PHPMailer(true);
-    try {
-        $mail->isSMTP();
-        $mail->Host=$authConfig['smtp_host'];
-        $mail->SMTPAuth=true;
-        $mail->Username=$authConfig['smtp_username'];
-        $mail->Password=$authConfig['smtp_password'];
-        $mail->SMTPSecure=PHPMailer::ENCRYPTION_STARTTLS;
-        $mail->Port=$authConfig['smtp_port'];
-        $mail->CharSet='UTF-8';
-        $mail->setFrom($authConfig['smtp_username'],'Server Kherson');
-        $mail->addAddress($to);
-        if(file_exists('icon.png'))$mail->addEmbeddedImage('icon.png','logo');
-        $mail->isHTML(true);
-        $mail->Subject=$subject;
-        $mail->Body=$body;
-        $mail->AltBody=trim(html_entity_decode(strip_tags(str_replace(['<br>','<br/>','<br />'],"\n",$body)),ENT_QUOTES,'UTF-8'));
-        $mail->send();
-        return true;
-    } catch (Exception $e) {
-        error_log("Mailer Error: {$mail->ErrorInfo}");
+function apSmtpConfigured(?array $cfg = null): bool {
+    $cfg = $cfg ?? loadAuthConfig();
+    return trim((string)($cfg['smtp_host'] ?? '')) !== ''
+        && trim((string)($cfg['smtp_username'] ?? '')) !== ''
+        && trim((string)($cfg['smtp_password'] ?? '')) !== '';
+}
+function apEmailIconPath(): ?string {
+    $root = defined('APP_ROOT') ? APP_ROOT : getcwd();
+    foreach ([$root . '/home/icon.png', $root . '/icon.png', $root . '/project/views/icon.png'] as $path) {
+        if (is_file($path)) return $path;
+    }
+    return null;
+}
+function configurePhpMailerSmtp(PHPMailer $mail, array $authConfig): void {
+    $port = (int)($authConfig['smtp_port'] ?? 587);
+    $mail->isSMTP();
+    $mail->Host = trim((string)$authConfig['smtp_host']);
+    $mail->SMTPAuth = true;
+    $mail->Username = trim((string)$authConfig['smtp_username']);
+    $mail->Password = (string)$authConfig['smtp_password'];
+    $mail->Port = $port > 0 ? $port : 587;
+    if ($mail->Port === 465) {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    } else {
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    }
+    $mail->CharSet = 'UTF-8';
+    $mail->Timeout = 20;
+}
+function sendEmailWithLogo($to, $subject, $body, ?array $authConfigOverride = null) {
+    $to = trim((string)$to);
+    if ($to === '' || !filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        error_log('[Mail] Invalid recipient: ' . $to);
         return false;
     }
+    $authConfig = $authConfigOverride ?? loadAuthConfig();
+    if (!apSmtpConfigured($authConfig)) {
+        error_log('[Mail] SMTP is not configured');
+        return false;
+    }
+    $mail = new PHPMailer(true);
+    try {
+        configurePhpMailerSmtp($mail, $authConfig);
+        $from = trim((string)$authConfig['smtp_username']);
+        $mail->setFrom($from, 'Server Kherson');
+        $mail->addReplyTo($from, 'Server Kherson');
+        $mail->addAddress($to);
+        $mail->XMailer = ' ';
+        $mail->addCustomHeader('X-Auto-Response-Suppress', 'OOF, AutoReply');
+        $mail->addCustomHeader('Auto-Submitted', 'auto-generated');
+        $iconPath = apEmailIconPath();
+        if ($iconPath) $mail->addEmbeddedImage($iconPath, 'logo');
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $body;
+        $mail->AltBody = trim(html_entity_decode(strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body)), ENT_QUOTES, 'UTF-8'));
+        $mail->send();
+        error_log('[Mail] Sent "' . $subject . '" to ' . $to);
+        return true;
+    } catch (Exception $e) {
+        error_log('[Mail] Failed to send "' . $subject . '" to ' . $to . ': ' . $mail->ErrorInfo);
+        return false;
+    }
+}
+function sendTestEmail(string $to, ?array $authConfigOverride = null): bool {
+    $body = buildAuthEmailBody(
+        'SMTP test',
+        'SMTP test message',
+        'This is a test email from Server Kherson. If you received it, outgoing mail is configured correctly.',
+        "<div style='text-align:center;padding:18px;border-radius:16px;background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-size:15px;font-weight:700;'>SMTP test successful</div>",
+        'Sent at ' . date('Y-m-d H:i:s T'),
+        'You can ignore this message.'
+    );
+    return sendEmailWithLogo($to, 'Server Kherson SMTP test', $body, $authConfigOverride);
 }
 function apEmailPublicBaseUrl(): string {
     return 'https://serverkherson.xyz';
 }
 function apEmailLogoHtml(): string {
-    if(file_exists('icon.png'))return "<img src='cid:logo' alt='Server Kherson' style='width:58px;height:58px;border-radius:18px;display:block;margin:0 auto 14px;box-shadow:0 12px 30px rgba(59,130,246,.25);'>";
+    if(apEmailIconPath())return "<img src='cid:logo' alt='Server Kherson' style='width:58px;height:58px;border-radius:18px;display:block;margin:0 auto 14px;box-shadow:0 12px 30px rgba(59,130,246,.25);'>";
     return "<div style='width:58px;height:58px;border-radius:18px;margin:0 auto 14px;background:linear-gradient(135deg,#2563eb,#7dd3fc);color:#fff;font:700 20px Arial,sans-serif;line-height:58px;text-align:center;box-shadow:0 12px 30px rgba(59,130,246,.25);'>SK</div>";
 }
 function buildAuthEmailBody(string $eyebrow,string $title,string $message,string $mainBlock,string $validityText,string $safetyText): string {
@@ -1778,9 +1827,9 @@ function sendPasswordResetEmail($to, $resetCode) {
 function sendVerificationEmail($to, $verificationToken) {
     $verificationLink=apEmailPublicBaseUrl().'/verify?token='.urlencode($verificationToken);
     $safeVerificationLink=my_htmlspecialchars($verificationLink);
-    $mainBlock="<div style='text-align:center;margin:4px 0 22px;'><a href='{$safeVerificationLink}' style='display:inline-block;padding:15px 28px;border-radius:999px;background:linear-gradient(135deg,#2563eb,#38bdf8);color:#fff;text-decoration:none;font-size:16px;font-weight:800;box-shadow:0 14px 28px rgba(37,99,235,.24);'>Confirm account</a></div><div style='padding:15px 16px;border-radius:16px;background:#f8fbff;border:1px solid #dbeafe;color:#475569;font-size:13px;line-height:1.6;word-break:break-all;'><strong style='display:block;color:#334155;margin-bottom:6px;'>Button not working?</strong><a href='{$safeVerificationLink}' style='color:#2563eb;text-decoration:none;'>{$safeVerificationLink}</a></div>";
-    $body=buildAuthEmailBody('Account confirmation','Confirm your Server Kherson account','Thanks for joining Server Kherson. Please confirm this email address to activate your account.',$mainBlock,'This confirmation link is valid for 24 hours.','If you did not create this account, you can safely ignore this email.');
-    return sendEmailWithLogo($to,'Confirm your Server Kherson account',$body);
+    $mainBlock="<div style='text-align:center;margin:4px 0 22px;'><a href='{$safeVerificationLink}' style='display:inline-block;padding:15px 28px;border-radius:999px;background:linear-gradient(135deg,#2563eb,#38bdf8);color:#fff;text-decoration:none;font-size:16px;font-weight:800;box-shadow:0 14px 28px rgba(37,99,235,.24);'>Open verification page</a></div><div style='padding:15px 16px;border-radius:16px;background:#f8fbff;border:1px solid #dbeafe;color:#475569;font-size:13px;line-height:1.6;'><strong style='display:block;color:#334155;margin-bottom:6px;'>Important</strong>Open the link above, then click the Confirm button on the page to activate your account.</div><div style='padding:15px 16px;border-radius:16px;background:#f8fbff;border:1px solid #dbeafe;color:#475569;font-size:13px;line-height:1.6;word-break:break-all;margin-top:12px;'><strong style='display:block;color:#334155;margin-bottom:6px;'>Button not working?</strong><a href='{$safeVerificationLink}' style='color:#2563eb;text-decoration:none;'>{$safeVerificationLink}</a></div>";
+    $body=buildAuthEmailBody('Account confirmation','Confirm your Server Kherson account','Thanks for joining Server Kherson. Open the link below and click Confirm on the page to activate your account.',$mainBlock,'This confirmation link is valid for 24 hours.','If you did not create this account, you can safely ignore this email.');
+    return sendEmailWithLogo($to,'Server Kherson — confirm your email',$body);
 }
 if (!function_exists('detectDeviceAndBrowser')) {
     function detectDeviceAndBrowser($userAgent){
@@ -1842,7 +1891,122 @@ $themeForAppLink = getThemeForLinks($config['theme']);
 
 
 // generateResetCode() — see db.php (cryptographically secure)
+function apNormalizeAuthEmail(string $email): string {
+    return normalizeAuthEmail($email);
+}
+function apSanitizeVerificationToken(?string $token): string {
+    return sanitizeVerificationToken($token);
+}
+function apRenderVerificationPage(string $title, string $message, ?string $email = null, bool $showResend = false, ?string $token = null, ?string $confirmLabel = null): void {
+    global $language, $config, $translations;
+    $primaryColor = my_htmlspecialchars((string)($config['color'] ?? '#2563eb'));
+    $safeTitle = my_htmlspecialchars($title);
+    $safeMessage = my_htmlspecialchars($message);
+    $safeEmail = $email !== null ? my_htmlspecialchars($email) : '';
+    $safeToken = $token !== null ? my_htmlspecialchars($token) : '';
+    $safeConfirm = my_htmlspecialchars($confirmLabel ?? ($translations['confirm_label'] ?? 'Confirm'));
+    $resendLabel = my_htmlspecialchars($translations['resend_verification_link'] ?? 'Send verification link');
+    $loginLabel = my_htmlspecialchars($translations['login'] ?? 'Login');
+    ?>
+    <!doctype html>
+    <html lang="<?php echo my_htmlspecialchars($language); ?>">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="robots" content="noindex,nofollow,noarchive">
+        <title><?php echo $safeTitle; ?></title>
+        <link rel="icon" type="image/png" href="/icon.png">
+        <style>
+            :root{color-scheme:light dark;--accent:<?php echo $primaryColor; ?>;--bg:light-dark(#f3f5f7,#0f1115);--card:light-dark(rgba(255,255,255,.82),rgba(24,26,32,.82));--line:light-dark(rgba(20,24,31,.08),rgba(255,255,255,.08));--text:light-dark(#1f2329,#f3f5f7);--muted:light-dark(#5a6472,#a8b0bc);--shadow:0 24px 64px rgba(0,0,0,.18)}
+            *{box-sizing:border-box}
+            body{margin:0;min-height:100vh;font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at top,light-dark(rgba(255,255,255,.94),rgba(255,255,255,.05)),transparent 40%),linear-gradient(180deg,light-dark(#eef1f4,#0b0d10),var(--bg));color:var(--text);display:flex;align-items:center;justify-content:center;padding:24px}
+            .card{width:min(620px,100%);background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px;box-shadow:var(--shadow);backdrop-filter:blur(18px);text-align:center}
+            h1{font-size:28px;line-height:1.15;margin:0 0 10px}
+            p{color:var(--muted);font-size:15px;line-height:1.6;margin:0 0 22px}
+            .email,.field{margin:0 0 16px;padding:14px 16px;border-radius:16px;background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.04));border:1px solid var(--line);font-weight:700;word-break:break-all}
+            .field{font-weight:400;text-align:left}
+            .field label{display:block;font-size:13px;font-weight:600;margin-bottom:8px;color:var(--muted)}
+            .field input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:transparent;color:var(--text);font:inherit}
+            button,.link-btn{border:none;border-radius:14px;padding:14px 18px;font:inherit;font-weight:700;cursor:pointer;background:var(--accent);color:#fff;width:100%;text-decoration:none;display:inline-block}
+            .link-btn.secondary{margin-top:12px;background:transparent;color:var(--text);border:1px solid var(--line)}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h1><?php echo $safeTitle; ?></h1>
+            <p><?php echo $safeMessage; ?></p>
+            <?php if($email !== null && $email !== ''): ?><div class="email"><?php echo $safeEmail; ?></div><?php endif; ?>
+            <?php if($token !== null && $token !== ''): ?>
+            <form method="post" action="/verify">
+                <input type="hidden" name="token" value="<?php echo $safeToken; ?>">
+                <button type="submit" name="confirm_email_verification" value="1"><?php echo $safeConfirm; ?></button>
+            </form>
+            <?php elseif($showResend): ?>
+            <form method="post" action="/register">
+                <div class="field">
+                    <label for="verify-resend-email">Email</label>
+                    <input type="email" id="verify-resend-email" name="email" value="<?php echo $safeEmail; ?>" required>
+                </div>
+                <button type="submit" name="resend_verification" value="1"><?php echo $resendLabel; ?></button>
+            </form>
+            <?php endif; ?>
+            <a class="link-btn secondary" href="/login"><?php echo $loginLabel; ?></a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
+}
 function generateVerificationToken(){return bin2hex(random_bytes(32));}
+function findValidVerificationEmail(string $token): ?string {
+    $row = findVerificationTokenRow($token);
+    if (!$row || (int)$row['expires'] <= time()) return null;
+    return (string)$row['email'];
+}
+function deleteVerificationToken(string $email): void {
+    $db = getDB();
+    $st = $db->prepare('DELETE FROM verification_tokens WHERE email=:e');
+    $st->bindValue(':e', $email);
+    $st->execute();
+}
+function completeEmailVerification(string $email): bool {
+    $email = apNormalizeAuthEmail($email);
+    if ($email === '' || $email === 'root@root') return false;
+    $name = '';
+    $pendingRow = getPendingUser($email);
+    if ($pendingRow) {
+        $userData = [
+            'name'       => $pendingRow['name'],
+            'password'   => $pendingRow['password'],
+            'photo'      => $pendingRow['photo'] ?? 'default_avatar.png',
+            'role'       => (int)($pendingRow['role'] ?? 0),
+            'verified'   => true,
+            'language'   => $pendingRow['language'] ?? 'en',
+            'theme'      => $pendingRow['theme'] ?? 'light',
+            'color'      => $pendingRow['color'] ?? '#007bff',
+            'created_at' => $pendingRow['created_at'] ?? date('Y-m-d H:i:s'),
+        ];
+        upsertUser($email, $userData);
+        deletePendingUser($email);
+        $name = $userData['name'] ?? '';
+    } else {
+        $user = getUserByEmail($email);
+        if (!$user || !empty($user['verified'])) return false;
+        $user['verified'] = true;
+        upsertUser($email, $user);
+        $name = $user['name'] ?? '';
+    }
+    deleteVerificationToken($email);
+    $freshUser = getUserByEmail($email);
+    if (!$freshUser || empty($freshUser['verified'])) return false;
+    $_SESSION['user'] = $freshUser;
+    $_SESSION['user']['email'] = $email;
+    $_SESSION['auth_time'] = time();
+    cleanupExpiredUserSessions($email);
+    addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    notifyTelegramEmailVerified($email, $name);
+    return true;
+}
 
 // loadUsers() provided by db.php
 

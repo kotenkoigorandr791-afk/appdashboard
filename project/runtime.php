@@ -38,7 +38,7 @@ if(isset($_SESSION['user'])&&!$needsAuth&&$path!=='/login'&&$path!=='/register')
     }
 }
 
-if($needsAuth&&$path!=='/login'&&$path!=='/register'&&$path!=='/one-time-pin'&&!oauthIsOAuthPath($path)&&!isset($_GET['code'])){
+if($needsAuth&&$path!=='/login'&&$path!=='/register'&&$path!=='/verify'&&$path!=='/one-time-pin'&&!oauthIsOAuthPath($path)&&!isset($_GET['code'])){
     header('Location: /login' . ($themeFromUrl ? '?theme=' . urlencode($themeFromUrl) : '') . ($langFromUrl ? '&lang=' . urlencode($langFromUrl) : '') . ($colorFromUrl ? '&color=' . urlencode($colorFromUrl) : ''));
     exit;
 }
@@ -239,6 +239,10 @@ if(isset($_SESSION['user']['email'])){
 $registerStep = 'initial';
 if(!isset($authError) && !empty($_GET['oauth_error'])){
     $authError = (string)$_GET['oauth_error'];
+}
+if(!isset($authError) && isset($_GET['error']) && $_GET['error'] === 'verification_failed'){
+    $authError = $translations['verification_link_expired_desc'] ?? 'This verification link is invalid, expired, or has already been used.';
+    $showReVerifyForm = true;
 }
 $pendingOAuthData = $_SESSION['pending_oauth_data'] ?? $_SESSION['pending_google_data'] ?? null;
 $pendingGoogleData = $pendingOAuthData;

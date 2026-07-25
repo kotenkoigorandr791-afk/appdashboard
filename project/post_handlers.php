@@ -6,13 +6,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         apSecRequireSameOrigin();
     }
     if(isset($_POST['resend_verification'])){
-        $email=$_POST['email']??'';
+        $email=apNormalizeAuthEmail($_POST['email']??'');
         $users=loadUsers();
-        if(isset($users[$email])&&empty($users[$email]['verified'])&&$email!=='root@root'){
+        $pendingUsers=loadPendingUsers();
+        $needsVerification=(isset($users[$email])&&empty($users[$email]['verified'])&&$email!=='root@root')
+            ||(isset($pendingUsers[$email])&&$email!=='root@root');
+        if($needsVerification){
             $verificationToken=generateVerificationToken();
-            $tokens=loadVerificationTokens();
-            $tokens[$email]=['token'=>$verificationToken,'expires'=>time()+86400];
-            saveVerificationTokens($tokens);
+            saveVerificationTokenForEmail($email, $verificationToken, time() + 86400);
             if(sendVerificationEmail($email,$verificationToken)){
                 $authSuccess=$translations['verification_link_sent'];
                 $showVerificationSent=true;
@@ -204,7 +205,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
     
     if(isset($_POST['register_complete'])){
-        $email=$_POST['email']??'';
+        $email=apNormalizeAuthEmail($_POST['email']??'');
         $password=$_POST['password']??'';
         $confirmPassword=$_POST['confirm_password']??'';
         $name=$_POST['name']??explode('@', $email)[0];
@@ -241,13 +242,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     $authError=$translations['user_exists'];
                 }
             }else{
-                $verificationToken = generateVerificationToken();
                 $pendingUsers = loadPendingUsers();
+                $alreadyPending = isset($pendingUsers[$email]);
                 $pendingUsers[$email] = [
                     'password'   => password_hash($password, PASSWORD_DEFAULT),
                     'name'       => $name,
                     'photo'      => $photo,
-                    'created_at' => date('Y-m-d H:i:s'),
+                    'created_at' => $pendingUsers[$email]['created_at'] ?? date('Y-m-d H:i:s'),
                     'role'       => 0,
                     'verified'   => false,
                     'language'   => 'en',
@@ -256,17 +257,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     'reg_method' => $regMethod
                 ];
                 savePendingUsers($pendingUsers);
-                
-                $tokens = loadVerificationTokens();
-                $tokens[$email] = [
-                    'token'   => $verificationToken,
-                    'expires' => time() + 86400
-                ];
-                saveVerificationTokens($tokens);
+                $existingToken = findLatestVerificationTokenForEmail($email);
+                if ($alreadyPending && $existingToken) {
+                    $verificationToken = (string)$existingToken['token'];
+                } else {
+                    $verificationToken = generateVerificationToken();
+                    saveVerificationTokenForEmail($email, $verificationToken, time() + 86400);
+                }
                 
                 if(sendVerificationEmail($email, $verificationToken)){
-                    notifyTelegramNewUser($email, $name, $photo, $regMethod);
-                    try { apCreateNotification(getDB(), '', 'registration', 'info', 'New registration', $email . ' (' . $regMethod . ')', 'registration_pending', ['email' => $email, 'name' => $name, 'method' => $regMethod]); } catch (Throwable $e) {}
+                    if (!$alreadyPending) {
+                        notifyTelegramNewUser($email, $name, $photo, $regMethod);
+                        try { apCreateNotification(getDB(), '', 'registration', 'info', 'New registration', $email . ' (' . $regMethod . ')', 'registration_pending', ['email' => $email, 'name' => $name, 'method' => $regMethod]); } catch (Throwable $e) {}
+                    }
                     $authSuccess = $translations['verification_link_sent'];
                     $showVerificationMessage = true;
                     $verificationEmail = $email;
@@ -789,6 +792,41 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             header('Content-Type: application/json');
             echo json_encode(['success'=>false,'error'=>'Failed to write config']);
         }
+        exit;
+    }
+
+    // Test SMTP (admin only)
+    if(isset($_POST['test_smtp']) && isset($_POST['ajax']) && $sessionIsAdmin){
+        apSecRequireSameOrigin();
+        $testTo = trim((string)($_POST['smtp_test_to'] ?? ''));
+        if($testTo === '' || !filter_var($testTo, FILTER_VALIDATE_EMAIL)){
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>$translations['smtp_test_invalid'] ?? 'Enter a valid test email address']);
+            exit;
+        }
+        $existingCfg = loadAuthConfig();
+        $testCfg = [
+            'smtp_host' => trim((string)($_POST['smtp_host'] ?? $existingCfg['smtp_host'] ?? '')),
+            'smtp_port' => (int)($_POST['smtp_port'] ?? $existingCfg['smtp_port'] ?? 587),
+            'smtp_username' => trim((string)($_POST['smtp_username'] ?? $existingCfg['smtp_username'] ?? '')),
+            'smtp_password' => (string)($_POST['smtp_password'] ?? ''),
+        ];
+        if($testCfg['smtp_password'] === ''){
+            $testCfg['smtp_password'] = (string)($existingCfg['smtp_password'] ?? '');
+        }
+        if(!apSmtpConfigured($testCfg)){
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>$translations['smtp_not_configured'] ?? 'SMTP is not configured']);
+            exit;
+        }
+        $ok = sendTestEmail($testTo, $testCfg);
+        while(ob_get_level() > 1) ob_end_clean();
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success'=>$ok,
+            'error'=>$ok ? null : ($translations['smtp_test_fail'] ?? 'Failed to send test email. Check SMTP settings and PHP error log.'),
+            'message'=>$ok ? sprintf($translations['smtp_test_ok'] ?? 'Test email sent to %s', $testTo) : null,
+        ]);
         exit;
     }
 
@@ -1480,8 +1518,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_port']??'SMTP Port'); ?></label><input type="number" id="ap-smtp-port" value="<?php echo my_htmlspecialchars($_apAuthCfg['smtp_port']??587); ?>" placeholder="587"></div>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_username']??'SMTP Username'); ?></label><input type="text" id="ap-smtp-user" value="<?php echo my_htmlspecialchars($_apAuthCfg['smtp_username']??''); ?>" placeholder="user@gmail.com"></div>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_password']??'SMTP Password'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-smtp-pass" value="<?php echo my_htmlspecialchars($_apAuthCfg['smtp_password']??''); ?>" placeholder="xxxx xxxx xxxx xxxx"><button type="button" class="ap-pwd-eye" data-target="ap-smtp-pass"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
+                    <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_test_to']??'Test recipient'); ?></label><input type="email" id="ap-smtp-test-to" value="<?php echo my_htmlspecialchars($_SESSION['user']['email']??''); ?>" placeholder="user@example.com"></div>
                 </div>
-                <div class="ap-btn-row"><button type="button" id="ap-save-email" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button></div>
+                <div class="ap-btn-row"><button type="button" id="ap-save-email" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button><button type="button" id="ap-test-email" class="ap-btn ap-btn-success"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg><?php echo my_htmlspecialchars($translations['smtp_test']??'Test email'); ?></button></div>
                 <div class="ap-status" id="ap-email-status"></div>
             </div>
 
@@ -2205,14 +2244,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
     if(isset($_POST['save_email_settings']) && $sessionIsAdmin){
         $isAjaxEmail = isset($_POST['ajax']);
+        $existingCfg = loadAuthConfig();
         $authConfig['google_client_id']=$_POST['google_client_id']??'';
         $authConfig['google_client_secret']=$_POST['google_client_secret']??'';
         $authConfig['github_client_id']=$_POST['github_client_id']??'';
         $authConfig['github_client_secret']=$_POST['github_client_secret']??'';
-        $authConfig['smtp_host']=$_POST['smtp_host']??'';
+        $authConfig['smtp_host']=trim((string)($_POST['smtp_host']??''));
         $authConfig['smtp_port']=intval($_POST['smtp_port']??587);
-        $authConfig['smtp_username']=$_POST['smtp_username']??'';
-        $authConfig['smtp_password']=$_POST['smtp_password']??'';
+        $authConfig['smtp_username']=trim((string)($_POST['smtp_username']??''));
+        $newSmtpPassword=(string)($_POST['smtp_password']??'');
+        $authConfig['smtp_password']=$newSmtpPassword!==''?$newSmtpPassword:(string)($existingCfg['smtp_password']??'');
         saveAuthConfig($authConfig);
         $saved = true;
         if($isAjaxEmail){

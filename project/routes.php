@@ -237,55 +237,59 @@ if($path==='/database'){
 }
 
 if($path==='/verify'){
-    $token = $_GET['token'] ?? '';
-    if($token){
-        $pendingUsers = loadPendingUsers();
-        $tokens = loadVerificationTokens();
-        $found = false;
-        foreach($tokens as $email => $tokenData){
-            if($tokenData['token'] === $token && $tokenData['expires'] > time()){
-                $pendingRow = getPendingUser($email);
-                if($pendingRow){
-                    // Move from pending_users to users with verified=1
-                    $userData = [
-                        'name'       => $pendingRow['name'],
-                        'password'   => $pendingRow['password'],
-                        'photo'      => $pendingRow['photo'] ?? 'default_avatar.png',
-                        'role'       => (int)($pendingRow['role'] ?? 0),
-                        'verified'   => true,
-                        'language'   => $pendingRow['language'] ?? 'en',
-                        'theme'      => $pendingRow['theme'] ?? 'light',
-                        'color'      => $pendingRow['color'] ?? '#007bff',
-                        'created_at' => $pendingRow['created_at'] ?? date('Y-m-d H:i:s'),
-                    ];
-                    upsertUser($email, $userData);
-                    deletePendingUser($email);
-                    // Remove the token
-                    $dbTok = getDB();
-                    $stTok = $dbTok->prepare('DELETE FROM verification_tokens WHERE email=:e');
-                    $stTok->bindValue(':e', $email); $stTok->execute();
-                    $found = true;
-                    
-                    $freshUser = getUserByEmail($email);
-                    $_SESSION['user'] = $freshUser;
-                    $_SESSION['user']['email'] = $email;
-                    $_SESSION['auth_time'] = time();
-                    cleanupExpiredUserSessions($email);
-                    addUserToActiveSessions($email, session_id(), $_SESSION['user']);
-                    
-                    notifyTelegramEmailVerified($email, $userData['name'] ?? '');
-                    
-                    header('Location: ' . takePostLoginRedirect('/main'));
-                    exit;
-                }
-                break;
-            }
-        }
-        if(!$found){
-            $authError = $translations['verification_failed'];
-            header('Location: /login?error=verification_failed');
+    $token = apSanitizeVerificationToken(($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' ? ($_POST['token'] ?? '') : ($_GET['token'] ?? ''));
+    if(($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['confirm_email_verification']) && $token !== ''){
+        $email = findValidVerificationEmail($token);
+        if($email && completeEmailVerification($email)){
+            header('Location: ' . takePostLoginRedirect('/main'));
             exit;
         }
+        error_log('[Verify] POST failed for token ' . substr($token, 0, 12) . '...');
+        apRenderVerificationPage(
+            $translations['verification_failed'] ?? 'Verification failed',
+            $translations['verification_link_expired_desc'] ?? 'This verification link is invalid, expired, or has already been used. Request a new link below.',
+            null,
+            true
+        );
+    }
+    if($token !== ''){
+        $tokenRow = findVerificationTokenRow($token);
+        if($tokenRow){
+            $email = apNormalizeAuthEmail((string)$tokenRow['email']);
+            if((int)$tokenRow['expires'] <= time()){
+                apRenderVerificationPage(
+                    $translations['verification_link_expired'] ?? 'Verification link expired',
+                    $translations['verification_link_expired_desc'] ?? 'This verification link has expired. Request a new link below.',
+                    $email,
+                    true
+                );
+            }
+            $pendingRow = getPendingUser($email);
+            $existingUser = getUserByEmail($email);
+            if($pendingRow || ($existingUser && empty($existingUser['verified']))){
+                apRenderVerificationPage(
+                    $translations['verify_account'] ?? 'Verify Account',
+                    $translations['email_verify_confirm_desc'] ?? 'Click the button below to confirm this email address and activate your account.',
+                    $email,
+                    false,
+                    $token,
+                    $translations['confirm_label'] ?? 'Confirm'
+                );
+            }
+            apRenderVerificationPage(
+                $translations['email_verified'] ?? 'Email verified',
+                $translations['verification_already_done'] ?? 'This email address is already verified. You can sign in now.',
+                $email,
+                false
+            );
+        }
+        error_log('[Verify] token not found: ' . substr($token, 0, 12) . '...');
+        apRenderVerificationPage(
+            $translations['verification_failed'] ?? 'Verification failed',
+            $translations['verification_link_expired_desc'] ?? 'This verification link is invalid or outdated. If you requested a new email, use the latest link. Otherwise request a new link below.',
+            null,
+            true
+        );
     }
     header('Location: /login');
     exit;

@@ -1383,7 +1383,12 @@ endif; // showOtpPage
                 <h2><?php echo my_htmlspecialchars($translations['verify_account'] ?? 'Verify Account'); ?></h2>
                 <div class="auth-success"><?php echo my_htmlspecialchars($translations['verification_link_sent']); ?></div>
                 <p style="text-align:center;margin:20px 0;"><?php echo my_htmlspecialchars($translations['click_link_to_verify']); ?></p>
+                <p style="text-align:center;margin:0 0 20px 0;font-size:14px;opacity:.75;line-height:1.5;"><?php echo my_htmlspecialchars($translations['verification_check_spam_hint'] ?? 'If you do not see the message in your inbox, check the Spam or Junk folder.'); ?></p>
                 <p style="text-align:center;margin:20px 0;"><?php echo my_htmlspecialchars($verificationEmail); ?></p>
+                <form method="post" action="/register" style="text-align:center;margin-bottom:16px;">
+                    <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($verificationEmail ?? ''); ?>">
+                    <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
+                </form>
                 <div style="text-align:center;margin-top:15px;">
                     <span class="auth-link" onclick="window.location.href='/login'"><?php echo my_htmlspecialchars($translations['login']); ?></span>
                 </div>
@@ -7448,12 +7453,9 @@ function wireEvents(){
         }, 1000);
     };
     /* email */
-    var seBtn=dynRoot.querySelector('#ap-save-email'), eStatus=dynRoot.querySelector('#ap-email-status');
-    if(seBtn) seBtn.addEventListener('click',function(){
-        setStatus(eStatus,T.saving,'info');
-        var fd=new FormData(); fd.append('save_email_settings','1'); fd.append('ajax','1');
-        ['gcid','gcsecret','smtp-host','smtp-port','smtp-user','smtp-pass'].forEach(function(k){var el=dynRoot.querySelector('#ap-'+k);if(el)fd.append(k.replace('smtp-','smtp_').replace('gcid','google_client_id').replace('gcsecret','google_client_secret').replace('smtp_host','smtp_host').replace('smtp_port','smtp_port').replace('smtp_user','smtp_username').replace('smtp_pass','smtp_password'),el.value);});
-        // simpler explicit approach:
+    var seBtn=dynRoot.querySelector('#ap-save-email'), teBtn=dynRoot.querySelector('#ap-test-email'), eStatus=dynRoot.querySelector('#ap-email-status');
+    function apEmailFormData(extra){
+        var fd=new FormData();
         fd.set('google_client_id',    (dynRoot.querySelector('#ap-gcid')||{value:''}).value);
         fd.set('google_client_secret',(dynRoot.querySelector('#ap-gcsecret')||{value:''}).value);
         fd.set('github_client_id',    (dynRoot.querySelector('#ap-ghcid')||{value:''}).value);
@@ -7462,7 +7464,20 @@ function wireEvents(){
         fd.set('smtp_port',           (dynRoot.querySelector('#ap-smtp-port')||{value:587}).value);
         fd.set('smtp_username',       (dynRoot.querySelector('#ap-smtp-user')||{value:''}).value);
         fd.set('smtp_password',       (dynRoot.querySelector('#ap-smtp-pass')||{value:''}).value);
+        fd.set('smtp_test_to',        (dynRoot.querySelector('#ap-smtp-test-to')||{value:''}).value);
+        if(extra){Object.keys(extra).forEach(function(k){fd.set(k,extra[k]);});}
+        fd.append('ajax','1');
+        return fd;
+    }
+    if(seBtn) seBtn.addEventListener('click',function(){
+        setStatus(eStatus,T.saving,'info');
+        var fd=apEmailFormData({'save_email_settings':'1'});
         fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){setStatus(eStatus,d.success?('+ '+T.email_saved):('x '+(d.error||T.error)),d.success?'success':'error');if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.email_saved,'success');}).catch(function(){setStatus(eStatus,'x '+T.error,'error');});
+    });
+    if(teBtn) teBtn.addEventListener('click',function(){
+        setStatus(eStatus,'...','info');
+        var fd=apEmailFormData({'test_smtp':'1'});
+        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){setStatus(eStatus,d.success?('+ '+(d.message||T.smtp_test_ok||'Test email sent')):('x '+(d.error||T.smtp_test_fail||T.error)),d.success?'success':'error');}).catch(function(){setStatus(eStatus,'x '+T.error,'error');});
     });
     /* telegram */
     var tgTok=dynRoot.querySelector('#ap-tg-token'), tgSt=dynRoot.querySelector('#ap-tg-status');
