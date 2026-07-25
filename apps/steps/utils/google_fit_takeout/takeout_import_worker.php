@@ -189,7 +189,6 @@ function fit_run_job(string $jobDir): void {
     if ($nimp < 1) $nimp = count($daySteps);
     $write(['status' => 'done', 'message' => 'ok', 'progress' => 100.0, 'imported' => $nimp, 'total_days' => count($daySteps), 'job_id' => $jid]);
     @unlink($zip);
-    steps_worker_delete_tree($jdir);
 }
 if (PHP_SAPI === 'cli') {
     if (($argv[1] ?? '') === '') {

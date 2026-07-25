@@ -187,7 +187,8 @@
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
         .notifications-actions{display:flex;gap:8px;align-items:center;}
-        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;}
+        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;}
+        .notifications-actions button svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
         #notifications-list{overflow:auto;padding:4px 0;display:flex;flex-direction:column;}
         .notification-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;transition:background .15s;position:relative;}
@@ -380,11 +381,13 @@
         .custom-select-dropdown{display:none;position:fixed;background:var(--modal-bg);border:1px solid var(--border-color);border-radius:12px;box-shadow:var(--glass-shadow);z-index:100080;overflow:hidden;min-width:160px;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));max-height:min(280px,50vh);overflow-y:auto;}
         .custom-select-wrap.open .custom-select-dropdown{display:block;}
         .custom-select-option{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;cursor:pointer;font-size:13px;transition:background .15s;}
-        .custom-select-option span:first-child{min-width:0;}
+        .custom-select-option span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
         .custom-select-option:hover{background:var(--group-block-bg);}
         .custom-select-option.active{color:var(--primary-color);font-weight:600;}
         .custom-select-option svg{flex-shrink:0;opacity:.7;}
         .custom-select-badge{display:inline-block;padding:1px 6px;margin-left:6px;background:var(--primary-color);color:#fff;border-radius:8px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;}
+        #icon-style-dropdown .custom-select-option{gap:4px;padding-right:8px;}
+        #icon-style-dropdown .custom-select-badge{max-width:64px;min-width:0;overflow:hidden;text-overflow:ellipsis;padding:1px 4px;margin-left:2px;border-radius:6px;font-size:9px;line-height:1.3;flex:0 1 auto;}
         .custom-select-flag{width:20px;height:15px;display:inline-block;background-size:cover;background-position:center;border-radius:2px;flex-shrink:0;}
         .custom-select-flag.flag-ru{position:relative;overflow:hidden;}
         .custom-select-flag.flag-ru::after{content:"";position:absolute;left:-3px;top:6px;width:26px;height:3px;background:#111;border:1px solid #fff;transform:rotate(-35deg);transform-origin:center;box-sizing:border-box;}
@@ -428,6 +431,12 @@
         .settings-table-cell .custom-select-wrap{width:100%;max-width:none;flex:none;align-self:stretch;}
         .settings-table-cell input[type="color"]{width:100%;height:32px;padding:2px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);cursor:pointer;box-sizing:border-box;}
         .policy-link-icon{width:16px;height:16px;vertical-align:-3px;margin-right:4px;stroke:currentColor;}
+        #policy-modal-overlay{display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);justify-content:center;align-items:center;}
+        #policy-modal-overlay.active{display:flex;}
+        #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);}
+        #policy-modal iframe{flex:1;width:100%;border:none;}
+        #policy-modal-close{position:absolute;top:10px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:20px;cursor:pointer;z-index:10003;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;}
+        #policy-modal-close:hover{opacity:0.7;}
         #stats-content{background:var(--modal-bg);padding:60px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:85vh;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #stats-nav-box{border:1px solid var(--border-color);border-radius:12px;padding:15px;margin-bottom:20px;background:var(--group-block-bg);flex-shrink:0;}
         .stats-nav-buttons{display:flex;flex-direction:column;gap:15px;justify-content:center;align-items:center;}
@@ -448,9 +457,9 @@
         #content.has-app-rail{--rail-w:48px;}
         #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
         #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;transition:background-color .35s ease,border-color .35s ease,color .35s ease;}
-        #content.app-edge-immich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#111827':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
-        #content.app-edge-gitea{--app-edge-bg:<?php echo $config['theme']==='dark'?'#0d1117':'#f6f8fa';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#30363d':'#d0d7de';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f0f6fc':'#24292f';?>;}
-        #content.app-edge-plane{--app-edge-bg:<?php echo $config['theme']==='dark'?'#0f172a':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1e293b':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f8fafc':'#111827';?>;}
+        #content.app-edge-immich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#000000':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
+        #content.app-edge-gitea{--app-edge-bg:<?php echo $config['theme']==='dark'?'#1e1f20':'#f6f8fa';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#30363d':'#d0d7de';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f0f6fc':'#24292f';?>;}
+        #content.app-edge-plane{--app-edge-bg:<?php echo $config['theme']==='dark'?'#0c0d0e':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1e293b':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f8fafc':'#111827';?>;}
         #content.app-edge-x{--app-edge-bg:<?php echo $config['theme']==='dark'?'#000000':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#2f3336':'#cfd9de';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#e7e9ea':'#0f1419';?>;}
         #content.edge-app-shell #app-icon-rail{background:var(--app-edge-bg);border-color:var(--app-edge-border);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;}
         #content.edge-app-shell #app-iframe{background:var(--app-edge-bg);}
@@ -1086,6 +1095,26 @@
             height: 10px;
             border-radius: 50%;
         }
+        .weather-location-enable {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 18px;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--primary-color);
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .weather-location-enable svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+        }
         .weather-modal::-webkit-scrollbar {
             width: 6px;
         }
@@ -1523,9 +1552,9 @@ endif; // showOtpPage
         <?php endif; ?>
         <?php endif; ?>
         <div class="policy-links">
-            <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['privacy_policy']??'Privacy Policy'); ?></a>
+            <a href="javascript:void(0)" onclick="openPolicyModal('/privacy?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['privacy_policy']??'Privacy Policy'); ?></a>
             <span class="policy-dot"></span>
-            <a href="/terms?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['terms_of_service']??'Terms of Service'); ?></a>
+            <a href="javascript:void(0)" onclick="openPolicyModal('/terms?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['terms_of_service']??'Terms of Service'); ?></a>
         </div>
         <button class="back-button" onclick="window.location.href='/'">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -1565,6 +1594,11 @@ endif; // showOtpPage
                     <input type="file" name="photo" accept="image/*" class="auth-input">
                     <button type="submit" name="change_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['upload_photo']); ?></button>
                 </form>
+                <?php if(isset($userOAuthConnections['google']) && !str_starts_with((string)($_SESSION['user']['photo']??''),'https://lh3.googleusercontent.com/')): ?>
+                <form method="post" action="/main" class="photo-form" style="margin-top:8px;">
+                    <button type="submit" name="reset_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['reset_to_default']); ?></button>
+                </form>
+                <?php endif; ?>
             </div>
             <div class="profile-section" id="password-section">
                 <h3><?php echo my_htmlspecialchars($translations['change_password']); ?></h3>
@@ -2199,9 +2233,9 @@ endif; // showOtpPage
         </div>
 
         <div class="policy-links">
-            <a href="/terms?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
+            <a href="javascript:void(0)" class="policy-link" onclick="openPolicyModal('/terms?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
             <span class="policy-dot"></span>
-            <a href="/privacy?theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>" class="policy-link" target="_blank"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
+            <a href="javascript:void(0)" class="policy-link" onclick="openPolicyModal('/privacy?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
         </div>
         <div class="settings-buttons-box">
             <?php if(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 1): ?>
@@ -2353,8 +2387,8 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
     <div class="notifications-head">
         <span><?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?></span>
         <div class="notifications-actions">
-            <button type="button" id="notifications-enable-btn"><?php echo my_htmlspecialchars($translations['enable'] ?? 'Enable'); ?></button>
-            <button type="button" id="notifications-mark-read-btn"><?php echo my_htmlspecialchars($translations['mark_read'] ?? 'Read'); ?></button>
+            <button type="button" id="notifications-enable-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span><?php echo my_htmlspecialchars($translations['enable'] ?? 'Enable'); ?></span></button>
+            <button type="button" id="notifications-mark-read-btn"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span><?php echo my_htmlspecialchars($translations['mark_read'] ?? 'Read'); ?></span></button>
         </div>
     </div>
     <div id="notifications-list"></div>
@@ -2843,6 +2877,11 @@ var T=<?php echo json_encode([
     'failed_to_load_file'=>$translations['failed_to_load_file']??'Failed to load file:',
     'recording_release_to_send'=>$translations['recording_release_to_send']??'Recording... Release to send',
     'weather_loading'=>$translations['weather_loading']??'Loading weather...',
+    'weather_denied'=>$translations['weather_denied']??'Location access denied. Enable it to see local weather.',
+    'weather_denied_msg'=>$translations['weather_denied_msg']??'Please allow location access in your browser settings to see local weather',
+    'weather_allow_location'=>$translations['weather_allow_location']??'Allow location',
+    'weather_no_geo'=>$translations['weather_no_geo']??'Geolocation not supported',
+    'weather_settings_hint'=>$translations['weather_settings_hint']??'Go to browser site settings and allow location',
     'weather_forecast_title'=>$translations['weather_forecast_title']??'7-day forecast',
     'weather_chart_title'=>$translations['weather_chart_title']??'Temperature trend',
     'weather_high'=>$translations['weather_high']??'High',
@@ -3194,7 +3233,7 @@ var T=<?php echo json_encode([
         if(document.querySelector('select[name="theme"] option[value="auto"]:checked')){updateThemeBasedOnSystem();}
         function getSelectedThemeValue(){const themeInput=document.getElementById('theme-input');const themeSelect=document.querySelector('select[name="theme"]');return themeInput?themeInput.value:(themeSelect?themeSelect.value:'light');}
         function resolveTheme(theme){return theme==='auto'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;}
-        function updateEdgeAppShellTheme(theme){const content=document.getElementById('content');if(!content)return;if(content.classList.contains('app-edge-gitea')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#0d1117':'#f6f8fa');content.style.setProperty('--app-edge-border',theme==='dark'?'#30363d':'#d0d7de');content.style.setProperty('--app-edge-text',theme==='dark'?'#f0f6fc':'#24292f');}else if(content.classList.contains('app-edge-immich')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#111827':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1f2937':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f9fafb':'#111827');}else if(content.classList.contains('app-edge-plane')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#0f172a':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1e293b':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f8fafc':'#111827');}else if(content.classList.contains('app-edge-x')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#000000':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#2f3336':'#cfd9de');content.style.setProperty('--app-edge-text',theme==='dark'?'#e7e9ea':'#0f1419');}}
+        function updateEdgeAppShellTheme(theme){const content=document.getElementById('content');if(!content)return;if(content.classList.contains('app-edge-gitea')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#1e1f20':'#f6f8fa');content.style.setProperty('--app-edge-border',theme==='dark'?'#30363d':'#d0d7de');content.style.setProperty('--app-edge-text',theme==='dark'?'#f0f6fc':'#24292f');}else if(content.classList.contains('app-edge-immich')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#000000':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1f2937':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f9fafb':'#111827');}else if(content.classList.contains('app-edge-plane')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#0c0d0e':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1e293b':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f8fafc':'#111827');}else if(content.classList.contains('app-edge-x')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#000000':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#2f3336':'#cfd9de');content.style.setProperty('--app-edge-text',theme==='dark'?'#e7e9ea':'#0f1419');}}
         function updateOmniRouteEdgeTheme(theme){const root=document.documentElement;if(theme==='dark'){root.style.setProperty('--ap-omniroute-edge-bg','#0b0d10');root.style.setProperty('--ap-omniroute-edge-border','#1b2330');root.style.setProperty('--ap-omniroute-edge-text','#e5edf7');root.style.setProperty('--ap-omniroute-edge-hover','#121823');root.style.setProperty('--ap-omniroute-edge-active','#172033');root.style.setProperty('--ap-omniroute-edge-active-border','#2b3b52');}else{root.style.setProperty('--ap-omniroute-edge-bg','#f8fafc');root.style.setProperty('--ap-omniroute-edge-border','#dbe3ed');root.style.setProperty('--ap-omniroute-edge-text','#111827');root.style.setProperty('--ap-omniroute-edge-hover','#eef3f8');root.style.setProperty('--ap-omniroute-edge-active','#e6edf5');root.style.setProperty('--ap-omniroute-edge-active-border','#c7d3e0');}}
         function applyThemeRuntime(theme){const resolved=resolveTheme(theme);updateCSSVariables(resolved);applyThemeToAuthModal(resolved);updateAppIframeTheme(resolved);updateEdgeAppShellTheme(resolved);updateOmniRouteEdgeTheme(resolved);if(typeof injectOmniRouteTheme==='function')injectOmniRouteTheme();}
         function detectAndApplySystemTheme(){if(getSelectedThemeValue()==='auto')applyThemeRuntime('auto');}
@@ -3723,7 +3762,7 @@ var T=<?php echo json_encode([
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();if(typeof QRCode==='undefined'){qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_library_not_loaded+'</p><p>'+T.qr_refresh_page+'</p></div>';return;}qrCodeElement.innerHTML='';try{const tempContainer=document.createElement('div');const qr=new QRCode(tempContainer,{text:domain,width:256,height:256,colorDark:"#000000",colorLight:"#ffffff",correctLevel:QRCode.CorrectLevel.H});setTimeout(()=>{const canvas=tempContainer.querySelector('canvas');if(canvas){qrCodeElement.innerHTML='';qrCodeElement.appendChild(canvas);canvas.style.display='block';canvas.style.margin='0 auto';canvas.style.borderRadius='12px';canvas.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)';}else{qrCodeElement.innerHTML='<p style="color: red; text-align: center;">'+T.qr_generation_failed+'</p>';}},100);}catch(error){console.error('QR Code error:',error);qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';}}});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}}
+        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -4040,6 +4079,25 @@ var T=<?php echo json_encode([
                 });
         }
 
+        function openPolicyModal(url){
+            let overlay = document.getElementById('policy-modal-overlay');
+            if(!overlay){
+                overlay = document.createElement('div');
+                overlay.id = 'policy-modal-overlay';
+                overlay.innerHTML = '<div id="policy-modal" style="position:relative;background:var(--modal-bg);"><button id="policy-modal-close" type="button">&times;</button><iframe src="'+url+'"></iframe></div>';
+                document.body.appendChild(overlay);
+                overlay.addEventListener('click', e => { if(e.target === overlay) closePolicyModal(); });
+                overlay.querySelector('#policy-modal-close').addEventListener('click', closePolicyModal);
+            } else {
+                overlay.querySelector('iframe').src = url;
+            }
+            overlay.classList.add('active');
+        }
+        function closePolicyModal(){
+            const overlay = document.getElementById('policy-modal-overlay');
+            if(overlay){ overlay.classList.remove('active'); }
+        }
+
         // Attach listeners to user row buttons (used after AJAX refresh)
         function attachUserRowListeners(){
             document.querySelectorAll('.open-delete-user-modal').forEach(btn => {
@@ -4175,7 +4233,8 @@ var T=<?php echo json_encode([
             const enableBtn=document.getElementById('notifications-enable-btn');
             const readBtn=document.getElementById('notifications-mark-read-btn');
             let lastSeenId=0;
-            const enableBtnLabel=enableBtn?enableBtn.textContent:'Enable';
+            const enableBtnText=enableBtn?enableBtn.querySelector('span'):null;
+            const enableBtnLabel=enableBtnText?enableBtnText.textContent:'Enable';
             window.ApNotificationPopover=window.ApNotificationPopover||function(trigger,target){
                 function open(){if(target)target.classList.add('open');}
                 function close(){if(target)target.classList.remove('open');}
@@ -4197,7 +4256,7 @@ var T=<?php echo json_encode([
                 const granted='Notification'in window&&Notification.permission==='granted';
                 enableBtn.disabled=granted;
                 enableBtn.setAttribute('aria-disabled',granted?'true':'false');
-                enableBtn.textContent=granted?'Enabled':enableBtnLabel;
+                if(enableBtnText)enableBtnText.textContent=granted?'Enabled':enableBtnLabel;
             }
             function setBadge(count){
                 if(!badge)return;
@@ -4247,6 +4306,15 @@ var T=<?php echo json_encode([
             if(readBtn){
                 readBtn.addEventListener('click',function(){
                     fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(){loadNotifications(false);});
+                });
+            }
+            if(list){
+                list.addEventListener('click',function(e){
+                    const row=e.target.closest('.notification-row.unread[data-id]');
+                    if(!row||!list.contains(row))return;
+                    const id=Number(row.getAttribute('data-id'))||0;
+                    if(!id)return;
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read',id:id})}).then(function(){loadNotifications(false);});
                 });
             }
             if(enableBtn){
@@ -10485,6 +10553,15 @@ function copyOtpLink(){
                 row.style.transform = 'translateY(0)';
                 row.style.boxShadow = 'none';
             });
+            var avatarWrap = document.createElement('div');
+            avatarWrap.style.cssText = 'display:flex;align-items:center;gap:10px;';
+            if (chat.user_photo) {
+                var avatarImg = document.createElement('img');
+                avatarImg.src = chat.user_photo;
+                avatarImg.style.cssText = 'width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+                avatarImg.onerror = function() { this.src = 'default_avatar.png'; };
+                avatarWrap.appendChild(avatarImg);
+            }
             var title = document.createElement('div');
             title.style.cssText = 'font-weight:600;color:var(--text-color);margin-bottom:6px;font-size:15px;line-height:1.35;';
             var nm = (chat.user_name && String(chat.user_name).trim()) ? String(chat.user_name).trim() : '';
@@ -10503,10 +10580,11 @@ function copyOtpLink(){
                 adm.textContent = ' (Admin)';
                 title.appendChild(adm);
             }
+            avatarWrap.appendChild(title);
             var meta = document.createElement('div');
             meta.style.cssText = 'font-size:13px;color:var(--text-color);opacity:.6;';
             meta.textContent = chat.message_count + ' messages • ' + new Date(chat.last_message_time * 1000).toLocaleString();
-            row.appendChild(title);
+            row.appendChild(avatarWrap);
             row.appendChild(meta);
             row.addEventListener('click', function() {
                 window.selectChat(chat.user_email);
@@ -10555,12 +10633,21 @@ function copyOtpLink(){
                 data.users.forEach(function(u) {
                     var btn = document.createElement('button');
                     btn.type = 'button';
-                    btn.style.cssText = 'display:block;width:100%;text-align:left;padding:12px 14px;margin:0 0 6px 0;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-color);color:var(--text-color);cursor:pointer;font-size:14px;';
-                    if (u.name && String(u.name).trim()) {
-                        btn.innerHTML = escChat(u.name) + '<br><span style="font-size:12px;opacity:0.65;">' + escChat(u.email) + '</span>';
-                    } else {
-                        btn.textContent = u.email;
+                    btn.style.cssText = 'display:flex;align-items:center;width:100%;text-align:left;padding:12px 14px;margin:0 0 6px 0;border:1px solid var(--border-color);border-radius:10px;background:var(--bg-color);color:var(--text-color);cursor:pointer;font-size:14px;gap:10px;';
+                    if (u.photo) {
+                        var img = document.createElement('img');
+                        img.src = u.photo;
+                        img.style.cssText = 'width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;';
+                        img.onerror = function() { this.src = 'default_avatar.png'; };
+                        btn.appendChild(img);
                     }
+                    var info = document.createElement('div');
+                    if (u.name && String(u.name).trim()) {
+                        info.innerHTML = escChat(u.name) + '<br><span style="font-size:12px;opacity:0.65;">' + escChat(u.email) + '</span>';
+                    } else {
+                        info.textContent = u.email;
+                    }
+                    btn.appendChild(info);
                     var em = u.email;
                     btn.addEventListener('click', function() {
                         closeUserSearchModal();
@@ -11742,6 +11829,42 @@ function formatPrecip(value) {
 
 var modalOverlay = document.getElementById('weatherModalOverlay');
 var modalContent = document.getElementById('weatherModalContent');
+var weatherGeoNoticeShown = false;
+
+function renderWeatherGeoPrompt(message) {
+    modalContent.innerHTML = '<div style="text-align:center;padding:42px 24px;opacity:0.86">' +
+        '<div>' + escHtml(message || wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather')) + '</div>' +
+        '<button type="button" class="weather-location-enable" onclick="window.apRequestWeatherLocationFromModal()">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>' +
+            '<span>' + escHtml(wt('weather_allow_location', 'Allow location')) + '</span>' +
+        '</button>' +
+    '</div>';
+}
+
+function notifyWeatherGeoUnavailable(message) {
+    if(weatherGeoNoticeShown) return;
+    weatherGeoNoticeShown = true;
+    if(typeof showTempNotification === 'function') {
+        showTempNotification(message || wt('weather_denied', 'Location access denied. Enable it to see local weather'), 'info');
+    }
+}
+
+window.apRequestWeatherLocationFromModal = function() {
+    if(!navigator.geolocation) {
+        renderWeatherGeoPrompt(wt('weather_no_geo', 'Geolocation not supported'));
+        notifyWeatherGeoUnavailable(wt('weather_no_geo', 'Geolocation not supported'));
+        return;
+    }
+    modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        weatherStore.lat = pos.coords.latitude;
+        weatherStore.lon = pos.coords.longitude;
+        showWeatherModal();
+    }, function() {
+        renderWeatherGeoPrompt(wt('weather_settings_hint', 'Go to browser site settings and allow location'));
+        notifyWeatherGeoUnavailable(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+    }, { enableHighAccuracy: false, timeout: 10000 });
+};
 
 function showWeatherModal() {
     if(!modalOverlay) return;
@@ -11750,24 +11873,10 @@ function showWeatherModal() {
         return;
     }
     if(!weatherStore.lat || !weatherStore.lon) {
-        if(navigator.geolocation) {
-            modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
-            modalOverlay.style.display = 'flex';
-            modalOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-            navigator.geolocation.getCurrentPosition(function(pos) {
-                weatherStore.lat = pos.coords.latitude;
-                weatherStore.lon = pos.coords.longitude;
-                showWeatherModal();
-            }, function() {
-                modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">' + escHtml(wt('weather_no_forecast', 'No forecast data available')) + '</div>';
-            }, { enableHighAccuracy: false, timeout: 10000 });
-        } else {
-            modalContent.innerHTML = '<div style="text-align:center;padding:40px;opacity:0.6">' + escHtml(wt('weather_no_forecast', 'No forecast data available')) + '</div>';
-            modalOverlay.style.display = 'flex';
-            modalOverlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        }
+        modalOverlay.style.display = 'flex';
+        modalOverlay.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        renderWeatherGeoPrompt(navigator.geolocation ? wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather') : wt('weather_no_geo', 'Geolocation not supported'));
         return;
     }
     modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
@@ -11898,13 +12007,20 @@ function drawTemperatureChart(daily) {
     var canvas = document.getElementById('weatherChartCanvas');
     if(!canvas || !daily || !daily.time || daily.time.length === 0) return;
     var rect = canvas.parentElement ? canvas.parentElement.getBoundingClientRect() : null;
+    var cssW = 640;
+    var cssH = window.matchMedia('(max-width: 500px)').matches ? 190 : 220;
     if (rect && rect.width > 0) {
-        canvas.width = Math.max(320, Math.round(rect.width));
-        canvas.height = window.matchMedia('(max-width: 500px)').matches ? 190 : 220;
+        cssW = Math.max(320, Math.round(rect.width));
     }
+    var dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
     var ctx = canvas.getContext('2d');
-    var W = canvas.width;
-    var H = canvas.height;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var W = cssW;
+    var H = cssH;
     var pad = { top: 24, right: 16, bottom: 72, left: 42 };
     var chartW = W - pad.left - pad.right;
     var chartH = H - pad.top - pad.bottom;
@@ -12109,16 +12225,17 @@ function drawTemperatureChart(daily) {
             });
         }
         
-        function showPermError() {
+        function showPermError(message) {
             widgets.forEach(function(widget) {
                 var permEl = widget.querySelector('.weather-perm');
                 if(permEl) permEl.style.display = 'inline';
             });
             applyToWidgets(weatherSvg(-1), '--\u00b0C', '', '');
+            notifyWeatherGeoUnavailable(message);
         }
 
         if (!navigator.geolocation) {
-            showPermError();
+            showPermError(wt('weather_no_geo', 'Geolocation not supported'));
             return;
         }
 
@@ -12197,9 +12314,9 @@ function drawTemperatureChart(daily) {
 
         function error(err) {
             if (err.code === err.PERMISSION_DENIED) {
-                showPermError();
+                showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
             } else {
-                widgets.forEach(function(w) { w.style.display = 'none'; });
+                showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
             }
         }
 

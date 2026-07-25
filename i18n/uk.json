@@ -300,6 +300,8 @@
     "current_password_verified": "Поточний пароль підтверджено",
     "generate_password": "Згенерувати пароль",
     "photo_updated": "Фото успішно оновлено",
+    "reset_to_default": "Скинути за замовчуванням",
+    "photo_reset_to_default": "Фото успішно скинуте на стандартне",
     "user_profile": "Профіль користувача",
     "close": "Закрити",
     "email_settings": "Налаштування email",

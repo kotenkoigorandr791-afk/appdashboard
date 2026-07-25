@@ -23,6 +23,7 @@ project/graphify-out/
 /data/.ssh/
 /data/ssh_ws_tokens/
 /data/db.env
+/data/
 *.log
 *.sqlite3
 *.sqlite
@@ -64,5 +65,9 @@ Thumbs.db
 # AI assistant instruction files
 **/*cloud*.md
 **/.claude/
+**/.codex/
+**/AGENTS.md
 **/agents.md
 **/CLAUDE.md
+**/backups_codex/
+graphify-out/

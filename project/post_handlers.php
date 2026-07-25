@@ -592,6 +592,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
         }
     }
+    if(isset($_POST['reset_photo'])){
+        apSecRequireSameOrigin();
+        $email=$_SESSION['user']['email']??'';
+        if($email && hasOAuthConnection($email,'google')){
+            $connections=getOAuthConnectionsForUser($email);
+            $googlePhoto=(string)($connections['google']['provider_photo']??'');
+            if($googlePhoto!==''){
+                $users=loadUsers();
+                $oldPhoto=(string)($users[$email]['photo']??'');
+                if(str_starts_with($oldPhoto,'uploads/avatars/')){
+                    $oldAbs=APP_ROOT.'/'.$oldPhoto;
+                    if(is_file($oldAbs)){ @unlink($oldAbs); }
+                }
+                $users[$email]['photo']=$googlePhoto;
+                saveUsers($users);
+                $_SESSION['user']=$users[$email];
+                $_SESSION['user']['email']=$email;
+                $_SESSION['auth_time']=time();
+                $sessionData=getUserFromActiveSessions(session_id());
+                if($sessionData){
+                    $sessionData['user_data']=$_SESSION['user'];
+                    addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                }
+                $profileSuccess=$translations['photo_reset_to_default'];
+            }
+        }
+    }
     if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['settings'])){
     $newLanguage=$_POST['language'];
     $newTheme=$_POST['theme'];
@@ -1512,6 +1539,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_client_id']??'GitHub Client ID'); ?></label><input type="text" id="ap-ghcid" value="<?php echo my_htmlspecialchars($_apAuthCfg['github_client_id']??''); ?>" placeholder="Iv1.xxxxx" autocomplete="off"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['github_client_id_hint']??'Client ID from OAuth App settings (Iv1.xxxxx), not App ID.'); ?></div></div>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['github_client_secret']??'GitHub Client Secret'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-ghcsecret" value="<?php echo my_htmlspecialchars($_apAuthCfg['github_client_secret']??''); ?>" placeholder="Client secret from OAuth App" autocomplete="off"><button type="button" class="ap-pwd-eye" data-target="ap-ghcsecret"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>
                     <div class="ap-hint"><?php echo my_htmlspecialchars($translations['oauth_callback_hint']??'OAuth callback URL'); ?>: <code><?php echo my_htmlspecialchars(oauthLoginRedirectUri()); ?></code></div>
+                </div>
                 <div style="margin-bottom:20px;">
                     <h4 style="font-size:13px;font-weight:600;margin:0 0 10px 0;opacity:.8;">SMTP</h4>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_host']??'SMTP Host'); ?></label><input type="text" id="ap-smtp-host" value="<?php echo my_htmlspecialchars($_apAuthCfg['smtp_host']??''); ?>" placeholder="smtp.gmail.com"></div>

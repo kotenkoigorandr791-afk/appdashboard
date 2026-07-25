@@ -241,3 +241,29 @@ function steps_worker_import(array $cfg, array $daySteps, string $mode, bool $al
     }
     return 0;
 }
+function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mode, bool $allowZero = false): int {
+    if (!$daySteps) return 0;
+    ksort($daySteps);
+    $sql = ($mode === 'keep' || $mode === 'new_only') ? 'INSERT OR IGNORE INTO steps (date, steps) VALUES (:d, :s)' : 'INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)';
+    $stmt = $db->prepare($sql);
+    $n = 0;
+    foreach ($daySteps as $d => $s) {
+        if ($allowZero ? $s < 0 : $s <= 0) continue;
+        $stmt->bindValue(':d', $d, SQLITE3_TEXT);
+        $stmt->bindValue(':s', (int)$s, SQLITE3_INTEGER);
+        $stmt->execute();
+        $n++;
+    }
+    return $n;
+}
+function steps_worker_conflicts_app_db(AppDatabase $db, array $daySteps): int {
+    if (!$daySteps) return 0;
+    $n = 0;
+    foreach ($daySteps as $day => $steps) {
+        $stmt = $db->prepare('SELECT steps FROM steps WHERE date = :d');
+        $stmt->bindValue(':d', (string)$day, SQLITE3_TEXT);
+        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        if ($row !== null && (int)$row['steps'] !== (int)$steps) $n++;
+    }
+    return $n;
+}
