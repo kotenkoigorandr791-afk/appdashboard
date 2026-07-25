@@ -557,15 +557,15 @@ function statBarHtml($label, $valueText, $percent, $class = '') {
 function viewPageShell($title, $innerHtml) {
     header('Content-Type: text/html; charset=UTF-8');
     global $theme, $accent, $embed;
-    $bg = $theme === 'light' ? '#f3f6fb' : '#454446';
-    $text = $theme === 'light' ? '#0f172a' : '#E0E0E0';
-    $surface = $theme === 'light' ? '#ffffff' : '#333333';
-    $surfaceHover = $theme === 'light' ? '#eef3fb' : '#555555';
-    $border = $theme === 'light' ? '#d7deeb' : '#5A5A5A';
-    $muted = $theme === 'light' ? '#64748b' : '#A0A0A0';
-    $scrollTrack = $theme === 'light' ? '#e6ebf3' : '#222222';
-    $scrollThumb = $theme === 'light' ? '#aeb9c9' : '#4a4a4a';
-    $scrollThumbHover = $theme === 'light' ? '#8794a8' : '#696969';
+    $bg = $theme === 'light' ? '#f3f6fb' : '#0f1419';
+    $text = $theme === 'light' ? '#0f172a' : '#f4f7fb';
+    $surface = $theme === 'light' ? '#ffffff' : 'rgba(18,24,32,0.8)';
+    $surfaceHover = $theme === 'light' ? '#eef3fb' : 'rgba(255,255,255,0.10)';
+    $border = $theme === 'light' ? '#d7deeb' : 'rgba(255,255,255,0.14)';
+    $muted = $theme === 'light' ? '#64748b' : 'rgba(255,255,255,0.42)';
+    $scrollTrack = $theme === 'light' ? '#e6ebf3' : 'rgba(255,255,255,0.04)';
+    $scrollThumb = $theme === 'light' ? '#aeb9c9' : 'rgba(255,255,255,0.22)';
+    $scrollThumbHover = $theme === 'light' ? '#8794a8' : 'rgba(255,255,255,0.35)';
     $accentEsc = htmlspecialchars($accent, ENT_QUOTES, 'UTF-8');
     $bar = $embed ? '' : '<div class="bar"><a href="' . htmlspecialchars(dockerUrl(['view' => null, 'id' => null]), ENT_QUOTES, 'UTF-8') . '">&larr; ' . htmlspecialchars(t('back'), ENT_QUOTES, 'UTF-8') . '</a></div>';
     echo '<!DOCTYPE html><html lang="' . htmlspecialchars($GLOBALS['lang'], ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title><style>:root{--bg:' . $bg . ';--surface:' . $surface . ';--surface-hover:' . $surfaceHover . ';--border:' . $border . ';--text:' . $text . ';--muted:' . $muted . ';--accent:' . $accentEsc . ';--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;--scroll-track:' . $scrollTrack . ';--scroll-thumb:' . $scrollThumb . ';--scroll-thumb-hover:' . $scrollThumbHover . '}*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) var(--scroll-track)}::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:var(--scroll-track);border-radius:8px}::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:2px solid var(--scroll-track);border-radius:8px}::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:' . ($embed ? '16px' : '20px') . ';line-height:1.5}a{color:var(--accent)}h1{font-size:22px;margin:0 0 18px}.bar{margin-bottom:16px}.view-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
@@ -1033,23 +1033,23 @@ function ico($n) {
     <title><?php echo htmlspecialchars(t('title'), ENT_QUOTES, 'UTF-8'); ?></title>
     <style>
         :root {
-            --bg: <?php echo $theme === 'light' ? '#f3f6fb' : '#454446'; ?>;
-            --surface: <?php echo $theme === 'light' ? '#ffffff' : '#333333'; ?>;
-            --surface-hover: <?php echo $theme === 'light' ? '#eef3fb' : '#555555'; ?>;
-            --border: <?php echo $theme === 'light' ? '#d7deeb' : '#5A5A5A'; ?>;
-            --text: <?php echo $theme === 'light' ? '#0f172a' : '#E0E0E0'; ?>;
-            --muted: <?php echo $theme === 'light' ? '#64748b' : '#A0A0A0'; ?>;
+            --bg: <?php echo $theme === 'light' ? '#f3f6fb' : '#0f1419'; ?>;
+            --surface: <?php echo $theme === 'light' ? '#ffffff' : 'rgba(18,24,32,0.8)'; ?>;
+            --surface-hover: <?php echo $theme === 'light' ? '#eef3fb' : 'rgba(255,255,255,0.10)'; ?>;
+            --border: <?php echo $theme === 'light' ? '#d7deeb' : 'rgba(255,255,255,0.14)'; ?>;
+            --text: <?php echo $theme === 'light' ? '#0f172a' : '#f4f7fb'; ?>;
+            --muted: <?php echo $theme === 'light' ? '#64748b' : 'rgba(255,255,255,0.42)'; ?>;
             --accent: <?php echo htmlspecialchars($accent, ENT_QUOTES, 'UTF-8'); ?>;
-            --accent-muted: <?php echo $theme === 'light' ? 'rgba(37,99,235,0.1)' : 'rgba(59,130,246,0.14)'; ?>;
+            --accent-muted: <?php echo $theme === 'light' ? 'rgba(37,99,235,0.1)' : 'rgba(' . intval(substr($accent,1,2),16) . ',' . intval(substr($accent,3,2),16) . ',' . intval(substr($accent,5,2),16) . ',0.14)'; ?>;
             --danger: #f87171;
             --danger-bg: rgba(248, 113, 113, 0.12);
             --ok: #4ade80;
             --ok-bg: rgba(74, 222, 128, 0.12);
             --warn: #fbbf24;
             --warn-bg: rgba(251, 191, 36, 0.12);
-            --scroll-track: <?php echo $theme === 'light' ? '#e6ebf3' : '#222222'; ?>;
-            --scroll-thumb: <?php echo $theme === 'light' ? '#aeb9c9' : '#4a4a4a'; ?>;
-            --scroll-thumb-hover: <?php echo $theme === 'light' ? '#8794a8' : '#696969'; ?>;
+            --scroll-track: <?php echo $theme === 'light' ? '#e6ebf3' : 'rgba(255,255,255,0.04)'; ?>;
+            --scroll-thumb: <?php echo $theme === 'light' ? '#aeb9c9' : 'rgba(255,255,255,0.22)'; ?>;
+            --scroll-thumb-hover: <?php echo $theme === 'light' ? '#8794a8' : 'rgba(255,255,255,0.35)'; ?>;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
         body {

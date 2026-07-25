@@ -497,6 +497,27 @@ function apCreateNotification(AppDatabase $db, string $userEmail, string $appId,
     }
     return (int)$db->lastInsertRowID();
 }
+function apNotificationAppMinRole(string $appId, array $appAccessLevels): int {
+    $appId = trim($appId);
+    if ($appId === '') return 1;
+    if (array_key_exists($appId, $appAccessLevels)) {
+        return max(0, min(2, (int)$appAccessLevels[$appId]));
+    }
+    return 2;
+}
+function apNotificationVisibleTo(array $row, string $userEmail, int $userRole, array $appAccessLevels): bool {
+    $owner = (string)($row['user_email'] ?? '');
+    $appId = trim((string)($row['app_id'] ?? ''));
+    $eventType = trim((string)($row['event_type'] ?? ''));
+    if ($userRole >= 2) return true;
+    if ($eventType === 'registration_pending' || $appId === 'registration') return false;
+    if (in_array($appId, ['server','system','logs','docker','backup'], true) || str_starts_with($eventType, 'server_')) {
+        return $userRole >= 1;
+    }
+    if ($owner !== '' && strcasecmp($owner, $userEmail) !== 0) return false;
+    if ($appId === '') return $owner !== '' ? $userRole >= 1 : false;
+    return $userRole >= apNotificationAppMinRole($appId, $appAccessLevels);
+}
 
 // ── AI Config API ─────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'cloud_ai_config') {
@@ -813,6 +834,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
     $db = getDB();
     ensureNotificationsSchema($db);
     $userEmail = (string)$_SESSION['user']['email'];
+    $userRole = (int)($_SESSION['user']['role'] ?? 0);
+    $appAccessLevels = loadAppAccessLevels();
     $input = json_decode((string)file_get_contents('php://input'), true);
     if (!is_array($input)) $input = $_POST;
     $action = (string)($input['action'] ?? $_GET['action'] ?? '');
@@ -823,10 +846,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
         $limit = max(1, min(100, (int)($_GET['limit'] ?? $input['limit'] ?? 30)));
         $stmt = $db->prepare("SELECT id,user_email,app_id,severity,title,message,event_type,is_read,created_at FROM app_notifications WHERE user_email = '' OR user_email = :u ORDER BY created_at DESC, id DESC LIMIT :l");
         $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':l', $limit, SQLITE3_INTEGER);
+        $stmt->bindValue(':l', $userRole >= 2 ? $limit : max($limit * 20, 500), SQLITE3_INTEGER);
         $res = $stmt->execute();
         $items = [];
         while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            if (!apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) continue;
             $items[] = [
                 'id' => (int)$row['id'],
                 'app_id' => (string)$row['app_id'],
@@ -837,25 +861,47 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
                 'is_read' => (int)$row['is_read'],
                 'created_at' => (int)$row['created_at'],
             ];
+            if (count($items) >= $limit) break;
         }
-        $cnt = $db->prepare("SELECT COUNT(*) AS c FROM app_notifications WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
+        $cnt = $db->prepare("SELECT id,user_email,app_id,event_type FROM app_notifications WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
         $cnt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $countRow = $cnt->execute()->fetchArray(SQLITE3_ASSOC);
-        json_out(['ok' => true, 'items' => $items, 'unread' => (int)($countRow['c'] ?? 0)]);
+        $cntRes = $cnt->execute();
+        $unread = 0;
+        while ($row = $cntRes->fetchArray(SQLITE3_ASSOC)) {
+            if (apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) $unread++;
+        }
+        json_out(['ok' => true, 'items' => $items, 'unread' => $unread]);
     }
     if ($action === 'mark_read') {
         $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
         if ($id > 0) {
-            $stmt = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE id = :id AND (user_email = '' OR user_email = :u)");
+            $check = $db->prepare("SELECT id,user_email,app_id,event_type FROM app_notifications WHERE id = :id AND (user_email = '' OR user_email = :u) LIMIT 1");
+            $check->bindValue(':id', $id, SQLITE3_INTEGER);
+            $check->bindValue(':u', $userEmail, SQLITE3_TEXT);
+            $row = $check->execute()->fetchArray(SQLITE3_ASSOC);
+            if (!$row || !apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) {
+                json_out(['ok' => true]);
+            }
+            $stmt = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE id = :id");
             $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
-            $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
             $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
             $stmt->execute();
         } else {
-            $stmt = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
+            $stmt = $db->prepare("SELECT id,user_email,app_id,event_type FROM app_notifications WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
             $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
-            $stmt->execute();
+            $res = $stmt->execute();
+            $ids = [];
+            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+                if (apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) $ids[] = (int)$row['id'];
+            }
+            if ($ids) {
+                $upd = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE id = :id");
+                foreach ($ids as $visibleId) {
+                    $upd->bindValue(':id', $visibleId, SQLITE3_INTEGER);
+                    $upd->bindValue(':t', time(), SQLITE3_INTEGER);
+                    $upd->execute();
+                }
+            }
         }
         json_out(['ok' => true]);
     }
@@ -1572,6 +1618,11 @@ $defaultTranslations['ap_geo_access_hint'] = 'Requests from selected countries a
 $defaultTranslations['shortcut_arrows'] = 'Move between app tiles';
 $defaultTranslations['shortcut_enter'] = 'Open selected app';
 $defaultTranslations['account_delete_warning'] = 'To completely delete your account data, please contact support.';
+$defaultTranslations['reset_to_default'] = 'Reset to default';
+$defaultTranslations['photo_reset_to_default'] = 'Photo reset to default successfully';
+$defaultTranslations['photo_too_large_or_empty'] = 'Photo too large or empty';
+$defaultTranslations['unsupported_image_type'] = 'Unsupported image type';
+$defaultTranslations['photo_upload_failed'] = 'Failed to upload photo';
 $defaultTranslations['share_expiration'] = 'Expiration';
 $defaultTranslations['share_expiration_never'] = 'Never';
 $defaultTranslations['share_expiration_1h'] = '1 hour';
@@ -1657,6 +1708,10 @@ $defaultTranslations['weather_weekday_3'] = 'Wednesday';
 $defaultTranslations['weather_weekday_4'] = 'Thursday';
 $defaultTranslations['weather_weekday_5'] = 'Friday';
 $defaultTranslations['weather_weekday_6'] = 'Saturday';
+$defaultTranslations['weather_wind_chart_title'] = 'Wind speed';
+$defaultTranslations['weather_wind_chart_btn'] = 'Show wind chart';
+$defaultTranslations['weather_wind_chart_back'] = 'Back to forecast';
+$defaultTranslations['weather_wind_speed_unit'] = 'km/h';
 $language = ap_i18n_lang_exists($config['language']) ? $config['language'] : 'en';
 $translations = ap_merge_i18n($defaultTranslations, $language);
 

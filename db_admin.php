@@ -1072,7 +1072,7 @@ $rgb = hexToRgb($color);
 $isDark = $theme === 'dark';
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($lang) ?>" style="background:<?= $isDark ? '#333' : '#f8f9fc' ?>">
+<html lang="<?= htmlspecialchars($lang) ?>" style="background:<?= $isDark ? '#0f1419' : '#f8f9fc' ?>">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
@@ -1099,16 +1099,16 @@ $isDark = $theme === 'dark';
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
 <style>
 :root {
-  --bg:        <?= $isDark ? '#333333' : '#f8f9fc' ?>;
-  --bg2:       <?= $isDark ? '#444444' : '#ffffff' ?>;
-  --bg3:       <?= $isDark ? '#555555' : '#f0f2f8' ?>;
+  --bg:        <?= $isDark ? '#0f1419' : '#f8f9fc' ?>;
+  --bg2:       <?= $isDark ? 'rgba(18,24,32,0.8)' : '#ffffff' ?>;
+  --bg3:       <?= $isDark ? 'rgba(255,255,255,0.10)' : '#f0f2f8' ?>;
 
-  --border:    <?= $isDark ? '#666666' : '#dde1ed' ?>;
-  --border2:   <?= $isDark ? '#777777' : '#c5cce0' ?>;
+  --border:    <?= $isDark ? 'rgba(255,255,255,0.14)' : '#dde1ed' ?>;
+  --border2:   <?= $isDark ? 'rgba(255,255,255,0.22)' : '#c5cce0' ?>;
 
-  --text:      <?= $isDark ? '#ffffff' : '#1a1f36' ?>;
-  --text-dim:  <?= $isDark ? '#dddddd' : '#5a6282' ?>;
-  --text-muted:<?= $isDark ? '#bbbbbb' : '#9aa3be' ?>;
+  --text:      <?= $isDark ? '#f4f7fb' : '#1a1f36' ?>;
+  --text-dim:  <?= $isDark ? 'rgba(255,255,255,0.65)' : '#5a6282' ?>;
+  --text-muted:<?= $isDark ? 'rgba(255,255,255,0.42)' : '#9aa3be' ?>;
 
   --accent:    <?= $color ?>;
   --accent-r:  <?= $rgb['r'] ?>;
@@ -1635,7 +1635,7 @@ body.embed-mode table{font-size:11px}
 body.embed-mode thead th,body.embed-mode tbody td{padding:6px 8px}
 </style>
 </head>
-<body style="background:<?= $isDark ? '#333' : '#f8f9fc' ?>" class="<?= $embedMode ? 'embed-mode' : '' ?>">
+<body style="background:<?= $isDark ? '#0f1419' : '#f8f9fc' ?>" class="<?= $embedMode ? 'embed-mode' : '' ?>">
 <div id="app">
 
 <div id="topbar">
@@ -2143,8 +2143,7 @@ function initSQLEditor() {
   const textarea = document.getElementById('sql-editor');
   if (!textarea) return;
   
-  const isDarkTheme = document.documentElement.style.getPropertyValue('--bg') === '#333' || 
-                      document.documentElement.style.getPropertyValue('--bg') === '#333333';
+  const isDarkTheme = document.documentElement.style.getPropertyValue('--bg') === '#0f1419';
   
   sqlEditor = CodeMirror.fromTextArea(textarea, {
     mode: 'text/x-sql',
@@ -2216,14 +2215,14 @@ function applyTheme(theme, color) {
   const isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
   const r = parseInt(color.slice(1,3),16), g = parseInt(color.slice(3,5),16), b = parseInt(color.slice(5,7),16);
   const root = document.documentElement;
-  root.style.setProperty('--bg',         isDark ? '#333' : '#f8f9fc');
-  root.style.setProperty('--bg2',        isDark ? '#1e1e1e' : '#ffffff');
-  root.style.setProperty('--bg3',        isDark ? '#252525' : '#f0f2f8');
-  root.style.setProperty('--border',     isDark ? '#333333' : '#dde1ed');
-  root.style.setProperty('--border2',    isDark ? '#444444' : '#c5cce0');
-  root.style.setProperty('--text',       isDark ? '#e0e0e0' : '#1a1f36');
-  root.style.setProperty('--text-dim',   isDark ? '#b0b0b0' : '#5a6282');
-  root.style.setProperty('--text-muted', isDark ? '#808080' : '#9aa3be');
+  root.style.setProperty('--bg',         isDark ? '#0f1419' : '#f8f9fc');
+  root.style.setProperty('--bg2',        isDark ? 'rgba(18,24,32,0.8)' : '#ffffff');
+  root.style.setProperty('--bg3',        isDark ? 'rgba(255,255,255,0.10)' : '#f0f2f8');
+  root.style.setProperty('--border',     isDark ? 'rgba(255,255,255,0.14)' : '#dde1ed');
+  root.style.setProperty('--border2',    isDark ? 'rgba(255,255,255,0.22)' : '#c5cce0');
+  root.style.setProperty('--text',       isDark ? '#f4f7fb' : '#1a1f36');
+  root.style.setProperty('--text-dim',   isDark ? 'rgba(255,255,255,0.65)' : '#5a6282');
+  root.style.setProperty('--text-muted', isDark ? 'rgba(255,255,255,0.42)' : '#9aa3be');
   root.style.setProperty('--accent',     color);
   root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.12)`);
   root.style.setProperty('--accent-mid', `rgba(${r},${g},${b},0.25)`);

@@ -583,15 +583,15 @@ if (isset($_GET['proxy'])) {
     --red-dim:      rgba(220, 53, 69, 0.15);
     --amber:        #ffc107;
     --amber-dim:    rgba(255, 193, 7, 0.15);
-    --bg-base:      #454446;
-    --bg-raised:    #333333;
-    --bg-overlay:   #444442;
-    --bg-hover:     #555555;
-    --border:       #5A5A5A;
-    --border-lit:   #6B6B6B;
-    --text-primary:   #E0E0E0;
-    --text-secondary: #A0A0A0;
-    --text-muted:     #8A8A8A;
+    --bg-base:      #0f1419;
+    --bg-raised:    rgba(18,24,32,0.8);
+    --bg-overlay:   rgba(255,255,255,0.10);
+    --bg-hover:     rgba(255,255,255,0.12);
+    --border:       rgba(255,255,255,0.14);
+    --border-lit:   rgba(255,255,255,0.22);
+    --text-primary:   #f4f7fb;
+    --text-secondary: rgba(255,255,255,0.65);
+    --text-muted:     rgba(255,255,255,0.42);
 }
 [data-theme="light"] {
     --accent:       #6b6f78;

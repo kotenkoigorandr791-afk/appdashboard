@@ -179,18 +179,18 @@ if (is_dir($docsDir)) {
         }
 
         [data-theme="dark"] {
-            --bg-base:      #454446;
-            --bg-raised:    #333333;
-            --bg-overlay:   #444442;
-            --bg-hover:     #555555;
-            --border:       #5A5A5A;
-            --border-lit:   #6B6B6B;
-            --text-primary:   #E0E0E0;
-            --text-secondary: #A0A0A0;
-            --text-muted:     #8A8A8A;
-            --code-bg: #2a2a2a;
-            --table-border: #5A5A5A;
-            --table-header-bg: #3a3a3a;
+            --bg-base:      #0f1419;
+            --bg-raised:    rgba(18,24,32,0.8);
+            --bg-overlay:   rgba(255,255,255,0.10);
+            --bg-hover:     rgba(255,255,255,0.12);
+            --border:       rgba(255,255,255,0.14);
+            --border-lit:   rgba(255,255,255,0.22);
+            --text-primary:   #f4f7fb;
+            --text-secondary: rgba(255,255,255,0.65);
+            --text-muted:     rgba(255,255,255,0.42);
+            --code-bg: rgba(18,24,32,0.9);
+            --table-border: rgba(255,255,255,0.14);
+            --table-header-bg: rgba(255,255,255,0.08);
         }
 
         [data-theme="light"] {
