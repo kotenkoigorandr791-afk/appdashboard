@@ -305,6 +305,8 @@
     "google_client_secret": "Google Client Secret",
     "github_client_id": "GitHub Client ID",
     "github_client_secret": "GitHub Client Secret",
+    "github_client_id_hint": "GitHub → Settings → Developer settings → GitHub Apps (Iv23...) или OAuth Apps (Iv1.xxxxx). Укажите Client ID, не числовой App ID.",
+    "github_client_id_invalid": "Неверный GitHub Client ID. Укажите Client ID из GitHub App (Iv23...) или OAuth App (Iv1.xxxxx), а не числовой App ID.",
     "oauth_callback_hint": "OAuth callback URL",
     "oauth_user_not_found": "Этот аккаунт ещё не зарегистрирован. Установите пароль для завершения регистрации.",
     "oauth_auth_failed": "Ошибка аутентификации",

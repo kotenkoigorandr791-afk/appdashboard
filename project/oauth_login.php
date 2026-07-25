@@ -4,6 +4,14 @@ function oauthSupportedProviders(): array {
     return ['google', 'github'];
 }
 
+function oauthGitHubClientIdValid(string $clientId): bool {
+    $clientId = trim($clientId);
+    if ($clientId === '') {
+        return false;
+    }
+    return (bool)preg_match('/^(Iv1\\.|Iv23[a-zA-Z0-9_]+|Ov23[a-zA-Z0-9_]+)/', $clientId);
+}
+
 function oauthNormalizeProvider(string $provider): string {
     $provider = strtolower(trim($provider));
     if (!in_array($provider, oauthSupportedProviders(), true)) {
@@ -65,12 +73,18 @@ function oauthStartUrl(string $provider, string $mode = 'login'): string {
     if ($clientId === '') {
         throw new RuntimeException('GitHub OAuth is not configured');
     }
+    if (!oauthGitHubClientIdValid($clientId)) {
+        global $translations;
+        throw new RuntimeException($translations['github_client_id_invalid'] ?? 'Invalid GitHub Client ID. Use Client ID from GitHub App (Iv23...) or OAuth App (Iv1.xxxxx), not the numeric App ID.');
+    }
     $params = [
         'client_id' => $clientId,
         'redirect_uri' => $redirectUri,
-        'scope' => 'read:user user:email',
         'state' => $state,
     ];
+    if (str_starts_with($clientId, 'Iv1.')) {
+        $params['scope'] = 'read:user user:email';
+    }
     return 'https://github.com/login/oauth/authorize?' . http_build_query($params);
 }
 
@@ -322,8 +336,9 @@ function oauthProviderConfigured(string $provider): bool {
         return trim((string)($authConfig['google_client_id'] ?? '')) !== ''
             && trim((string)($authConfig['google_client_secret'] ?? '')) !== '';
     }
-    return trim((string)($authConfig['github_client_id'] ?? '')) !== ''
-        && trim((string)($authConfig['github_client_secret'] ?? '')) !== '';
+    $clientId = trim((string)($authConfig['github_client_id'] ?? ''));
+    $clientSecret = trim((string)($authConfig['github_client_secret'] ?? ''));
+    return $clientId !== '' && $clientSecret !== '' && oauthGitHubClientIdValid($clientId);
 }
 
 function oauthProviderLabel(string $provider): string {
