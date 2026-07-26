@@ -113,7 +113,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
 
     if(isset($_POST['login'])){
-        $email=$_POST['email']??'';
+        $email=apNormalizeAuthEmail($_POST['email']??'');
         $password=$_POST['password']??'';
         $clientIp=trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]);
         $loginLockedSec=getIpLockoutSeconds($clientIp,'login');
@@ -545,7 +545,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $users=loadUsers();
         if(isset($_FILES['photo'])&&$_FILES['photo']['error']===UPLOAD_ERR_OK){
             $uploadDir=APP_ROOT.'/uploads/avatars/';
-            if(!is_dir($uploadDir)){@mkdir($uploadDir,0755,true);}
+            if(!apSecEnsureWritableDir($uploadDir)){
+                if((string)getenv('APP_DEBUG')==='1'){ error_log('Avatar upload directory is not writable: '.$uploadDir); }
+                $profileError=$translations['photo_upload_failed'] ?? 'Failed to upload photo';
+            }else{
             $tmp=(string)$_FILES['photo']['tmp_name'];
             $size=(int)($_FILES['photo']['size'] ?? 0);
             $allowedExt=['jpg','jpeg','png','gif','webp'];
@@ -589,6 +592,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $profileError=$translations['photo_upload_failed'] ?? 'Failed to upload photo';
                     }
                 }
+            }
             }
         }
     }

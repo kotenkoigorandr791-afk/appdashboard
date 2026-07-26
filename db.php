@@ -956,11 +956,9 @@ function loadUsers(): array {
         $users[$email] = $row;
     }
     // Ensure root@root always exists
-    if (!isset($users['root@root'])) {
+    if (!isset($users['root@root']) || userNeedsPasswordSet($users['root@root'])) {
         $rootPw = password_hash('root', PASSWORD_DEFAULT);
-        $db->exec("INSERT OR IGNORE INTO users(email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style)
-                   VALUES('root@root','Root Administrator','$rootPw','default_avatar.png',2,1,'en','light','#007bff','alpha','animated')");
-        $users['root@root'] = [
+        upsertUser('root@root', [
             'email'      => 'root@root',
             'name'       => 'Root Administrator',
             'password'   => $rootPw,
@@ -973,7 +971,8 @@ function loadUsers(): array {
             'icon_sort_order' => 'alpha',
             'icon_style' => 'animated',
             'created_at' => date('Y-m-d H:i:s'),
-        ];
+        ]);
+        $users['root@root'] = getUserByEmail('root@root') ?? [];
     }
     // Always keep root@root as admin
     $users['root@root']['role']     = 2;

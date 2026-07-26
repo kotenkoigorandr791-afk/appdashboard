@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
-    <link rel="icon" href="icon.png" type="image/png">
+    <link rel="icon" href="/project/icon.png" type="image/png">
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
     <?php if($path==='/main' && !$showLogin): ?>
@@ -533,9 +533,6 @@
         .notification-close{background:none;border:none;color:var(--text-color);cursor:pointer;opacity:0.4;padding:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;font-size:16px;}
         .notification-close:hover{opacity:0.8;background:rgba(128,128,128,0.15);}
         .notification-countdown{position:absolute;bottom:0;left:0;height:3px;background:var(--primary-color);border-radius:0 0 0 8px;transition:width 1s linear;}
-        .notification-copy{background:none;border:none;cursor:pointer;opacity:0.8;padding:0 4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;}
-        .notification-copy:hover{opacity:1;background:rgba(128,128,128,0.15);}
-        .notification-copy svg{width:16px;height:16px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
         #shared-files-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shared-files-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:80vh;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;box-sizing:border-box;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #close-shared-files{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -579,11 +576,11 @@
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;overflow:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
-        .settings-button-wrapper{position:relative;overflow:visible;}
-        .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;display:none;pointer-events:none;z-index:99999;}
-        .settings-button-wrapper:hover .tooltip{display:none;}/* JS handles positioning */
-        .settings-buttons-end-group{display:flex;align-items:stretch;gap:15px;margin-left:auto;flex-wrap:wrap;}
+        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:nowrap;min-width:fit-content;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+        .settings-button-wrapper{position:relative;overflow:visible;flex-shrink:0;}
+        .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;pointer-events:none;z-index:2147483647;}
+        body>.tooltip{background:var(--group-block-bg);color:var(--text-color);padding:6px 12px;border-radius:8px;font-size:13px;border:1px solid var(--border-color);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3);pointer-events:none;}
+        .settings-buttons-end-group{display:flex;align-items:stretch;gap:15px;margin-left:auto;flex-wrap:nowrap;}
         .settings-buttons-divider{width:1px;align-self:stretch;min-height:34px;background:var(--border-color);opacity:.75;flex:0 0 1px;}
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
@@ -835,25 +832,27 @@
                 position: absolute;
                 text-overflow: ellipsis;
                 transform: translateX(-50%);
-                transition: opacity .18s ease, visibility .18s ease;
             }
             #top-bar-title {
                 margin-left: 0;
                 white-space: nowrap;
+                opacity: 1;
+                transition: opacity .6s ease;
             }
             #weatherWidget {
                 justify-content: center;
                 margin: 0;
-                visibility: hidden;
                 opacity: 0;
+                pointer-events: none;
+                transition: opacity .6s ease;
             }
             #top-bar.mobile-info-show-weather #top-bar-title {
-                visibility: hidden;
                 opacity: 0;
+                pointer-events: none;
             }
             #top-bar.mobile-info-show-weather #weatherWidget {
-                visibility: visible;
                 opacity: 1;
+                pointer-events: auto;
             }
             .weather-widget .weather-wind {
                 display: none;
@@ -3189,11 +3188,12 @@ var T=<?php echo json_encode([
             });
         }
 
-        // Settings box tooltips — use JS-positioned fixed tooltips to avoid scrollbar/clipping
+        // Settings box tooltips — move to body to escape backdrop-filter stacking context
         document.querySelectorAll('.settings-button-wrapper').forEach(wrapper => {
             const tooltip = wrapper.querySelector('.tooltip');
             const btn = wrapper.querySelector('button');
             if(!tooltip || !btn) return;
+            document.body.appendChild(tooltip);
             btn.addEventListener('mouseenter', () => {
                 const rect = btn.getBoundingClientRect();
                 tooltip.style.display = 'block';
@@ -3201,7 +3201,7 @@ var T=<?php echo json_encode([
                 tooltip.style.left = (rect.left + rect.width/2) + 'px';
                 tooltip.style.top = (rect.top - 36) + 'px';
                 tooltip.style.transform = 'translateX(-50%)';
-                tooltip.style.zIndex = '99999';
+                tooltip.style.zIndex = '2147483647';
                 tooltip.style.pointerEvents = 'none';
                 tooltip.style.whiteSpace = 'nowrap';
             });
@@ -4275,12 +4275,6 @@ var T=<?php echo json_encode([
                     ${iconPath}
                 </svg>
                 <span class="notification-content">${message}</span>
-                <button class="notification-copy" title="Copy to clipboard">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                </button>
                 <button class="notification-close">&times;</button>
             `;
             document.body.appendChild(notification);
@@ -4288,14 +4282,6 @@ var T=<?php echo json_encode([
             closeBtn.addEventListener('click', () => {
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 250);
-            });
-            const copyBtn = notification.querySelector('.notification-copy');
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(message).then(() => {
-                    if (typeof showTempNotification === 'function') {
-                        showTempNotification('Copied!', 'success');
-                    }
-                }).catch(err => console.error('Failed to copy: ', err));
             });
             setTimeout(() => { notification.classList.add('show'); }, 50);
             setTimeout(() => {
@@ -4470,12 +4456,6 @@ var T=<?php echo json_encode([
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span class="notification-content">${T.new_device_notification}</span>
-                <button class="notification-copy" title="Copy to clipboard">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                </button>
                 <button class="add-trusted-device-btn" style="background:#4CAF50;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;white-space:nowrap;">${T.add_device_trusted}</button>
                 <button class="notification-close">&times;</button>
                 <div class="notification-countdown" style="width:100%;"></div>
@@ -4499,15 +4479,6 @@ var T=<?php echo json_encode([
                 clearInterval(countdownInterval);
                 modalObserver.disconnect();
                 setTimeout(() => notification.remove(), 250);
-            });
-
-            const copyBtn = notification.querySelector('.notification-copy');
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(T.new_device_notification).then(() => {
-                    if (typeof showTempNotification === 'function') {
-                        showTempNotification('Copied!', 'success');
-                    }
-                }).catch(err => console.error('Failed to copy: ', err));
             });
 
             const addBtn = notification.querySelector('.add-trusted-device-btn');

@@ -358,9 +358,6 @@
         .notification-close{background:none;border:none;color:var(--text-color);cursor:pointer;opacity:0.4;padding:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;font-size:16px;}
         .notification-close:hover{opacity:0.8;background:rgba(128,128,128,0.15);}
         .notification-countdown{position:absolute;bottom:0;left:0;height:3px;background:var(--primary-color);border-radius:0 0 0 8px;transition:width 1s linear;}
-        .notification-copy{background:none;border:none;cursor:pointer;opacity:0.8;padding:0 4px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;}
-        .notification-copy:hover{opacity:1;background:rgba(128,128,128,0.15);}
-        .notification-copy svg{width:16px;height:16px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
 
         #shared-files-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);justify-content:center;align-items:center;z-index:10000;}
         #shared-files-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;height:80vh;max-width:900px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;box-sizing:border-box;}
@@ -3778,12 +3775,6 @@ var T=<?php echo json_encode([
                     ${iconPath}
                 </svg>
                 <span class="notification-content">${message}</span>
-                <button class="notification-copy" title="Copy to clipboard">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                </button>
                 <button class="notification-close">&times;</button>
             `;
             document.body.appendChild(notification);
@@ -3792,15 +3783,6 @@ var T=<?php echo json_encode([
                 notification.classList.remove('show');
                 setTimeout(() => notification.remove(), 250);
             });
-            const copyBtn = notification.querySelector('.notification-copy');
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(message).then(() => {
-                    if (typeof showTempNotification === 'function') {
-                        showTempNotification('Copied!', 'success');
-                    }
-                }).catch(err => console.error('Failed to copy: ', err));
-            });
-
             setTimeout(() => { notification.classList.add('show'); }, 50);
             setTimeout(() => {
                 notification.classList.remove('show');
@@ -3844,12 +3826,6 @@ var T=<?php echo json_encode([
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span class="notification-content">${T.new_device_notification}</span>
-                <button class="notification-copy" title="Copy to clipboard">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                </button>
                 <button class="add-trusted-device-btn" style="background:#4CAF50;color:white;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-left:8px;white-space:nowrap;">${T.add_device_trusted}</button>
                 <button class="notification-close">&times;</button>
                 <div class="notification-countdown" style="width:100%;"></div>
@@ -3876,14 +3852,6 @@ var T=<?php echo json_encode([
             });
 
             const addBtn = notification.querySelector('.add-trusted-device-btn');
-            const copyBtn = notification.querySelector('.notification-copy');
-            copyBtn.addEventListener('click', () => {
-                navigator.clipboard.writeText(T.new_device_notification).then(() => {
-                    if (typeof showTempNotification === 'function') {
-                        showTempNotification('Copied!', 'success');
-                    }
-                }).catch(err => console.error('Failed to copy: ', err));
-            });
             addBtn.addEventListener('click', () => {
                 // Add this device as trusted
                 clearInterval(countdownInterval);

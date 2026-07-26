@@ -4,8 +4,11 @@ ob_start();
 $__APP_DEBUG = (string)getenv('APP_DEBUG') === '1';
 ini_set('display_errors', $__APP_DEBUG ? '1' : '0');
 ini_set('display_startup_errors', $__APP_DEBUG ? '1' : '0');
-ini_set('log_errors', '1');
-error_reporting(E_ALL);
+ini_set('log_errors', $__APP_DEBUG ? '1' : '0');
+if ($__APP_DEBUG) {
+    ini_set('error_log', 'php://stderr');
+}
+error_reporting($__APP_DEBUG ? E_ALL : 0);
 $__cookieSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
     || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
     || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
@@ -29,7 +32,9 @@ if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
     tgMiniRestoreSessionFromCookie();
 }
 require_once APP_ROOT . '/smart_log.php';
-smart_log_bootstrap('dashboard');
+if ($__APP_DEBUG) {
+    smart_log_bootstrap('dashboard');
+}
 if (!function_exists('apSecExpectedHosts')) {
     function apSecExpectedHosts(): array {
         $hosts = [];
@@ -106,6 +111,13 @@ if (!function_exists('apSecRandomFilename')) {
         $ext = preg_replace('/[^a-z0-9]/', '', strtolower($ext)) ?? 'bin';
         if ($ext === '') $ext = 'bin';
         return bin2hex(random_bytes(16)) . '.' . $ext;
+    }
+}
+if (!function_exists('apSecEnsureWritableDir')) {
+    function apSecEnsureWritableDir(string $dir): bool {
+        if (!is_dir($dir) && !@mkdir($dir, 0775, true)) return false;
+        @chmod($dir, 0775);
+        return is_dir($dir) && is_writable($dir);
     }
 }
 if (!function_exists('apSecDetectMimeFromFile')) {
@@ -199,10 +211,11 @@ if (!function_exists('apSecStoreSupportChatMedia')) {
     }
 }
 
-$__monitorRequestStart = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);
-$__monitorHandledErrors = [];
+if ($__APP_DEBUG) {
+    $__monitorRequestStart = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);
+    $__monitorHandledErrors = [];
 
-set_error_handler(function ($severity, $message, $file, $line) use (&$__monitorHandledErrors) {
+    set_error_handler(function ($severity, $message, $file, $line) use (&$__monitorHandledErrors) {
     if (!(error_reporting() & $severity)) {
         return false;
     }
@@ -211,9 +224,9 @@ set_error_handler(function ($severity, $message, $file, $line) use (&$__monitorH
     $__monitorHandledErrors[$hash] = true;
     monitorRecordError((string)$message, $level, (string)$file, (int)$line, ['severity' => $severity], (string)($_GET['app'] ?? 'main'));
     return false;
-});
+    });
 
-register_shutdown_function(function () use ($__monitorRequestStart, &$__monitorHandledErrors) {
+    register_shutdown_function(function () use ($__monitorRequestStart, &$__monitorHandledErrors) {
     $fatal = error_get_last();
     $appId = (string)($_GET['app'] ?? 'main');
     $errorMessage = '';
@@ -251,7 +264,8 @@ register_shutdown_function(function () use ($__monitorRequestStart, &$__monitorH
             ]
         ]);
     }
-});
+    });
+}
 
 if(isset($_SESSION['user'])&&isset($_SESSION['auth_time'])){
     $currentSession=getUserFromActiveSessions(session_id());
@@ -275,4 +289,3 @@ if(isset($_SESSION['user'])&&isset($_SESSION['auth_time'])){
         }
     }
 }
-
