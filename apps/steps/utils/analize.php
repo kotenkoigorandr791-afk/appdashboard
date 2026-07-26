@@ -750,10 +750,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['current_year'], $_POS
     $ff = analize_find_ffmpeg();
     $te = analize_find_tesseract();
     $td = analize_find_tessdata();
-    $usql = realpath(USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3');
-    if ($usql === false) {
-        $usql = USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3';
-    }
+    $email = get_current_user_email() ?: ('folder_' . basename(USER_DIR));
     $cfg = [
         'ocr_lang' => $selectedOcrLang,
         'current_year' => $year,
@@ -764,7 +761,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['current_year'], $_POS
         'tesseract_exe' => $te,
         'tessdata_dir' => $td,
         'user_results_dir' => str_replace(['/', '\\'], DIRECTORY_SEPARATOR, realpath(RESULTS_DIR) ?: RESULTS_DIR),
-        'user_sqlite_path' => str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $usql),
+        'user_email' => $email,
     ];
     file_put_contents($jobPath . '/job_config.json', json_encode($cfg, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     $state0 = [

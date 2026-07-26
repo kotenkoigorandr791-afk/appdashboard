@@ -17,7 +17,6 @@ if(!file_exists(JOB_ROOT)){mkdir(JOB_ROOT,0755,true);}
 function out($p,$c=200){http_response_code($c);header('Content-Type: application/json; charset=utf-8');echo json_encode($p,JSON_UNESCAPED_UNICODE);exit;}
 function currentUser(){$email=getCurrentUserFromActiveSessions();return $email?:'default_user';}
 function normalizedUserEmail($email){return ($email===''||$email==='default_user')?'guest@local':$email;}
-function userDbPath($email){$folder=getSafeFolderName($email);$dir=USERS_DIR.$folder;if(!file_exists($dir)){mkdir($dir,0755,true);}return $dir.'/data.sqlite3';}
 function userJobsDir($email){$dir=JOB_ROOT.'/'.getSafeFolderName($email);if(!file_exists($dir)){mkdir($dir,0755,true);}return $dir;}
 function rrmdir($dir){if(!is_dir($dir)){return;}foreach(scandir($dir) as $f){if($f==='.'||$f==='..'){continue;}$p=$dir.'/'.$f;if(is_dir($p)){rrmdir($p);}else{@unlink($p);}}@rmdir($dir);}
 function serverNotify($email,$severity,$title,$message,$eventType,$context=[]){try{app_notify($email,'spends',$severity,$title,$message,$eventType,$context);}catch(Throwable $e){}}

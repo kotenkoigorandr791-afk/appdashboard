@@ -112,6 +112,7 @@ function zeep_spawn_worker(string $jobPath): bool {
     $php = zeep_php_cli();
     $script = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'zeep_import_worker.php');
     if ($script === false || !is_file($script)) {
+        steps_import_log('error', 'zeep spawn: worker script missing path=' . __DIR__, __FILE__, __LINE__);
         return false;
     }
     $jobPath = realpath($jobPath) ?: $jobPath;
@@ -145,12 +146,24 @@ function zeep_spawn_worker(string $jobPath): bool {
     $rc = 1;
     @exec($cmd, $out, $rc);
     $pid = (int)trim((string)($out[0] ?? ''));
-    if ((int)$rc !== 0 || $pid <= 0) return false;
+    if ((int)$rc !== 0 || $pid <= 0) {
+        steps_import_log('error', 'zeep spawn: exec failed rc=' . $rc . ' pid=' . $pid . ' php=' . $php . ' job=' . basename($jobPath), __FILE__, __LINE__);
+        if (zeep_run_worker_now($jobPath)) return is_file($statePath);
+        return false;
+    }
     @file_put_contents($jobPath . DIRECTORY_SEPARATOR . 'worker.pid', (string)$pid);
     for ($i = 0; $i < 20; $i++) {
         if (is_file($statePath)) return true;
-        if (function_exists('posix_kill') && !@posix_kill($pid, 0)) return is_file($statePath);
+        if (function_exists('posix_kill') && !@posix_kill($pid, 0)) break;
         usleep(100000);
+    }
+    if (!is_file($statePath) && zeep_run_worker_now($jobPath)) {
+        steps_import_log('warning', 'zeep spawn: async worker timeout, sync fallback ok job=' . basename($jobPath), __FILE__, __LINE__);
+        return is_file($statePath);
+    }
+    if (!is_file($statePath)) {
+        $tail = is_file($log) ? trim(substr((string)@file_get_contents($log), -500)) : '';
+        steps_import_log('error', 'zeep spawn: no state.json job=' . basename($jobPath) . ' pid=' . $pid . ($tail !== '' ? ' log=' . $tail : ''), __FILE__, __LINE__);
     }
     return is_file($statePath);
 }
@@ -168,14 +181,8 @@ function zeep_run_worker_now(string $jobPath): bool {
 }
 function zeep_job_cfg(array $jobIdParts): array {
     $email = get_current_user_email() ?: ('folder_' . basename(ZEEP_USER_DIR));
-    $userSchema = app_user_schema_id('steps', $email);
-    $usql = realpath(ZEEP_USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3');
-    if ($usql === false) {
-        $usql = ZEEP_USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3';
-    }
     return array_merge([
-        'user_schema' => $userSchema,
-        'user_sqlite_path' => str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $usql),
+        'user_schema' => app_user_schema_id('steps', $email),
         'user_email' => $email,
     ], $jobIdParts);
 }
@@ -218,7 +225,7 @@ function zeep_refresh_state_from_file(AppDatabase $db, string $jobId, array $sta
     $fileTime = (int)@filemtime($jobPath . DIRECTORY_SEPARATOR . 'state.json');
     $status = (string)($state['status'] ?? '');
     $fileStatus = (string)($fileState['status'] ?? '');
-    if ($fileTime >= $updatedAt || in_array($status, zeep_active_statuses(), true) || $fileStatus !== '') {
+    if (steps_worker_should_sync_file_state($fileTime, $updatedAt, $status, $fileStatus, zeep_active_statuses())) {
         if (!isset($fileState['job_id']) || (string)$fileState['job_id'] === '') {
             $fileState['job_id'] = $jobId;
         }
@@ -235,15 +242,22 @@ function zeep_apply_parsed_job(AppDatabase $db, string $jobId, string $jobPath, 
         if ($conf > 0) {
             $next = array_merge($state, ['status' => 'awaiting_conflict', 'message' => 'conflict_prompt', 'progress' => 92.0, 'imported' => 0, 'total_days' => count($daySteps), 'conflict_days' => $conf, 'job_id' => $jobId]);
             zeep_job_save($db, $jobId, $next);
+            @file_put_contents($jobPath . '/state.json', json_encode($next, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             return ['ok' => true, 'state' => $next];
         }
         $mode = 'overwrite';
     }
     $nimp = steps_worker_import_app_db($db, $daySteps, $mode, true);
-    if ($nimp < 1) $nimp = count($daySteps);
     $next = ['status' => 'done', 'message' => 'ok', 'progress' => 100.0, 'imported' => $nimp, 'total_days' => count($daySteps), 'job_id' => $jobId];
     zeep_job_save($db, $jobId, $next);
+    @file_put_contents($jobPath . '/state.json', json_encode($next, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
     return ['ok' => true, 'state' => $next];
+}
+function zeep_api_fail(string $error, string $detail = ''): never {
+    $msg = 'zeep api error=' . $error . ($detail !== '' ? ' ' . $detail : '');
+    steps_import_log('error', $msg, __FILE__, __LINE__);
+    echo json_encode(['ok' => false, 'error' => $error]);
+    exit;
 }
 function zeep_active_statuses(): array {
     return ['running', 'awaiting_confirm', 'awaiting_conflict'];
@@ -396,8 +410,7 @@ if ($action === 'preview' && isset($_GET['job'])) {
     $st = zeep_refresh_state_from_file($db, $jid, $st, (int)($zt['updated_at'] ?? 0));
     $statusNow = (string)($st['status'] ?? '');
     if (!in_array($statusNow, ['awaiting_confirm', 'awaiting_conflict'], true)) {
-        echo json_encode(['ok' => false, 'error' => 'state']);
-        exit;
+        zeep_api_fail('state', 'preview job=' . $jid . ' status=' . $statusNow);
     }
     $jobPath = ZEEP_JOBS_DIR . $jid;
     echo json_encode(['ok' => true, 'rows' => zeep_load_parsed_rows($jobPath)]);
@@ -470,8 +483,7 @@ if ($action === 'resolve_conflict' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'PO
         exit;
     }
     if (($st['status'] ?? '') !== 'awaiting_conflict') {
-        echo json_encode(['ok' => false, 'error' => 'state']);
-        exit;
+        zeep_api_fail('state', 'resolve_conflict job=' . $jid . ' status=' . (string)($st['status'] ?? ''));
     }
     $jobPath = ZEEP_JOBS_DIR . $jid;
     $cfgPath = $jobPath . '/job_config.json';
@@ -511,8 +523,7 @@ if ($action === 'confirm_zeep' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')
     $st = zeep_refresh_state_from_file($db, $jid, $st, (int)($zt['updated_at'] ?? 0));
     $statusNow = (string)($st['status'] ?? '');
     if (!in_array($statusNow, ['awaiting_confirm', 'awaiting_conflict'], true)) {
-        echo json_encode(['ok' => false, 'error' => 'state']);
-        exit;
+        zeep_api_fail('state', 'confirm job=' . $jid . ' status=' . $statusNow);
     }
     if ($statusNow === 'awaiting_conflict' && !isset($_POST['rows'])) {
         echo json_encode(['ok' => true, 'job_id' => $jid]);
@@ -654,6 +665,7 @@ if (!$okW) {
         zeep_job_save($db, $jobId, array_merge($state0, ['status' => 'error', 'message' => 'worker not started']));
     } catch (Exception $e) {
     }
+    steps_import_log('error', 'zeep upload: worker not started job=' . $jobId . ' email=' . (string)($cfg['user_email'] ?? ''), __FILE__, __LINE__);
     echo json_encode(['ok' => false, 'error' => 'worker', 'job_id' => $jobId]);
     exit;
 }

@@ -1,5 +1,79 @@
 <?php
 declare(strict_types=1);
+function steps_import_log(string $level, string $message, string $sourceFile = '', ?int $sourceLine = null): void {
+    static $booted = false;
+    if (!$booted) {
+        $__d = __DIR__;
+        for ($__n = 0; $__n < 16; $__n++) {
+            if (is_file($__d . '/smart_log_boot.php')) {
+                require_once $__d . '/smart_log_boot.php';
+                break;
+            }
+            $__p = dirname($__d);
+            if ($__p === $__d) break;
+            $__d = $__p;
+        }
+        $booted = true;
+    }
+    if (function_exists('smart_log_write')) {
+        smart_log_write('steps', $level, $message, $sourceFile, $sourceLine);
+        return;
+    }
+    error_log('[steps] ' . $message);
+}
+function steps_worker_cfg_email(array $cfg): string {
+    $email = trim((string)($cfg['user_email'] ?? ''));
+    if ($email !== '') return $email;
+    $sqlitePath = trim((string)($cfg['user_sqlite_path'] ?? ''));
+    if ($sqlitePath !== '') {
+        $folder = basename(dirname(str_replace('\\', '/', $sqlitePath)));
+        if ($folder !== '' && $folder !== 'users') return 'folder_' . $folder;
+    }
+    return '';
+}
+function steps_worker_should_sync_file_state(int $fileTime, int $updatedAt, string $pgStatus, string $fileStatus, array $activeStatuses): bool {
+    if ($fileTime >= $updatedAt) return true;
+    if (!in_array($pgStatus, $activeStatuses, true)) return false;
+    if ($fileStatus === '' || $fileStatus === $pgStatus) return false;
+    return in_array($fileStatus, ['awaiting_confirm', 'awaiting_conflict', 'done', 'error', 'cancelled'], true);
+}
+function steps_worker_connect_db(array $cfg): ?AppDatabase {
+    $email = steps_worker_cfg_email($cfg);
+    if ($email === '') {
+        steps_import_log('error', 'steps worker: missing user_email in job config', __FILE__, __LINE__);
+        return null;
+    }
+    static $booted = false;
+    if (!$booted) {
+        require_once __DIR__ . '/../../../lib/pgsql_compat.php';
+        require_once __DIR__ . '/../../../lib/user_schema_pg.php';
+        $booted = true;
+    }
+    try {
+        $db = app_user_db_connect('steps', $email);
+        require_once __DIR__ . '/../video_job_sqlite.php';
+        video_job_ensure_schema($db);
+        require_once __DIR__ . '/google_fit_takeout/fit_takeout_state.php';
+        fit_takeout_ensure_schema($db);
+        require_once __DIR__ . '/zeep_life/zeep_state.php';
+        zeep_job_ensure_schema($db);
+        return $db;
+    } catch (Throwable $e) {
+        steps_import_log('error', 'steps worker db connect failed email=' . $email . ' err=' . $e->getMessage(), __FILE__, __LINE__);
+        return null;
+    }
+}
+function steps_worker_save_job_state(array $cfg, string $table, string $jobId, array $state): void {
+    $db = steps_worker_connect_db($cfg);
+    if (!$db) return;
+    if ($table === 'zeep_job_state') {
+        zeep_job_save($db, $jobId, $state);
+        return;
+    }
+    if ($table === 'fit_takeout_job_state') {
+        fit_takeout_save($db, $jobId, $state);
+    }
+}
 function steps_worker_json_read(string $path): array {
     $raw = @file_get_contents($path);
     $obj = is_string($raw) ? json_decode($raw, true) : null;
@@ -30,29 +104,15 @@ function steps_worker_write_state(string $jobDir, array $cfg, string $jobId, str
     if (!isset($state['job_id']) || (string)$state['job_id'] === '') $state['job_id'] = $jobId;
     $payload = json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     @file_put_contents($jobDir . DIRECTORY_SEPARATOR . 'state.json', $payload);
-    $dbPath = trim((string)($cfg['user_sqlite_path'] ?? ''));
-    if ($dbPath === '' || !is_file($dbPath)) return;
     for ($attempt = 0; $attempt < 30; $attempt++) {
         try {
-            $db = new SQLite3($dbPath);
-            $db->busyTimeout(30000);
-            $db->exec("CREATE TABLE IF NOT EXISTS {$table} (id INTEGER PRIMARY KEY CHECK (id = 1), job_id TEXT NOT NULL DEFAULT '', state_json TEXT NOT NULL DEFAULT '{}', updated_at INTEGER NOT NULL DEFAULT 0)");
-            $db->exec("INSERT OR IGNORE INTO {$table} (id, job_id, state_json, updated_at) VALUES (1, '', '{}', 0)");
-            $stmt = $db->prepare("INSERT INTO {$table} (id, job_id, state_json, updated_at) VALUES (1, :jid, :js, :ts) ON CONFLICT(id) DO UPDATE SET job_id = :jid2, state_json = :js2, updated_at = :ts2");
-            $stmt->bindValue(':jid', $jobId, SQLITE3_TEXT);
-            $stmt->bindValue(':js', $payload, SQLITE3_TEXT);
-            $stmt->bindValue(':ts', time(), SQLITE3_INTEGER);
-            $stmt->bindValue(':jid2', $jobId, SQLITE3_TEXT);
-            $stmt->bindValue(':js2', $payload, SQLITE3_TEXT);
-            $stmt->bindValue(':ts2', time(), SQLITE3_INTEGER);
-            $stmt->execute();
-            $db->close();
+            steps_worker_save_job_state($cfg, $table, $jobId, $state);
             return;
         } catch (Throwable $e) {
-            if (isset($db) && $db instanceof SQLite3) @$db->close();
             usleep(50000 * min($attempt + 1, 10));
         }
     }
+    steps_import_log('error', 'steps worker: failed to save job state table=' . $table . ' job=' . $jobId . ' status=' . (string)($state['status'] ?? ''), __FILE__, __LINE__);
 }
 function steps_worker_find_7z(): string {
     static $memo = null;
@@ -186,73 +246,84 @@ function steps_worker_save_snapshot(string $path, array $rows): void {
     @file_put_contents($path, json_encode($rows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
 function steps_worker_conflicts(array $cfg, array $daySteps): int {
-    $dbPath = trim((string)($cfg['user_sqlite_path'] ?? ''));
-    if ($dbPath === '' || !is_file($dbPath) || !$daySteps) return 0;
-    $days = array_keys($daySteps);
-    sort($days);
+    if (!$daySteps) return 0;
     for ($attempt = 0; $attempt < 20; $attempt++) {
         try {
-            $db = new SQLite3($dbPath);
-            $db->busyTimeout(30000);
-            $ph = implode(',', array_fill(0, count($days), '?'));
-            $stmt = $db->prepare("SELECT date, steps FROM steps WHERE date IN ({$ph})");
-            foreach ($days as $i => $day) $stmt->bindValue($i + 1, $day, SQLITE3_TEXT);
-            $res = $stmt->execute();
-            $n = 0;
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-                $d = (string)$row['date'];
-                if (isset($daySteps[$d]) && (int)$row['steps'] !== (int)$daySteps[$d]) $n++;
-            }
-            $db->close();
-            return $n;
+            $db = steps_worker_connect_db($cfg);
+            if (!$db) return 0;
+            return steps_worker_conflicts_app_db($db, $daySteps);
         } catch (Throwable $e) {
-            if (isset($db) && $db instanceof SQLite3) @$db->close();
             usleep(50000 * min($attempt + 1, 10));
         }
     }
     return 0;
 }
 function steps_worker_import(array $cfg, array $daySteps, string $mode, bool $allowZero = false): int {
-    $dbPath = trim((string)($cfg['user_sqlite_path'] ?? ''));
-    if ($dbPath === '' || !$daySteps) return 0;
-    ksort($daySteps);
+    if (!$daySteps) return 0;
     for ($attempt = 0; $attempt < 30; $attempt++) {
         try {
-            $db = new SQLite3($dbPath);
-            $db->busyTimeout(30000);
-            $sql = ($mode === 'keep' || $mode === 'new_only') ? 'INSERT OR IGNORE INTO steps (date, steps) VALUES (:d, :s)' : 'INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)';
-            $stmt = $db->prepare($sql);
-            $n = 0;
-            foreach ($daySteps as $d => $s) {
-                if ($allowZero ? $s < 0 : $s <= 0) continue;
-                $stmt->reset();
-                $stmt->clear();
-                $stmt->bindValue(':d', $d, SQLITE3_TEXT);
-                $stmt->bindValue(':s', (int)$s, SQLITE3_INTEGER);
-                $stmt->execute();
-                $n++;
-            }
-            $db->close();
-            return $n;
+            $db = steps_worker_connect_db($cfg);
+            if (!$db) return 0;
+            return steps_worker_import_app_db($db, $daySteps, $mode, $allowZero);
         } catch (Throwable $e) {
-            if (isset($db) && $db instanceof SQLite3) @$db->close();
             usleep(50000 * min($attempt + 1, 10));
         }
     }
     return 0;
 }
+function steps_worker_existing_dates_map(AppDatabase $db, array $days): array {
+    if (!$days) return [];
+    $days = array_values(array_unique(array_map('strval', $days)));
+    sort($days);
+    $map = [];
+    $chunkSize = 500;
+    foreach (array_chunk($days, $chunkSize) as $chunk) {
+        $ph = [];
+        $params = [];
+        foreach ($chunk as $i => $day) {
+            $key = ':d' . $i;
+            $ph[] = $key;
+            $params[$key] = $day;
+        }
+        $stmt = $db->prepare('SELECT date, steps FROM steps WHERE date IN (' . implode(',', $ph) . ')');
+        foreach ($params as $key => $day) $stmt->bindValue($key, $day, SQLITE3_TEXT);
+        $res = $stmt->execute();
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            $map[(string)$row['date']] = (int)$row['steps'];
+        }
+    }
+    return $map;
+}
 function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mode, bool $allowZero = false): int {
     if (!$daySteps) return 0;
     ksort($daySteps);
-    $sql = ($mode === 'keep' || $mode === 'new_only') ? 'INSERT OR IGNORE INTO steps (date, steps) VALUES (:d, :s)' : 'INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)';
-    $stmt = $db->prepare($sql);
+    $existing = steps_worker_existing_dates_map($db, array_keys($daySteps));
+    $replaceStmt = $db->prepare('INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)');
+    $insertStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s)');
     $n = 0;
     foreach ($daySteps as $d => $s) {
         if ($allowZero ? $s < 0 : $s <= 0) continue;
-        $stmt->bindValue(':d', $d, SQLITE3_TEXT);
-        $stmt->bindValue(':s', (int)$s, SQLITE3_INTEGER);
-        $stmt->execute();
-        $n++;
+        $date = (string)$d;
+        $steps = (int)$s;
+        if ($mode === 'new_only') {
+            if (array_key_exists($date, $existing)) continue;
+            $insertStmt->bindValue(':d', $date, SQLITE3_TEXT);
+            $insertStmt->bindValue(':s', $steps, SQLITE3_INTEGER);
+            $insertStmt->execute();
+            if ($db->changes() > 0) {
+                $n++;
+                $existing[$date] = $steps;
+            }
+            continue;
+        }
+        if ($mode === 'keep' && array_key_exists($date, $existing) && $existing[$date] !== $steps) {
+            continue;
+        }
+        $replaceStmt->bindValue(':d', $date, SQLITE3_TEXT);
+        $replaceStmt->bindValue(':s', $steps, SQLITE3_INTEGER);
+        $replaceStmt->execute();
+        if ($db->changes() > 0) $n++;
+        $existing[$date] = $steps;
     }
     return $n;
 }

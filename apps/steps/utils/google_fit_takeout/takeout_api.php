@@ -144,14 +144,8 @@ function fit_spawn_worker(string $jobPath): bool {
 require_once __DIR__ . '/../../core/db_helpers.php';
 function fit_takeout_job_cfg(string $jobId): array {
     $email = get_current_user_email() ?: ('folder_' . basename(FIT_USER_DIR));
-    $userSchema = app_user_schema_id('steps', $email);
-    $usql = realpath(FIT_USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3');
-    if ($usql === false) {
-        $usql = FIT_USER_DIR . DIRECTORY_SEPARATOR . 'user_data.sqlite3';
-    }
     return [
-        'user_schema' => $userSchema,
-        'user_sqlite_path' => str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $usql),
+        'user_schema' => app_user_schema_id('steps', $email),
         'user_email' => $email,
         'job_id' => $jobId,
         'conflict_mode' => 'ask',
@@ -182,7 +176,7 @@ function fit_refresh_state_from_file(AppDatabase $db, string $jobId, array $stat
     $fileTime = (int)@filemtime($jobPath . DIRECTORY_SEPARATOR . 'state.json');
     $status = (string)($state['status'] ?? '');
     $fileStatus = (string)($fileState['status'] ?? '');
-    if ($fileTime >= $updatedAt || $status === 'running' || $fileStatus !== '') {
+    if ($fileTime >= $updatedAt || steps_worker_should_sync_file_state($fileTime, $updatedAt, $status, $fileStatus, ['running'])) {
         if (!isset($fileState['job_id']) || (string)$fileState['job_id'] === '') $fileState['job_id'] = $jobId;
         try { fit_takeout_save($db, $jobId, $fileState); } catch (Throwable $e) {}
         return $fileState;
@@ -202,7 +196,6 @@ function fit_apply_parsed_job(AppDatabase $db, string $jobId, string $jobPath, a
         $mode = 'overwrite';
     }
     $nimp = steps_worker_import_app_db($db, $daySteps, $mode);
-    if ($nimp < 1) $nimp = count($daySteps);
     $next = ['status' => 'done', 'message' => 'ok', 'progress' => 100.0, 'imported' => $nimp, 'total_days' => count($daySteps), 'job_id' => $jobId];
     fit_takeout_save($db, $jobId, $next);
     return ['ok' => true, 'state' => $next];

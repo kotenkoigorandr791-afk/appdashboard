@@ -103,6 +103,7 @@ function app_sql_translate(string $sql): string {
         if (preg_match('/\bINSERT\s+INTO\s+config\b/i', $out)) $out = rtrim($out, ';') . ' ON CONFLICT (key) DO NOTHING';
         elseif (preg_match('/\bINSERT\s+INTO\s+users\b/i', $out)) $out = rtrim($out, ';') . ' ON CONFLICT (email) DO NOTHING';
         elseif (preg_match('/\bINSERT\s+INTO\s+viewer_meta\b/i', $out)) $out = rtrim($out, ';') . ' ON CONFLICT (id) DO NOTHING';
+        elseif (preg_match('/\bINSERT\s+INTO\s+steps\b/i', $out)) $out = rtrim($out, ';') . ' ON CONFLICT (date) DO NOTHING';
         else $out = rtrim($out, ';') . ' ON CONFLICT DO NOTHING';
     }
     $out = preg_replace('/\bALTER\s+TABLE\s+([^\s]+)\s+ADD\s+COLUMN\s+/i', 'ALTER TABLE $1 ADD COLUMN IF NOT EXISTS ', $out) ?? $out;

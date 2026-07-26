@@ -123,8 +123,7 @@ function fit_run_job(string $jobDir): void {
     $jid = basename($jdir);
     $write = static fn(array $s) => steps_worker_write_state($jdir, $cfg, $jid, 'fit_takeout_job_state', $s);
     $zip = $jdir . '/takeout.zip';
-    $dbPath = trim((string)($cfg['user_sqlite_path'] ?? ''));
-    if ($dbPath === '' || !is_file($dbPath)) {
+    if (!steps_worker_connect_db($cfg)) {
         $write(['status' => 'error', 'message' => 'no user db', 'progress' => 0, 'imported' => 0, 'job_id' => $jid]);
         return;
     }
@@ -186,7 +185,6 @@ function fit_run_job(string $jobDir): void {
         $mode = 'overwrite';
     }
     $nimp = steps_worker_import($cfg, $daySteps, $mode);
-    if ($nimp < 1) $nimp = count($daySteps);
     $write(['status' => 'done', 'message' => 'ok', 'progress' => 100.0, 'imported' => $nimp, 'total_days' => count($daySteps), 'job_id' => $jid]);
     @unlink($zip);
 }

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+$__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 require_once __DIR__ . '/../import_worker_common.php';
 function zeep_parse_activity_csv(string $path, array &$daySteps): void {
     foreach (['UTF-8', 'UTF-8', 'CP1251', 'ISO-8859-1'] as $enc) {
@@ -49,9 +50,9 @@ function zeep_run_job(string $jobDir): void {
     $table = 'zeep_job_state';
     $write = static fn(array $s) => steps_worker_write_state($jdir, $cfg, $jid, $table, $s);
     $zip = $jdir . '/zeep.zip';
-    $dbPath = trim((string)($cfg['user_sqlite_path'] ?? ''));
-    if ($dbPath === '' || !is_file($dbPath)) {
+    if (!steps_worker_connect_db($cfg)) {
         $write(['status' => 'error', 'message' => 'no user db', 'progress' => 0, 'imported' => 0, 'job_id' => $jid]);
+        steps_import_log('error', 'zeep worker: no user db job=' . $jid . ' email=' . steps_worker_cfg_email($cfg), __FILE__, __LINE__);
         return;
     }
     if (!is_file($zip)) {
@@ -78,6 +79,7 @@ function zeep_run_job(string $jobDir): void {
         $err = steps_worker_extract_zip($zip, $ext, trim((string)($cfg['archive_password'] ?? '')), $jdir . '/worker.log');
         if ($err !== '') {
             $write(['status' => 'error', 'message' => $err, 'progress' => 0, 'imported' => 0, 'job_id' => $jid]);
+            steps_import_log('error', 'zeep worker: extract failed job=' . $jid . ' err=' . $err, __FILE__, __LINE__);
             return;
         }
         $write(['status' => 'running', 'progress' => 8.0, 'message' => 'parse', 'imported' => 0, 'total_days' => 0, 'job_id' => $jid]);
@@ -97,6 +99,7 @@ function zeep_run_job(string $jobDir): void {
     }
     if (!$daySteps) {
         $write(['status' => 'error', 'message' => 'no step data in archive', 'progress' => 0, 'imported' => 0, 'total_days' => 0, 'job_id' => $jid]);
+        steps_import_log('error', 'zeep worker: no step data job=' . $jid, __FILE__, __LINE__);
         return;
     }
     if ($mode === 'preview') {
@@ -112,7 +115,6 @@ function zeep_run_job(string $jobDir): void {
         $mode = 'overwrite';
     }
     $nimp = steps_worker_import($cfg, $daySteps, $mode, true);
-    if ($nimp < 1) $nimp = count($daySteps);
     $write(['status' => 'done', 'message' => 'ok', 'progress' => 100.0, 'imported' => $nimp, 'total_days' => count($daySteps), 'job_id' => $jid]);
     @unlink($zip);
 }
