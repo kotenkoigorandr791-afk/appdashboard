@@ -1209,9 +1209,9 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
     const monacoContainer = document.getElementById('npo-body-monaco');
     if (!monacoContainer) return;
     const monacoScript = document.createElement('script');
-    monacoScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js';
+    monacoScript.src = '/project/assets/monaco-0.45.0/vs/loader.js';
     monacoScript.onload = () => {
-      require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+      require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
       require(['vs/editor/editor.main'], () => {
         const isDark = !document.body.classList.contains('theme-light');
         bodyMonaco = monaco.editor.create(monacoContainer, {

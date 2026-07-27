@@ -33,6 +33,13 @@ jobs:
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
+          MONACO_TMP="$(mktemp -d)"
+          curl -fsSL https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.45.0.tgz -o "$MONACO_TMP/monaco.tgz"
+          tar -xzf "$MONACO_TMP/monaco.tgz" -C "$MONACO_TMP"
+          rm -rf project/assets/monaco-0.45.0
+          mkdir -p project/assets/monaco-0.45.0
+          cp -a "$MONACO_TMP/package/min/vs" project/assets/monaco-0.45.0/vs
+          rm -rf "$MONACO_TMP"
           APP_ENV=production APP_DEBUG=0 docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build --force-recreate appdashboard
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
           docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard

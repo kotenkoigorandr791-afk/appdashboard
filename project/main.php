@@ -3883,7 +3883,7 @@ var T=<?php echo json_encode([
         if(userProfile){userProfile.addEventListener('click',()=>{closeAllModals();if(profileModal){profileModal.style.display='flex';}});}
         function resetPasswordChangeForm(){
             currentPasswordVerified=false;
-            if(currentPasswordInput){currentPasswordInput.value='';currentPasswordInput.disabled=false;}
+            if(currentPasswordInput){currentPasswordInput.value='';currentPasswordInput.disabled=false;currentPasswordInput.readOnly=false;}
             if(currentPasswordMsg){currentPasswordMsg.textContent='';currentPasswordMsg.style.color='';}
             if(verifyCurrentPasswordBtn){verifyCurrentPasswordBtn.disabled=false;verifyCurrentPasswordBtn.style.display='';}
             if(passwordNewStep){
@@ -3927,7 +3927,7 @@ var T=<?php echo json_encode([
                 fetch('/main',{method:'POST',body:fd}).then(r=>r.json()).then(data=>{
                     if(data.success){
                         currentPasswordVerified=true;
-                        currentPasswordInput.disabled=true;
+                        currentPasswordInput.readOnly=true;
                         verifyCurrentPasswordBtn.style.display='none';
                         if(currentPasswordMsg){
                             currentPasswordMsg.textContent='<?php echo my_htmlspecialchars($translations['current_password_verified'] ?? 'Current password verified'); ?>';
@@ -5634,12 +5634,12 @@ function clearHash(){history.replaceState(null,'',location.pathname+location.sea
 /* ── Monaco lazy loader ── */
 function ensureMonaco(cb){
     if(typeof monaco!=='undefined'){cb();return;}
-    if(typeof require!=='undefined'){require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});require(['vs/editor/editor.main'],cb);return;}
+    if(typeof require!=='undefined'){require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});require(['vs/editor/editor.main'],cb);return;}
     if(!monacoInjected){
         monacoInjected=true;
         var s=document.createElement('script');
-        s.src='https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
-        s.onload=function(){require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});require(['vs/editor/editor.main'],cb);};
+        s.src='/project/assets/monaco-0.45.0/vs/loader.js';
+        s.onload=function(){require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});require(['vs/editor/editor.main'],cb);};
         document.head.appendChild(s);
     } else {var poll=setInterval(function(){if(typeof monaco!=='undefined'){clearInterval(poll);cb();}},100);}
 }
@@ -10748,9 +10748,9 @@ function copyOtpLink(){
         }
 
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js';
+        script.src = '/project/assets/monaco-0.45.0/vs/loader.js';
         script.onload = function() {
-            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+            require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
             require(['vs/editor/editor.main'], function() {
                 callback();
             });

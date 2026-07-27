@@ -2122,7 +2122,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $newPassword = $_POST['new_password'] ?? '';
         $currentUserEmail = $_SESSION['user']['email'] ?? '';
         $response = ['success' => false, 'message' => ''];
-        if($emailToReset && $emailToReset !== $currentUserEmail && $emailToReset !== 'root@root'){
+        if($emailToReset && $emailToReset !== $currentUserEmail){
             $users = loadUsers();
             if(isset($users[$emailToReset])){
                 if(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){

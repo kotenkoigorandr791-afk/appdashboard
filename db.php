@@ -337,6 +337,59 @@ function recordAppMetric(string $userEmail, string $appId, string $metric, float
 // ─────────────────────────────────────────────────────────────────────────────
 function initDB(AppDatabase $db): void {
     if (app_db_is_pgsql()) {
+        $db->exec("CREATE TABLE IF NOT EXISTS users (
+            email           TEXT PRIMARY KEY,
+            name            TEXT NOT NULL DEFAULT '',
+            password        TEXT NOT NULL DEFAULT '',
+            photo           TEXT NOT NULL DEFAULT 'default_avatar.png',
+            role            INTEGER NOT NULL DEFAULT 0,
+            verified        INTEGER NOT NULL DEFAULT 0,
+            language        TEXT NOT NULL DEFAULT 'en',
+            theme           TEXT NOT NULL DEFAULT 'light',
+            color           TEXT NOT NULL DEFAULT '#007bff',
+            trusted_devices TEXT NOT NULL DEFAULT '[]',
+            icon_sort_order TEXT NOT NULL DEFAULT 'alpha',
+            icon_style      TEXT NOT NULL DEFAULT 'animated',
+            wallpaper       TEXT NOT NULL DEFAULT 'default',
+            created_at      TEXT NOT NULL DEFAULT ''
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS pending_users (
+            email       TEXT PRIMARY KEY,
+            name        TEXT NOT NULL DEFAULT '',
+            password    TEXT NOT NULL DEFAULT '',
+            photo       TEXT NOT NULL DEFAULT 'default_avatar.png',
+            role        INTEGER NOT NULL DEFAULT 0,
+            language    TEXT NOT NULL DEFAULT 'en',
+            theme       TEXT NOT NULL DEFAULT 'light',
+            color       TEXT NOT NULL DEFAULT '#007bff',
+            created_at  TEXT NOT NULL DEFAULT '',
+            reg_method  TEXT NOT NULL DEFAULT 'Email'
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS active_sessions (
+            session_id    TEXT PRIMARY KEY,
+            email         TEXT NOT NULL,
+            user_data     TEXT NOT NULL DEFAULT '{}',
+            login_time    INTEGER NOT NULL,
+            last_activity INTEGER NOT NULL,
+            ip_address    TEXT NOT NULL DEFAULT '',
+            user_agent    TEXT NOT NULL DEFAULT '',
+            device        TEXT NOT NULL DEFAULT '',
+            browser       TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_email ON active_sessions(email)");
+        $db->exec("CREATE TABLE IF NOT EXISTS reset_codes (
+            email   TEXT PRIMARY KEY,
+            code    TEXT NOT NULL,
+            expires INTEGER NOT NULL,
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS verification_tokens (
+            token   TEXT PRIMARY KEY,
+            email   TEXT NOT NULL,
+            expires INTEGER NOT NULL
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)");
         try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Throwable $e) {}
         try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Throwable $e) {}
         try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Throwable $e) {}
@@ -1039,7 +1092,7 @@ function userNeedsPasswordSet(?array $user): bool {
     if (!$user) return false;
     $hash = trim((string)($user['password'] ?? ''));
     if ($hash === '') return true;
-    return !preg_match('/^\$2[aby]\$/', $hash);
+    return (int)(password_get_info($hash)['algo'] ?? 0) === 0;
 }
 
 function getUserByEmail(string $email): ?array {
