@@ -5,8 +5,16 @@ if (!defined('AP_WEBSHH_VENDOR_AUTOLOAD')) {
     define('AP_WEBSHH_VENDOR_AUTOLOAD', __DIR__ . '/webssh/vendor/autoload.php');
 }
 
-if (is_readable(AP_WEBSHH_VENDOR_AUTOLOAD)) {
-    require_once AP_WEBSHH_VENDOR_AUTOLOAD;
+if (!function_exists('apSshEnsureVendorLoaded')) {
+    function apSshEnsureVendorLoaded(): void
+    {
+        static $loaded = false;
+        if ($loaded || !is_readable(AP_WEBSHH_VENDOR_AUTOLOAD)) {
+            return;
+        }
+        require_once AP_WEBSHH_VENDOR_AUTOLOAD;
+        $loaded = true;
+    }
 }
 
 if (!function_exists('apSshJsonResponse')) {
@@ -395,6 +403,7 @@ if (!function_exists('apSshEnsureSessionProfile')) {
 if (!function_exists('apSshLoginPhpseclib')) {
     function apSshLoginPhpseclib(array $cfg): array
     {
+        apSshEnsureVendorLoaded();
         if (!class_exists('\phpseclib3\Net\SSH2')) {
             return ['success' => false, 'error' => 'phpseclib is not installed'];
         }

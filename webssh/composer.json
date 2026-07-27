@@ -2,6 +2,7 @@
     "name": "server/webssh",
     "require": {
         "phpseclib/phpseclib": "^3.0",
-        "cboden/ratchet": "^0.4.4"
+        "cboden/ratchet": "^0.4.4",
+        "guzzlehttp/psr7": "^2.13"
     }
 }
