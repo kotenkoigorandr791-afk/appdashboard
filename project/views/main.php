@@ -399,7 +399,8 @@
         .custom-select-flag{width:20px;height:15px;display:inline-block;background-size:cover;background-position:center;border-radius:2px;flex-shrink:0;}
         .custom-select-flag.flag-ru{position:relative;overflow:hidden;}
         .custom-select-flag.flag-ru::after{content:"";position:absolute;left:-3px;top:6px;width:26px;height:3px;background:#111;border:1px solid #fff;transform:rotate(-35deg);transform-origin:center;box-sizing:border-box;}
-        #icon-sort-dropdown .custom-select-option{white-space:nowrap;}
+        #icon-sort-dropdown .custom-select-option{gap:4px;padding-right:8px;white-space:nowrap;}
+        #icon-sort-dropdown .custom-select-badge{max-width:64px;min-width:0;overflow:hidden;text-overflow:ellipsis;padding:1px 4px;margin-left:2px;border-radius:6px;font-size:9px;line-height:1.3;flex:0 1 auto;}
         
         #wallpaper-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:100090;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #wallpaper-modal-content{background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));width:min(720px,calc(100vw - 32px));max-height:min(85vh,720px);overflow:hidden;display:flex;flex-direction:column;position:relative;}
@@ -901,7 +902,7 @@
         }
         .weather-modal-close {
             position: absolute;
-            top: 16px;
+            top: 24px;
             right: 16px;
             width: 36px;
             height: 36px;
@@ -922,7 +923,7 @@
         }
         .weather-wind-chart-btn {
             position: absolute;
-            top: 16px;
+            top: 24px;
             right: 60px;
             width: 36px;
             height: 36px;
@@ -946,13 +947,13 @@
         }
         @media (max-width: 480px) {
             .weather-modal-close {
-                top: 12px;
+                top: 20px;
                 right: 12px;
                 width: 34px;
                 height: 34px;
             }
             .weather-wind-chart-btn {
-                top: 12px;
+                top: 20px;
                 right: 54px;
                 width: 34px;
                 height: 34px;
@@ -4515,7 +4516,7 @@ var T=<?php echo json_encode([
         if(userProfile){userProfile.addEventListener('click',()=>{closeAllModals();if(profileModal){profileModal.style.display='flex';}});}
         function resetPasswordChangeForm(){
             currentPasswordVerified=false;
-            if(currentPasswordInput){currentPasswordInput.value='';currentPasswordInput.disabled=false;}
+            if(currentPasswordInput){currentPasswordInput.value='';currentPasswordInput.disabled=false;currentPasswordInput.readOnly=false;}
             if(currentPasswordMsg){currentPasswordMsg.textContent='';currentPasswordMsg.style.color='';}
             if(verifyCurrentPasswordBtn){verifyCurrentPasswordBtn.disabled=false;verifyCurrentPasswordBtn.style.display='';}
             if(passwordNewStep){
@@ -4559,7 +4560,7 @@ var T=<?php echo json_encode([
                 fetch('/main',{method:'POST',body:fd}).then(r=>r.json()).then(data=>{
                     if(data.success){
                         currentPasswordVerified=true;
-                        currentPasswordInput.disabled=true;
+                        currentPasswordInput.readOnly=true;
                         verifyCurrentPasswordBtn.style.display='none';
                         if(currentPasswordMsg){
                             currentPasswordMsg.textContent='<?php echo my_htmlspecialchars($translations['current_password_verified'] ?? 'Current password verified'); ?>';
@@ -6424,12 +6425,12 @@ function clearHash(){history.replaceState(null,'',location.pathname+location.sea
 /* ── Monaco lazy loader ── */
 function ensureMonaco(cb){
     if(typeof monaco!=='undefined'){cb();return;}
-    if(typeof require!=='undefined'){require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});require(['vs/editor/editor.main'],cb);return;}
+    if(typeof require!=='undefined'){require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});require(['vs/editor/editor.main'],cb);return;}
     if(!monacoInjected){
         monacoInjected=true;
         var s=document.createElement('script');
-        s.src='https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js';
-        s.onload=function(){require.config({paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs'}});require(['vs/editor/editor.main'],cb);};
+        s.src='/project/assets/monaco-0.45.0/vs/loader.js';
+        s.onload=function(){require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});require(['vs/editor/editor.main'],cb);};
         document.head.appendChild(s);
     } else {var poll=setInterval(function(){if(typeof monaco!=='undefined'){clearInterval(poll);cb();}},100);}
 }
@@ -11591,9 +11592,9 @@ function copyOtpLink(){
         }
 
         const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js';
+        script.src = '/project/assets/monaco-0.45.0/vs/loader.js';
         script.onload = function() {
-            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+            require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
             require(['vs/editor/editor.main'], function() {
                 callback();
             });
@@ -12274,14 +12275,17 @@ function drawWindChart(daily) {
     if (!daily || !daily.time || !windSeries) return;
     var n = daily.time.length;
     var winds = [];
+    var precips = [];
     for (var i = 0; i < n; i++) {
         winds.push(windSeries[i] != null ? windSeries[i] : 0);
+        precips.push(daily.precipitation_sum && daily.precipitation_sum[i] != null ? daily.precipitation_sum[i] : 0);
     }
     var bg = getComputedStyle(document.body).getPropertyValue('--group-block-bg').trim() || '#ffffff';
     var textColor = getComputedStyle(document.body).getPropertyValue('--text-color').trim() || '#64748b';
     var gridColor = 'rgba(127,127,127,0.12)';
     var lineColor = '#10b981';
     var fillColor = 'rgba(16,185,129,0.10)';
+    var precipColor = 'rgba(59,130,246,0.25)';
     var minW = Math.min.apply(null, winds);
     var maxW = Math.max.apply(null, winds);
     var range = maxW - minW;
@@ -12290,14 +12294,17 @@ function drawWindChart(daily) {
     minW = Math.max(0, minW - padVal);
     maxW += padVal;
     range = maxW - minW;
-    var vw = 640, vh = 280;
-    var pad = { top: 40, right: 20, bottom: 60, left: 50 };
+    var maxP = Math.max.apply(null, precips);
+    if (maxP <= 0) maxP = 1;
+    var vw = 640, vh = 300;
+    var pad = { top: 40, right: 20, bottom: 70, left: 50 };
     var cW = vw - pad.left - pad.right;
     var cH = vh - pad.top - pad.bottom;
     function yP(v) { return pad.top + cH - ((v - minW) / range) * cH; }
     function xP(idx) { return n <= 1 ? pad.left + cW / 2 : pad.left + (idx / (n - 1)) * cW; }
     var title = wt('weather_wind_chart_title', 'Wind speed');
     var unit = wt('weather_wind_speed_unit', 'km/h');
+    var precipUnit = wt('weather_precip_mm', '%s mm').replace('%s', '');
     var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + vw + ' ' + vh + '" style="width:100%;height:auto;display:block;font-family:sans-serif;">';
     svg += '<rect width="' + vw + '" height="' + vh + '" fill="' + bg + '" rx="12"/>';
     svg += '<text x="' + (vw / 2) + '" y="24" text-anchor="middle" fill="' + textColor + '" font-size="14" font-weight="600">' + escHtml(title) + '</text>';
@@ -12307,6 +12314,16 @@ function drawWindChart(daily) {
         var gVal = maxW - (g / gridSteps) * range;
         svg += '<line x1="' + pad.left + '" y1="' + gy + '" x2="' + (vw - pad.right) + '" y2="' + gy + '" stroke="' + gridColor + '" stroke-width="1" stroke-dasharray="4,4"/>';
         svg += '<text x="' + (pad.left - 6) + '" y="' + gy + '" text-anchor="end" dominant-baseline="middle" fill="' + textColor + '" font-size="10">' + Math.round(gVal) + '</text>';
+    }
+    var barW = cW / n * 0.45;
+    for (var i = 0; i < n; i++) {
+        var bx = xP(i);
+        var barH = (precips[i] / maxP) * cH;
+        var by = pad.top + cH - barH;
+        svg += '<rect x="' + (bx - barW / 2) + '" y="' + by + '" width="' + barW + '" height="' + barH + '" fill="' + precipColor + '" rx="3"/>';
+        if (precips[i] > 0) {
+            svg += '<text x="' + bx + '" y="' + (by - 4) + '" text-anchor="middle" fill="rgba(59,130,246,0.6)" font-size="9">' + precips[i].toFixed(1) + '</text>';
+        }
     }
     var pts = [];
     for (var i = 0; i < n; i++) {
@@ -12331,9 +12348,13 @@ function drawWindChart(daily) {
         var dayLabel = getDayName(daily.time[i]);
         svg += '<text x="' + pts[i].x + '" y="' + (pad.top + cH + 18) + '" text-anchor="middle" fill="' + textColor + '" font-size="10">' + escHtml(dayLabel) + '</text>';
     }
+    var legendY = vh - 12;
+    svg += '<circle cx="' + (vw / 2 - 80) + '" cy="' + legendY + '" r="4" fill="' + lineColor + '"/>';
+    svg += '<text x="' + (vw / 2 - 72) + '" y="' + (legendY + 4) + '" fill="' + textColor + '" font-size="10">' + escHtml(unit) + '</text>';
+    svg += '<rect x="' + (vw / 2 + 10) + '" y="' + (legendY - 5) + '" width="12" height="10" fill="' + precipColor + '" rx="2"/>';
+    svg += '<text x="' + (vw / 2 + 28) + '" y="' + (legendY + 4) + '" fill="' + textColor + '" font-size="10">' + escHtml(precipUnit) + '</text>';
     svg += '</svg>';
-    var unitLabel = '<div style="text-align:center;margin-top:6px;font-size:12px;opacity:0.6">' + escHtml(unit) + '</div>';
-    modalContent.innerHTML = '<div style="padding:16px 8px;">' + svg + unitLabel + '</div>';
+    modalContent.innerHTML = '<div style="padding:16px 8px;">' + svg + '</div>';
 }
 window.toggleWindChart = toggleWindChart;
     function initMobileTopBarRotation() {

@@ -58,6 +58,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
                 'svg' => 'image/svg+xml',
                 'gif' => 'image/gif',
                 'ico' => 'image/x-icon',
+                'js' => 'application/javascript; charset=UTF-8',
+                'css' => 'text/css; charset=UTF-8',
+                'ttf' => 'font/ttf',
+                'woff' => 'font/woff',
+                'woff2' => 'font/woff2',
+                'json' => 'application/json; charset=UTF-8',
+                'map' => 'application/json; charset=UTF-8',
             ];
             header('Content-Type: ' . ($__types[$__ext] ?? 'application/octet-stream'));
             header('Content-Length: ' . filesize($__target));

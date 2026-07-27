@@ -154,7 +154,21 @@ function generateSecurePassword(int $length = 12): string {
     return implode('', $chars);
 }
 function renderApUserActionsCell(string $email, string $name, bool $isRoot, bool $isSelf, bool $isPending, array $translations): string {
-    if ($isRoot) return '<span style="opacity:.35;font-size:12px;">root</span>';
+    if ($isRoot) {
+        $eH = my_htmlspecialchars($email);
+        $nH = my_htmlspecialchars($name);
+        $eJ = addslashes($email);
+        $nJ = addslashes($name);
+        $menuLabel = my_htmlspecialchars($translations['user_actions'] ?? 'User actions');
+        $resetLabel = my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password');
+        return '<div class="ap-user-actions-menu">'
+            . '<button type="button" class="ap-user-menu-btn" title="' . $menuLabel . '" aria-label="' . $menuLabel . '" aria-haspopup="true" aria-expanded="false" data-email="' . $eH . '" data-name="' . $nH . '">'
+            . '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>'
+            . '</button>'
+            . '<div class="ap-user-menu-dropdown" role="menu">'
+            . '<button type="button" class="ap-user-menu-item" role="menuitem" onclick="apCloseUserMenus();apOpenResetPassword(\'' . $eJ . '\',\'' . $nJ . '\')">' . $resetLabel . '</button>'
+            . '</div></div>';
+    }
     if ($isSelf) return '<span style="color:var(--primary-color);font-size:12px;">' . my_htmlspecialchars($translations['current_session'] ?? 'You') . '</span>';
     $eH = my_htmlspecialchars($email);
     $nH = my_htmlspecialchars($name);
