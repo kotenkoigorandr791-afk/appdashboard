@@ -4,6 +4,7 @@ if (php_sapi_name() !== 'cli') {
     exit(1);
 }
 define('APP_ROOT', dirname(__DIR__));
+require __DIR__ . '/vendor/autoload.php';
 require APP_ROOT . '/ssh_terminal_handler.php';
 require __DIR__ . '/SshWsHandler.php';
 use Ratchet\Http\HttpServer;
