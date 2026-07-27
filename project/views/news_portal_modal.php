@@ -59,7 +59,7 @@ async function generateWithAi() {
     const systemPrompt = document.getElementById('npo-system-prompt')?.value.trim() || '';
     const statusEl = document.getElementById('npo-ai-status');
     const currentTitle = document.getElementById('npo-edit-title').value.trim();
-    const currentBody = document.getElementById('npo-edit-body').value.trim();
+    const currentBody = (window.getBodyValue ? window.getBodyValue() : document.getElementById('npo-edit-body').value).trim();
     
     if (!prompt) {
         statusEl.textContent = 'Please enter a prompt';
@@ -86,7 +86,8 @@ async function generateWithAi() {
         
         if (data.ok) {
             document.getElementById('npo-edit-title').value = data.title || currentTitle;
-            document.getElementById('npo-edit-body').value = data.body || currentBody;
+            if (window.setBodyValue) window.setBodyValue(data.body || currentBody);
+            else document.getElementById('npo-edit-body').value = data.body || currentBody;
             statusEl.textContent = 'Generated successfully!';
             markAsChanged();
         } else {
@@ -108,7 +109,7 @@ function markAsChanged() {
 function resetChanges() {
     hasChanges = false;
     originalTitle = document.getElementById('npo-edit-title').value.trim();
-    originalBody = document.getElementById('npo-edit-body').value.trim();
+    originalBody = (window.getBodyValue ? window.getBodyValue() : document.getElementById('npo-edit-body').value).trim();
     originalPhoto = document.getElementById('npo-photo-url')?.value.trim() || '';
     
     const saveBtn = document.getElementById('npo-save-btn');
@@ -118,7 +119,7 @@ function resetChanges() {
 // Check if content has changed
 function checkChanges() {
     const currentTitle = document.getElementById('npo-edit-title').value.trim();
-    const currentBody = document.getElementById('npo-edit-body').value.trim();
+    const currentBody = (window.getBodyValue ? window.getBodyValue() : document.getElementById('npo-edit-body').value).trim();
     const currentPhoto = document.getElementById('npo-photo-url')?.value.trim() || '';
     
     if (currentTitle !== originalTitle || currentBody !== originalBody || currentPhoto !== originalPhoto) {
@@ -132,15 +133,15 @@ function initNewsEditor() {
     const bodyEl = document.getElementById('npo-edit-body');
     const photoEl = document.getElementById('npo-photo-url');
     const saveBtn = document.getElementById('npo-save-btn');
-    
+
     if (!titleEl || !bodyEl || !saveBtn) {
         console.error('News editor elements not found');
         return;
     }
-    
+
     // Set initial values
     originalTitle = titleEl.value.trim();
-    originalBody = bodyEl.value.trim();
+    originalBody = (window.getBodyValue ? window.getBodyValue() : bodyEl.value).trim();
     originalPhoto = photoEl ? photoEl.value.trim() : '';
     
     // Hide save button initially
@@ -285,9 +286,10 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 /* Prompt modal */
 #npo-prompt-toolbar{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 .npo-prompt-toggle{display:flex;border:1px solid var(--border-color);border-radius:8px;overflow:hidden;flex-shrink:0;}
-.npo-prompt-toggle-btn{padding:5px 14px;border:none;background:none;color:var(--text-color);font-size:12px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap;}
+.npo-prompt-toggle-btn{padding:4px 10px;border:none;background:none;color:var(--text-color);font-size:11px;font-weight:600;cursor:pointer;transition:background .15s,color .15s;white-space:nowrap;display:flex;align-items:center;gap:4px;}
 .npo-prompt-toggle-btn.active{background:var(--primary-color,#38bdf8);color:#fff;}
 .npo-prompt-toggle-btn:first-child{border-right:1px solid var(--border-color);}
+.npo-prompt-toggle-btn svg{width:13px;height:13px;flex-shrink:0;}
 #npo-prompt-code-wrap pre{background:#1a1d24!important;border:1px solid var(--border-color);border-radius:10px;padding:14px!important;overflow-x:auto;margin:0!important;min-height:320px;font-size:13px;line-height:1.55;}
 body.theme-light #npo-prompt-code-wrap pre{background:#f4f6f8!important;}
 #npo-prompt-code-wrap pre code.hljs{padding:0!important;background:transparent!important;overflow:visible!important;}
@@ -388,15 +390,56 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             <label><?php echo my_htmlspecialchars($translations['news_title_label'] ?? 'Title'); ?></label>
             <input type="text" id="npo-edit-title" maxlength="200" placeholder="<?php echo my_htmlspecialchars($translations['news_title_placeholder'] ?? 'Article title...'); ?>">
           </div>
-          <div class="npo-field">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div class="npo-field" style="padding:0;border:none;background:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;padding:0 2px;">
               <label style="margin-bottom:0"><?php echo my_htmlspecialchars($translations['news_body_label'] ?? 'Content'); ?></label>
-              <button type="button" id="npo-ai-toggle-btn" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:20px;background:var(--group-block-bg);color:var(--text-color);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>
-                AI
-              </button>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button type="button" id="npo-ai-toggle-btn" style="padding:4px 12px;border:1px solid var(--border-color);border-radius:20px;background:var(--group-block-bg);color:var(--text-color);font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.26L22 9.27l-5 5.14 1.18 7.09L12 18.27l-6.18 3.23L7 14.41 2 9.27l7.1-1.01z"/></svg>
+                  AI
+                </button>
+              </div>
             </div>
-            <textarea id="npo-edit-body" placeholder="<?php echo my_htmlspecialchars($translations['news_body_placeholder'] ?? 'Article text...'); ?>"></textarea>
+            <div class="npo-md-editor-wrap" id="npo-body-editor-wrap">
+              <div class="npo-md-toolbar" id="npo-body-toolbar">
+                <div class="npo-md-toggle">
+                  <button type="button" class="npo-md-toggle-btn active" data-view="code" title="Edit">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                    Edit
+                  </button>
+                  <button type="button" class="npo-md-toggle-btn" data-view="preview" title="Preview">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Preview
+                  </button>
+                </div>
+                <div class="sep"></div>
+                <button type="button" data-md-action="bold" title="Bold (Ctrl+B)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
+                <button type="button" data-md-action="italic" title="Italic (Ctrl+I)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
+                <button type="button" data-md-action="strike" title="Strikethrough"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.3 4.9c-1.2-1.3-3-1.9-4.8-1.7-2.9.3-4.8 2.2-4.9 4.6 0 1.6.9 2.8 2.4 3.4"/><line x1="4" y1="12" x2="20" y2="12"/><path d="M17.5 13.1c.2 1.6.1 3.1-.8 4.3-1.2 1.5-3.2 2.3-5.2 2.1-1.8-.2-3.4-1.1-4.5-2.5"/></svg></button>
+                <div class="sep"></div>
+                <button type="button" data-md-action="h1" title="Heading 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="17" font-size="14" font-weight="700" fill="currentColor" stroke="none" font-family="sans-serif">H1</text></svg></button>
+                <button type="button" data-md-action="h2" title="Heading 2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="17" font-size="14" font-weight="700" fill="currentColor" stroke="none" font-family="sans-serif">H2</text></svg></button>
+                <button type="button" data-md-action="h3" title="Heading 3"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><text x="3" y="17" font-size="14" font-weight="700" fill="currentColor" stroke="none" font-family="sans-serif">H3</text></svg></button>
+                <div class="sep"></div>
+                <button type="button" data-md-action="ul" title="Bullet list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4.5" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>
+                <button type="button" data-md-action="ol" title="Numbered list"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="10" y1="6" x2="20" y2="6"/><line x1="10" y1="12" x2="20" y2="12"/><line x1="10" y1="18" x2="20" y2="18"/><text x="2" y="8" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">1</text><text x="2" y="14" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">2</text><text x="2" y="20" font-size="8" fill="currentColor" stroke="none" font-family="sans-serif">3</text></svg></button>
+                <button type="button" data-md-action="checklist" title="Checklist"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="6" height="6" rx="1"/><path d="M5 8l1.5 1.5L9 6"/><line x1="12" y1="8" x2="20" y2="8"/><rect x="3" y="14" width="6" height="6" rx="1"/><line x1="12" y1="17" x2="20" y2="17"/></svg></button>
+                <div class="sep"></div>
+                <button type="button" data-md-action="quote" title="Blockquote"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 5v3c0 .001 0 1.004 1 1.004z"/></svg></button>
+                <button type="button" data-md-action="code" title="Inline code"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></button>
+                <button type="button" data-md-action="codeblock" title="Code block"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><polyline points="9 8 5 12 9 16"/><polyline points="15 8 19 12 15 16"/></svg></button>
+                <div class="sep"></div>
+                <button type="button" data-md-action="link" title="Link"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+                <button type="button" data-md-action="image" title="Image"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></button>
+                <button type="button" data-md-action="hr" title="Horizontal rule"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/></svg></button>
+                <button type="button" data-md-action="table" title="Table"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+              </div>
+              <div class="npo-md-editor" id="npo-body-editor">
+                <div id="npo-body-monaco" style="min-height:360px;"></div>
+                <textarea id="npo-edit-body" style="display:none;"></textarea>
+              </div>
+              <div id="npo-body-preview" class="npo-md-preview"></div>
+            </div>
           </div>
           <div class="npo-field">
             <label><?php echo my_htmlspecialchars($translations['news_photo_label'] ?? 'Photo'); ?></label>
@@ -451,11 +494,11 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     <div id="npo-prompt-toolbar" style="padding:12px 20px 0;flex-shrink:0;">
       <div class="npo-prompt-toggle">
         <button type="button" class="npo-prompt-toggle-btn active" data-view="code">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           Code
         </button>
         <button type="button" class="npo-prompt-toggle-btn" data-view="preview">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           Preview
         </button>
       </div>
@@ -474,6 +517,45 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
 
 <style>
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+/* ── Markdown Editor ──────────────────────────────────────────────────────── */
+.npo-md-editor-wrap{border:1px solid var(--border-color);border-radius:10px;background:var(--modal-bg);overflow:hidden;transition:border-color .15s;}
+.npo-md-editor-wrap:focus-within{border-color:var(--primary-color,#38bdf8);}
+.npo-md-toolbar{display:flex;align-items:center;gap:4px;padding:6px 8px;border-bottom:1px solid color-mix(in srgb,var(--border-color) 72%,transparent);background:color-mix(in srgb,var(--group-block-bg) 92%,var(--primary-color) 8%);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;}
+.npo-md-toolbar::-webkit-scrollbar{height:4px;}
+.npo-md-toolbar::-webkit-scrollbar-thumb{background:var(--border-color);border-radius:4px;}
+.npo-md-toolbar button{width:38px;height:36px;border:none;background:none;color:var(--text-color);border-radius:7px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s,color .12s;flex-shrink:0;}
+.npo-md-toolbar button:hover{background:color-mix(in srgb,var(--primary-color) 16%,transparent);color:var(--primary-color,#38bdf8);}
+.npo-md-toolbar .sep{width:1px;height:24px;background:var(--border-color);margin:0 4px;flex-shrink:0;}
+.npo-md-editor{position:relative;min-height:360px;}
+.npo-md-editor textarea.npo-md-textarea{width:100%;min-height:360px;padding:12px 14px;border:none;background:color-mix(in srgb,var(--modal-bg) 94%,#1a1d24 6%);color:var(--text-color);font-size:13px;font-family:'SF Mono','Fira Code','Cascadia Code','JetBrains Mono',Consolas,'Courier New',monospace;line-height:1.65;resize:vertical;box-sizing:border-box;outline:none;white-space:pre;overflow-x:auto;tab-size:2;}
+body.theme-light .npo-md-editor textarea.npo-md-textarea{background:color-mix(in srgb,#ffffff 94%,#f4f6f8 6%);}
+.npo-md-editor textarea.npo-md-textarea::placeholder{opacity:.35;font-family:inherit;}
+#npo-body-monaco{width:100%;min-height:360px;border:none;}
+.npo-md-preview{display:none;width:100%;min-height:180px;padding:14px;border:none;background:transparent;color:var(--text-color);font-size:14px;line-height:1.65;box-sizing:border-box;overflow-y:auto;white-space:normal;word-wrap:break-word;}
+.npo-md-preview a{color:var(--primary-color,#38bdf8);text-decoration:underline;}
+.npo-md-preview h1,.npo-md-preview h2,.npo-md-preview h3,.npo-md-preview h4{margin:14px 0 6px;font-weight:700;}
+.npo-md-preview h1{font-size:20px;color:var(--primary-color,#38bdf8);}
+.npo-md-preview h2{font-size:17px;color:color-mix(in srgb,var(--primary-color) 80%,var(--text-color));}
+.npo-md-preview h3{font-size:15px;}
+.npo-md-preview p{margin:6px 0;}
+.npo-md-preview code{background:color-mix(in srgb,#7c3aed 14%,transparent);padding:2px 6px;border-radius:4px;font-size:13px;font-family:'Courier New',monospace;}
+.npo-md-preview pre{background:#1a1d24;border:1px solid var(--border-color);border-radius:8px;padding:12px;overflow-x:auto;margin:10px 0;}
+body.theme-light .npo-md-preview pre{background:#f4f6f8;}
+.npo-md-preview pre code{padding:0!important;background:transparent!important;font-size:13px;line-height:1.5;display:block;}
+.npo-md-preview ul,.npo-md-preview ol{padding-left:22px;margin:6px 0;}
+.npo-md-preview li{margin:3px 0;}
+.npo-md-preview blockquote{border-left:3px solid var(--primary-color,#38bdf8);margin:8px 0;padding:4px 14px;opacity:.8;background:color-mix(in srgb,var(--group-block-bg) 50%,transparent);border-radius:0 6px 6px 0;}
+.npo-md-preview hr{border:none;border-top:1px solid var(--border-color);margin:12px 0;}
+.npo-md-preview table{border-collapse:collapse;width:100%;margin:10px 0;}
+.npo-md-preview table td,.npo-md-preview table th{border:1px solid var(--border-color);padding:6px 10px;text-align:left;}
+.npo-md-preview table th{background:var(--group-block-bg);font-weight:700;}
+.npo-md-preview img{max-width:100%;border-radius:8px;margin:8px 0;}
+.npo-md-toggle{display:flex;border:1px solid var(--border-color);border-radius:7px;overflow:hidden;flex-shrink:0;margin-right:6px;}
+.npo-md-toggle-btn{padding:4px 10px;border:none;background:none;color:var(--text-color);font-size:11px;font-weight:600;cursor:pointer;transition:background .12s,color .12s;white-space:nowrap;display:flex;align-items:center;gap:4px;height:30px;}
+.npo-md-toggle-btn.active{background:var(--primary-color,#38bdf8);color:#fff;}
+.npo-md-toggle-btn:first-child{border-right:1px solid var(--border-color);}
+.npo-md-toggle-btn svg{width:13px;height:13px;flex-shrink:0;}
+.npo-md-toolbar .npo-md-toggle-btn{width:auto;padding:4px 10px;height:30px;}
 </style>
 
 <script>
@@ -604,6 +686,7 @@ ${item.photo
     document.getElementById('npo-edit-id').value = item ? item.id : '';
     document.getElementById('npo-edit-title').value = item ? item.title : '';
     document.getElementById('npo-edit-body').value = item ? (item.body || '') : '';
+    if (bodyMonaco) bodyMonaco.setValue(item ? (item.body || '') : '');
     document.getElementById('npo-published').checked = item ? !!item.published : false;
     document.getElementById('npo-photo-url').value = item ? (item.photo || '') : '';
     document.getElementById('npo-status').textContent = '';
@@ -623,6 +706,14 @@ ${item.photo
     aiPanel.classList.remove('open');
     document.getElementById('npo-ai-status').textContent = '';
     document.getElementById('npo-ai-prompt').value = '';
+    // Reset body editor to code view
+    const bodyPrev = document.getElementById('npo-body-preview');
+    const monacoEl = document.getElementById('npo-body-monaco');
+    if (monacoEl) monacoEl.style.display = '';
+    if (bodyPrev) bodyPrev.style.display = 'none';
+    bodyToggleBtns.forEach(b => b.classList.remove('active'));
+    bodyToolbar?.querySelector('[data-view="code"]')?.classList.add('active');
+    if (bodyMonaco) bodyMonaco.layout();
     document.getElementById('npo-edit-title').focus();
   }
 
@@ -673,7 +764,7 @@ ${item.photo
   document.getElementById('npo-save-btn')?.addEventListener('click', async () => {
     const id = document.getElementById('npo-edit-id').value;
     const title = document.getElementById('npo-edit-title').value.trim();
-    const body = document.getElementById('npo-edit-body').value.trim();
+    const body = getBodyValue().trim();
     const published = document.getElementById('npo-published').checked;
     const photo = document.getElementById('npo-photo-url').value.trim();
     if (!title) { setStatus('<?php echo my_htmlspecialchars($translations['news_title_required'] ?? 'Title is required'); ?>'); return; }
@@ -720,7 +811,7 @@ ${item.photo
     const selectedModel = document.getElementById('npo-ai-model')?.value || '';
     const systemPrompt = document.getElementById('npo-system-prompt')?.value.trim() || '';
     const currentTitle = document.getElementById('npo-edit-title').value.trim();
-    const currentBody = document.getElementById('npo-edit-body').value.trim();
+    const currentBody = getBodyValue().trim();
     const btn = document.getElementById('npo-ai-generate-btn');
     const aiStatus = document.getElementById('npo-ai-status');
     btn.disabled = true;
@@ -734,13 +825,88 @@ ${item.photo
       const data = await res.json();
       if (data.ok) {
         if (data.title) document.getElementById('npo-edit-title').value = data.title;
-        if (data.body) document.getElementById('npo-edit-body').value = data.body;
+        if (data.body) setBodyValue(data.body);
         aiStatus.textContent = '<?php echo my_htmlspecialchars($translations['done'] ?? 'Done!'); ?>';
       } else {
         aiStatus.textContent = data.error || 'AI error';
       }
     } catch { aiStatus.textContent = 'Request failed'; }
     btn.disabled = false;
+  });
+
+  // ── Markdown Body Editor ──────────────────────────────────────────────────
+  const bodyTextarea = document.getElementById('npo-edit-body');
+  const bodyEditorWrap = document.getElementById('npo-body-editor-wrap');
+  const bodyPreview = document.getElementById('npo-body-preview');
+  const bodyToolbar = document.getElementById('npo-body-toolbar');
+  const bodyToggleBtns = bodyToolbar ? bodyToolbar.querySelectorAll('.npo-md-toggle-btn') : [];
+  let bodyMonaco = null;
+
+  function getBodyValue() {
+    return bodyMonaco ? bodyMonaco.getValue() : (bodyTextarea ? bodyTextarea.value : '');
+  }
+  function setBodyValue(val) {
+    if (bodyMonaco) bodyMonaco.setValue(val || '');
+    else if (bodyTextarea) bodyTextarea.value = val || '';
+  }
+
+  function applyMdAction(action) {
+    const ed = bodyMonaco;
+    if (!ed) return;
+    ed.focus();
+    const sel = ed.getSelection();
+    const model = ed.getModel();
+    const selText = model.getValueInRange(sel);
+    let replacement = '';
+    switch (action) {
+      case 'bold': replacement = `**${selText || 'bold text'}**`; break;
+      case 'italic': replacement = `*${selText || 'italic text'}*`; break;
+      case 'strike': replacement = `~~${selText || 'strikethrough'}~~`; break;
+      case 'h1': replacement = `# ${selText || 'Heading 1'}`; break;
+      case 'h2': replacement = `## ${selText || 'Heading 2'}`; break;
+      case 'h3': replacement = `### ${selText || 'Heading 3'}`; break;
+      case 'ul': replacement = selText ? selText.split('\n').map(l => `- ${l}`).join('\n') : '- List item'; break;
+      case 'ol': replacement = selText ? selText.split('\n').map((l, i) => `${i+1}. ${l}`).join('\n') : '1. List item'; break;
+      case 'checklist': replacement = selText ? selText.split('\n').map(l => `- [ ] ${l}`).join('\n') : '- [ ] Task'; break;
+      case 'quote': replacement = selText ? selText.split('\n').map(l => `> ${l}`).join('\n') : '> Blockquote'; break;
+      case 'code': replacement = `\`${selText || 'code'}\``; break;
+      case 'codeblock': replacement = `\`\`\`\n${selText || 'code block'}\n\`\`\``; break;
+      case 'link': replacement = `[${selText || 'link text'}](url)`; break;
+      case 'image': replacement = `![${selText || 'alt text'}](url)`; break;
+      case 'hr': replacement = `\n---\n`; break;
+      case 'table':
+        replacement = `| Header 1 | Header 2 | Header 3 |\n| -------- | -------- | -------- |\n| Cell 1   | Cell 2   | Cell 3   |`;
+        break;
+    }
+    const op = { range: sel, text: replacement, forceMoveMarkers: true };
+    ed.executeEdits('md-toolbar', [op]);
+
+  }
+
+  if (bodyToolbar) {
+    bodyToolbar.querySelectorAll('[data-md-action]').forEach(btn => {
+      btn.addEventListener('click', () => applyMdAction(btn.dataset.mdAction));
+    });
+  }
+
+  bodyToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      bodyToggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const monacoEl = document.getElementById('npo-body-monaco');
+      if (btn.dataset.view === 'preview') {
+        bodyPreview.innerHTML = renderMarkdown(getBodyValue());
+        if (monacoEl) monacoEl.style.display = 'none';
+        bodyPreview.style.display = 'block';
+        if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+          bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+        }
+      } else {
+        if (monacoEl) monacoEl.style.display = '';
+        bodyPreview.style.display = 'none';
+        if (bodyMonaco) bodyMonaco.layout();
+      }
+    });
   });
 
   // ── Canvas / Layout ────────────────────────────────────────────────────────
@@ -1032,6 +1198,56 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
       }
     };
     document.body.appendChild(script);
+  })();
+
+  // Expose helpers for outer scope
+  window.getBodyValue = getBodyValue;
+  window.setBodyValue = setBodyValue;
+
+  // ── Load Monaco Editor ────────────────────────────────────────────────────
+  (function() {
+    const monacoContainer = document.getElementById('npo-body-monaco');
+    if (!monacoContainer) return;
+    const monacoScript = document.createElement('script');
+    monacoScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js';
+    monacoScript.onload = () => {
+      require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+      require(['vs/editor/editor.main'], () => {
+        const isDark = !document.body.classList.contains('theme-light');
+        bodyMonaco = monaco.editor.create(monacoContainer, {
+          value: bodyTextarea ? bodyTextarea.value : '',
+          language: 'markdown',
+          theme: isDark ? 'vs-dark' : 'vs',
+          minimap: { enabled: true, maxColumn: 80, renderCharacters: false },
+          fontSize: 13,
+          fontFamily: "'SF Mono','Fira Code','Cascadia Code','JetBrains Mono',Consolas,'Courier New',monospace",
+          lineHeight: 22,
+          padding: { top: 12, bottom: 12 },
+          scrollBeyondLastLine: false,
+          wordWrap: 'on',
+          automaticLayout: true,
+          tabSize: 2,
+          renderLineHighlight: 'gutter',
+          scrollbar: { vertical: 'auto', horizontal: 'auto', verticalScrollbarSize: 8, horizontalScrollbarSize: 8 },
+          overviewRulerLanes: 0,
+          hideCursorInOverviewRuler: true,
+          overviewRulerBorder: false
+        });
+        bodyMonaco.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => applyMdAction('bold'));
+        bodyMonaco.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => applyMdAction('italic'));
+        bodyMonaco.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, () => applyMdAction('link'));
+        bodyMonaco.onDidChangeModelContent(() => {
+          if (bodyTextarea) bodyTextarea.value = bodyMonaco.getValue();
+        });
+        // Observe theme changes
+        const observer = new MutationObserver(() => {
+          const dark = !document.body.classList.contains('theme-light');
+          monaco.editor.setTheme(dark ? 'vs-dark' : 'vs');
+        });
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+      });
+    };
+    document.body.appendChild(monacoScript);
   })();
 
   window.openNewsPortal = openNewsPortal;

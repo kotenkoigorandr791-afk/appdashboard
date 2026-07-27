@@ -44,6 +44,7 @@ project/graphify-out/
 /apps/films/comments/
 /apps/spends/backups/
 /apps/spends/utils/ocr_jobs/
+/apps/spends/utils/tests/
 /apps/spends/users/
 /apps/steps/users/
 /apps/steps/upload_sessions/

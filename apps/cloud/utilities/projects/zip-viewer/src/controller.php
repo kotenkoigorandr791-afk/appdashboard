@@ -51,6 +51,9 @@ $downloadFromZip = isset($_GET['download_from_zip']) ? true : false;
 
 $i18n = $languages[$lang];
 
+// Base URL for file-type SVG icons (reuses the main app's icon set)
+$iconsBaseUrl = cloud_url('icons/');
+
 $archivePath = urldecode($archiveParam);
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 function app_path($relativePath = '') {

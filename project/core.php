@@ -579,7 +579,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         json_out(['ok' => true, 'authenticated' => $sessionOk, 'requires_login' => !$sessionOk, 'redirect' => '/main']);
     }
     if ($action === 'login') {
-        $email = trim((string)($input['email'] ?? ''));
+        $email = apNormalizeAuthEmail((string)($input['email'] ?? ''));
         $password = (string)($input['password'] ?? '');
         $deviceId = trim((string)($input['device_id'] ?? ''));
         $deviceName = trim((string)($input['device_name'] ?? ''));
