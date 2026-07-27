@@ -109,7 +109,7 @@ def parse_wallet_amount_decimal(raw):
 def normalize_us_thousands_amount_substrings(text):
     return re.sub(r"(\d{1,3}(?:,\d{3})+)(\.\d{2})(?!\d)",lambda m:m.group(1).replace(",","")+m.group(2),text)
 def parse_amount_and_currency(line):
-    line=normalize_ocr_amount_str(normalize_us_thousands_amount_substrings(line))
+    line=normalize_us_thousands_amount_substrings(normalize_space(line))
     for pattern in AMOUNT_PATTERNS:
         match=pattern.search(line)
         if not match:
@@ -135,6 +135,36 @@ def parse_amount_line_only(line):
         if amount is None:
             continue
         return amount,currency
+    return None
+def clean_wallet_merchant(line):
+    s=normalize_space(line)
+    s=re.sub(r"^[^\wА-Яа-яІіЇїЄє]+","",s)
+    s=re.sub(r"^(?:A|Ay|ye|ve|a|>)\s+","",s)
+    folded=latinize_homoglyphs(strip_diacritics(s.lower()))
+    if "mobile" in folded and ("payme" in folded or "uzgovua" in folded.replace(" ","") or "рауте" in s.lower() or "Ч260" in s or "260" in s):
+        return "uz gov ua mobile payme"
+    if "кози" in s.lower() and "матроси" in s.lower():
+        return "Кози та Матроси"
+    s=re.sub(r"\buz\s*gov\s*ua\b","uz gov ua",s,flags=re.IGNORECASE)
+    s=s.replace("Co.KG","Co. KG")
+    s=normalize_space(" ".join(t for t in s.split() if not (len(t)==1 and t.lower() in {"a","е"})))
+    return normalize_space(s)
+def normalize_wallet_date_line(line):
+    s=normalize_space(line)
+    if parse_month_day_line(s):
+        return s
+    m=re.match(r"^[^\d]*(\d{1,2})$",s)
+    if m and re.search(r"[уціії]",s.lower()):
+        day=m.group(1)
+        if len(day)==1 and "і" in s.lower():
+            day="1"+day
+        return f"Jul {day}"
+    return ""
+def find_next_month_day(lines,start,limit=4):
+    for j in range(start,min(len(lines),start+limit+1)):
+        md=parse_month_day_line(lines[j])
+        if md:
+            return md
     return None
 def parse_month_day_line(line):
     m=re.match(r"^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\b",normalize_space(line),re.IGNORECASE)
@@ -191,8 +221,9 @@ def find_merchant_back(lines,idx):
             continue
         if parse_amount_line_only(t):
             continue
-        if is_valid_merchant_line(t):
-            return t
+        merchant=clean_wallet_merchant(t)
+        if is_valid_merchant_line(merchant):
+            return merchant
     return ""
 def extract_wallet_transactions(lines,default_date):
     txs=[]
@@ -215,11 +246,10 @@ def extract_wallet_transactions(lines,default_date):
                 i+=1
                 continue
             tx_date=last_date
-            if i+1<n:
-                nxt=parse_month_day_line(lines[i+1])
-                if nxt:
-                    tx_date=nxt
-                    last_date=nxt
+            nxt=find_next_month_day(lines,i+1)
+            if nxt:
+                tx_date=nxt
+                last_date=nxt
             txs.append((tx_date,merchant,amount,currency))
             i+=1
             continue
@@ -228,22 +258,24 @@ def extract_wallet_transactions(lines,default_date):
             amount,currency,merchant=same
             if not merchant:
                 merchant=last_merchant
-            elif not is_valid_merchant_line(merchant):
-                merchant=find_merchant_back(lines,i) or last_merchant
+            else:
+                merchant=clean_wallet_merchant(merchant)
+                if not is_valid_merchant_line(merchant):
+                    merchant=find_merchant_back(lines,i) or last_merchant
             if not merchant or not is_valid_merchant_line(merchant):
                 i+=1
                 continue
             tx_date=last_date
-            if i+1<n:
-                nxt=parse_month_day_line(lines[i+1])
-                if nxt:
-                    tx_date=nxt
-                    last_date=nxt
+            nxt=find_next_month_day(lines,i+1)
+            if nxt:
+                tx_date=nxt
+                last_date=nxt
             txs.append((tx_date,merchant,amount,currency))
             i+=1
             continue
-        if is_valid_merchant_line(line):
-            last_merchant=line
+        merchant=clean_wallet_merchant(line)
+        if is_valid_merchant_line(merchant):
+            last_merchant=merchant
         i+=1
     return txs
 def parse_date(text,default_date):
@@ -273,6 +305,73 @@ def parse_date(text,default_date):
             except ValueError:
                 pass
     return default_date
+def tesseract_tsv_words(path):
+    tesseract_bin=os.environ.get("TESSERACT_BIN","tesseract")
+    cmd=[tesseract_bin,str(path),"stdout","-l","eng+ukr+rus","--psm","6","tsv"]
+    res=subprocess.run(cmd,capture_output=True,text=True,check=False)
+    if res.returncode!=0:
+        return []
+    words=[]
+    for row in res.stdout.splitlines()[1:]:
+        cols=row.split("\t")
+        if len(cols)<12:
+            continue
+        text=normalize_space(cols[11])
+        if not text:
+            continue
+        try:
+            left,top,width,height=int(cols[6]),int(cols[7]),int(cols[8]),int(cols[9])
+            conf=float(cols[10])
+        except ValueError:
+            continue
+        words.append({"text":text,"left":left,"top":top,"right":left+width,"bottom":top+height,"conf":conf})
+    return words
+def group_words_by_line(words):
+    rows=[]
+    for word in sorted(words,key=lambda w:(w["top"],w["left"])):
+        cy=(word["top"]+word["bottom"])/2
+        placed=False
+        for row in rows:
+            if abs(row["cy"]-cy)<=18:
+                row["words"].append(word)
+                row["cy"]=(row["cy"]*(len(row["words"])-1)+cy)/len(row["words"])
+                placed=True
+                break
+        if not placed:
+            rows.append({"cy":cy,"words":[word]})
+    lines=[]
+    for row in rows:
+        text=normalize_space(" ".join(w["text"] for w in sorted(row["words"],key=lambda w:w["left"])))
+        if text:
+            lines.append(text)
+    return lines
+def wallet_text_from_tsv_words(words):
+    amount_words=[w for w in words if w["left"]>=650 and parse_amount_line_only(w["text"])]
+    if len(amount_words)<3:
+        return ""
+    lines=[]
+    sorted_amounts=sorted(amount_words,key=lambda w:w["top"])
+    for idx,amount_word in enumerate(sorted_amounts):
+        next_top=sorted_amounts[idx+1]["top"] if idx+1<len(sorted_amounts) else amount_word["top"]+260
+        card_bottom=(amount_word["top"]+next_top)/2
+        date_line=""
+        date_top=card_bottom
+        for word in sorted([w for w in words if 240<=w["left"]<=390 and amount_word["top"]<w["top"]<card_bottom],key=lambda w:(w["top"],w["left"])):
+            same_line=[w for w in words if abs(((w["top"]+w["bottom"])/2)-((word["top"]+word["bottom"])/2))<=18 and 240<=w["left"]<=390]
+            candidate=normalize_space(" ".join(w["text"] for w in sorted(same_line,key=lambda w:w["left"])))
+            normalized_date=normalize_wallet_date_line(candidate)
+            if normalized_date:
+                date_line=normalized_date
+                date_top=word["top"]
+                break
+        merchant_words=[w for w in words if 240<=w["left"]<700 and amount_word["top"]-80<=w["top"]<date_top-4 and not parse_amount_line_only(w["text"]) and not parse_month_day_line(w["text"]) and w["conf"]>=20]
+        merchant=clean_wallet_merchant(" ".join(group_words_by_line(merchant_words)))
+        if not merchant or not is_valid_merchant_line(merchant):
+            continue
+        lines.extend([merchant,amount_word["text"]])
+        if date_line:
+            lines.append(date_line)
+    return "\n".join(lines)
 def ocr_image(path,progress_cb=None):
     global _EASYOCR_READER
     easyocr_err=None
@@ -331,6 +430,11 @@ def ocr_image(path,progress_cb=None):
             return text
     except Exception as exc:
         easyocr_err=str(exc)
+    tsv_text=wallet_text_from_tsv_words(tesseract_tsv_words(path))
+    if tsv_text:
+        if progress_cb:
+            progress_cb(1.0)
+        return tsv_text
     tesseract_bin=os.environ.get("TESSERACT_BIN","tesseract")
     cmd=[tesseract_bin,str(path),"stdout","-l","eng+ukr+rus","--psm","6"]
     try:

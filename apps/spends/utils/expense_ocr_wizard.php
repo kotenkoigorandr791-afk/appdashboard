@@ -106,6 +106,18 @@ $ocrAmbientBottom=$ocrTheme==='dark'?'rgba(255,255,255,.015)':('rgba('.implode('
 .ocrw-resolve-raw{font-size:16px;font-weight:800;overflow-wrap:anywhere;}
 .ocrw-resolve-sub{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;color:var(--muted);font-size:12px;}
 .ocrw-resolve-actions{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;}
+.ocrw-resolve-lines{display:grid;gap:6px;margin-top:10px;font-size:13px;color:var(--text);}
+.ocrw-resolve-line{display:flex;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:12px;background:var(--card);border:1px solid var(--line);}
+.ocrw-store-picker{position:relative;min-width:0;}
+.ocrw-store-trigger{width:100%;display:flex;align-items:center;gap:10px;min-height:48px;padding:9px 12px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px;cursor:pointer;text-align:left;}
+.ocrw-store-trigger:focus{outline:none;border-color:rgba(var(--primary-rgb),.45);box-shadow:0 0 0 4px rgba(var(--primary-rgb),.12);}
+.ocrw-store-photo{width:30px;height:30px;border-radius:8px;object-fit:cover;background:var(--soft);border:1px solid var(--line);flex:0 0 auto;}
+.ocrw-store-fallback{width:30px;height:30px;border-radius:8px;background:rgba(var(--primary-rgb),.12);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;flex:0 0 auto;}
+.ocrw-store-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);max-height:280px;overflow:auto;padding:6px;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:0 18px 50px rgba(0,0,0,.18);z-index:50;display:none;}
+.ocrw-store-picker.is-open .ocrw-store-menu{display:grid;gap:4px;}
+.ocrw-store-option{display:flex;align-items:center;gap:10px;width:100%;padding:8px;border:0;border-radius:12px;background:transparent;color:var(--text);text-align:left;cursor:pointer;}
+.ocrw-store-option:hover,.ocrw-store-option.is-selected{background:var(--soft);}
+.ocrw-btn-danger{background:#dc2626;color:#fff;border-color:#dc2626;}
 .ocrw-field,.ocrw-select{width:100%;padding:13px 14px;border-radius:16px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px;}
 .ocrw-field:focus,.ocrw-select:focus{outline:none;border-color:rgba(var(--primary-rgb),.45);box-shadow:0 0 0 4px rgba(var(--primary-rgb),.12);}
 .ocrw-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;}
