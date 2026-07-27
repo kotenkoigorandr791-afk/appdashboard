@@ -437,8 +437,8 @@
         .policy-link:hover{opacity:0.8;text-decoration:underline;}
         #policy-modal-overlay{display:none;position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);justify-content:center;align-items:center;}
         #policy-modal-overlay.active{display:flex;}
-        #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);}
-        #policy-modal iframe{flex:1;width:100%;border:none;}
+        #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);padding:6px;}
+        #policy-modal iframe{flex:1;width:100%;border:none;border-radius:calc(var(--casa-radius) - 6px);}
         #policy-modal-close{position:absolute;top:10px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:20px;cursor:pointer;z-index:10003;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;}
         #policy-modal-close:hover{opacity:0.7;}
         .policy-dot{width:4px;height:4px;border-radius:50%;background:var(--text-color);flex-shrink:0;}
@@ -2501,6 +2501,24 @@ var T=<?php echo json_encode([
     'weather_unknown'=>$translations['weather_unknown']??'Unknown location',
     'weather_settings_hint'=>$translations['weather_settings_hint']??'Go to browser site settings and allow location',
 ]); ?>;
+    function openPolicyModal(url){
+        let overlay = document.getElementById('policy-modal-overlay');
+        if(!overlay){
+            overlay = document.createElement('div');
+            overlay.id = 'policy-modal-overlay';
+            overlay.innerHTML = '<div id="policy-modal" style="position:relative;background:var(--modal-bg);"><button id="policy-modal-close" type="button">&times;</button><iframe src="'+url+'"></iframe></div>';
+            document.body.appendChild(overlay);
+            overlay.addEventListener('click', e => { if(e.target === overlay) closePolicyModal(); });
+            overlay.querySelector('#policy-modal-close').addEventListener('click', closePolicyModal);
+        } else {
+            overlay.querySelector('iframe').src = url;
+        }
+        overlay.classList.add('active');
+    }
+    function closePolicyModal(){
+        const overlay = document.getElementById('policy-modal-overlay');
+        if(overlay){ overlay.classList.remove('active'); }
+    }
     document.addEventListener('DOMContentLoaded',function(){
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const browserTheme = prefersDark ? 'dark' : 'light';
@@ -3131,9 +3149,13 @@ var T=<?php echo json_encode([
         }
         function buildShareExpirySelect(currentValue, shareId){
             const value = currentValue || 'never';
-            return `<select class="sf-expiry-select" data-shareid="${shareId}" style="width:100%;min-width:120px;">${
-                getShareExpiryOptions().map(([optionValue, label]) => `<option value="${optionValue}" ${value===optionValue?'selected':''}>${label}</option>`).join('')
-            }</select>`;
+            let html = '<select class="sf-expiry-select" data-shareid="' + shareId + '" style="width:100%;min-width:120px;">';
+            getShareExpiryOptions().forEach(function(option){
+                const optionValue = option[0];
+                const label = option[1];
+                html += '<option value="' + optionValue + '"' + (value === optionValue ? ' selected' : '') + '>' + label + '</option>';
+            });
+            return html + '</select>';
         }
         // Найдите этот блок (примерно в середине файла, где инициализируются модальные окна)
         const sharedFilesButton = document.getElementById('shared-files-button');
@@ -3142,17 +3164,16 @@ var T=<?php echo json_encode([
         const refreshSharedFiles = document.getElementById('refresh-shared-files');
 
         if(sharedFilesButton){
-            sharedFilesButton.addEventListener('click',()=>{
+            sharedFilesButton.addEventListener('click',function(){
                 closeAllModals();
                 if(sharedFilesModal){
                     sharedFilesModal.style.display='flex';
-                    // Добавляем автоматическую загрузку данных при открытии
                     loadSharedFilesList();
                 }
             });
             
             if(closeSharedFiles){
-                closeSharedFiles.addEventListener('click',()=>{
+                closeSharedFiles.addEventListener('click',function(){
                     if(sharedFilesModal){
                         sharedFilesModal.style.display='none';
                     }
@@ -3160,7 +3181,7 @@ var T=<?php echo json_encode([
             }
             
             if(sharedFilesModal){
-                sharedFilesModal.addEventListener('click',(e)=>{
+                sharedFilesModal.addEventListener('click',function(e){
                     if(e.target===sharedFilesModal){
                         sharedFilesModal.style.display='none';
                     }
@@ -3173,10 +3194,15 @@ var T=<?php echo json_encode([
                 loadSharedFilesList();
             });
         }
-        document.getElementById('shared-files-sort')?.addEventListener('change', function(){ loadSharedFilesList(); });
-        document.getElementById('shared-files-group')?.addEventListener('change', function(){ loadSharedFilesList(); });
+        const sharedFilesSort = document.getElementById('shared-files-sort');
+        const sharedFilesGroup = document.getElementById('shared-files-group');
+        if(sharedFilesSort) sharedFilesSort.addEventListener('change', function(){ loadSharedFilesList(); });
+        if(sharedFilesGroup) sharedFilesGroup.addEventListener('change', function(){ loadSharedFilesList(); });
 
-        /* ── Shared Files AJAX render ── */
+        const SHARED_FILE_DELETE_TEXT = <?php echo json_encode($translations['delete_file'] ?? 'Delete'); ?>;
+        function sharedFileText(value){
+            return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
         function renderSharedFilesTable(files){
             const container = document.getElementById('shared-files-list-container');
             if(!container) return;
@@ -3188,7 +3214,7 @@ var T=<?php echo json_encode([
             }
             const isRoot = <?php echo json_encode($isRootUser); ?>;
             let rows = '';
-            const entries = Object.entries(files).sort((a,b)=>{
+            const entries = Object.keys(files).map(function(key){ return [key, files[key]]; }).sort(function(a,b){
                 const af = a[1] || {};
                 const bf = b[1] || {};
                 if (sortBy === 'size_desc') return Number(bf.file_size_bytes||0)-Number(af.file_size_bytes||0);
@@ -3197,51 +3223,40 @@ var T=<?php echo json_encode([
                 return String(bf.created_at||'').localeCompare(String(af.created_at||''));
             });
             let currentGroup = '';
-            for(const [shareId, fileData] of entries){
+            entries.forEach(function(entry){
+                const shareId = entry[0];
+                const fileData = entry[1] || {};
                 const url = fileData.file_path || '';
                 const fname = fileData.file_name || (url ? url.split(/[\\/]/).pop() : '');
                 const pathDisplay = url === '' ? '—' : (isRoot ? url : ('…/'+fname));
                 const userEmail = fileData.user_email || '';
-                const userName = userEmail ? '<span style="font-size:10px;opacity:.6;display:block;">' + userEmail + '</span>' : '';
+                const userName = userEmail ? '<span style="font-size:10px;opacity:.6;display:block;">' + sharedFileText(userEmail) + '</span>' : '';
                 const expiresAt = fileData.expires ? formatDate(Number(fileData.expires)) : SHARE_EXPIRY_NEVER_TEXT;
                 const expiresOption = fileData.expires_option || 'never';
                 if (groupBy === 'user' && currentGroup !== userEmail) {
                     currentGroup = userEmail;
-                    rows += `<tr><td colspan="5" style="padding:8px 10px;background:var(--table-header-bg);font-size:12px;font-weight:700;">${userEmail || 'Unknown user'}</td></tr>`;
+                    rows += '<tr><td colspan="5" style="padding:8px 10px;background:var(--table-header-bg);font-size:12px;font-weight:700;">' + sharedFileText(userEmail || 'Unknown user') + '</td></tr>';
                 }
-                rows += `<tr data-filename="${fname}" data-filepath="${url}" data-shareid="${shareId}" style="border-bottom:1px solid var(--border-color);">
-                    <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><label style="display:flex;gap:8px;align-items:center;"><input class="sf-row-check" type="checkbox" value="${shareId}"><span>${shareId.substring(0,10)}…${userName}</span></label></td>
-                    <td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${fname||'<em style=\"opacity:.4\">—</em>'}</td>
-                    <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="${url}"><span style="display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;">${pathDisplay}</span></td>
-                    <td style="padding:8px 10px;white-space:normal;">
-                        ${buildShareExpirySelect(expiresOption, shareId)}
-                        <div style="margin-top:6px;font-size:11px;opacity:.7;">${expiresAt}</div>
-                    </td>
-                    <td style="padding:6px 10px;white-space:nowrap;"><button type="button" class="terminate-btn sf-delete-btn" data-shareid="${shareId}" style="padding:4px 10px;font-size:12px;"><?php echo addslashes(my_htmlspecialchars($translations['delete_file'])); ?></button></td>
-                </tr>`;
-            }
-            container.innerHTML = `<table id="shared-files-table" style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                <colgroup><col style="width:14%"><col style="width:24%"><col style="width:30%"><col style="width:18%"><col style="width:14%"></colgroup>
-                <thead><tr style="background:var(--table-header-bg);">
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Share ID / User</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">File Name</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">File Path</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Expires</th>
-                    <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Actions</th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-            </table>`;
+                rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sharedFileText(url) + '" data-shareid="' + sharedFileText(shareId) + '" style="border-bottom:1px solid var(--border-color);">'
+                    + '<td style="padding:8px 10px;font-size:11px;font-family:\'Courier New\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><label style="display:flex;gap:8px;align-items:center;"><input class="sf-row-check" type="checkbox" value="' + sharedFileText(shareId) + '"><span>' + sharedFileText(shareId.substring(0,10)) + '…' + userName + '</span></label></td>'
+                    + '<td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (fname ? sharedFileText(fname) : '<em style="opacity:.4">—</em>') + '</td>'
+                    + '<td style="padding:8px 10px;font-size:11px;font-family:\'Courier New\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="' + sharedFileText(url) + '"><span style="display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left;">' + sharedFileText(pathDisplay) + '</span></td>'
+                    + '<td style="padding:8px 10px;white-space:normal;">' + buildShareExpirySelect(expiresOption, shareId) + '<div style="margin-top:6px;font-size:11px;opacity:.7;">' + sharedFileText(expiresAt) + '</div></td>'
+                    + '<td style="padding:6px 10px;white-space:nowrap;"><button type="button" class="terminate-btn sf-delete-btn" data-shareid="' + sharedFileText(shareId) + '" style="padding:4px 10px;font-size:12px;">' + sharedFileText(SHARED_FILE_DELETE_TEXT) + '</button></td>'
+                    + '</tr>';
+            });
+            container.innerHTML = '<table id="shared-files-table" style="width:100%;border-collapse:collapse;table-layout:fixed;"><colgroup><col style="width:14%"><col style="width:24%"><col style="width:30%"><col style="width:18%"><col style="width:14%"></colgroup><thead><tr style="background:var(--table-header-bg);"><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Share ID / User</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">File Name</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">File Path</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Expires</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
             bindSharedFilesEvents();
         }
 
         function bindSharedFilesEvents(){
             /* individual delete */
-            document.querySelectorAll('.sf-delete-btn').forEach(btn=>{
+            document.querySelectorAll('.sf-delete-btn').forEach(function(btn){
                 btn.addEventListener('click', function(){
                     const sid = this.dataset.shareid;
-                    sfConfirm('<?php echo addslashes(my_htmlspecialchars($translations['delete_share_confirm'])); ?>', ()=>{
+                    sfConfirm('<?php echo addslashes(my_htmlspecialchars($translations['delete_share_confirm'])); ?>', function(){
                         const fd=new FormData(); fd.append('delete_shared_file','1'); fd.append('ajax','1'); fd.append('share_id',sid);
-                        fetch('/main',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+                        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
                             if(d.success){ showTempNotification(d.message||'Deleted','success'); renderSharedFilesTable(d.files||{}); }
                             else { showTempNotification('Error','error'); }
                         });
@@ -3254,7 +3269,7 @@ var T=<?php echo json_encode([
             if(src && tbl){
                 const handler = function(){
                     const q = src.value.toLowerCase();
-                    tbl.querySelectorAll('tbody tr').forEach(r=>{
+                    tbl.querySelectorAll('tbody tr').forEach(function(r){
                         const fn = (r.querySelector('.file-name')||{}).textContent||'';
                         r.style.display = fn.toLowerCase().includes(q) ? '' : 'none';
                     });
@@ -3263,7 +3278,7 @@ var T=<?php echo json_encode([
                 src._sfHandler = handler;
                 src.addEventListener('input', handler);
             }
-            document.querySelectorAll('.sf-expiry-select').forEach(sel => {
+            document.querySelectorAll('.sf-expiry-select').forEach(function(sel){
                 sel.addEventListener('change', function(){
                     const sid = this.dataset.shareid;
                     const fd = new FormData();
@@ -3271,30 +3286,30 @@ var T=<?php echo json_encode([
                     fd.append('ajax', '1');
                     fd.append('share_id', sid);
                     fd.append('expires_option', this.value || 'never');
-                    fetch('/main', {method:'POST', body:fd}).then(r=>r.json()).then(d=>{
+                    fetch('/main', {method:'POST', body:fd}).then(function(r){return r.json();}).then(function(d){
                         if(d.success){
                             renderSharedFilesTable(d.files||{});
                             showTempNotification(d.message||'Updated','success');
                         } else {
                             showTempNotification(d.message||'Error','error');
                         }
-                    }).catch(()=>showTempNotification('Error','error'));
+                    }).catch(function(){showTempNotification('Error','error');});
                 });
             });
             const rowChecks = document.querySelectorAll('.sf-row-check');
             const deleteSelectedBtn = document.getElementById('delete-selected-shared-files');
-            const refreshSelectionState = ()=>{
-                const selected = Array.from(rowChecks).filter(x=>x.checked);
+            const refreshSelectionState = function(){
+                const selected = Array.from(rowChecks).filter(function(x){return x.checked;});
                 if(deleteSelectedBtn) deleteSelectedBtn.style.display = selected.length ? 'inline-flex' : 'none';
             };
-            rowChecks.forEach(ch=>ch.addEventListener('change', refreshSelectionState));
+            rowChecks.forEach(function(ch){ch.addEventListener('change', refreshSelectionState);});
             if(deleteSelectedBtn){
-                deleteSelectedBtn.onclick = ()=>{
-                    const ids = Array.from(document.querySelectorAll('.sf-row-check')).filter(x=>x.checked).map(x=>x.value);
+                deleteSelectedBtn.onclick = function(){
+                    const ids = Array.from(document.querySelectorAll('.sf-row-check')).filter(function(x){return x.checked;}).map(function(x){return x.value;});
                     if(!ids.length) return;
-                    sfConfirm('Delete selected shared links?', ()=>{
+                    sfConfirm('Delete selected shared links?', function(){
                         const fd=new FormData();fd.append('delete_filtered_files','1');fd.append('ajax','1');fd.append('file_ids',JSON.stringify(ids));
-                        fetch('/main',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+                        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
                             if(d.success){renderSharedFilesTable(d.files||{});showTempNotification(d.message||'Deleted','success');}
                         });
                     });
@@ -3306,10 +3321,10 @@ var T=<?php echo json_encode([
             const refreshButton=document.getElementById('refresh-shared-files');
             if(refreshButton){ refreshButton.disabled=true; refreshButton.style.opacity='0.6'; }
             const fd=new FormData(); fd.append('get_shared_files','1'); fd.append('ajax','1');
-            fetch('/main',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
                 if(d.success) renderSharedFilesTable(d.files||{});
                 if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; }
-            }).catch(()=>{ if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; } });
+            }).catch(function(){ if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; } });
         }
 
         /* sfConfirm — modal instead of alert/confirm */
@@ -3641,25 +3656,6 @@ var T=<?php echo json_encode([
                 }).catch(()=>{
                     if(btn){ btn.disabled=false; btn.style.opacity='1'; }
                 });
-        }
-
-        function openPolicyModal(url){
-            let overlay = document.getElementById('policy-modal-overlay');
-            if(!overlay){
-                overlay = document.createElement('div');
-                overlay.id = 'policy-modal-overlay';
-                overlay.innerHTML = '<div id="policy-modal" style="position:relative;background:var(--modal-bg);"><button id="policy-modal-close" type="button">&times;</button><iframe src="'+url+'"></iframe></div>';
-                document.body.appendChild(overlay);
-                overlay.addEventListener('click', e => { if(e.target === overlay) closePolicyModal(); });
-                overlay.querySelector('#policy-modal-close').addEventListener('click', closePolicyModal);
-            } else {
-                overlay.querySelector('iframe').src = url;
-            }
-            overlay.classList.add('active');
-        }
-        function closePolicyModal(){
-            const overlay = document.getElementById('policy-modal-overlay');
-            if(overlay){ overlay.classList.remove('active'); }
         }
 
         // Attach listeners to user row buttons (used after AJAX refresh)

@@ -23,7 +23,6 @@
         select, button {border-radius: 999px; border: 1px solid rgba(0,0,0,0.15); padding: 6px 10px; font-size: 0.9rem; background: transparent; color: inherit; cursor: pointer;}
         button {display: inline-flex; align-items: center; gap: 8px;}
         button .dot {width: 10px; height: 10px; border-radius: 50%;}
-        .back-home-btn svg {flex-shrink: 0; width: 18px; height: 18px;}
         .back-home-btn {
             border: none;
             color: #fff;
@@ -33,7 +32,6 @@
             font-weight: 600;
         }
         .back-home-btn:hover {
-            transform: translateY(-1px);
             box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
         }
         main {max-width: 900px; margin: 0 auto; padding: 16px;}
@@ -63,7 +61,10 @@
 </head>
 <body>
 <header>
-    <div class="title" data-i18n="docTitle"></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="project/views/icon.png" alt="Shell App" style="width:32px;height:32px;border-radius:8px;">
+        <div class="title" data-i18n="docTitle"></div>
+    </div>
     <div class="controls">
         <button type="button" id="backHomeBtn" class="back-home-btn" aria-label="Home">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
@@ -74,6 +75,8 @@
             <option value="ru">RU</option>
             <option value="uk">UK</option>
             <option value="be">BE</option>
+            <option value="pl">PL</option>
+            <option value="cs">CZ</option>
         </select>
         <button type="button" id="themeToggle">
             <span id="themeLabel"></span>
@@ -310,9 +313,93 @@ const translations = {
         section8Text4: "Даныя карыстальнікаў ізаляваныя з дапамогай кантролю доступу на аснове роляў (RBAC). Root-карыстальнікі маюць поўны адміністратыўны доступ, у той час як госці ўзаемадзейнічаюць толькі з дазволенымі праграмамі. Доступ да базы даных абмежаваны аўтарызаванымі сэрвісамі, прамы доступ карыстальнікаў да сховішча немагчымы.",
         contactText: "Запрасы па дадзеных:",
         backHome: "← На галоўную"
+    },
+    pl: {
+        docTitle: "Polityka prywatności - Shell App",
+        mainTitle: "Polityka prywatności",
+        lastUpdated: "Ostatnia aktualizacja: 6 grudnia 2025",
+        section1Title: "1. Zbierane informacje",
+        section1Text: "Shell App zbiera dane osobowe w celu zapewnienia bezpiecznego dostępu wielu użytkowników, zaawansowanego uwierzytelniania, kompleksowego zarządzania aplikacjami i spersonalizowanego doświadczenia użytkownika.",
+        section2Title: "2. Rodzaje zbieranych danych",
+        section2Text: "Serwis przetwarza następujące kategorie danych w celu zapewnienia funkcjonalności:",
+        section2Item1: "Informacje o koncie: adres e-mail, zahashowane hasło, nazwa wyświetlana, zdjęcie profilowe, rola użytkownika (root/admin/menedżer/gość).",
+        section2Item2: "Dane uwierzytelniania: tokeny sesji, tokeny Google OAuth, kody weryfikacji e-mail, kody resetowania hasła.",
+        section2Item3: "Dane techniczne: adresy IP, informacje o przeglądarce, parametry urządzenia, szczegóły połączenia.",
+        section2Item4: "Statystyki użycia: liczba odwiedzin aplikacji, śledzenie aktywnych sesji, znaczniki czasu aktywności.",
+        section2Item5: "Ustawienia personalizacji: preferowany język (EN/RU/UK/BE), preferencje motywu (jasny/ciemny), niestandardowy schemat kolorów.",
+        section2Item6: "Dane administracyjne: zablokowane aplikacje dla każdego użytkownika, ograniczenia dostępu do aplikacji, rekordy zarządzania sesjami.",
+        section3Title: "3. Funkcje serwisu i wykorzystanie danych",
+        section3Sub1: "Zarządzanie wieloma użytkownikami z kontrolą dostępu opartą na rolach",
+        section3Text1: "Użytkownicy root zarządzają wszystkimi kontami, sesjami i ustawieniami serwisu. Admini/menedżerowie mają ograniczone możliwości administracyjne. Goście mają dostęp tylko do dozwolonych aplikacji.",
+        section3Sub2: "Zaawansowany system personalizacji",
+        section3Text2: "Użytkownicy mogą dostosowywać interfejs za pomocą 4 języków, motywów jasnego/ciemnego i niestandardowych kolorów akcentowych. Preferencje motywu i języka są zapisywane indywidualnie dla każdego użytkownika.",
+        section3Sub3: "Kompleksowe zarządzanie sesjami",
+        section3Text3: "Aktywne sesje są śledzone w czasie rzeczywistym z rejestracją aktywności. Użytkownicy mogą kończyć własne sesje. Użytkownicy root zarządzają wszystkimi aktywnymi sesjami platformy.",
+        section4Title: "4. Cele przetwarzania danych",
+        section4Text: "Wszystkie dane są przetwarzane w celach uwierzytelniania, personalizacji, zapewnienia bezpieczeństwa, ulepszania serwisu, zbierania statystyk i powiadomień e-mail (weryfikacja, resetowanie hasła).",
+        section5Title: "5. Środki bezpieczeństwa danych",
+        section5Text: "Hasła są przechowywane z silnym haszowaniem. Sesje wykorzystują bezpieczne tokeny ze śledzeniem aktywności. Zdjęcia profilowe są przetwarzane bezpiecznie. Dostęp jest ściśle kontrolowany przez role użytkowników.",
+        section6Title: "6. Integracje z podmiotami trzecimi",
+        section6Text: "Google OAuth do alternatywnego uwierzytelniania. Usługi SMTP do weryfikacji e-mail i odzyskiwania hasła. Nie są używane trackery reklamowe ani serwisy analityczne.",
+        section7Title: "7. Prawa i uprawnienia użytkowników",
+        section7Text: "Użytkownicy mogą aktualizować informacje profilowe, zmieniać hasła, dostosowywać ustawienia motywu/kolorów, zarządzać własnymi sesjami. Użytkownicy root kontrolują wszystkie konta. Usuwanie konta jest dostępne (root nie może usunąć własnego konta).",
+        section8Title: "8. Bezpieczeństwo danych i szyfrowanie",
+        section8Text: "Shell App wdraża standardowe w branży środki bezpieczeństwa w celu ochrony danych użytkowników w spoczynku i podczas przesyłania:",
+        section8Sub1: "Szyfrowanie podczas przesyłania",
+        section8Text1: "Wszystkie dane przesyłane między przeglądarką użytkownika a serwerem są szyfrowane za pomocą protokołu TLS (Transport Layer Security). Zapewnia to ochronę danych logowania, tokenów sesji, danych osobowych i wszystkich komunikatów przed przechwyceniem podczas transmisji.",
+        section8Sub2: "Haszowanie i przechowywanie haseł",
+        section8Text2: "Hasła użytkowników nigdy nie są przechowywane w postaci tekstowej. Wszystkie hasła są przetwarzane za pomocą silnych jednokierunkowych algorytmów kryptograficznych (bcrypt/Argon2) z unikalnymi solami, co czyni je odpornymi na ataki siłowe i ataki tabelami tęczowymi.",
+        section8Sub3: "Bezpieczeństwo sesji",
+        section8Text3: "Tokeny uwierzytelniania są generowane za pomocą kryptograficznie bezpiecznych generatorów liczb losowych. Tokeny sesji są bezpiecznie przechowywane, wygasają po okresach nieaktywności i mogą być cofnięte w dowolnym momencie. Monitorowanie aktywnych sesji wykrywa próby nieautoryzowanego dostępu.",
+        section8Sub4: "Izolacja danych i kontrola dostępu",
+        section8Text4: "Dane użytkowników są izolowane za pomocą kontroli dostępu opartej na rolach (RBAC). Użytkownicy root mają pełny dostęp administracyjny, podczas gdy goście mogą wchodzić w interakcję tylko z dozwolonymi aplikacjami. Dostęp do bazy danych jest ograniczony do autoryzowanych serwisów, bez bezpośredniego dostępu użytkowników do podstawowej pamięci.",
+        contactText: "W sprawach dostępu do danych, korekty, usunięcia lub pytań o prywatność, kontakt:",
+        backHome: "← Strona główna"
+    },
+    cs: {
+        docTitle: "Zásady ochrany soukromí - Shell App",
+        mainTitle: "Zásady ochrany soukromí",
+        lastUpdated: "Poslední aktualizace: 6. prosince 2025",
+        section1Title: "1. Shromažďované informace",
+        section1Text: "Shell App shromažďuje osobní údaje za účelem zabezpečení bezpečného přístupu více uživatelů, pokročilého ověřování, komplexní správy aplikací a personalizovaného uživatelského zážitku.",
+        section2Title: "2. Typy shromažďovaných dat",
+        section2Text: "Služba zpracovává následující kategorie dat pro zajištění funkčnosti:",
+        section2Item1: "Informace o účtu: e-mailová adresa, hašované heslo, zobrazované jméno, profilová fotografie, role uživatele (root/admin/manažer/host).",
+        section2Item2: "Data ověřování: tokeny relací, tokeny Google OAuth, ověřovací kódy e-mailu, kódy pro resetování hesla.",
+        section2Item3: "Technická data: IP adresy, informace o prohlížeči, parametry zařízení, podrobnosti připojení.",
+        section2Item4: "Statistiky použití: počty návštěv aplikací, sledování aktivních relací, časové značky aktivity.",
+        section2Item5: "Nastavení personalizace: preferovaný jazyk (EN/RU/UK/BE), preference motivu (světlý/tmavý), vlastní barevné schéma.",
+        section2Item6: "Administrativní data: zablokované aplikace pro každého uživatele, omezení přístupu k aplikacím, záznamy správy relací.",
+        section3Title: "3. Funkce služby a využití dat",
+        section3Sub1: "Správa více uživatelů s řízením přístupu na základě rolí",
+        section3Text1: "Uživatelé root spravují všechny účty, relace a nastavení služby. Admini/manažeři mají omezené administrativní možnosti. Hosté mají přístup pouze k povoleným aplikacím.",
+        section3Sub2: "Pokročilý systém personalizace",
+        section3Text2: "Uživatelé mohou přizpůsobit rozhraní pomocí 4 jazyků, světlého/tmavého motivu a vlastních barev. Preference motivu a jazyku se ukládají individuálně pro každého uživatele.",
+        section3Sub3: "Komplexní správa relací",
+        section3Text3: "Aktivní relace jsou sledovány v reálném čase s zaznamenáváním aktivity. Uživatelé mohou ukončovat vlastní relace. Uživatelé root spravují všechny aktivní relace platformy.",
+        section4Title: "4. Účely zpracování dat",
+        section4Text: "Všechna data jsou zpracovávána pro ověřování, personalizaci, zabezpečení, zlepšování služby, sběr statistik a e-mailová oznámení (ověření, resetování hesla).",
+        section5Title: "5. Opatření na ochranu dat",
+        section5Text: "Hesla jsou uložena s silným hašováním. Relace používají bezpečné tokeny se sledováním aktivity. Profilové fotografie jsou zpracovávány bezpečně. Přístup je přísně řízen rolemi uživatelů.",
+        section6Title: "6. Integrace s třetími stranami",
+        section6Text: "Google OAuth pro alternativní ověřování. Služby SMTP pro ověření e-mailu a obnovení hesla. Nepoužívají se reklamní trackery ani analytické služby.",
+        section7Title: "7. Práva a oprávnění uživatelů",
+        section7Text: "Uživatelé mohou aktualizovat profilové informace, měnit hesla, přizpůsobovat nastavení motivu/barev, spravovat vlastní relace. Uživatelé root řídí všechny účty. Smazání účtu je dostupné (root nemůže smazat vlastní účet).",
+        section8Title: "8. Zabezpečení dat a šifrování",
+        section8Text: "Shell App zavádí průmyslově standardní bezpečnostní opatření na ochranu dat uživatelů v klidu i při přenosu:",
+        section8Sub1: "Šifrování při přenosu",
+        section8Text1: "Veškerá data přenášená mezi prohlížečem uživatele a serverem jsou šifrována pomocí protokolu TLS (Transport Layer Security). To zajišťuje ochranu přihlašovacích údajů, tokenů relací, osobních údajů a veškerých komunikací před odposlechem během přenosu.",
+        section8Sub2: "Hašování a ukládání hesel",
+        section8Text2: "Hesla uživatelů se nikdy neukládají v plaintextu. Všechna hesla jsou zpracována pomocí silných jednosměrných kryptografických algoritmů (bcrypt/Argon2) s unikátními solami, díky čemuž jsou odolná vůči hrubé síle a útokům duhovými tabulkami.",
+        section8Sub3: "Bezpečnost relací",
+        section8Text3: "Tokeny ověřování se generují pomocí kryptograficky bezpečných generátorů náhodných čísel. Tokeny relací se bezpečně ukládají, vyprší po obdobích nečinnosti a mohou být kdykoli odvolány. Monitorování aktivních relací odhaluje pokusy o neoprávněný přístup.",
+        section8Sub4: "Izolace dat a řízení přístupu",
+        section8Text4: "Data uživatelů jsou izolována pomocí řízení přístupu na základě rolí (RBAC). Uživatelé root mají plný administrativní přístup, zatímco hosté mohou komunikovat pouze s povolenými aplikacemi. Přístup k databázi je omezen na autorizované služby, přímý přístup uživatelů k úložišti není možný.",
+        contactText: "Pro přístup k datům, opravu, smazání nebo dotazy na soukromí kontaktujte:",
+        backHome: "← Domů"
     }
 };
-const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}};
+const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}, pl: {light: "Jasny", dark: "Ciemny"}, cs: {light: "Světlý", dark: "Tmavý"}};
 const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), themeLabel = document.getElementById("themeLabel"), themeDot = document.getElementById("themeDot"), backHomeBtn = document.getElementById("backHomeBtn");
 
 // Функция проверки валидности цвета
@@ -336,7 +423,7 @@ function getUrlParams() {
 
 // Функция определения языка (приоритет: URL > localStorage > default)
 function getInitialLanguage(urlLang) {
-    if (urlLang && ['en', 'ru', 'uk', 'be'].includes(urlLang)) {
+    if (urlLang && ['en', 'ru', 'uk', 'be', 'pl', 'cs'].includes(urlLang)) {
         localStorage.setItem("doc_lang", urlLang);
         return urlLang;
     }
@@ -469,7 +556,7 @@ backHomeBtn.addEventListener("click", () => {
 });
 
 loadSettings();
-if (getUrlParams().hideBack === '1') backHomeBtn.style.display = 'none';
+if (getUrlParams().hideBack === '1') { backHomeBtn.style.display = 'none'; document.getElementById('languageSelect').style.display = 'none'; document.getElementById('themeToggle').style.display = 'none'; }
 </script>
 </body>
 </html>

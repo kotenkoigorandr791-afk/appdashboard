@@ -32,7 +32,6 @@
             font-weight: 600;
         }
         .back-home-btn:hover {
-            transform: translateY(-1px);
             box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
         }
         main {max-width: 900px; margin: 0 auto; padding: 16px;}
@@ -64,7 +63,10 @@
 </head>
 <body>
 <header>
-    <div class="title" data-i18n="docTitle"></div>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <img src="project/views/icon.png" alt="Shell App" style="width:32px;height:32px;border-radius:8px;">
+        <div class="title" data-i18n="docTitle"></div>
+    </div>
     <div class="controls">
         <button type="button" id="backHomeBtn" class="back-home-btn" data-i18n="backHome">← Home</button>
         <select id="languageSelect">
@@ -72,6 +74,8 @@
             <option value="ru">RU</option>
             <option value="uk">UK</option>
             <option value="be">BE</option>
+            <option value="pl">PL</option>
+            <option value="cs">CZ</option>
         </select>
         <button type="button" id="themeToggle">
             <span id="themeLabel"></span>
@@ -287,9 +291,83 @@ const translations = {
         section8Text3: "Серверная інфраструктура адпавядае лепшым практыкам бяспекі, уключаючы рэгулярныя абнаўленні, абарону файрволам, выяўленне ўварванняў, журналізацыю доступу і шыфраванне рэзервовых копій базы даных. Даныя карыстальнікаў у стане спакою абароненыя шыфраваннем на ўзроўні базы даных і кантролем доступу.",
         contactText: "Пытанні па ўліку/сэрвісе:",
         backHome: "← На галоўную"
+    },
+    pl: {
+        docTitle: "Warunki korzystania - Shell App",
+        mainTitle: "Warunki korzystania",
+        lastUpdated: "Ostatnia aktualizacja: 6 grudnia 2025",
+        section1Title: "1. Akceptacja warunków",
+        section1Text: "Korzystając z Shell App, wyrażasz zgodę na niniejsze Warunki regulujące zarządzanie wieloma użytkownikami, dostęp oparty na rolach, kontrolę sesji i wszystkie funkcje platformy.",
+        section2Title: "2. Obowiązki użytkowników i funkcje platformy",
+        section2Sub1: "Bezpieczeństwo konta i uwierzytelnianie",
+        section2Item1: "Zachowaj poufność swoich danych logowania. Użytkownicy root mają nieograniczony dostęp administracyjny.",
+        section2Item2: "Odpowiedzialnie korzystaj z Google OAuth lub uwierzytelniania emailem/hasłem.",
+        section2Item3: "Przesyłaj wyłącznie odpowiednie zdjęcia profilowe zgodnie z wytycznymi platformy.",
+        section2Sub2: "Funkcje personalizacji",
+        section2Item4: "Dostosuj interfejs za pomocą 4 języków (angielski/rosyjski/ukraiński/białoruski), motywów jasnego/ciemnego i niestandardowych kolorów akcentowych.",
+        section2Item5: "Preferencje motywu, języka i koloru są zapisywane indywidualnie dla każdego konta.",
+        section3Title: "3. Kontrola dostępu oparta na rolach",
+        section3Text: "Root: pełny dostęp administracyjny do wszystkich użytkowników, sesji, ograniczeń aplikacji, konfiguracji usługi. Admin/Menedżer: ograniczone zarządzanie użytkownikami/aplikacjami. Gość: dostęp tylko do aplikacji z uwzględnieniem indywidualnych ograniczeń.",
+        section4Title: "4. Zarządzanie sesjami i aktywnością",
+        section4Text1: "Wszystkie sesje są śledzone z monitorowaniem aktywności w czasie rzeczywistym. Użytkownicy mogą przeglądać i kończyć własne sesje.",
+        section4Warning: "Użytkownicy root mogą zakończyć każdą sesję na platformie. Zablokowane aplikacje są wymuszane dla każdego użytkownika niezależnie od sesji.",
+        section4Text2: "Statystyki odwiedzin są zbierane dla wszystkich aplikacji w celu ulepszenia usługi i alokacji zasobów.",
+        section5Title: "5. Korzystanie z aplikacji",
+        section5Text: "Platforma hostuje wiele aplikacji z indywidualną kontrolą dostępu. Zablokowane aplikacje są respektowane w zależności od roli i konfiguracji użytkownika. Statystyki śledzą wzorce użycia bez identyfikacji osobistej.",
+        section6Title: "6. Konfiguracja usługi",
+        section6Text: "Użytkownicy root konfigurują ustawienia domenowe, serwery SMTP, dane uwierzytelniające Google OAuth. Usługa jest dostarczana \"taka jaka jest\" bez gwarancji dostępności.",
+        section7Title: "7. Zabronione działania",
+        section7Text: "Zabronione: próby omijania ograniczeń ról, udostępnianie danych logowania, przesyłanie złośliwych treści, nadmierne wykorzystywanie zasobów, zakłócanie sesji lub danych innych użytkowników.",
+        section8Title: "8. Bezpieczeństwo danych i szyfrowanie",
+        section8Text: "Shell App jest zaangażowany w ochronę danych użytkowników poprzez solidne praktyki bezpieczeństwa i szyfrowanie:",
+        section8Sub1: "Szyfrowanie przesyłanych danych",
+        section8Text1: "Cała komunikacja między użytkownikami a platformą jest szyfrowana za pomocą protokołu TLS (Transport Layer Security). Dane logowania, tokeny sesji, dane osobowe i wszystkie poufne informacje są chronione przed przechwyceniem i atakami typu man-in-the-middle podczas transmisji.",
+        section8Sub2: "Bezpieczne przechowywanie haseł",
+        section8Text2: "Hasła są przechowywane za pomocą silnych algorytmów kryptograficznych (bcrypt/Argon2) z unikalnymi solami. Hasła w postaci tekstowej nigdy nie są przechowywane, logowane ani przesyłane w formie odzyskiwalnej. Procedury resetowania haseł wykorzystują jednorazowe tokeny z ograniczeniem czasowym.",
+        section8Sub3: "Bezpieczeństwo infrastruktury",
+        section8Text3: "Infrastruktura serwerowa spełnia najlepsze praktyki bezpieczeństwa, w tym regularne aktualizacje, ochronę zaporem sieciową, wykrywanie włamań, logowanie dostępu i szyfrowanie kopii zapasowych bazy danych. Dane użytkowników w spoczynku są chronione szyfrowaniem na poziomie bazy danych i kontrolą dostępu.",
+        contactText: "Kontakt w sprawach konta, pytań o usługę lub wyjaśnień Warunków:",
+        backHome: "← Strona główna"
+    },
+    cs: {
+        docTitle: "Podmínky používání - Shell App",
+        mainTitle: "Podmínky používání",
+        lastUpdated: "Poslední aktualizace: 6. prosince 2025",
+        section1Title: "1. Přijetí podmínek",
+        section1Text: "Používáním Shell App souhlasíte s těmito Podmínkami upravujícími správu více uživatelů, přístup na základě rolí, řízení relací a všechny funkce platformy.",
+        section2Title: "2. Povinnosti uživatelů a funkce platformy",
+        section2Sub1: "Zabezpečení účtu a ověřování",
+        section2Item1: "Uchovávejte důvěrnost svých přihlašovacích údajů. Uživatelé root mají neomezený administrativní přístup.",
+        section2Item2: "Odpovědně používejte Google OAuth nebo přihlašování e-mailem/heslem.",
+        section2Item3: "Nahrávejte pouze vhodné profilové fotografie v souladu s pokyny platformy.",
+        section2Sub2: "Funkce personalizace",
+        section2Item4: "Přizpůsobte si rozhraní pomocí 4 jazyků (angličtina/ruština/ukrajinština/běloruština), světlého/tmavého motivu a vlastních barev.",
+        section2Item5: "Předvolby motivu, jazyku a barev se ukládají individuálně pro každý účet.",
+        section3Title: "3. Řízení přístupu na základě rolí",
+        section3Text: "Root: plný administrativní přístup ke všem uživatelům, relacím, omezením aplikací a konfiguraci služby. Admin/Manažer: omezená správa uživatelů/aplikací. Host: přístup pouze k aplikacím s ohledem na individuální omezení.",
+        section4Title: "4. Řízení relací a aktivity",
+        section4Text1: "Všechny relace jsou sledovány s monitorováním aktivity v reálném čase. Uživatelé mohou zobrazovat a ukončovat vlastní relace.",
+        section4Warning: "Uživatelé root mohou ukončit jakoukoli relaci na platformě. Zablokované aplikace jsou vynuceny pro každého uživatele bez ohledu na relaci.",
+        section4Text2: "Statistiky návštěv jsou shromažďovány pro všechny aplikace za účelem zlepšení služby a alokace zdrojů.",
+        section5Title: "5. Používání aplikací",
+        section5Text: "Platforma hostuje více aplikací s individuální kontrolou přístupu. Zablokované aplikace jsou respektovány podle role a konfigurace uživatele. Statistiky sledují vzorce použití bez osobní identifikace.",
+        section6Title: "6. Konfigurace služby",
+        section6Text: "Uživatelé root konfigurují nastavení domény, servery SMTP, přihlašovací údaje Google OAuth. Služba je poskytována \"tak jak je\" bez záruky dostupnosti.",
+        section7Title: "7. Zakázané činnosti",
+        section7Text: "Zakázáno: pokusy o obejití omezení rolí, sdílení přihlašovacích údajů, nahrávání škodlivého obsahu, nadměrné využívání zdrojů, narušování relací nebo dat ostatních uživatelů.",
+        section8Title: "8. Zabezpečení dat a šifrování",
+        section8Text: "Shell App se zavazuje chránit data uživatelů prostřednictvím robustních bezpečnostních postupů a šifrování:",
+        section8Sub1: "Šifrování přenášených dat",
+        section8Text1: "Veškerá komunikace mezi uživateli a platformou je šifrována pomocí protokolu TLS (Transport Layer Security). Přihlašovací údaje, tokeny relací, osobní údaje a veškeré citlivé informace jsou chráněny před odposlechem a útoky typu man-in-the-middle při přenosu.",
+        section8Sub2: "Bezpečné ukládání hesel",
+        section8Text2: "Hesla jsou ukládána pomocí silných kryptografických algoritmů (bcrypt/Argon2) s unikátními soli. Hesla v plaintextu se nikdy neukládají, nepřihlašují ani nepřenášejí ve formě umožňující obnovení. Procesy resetování hesel používají jednorázové tokeny s časovým omezením.",
+        section8Sub3: "Zabezpečení infrastruktury",
+        section8Text3: "Serverová infrastruktura splňuje nejlepší bezpečnostní postupy včetně pravidelných aktualizací, ochrany firewallem, detekce invazí, přístupového logování a šifrování záloh databáze. Data uživatelů v klidu jsou chráněna šifrováním na úrovni databáze a řízením přístupu.",
+        contactText: "Kontakt ohledně účtů, dotazů na službu nebo vysvětlení Podmínek:",
+        backHome: "← Domů"
     }
 };
-const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}};
+const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}, pl: {light: "Jasny", dark: "Ciemny"}, cs: {light: "Světlý", dark: "Tmavý"}};
 const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), themeLabel = document.getElementById("themeLabel"), themeDot = document.getElementById("themeDot"), backHomeBtn = document.getElementById("backHomeBtn");
 
 // Функция проверки валидности цвета
@@ -312,7 +390,7 @@ function getUrlParams() {
 
 // Функция определения языка
 function getInitialLanguage(urlLang) {
-    if (urlLang && ['en', 'ru', 'uk', 'be'].includes(urlLang)) {
+    if (urlLang && ['en', 'ru', 'uk', 'be', 'pl', 'cs'].includes(urlLang)) {
         localStorage.setItem("doc_lang", urlLang);
         return urlLang;
     }
@@ -439,7 +517,7 @@ backHomeBtn.addEventListener("click", () => {
 });
 
 loadSettings();
-if (getUrlParams().hideBack === '1') backHomeBtn.style.display = 'none';
+if (getUrlParams().hideBack === '1') { backHomeBtn.style.display = 'none'; document.getElementById('languageSelect').style.display = 'none'; document.getElementById('themeToggle').style.display = 'none'; }
 </script>
 </body>
 </html>
