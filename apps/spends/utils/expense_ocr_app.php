@@ -12,7 +12,7 @@ function setSetting($db,$key,$value){dbSetSetting($db,$key,$value);}
 function userCurrency($db){return (string)dbGetSetting($db,'currency','USD');}
 function storeNames($db){return array_map(static fn($s)=>$s['name'],dbGetStores($db));}
 function userDir($email){$safe=getSafeFolderName($email);$dir=USERS_DIR.$safe;if(!file_exists($dir)){mkdir($dir,0755,true);}return $dir;}
-function storePhotoUrl($email,$name){$safe=getSafeFolderName($email);$fn=preg_replace('/[^a-zA-Z0-9]/','_',$name);$path=USERS_DIR.$safe."/store_$fn.jpg";return file_exists($path)?"users/$safe/store_$fn.jpg?t=".filemtime($path):"";}
+function storePhotoUrl($email,$name){$safe=getSafeFolderName($email);$fn=preg_replace('/[^a-zA-Z0-9]/','_',$name);$path=USERS_DIR.$safe."/store_$fn.jpg";$base=rtrim(dirname(dirname($_SERVER['SCRIPT_NAME']??'')),'/');return file_exists($path)?"$base/users/$safe/store_$fn.jpg?t=".filemtime($path):"";}
 function storeList($db,$email){return array_map(static fn($s)=>['name'=>$s['name'],'photo'=>storePhotoUrl($email,$s['name'])],dbGetStores($db));}
 function ocrMappingsPath($email){return userDir($email).'/ocr_mappings.json';}
 function readOcrMappings($email){$path=ocrMappingsPath($email);$json=is_file($path)?json_decode((string)file_get_contents($path),true):[];return is_array($json)?$json:[];}

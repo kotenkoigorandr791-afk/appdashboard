@@ -140,15 +140,31 @@ def clean_wallet_merchant(line):
     s=normalize_space(line)
     s=re.sub(r"^[^\wА-Яа-яІіЇїЄє]+","",s)
     s=re.sub(r"^(?:A|Ay|ye|ve|a|>)\s+","",s)
+    s=re.sub(r"\s*(?:[|:;\-–—]\s*)?\b(?:0?[1-9]|[12]\d|3[01])\s*$","",s)
     folded=latinize_homoglyphs(strip_diacritics(s.lower()))
-    if "mobile" in folded and ("payme" in folded or "uzgovua" in folded.replace(" ","") or "рауте" in s.lower() or "Ч260" in s or "260" in s):
-        return "uz gov ua mobile payme"
-    if "кози" in s.lower() and "матроси" in s.lower():
-        return "Кози та Матроси"
-    s=re.sub(r"\buz\s*gov\s*ua\b","uz gov ua",s,flags=re.IGNORECASE)
     s=s.replace("Co.KG","Co. KG")
     s=normalize_space(" ".join(t for t in s.split() if not (len(t)==1 and t.lower() in {"a","е"})))
     return normalize_space(s)
+def parse_wallet_merchant_day_hint(line,default_date):
+    s=normalize_space(line)
+    m=re.search(r"(?:[|:;\-–—]\s*|\s+)(0?[1-9]|[12]\d|3[01])\s*$",s)
+    if not m:
+        return clean_wallet_merchant(s),None
+    day=int(m.group(1))
+    year=datetime.utcnow().year
+    month=datetime.utcnow().month
+    if re.match(r"^\d{4}-\d{2}-\d{2}$",str(default_date)):
+        try:
+            d0=datetime.strptime(default_date,"%Y-%m-%d")
+            year=d0.year
+            month=d0.month
+        except ValueError:
+            pass
+    try:
+        hinted=datetime(year,month,day).strftime("%Y-%m-%d")
+    except ValueError:
+        hinted=None
+    return clean_wallet_merchant(s[:m.start()]),hinted
 def normalize_wallet_date_line(line):
     s=normalize_space(line)
     if parse_month_day_line(s):
@@ -213,6 +229,9 @@ def is_valid_merchant_line(line):
         return False
     return True
 def find_merchant_back(lines,idx):
+    merchant,_=find_merchant_back_with_date(lines,idx,datetime.utcnow().strftime("%Y-%m-%d"))
+    return merchant
+def find_merchant_back_with_date(lines,idx,default_date):
     for j in range(idx-1,-1,-1):
         t=lines[j]
         if is_noise_line(t):
@@ -221,10 +240,10 @@ def find_merchant_back(lines,idx):
             continue
         if parse_amount_line_only(t):
             continue
-        merchant=clean_wallet_merchant(t)
+        merchant,date_hint=parse_wallet_merchant_day_hint(t,default_date)
         if is_valid_merchant_line(merchant):
-            return merchant
-    return ""
+            return merchant,date_hint
+    return "",None
 def extract_wallet_transactions(lines,default_date):
     txs=[]
     last_merchant=""
@@ -241,11 +260,12 @@ def extract_wallet_transactions(lines,default_date):
         amt_only=parse_amount_line_only(line)
         if amt_only:
             amount,currency=amt_only
-            merchant=find_merchant_back(lines,i) or last_merchant
+            merchant,date_hint=find_merchant_back_with_date(lines,i,last_date)
+            merchant=merchant or last_merchant
             if not merchant or not is_valid_merchant_line(merchant):
                 i+=1
                 continue
-            tx_date=last_date
+            tx_date=date_hint or last_date
             nxt=find_next_month_day(lines,i+1)
             if nxt:
                 tx_date=nxt
@@ -256,16 +276,18 @@ def extract_wallet_transactions(lines,default_date):
         same=parse_amount_and_currency(line)
         if same:
             amount,currency,merchant=same
+            date_hint=None
             if not merchant:
                 merchant=last_merchant
             else:
-                merchant=clean_wallet_merchant(merchant)
+                merchant,date_hint=parse_wallet_merchant_day_hint(merchant,last_date)
                 if not is_valid_merchant_line(merchant):
-                    merchant=find_merchant_back(lines,i) or last_merchant
+                    merchant,date_hint=find_merchant_back_with_date(lines,i,last_date)
+                    merchant=merchant or last_merchant
             if not merchant or not is_valid_merchant_line(merchant):
                 i+=1
                 continue
-            tx_date=last_date
+            tx_date=date_hint or last_date
             nxt=find_next_month_day(lines,i+1)
             if nxt:
                 tx_date=nxt
@@ -273,9 +295,11 @@ def extract_wallet_transactions(lines,default_date):
             txs.append((tx_date,merchant,amount,currency))
             i+=1
             continue
-        merchant=clean_wallet_merchant(line)
+        merchant,date_hint=parse_wallet_merchant_day_hint(line,last_date)
         if is_valid_merchant_line(merchant):
             last_merchant=merchant
+            if date_hint:
+                last_date=date_hint
         i+=1
     return txs
 def parse_date(text,default_date):
@@ -345,7 +369,44 @@ def group_words_by_line(words):
         if text:
             lines.append(text)
     return lines
-def wallet_text_from_tsv_words(words):
+def merchant_quality(text):
+    s=normalize_space(text)
+    if not s:
+        return -100
+    letters=sum(1 for c in s if c.isalpha())
+    bad=sum(1 for c in s if c in "\\/|<>^~" or c.isdigit())
+    mixed=sum(1 for token in s.split() if re.search(r"[A-Za-z]",token) and re.search(r"[\u0400-\u04ff]",token))
+    script_mix=1 if re.search(r"[A-Za-z]",s) and re.search(r"[\u0400-\u04ff]",s) else 0
+    return letters*2-bad*4-mixed*3-script_mix*6-len(re.findall(r"\b\w{1,2}\b",s))
+def ocr_crop_text(path,box):
+    try:
+        from PIL import Image
+        im=Image.open(str(path)).convert("L")
+        x1,y1,x2,y2=[max(0,int(v)) for v in box]
+        if x2<=x1 or y2<=y1:
+            return ""
+        crop=im.crop((x1,y1,x2,y2))
+        scale=3 if max(crop.size)<700 else 2
+        crop=crop.resize((crop.size[0]*scale,crop.size[1]*scale),Image.Resampling.LANCZOS)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".png",delete=False) as tmp:
+            tmp_path=tmp.name
+            crop.save(tmp_path)
+        try:
+            res=subprocess.run([os.environ.get("TESSERACT_BIN","tesseract"),tmp_path,"stdout","-l","eng+ukr+rus","--psm","6"],capture_output=True,text=True,check=False)
+        finally:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        if res.returncode!=0:
+            return ""
+        lines=[normalize_space(x) for x in res.stdout.splitlines() if normalize_space(x)]
+        lines=[x for x in lines if not parse_month_day_line(x) and not parse_amount_line_only(x)]
+        return normalize_space(" ".join(lines))
+    except Exception:
+        return ""
+def wallet_text_from_tsv_words(words,path=None):
     amount_words=[w for w in words if w["left"]>=650 and parse_amount_line_only(w["text"])]
     if len(amount_words)<3:
         return ""
@@ -366,6 +427,10 @@ def wallet_text_from_tsv_words(words):
                 break
         merchant_words=[w for w in words if 240<=w["left"]<700 and amount_word["top"]-80<=w["top"]<date_top-4 and not parse_amount_line_only(w["text"]) and not parse_month_day_line(w["text"]) and w["conf"]>=20]
         merchant=clean_wallet_merchant(" ".join(group_words_by_line(merchant_words)))
+        if path is not None:
+            crop_merchant=clean_wallet_merchant(ocr_crop_text(path,(240,amount_word["top"]-95,700,date_top-2)))
+            if is_valid_merchant_line(crop_merchant) and merchant_quality(crop_merchant)>merchant_quality(merchant):
+                merchant=crop_merchant
         if not merchant or not is_valid_merchant_line(merchant):
             continue
         lines.extend([merchant,amount_word["text"]])
@@ -375,6 +440,11 @@ def wallet_text_from_tsv_words(words):
 def ocr_image(path,progress_cb=None):
     global _EASYOCR_READER
     easyocr_err=None
+    tsv_text=wallet_text_from_tsv_words(tesseract_tsv_words(path),path)
+    if tsv_text:
+        if progress_cb:
+            progress_cb(1.0)
+        return tsv_text
     try:
         import easyocr
         if _EASYOCR_READER is None:
@@ -430,11 +500,6 @@ def ocr_image(path,progress_cb=None):
             return text
     except Exception as exc:
         easyocr_err=str(exc)
-    tsv_text=wallet_text_from_tsv_words(tesseract_tsv_words(path))
-    if tsv_text:
-        if progress_cb:
-            progress_cb(1.0)
-        return tsv_text
     tesseract_bin=os.environ.get("TESSERACT_BIN","tesseract")
     cmd=[tesseract_bin,str(path),"stdout","-l","eng+ukr+rus","--psm","6"]
     try:
@@ -586,6 +651,7 @@ def process(job_dir,user_email,base_currency):
     grouped={}
     grouped_raw={}
     staged_signatures=set()
+    seen_upload_transactions={}
     for i,img in enumerate(uploads,start=1):
         dedup_seen=set()
         push_progress(i-1,0.02)
@@ -603,6 +669,13 @@ def process(job_dir,user_email,base_currency):
                 if currency not in SUPPORTED_CURRENCIES and image_currency:
                     currency=image_currency
                 raw_norm=normalize_space(merchant)
+                tx_key=(date,canonical_merchant(raw_norm) or normalize_text(raw_norm),round(float(amount),2),currency)
+                seen_image=seen_upload_transactions.get(tx_key)
+                if seen_image is not None and seen_image!=i:
+                    duplicate_count+=1
+                    recognized.append({"date":date,"merchant_raw":raw_norm,"amount":round(amount,2),"currency":currency,"status":"duplicate"})
+                    continue
+                seen_upload_transactions.setdefault(tx_key,i)
                 store_resolution=resolve_store_match(merchant,existing_stores)
                 matched=store_resolution.get("matched")
                 score=store_resolution.get("confidence",0.0)
