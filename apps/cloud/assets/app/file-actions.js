@@ -86,6 +86,253 @@ function newFile(basePath) {
   modal.classList.remove('hidden');
   fileNameInput.focus();
 }
+function newVideo(basePath) {
+  if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
+  const modal = ensureVideoModal();
+  modal.dataset.basePath = (typeof basePath === 'string') ? basePath : '';
+  modal.querySelector('#video-prompt').value = '';
+  modal.querySelector('#video-duration').value = '15';
+  modal.querySelector('#video-preset').value = '720x1280';
+  modal.querySelector('#video-fps').value = '24';
+  modal.querySelector('#video-status').textContent = '';
+  modal.querySelector('#video-progress-fill').style.width = '0%';
+  updateVideoPreviewMeta(modal);
+  renderVideoAssetSelection(modal);
+  hydrateVideoModelOptions(modal);
+  modal.classList.remove('hidden');
+  modal.querySelector('#video-prompt').focus();
+}
+function ensureVideoModal() {
+  let modal = document.getElementById('video-generation-modal');
+  if (modal) return modal;
+  modal = document.createElement('div');
+  modal.id = 'video-generation-modal';
+  modal.className = 'modal hidden';
+  modal.innerHTML = `
+    <div class="modal-content video-modal-content">
+      <style>
+        #video-generation-modal .video-modal-content{max-width:820px;width:92vw;max-height:90dvh;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+        #video-generation-modal .video-modal-scroll{flex:1 1 auto;overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);padding:0 4px}
+        #video-generation-modal .video-modal-scroll::-webkit-scrollbar{width:6px}
+        #video-generation-modal .video-modal-scroll::-webkit-scrollbar-track{background:var(--scrollbar-track);border-radius:3px}
+        #video-generation-modal .video-modal-scroll::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+        #video-generation-modal .video-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
+        #video-generation-modal .video-title{display:flex;align-items:center;gap:10px;min-width:0}
+        #video-generation-modal .video-title-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:8px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 28%,var(--border))}
+        #video-generation-modal .video-title h3{margin:0;font-size:18px;line-height:1.2}
+        #video-generation-modal .video-title p{margin:2px 0 0;color:var(--muted);font-size:12px}
+        #video-generation-modal .video-grid{display:grid;grid-template-columns:minmax(0,1.15fr) 260px;gap:16px;padding:18px 20px}
+        #video-generation-modal .video-panel{border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--panel) 62%,transparent);padding:14px}
+        #video-generation-modal .video-prompt-label{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px;font-weight:700}
+        #video-generation-modal #video-prompt{width:100%;min-height:170px;resize:vertical;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--fg);padding:12px;line-height:1.45}
+        #video-generation-modal .video-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px}
+        #video-generation-modal .video-field{display:grid;gap:6px;font-size:12px;color:var(--muted);font-weight:700}
+        #video-generation-modal .video-field select{width:100%;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--fg);padding:9px}
+        #video-generation-modal .video-preview{min-height:230px;display:grid;align-content:space-between;background:linear-gradient(135deg,#111827,#115e59);color:#fff;position:relative;overflow:hidden}
+        #video-generation-modal .video-preview:before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.16),transparent 44%);pointer-events:none}
+        #video-generation-modal .video-preview strong{font-size:24px;line-height:1.05;position:relative}
+        #video-generation-modal .video-preview span{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#67e8f9;position:relative}
+        #video-generation-modal .video-assets-box{max-height:132px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px;background:var(--bg)}
+        #video-generation-modal .video-progress-wrap{height:9px;background:var(--bg);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-top:14px}
+        #video-generation-modal #video-progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#22c55e);transition:width .25s ease}
+        #video-generation-modal #video-status{margin-top:10px;color:var(--muted);font-size:13px;min-height:18px}
+        @media (max-width:760px){#video-generation-modal .video-grid{grid-template-columns:1fr}#video-generation-modal .video-controls{grid-template-columns:1fr}}
+      </style>
+      <div class="video-modal-head">
+        <div class="video-title">
+          <div class="video-title-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+              <path d="m10 9 5 3-5 3z"></path>
+            </svg>
+          </div>
+          <div>
+            <h3>${t(window.i18n, 'createVideo') || 'Create Video'}</h3>
+            <p>AI composition → HyperFrames → MP4</p>
+          </div>
+        </div>
+        <button class="icon-btn close-btn">&times;</button>
+      </div>
+      <div class="video-modal-scroll">
+      <div class="video-grid">
+        <div>
+          <div class="video-panel">
+            <label class="video-prompt-label">
+              <span>${t(window.i18n, 'videoPrompt') || 'Prompt'}</span>
+              <span>MP4</span>
+            </label>
+            <textarea id="video-prompt" rows="6" placeholder="${t(window.i18n, 'videoPromptPlaceholder') || 'Describe the video you want to create...'}"></textarea>
+            <div class="video-controls">
+              <label class="video-field">Format
+                <select id="video-preset">
+                  <option value="720x1280">Vertical 9:16</option>
+                  <option value="1280x720">Landscape 16:9</option>
+                  <option value="720x720">Square 1:1</option>
+                </select>
+              </label>
+              <label class="video-field">Duration
+                <select id="video-duration">
+                  <option value="10">10s</option>
+                  <option value="15">15s</option>
+                  <option value="30">30s</option>
+                  <option value="45">45s</option>
+                  <option value="60">60s</option>
+                </select>
+              </label>
+              <label class="video-field">FPS
+                <select id="video-fps">
+                  <option value="24">24</option>
+                </select>
+              </label>
+              <label class="video-field hidden" id="video-model-field">Model
+                <select id="video-model"></select>
+              </label>
+            </div>
+          </div>
+          <div class="video-panel" style="margin-top:12px;">
+            <label class="video-prompt-label">
+              <span>${t(window.i18n, 'videoAssets') || 'Assets'}</span>
+            </label>
+            <div id="video-assets" class="video-assets-box"></div>
+          </div>
+        </div>
+        <div>
+          <div class="video-panel video-preview">
+            <span>Preview</span>
+            <strong>${t(window.i18n, 'createVideo') || 'Create Video'}</strong>
+            <span id="video-preview-meta">720 x 1280 · 15s · 24fps</span>
+          </div>
+          <div class="video-progress-wrap">
+            <div id="video-progress-fill"></div>
+          </div>
+          <div id="video-status"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-cancel-video" class="btn secondary">${t(window.i18n, 'cancel') || 'Cancel'}</button>
+        <button id="btn-generate-video" class="btn primary">${t(window.i18n, 'generateVideo') || 'Generate Video'}</button>
+      </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
+  modal.querySelector('#btn-cancel-video').addEventListener('click', () => modal.classList.add('hidden'));
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+  modal.querySelector('#btn-generate-video').addEventListener('click', () => startVideoGeneration(modal));
+  ['#video-preset', '#video-duration', '#video-fps', '#video-model'].forEach(selector => modal.querySelector(selector)?.addEventListener('change', () => updateVideoPreviewMeta(modal)));
+  return modal;
+}
+async function hydrateVideoModelOptions(modal) {
+  try {
+    const options = await api('video_generation_options', {}, 'GET');
+    const field = modal.querySelector('#video-model-field');
+    const select = modal.querySelector('#video-model');
+    if (!options.can_choose_model || !Array.isArray(options.models) || !options.models.length) {
+      field.classList.add('hidden');
+      select.innerHTML = '';
+      return;
+    }
+    select.innerHTML = options.models.map(model => `<option value="${escapeHtml(model)}"${model === options.default_model ? ' selected' : ''}>${escapeHtml(model)}</option>`).join('');
+    field.classList.remove('hidden');
+  } catch (_) {}
+}
+function updateVideoPreviewMeta(modal) {
+  const preset = modal.querySelector('#video-preset').value.replace('x', ' x ');
+  const duration = modal.querySelector('#video-duration').value + 's';
+  const fps = modal.querySelector('#video-fps').value + 'fps';
+  modal.querySelector('#video-preview-meta').textContent = `${preset} · ${duration} · ${fps}`;
+}
+function renderVideoAssetSelection(modal) {
+  const wrap = modal.querySelector('#video-assets');
+  const items = Array.from(selectionState?.selectedItems || []);
+  const fileItems = items.filter(path => {
+    const ext = String(path).split('.').pop().toLowerCase();
+    return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'mp3', 'wav', 'ogg', 'mp4', 'mov', 'webm'].includes(ext);
+  });
+  if (!fileItems.length) {
+    wrap.innerHTML = `<div style="color:var(--muted); font-size:13px;">${t(window.i18n, 'videoNoAssets') || 'Select media files before opening this dialog to use them as assets.'}</div>`;
+    return;
+  }
+  wrap.innerHTML = fileItems.map(path => `
+    <label style="display:flex; align-items:center; gap:8px; padding:4px 0;">
+      <input type="checkbox" value="${escapeHtml(path)}" checked>
+      <span>${escapeHtml(path.split('/').pop())}</span>
+    </label>
+  `).join('');
+}
+async function startVideoGeneration(modal) {
+  const prompt = modal.querySelector('#video-prompt').value.trim();
+  if (!prompt) {
+    flashStatus(t(window.i18n, 'videoPromptRequired') || 'Enter a video prompt');
+    modal.querySelector('#video-prompt').focus();
+    return;
+  }
+  const [width, height] = modal.querySelector('#video-preset').value.split('x').map(v => parseInt(v, 10));
+  const assetIds = Array.from(modal.querySelectorAll('#video-assets input:checked')).map(input => input.value);
+  const button = modal.querySelector('#btn-generate-video');
+  button.disabled = true;
+  try {
+    const data = await api('video_generation', {
+      folderId: modal.dataset.basePath || '',
+      prompt,
+      duration: modal.querySelector('#video-duration').value,
+      width,
+      height,
+      fps: modal.querySelector('#video-fps').value,
+      model: modal.querySelector('#video-model-field')?.classList.contains('hidden') ? '' : modal.querySelector('#video-model')?.value || '',
+      assetIds: JSON.stringify(assetIds)
+    });
+    pollVideoGeneration(modal, data.jobId);
+  } catch (err) {
+    button.disabled = false;
+    flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+  }
+}
+function pollVideoGeneration(modal, jobId) {
+  const statusEl = modal.querySelector('#video-status');
+  const fill = modal.querySelector('#video-progress-fill');
+  const button = modal.querySelector('#btn-generate-video');
+  const labels = {
+    queued: 'Queued',
+    preparing: 'Preparing assets',
+    generating_composition: 'Generating composition',
+    rendering: 'Rendering video',
+    uploading: 'Uploading to cloud storage',
+    completed: 'Completed',
+    failed: 'Failed'
+  };
+  const tick = async () => {
+    try {
+      const job = await api('video_generation_status', { jobId }, 'GET');
+      const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+      fill.style.width = progress + '%';
+      statusEl.textContent = labels[job.status] || job.status || '';
+      if (job.status === 'completed') {
+        button.disabled = false;
+        const path = job.file_path || job.fileId;
+        if (path) {
+          const now = Math.floor(Date.now() / 1000);
+          await insertTreeItem({ name: job.file_name || path.split('/').pop(), path, type: 'file', size: job.size || 0, mtime: now }, getCurrentCloudRoot());
+          openFileInTab(path, true);
+        }
+        flashStatus(t(window.i18n, 'videoCreated') || 'Video created');
+        return;
+      }
+      if (job.status === 'failed') {
+        button.disabled = false;
+        statusEl.textContent = job.error || labels.failed;
+        flashStatus(t(window.i18n, 'errorPrefix') + (job.error || labels.failed));
+        return;
+      }
+      setTimeout(tick, 1500);
+    } catch (err) {
+      button.disabled = false;
+      flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+    }
+  };
+  tick();
+}
 async function deletePath(path, type = 'file', name = '') {
     if (path !== null && typeof path === 'object') { type = path.type || type; name = path.name || name; path = path.path || ''; }
     path = String(path || '');
@@ -785,7 +1032,8 @@ function showContextMenu(e, path, type, name) {
             ...(type !== 'file' ? (() => {
                 const createItems = [
                     { label: t(window.i18n, 'newFolder'), icon: 'new-folder', action: () => newFolder(basePath) },
-                    { label: t(window.i18n, 'newFile'), icon: 'new-file', action: () => newFile(basePath) }
+                    { label: t(window.i18n, 'newFile'), icon: 'new-file', action: () => newFile(basePath) },
+                    { label: t(window.i18n, 'createVideo') || 'Create Video', icon: 'video', action: () => newVideo(basePath) }
                 ];
                 return [{ type: 'group', label: t(window.i18n, 'create'), icon: 'circle-plus', items: createItems }];
             })() : []),
@@ -853,6 +1101,7 @@ function getContextMenuIconSvg(iconName) {
         select: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><polyline points="8 12 11 15 16 9"/></svg>',
         deselect: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="8" x2="16" y2="16"/><line x1="16" y1="8" x2="8" y2="16"/></svg>',
         upload: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V6"/><polyline points="8 10 12 6 16 10"/><path d="M4 18h16"/></svg>',
+        video: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>',
         'new-folder': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
         'new-file': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
         'archive-folder': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><rect x="2" y="2" width="20" height="5"/><path d="M10 12h4"/></svg>',
@@ -1676,14 +1925,11 @@ function showConvertDialog(filePath) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="delete-original-checkbox">
-                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
+                    <label class="animated-check-label">
+                        <input type="checkbox" id="delete-original-checkbox" class="animated-checkbox"/>
+                        <span class="animated-checkbox-box">
+                          <svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
                         ${t(i18n, 'deleteOriginal')}
                     </label>
                 </div>

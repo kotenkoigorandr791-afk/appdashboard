@@ -223,13 +223,13 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=29"></script>
+<script defer src="assets/app.js?v=30"></script>
 <script defer src="assets/app/editors-and-tree.js?v=9"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
 <script defer src="assets/app/file-viewers.js?v=2"></script>
-<script defer src="assets/app/file-actions.js?v=7"></script>
+<script defer src="assets/app/file-actions.js?v=10"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=7"></script>
 <script defer src="assets/audio-player.js?v=2"></script>
@@ -1283,8 +1283,14 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         </div>
         <div>
           <p id="delete-confirmation-text"></p>
-          <label id="delete-permanent-option" style="display:flex;align-items:center;gap:8px;margin-top:12px;">
-            <input type="checkbox" id="delete-permanently-checkbox">
+          <label id="delete-permanent-option" class="animated-check-label" style="margin-top:12px;">
+            <input type="checkbox" id="delete-permanently-checkbox" class="animated-checkbox" />
+            <span class="animated-checkbox-box">
+              <svg width="24" height="18" viewBox="0 0 24 18" fill="none">
+                <path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             <span data-i18n="deletePermanently">Delete permanently</span>
           </label>
           <p id="delete-warning-text" style="color: var(--muted); font-size: 14px; margin-top: 8px;" data-i18n="permanentDeleteWarning">
@@ -2088,8 +2094,11 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
     </div>
     <div class="modal-body">
       <p id="group-delete-message" data-i18n="groupDeleteConfirm">Delete the group and all its files permanently?</p>
-      <label class="groups-delete-move-toggle" style="display:flex;align-items:center;gap:8px;margin:16px 0 12px;cursor:pointer">
-        <input type="checkbox" id="group-delete-move-files" />
+      <label class="animated-check-label groups-delete-move-toggle" style="margin:16px 0 12px;">
+        <input type="checkbox" id="group-delete-move-files" class="animated-checkbox" />
+        <span class="animated-checkbox-box">
+          <svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
         <span data-i18n="groupDeleteMoveLabel">Move files to my folder before deleting</span>
       </label>
       <div id="group-delete-move-fields" class="hidden groups-delete-move-picker">

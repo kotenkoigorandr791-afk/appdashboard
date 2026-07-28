@@ -1,8 +1,0 @@
-# Recipes app - background removal dependencies
-# These are pre-installed in the Docker image (see Dockerfile)
-# This file serves as documentation and for manual setup
-pillow>=10.0.0
-numpy>=1.24.0
-scipy>=1.10.0
-rembg>=0.6.0
-onnxruntime>=1.15.0

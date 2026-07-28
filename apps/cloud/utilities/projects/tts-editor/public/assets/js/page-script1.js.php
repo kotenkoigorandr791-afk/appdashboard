@@ -128,12 +128,18 @@
 
                     try {
                         const response = await fetch(`<?= htmlspecialchars($ttsApiUrl) ?>?action=get_progress&progress_id=${this.progressId}`);
-                        const data = await response.json();
+                        const responseText = await response.text();
+                        let data;
+                        try {
+                            data = JSON.parse(responseText);
+                        } catch (error) {
+                            throw new Error(`TTS API returned invalid JSON (${response.status} ${response.statusText})`);
+                        }
 
                         this.updateProgressUI(data.progress, data.message);
 
                         if (data.progress >= 100 && data.status === 'completed') {
-                            this.generationComplete(data.audio_url, data.audio_data);
+                            this.generationComplete(data.audio_url);
                         } else if (data.status === 'error') {
                             throw new Error(data.error || 'Generation failed');
                         } else {
@@ -170,7 +176,7 @@
                     const blob = new Blob([bytes], { type: 'audio/mpeg' });
                     this.audioBlobUrl = URL.createObjectURL(blob);
                 } else {
-                    this.audioBlobUrl = audioUrl;
+                    this.audioBlobUrl = audioUrl ? new URL(audioUrl, window.location.origin + '/apps/cloud/').href : `<?= htmlspecialchars($ttsApiUrl) ?>?action=download_audio&progress_id=${encodeURIComponent(this.progressId)}`;
                 }
 
                 // Display custom audio player
@@ -218,6 +224,7 @@
                     formData.append('progress_id', this.progressId);
                     formData.append('text_path', this.apiTextPath);
                     formData.append('user', this.user);
+                    formData.append('root', this.root);
 
                     const response = await fetch('<?= htmlspecialchars($ttsApiUrl) ?>', {
                         method: 'POST',

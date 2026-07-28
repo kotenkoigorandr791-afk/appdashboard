@@ -188,59 +188,141 @@ class CustomAudioPlayer {
     const style = document.createElement('style');
     style.id = 'cap-styles';
     style.textContent = `
+      @keyframes cap-spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes cap-pulse-glow {
+        0%, 100% { box-shadow: 0 4px 20px rgba(108,99,255,0.15), 0 0 0 1px rgba(255,255,255,0.04); }
+        50% { box-shadow: 0 8px 32px rgba(108,99,255,0.28), 0 0 0 1px rgba(255,255,255,0.06); }
+      }
+
+      @keyframes cap-bounce {
+        from { opacity: 0.3; transform: translateY(0); }
+        to   { opacity: 1; transform: translateY(-4px); }
+      }
+
+      @keyframes cap-ripple {
+        0% { transform: scale(0.8); opacity: 0.6; }
+        100% { transform: scale(2.4); opacity: 0; }
+      }
+
       .custom-audio-player {
+        --cap-bg: #11182d;
+        --cap-card: #141e36;
+        --cap-gradient-1: #6c63ff;
+        --cap-gradient-2: #00d4ff;
+        --cap-accent: var(--accent, #6c63ff);
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 10px 14px;
-        background: var(--panel, #2a2a2a);
-        border: 1px solid var(--border, #444);
-        border-radius: 10px;
-        transition: border-color 0.2s, box-shadow 0.2s;
+        gap: 12px;
+        padding: 14px 16px;
+        background: var(--cap-card);
+        border: 1px solid rgba(108,99,255,0.1);
+        border-radius: 16px;
+        transition: border-color 0.3s, box-shadow 0.3s, transform 0.2s;
         position: relative;
-        min-height: 52px;
+        min-height: 60px;
         box-sizing: border-box;
+        overflow: hidden;
+        box-shadow:
+          0 4px 20px rgba(0,0,0,0.25),
+          inset 0 1px rgba(255,255,255,0.04);
+        animation: cap-pulse-glow 4s ease-in-out infinite;
+      }
+
+      .custom-audio-player::before {
+        content: "";
+        position: absolute;
+        inset: -120px;
+        background: conic-gradient(from 180deg, var(--cap-gradient-1), var(--cap-gradient-2), var(--cap-gradient-1));
+        animation: cap-spin 6s linear infinite;
+        opacity: 0.07;
+        pointer-events: none;
+        transition: opacity 0.3s;
+      }
+
+      .custom-audio-player:hover::before {
+        opacity: 0.12;
       }
 
       .custom-audio-player:hover {
-        border-color: var(--accent-border, color-mix(in srgb, #85b503 62%, transparent));
+        border-color: rgba(108,99,255,0.25);
+        transform: translateY(-1px);
       }
 
       .custom-audio-player .cap-btn {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         border: none;
-        border-radius: 8px;
-        background: var(--bg, #1a1a1a);
-        color: var(--fg, #fff);
+        border-radius: 12px;
+        background: #1a2442;
+        color: #fff;
         cursor: pointer;
         flex-shrink: 0;
-        transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+        transition: background 0.25s, transform 0.25s, box-shadow 0.25s;
+        position: relative;
+        z-index: 1;
       }
 
       .custom-audio-player .cap-btn:hover {
-        background: color-mix(in srgb, var(--accent, #85b503) 18%, var(--bg, #1a1a1a));
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #85b503) 20%, transparent);
+        background: var(--cap-gradient-1);
+        transform: translateY(-3px);
+        box-shadow: 0 6px 18px rgba(108,99,255,0.35);
       }
 
       .custom-audio-player .cap-btn:active {
-        transform: scale(0.92);
+        transform: scale(0.92) translateY(0);
+      }
+
+      .custom-audio-player .cap-play-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--cap-gradient-1), var(--cap-gradient-2));
+        box-shadow: 0 4px 16px rgba(108,99,255,0.3);
+        font-size: 18px;
+      }
+
+      .custom-audio-player .cap-play-btn:hover {
+        background: linear-gradient(135deg, #7d75ff, #1ae0ff);
+        transform: translateY(-4px) scale(1.04);
+        box-shadow: 0 8px 28px rgba(108,99,255,0.45);
+      }
+
+      .custom-audio-player .cap-play-btn:active {
+        transform: scale(0.94);
+      }
+
+      .custom-audio-player .cap-play-btn .cap-play-icon,
+      .custom-audio-player .cap-play-btn .cap-pause-icon {
+        transition: transform 0.2s ease;
+      }
+
+      .custom-audio-player .cap-btn:active .cap-play-icon,
+      .custom-audio-player .cap-btn:active .cap-pause-icon {
+        transform: scale(0.88);
       }
 
       .custom-audio-player .cap-time {
-        font-family: 'Courier New', monospace;
+        font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
         font-size: 12px;
-        color: var(--muted, #888);
-        min-width: 35px;
+        font-weight: 500;
+        color: rgba(255,255,255,0.45);
+        min-width: 38px;
         user-select: none;
         flex-shrink: 0;
+        position: relative;
+        z-index: 1;
+        letter-spacing: 0.02em;
       }
 
       .custom-audio-player .cap-time-current {
         text-align: right;
+        color: rgba(255,255,255,0.6);
       }
 
       .custom-audio-player .cap-time-duration {
@@ -251,53 +333,57 @@ class CustomAudioPlayer {
         flex: 1;
         min-width: 0;
         cursor: pointer;
-        padding: 6px 0;
+        padding: 8px 0;
         position: relative;
+        z-index: 1;
       }
 
       .custom-audio-player .cap-seek-bar {
-        height: 34px;
-        background: color-mix(in srgb, var(--bg, #1a1a1a) 74%, var(--panel, #2a2a2a));
-        border: 1px solid color-mix(in srgb, var(--border, #444) 70%, transparent);
-        border-radius: 10px;
+        height: 6px;
+        background: #1f2947;
+        border-radius: 999px;
         position: relative;
-        transition: border-color 0.15s, background 0.15s;
+        transition: height 0.2s ease, background 0.2s ease;
         overflow: hidden;
+        border: none;
       }
 
       .custom-audio-player .cap-seek-container:hover .cap-seek-bar {
-        border-color: var(--accent-border, color-mix(in srgb, #85b503 62%, transparent));
+        height: 8px;
+        background: #253254;
       }
 
       .custom-audio-player .cap-seek-progress {
         height: 100%;
-        background: var(--accent, #85b503);
-        border-radius: 9px 0 0 9px;
+        background: linear-gradient(90deg, var(--cap-gradient-1), var(--cap-gradient-2));
+        border-radius: 999px;
         width: 0%;
         transition: width 0.1s linear;
         position: relative;
-        opacity: 0.14;
+        opacity: 1;
         z-index: 1;
+        box-shadow: 0 0 12px rgba(108,99,255,0.4);
       }
 
       .custom-audio-player .cap-seek-thumb {
         position: absolute;
-        right: -6px;
+        right: -7px;
         top: 50%;
-        transform: translateY(-50%);
-        width: 12px;
-        height: 12px;
+        transform: translateY(-50%) scale(0);
+        width: 14px;
+        height: 14px;
         border-radius: 50%;
-        background: var(--accent, #85b503);
-        box-shadow: 0 0 0 2px var(--bg, #1a1a1a);
+        background: #fff;
+        box-shadow: 0 0 0 3px var(--cap-gradient-1), 0 2px 8px rgba(0,0,0,0.3);
         opacity: 0;
-        transition: opacity 0.15s;
+        transition: opacity 0.2s, transform 0.2s;
         pointer-events: none;
         z-index: 3;
       }
 
       .custom-audio-player .cap-seek-container:hover .cap-seek-thumb {
         opacity: 1;
+        transform: translateY(-50%) scale(1);
       }
 
       .custom-audio-player .cap-waveform {
@@ -314,54 +400,62 @@ class CustomAudioPlayer {
         flex: 1 1 0;
         min-width: 2px;
         border-radius: 999px;
-        background: color-mix(in srgb, var(--fg, #fff) 22%, transparent);
+        background: rgba(255,255,255,0.15);
         transform-origin: center center;
-        transition: background 0.12s ease, opacity 0.12s ease, transform 0.12s ease;
-        opacity: 0.9;
+        transition: background 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+        opacity: 0.8;
       }
 
       .custom-audio-player .cap-wave-bar.is-played {
-        background: var(--accent, #85b503);
+        background: linear-gradient(180deg, rgba(108,99,255,0.8), var(--cap-gradient-1));
         opacity: 1;
       }
 
       .custom-audio-player .cap-wave-bar.is-empty {
-        height: 4px !important;
-        opacity: 0.35;
+        height: 3px !important;
+        opacity: 0.3;
       }
 
       .custom-audio-player.cap-voice-message {
         display: grid;
-        grid-template-columns: 34px minmax(0, 1fr) auto;
+        grid-template-columns: 40px minmax(0, 1fr) auto;
         grid-template-areas: "play wave time";
-        gap: 8px;
+        gap: 10px;
         align-items: center;
         min-width: 0;
         width: 100%;
-        max-width: min(320px, 100%);
-        min-height: 48px;
-        padding: 7px 10px;
-        border: 0;
-        border-radius: 18px;
-        background: color-mix(in srgb, var(--panel, #2a2a2a) 82%, var(--bg, #1a1a1a));
-        box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border, #444) 55%, transparent);
+        max-width: min(340px, 100%);
+        min-height: 52px;
+        padding: 8px 12px;
+        border: 1px solid rgba(108,99,255,0.08);
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(20,30,54,0.95), rgba(17,24,45,0.95));
+        box-shadow:
+          0 4px 16px rgba(0,0,0,0.2),
+          inset 0 1px rgba(255,255,255,0.03);
         box-sizing: border-box;
         overflow: hidden;
+        animation: none;
+      }
+
+      .custom-audio-player.cap-voice-message::before {
+        opacity: 0.04;
       }
 
       .custom-audio-player.cap-voice-message .cap-play-btn {
         grid-area: play;
-        width: 34px;
-        height: 34px;
+        width: 38px;
+        height: 38px;
         border-radius: 50%;
-        background: var(--accent, #85b503);
+        background: linear-gradient(135deg, var(--cap-gradient-1), var(--cap-gradient-2));
         color: #fff;
-        box-shadow: 0 6px 18px color-mix(in srgb, var(--accent, #85b503) 28%, transparent);
+        box-shadow: 0 4px 14px rgba(108,99,255,0.35);
         flex-shrink: 0;
       }
 
       .custom-audio-player.cap-voice-message .cap-play-btn:hover {
-        background: color-mix(in srgb, var(--accent, #85b503) 88%, #fff);
+        transform: translateY(-2px) scale(1.06);
+        box-shadow: 0 6px 22px rgba(108,99,255,0.45);
       }
 
       .custom-audio-player.cap-voice-message .cap-time-current {
@@ -370,11 +464,11 @@ class CustomAudioPlayer {
 
       .custom-audio-player.cap-voice-message .cap-time-duration {
         grid-area: time;
-        min-width: 34px;
-        font-family: inherit;
+        min-width: 36px;
+        font-family: 'Inter', sans-serif;
         font-size: 11px;
         font-weight: 600;
-        color: var(--muted, #888);
+        color: rgba(255,255,255,0.4);
         text-align: right;
         flex-shrink: 0;
         white-space: nowrap;
@@ -389,7 +483,7 @@ class CustomAudioPlayer {
       }
 
       .custom-audio-player.cap-voice-message .cap-seek-bar {
-        height: 36px;
+        height: 38px;
         border: 0;
         border-radius: 0;
         background: transparent;
@@ -406,8 +500,8 @@ class CustomAudioPlayer {
         width: 8px;
         height: 8px;
         right: -4px;
-        background: var(--accent, #85b503);
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel, #2a2a2a) 92%, var(--bg, #1a1a1a));
+        background: var(--cap-gradient-1);
+        box-shadow: 0 0 0 2px var(--cap-card);
       }
 
       .custom-audio-player.cap-voice-message .cap-waveform {
@@ -423,12 +517,12 @@ class CustomAudioPlayer {
         flex: 1 1 0;
         min-width: 0;
         max-width: 100%;
-        background: color-mix(in srgb, var(--fg, #fff) 26%, transparent);
+        background: rgba(255,255,255,0.18);
         opacity: 1;
       }
 
       .custom-audio-player.cap-voice-message .cap-wave-bar.is-played {
-        background: linear-gradient(180deg, color-mix(in srgb, var(--accent, #85b503) 78%, #fff), var(--accent, #85b503));
+        background: linear-gradient(180deg, rgba(108,99,255,0.65), var(--cap-gradient-1));
       }
 
       .custom-audio-player .cap-vol-slider {
@@ -436,30 +530,33 @@ class CustomAudioPlayer {
         align-items: center;
         width: 0;
         overflow: hidden;
-        transition: width 0.25s ease, margin 0.25s ease;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), margin 0.3s ease;
         margin: 0;
         cursor: pointer;
+        position: relative;
+        z-index: 1;
       }
 
       .custom-audio-player .cap-vol-slider.open {
-        width: 70px;
+        width: 72px;
         margin-right: 4px;
       }
 
       .custom-audio-player .cap-vol-bar {
         width: 100%;
         height: 4px;
-        background: var(--border, #444);
+        background: #1f2947;
         border-radius: 2px;
         position: relative;
       }
 
       .custom-audio-player .cap-vol-progress {
         height: 100%;
-        background: var(--muted, #888);
+        background: linear-gradient(90deg, var(--cap-gradient-1), var(--cap-gradient-2));
         border-radius: 2px;
         width: 100%;
         transition: width 0.05s linear;
+        box-shadow: 0 0 8px rgba(108,99,255,0.3);
       }
 
       .custom-audio-player .cap-vol-thumb {
@@ -470,8 +567,8 @@ class CustomAudioPlayer {
         width: 10px;
         height: 10px;
         border-radius: 50%;
-        background: var(--fg, #fff);
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        background: #fff;
+        box-shadow: 0 0 0 2px var(--cap-gradient-1), 0 2px 6px rgba(0,0,0,0.3);
         opacity: 0;
         transition: opacity 0.15s;
         pointer-events: none;
@@ -487,23 +584,25 @@ class CustomAudioPlayer {
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--panel, #2a2a2a);
-        border-radius: 10px;
+        background: rgba(17,24,45,0.92);
+        border-radius: 16px;
         z-index: 2;
+        backdrop-filter: blur(4px);
       }
 
       .custom-audio-player .cap-loading-spinner {
         display: flex;
-        gap: 4px;
+        gap: 5px;
         align-items: center;
       }
 
       .custom-audio-player .cap-loading-dot {
-        width: 6px;
-        height: 6px;
+        width: 7px;
+        height: 7px;
         border-radius: 50%;
-        background: var(--accent, #85b503);
+        background: linear-gradient(135deg, var(--cap-gradient-1), var(--cap-gradient-2));
         animation: cap-bounce 0.6s infinite alternate;
+        box-shadow: 0 0 8px rgba(108,99,255,0.5);
       }
 
       .custom-audio-player .cap-loading-dot:nth-child(2) {
@@ -514,24 +613,24 @@ class CustomAudioPlayer {
         animation-delay: 0.4s;
       }
 
-      @keyframes cap-bounce {
-        from { opacity: 0.3; transform: translateY(0); }
-        to   { opacity: 1; transform: translateY(-4px); }
-      }
-
       /* Mobile adjustments */
       @media (max-width: 480px) {
         .custom-audio-player {
           flex-wrap: wrap;
-          gap: 6px;
-          padding: 8px 10px;
+          gap: 8px;
+          padding: 10px 12px;
+          border-radius: 14px;
         }
         .custom-audio-player .cap-vol-slider.open {
-          width: 50px;
+          width: 52px;
         }
         .custom-audio-player .cap-time {
           font-size: 11px;
-          min-width: 30px;
+          min-width: 32px;
+        }
+        .custom-audio-player .cap-play-btn {
+          width: 44px;
+          height: 44px;
         }
       }
     `;

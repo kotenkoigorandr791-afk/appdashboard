@@ -1006,13 +1006,16 @@
                 }
                 #ai-modal .ai-modal-content {
                     position: fixed !important;
+                    top: 0 !important;
                     left: 0 !important;
                     right: auto !important;
-                    bottom: auto !important;
+                    bottom: 0 !important;
                     width: 100% !important;
+                    height: 100dvh !important;
                     max-width: 100% !important;
                     min-width: 0 !important;
                     min-height: 0 !important;
+                    max-height: 100dvh !important;
                     border-radius: 0 !important;
                     transform: none !important;
                 }
@@ -1020,19 +1023,43 @@
                     display: none !important;
                 }
                 #ai-modal .ai-modal-body {
-                    flex: 1 1 auto !important;
+                    flex: 1 1 0% !important;
+                    display: flex !important;
+                    flex-direction: column !important;
                     min-height: 0 !important;
+                    height: 0 !important;
                     overflow: hidden !important;
                 }
                 #ai-modal .ai-chat {
-                    flex: 1 1 auto !important;
+                    flex: 1 1 0% !important;
                     min-height: 0 !important;
+                    height: 0 !important;
+                    max-height: none !important;
                     overflow-y: auto !important;
                     overflow-x: hidden !important;
+                    padding-bottom: 0 !important;
                 }
                 #ai-modal .ai-input {
                     flex-shrink: 0 !important;
                     padding-bottom: 8px !important;
+                    margin-top: auto !important;
+                }
+                #ai-modal .ai-input textarea {
+                    resize: none !important;
+                    max-height: 80px !important;
+                }
+                #ai-modal .modal-header {
+                    position: relative !important;
+                }
+                #ai-modal .modal-header h3 {
+                    position: absolute !important;
+                    left: 50% !important;
+                    transform: translateX(-50%) !important;
+                    text-align: center !important;
+                    width: max-content !important;
+                }
+                #ai-modal .modal-header .modal-actions {
+                    margin-left: auto !important;
                 }
             }
             #ai-modal .ai-resize-handle {
@@ -1047,6 +1074,10 @@
             }
             #ai-modal .ai-resize-handle:hover {
                 background: rgba(255, 255, 255, 0.08) !important;
+            }
+            #ai-modal .ai-chat {
+                padding-bottom: 0 !important;
+                max-height: none !important;
             }
             #ai-modal.ai-open .ai-modal-content {
                 transform: none !important;

@@ -3,6 +3,8 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 require_once __DIR__ . '/ai_agent.php';
 require_once __DIR__ . '/cloud_groups.php';
 require_once __DIR__ . '/cloud_group_chat.php';
+require_once dirname(__DIR__, 2) . '/includes/ai_config_store.php';
+require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
 if (!function_exists('cloud_dedupe_tree_items')) {
     function cloud_dedupe_tree_items(array $items): array {
         $deduped = [];
@@ -805,6 +807,500 @@ if ($action === 'create_file') {
   if ($email && $rootKey === 'main') invalidate_file_tree($email);
   if ($email) append_sync_log($email, $rootKey, 'create_file', $path, 'INFO', 'File created');
   json_out(['ok'=>true]);
+}
+
+function cloud_video_jobs_dir(): string {
+    $dir = upload_sessions_dir() . '/video_jobs';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir;
+}
+function cloud_video_tmp_dir(): string {
+    $base = is_dir('/opt/ApplicationData') && is_writable('/opt/ApplicationData') ? '/opt/ApplicationData' : upload_sessions_dir();
+    $dir = $base . '/cloud_video_tmp';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir;
+}
+function cloud_video_job_file(string $jobId): string {
+    return cloud_video_jobs_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $jobId) . '.json';
+}
+function cloud_video_write_job(string $jobId, array $data): void {
+    $file = cloud_video_job_file($jobId);
+    $current = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+    $data['updated_at'] = time();
+    if (@file_put_contents($file, json_encode(array_merge($current, $data), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) === false) {
+        throw new RuntimeException('Video job storage is not writable');
+    }
+}
+function cloud_video_log(string $jobId, string $message, array $context = []): void {
+    $line = json_encode(['time' => date('c'), 'job' => $jobId, 'message' => $message, 'context' => $context], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    @file_put_contents(cloud_video_tmp_dir() . '/video_generation.log', $line . PHP_EOL, FILE_APPEND);
+}
+function cloud_video_hyperframes_env(): array {
+    $home = cloud_video_tmp_dir() . '/.hyperframes-home';
+    $cache = cloud_video_tmp_dir() . '/.hyperframes-cache';
+    if (!is_dir($home)) @mkdir($home, 0775, true);
+    if (!is_dir($cache)) @mkdir($cache, 0775, true);
+    return ['HOME=' . $home, 'XDG_CACHE_HOME=' . $cache, 'npm_config_cache=' . $cache . '/npm', 'HYPERFRAMES_TELEMETRY_DISABLED=1', 'HF_DE_PARALLEL_ROUTER=false'];
+}
+function cloud_video_command_path(string $command): string {
+    if ($command === 'php') {
+        foreach (['/usr/local/bin/php', PHP_BINARY, '/usr/bin/php'] as $path) {
+            if (is_string($path) && is_file($path) && is_executable($path)) return $path;
+        }
+    }
+    if ($command === 'hyperframes') {
+        foreach (['/usr/local/bin/hyperframes', '/usr/bin/hyperframes'] as $path) {
+            if (is_file($path) && is_executable($path)) return $path;
+        }
+    }
+    foreach (['/usr/bin/' . $command, '/usr/local/bin/' . $command, '/bin/' . $command] as $path) {
+        if (is_file($path) && is_executable($path)) return $path;
+    }
+    $out = [];
+    $code = 1;
+    @exec('command -v ' . escapeshellarg($command) . ' 2>/dev/null', $out, $code);
+    return ($code === 0 && !empty($out[0])) ? (string)$out[0] : '';
+}
+function cloud_video_node_major(): int {
+    $node = cloud_video_command_path('node');
+    if ($node === '') return 0;
+    $out = [];
+    $code = 1;
+    @exec(escapeshellarg($node) . ' --version 2>/dev/null', $out, $code);
+    if ($code !== 0 || empty($out[0]) || !preg_match('/v(\d+)/', (string)$out[0], $m)) return 0;
+    return (int)$m[1];
+}
+function cloud_video_normalize_size(int $width, int $height): array {
+    $width = max(320, min(1280, $width));
+    $height = max(320, min(1280, $height));
+    $maxPixels = 921600;
+    if ($width * $height > $maxPixels) {
+        $scale = sqrt($maxPixels / ($width * $height));
+        $width = max(320, (int)(floor(($width * $scale) / 2) * 2));
+        $height = max(320, (int)(floor(($height * $scale) / 2) * 2));
+    }
+    return [$width, $height];
+}
+function cloud_video_extract_json(string $content): ?array {
+    $content = trim($content);
+    if ($content === '') return null;
+    if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/is', $content, $m)) {
+        $content = trim($m[1]);
+    }
+    $decoded = json_decode($content, true);
+    if (is_array($decoded)) return $decoded;
+    $start = strpos($content, '{');
+    $end = strrpos($content, '}');
+    if ($start === false || $end === false || $end <= $start) return null;
+    $decoded = json_decode(substr($content, $start, $end - $start + 1), true);
+    return is_array($decoded) ? $decoded : null;
+}
+function cloud_video_prompt_composition(array $payload): array {
+    $prompt = trim((string)($payload['prompt'] ?? 'Generated video'));
+    $title = preg_replace('/\s+/', ' ', mb_substr($prompt, 0, 72));
+    $duration = max(3, min(60, (int)($payload['duration'] ?? 15)));
+    $parts = preg_split('/[.!?\n]+/u', $prompt) ?: [];
+    $parts = array_values(array_filter(array_map(static fn($part) => trim((string)$part), $parts)));
+    if (!$parts) $parts = [$title, 'A clear visual story', 'Ready to share'];
+    $sceneCount = min(5, max(3, count($parts)));
+    $sceneDuration = max(1, (int)floor($duration / $sceneCount));
+    $scenes = [];
+    for ($i = 0; $i < $sceneCount; $i++) {
+        $text = $parts[$i] ?? ($i === 0 ? $title : 'Generated video');
+        $scenes[] = ['type' => $i === 0 ? 'title' : ($i === $sceneCount - 1 ? 'outro' : 'text'), 'text' => mb_substr($text, 0, 120), 'duration' => $sceneDuration];
+    }
+    $scenes[$sceneCount - 1]['duration'] += max(0, $duration - ($sceneDuration * $sceneCount));
+    return cloud_video_validate_composition(['title' => $title ?: 'Generated Video', 'duration' => $duration, 'width' => $payload['width'], 'height' => $payload['height'], 'fps' => $payload['fps'], 'scenes' => $scenes], $payload);
+}
+function cloud_video_completion(array $payload): array {
+    $config = cloud_ai_load_config();
+    if (trim((string)$config['api_key']) === '') throw new RuntimeException('AI API key is not configured');
+    $model = (string)$config['default_model'];
+    if (!empty($payload['model']) && in_array((string)$payload['model'], (array)($config['models'] ?? []), true)) {
+        $model = (string)$payload['model'];
+    }
+    $prompt = (string)$payload['prompt'];
+    $duration = (int)$payload['duration'];
+    [$width, $height] = cloud_video_normalize_size((int)$payload['width'], (int)$payload['height']);
+    $fps = (int)$payload['fps'];
+    $request = [
+        'model' => cloud_ai_normalize_model_id($model),
+        'response_format' => ['type' => 'json_object'],
+        'temperature' => 0.2,
+        'messages' => [
+            ['role' => 'system', 'content' => 'You generate deterministic HyperFrames-style video composition JSON. Return one JSON object only. No markdown. Schema: {"title":"short filename safe title","duration":number,"width":number,"height":number,"fps":number,"style":{"background":"css gradient","accent":"css color","textColor":"css color","mood":"premium|technical|playful|cinematic"},"scenes":[{"type":"title|interior|device|data|robot|assistant|security|energy|environment|book|food|travel|nature|product|outro","visual":"home|books|food|travel|nature|product|education|technology|abstract","text":"short on-screen headline matching the user prompt","props":["2-4 short visual props from the prompt"],"elements":[{"kind":"book|page|shelf|lamp|cup|window|curtain|light|panel|robot|thermostat|energy|plate|fruit|spice|sea|sun|table|leaf|product|card|orb","label":"short object label from the prompt","x":number,"y":number,"w":number,"h":number,"rotate":number,"color":"css color","animation":"float|drift|reveal|slide|zoom|pulse|turn|sway|none"}],"duration":number,"tone":"calm|bold|premium|technical","layout":"center|left|right|split","motion":"rise|slide|zoom|wipe|scale"}]}. The model must design the scene itself: choose visual, props, and every element from the user prompt. The model may only select element animation names from the fixed animation enum; do not invent animation names. x,y,w,h are percentages of the frame. Do not use generic widgets, code panels, app screens, browser windows, API panels, dashboards, spinning badges, or background grids unless the user explicitly asks for them. For books use shelves/pages/covers/lamps/cups. For smart home use windows/curtains/lights/thermostat/energy/robot. Do not create subtitles or watermarks. Scene durations must add up to requested duration.'],
+            ['role' => 'user', 'content' => json_encode(['prompt' => $prompt, 'duration' => $duration, 'width' => $width, 'height' => $height, 'fps' => $fps, 'assets' => array_values($payload['assets'] ?? []), 'requirements' => ['HyperFrames-compatible HTML/CSS composition will be generated from this JSON', 'scene text and all elements must match the requested topic', 'each scene must include 3-6 custom elements', 'valid JSON only']], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)],
+        ],
+    ];
+    $result = cloud_ai_proxy_json($config, $config['api_endpoint'], $request, 'POST');
+    if (!$result['ok']) throw new RuntimeException($result['error'] ?: ('AI request failed: HTTP ' . $result['http']));
+    $decoded = json_decode($result['body'], true);
+    $content = $decoded['choices'][0]['message']['content'] ?? '';
+    $composition = cloud_video_extract_json((string)$content);
+    if (isset($composition['composition']) && is_array($composition['composition'])) $composition = $composition['composition'];
+    if (!is_array($composition)) return cloud_video_prompt_composition($payload);
+    return cloud_video_validate_composition($composition, $payload);
+}
+function cloud_video_validate_composition(array $composition, array $payload): array {
+    $duration = max(3, min((int)$payload['duration'], (int)($composition['duration'] ?? $payload['duration'])));
+    [$payloadWidth, $payloadHeight] = cloud_video_normalize_size((int)$payload['width'], (int)$payload['height']);
+    [$width, $height] = cloud_video_normalize_size(max(320, min($payloadWidth, (int)($composition['width'] ?? $payloadWidth))), max(320, min($payloadHeight, (int)($composition['height'] ?? $payloadHeight))));
+    $fps = max(12, min((int)$payload['fps'], (int)($composition['fps'] ?? $payload['fps'])));
+    $title = trim((string)($composition['title'] ?? 'Generated Video'));
+    $style = is_array($composition['style'] ?? null) ? $composition['style'] : [];
+    $style = [
+        'background' => mb_substr((string)($style['background'] ?? 'linear-gradient(135deg,#111827,#0f766e)'), 0, 120),
+        'accent' => mb_substr((string)($style['accent'] ?? '#38bdf8'), 0, 40),
+        'textColor' => mb_substr((string)($style['textColor'] ?? '#ffffff'), 0, 40),
+    ];
+    $scenes = [];
+    foreach (($composition['scenes'] ?? []) as $scene) {
+        if (!is_array($scene)) continue;
+        $type = (string)($scene['type'] ?? 'text');
+        if (!in_array($type, ['title', 'text', 'image', 'interior', 'device', 'data', 'robot', 'assistant', 'security', 'energy', 'environment', 'dashboard', 'book', 'food', 'travel', 'nature', 'product', 'outro'], true)) $type = 'text';
+        $visual = (string)($scene['visual'] ?? ($type === 'book' ? 'books' : ($type === 'interior' ? 'home' : 'abstract')));
+        if (!in_array($visual, ['home', 'books', 'food', 'travel', 'nature', 'product', 'education', 'technology', 'abstract'], true)) $visual = 'abstract';
+        if ($type === 'book') $visual = 'books';
+        if (in_array($type, ['interior', 'device', 'robot', 'assistant', 'security', 'energy'], true)) $visual = 'home';
+        $text = mb_substr(trim((string)($scene['text'] ?? $title)), 0, 160);
+        if ($text === '') $text = $title;
+        $props = [];
+        foreach ((array)($scene['props'] ?? []) as $prop) {
+            $prop = mb_substr(trim((string)$prop), 0, 40);
+            if ($prop !== '') $props[] = $prop;
+            if (count($props) >= 4) break;
+        }
+        if (!$props) $props = [$text];
+        $elements = [];
+        $allowedKinds = ['book', 'page', 'shelf', 'lamp', 'cup', 'window', 'curtain', 'light', 'panel', 'robot', 'thermostat', 'energy', 'plate', 'fruit', 'spice', 'sea', 'sun', 'table', 'leaf', 'product', 'card', 'orb'];
+        $allowedAnimations = ['float', 'drift', 'reveal', 'slide', 'zoom', 'pulse', 'turn', 'sway', 'none'];
+        foreach ((array)($scene['elements'] ?? []) as $element) {
+            if (!is_array($element)) continue;
+            $kind = (string)($element['kind'] ?? 'card');
+            if (!in_array($kind, $allowedKinds, true)) $kind = 'card';
+            $label = mb_substr(trim((string)($element['label'] ?? '')), 0, 42);
+            if ($label === '') $label = $props[count($elements) % count($props)] ?? $text;
+            $x = max(2, min(82, (float)($element['x'] ?? (8 + count($elements) * 18))));
+            $y = max(4, min(82, (float)($element['y'] ?? (16 + count($elements) * 12))));
+            $w = max(10, min(44, (float)($element['w'] ?? 22)));
+            $h = max(6, min(34, (float)($element['h'] ?? 16)));
+            $rotate = max(-28, min(28, (float)($element['rotate'] ?? 0)));
+            $color = mb_substr((string)($element['color'] ?? $style['accent']), 0, 40);
+            $animation = (string)($element['animation'] ?? 'float');
+            if (!in_array($animation, $allowedAnimations, true)) $animation = 'float';
+            $elements[] = compact('kind', 'label', 'x', 'y', 'w', 'h', 'rotate', 'color', 'animation');
+            if (count($elements) >= 6) break;
+        }
+        if (!$elements) {
+            foreach (array_slice($props, 0, 4) as $i => $prop) {
+                $kind = $visual === 'books' ? ['book', 'page', 'shelf', 'lamp'][$i % 4] : ($visual === 'home' ? ['window', 'curtain', 'light', 'robot'][$i % 4] : 'card');
+                $label = $prop;
+                $x = 8 + $i * 19;
+                $y = 18 + ($i % 2) * 28;
+                $w = 20;
+                $h = 16;
+                $rotate = ($i - 1) * 5;
+                $color = $style['accent'];
+                $animationMap = ['book' => 'turn', 'page' => 'sway', 'shelf' => 'reveal', 'lamp' => 'pulse', 'cup' => 'float', 'window' => 'reveal', 'curtain' => 'sway', 'light' => 'pulse', 'robot' => 'slide'];
+                $animation = $animationMap[$kind] ?? 'float';
+                $elements[] = compact('kind', 'label', 'x', 'y', 'w', 'h', 'rotate', 'color', 'animation');
+            }
+        }
+        $layout = (string)($scene['layout'] ?? 'center');
+        if (!in_array($layout, ['center', 'left', 'right', 'split'], true)) $layout = 'center';
+        $motion = (string)($scene['motion'] ?? 'rise');
+        if (!in_array($motion, ['rise', 'slide', 'zoom', 'wipe', 'scale'], true)) $motion = 'rise';
+        $scenes[] = ['type' => $type, 'visual' => $visual, 'text' => $text, 'props' => $props, 'elements' => $elements, 'duration' => max(1, min(12, (int)($scene['duration'] ?? 3))), 'tone' => mb_substr((string)($scene['tone'] ?? 'bold'), 0, 24), 'layout' => $layout, 'motion' => $motion];
+        if (count($scenes) >= 12) break;
+    }
+    if (!$scenes) $scenes[] = ['type' => 'title', 'text' => $title, 'duration' => $duration];
+    $sum = array_sum(array_map(static fn($scene) => (int)$scene['duration'], $scenes));
+    if ($sum !== $duration && $sum > 0) {
+        $scale = $duration / $sum;
+        $used = 0;
+        foreach ($scenes as $i => $scene) {
+            $scenes[$i]['duration'] = max(1, (int)round((int)$scene['duration'] * $scale));
+            $used += $scenes[$i]['duration'];
+        }
+        $scenes[count($scenes) - 1]['duration'] += $duration - $used;
+        if ($scenes[count($scenes) - 1]['duration'] < 1) $scenes[count($scenes) - 1]['duration'] = 1;
+    }
+    return ['title' => mb_substr($title ?: 'Generated Video', 0, 80), 'duration' => $duration, 'width' => $width, 'height' => $height, 'fps' => $fps, 'style' => $style, 'scenes' => $scenes];
+}
+function cloud_video_unique_path(string $base, string $folder, string $name): string {
+    $name = preg_replace('/[^a-zA-Z0-9._ -]+/', '-', $name) ?: 'generated-video';
+    $name = trim($name, ". \t\r\n");
+    if ($name === '') $name = 'generated-video';
+    $name = mb_substr($name, 0, 80);
+    $dir = $folder === '' ? $base : $base . '/' . $folder;
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    $path = ($folder === '' ? '' : $folder . '/') . $name . '.mp4';
+    $i = 2;
+    while (file_exists($base . '/' . $path)) {
+        $path = ($folder === '' ? '' : $folder . '/') . $name . '-' . $i . '.mp4';
+        $i++;
+    }
+    return $path;
+}
+function cloud_video_delete_dir(string $dir): void {
+    if (!is_dir($dir)) return;
+    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
+    foreach ($it as $item) {
+        $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+    }
+    @rmdir($dir);
+}
+function cloud_video_html(array $composition): string {
+    $width = (int)$composition['width'];
+    $height = (int)$composition['height'];
+    $duration = (int)$composition['duration'];
+    $scenes = '';
+    $timeline = 'const tl=gsap.timeline({paused:true});tl.set(".scene",{autoAlpha:0});';
+    $start = 0;
+    $style = is_array($composition['style'] ?? null) ? $composition['style'] : [];
+    $background = htmlspecialchars((string)($style['background'] ?? 'linear-gradient(135deg,#111827,#0f766e)'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $accent = htmlspecialchars((string)($style['accent'] ?? '#38bdf8'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $textColor = htmlspecialchars((string)($style['textColor'] ?? '#ffffff'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    foreach ($composition['scenes'] as $index => $scene) {
+        $sceneDuration = max(1, (int)($scene['duration'] ?? 3));
+        $text = htmlspecialchars((string)($scene['text'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $kicker = htmlspecialchars(strtoupper((string)($scene['type'] ?? 'scene')), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $type = htmlspecialchars((string)($scene['type'] ?? 'text'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $visualType = htmlspecialchars((string)($scene['visual'] ?? 'abstract'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $layout = htmlspecialchars((string)($scene['layout'] ?? 'center'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $motion = htmlspecialchars((string)($scene['motion'] ?? 'rise'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $elementsHtml = '';
+        foreach ((array)($scene['elements'] ?? []) as $element) {
+            if (!is_array($element)) continue;
+            $kind = htmlspecialchars((string)($element['kind'] ?? 'card'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $label = htmlspecialchars((string)($element['label'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $color = htmlspecialchars((string)($element['color'] ?? $accent), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $x = (float)($element['x'] ?? 10);
+            $y = (float)($element['y'] ?? 10);
+            $w = (float)($element['w'] ?? 20);
+            $h = (float)($element['h'] ?? 14);
+            $rotate = (float)($element['rotate'] ?? 0);
+            $animation = htmlspecialchars((string)($element['animation'] ?? 'float'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $elementsHtml .= '<div class="el el-' . $kind . ' anim-' . $animation . '" data-anim="' . $animation . '" style="--x:' . $x . ';--y:' . $y . ';--w:' . $w . ';--h:' . $h . ';--r:' . $rotate . 'deg;--c:' . $color . '"><span>' . $label . '</span></div>';
+        }
+        $visual = '<div class="visual visual-' . $visualType . ' scene-kind-' . $type . '">' . $elementsHtml . '</div>';
+        $card = '<div class="scene-card"><span>' . $kicker . '</span><h1>' . $text . '</h1><i></i></div>';
+        $scenes .= '<section class="clip scene scene-' . ($index % 4) . ' layout-' . $layout . ' motion-' . $motion . '" data-start="' . $start . '" data-duration="' . $sceneDuration . '" data-track-index="' . ($index + 1) . '">' . $visual . $card . '</section>';
+        $selector = '.scene:nth-of-type(' . ($index + 1) . ')';
+        $timeline .= 'tl.set("' . $selector . '",{autoAlpha:1},' . $start . ');';
+        $timeline .= 'tl.fromTo("' . $selector . ' .scene-card",{autoAlpha:0,y:90,scale:.96},{autoAlpha:1,y:0,scale:1,duration:.7,ease:"power3.out"},' . $start . ');';
+        $timeline .= 'tl.fromTo("' . $selector . ' h1",{autoAlpha:0,y:35,scale:.94},{autoAlpha:1,y:0,scale:1,duration:.8,ease:"power3.out"},' . ($start + 0.12) . ');';
+        $timeline .= 'tl.fromTo("' . $selector . ' .el",{autoAlpha:0,y:42,scale:.82},{autoAlpha:1,y:0,scale:1,duration:' . min(1.1, max(.65, $sceneDuration / 3)) . ',stagger:.08,ease:"power3.out"},' . $start . ');';
+        $timeline .= 'tl.to("' . $selector . ' .anim-float",{y:"-=26",duration:' . $sceneDuration . ',yoyo:true,repeat:1,ease:"sine.inOut"},' . ($start + 0.2) . ');';
+        $timeline .= 'tl.to("' . $selector . ' .anim-drift",{x:"+=42",y:"-=18",duration:' . $sceneDuration . ',ease:"none"},' . $start . ');';
+        $timeline .= 'tl.fromTo("' . $selector . ' .anim-slide",{x:"-=80"},{x:"+=34",duration:' . $sceneDuration . ',ease:"power1.inOut"},' . $start . ');';
+        $timeline .= 'tl.fromTo("' . $selector . ' .anim-zoom",{scale:.72},{scale:1.08,duration:' . $sceneDuration . ',ease:"power2.out"},' . $start . ');';
+        $timeline .= 'tl.to("' . $selector . ' .anim-pulse",{scale:1.12,filter:"brightness(1.22)",duration:.75,yoyo:true,repeat:' . max(1, $sceneDuration) . ',ease:"sine.inOut"},' . $start . ');';
+        $timeline .= 'tl.to("' . $selector . ' .anim-turn",{rotation:"+=18",duration:' . $sceneDuration . ',yoyo:true,repeat:1,ease:"sine.inOut"},' . $start . ');';
+        $timeline .= 'tl.to("' . $selector . ' .anim-sway",{rotation:"+=10",x:"+=12",duration:1.2,yoyo:true,repeat:' . max(1, $sceneDuration) . ',ease:"sine.inOut"},' . $start . ');';
+        $timeline .= 'tl.fromTo("' . $selector . ' .anim-reveal",{clipPath:"inset(0 100% 0 0)"},{clipPath:"inset(0 0% 0 0)",duration:1,ease:"power2.out"},' . $start . ');';
+        $timeline .= 'tl.to("' . $selector . ' .scene-card",{autoAlpha:0,y:-50,scale:1.03,duration:.45,ease:"power2.in"},' . max($start, $start + $sceneDuration - 0.55) . ');';
+        $timeline .= 'tl.set("' . $selector . '",{autoAlpha:0},' . ($start + $sceneDuration) . ');';
+        $start += $sceneDuration;
+        if ($start >= $duration) break;
+    }
+    $timeline .= 'tl.set(".scene:last-of-type",{autoAlpha:1},' . max(0, $duration - 0.1) . ');window.__timelines=window.__timelines||{};window.__timelines["cloud-video"]=tl;';
+    return '<!doctype html><html><head><meta charset="utf-8"><script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#050510;color:' . $textColor . ';font-family:Inter,Arial,sans-serif}#stage{position:relative;width:' . $width . 'px;height:' . $height . 'px;background:' . $background . ';isolation:isolate;overflow:hidden;perspective:1200px}#stage:before{content:"";position:absolute;inset:-12%;background:radial-gradient(circle at 22% 18%,color-mix(in srgb,' . $accent . ' 34%,transparent),transparent 28%),radial-gradient(circle at 76% 72%,rgba(255,255,255,.16),transparent 24%);animation:bgDrift 11s ease-in-out infinite alternate;z-index:-1}.scene{position:absolute;inset:0;display:grid;place-items:center;padding:7%;box-sizing:border-box;overflow:hidden;visibility:hidden;opacity:0}.scene-card{max-width:86%;display:grid;gap:16px;justify-items:center;text-align:center;position:relative;z-index:5}.scene-card i{display:block;width:min(26vw,150px);height:5px;border-radius:999px;background:' . $accent . ';box-shadow:0 0 34px ' . $accent . '}.scene span{font-size:min(2vw,22px);font-weight:800;letter-spacing:.1em;color:' . $accent . '}.scene h1{font-size:min(6.4vw,70px);line-height:1.05;text-align:center;margin:0;text-wrap:balance;text-shadow:0 18px 60px rgba(0,0,0,.55)}.visual{position:absolute;inset:4%;transform-style:preserve-3d}.el{position:absolute;left:calc(var(--x)*1%);top:calc(var(--y)*1%);width:calc(var(--w)*1%);height:calc(var(--h)*1%);min-width:64px;min-height:42px;max-width:46%;display:grid;place-items:center;padding:10px;box-sizing:border-box;border:1px solid color-mix(in srgb,var(--c) 46%,rgba(255,255,255,.28));background:linear-gradient(135deg,color-mix(in srgb,var(--c) 34%,rgba(255,255,255,.18)),rgba(255,255,255,.08));box-shadow:0 26px 70px rgba(0,0,0,.34),0 0 32px color-mix(in srgb,var(--c) 28%,transparent);transform:rotate(var(--r));overflow:hidden}.el:before{content:"";position:absolute;inset:9%;border-radius:inherit;background:radial-gradient(circle at 30% 20%,rgba(255,255,255,.45),transparent 36%);opacity:.5}.el span{position:relative;z-index:1;font-size:min(2vw,18px);line-height:1.15;text-align:center;text-transform:none;letter-spacing:0;color:' . $textColor . ';overflow-wrap:anywhere}.el-book,.el-page{border-radius:4px 14px 14px 4px}.el-book:after,.el-page:after{content:"";position:absolute;left:18%;top:0;bottom:0;width:2px;background:rgba(255,255,255,.34)}.el-shelf{border-radius:6px;height:max(calc(var(--h)*1%),64px)}.el-lamp,.el-light,.el-sun,.el-orb{border-radius:999px}.el-lamp:after,.el-light:after,.el-sun:after{content:"";position:absolute;inset:-20%;border-radius:999px;background:radial-gradient(circle,color-mix(in srgb,var(--c) 46%,transparent),transparent 62%);filter:blur(12px);z-index:-1}.el-cup,.el-plate,.el-fruit,.el-spice{border-radius:999px 999px 18px 18px}.el-window{border-radius:20px;background:linear-gradient(90deg,transparent 48%,rgba(255,255,255,.35) 49% 51%,transparent 52%),linear-gradient(0deg,transparent 48%,rgba(255,255,255,.28) 49% 51%,transparent 52%),linear-gradient(135deg,rgba(186,230,253,.32),rgba(255,255,255,.08))}.el-curtain{border-radius:30px 8px 30px 8px}.el-robot{border-radius:999px}.el-robot:after{content:"";position:absolute;width:26%;height:26%;border-radius:999px;background:' . $textColor . ';box-shadow:28px 0 0 ' . $textColor . ';top:28%;left:24%;opacity:.8}.el-table,.el-card,.el-panel,.el-product{border-radius:16px}.el-sea{border-radius:999px 999px 18px 18px;background:linear-gradient(180deg,rgba(125,211,252,.42),rgba(14,165,233,.18))}.el-leaf{border-radius:999px 0 999px 0}.layout-left .scene-card{justify-items:start;text-align:left;margin-right:auto}.layout-right .scene-card{justify-items:end;text-align:right;margin-left:auto}.layout-split .scene-card{justify-items:start;text-align:left;max-width:62%;margin-right:auto}@keyframes bgDrift{from{transform:translate3d(-2%,-2%,0) scale(1)}to{transform:translate3d(2%,3%,0) scale(1.05)}}</style></head><body><div id="stage" data-composition-id="cloud-video" data-start="0" data-duration="' . $duration . '" data-fps="' . (int)($composition['fps'] ?? 24) . '" data-width="' . $width . '" data-height="' . $height . '">' . $scenes . '</div><script>' . $timeline . '</script></body></html>';
+}
+function cloud_video_render_with_hyperframes(string $jobId, array $composition, string $output): bool {
+    $hyperframes = cloud_video_command_path('hyperframes');
+    if ($hyperframes === '') throw new RuntimeException('HyperFrames is not installed in the appdashboard container');
+    if (cloud_video_node_major() < 22) throw new RuntimeException('Node.js 22+ is required inside the appdashboard container for HyperFrames rendering');
+    $lock = fopen(cloud_video_tmp_dir() . '/video_generation.lock', 'c');
+    if (!$lock || !flock($lock, LOCK_EX | LOCK_NB)) {
+        throw new RuntimeException('Another video is rendering. Wait until it finishes and start again.');
+    }
+    $work = cloud_video_tmp_dir() . '/' . $jobId . '_hyperframes';
+    if (!is_dir($work)) @mkdir($work, 0775, true);
+    file_put_contents($work . '/index.html', cloud_video_html($composition));
+    $renderedOutput = $work . '/out.mp4';
+    $fps = max(12, min(60, (int)($composition['fps'] ?? 24)));
+    $cmd = array_merge(['env'], cloud_video_hyperframes_env(), [$hyperframes, 'render', '--no-browser-gpu', '--workers=1', '--fps=' . $fps, '-o', $renderedOutput]);
+    cloud_video_log($jobId, 'hyperframes_start', ['cmd' => $cmd, 'work' => $work, 'node_major' => cloud_video_node_major()]);
+    $pipes = [];
+    $proc = @proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, $work);
+    if (!is_resource($proc)) {
+        cloud_video_log($jobId, 'hyperframes_proc_open_failed');
+        cloud_video_delete_dir($work);
+        flock($lock, LOCK_UN);
+        return false;
+    }
+    stream_set_blocking($pipes[1], false);
+    stream_set_blocking($pipes[2], false);
+    $stdout = '';
+    $stderr = '';
+    $lastProgress = 55;
+    $lastWrite = time();
+    $started = time();
+    $lastFrame = 0;
+    $totalFrames = 1;
+    while (true) {
+        $stdoutChunk = (string)stream_get_contents($pipes[1]);
+        $stderr .= (string)stream_get_contents($pipes[2]);
+        if ($stdoutChunk !== '') $stdout = substr($stdout . $stdoutChunk, -12000);
+        if (preg_match_all('/Streaming frame\s+(\d+)\/(\d+)/', $stdoutChunk, $m, PREG_SET_ORDER)) {
+            $last = end($m);
+            $lastFrame = max($lastFrame, (int)$last[1]);
+            $totalFrames = max($totalFrames, (int)$last[2]);
+            $progress = min(88, 55 + (int)floor(($lastFrame / $totalFrames) * 33));
+            if ($progress > $lastProgress || time() - $lastWrite >= 10) {
+                $lastProgress = $progress;
+                $lastWrite = time();
+                cloud_video_write_job($jobId, ['status' => 'rendering', 'progress' => $progress]);
+            }
+        } elseif (str_contains($stdoutChunk, 'Assembling final video') && $lastProgress < 90) {
+            $lastProgress = 90;
+            $lastWrite = time();
+            cloud_video_write_job($jobId, ['status' => 'rendering', 'progress' => 90]);
+        } elseif (time() - $lastWrite >= 10) {
+            $lastWrite = time();
+            cloud_video_write_job($jobId, ['status' => 'rendering', 'progress' => $lastProgress]);
+        }
+        $status = proc_get_status($proc);
+        if (!$status['running']) break;
+        if (time() - $started > 1200) {
+            proc_terminate($proc);
+            sleep(1);
+            $status = proc_get_status($proc);
+            if ($status['running']) proc_terminate($proc, 9);
+            cloud_video_log($jobId, 'hyperframes_timeout', ['stdout' => substr($stdout, -4000), 'stderr' => substr($stderr, -4000)]);
+            cloud_video_delete_dir($work);
+            flock($lock, LOCK_UN);
+            throw new RuntimeException('Video rendering timed out');
+        }
+        usleep(250000);
+    }
+    $stdout .= (string)stream_get_contents($pipes[1]);
+    $stderr .= (string)stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $code = proc_close($proc);
+    if ($code !== 0) {
+        cloud_video_log($jobId, 'hyperframes_failed', ['code' => $code, 'stdout' => substr($stdout, -4000), 'stderr' => substr($stderr, -4000)]);
+        cloud_video_delete_dir($work);
+        flock($lock, LOCK_UN);
+        throw new RuntimeException(trim($stderr) ?: 'HyperFrames render failed');
+    }
+    if (!is_file($renderedOutput) || !@rename($renderedOutput, $output)) {
+        cloud_video_log($jobId, 'hyperframes_missing_output', ['stdout' => substr($stdout, -4000), 'stderr' => substr($stderr, -4000)]);
+        cloud_video_delete_dir($work);
+        flock($lock, LOCK_UN);
+        throw new RuntimeException('HyperFrames did not produce an MP4 file');
+    }
+    cloud_video_log($jobId, 'hyperframes_done', ['output' => $output, 'size' => filesize($output)]);
+    cloud_video_delete_dir($work);
+    flock($lock, LOCK_UN);
+    return is_file($output) && filesize($output) > 0;
+}
+function cloud_video_worker_run(string $jobId, string $token): void {
+    $file = cloud_video_job_file($jobId);
+    $job = is_file($file) ? (json_decode((string)file_get_contents($file), true) ?: []) : [];
+    cloud_video_log($jobId, 'worker_started', ['pid' => getmypid(), 'php' => PHP_BINARY]);
+    if (($job['worker_token'] ?? '') !== $token) {
+        cloud_video_log($jobId, 'worker_token_mismatch');
+        return;
+    }
+    $payload = $job['payload'] ?? [];
+    try {
+        cloud_video_write_job($jobId, ['status' => 'preparing', 'progress' => 10]);
+        $user = (string)$payload['user'];
+        $rootKey = (string)$payload['root'];
+        $base = user_root($user, $rootKey);
+        $folder = safe_path((string)$payload['folder']);
+        if ($folder !== '' && !is_dir($base . '/' . $folder)) throw new RuntimeException('Folder not found');
+        cloud_video_write_job($jobId, ['status' => 'generating_composition', 'progress' => 30]);
+        $composition = cloud_video_completion($payload);
+        cloud_video_write_job($jobId, ['status' => 'rendering', 'progress' => 55, 'composition' => $composition]);
+        $tmp = cloud_video_tmp_dir() . '/' . $jobId . '.mp4';
+        cloud_video_render_with_hyperframes($jobId, $composition, $tmp);
+        cloud_video_write_job($jobId, ['status' => 'uploading', 'progress' => 90]);
+        $targetPath = cloud_video_unique_path($base, $folder, (string)$composition['title']);
+        if (!@rename($tmp, $base . '/' . $targetPath)) throw new RuntimeException('Failed to save video');
+        $email = (string)($payload['email'] ?? '');
+        if ($email !== '' && $rootKey === 'main') invalidate_file_tree($email);
+        if ($email !== '') append_sync_log($email, $rootKey, 'create_video', $targetPath, 'INFO', 'Video created');
+        cloud_video_write_job($jobId, ['status' => 'completed', 'progress' => 100, 'fileId' => $targetPath, 'file_path' => $targetPath, 'file_name' => basename($targetPath), 'size' => filesize($base . '/' . $targetPath), 'payload' => [], 'worker_token' => '']);
+    } catch (Throwable $e) {
+        foreach (glob(cloud_video_tmp_dir() . '/' . $jobId . '*') ?: [] as $tmp) if (is_file($tmp)) @unlink($tmp);
+        cloud_video_log($jobId, 'worker_failed', ['error' => $e->getMessage()]);
+        cloud_video_write_job($jobId, ['status' => 'failed', 'progress' => 100, 'error' => $e->getMessage(), 'payload' => [], 'worker_token' => '']);
+    }
+}
+if ($action === 'video_generation_runtime') {
+    $hyperframes = cloud_video_command_path('hyperframes');
+    json_out([
+        'hyperframes' => $hyperframes,
+        'hyperframes_exists' => $hyperframes !== '',
+        'node_major' => cloud_video_node_major(),
+        'php_binary' => PHP_BINARY,
+        'sapi' => PHP_SAPI,
+        'path' => getenv('PATH') ?: '',
+    ]);
+}
+if ($action === 'video_generation_options') {
+    $email = get_session_email();
+    $role = getUserRoleByEmail($email);
+    $canChooseModel = isUserRoot() || $role >= 1;
+    $config = cloud_ai_load_config();
+    json_out([
+        'can_choose_model' => $canChooseModel,
+        'default_model' => $canChooseModel ? (string)$config['default_model'] : '',
+        'models' => $canChooseModel ? array_values((array)($config['models'] ?? [])) : [],
+    ]);
+}
+if ($action === 'video_generation') {
+    $user = get_current_user_from_sessions();
+    $email = get_session_email();
+    $rootKey = get_requested_root_key();
+    cloud_group_require_write($rootKey);
+    $folder = safe_path((string)($_POST['folderId'] ?? $_POST['folder'] ?? ''));
+    $base = user_root($user, $rootKey);
+    if ($folder !== '' && !is_dir($base . '/' . $folder)) json_out(['error' => 'Folder not found'], 404);
+    $prompt = trim((string)($_POST['prompt'] ?? ''));
+    if ($prompt === '') json_out(['error' => 'prompt required'], 400);
+    $duration = max(3, min(20, (int)($_POST['duration'] ?? 12)));
+    [$width, $height] = cloud_video_normalize_size((int)($_POST['width'] ?? 720), (int)($_POST['height'] ?? 1280));
+    $fps = max(12, min(24, (int)($_POST['fps'] ?? 24)));
+    $model = '';
+    $emailRole = getUserRoleByEmail($email);
+    if (isUserRoot() || $emailRole >= 1) {
+        $config = cloud_ai_load_config();
+        $requestedModel = trim((string)($_POST['model'] ?? ''));
+        if ($requestedModel !== '' && in_array($requestedModel, (array)($config['models'] ?? []), true)) $model = $requestedModel;
+    }
+    $assetIds = json_decode((string)($_POST['assetIds'] ?? '[]'), true);
+    $assets = [];
+    foreach (is_array($assetIds) ? $assetIds : [] as $asset) {
+        $assetPath = safe_path((string)$asset);
+        if ($assetPath !== '' && is_file($base . '/' . $assetPath)) $assets[] = $assetPath;
+        if (count($assets) >= 12) break;
+    }
+    $jobId = bin2hex(random_bytes(16));
+    $token = bin2hex(random_bytes(16));
+    cloud_video_write_job($jobId, ['id' => $jobId, 'status' => 'queued', 'progress' => 0, 'created_at' => time(), 'payload' => compact('user', 'email', 'rootKey', 'folder', 'prompt', 'duration', 'width', 'height', 'fps', 'assets', 'model') + ['root' => $rootKey], 'worker_token' => $token]);
+    $php = cloud_video_command_path('php');
+    $log = cloud_video_tmp_dir() . '/video_generation_worker.log';
+    $cmd = escapeshellarg($php) . ' ' . escapeshellarg(dirname(__DIR__, 2) . '/api.php') . ' video_generation_worker ' . escapeshellarg($jobId) . ' ' . escapeshellarg($token) . ' >> ' . escapeshellarg($log) . ' 2>&1 &';
+    cloud_video_log($jobId, 'worker_spawn', ['cmd' => $cmd, 'php' => $php, 'sapi_binary' => PHP_BINARY]);
+    @exec($cmd);
+    json_out(['jobId' => $jobId, 'status' => 'queued']);
+}
+if ($action === 'video_generation_status') {
+    $jobId = preg_replace('/[^a-f0-9]/', '', (string)($_GET['jobId'] ?? $_GET['job_id'] ?? $_POST['jobId'] ?? $_POST['job_id'] ?? ''));
+    $file = cloud_video_job_file($jobId);
+    if ($jobId === '' || !is_file($file)) json_out(['error' => 'job not found'], 404);
+    $job = json_decode((string)file_get_contents($file), true) ?: [];
+    unset($job['worker_token'], $job['payload']);
+    json_out($job);
+}
+if ($action === 'video_generation_worker' && PHP_SAPI === 'cli') {
+    cloud_video_worker_run(preg_replace('/[^a-f0-9]/', '', (string)($_POST['job_id'] ?? '')), preg_replace('/[^a-f0-9]/', '', (string)($_POST['worker_token'] ?? '')));
+    exit;
 }
 
 if ($action === 'view_word') {

@@ -5,6 +5,7 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once __DIR__ . '/includes/cloud_groups.php';
 
 function app_path($relativePath = '') {
     $baseDir = realpath(__DIR__);
@@ -31,11 +32,20 @@ function transcription_split_root_path(string $relativePath): array {
     }
     return ['main', $path];
 }
-function resolve_user_file_path($user, $relativePath) {
+function resolve_user_file_path($user, $relativePath, $root = 'main') {
     $relativePath = trim((string)$relativePath);
     if ($relativePath === '') return null;
+    $root = trim((string)$root);
+    if ($root === '') $root = 'main';
+    if (function_exists('cloud_resolve_file_path')) {
+        try {
+            $cloudPath = cloud_resolve_file_path((string)$user, $root, $relativePath);
+            if (is_file($cloudPath) || is_dir($cloudPath)) return realpath($cloudPath) ?: $cloudPath;
+        } catch (Throwable $e) {
+        }
+    }
     if (function_exists('appdata_user_full_path')) {
-        [$rootKey, $rootRelativePath] = transcription_split_root_path($relativePath);
+        [$rootKey, $rootRelativePath] = $root === 'main' ? transcription_split_root_path($relativePath) : [$root, $relativePath];
         try {
             $appDataPath = appdata_user_full_path('cloud', (string)$user, $rootKey, $rootRelativePath, false);
             if (is_file($appDataPath) || is_dir($appDataPath)) return realpath($appDataPath) ?: $appDataPath;
@@ -215,6 +225,7 @@ if ($action === 'start_transcription') {
     $audioPath = $_POST['audio_path'] ?? '';
     $language = $_POST['language'] ?? 'pl';
     $user = $_POST['user'] ?? 'default';
+    $root = $_POST['root'] ?? 'main';
     if (!$audioPath) {
         echo json_encode(['success' => false, 'error' => 'No audio path provided']);
         exit;
@@ -226,19 +237,33 @@ if ($action === 'start_transcription') {
     $normalizedProgressId = uniqid();
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
     if (!is_dir($cacheDir)) mkdir($cacheDir, 0777, true);
+    @chmod($uploadDir, 0777);
     @chmod($cacheDir, 0777);
     $uploadJobDir = $uploadDir . DIRECTORY_SEPARATOR . $normalizedProgressId;
     if (!is_dir($uploadJobDir)) mkdir($uploadJobDir, 0777, true);
-    $sourcePath = resolve_user_file_path($user, $audioPath);
+    @chmod($uploadJobDir, 0777);
+    $sourcePath = resolve_user_file_path($user, $audioPath, $root);
     if (!$sourcePath || !file_exists($sourcePath)) {
         echo json_encode(['success' => false,'error' => 'Source audio file not found']);
         exit;
     }
+    if (!is_file($sourcePath)) {
+        echo json_encode(['success' => false,'error' => 'Source audio path is not a file']);
+        exit;
+    }
+    if (!is_readable($sourcePath)) @chmod($sourcePath, 0644);
     $fileName = uniqid() . '_' . basename($audioPath);
     $filePath = $uploadJobDir . DIRECTORY_SEPARATOR . $fileName;
     if (!copy($sourcePath, $filePath)) {
-        echo json_encode(['success' => false,'error' => 'Failed to copy audio file']);
-        exit;
+        $fallbackDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'cloud_transcription_uploads' . DIRECTORY_SEPARATOR . $normalizedProgressId;
+        if (!is_dir($fallbackDir)) mkdir($fallbackDir, 0777, true);
+        @chmod(dirname($fallbackDir), 0777);
+        @chmod($fallbackDir, 0777);
+        $filePath = $fallbackDir . DIRECTORY_SEPARATOR . $fileName;
+        if (!copy($sourcePath, $filePath)) {
+            echo json_encode(['success' => false,'error' => is_readable($sourcePath) ? 'Temporary upload directory is not writable' : 'Source audio file is not readable']);
+            exit;
+        }
     }
     // Verify the copied file exists and is readable
     if (!file_exists($filePath) || !is_readable($filePath)) {
@@ -267,7 +292,7 @@ if ($action === 'start_transcription') {
         exit;
     }
     $command = escapeshellarg($pythonPath) . ' ' . escapeshellarg($pythonScript) . ' ' . escapeshellarg($filePath) . ' ' . escapeshellarg($language) . ' ' . escapeshellarg($normalizedProgressId) . ' ' . escapeshellarg($user) . ' ' . escapeshellarg($audioPath);
-    $pythonLogFile = $uploadJobDir . DIRECTORY_SEPARATOR . 'python.log';
+    $pythonLogFile = dirname($filePath) . DIRECTORY_SEPARATOR . 'python.log';
     if (substr(php_uname(), 0, 7) === "Windows") {
         $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1');
         pclose(popen($runCommand, "r"));
@@ -306,13 +331,14 @@ if ($action === 'stream_progress') {
 if ($action === 'save_transcription_to_server') {
     $audioPath = $_POST['audio_path'] ?? '';
     $user = $_POST['user'] ?? 'default';
+    $root = $_POST['root'] ?? 'main';
     $transcription = $_POST['transcription'] ?? '';
     if (!$audioPath || !$transcription) {
         echo json_encode(['success' => false, 'error' => 'Missing parameters: audio_path and transcription required']);
         exit;
     }
     // Resolve the source audio file to find the target directory
-    $sourcePath = resolve_user_file_path($user, $audioPath);
+    $sourcePath = resolve_user_file_path($user, $audioPath, $root);
     if (!$sourcePath || !file_exists($sourcePath)) {
         echo json_encode(['success' => false, 'error' => 'Source audio file not found']);
         exit;
@@ -322,11 +348,20 @@ if ($action === 'save_transcription_to_server') {
     $audioBasename = pathinfo($sourcePath, PATHINFO_FILENAME);
     $targetPath = $targetDir . DIRECTORY_SEPARATOR . $audioBasename . '.txt';
     if (file_put_contents($targetPath, $transcription) !== false) {
+        if (str_starts_with((string)$root, 'group:')) {
+            $rootRelativeAudioPath = appdata_normalize_relpath($audioPath);
+        } else {
+            [$targetRootKey, $rootRelativeAudioPath] = (string)$root === 'main' ? transcription_split_root_path($audioPath) : [(string)$root, appdata_root_relative_path((string)$root, $audioPath)];
+        }
+        $audioDir = dirname($rootRelativeAudioPath);
+        $relativePath = $audioDir === '.' || $audioDir === ''
+            ? basename($targetPath)
+            : str_replace(DIRECTORY_SEPARATOR, '/', trim($audioDir, '/\\') . DIRECTORY_SEPARATOR . basename($targetPath));
         $email = get_session_email();
         if ($email) {
             invalidate_file_tree($email);
         }
-        echo json_encode(['success' => true, 'saved_path' => to_public_relative_path($targetPath), 'message' => 'Transcription saved successfully']);
+        echo json_encode(['success' => true, 'saved_path' => $relativePath, 'message' => 'Transcription saved successfully']);
     } else {
         echo json_encode(['success' => false, 'error' => 'Failed to save transcription file']);
     }
@@ -357,18 +392,20 @@ if ($action === 'delete_temp_file') {
     }
     $uploadDir = app_path('transcription_uploads');
     $uploadJobDir = $uploadDir . DIRECTORY_SEPARATOR . $progressId;
+    $fallbackJobDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'cloud_transcription_uploads' . DIRECTORY_SEPARATOR . $progressId;
 
     $deleted = false;
-    if (is_dir($uploadJobDir)) {
+    foreach ([$uploadJobDir, $fallbackJobDir] as $jobDir) {
+        if (!is_dir($jobDir)) continue;
         // Delete all files in the directory
-        $files = glob($uploadJobDir . DIRECTORY_SEPARATOR . '*');
+        $files = glob($jobDir . DIRECTORY_SEPARATOR . '*');
         foreach ($files as $file) {
             if (is_file($file)) {
                 @unlink($file);
             }
         }
         // Remove the directory
-        $deleted = @rmdir($uploadJobDir);
+        $deleted = @rmdir($jobDir) || $deleted;
     }
 
     echo json_encode(['success' => $deleted, 'message' => $deleted ? 'Temporary file deleted' : 'No temporary file found']);

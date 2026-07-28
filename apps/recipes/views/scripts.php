@@ -769,8 +769,6 @@
                     epFileIn.style.display = 'none';
                     setEditProductImageCleared(false);
                     setImageSourceSwitchVisible('editProduct', false);
-                    const replaceBtn = document.getElementById('editProductImageReplaceBtn');
-                    if (replaceBtn) replaceBtn.style.display = 'inline-flex';
                 } else {
                     previewContainer.style.display = 'none';
                     previewImg.src = '';
@@ -781,8 +779,6 @@
                     epFileIn.style.display = 'block';
                     setEditProductImageCleared(true);
                     setImageSourceSwitchVisible('editProduct', true);
-                    const replaceBtn = document.getElementById('editProductImageReplaceBtn');
-                    if (replaceBtn) replaceBtn.style.display = 'none';
                 }
                 updateBackgroundButtons('editProduct');
                 openModal('editProductModal');
@@ -2104,11 +2100,7 @@
                 };
                 fileInput.style.display = 'none';
                 if (prefix === 'recipe') setRecipeImageCleared(false);
-                if (prefix === 'editProduct') {
-                    setEditProductImageCleared(false);
-                    const replaceBtn = document.getElementById('editProductImageReplaceBtn');
-                    if (replaceBtn) replaceBtn.style.display = 'none';
-                }
+                if (prefix === 'editProduct') setEditProductImageCleared(false);
                 if (prefix === 'recipe' || prefix === 'editProduct') setImageSourceSwitchVisible(prefix, true);
                 updateBackgroundButtons(prefix);
                 if (prefix === 'product' && !options.fromBgRemoval && canAutoRemoveBackground(file)) {
@@ -2260,25 +2252,11 @@
                 editProductImagePendingFile = null;
                 setEditProductImageCleared(true);
                 setImageSourceSwitchVisible('editProduct', true);
-                const replaceBtn = document.getElementById('editProductImageReplaceBtn');
-                if (replaceBtn) replaceBtn.style.display = 'none';
             } else if (prefix === 'product') {
                 productImagePendingFile = null;
             }
             resetBackgroundRemovalState(prefix);
             updateBackgroundButtons(prefix);
-        }
-
-        function replacePhoto(prefix) {
-            const fileInput = document.getElementById(prefix + 'ImageInput');
-            if (fileInput) {
-                // Reset pending state so the form knows a new image is coming
-                if (prefix === 'editProduct') {
-                    editProductImagePendingFile = null;
-                    setEditProductImageCleared(true);
-                }
-                fileInput.click();
-            }
         }
 
         function clearExistingRecipeImage(event) {
