@@ -439,6 +439,7 @@ let currentTreeDragSourceRoot = 'main';
 const USER_USAGE_REFRESH_ACTIONS = new Set([
     'mkdir',
     'create_file',
+    'video_generation',
     'rename',
     'move',
     'copy',

@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - main
+      - develop
 jobs:
   deploy-main:
     if: gitea.ref == 'refs/heads/main'
@@ -16,38 +17,43 @@ jobs:
           if [ "$(git branch --show-current)" != "main" ]; then
             git checkout main
           fi
-          sudo mkdir -p /opt/AppDashboard/data/news/uploads
-          if [ -f data/news.json ] && [ ! -f /opt/AppDashboard/data/news/news.json ]; then
-            sudo cp -p data/news.json /opt/AppDashboard/data/news/news.json
-          fi
-          if [ -f data/news_layout.json ] && [ ! -f /opt/AppDashboard/data/news/news_layout.json ]; then
-            sudo cp -p data/news_layout.json /opt/AppDashboard/data/news/news_layout.json
-          fi
-          if [ -d uploads/news ]; then
-            sudo cp -an uploads/news/. /opt/AppDashboard/data/news/uploads/
-          fi
-          sudo chown -R www-data:www-data /opt/AppDashboard/data/news
           git reset --hard origin/main
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
-          MONACO_TMP="$(mktemp -d)"
-          curl -fsSL https://registry.npmjs.org/monaco-editor/-/monaco-editor-0.45.0.tgz -o "$MONACO_TMP/monaco.tgz"
-          tar -xzf "$MONACO_TMP/monaco.tgz" -C "$MONACO_TMP"
-          rm -rf project/assets/monaco-0.45.0
-          mkdir -p project/assets/monaco-0.45.0
-          cp -a "$MONACO_TMP/package/min/vs" project/assets/monaco-0.45.0/vs
-          rm -rf "$MONACO_TMP"
-          APP_ENV=production APP_DEBUG=0 docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build --force-recreate appdashboard
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
-          docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard
-          docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/webssh
           docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/apps/cloud
-          docker exec appdashboard sh -lc 'python3 -m venv /var/www/AppDashboard/bot/.venv && /var/www/AppDashboard/bot/.venv/bin/pip install -q -r /var/www/AppDashboard/bot/requirements.txt'
-          docker exec appdashboard composer audit --working-dir=/var/www/AppDashboard
-          docker exec appdashboard sh -lc '/var/www/AppDashboard/bot/.venv/bin/pip check'
+          docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
+          sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh
+          sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
+          docker exec appdashboard nginx -t
+          docker restart appdashboard
+  deploy-develop:
+    if: gitea.ref == 'refs/heads/develop'
+    runs-on: appdashboard-dev-deploy
+    steps:
+      - name: Deploy develop
+        run: |
+          set -euo pipefail
+          cd /opt/docker/appdashboard/code
+          git fetch origin develop
+          if git show-ref --verify --quiet refs/heads/develop; then
+            git checkout develop
+          else
+            git checkout -b develop --track origin/develop
+          fi
+          git merge --ff-only origin/develop
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --short
+            echo "Working tree is dirty; commit or stash server changes before deploy."
+            exit 1
+          fi
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
+          docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
+          docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/apps/cloud
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
           sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh
           sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh

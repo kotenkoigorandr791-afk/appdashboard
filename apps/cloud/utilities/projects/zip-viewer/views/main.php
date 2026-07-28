@@ -779,29 +779,26 @@
                          onclick="window.location.href='<?= $url ?>'">
                         <span class="icon">
                             <?php if ($item['type'] === 'folder'): ?>
-                                <span class="tree-folder-icon" aria-hidden="true">
-                                    <svg class="tree-folder-icon-svg" viewBox="0 0 24 24" fill="none" stroke="var(--folder-color)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
-                                        <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
-                                    </svg>
-                                </span>
+                                <i class="fa-solid fa-folder" style="color:var(--folder-color);"></i>
                             <?php else: ?>
                                 <?php 
-                                $iconExt = match (true) {
-                                    $ext === 'jpeg' => 'jpg',
-                                    $ext === 'tiff' => 'tif',
-                                    $isZip && $ext === '7z' => '7z',
-                                    $isZip && $ext === 'rar' => 'rar',
-                                    $isZip && ($ext === 'tar' || str_ends_with(strtolower($item['name']), '.tar.gz') || str_ends_with(strtolower($item['name']), '.tgz')) => 'tar',
-                                    default => $ext
+                                $icon = match (true) {
+                                    in_array($ext, ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a']) => 'fa-music',
+                                    in_array($ext, ['mp4', 'webm', 'avi', 'mov', 'mkv']) => 'fa-video',
+                                    in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico']) => 'fa-image',
+                                    $ext === 'pdf' => 'fa-file-pdf',
+                                    $isOffice => 'fa-file-word',
+                                    $isZip => 'fa-file-zipper',
+                                    default => 'fa-file'
+                                };
+                                $iconColor = match (true) {
+                                    $ext === 'pdf' => '#e74c3c',
+                                    $isOffice => $folderColor,
+                                    $isZip => '#e67e22',
+                                    default => '#3498db'
                                 };
                                 ?>
-                                <img class="app-file-icon" 
-                                     src="<?= $iconsBaseUrl ?><?= htmlspecialchars($iconExt ?: 'txt') ?>.svg" 
-                                     alt="" 
-                                     loading="lazy" 
-                                     width="20" 
-                                     height="20"
-                                     onerror="this.onerror=null;this.src='<?= $iconsBaseUrl ?>txt.svg'">
+                                <i class="fa-solid <?= $icon ?>" style="color:<?= $iconColor ?>;"></i>
                             <?php endif; ?>
                         </span>
                         <span class="file-name" title="<?= htmlspecialchars($item['name']) ?>">

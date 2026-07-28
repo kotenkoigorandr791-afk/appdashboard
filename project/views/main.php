@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
-    <link rel="icon" href="/project/icon.png" type="image/png">
+    <link rel="icon" href="/project/views/icon.png" type="image/png">
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
     <?php if($path==='/main' && !$showLogin): ?>
