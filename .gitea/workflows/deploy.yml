@@ -23,7 +23,8 @@ jobs:
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
-          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          git archive --format=tar HEAD | docker exec -i appdashboard tar -C /var/www/AppDashboard -xf -
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
           docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/apps/cloud
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
@@ -51,7 +52,8 @@ jobs:
             echo "Working tree is dirty; commit or stash server changes before deploy."
             exit 1
           fi
-          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          git archive --format=tar HEAD | docker exec -i appdashboard tar -C /var/www/AppDashboard -xf -
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
           docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/apps/cloud
           docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf

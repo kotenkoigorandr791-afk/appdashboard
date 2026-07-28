@@ -5,6 +5,7 @@ set -e
 need=""
 command -v 7z >/dev/null 2>&1 || need="p7zip-full"
 command -v unzip >/dev/null 2>&1 || need="${need:+$need }unzip"
+command -v ffmpeg >/dev/null 2>&1 || need="${need:+$need }ffmpeg"
 if [ -n "$need" ]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
@@ -20,6 +21,13 @@ python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spe
 python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('scipy') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }scipy"
 python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('rembg') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }rembg"
 python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('onnxruntime') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }onnxruntime"
+python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('gtts') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }gtts"
+python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('psycopg2') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }psycopg2-binary"
 if [ -n "$PYTHON_MISSING" ]; then
     python3 -m pip install --break-system-packages --no-cache-dir $PYTHON_MISSING
 fi
+
+mkdir -p /var/www/AppDashboard/apps/cloud/tts_output/.cache
+chmod 0777 /var/www/AppDashboard/apps/cloud/tts_output /var/www/AppDashboard/apps/cloud/tts_output/.cache
+mkdir -p /var/www/AppDashboard/apps/cloud/transcription_uploads/.cache
+chmod 0777 /var/www/AppDashboard/apps/cloud/transcription_uploads /var/www/AppDashboard/apps/cloud/transcription_uploads/.cache

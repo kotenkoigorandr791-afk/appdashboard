@@ -10,7 +10,22 @@ def conn():
     return sqlite3.connect()
 
 def ensure_tables(db):
-    pass
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS cloud_transcription_jobs (
+            progress_id TEXT PRIMARY KEY,
+            user_name TEXT NOT NULL DEFAULT '',
+            audio_path TEXT NOT NULL DEFAULT '',
+            language TEXT NOT NULL DEFAULT 'pl',
+            status TEXT NOT NULL DEFAULT 'processing',
+            percentage INTEGER NOT NULL DEFAULT 0,
+            message TEXT NOT NULL DEFAULT '',
+            transcription TEXT NOT NULL DEFAULT '',
+            error_text TEXT NOT NULL DEFAULT '',
+            started_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        )
+    """)
+    db.execute("CREATE INDEX IF NOT EXISTS idx_cloud_transcription_jobs_status ON cloud_transcription_jobs(status, updated_at DESC)")
 
 def get_progress(db, progress_id):
     row = db.execute("SELECT progress_id,percentage,message,transcription,error_text,status,updated_at FROM cloud_transcription_jobs WHERE progress_id = %s LIMIT 1", (progress_id,)).fetchone()

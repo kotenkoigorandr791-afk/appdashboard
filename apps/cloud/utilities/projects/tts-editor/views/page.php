@@ -57,6 +57,13 @@
             flex-wrap: wrap;
         }
 
+        .button-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: nowrap;
+        }
+
         .voice-controls {
             display: flex;
             gap: 10px;
@@ -247,6 +254,31 @@
             .content {
                 grid-template-columns: 1fr;
             }
+            .voice-controls {
+                flex-wrap: nowrap;
+                margin-right: 0;
+            }
+            .controls {
+                width: 100%;
+                align-items: stretch;
+                row-gap: 8px;
+            }
+            .button-controls {
+                width: 100%;
+                gap: 6px;
+            }
+            .button-controls .btn {
+                flex: 1 1 0;
+                min-width: 0;
+                padding: 8px 6px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .progress-container {
+                order: 3;
+                width: 100%;
+            }
         }
     </style>
 </head>
@@ -276,20 +308,22 @@
                     </select>
                 </div>
 
+                <div class="button-controls">
+                    <button id="btn-generate" class="btn primary"><?php echo $t['generate_audio']; ?></button>
+                    <button id="btn-stop" class="btn danger" style="display: none;"><?php echo $t['stop_generation']; ?></button>
+                    <button id="btn-save-server" class="btn primary" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                            <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                            <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        <span><?php echo $t['save']; ?></span>
+                    </button>
+                </div>
                 <div class="progress-container" id="progress-container">
                     <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
                     <span class="progress-text" id="progress-text">0%</span>
                 </div>
-                <button id="btn-generate" class="btn primary"><?php echo $t['generate_audio']; ?></button>
-                <button id="btn-stop" class="btn danger" style="display: none;"><?php echo $t['stop_generation']; ?></button>
-                <button id="btn-save-server" class="btn primary" style="display: none;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 4px;">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                        <polyline points="7 3 7 8 15 8"></polyline>
-                    </svg>
-                    <span><?php echo $t['save']; ?></span>
-                </button>
             </div>
         </div>
 

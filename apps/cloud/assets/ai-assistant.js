@@ -1006,13 +1006,16 @@
                 }
                 #ai-modal .ai-modal-content {
                     position: fixed !important;
+                    top: 0 !important;
                     left: 0 !important;
                     right: auto !important;
-                    bottom: auto !important;
+                    bottom: 0 !important;
                     width: 100% !important;
+                    height: 100dvh !important;
                     max-width: 100% !important;
                     min-width: 0 !important;
                     min-height: 0 !important;
+                    max-height: 100dvh !important;
                     border-radius: 0 !important;
                     transform: none !important;
                 }
@@ -1033,6 +1036,21 @@
                 #ai-modal .ai-input {
                     flex-shrink: 0 !important;
                     padding-bottom: 8px !important;
+                    margin-top: auto !important;
+                }
+                #ai-modal .ai-input textarea {
+                    resize: none !important;
+                    max-height: 80px !important;
+                }
+                #ai-modal .modal-header {
+                    position: relative !important;
+                }
+                #ai-modal .modal-header h3 {
+                    position: absolute !important;
+                    left: 50% !important;
+                    transform: translateX(-50%) !important;
+                    text-align: center !important;
+                    width: max-content !important;
                 }
             }
             #ai-modal .ai-resize-handle {

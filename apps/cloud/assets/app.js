@@ -7558,7 +7558,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
         const modalBody = modal.querySelector('.modal-body');
         modalBody.innerHTML = `
             <p>${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
-            ${!fromTrash ? `<label style="display:flex;align-items:center;gap:8px;margin:12px 0;cursor:pointer"><input type="checkbox" id="delete-selected-permanently-checkbox"><span>${t(i18n, 'deletePermanently')}</span></label>` : ''}
+            ${!fromTrash ? `<label class="animated-check-label" style="margin:12px 0;"><input type="checkbox" id="delete-selected-permanently-checkbox" class="animated-checkbox"/><span class="animated-checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>${t(i18n, 'deletePermanently')}</span></label>` : ''}
             ${foldersCount > 0 ? `<p style="font-size: 12px; color: var(--muted);">${t(i18n, 'folders')}: ${foldersCount}, ${t(i18n, 'files')}: ${filesCount}</p>` : ''}
             <div style="max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 4px;">
                 <div style="padding: 8px; background: var(--panel); border-bottom: 1px solid var(--border); font-weight: bold; display: flex; justify-content: space-between;">
@@ -7597,7 +7597,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
         const modalBody = modal.querySelector('.modal-body');
         modalBody.innerHTML = `
             <p>${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
-            ${!fromTrash ? `<label style="display:flex;align-items:center;gap:8px;margin:12px 0;cursor:pointer"><input type="checkbox" id="delete-selected-permanently-checkbox"><span>${t(i18n, 'deletePermanently')}</span></label>` : ''}
+            ${!fromTrash ? `<label class="animated-check-label" style="margin:12px 0;"><input type="checkbox" id="delete-selected-permanently-checkbox" class="animated-checkbox"/><span class="animated-checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>${t(i18n, 'deletePermanently')}</span></label>` : ''}
             <div style="max-height: 200px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
                 ${selectedItems.map(item => {
                     const fileName = item.split('/').pop();
@@ -7861,9 +7861,11 @@ function showArchiveOptionsModal(defaultName = '') {
                             <option value="tar.gz">TAR.GZ</option>
                         </select>
                     </div>
-                    <label class="archive-checkbox">
-                        <input id="archive-options-encrypt" type="checkbox">
-                        <span class="archive-checkbox-box" aria-hidden="true"></span>
+                    <label class="animated-check-label">
+                        <input id="archive-options-encrypt" type="checkbox" class="animated-checkbox"/>
+                        <span class="animated-checkbox-box">
+                          <svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
                         <span>${escapeHtml(label('encryptArchive', 'Encrypt archive'))}</span>
                     </label>
                     <div id="archive-password-row" class="archive-password-row hidden">

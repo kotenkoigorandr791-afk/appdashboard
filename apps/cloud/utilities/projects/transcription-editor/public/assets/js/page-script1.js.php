@@ -420,6 +420,7 @@
                     formData.append('audio_path', this.audioPath);
                     formData.append('language', transcriptionLanguage);
                     formData.append('user', this.user);
+                    formData.append('root', this.root);
 
                     this.showDebug(this.logText('log_sending_request', 'Sending request to transcription_api.php...'));
                     this.showDebug(this.logText('log_transcription_language', 'Transcription language') + ': ' + transcriptionLanguage);
@@ -639,6 +640,7 @@
                     formData.append('action', 'save_transcription_to_server');
                     formData.append('audio_path', this.audioPath);
                     formData.append('user', this.user);
+                    formData.append('root', this.root);
                     formData.append('transcription', text);
 
                     const response = await fetch('<?= htmlspecialchars($transcriptionApiUrl) ?>', {

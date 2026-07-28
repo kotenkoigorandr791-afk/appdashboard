@@ -779,39 +779,20 @@
                          onclick="window.location.href='<?= $url ?>'">
                         <span class="icon">
                             <?php if ($item['type'] === 'folder'): ?>
-                                <i class="fa-solid fa-folder" style="color:var(--folder-color);"></i>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="<?= $folderColor ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
                             <?php else: ?>
-                                <?php 
-                                $icon = match (true) {
-                                    in_array($ext, ['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a']) => 'fa-music',
-                                    in_array($ext, ['mp4', 'webm', 'avi', 'mov', 'mkv']) => 'fa-video',
-                                    in_array($ext, ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico']) => 'fa-image',
-                                    $ext === 'pdf' => 'fa-file-pdf',
-                                    $isOffice => 'fa-file-word',
-                                    $isZip => 'fa-file-zipper',
-                                    default => 'fa-file'
-                                };
-                                $iconColor = match (true) {
-                                    $ext === 'pdf' => '#e74c3c',
-                                    $isOffice => $folderColor,
-                                    $isZip => '#e67e22',
-                                    default => '#3498db'
-                                };
-                                ?>
-                                <i class="fa-solid <?= $icon ?>" style="color:<?= $iconColor ?>;"></i>
+                                <img src="../../../../icons/<?= rawurlencode($ext ?: 'txt') ?>.svg" alt="" width="20" height="20" onerror="this.onerror=null;this.src='../../../../icons/txt.svg';">
                             <?php endif; ?>
                         </span>
                         <span class="file-name" title="<?= htmlspecialchars($item['name']) ?>">
                             <?= htmlspecialchars($item['name']) ?>
                             <?php if ($isOffice): ?>
                                 <span class="office-badge">
-                                    <i class="fa-regular fa-file-lines"></i>
                                     <?= strtoupper($ext) ?>
                                 </span>
                             <?php endif; ?>
                             <?php if ($isZip): ?>
                                 <span class="zip-badge">
-                                    <i class="fa-solid fa-file-zipper"></i>
                                     ZIP
                                 </span>
                             <?php endif; ?>

@@ -192,9 +192,14 @@
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
         .notifications-actions{display:flex;gap:8px;align-items:center;}
-        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;}
+        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;position:relative;overflow:visible;}
         .notifications-actions button svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
+        .notifications-actions button.mark-read-done{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3);}
+        @keyframes mark-read-pop{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}
+        .mark-read-pop{animation:mark-read-pop .3s ease}
+        .mark-read-confetti{position:absolute;width:6px;height:6px;border-radius:1px;left:var(--sx);top:50%;pointer-events:none;z-index:5;animation:confetti-fly .7s ease-out forwards}
+        @keyframes confetti-fly{0%{transform:translate(0,0) rotate(0deg);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot));opacity:0}}
         #notifications-list{overflow:auto;padding:4px 0;display:flex;flex-direction:column;}
         .notification-row{display:flex;align-items:flex-start;gap:10px;padding:10px 16px;transition:background .15s;position:relative;}
         .notification-row+.notification-row{border-top:1px solid color-mix(in srgb,var(--border-color) 50%,transparent);}
@@ -4388,6 +4393,22 @@ var T=<?php echo json_encode([
             }
             if(readBtn){
                 readBtn.addEventListener('click',function(){
+                    var confettiColors=['#22c55e','#f43f5e','#eab308','#3b82f6','#fff'];
+                    readBtn.classList.remove('mark-read-done','mark-read-pop');
+                    void readBtn.offsetWidth;
+                    readBtn.classList.add('mark-read-done','mark-read-pop');
+                    for(var i=0;i<14;i++){
+                        var p=document.createElement('div');
+                        p.className='mark-read-confetti';
+                        p.style.background=confettiColors[Math.floor(Math.random()*confettiColors.length)];
+                        p.style.setProperty('--sx',Math.random()*readBtn.offsetWidth+'px');
+                        p.style.setProperty('--dx',(Math.random()-0.5)*80+'px');
+                        p.style.setProperty('--dy',(-40-Math.random()*50)+'px');
+                        p.style.setProperty('--rot',(Math.random()-0.5)*360+'deg');
+                        readBtn.appendChild(p);
+                        p.addEventListener('animationend',function(){this.remove();});
+                    }
+                    setTimeout(function(){readBtn.classList.remove('mark-read-done');},1500);
                     fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(){loadNotifications(false);});
                 });
             }

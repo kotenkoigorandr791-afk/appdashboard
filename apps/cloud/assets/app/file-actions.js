@@ -111,8 +111,12 @@ function ensureVideoModal() {
   modal.innerHTML = `
     <div class="modal-content video-modal-content">
       <style>
-        #video-generation-modal .video-modal-content{max-width:820px;width:92vw;overflow:hidden}
-        #video-generation-modal .video-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border)}
+        #video-generation-modal .video-modal-content{max-width:820px;width:92vw;max-height:90dvh;border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+        #video-generation-modal .video-modal-scroll{flex:1 1 auto;overflow-y:auto;min-height:0;scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);padding:0 4px}
+        #video-generation-modal .video-modal-scroll::-webkit-scrollbar{width:6px}
+        #video-generation-modal .video-modal-scroll::-webkit-scrollbar-track{background:var(--scrollbar-track);border-radius:3px}
+        #video-generation-modal .video-modal-scroll::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
+        #video-generation-modal .video-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
         #video-generation-modal .video-title{display:flex;align-items:center;gap:10px;min-width:0}
         #video-generation-modal .video-title-icon{width:38px;height:38px;display:grid;place-items:center;border-radius:8px;background:color-mix(in srgb,var(--accent) 14%,var(--panel));color:var(--accent);border:1px solid color-mix(in srgb,var(--accent) 28%,var(--border))}
         #video-generation-modal .video-title h3{margin:0;font-size:18px;line-height:1.2}
@@ -149,6 +153,7 @@ function ensureVideoModal() {
         </div>
         <button class="icon-btn close-btn">&times;</button>
       </div>
+      <div class="video-modal-scroll">
       <div class="video-grid">
         <div>
           <div class="video-panel">
@@ -206,6 +211,7 @@ function ensureVideoModal() {
       <div class="modal-footer">
         <button id="btn-cancel-video" class="btn secondary">${t(window.i18n, 'cancel') || 'Cancel'}</button>
         <button id="btn-generate-video" class="btn primary">${t(window.i18n, 'generateVideo') || 'Generate Video'}</button>
+      </div>
       </div>
     </div>
   `;
@@ -1919,14 +1925,11 @@ function showConvertDialog(filePath) {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                        <input type="checkbox" id="delete-original-checkbox">
-                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle;">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                            <line x1="10" y1="11" x2="10" y2="17"></line>
-                            <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
+                    <label class="animated-check-label">
+                        <input type="checkbox" id="delete-original-checkbox" class="animated-checkbox"/>
+                        <span class="animated-checkbox-box">
+                          <svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </span>
                         ${t(i18n, 'deleteOriginal')}
                     </label>
                 </div>

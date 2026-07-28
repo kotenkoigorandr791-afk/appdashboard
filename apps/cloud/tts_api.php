@@ -32,11 +32,20 @@ function tts_split_root_path(string $relativePath): array {
     }
     return ['main', $path];
 }
-function resolve_user_file_path($user, $relativePath) {
+function resolve_user_file_path($user, $relativePath, $root = 'main') {
     $relativePath = trim((string)$relativePath);
     if ($relativePath === '') return null;
+    $root = trim((string)$root);
+    if ($root === '') $root = 'main';
+    if (function_exists('cloud_resolve_file_path')) {
+        try {
+            $cloudPath = cloud_resolve_file_path((string)$user, $root, $relativePath);
+            if (is_file($cloudPath) || is_dir($cloudPath)) return realpath($cloudPath) ?: $cloudPath;
+        } catch (Throwable $e) {
+        }
+    }
     if (function_exists('appdata_user_full_path')) {
-        [$rootKey, $rootRelativePath] = tts_split_root_path($relativePath);
+        [$rootKey, $rootRelativePath] = $root === 'main' ? tts_split_root_path($relativePath) : [$root, $relativePath];
         try {
             $appDataPath = appdata_user_full_path('cloud', (string)$user, $rootKey, $rootRelativePath, false);
             if (is_file($appDataPath) || is_dir($appDataPath)) return realpath($appDataPath) ?: $appDataPath;
@@ -70,10 +79,12 @@ function resolve_user_file_path($user, $relativePath) {
 const TTS_OUTPUT_DIR = __DIR__ . '/tts_output';
 @mkdir(TTS_OUTPUT_DIR, 0777, true);
 @mkdir(TTS_OUTPUT_DIR . '/.cache', 0777, true);
+@chmod(TTS_OUTPUT_DIR, 0777);
 @chmod(TTS_OUTPUT_DIR . '/.cache', 0777);
 
 require_once __DIR__ . '/../../lib/app_db.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once __DIR__ . '/includes/cloud_groups.php';
 
 function getDB() {
     static $db = null;
@@ -120,6 +131,16 @@ function invalidate_file_tree($email) {
 function tts_safe_message(string $message): string {
     $message = preg_replace('/\b[A-Za-z]:[\\\\\\/][^\s"\'<>)]*/', '[hidden-path]', $message);
     return preg_replace('/(^|[\s(])\/(?:[^\/\s"\'<>)]*\/)*[^\/\s"\'<>)]*/', '$1[hidden-path]', $message);
+}
+
+function tts_python_preflight(string $pythonPath): array {
+    $libPath = realpath(__DIR__ . '/../../lib') ?: (__DIR__ . '/../../lib');
+    $code = "import sys\nsys.path.insert(0, sys.argv[1])\nimport gtts\nimport psycopg2\nimport pg_sqlite_compat\n";
+    $output = [];
+    $rc = 0;
+    exec(escapeshellarg($pythonPath) . ' -c ' . escapeshellarg($code) . ' ' . escapeshellarg($libPath) . ' 2>&1', $output, $rc);
+    if ($rc === 0) return [true, ''];
+    return [false, tts_safe_message(trim(implode("\n", $output)) ?: 'Python TTS dependencies unavailable')];
 }
 
 function ensure_tts_tables() {
@@ -178,9 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             exit;
         }
 
-        // If completed, read audio file and encode as base64
         $audioData = null;
-        if ($row['status'] === 'completed' && $row['audio_url']) {
+        if (($_GET['include_audio_data'] ?? '') === '1' && $row['status'] === 'completed' && $row['audio_url']) {
             $audioFilename = basename($row['audio_url']);
             $audioPath = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . $audioFilename;
             if (file_exists($audioPath)) {
@@ -313,6 +333,20 @@ if ($action === 'generate_tts') {
         exit;
     }
 
+    $pythonPath = python_bin();
+    $pythonScript = app_path('tts_generate.py');
+
+    if (!file_exists($pythonScript)) {
+        echo json_encode(['success' => false, 'error' => 'TTS script not found']);
+        exit;
+    }
+
+    [$pythonReady, $pythonError] = tts_python_preflight($pythonPath);
+    if (!$pythonReady) {
+        echo json_encode(['success' => false, 'error' => $pythonError]);
+        exit;
+    }
+
     // Cleanup old temporary files (older than 1 hour)
     $files = glob(TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . '*');
     $now = time();
@@ -328,7 +362,10 @@ if ($action === 'generate_tts') {
 
     // Save text to temporary file
     $tempTextFile = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . $progressId . '.txt';
-    file_put_contents($tempTextFile, $text);
+    if (file_put_contents($tempTextFile, $text) === false) {
+        echo json_encode(['success' => false, 'error' => 'Failed to write temporary text file']);
+        exit;
+    }
 
     // Insert job into database
     $db = getDB();
@@ -346,15 +383,6 @@ if ($action === 'generate_tts') {
 
     if (!$stmt->execute()) {
         echo json_encode(['success' => false, 'error' => 'Failed to create job record']);
-        exit;
-    }
-
-    // Start Python TTS process
-    $pythonPath = python_bin();
-    $pythonScript = app_path('tts_generate.py');
-
-    if (!file_exists($pythonScript)) {
-        echo json_encode(['success' => false, 'error' => 'TTS script not found']);
         exit;
     }
 
@@ -393,6 +421,7 @@ if ($action === 'save_audio_to_server') {
     $progressId = $_POST['progress_id'] ?? '';
     $textPath = $_POST['text_path'] ?? '';
     $user = $_POST['user'] ?? 'default';
+    $root = $_POST['root'] ?? 'main';
 
     if (!$progressId || !$textPath) {
         echo json_encode(['success' => false, 'error' => 'Missing parameters']);
@@ -426,12 +455,16 @@ if ($action === 'save_audio_to_server') {
     }
 
     // Determine target directory (same as text file)
-    $resolvedTextPath = resolve_user_file_path($user, $textPath);
+    $resolvedTextPath = resolve_user_file_path($user, $textPath, $root);
     if (!$resolvedTextPath || !file_exists($resolvedTextPath)) {
         echo json_encode(['success' => false, 'error' => 'Text file not found']);
         exit;
     }
-    [$targetRootKey, $rootRelativeTextPath] = tts_split_root_path($textPath);
+    if (str_starts_with((string)$root, 'group:')) {
+        $rootRelativeTextPath = appdata_normalize_relpath($textPath);
+    } else {
+        [$targetRootKey, $rootRelativeTextPath] = (string)$root === 'main' ? tts_split_root_path($textPath) : [(string)$root, appdata_root_relative_path((string)$root, $textPath)];
+    }
     $textDir = dirname($rootRelativeTextPath);
     $textBasename = pathinfo($rootRelativeTextPath, PATHINFO_FILENAME);
     $targetDir = realpath(dirname($resolvedTextPath));
