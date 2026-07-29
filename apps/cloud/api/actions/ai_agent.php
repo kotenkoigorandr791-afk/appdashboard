@@ -6,17 +6,49 @@ require_once dirname(__DIR__, 2) . '/includes/ai_agent_prompts.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_compile_check.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_code_security.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_syntax_check.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_sandbox.php';
 require_once __DIR__ . '/ai_tools_speech.php';
 
 const CLOUD_AI_FETCH_MAX_BYTES = 20971520;
 const CLOUD_AI_FETCH_MAX_CHARS = 120000;
-const CLOUD_AI_COMMAND_ALLOWLIST = ['php', 'node', 'npm', 'npx', 'python', 'python3', 'pytest', 'composer', 'git', 'rg', 'ls', 'cat', 'head', 'tail', 'wc', 'sed'];
+const CLOUD_AI_COMMAND_ALLOWLIST = ['php', 'node', 'npm', 'npx', 'python', 'python3', 'pytest', 'composer', 'git', 'rg', 'ls', 'cat', 'head', 'tail', 'wc', 'sed', 'sh'];
+const CLOUD_AI_TEXT_EXTENSIONS = [
+    'txt','md','markdown','json','jsonl','csv','tsv','xml','html','htm','css','scss','sass','less',
+    'js','mjs','cjs','ts','tsx','jsx','vue','php','py','rb','go','java','kt','kts','swift','rs',
+    'c','h','cc','cpp','cxx','hpp','hh','hxx','ipp','ino','cs','m','mm','sh','bash','zsh','fish',
+    'bat','cmd','ps1','psm1','sql','yaml','yml','toml','ini','cfg','conf','env','properties',
+    'gradle','dockerfile','makefile','mk','cmake','log','rst','tex','latex','bib','lua','pl','pm',
+    'r','dart','scala','sc','clj','cljs','ex','exs','erl','hrl','fs','fsi','fsx','vb','vbs',
+    'asm','s','pas','pp','proto','graphql','gql','lock','gitignore','gitattributes','editorconfig'
+];
 
 function cloud_ai_release_session_lock(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();
     }
+}
+
+function cloud_ai_path_looks_text(string $target, string $mime = ''): bool
+{
+    if ($mime !== '' && is_text_mime($mime)) {
+        return true;
+    }
+    if (filesize($target) === 0) {
+        return true;
+    }
+    $name = strtolower(basename($target));
+    $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+    if (in_array($ext, CLOUD_AI_TEXT_EXTENSIONS, true) || in_array($name, CLOUD_AI_TEXT_EXTENSIONS, true)) {
+        return true;
+    }
+    $fh = @fopen($target, 'rb');
+    if (!$fh) {
+        return false;
+    }
+    $chunk = (string)fread($fh, 8192);
+    fclose($fh);
+    return $chunk === '' || !str_contains($chunk, "\0");
 }
 
 function cloud_ai_resolve_user_file(string $path, ?string $rootKey = null): array
@@ -313,15 +345,49 @@ function cloud_ai_run_command(array $command, string $user, string $rootKey, str
         return ['ok' => false, 'error' => 'cwd not found'];
     }
     $timeout = max(1, min(60, $timeout));
-    $escaped = array_map(static fn($part) => escapeshellarg((string)$part), $command);
-    $cmd = implode(' ', $escaped);
-    $full = sprintf('cd %s && timeout %d %s 2>&1', escapeshellarg($cwdPath), $timeout, $cmd);
-    exec($full, $output, $code);
-    $stdout = implode("\n", $output);
+    $cmd = implode(' ', array_map(static fn($part) => escapeshellarg((string)$part), $command));
+    try {
+        $result = cloud_sandbox_exec($cwdPath, $cmd, null, $timeout, true);
+    } catch (Throwable $e) {
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+    $code = (int)($result['exitCode'] ?? 1);
+    $stdout = (string)($result['output'] ?? '');
     if (strlen($stdout) > 32000) {
         $stdout = substr($stdout, 0, 32000) . "\n[... output truncated ...]";
     }
     return ['ok' => true, 'command' => $command, 'cwd' => $cwd, 'exit_code' => $code, 'output' => $stdout, 'success' => $code === 0];
+}
+
+function cloud_ai_run_script(string $language, string $script, string $user, string $rootKey, string $cwd = '', int $timeout = 20): array
+{
+    $language = strtolower(trim($language));
+    $extMap = ['python' => 'py', 'python3' => 'py', 'node' => 'js', 'javascript' => 'js', 'php' => 'php', 'sh' => 'sh', 'bash' => 'sh'];
+    $cmdMap = ['python' => 'python3', 'python3' => 'python3', 'node' => 'node', 'javascript' => 'node', 'php' => 'php', 'sh' => 'sh', 'bash' => 'sh'];
+    if (!isset($cmdMap[$language])) {
+        return ['ok' => false, 'error' => 'Unsupported script language'];
+    }
+    $cwdPath = cloud_ai_workspace_root($user, $rootKey, $cwd);
+    if (!is_dir($cwdPath)) {
+        return ['ok' => false, 'error' => 'cwd not found'];
+    }
+    $scriptName = '.ai_tmp_' . bin2hex(random_bytes(6)) . '.' . $extMap[$language];
+    $scriptPath = $cwdPath . '/' . $scriptName;
+    if (file_put_contents($scriptPath, $script) === false) {
+        return ['ok' => false, 'error' => 'Failed to write script'];
+    }
+    try {
+        $result = cloud_sandbox_exec($cwdPath, escapeshellarg($cmdMap[$language]) . ' ' . escapeshellarg($scriptName), null, $timeout, true);
+    } catch (Throwable $e) {
+        @unlink($scriptPath);
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+    @unlink($scriptPath);
+    $output = (string)($result['output'] ?? '');
+    if (strlen($output) > 32000) {
+        $output = substr($output, 0, 32000) . "\n[... output truncated ...]";
+    }
+    return ['ok' => true, 'language' => $language, 'cwd' => $cwd, 'exit_code' => (int)($result['exitCode'] ?? 1), 'output' => $output, 'success' => !empty($result['success'])];
 }
 
 function cloud_ai_read_target_content(string $target, string $user, string $rootKey): array
@@ -363,7 +429,7 @@ function cloud_ai_read_target_content(string $target, string $user, string $root
     }
 
     $mime = mime_content_type($target) ?: 'application/octet-stream';
-    if (!is_text_mime($mime)) {
+    if (!cloud_ai_path_looks_text($target, $mime)) {
         return ['ok' => false, 'error' => 'Binary file cannot be read as text'];
     }
     $content = (string)file_get_contents($target);
@@ -619,6 +685,37 @@ function cloud_ai_web_search(string $query, int $maxResults = 5): array
         }
     }
 
+    return ['ok' => true, 'query' => $query, 'count' => count($results), 'results' => $results];
+}
+
+function cloud_ai_image_search(string $query, int $maxResults = 8): array
+{
+    $query = trim($query);
+    if ($query === '') {
+        return ['ok' => false, 'error' => 'query is required'];
+    }
+    $maxResults = max(1, min(20, $maxResults));
+    $url = 'https://duckduckgo.com/?q=' . rawurlencode($query) . '&iax=images&ia=images';
+    $html = cloud_ai_fetch_url($url, 1048576);
+    if (!($html['ok'] ?? false)) {
+        return ['ok' => false, 'error' => 'Image search request failed'];
+    }
+    $body = (string)($html['body'] ?? '');
+    $results = [];
+    if (preg_match('/vqd=["\']?([^"\'&]+)["\']?/i', $body, $m)) {
+        $apiUrl = 'https://duckduckgo.com/i.js?l=us-en&o=json&q=' . rawurlencode($query) . '&vqd=' . rawurlencode($m[1]);
+        $json = cloud_ai_fetch_url($apiUrl, 2097152);
+        $data = json_decode((string)($json['body'] ?? ''), true);
+        foreach (($data['results'] ?? []) as $row) {
+            if (!is_array($row)) continue;
+            $image = (string)($row['image'] ?? '');
+            $thumb = (string)($row['thumbnail'] ?? '');
+            $title = trim((string)($row['title'] ?? ''));
+            if ($image === '' && $thumb === '') continue;
+            $results[] = ['title' => $title, 'url' => $image ?: $thumb, 'thumbnail' => $thumb ?: $image, 'source' => (string)($row['url'] ?? '')];
+            if (count($results) >= $maxResults) break;
+        }
+    }
     return ['ok' => true, 'query' => $query, 'count' => count($results), 'results' => $results];
 }
 
@@ -1056,6 +1153,16 @@ if ($action === 'ai_agent_tool') {
         json_out($result);
     }
 
+    if ($tool === 'image_search') {
+        $query = (string)($args['query'] ?? '');
+        $maxResults = (int)($args['max_results'] ?? 8);
+        $result = cloud_ai_image_search($query, $maxResults);
+        if (!($result['ok'] ?? false)) {
+            json_out(['ok' => false, 'error' => $result['error'] ?? 'Image search failed'], 400);
+        }
+        json_out($result);
+    }
+
     if ($tool === 'open_url_fetch') {
         $url = (string)($args['url'] ?? '');
         $maxChars = max(1000, min(CLOUD_AI_FETCH_MAX_CHARS, (int)($args['max_chars'] ?? 30000)));
@@ -1099,6 +1206,26 @@ if ($action === 'ai_agent_tool') {
         }
         cloud_ai_sync_file_tree_after_write($resolved);
         json_out(['ok' => true, 'path' => $resolved['path'], 'bytes' => strlen((string)$fetched['body']), 'persisted' => true, 'downloaded' => true]);
+    }
+
+    if ($tool === 'run_script') {
+        $user = get_current_user_from_sessions();
+        if ($user === '') {
+            json_out(['ok' => false, 'error' => 'not authenticated'], 401);
+        }
+        $rk = $rootKey !== '' ? $rootKey : get_requested_root_key();
+        $result = cloud_ai_run_script(
+            (string)($args['language'] ?? ''),
+            (string)($args['script'] ?? ''),
+            $user,
+            $rk,
+            (string)($args['cwd'] ?? ''),
+            (int)($args['timeout_seconds'] ?? 20)
+        );
+        if (!($result['ok'] ?? false)) {
+            json_out(['ok' => false, 'error' => $result['error'] ?? 'Script failed'], 400);
+        }
+        json_out($result);
     }
 
     if ($tool === 'search_replace') {

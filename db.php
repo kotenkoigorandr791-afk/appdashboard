@@ -12,67 +12,24 @@ function getDB(): AppDatabase {
     if ($db === null) {
         $db = AppDatabase::connect();
         $db->enableExceptions(true);
-        if (app_db_is_pgsql()) {
-            $schemaStamp = '/opt/AppDashboard/data/.schema_init_stamp';
-            $schemaKey = hash_file('sha256', __FILE__) . ':' . (is_file(__DIR__ . '/lib/pg_foreign_keys.php') ? hash_file('sha256', __DIR__ . '/lib/pg_foreign_keys.php') : '');
-            if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey) {
-                initDB($db);
-                @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
-            }
-        } else {
+        $schemaStamp = '/opt/AppDashboard/data/.schema_init_stamp';
+        $schemaKey = hash_file('sha256', __FILE__) . ':' . (is_file(__DIR__ . '/lib/pg_foreign_keys.php') ? hash_file('sha256', __DIR__ . '/lib/pg_foreign_keys.php') : '');
+        if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey) {
             initDB($db);
+            @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
         }
     }
     return $db;
 }
 
 function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
-    if (app_db_is_pgsql()) {
-        try { $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_encryption_consents_email ON cloud_encryption_consents(email)"); } catch (Throwable $e) {}
-        return;
-    }
-    $db->exec("PRAGMA foreign_keys = ON");
-    $hasTable = (bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_encryption_consents' LIMIT 1");
-    $hasDeviceId = false;
-    if ($hasTable) {
-        $cols = $db->query("PRAGMA table_info(cloud_encryption_consents)");
-        while ($cols && ($row = $cols->fetchArray(SQLITE3_ASSOC))) {
-            if (($row['name'] ?? '') === 'device_id') $hasDeviceId = true;
-        }
-    }
-    if ($hasTable && $hasDeviceId) {
-        $db->exec('BEGIN IMMEDIATE');
-        try {
-            $db->exec("CREATE TABLE _cec_mig (
-                email         TEXT NOT NULL PRIMARY KEY,
-                status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
-                consented_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-                updated_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-                FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
-            )");
-            $db->exec("INSERT INTO _cec_mig (email, status, consented_at, updated_at)
-                SELECT c.email, 'accepted', MIN(c.consented_at), MAX(c.updated_at)
-                FROM cloud_encryption_consents c
-                INNER JOIN users u ON u.email = c.email
-                WHERE c.status = 'accepted'
-                GROUP BY c.email");
-            $db->exec("DROP TABLE cloud_encryption_consents");
-            $db->exec("ALTER TABLE _cec_mig RENAME TO cloud_encryption_consents");
-            $db->exec('COMMIT');
-        } catch (Exception $e) {
-            $db->exec('ROLLBACK');
-            throw $e;
-        }
-    }
-    if (!(bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_encryption_consents' LIMIT 1")) {
-        $db->exec("CREATE TABLE cloud_encryption_consents (
-            email         TEXT NOT NULL PRIMARY KEY,
-            status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
-            consented_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
-        )");
-    }
+    $db->exec("CREATE TABLE IF NOT EXISTS cloud_encryption_consents (
+        email         TEXT NOT NULL PRIMARY KEY,
+        status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
+        consented_at  BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        updated_at    BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+    )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_encryption_consents_email ON cloud_encryption_consents(email)");
 }
 function ensureSupportChatSchema(AppDatabase $db): void {
@@ -105,7 +62,7 @@ function ensureSupportChatSchema(AppDatabase $db): void {
         return;
     }
     $db->exec("CREATE TABLE IF NOT EXISTS support_chat (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        id          BIGSERIAL PRIMARY KEY,
         user_email  TEXT NOT NULL,
         sender_email TEXT NOT NULL,
         message     TEXT NOT NULL DEFAULT '',
@@ -114,7 +71,7 @@ function ensureSupportChatSchema(AppDatabase $db): void {
         is_deleted  INTEGER NOT NULL DEFAULT 0,
         is_edited   INTEGER NOT NULL DEFAULT 0,
         is_read     INTEGER NOT NULL DEFAULT 0,
-        created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         edited_at   INTEGER,
         FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE,
         FOREIGN KEY (sender_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
@@ -157,7 +114,7 @@ function ensureTelegramBotSchema(AppDatabase $db): void {
         $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_sessions (
             chat_id      TEXT PRIMARY KEY,
             email        TEXT NOT NULL,
-            authorized_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            authorized_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             telegram_user_id TEXT NOT NULL DEFAULT '',
             FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
         )");
@@ -166,7 +123,7 @@ function ensureTelegramBotSchema(AppDatabase $db): void {
             token_hash TEXT PRIMARY KEY,
             email TEXT NOT NULL,
             created_by TEXT NOT NULL DEFAULT '',
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             expires_at INTEGER NOT NULL,
             used_at INTEGER,
             used_chat_id TEXT NOT NULL DEFAULT '',
@@ -259,7 +216,7 @@ function ensureNotificationsSchema(AppDatabase $db): void {
         return;
     }
     $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         user_email TEXT NOT NULL DEFAULT '',
         app_id TEXT NOT NULL DEFAULT '',
         severity TEXT NOT NULL DEFAULT 'info',
@@ -268,7 +225,7 @@ function ensureNotificationsSchema(AppDatabase $db): void {
         event_type TEXT NOT NULL DEFAULT '',
         context_json TEXT NOT NULL DEFAULT '{}',
         is_read INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         read_at INTEGER,
         FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
@@ -276,18 +233,18 @@ function ensureNotificationsSchema(AppDatabase $db): void {
         email TEXT PRIMARY KEY,
         browser_enabled INTEGER NOT NULL DEFAULT 0,
         telegram_enabled INTEGER NOT NULL DEFAULT 1,
-        updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS app_metrics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         app_id TEXT NOT NULL DEFAULT '',
         metric TEXT NOT NULL,
         value REAL NOT NULL DEFAULT 0,
         unit TEXT NOT NULL DEFAULT '',
         user_email TEXT NOT NULL DEFAULT '',
         context_json TEXT NOT NULL DEFAULT '{}',
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
     foreach ([
         "ALTER TABLE app_notifications ADD COLUMN event_type TEXT NOT NULL DEFAULT ''",
@@ -307,14 +264,14 @@ function createAppNotification(string $userEmail, string $appId, string $severit
     ensureNotificationsSchema($db);
     $severity = in_array($severity, ['info','success','warning','error','critical'], true) ? $severity : 'info';
     $stmt = $db->prepare("INSERT INTO app_notifications(user_email,app_id,severity,title,message,event_type,context_json,is_read,created_at) VALUES(:u,:a,:s,:t,:m,:e,:c,0,:n)");
-    $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
-    $stmt->bindValue(':s', $severity, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $title, SQLITE3_TEXT);
-    $stmt->bindValue(':m', $message, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $eventType, SQLITE3_TEXT);
-    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
+    $stmt->bindValue(':s', $severity, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $title, PDO::PARAM_STR);
+    $stmt->bindValue(':m', $message, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $eventType, PDO::PARAM_STR);
+    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+    $stmt->bindValue(':n', time(), PDO::PARAM_INT);
     $stmt->execute();
     return (int)$db->lastInsertRowID();
 }
@@ -322,13 +279,13 @@ function recordAppMetric(string $userEmail, string $appId, string $metric, float
     $db = getDB();
     ensureNotificationsSchema($db);
     $stmt = $db->prepare("INSERT INTO app_metrics(app_id,metric,value,unit,user_email,context_json,created_at) VALUES(:a,:m,:v,:u,:e,:c,:t)");
-    $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
-    $stmt->bindValue(':m', $metric, SQLITE3_TEXT);
-    $stmt->bindValue(':v', $value, SQLITE3_FLOAT);
-    $stmt->bindValue(':u', $unit, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $userEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-    $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
+    $stmt->bindValue(':m', $metric, PDO::PARAM_STR);
+    $stmt->bindValue(':v', $value, PDO::PARAM_STR);
+    $stmt->bindValue(':u', $unit, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $userEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+    $stmt->bindValue(':t', time(), PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -407,7 +364,7 @@ function initDB(AppDatabase $db): void {
     }
     
     // Включаем поддержку внешних ключей
-    $db->exec("PRAGMA foreign_keys = ON");
+    $db->exec("SELECT 1");
 
     // ── Users ────────────────────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS users (
@@ -421,7 +378,7 @@ function initDB(AppDatabase $db): void {
         theme           TEXT NOT NULL DEFAULT 'light',
         color           TEXT NOT NULL DEFAULT '#007bff',
         trusted_devices TEXT NOT NULL DEFAULT '[]',
-        created_at      TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        created_at      TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
     // Backfill trusted_devices column for existing databases
@@ -444,7 +401,7 @@ function initDB(AppDatabase $db): void {
         language    TEXT NOT NULL DEFAULT 'en',
         theme       TEXT NOT NULL DEFAULT 'light',
         color       TEXT NOT NULL DEFAULT '#007bff',
-        created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        created_at  TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         reg_method  TEXT NOT NULL DEFAULT 'Email'
     )");
 
@@ -480,7 +437,7 @@ function initDB(AppDatabase $db): void {
         file_name   TEXT NOT NULL DEFAULT '',
         file_path   TEXT NOT NULL DEFAULT '',
         user_email  TEXT NOT NULL DEFAULT '',
-        created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        created_at  TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         expires     INTEGER DEFAULT NULL,
         expires_option TEXT NOT NULL DEFAULT 'never',
         password_hash TEXT NOT NULL DEFAULT '',
@@ -543,14 +500,14 @@ function initDB(AppDatabase $db): void {
         'docker_username'      => '',
         'docker_password'      => '',
     ];
-    $stmt = $db->prepare("INSERT OR IGNORE INTO config(key,value) VALUES(:k,:v)");
+    $stmt = $db->prepare("INSERT INTO config(key,value) VALUES(:k,:v) ON CONFLICT (key) DO NOTHING");
     foreach ($defaults as $k => $v) {
         $stmt->bindValue(':k', $k);
         $stmt->bindValue(':v', $v);
         $stmt->execute();
     }
     $db->exec("UPDATE config SET value='https://serverkherson.xyz' WHERE key='tg_webapp_base_url' AND trim(value)=''");
-    $db->exec("INSERT OR IGNORE INTO config(key,value) VALUES('tg_webapp_base_url','https://serverkherson.xyz')");
+    $db->exec("INSERT INTO config(key,value) VALUES('tg_webapp_base_url','https://serverkherson.xyz') ON CONFLICT (key) DO NOTHING");
 
     // OnlyOffice JWT — keep DB in sync with env when provided, otherwise generate once.
     $envOnlyofficeSecret = getenv('ONLYOFFICE_JWT_SECRET');
@@ -562,7 +519,7 @@ function initDB(AppDatabase $db): void {
         ? $envOnlyofficeSecret
         : (($oo === false || $oo === null || $oo === '') ? bin2hex(random_bytes(32)) : (string)$oo);
     if ($oo !== $desiredOnlyofficeSecret) {
-        $stmt = $db->prepare('INSERT OR REPLACE INTO config(key,value) VALUES(:k,:v)');
+        $stmt = $db->prepare('INSERT INTO config(key,value) VALUES(:k,:v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
         $stmt->bindValue(':k', 'onlyoffice_jwt_secret');
         $stmt->bindValue(':v', $desiredOnlyofficeSecret);
         $stmt->execute();
@@ -573,7 +530,7 @@ function initDB(AppDatabase $db): void {
         app_id   TEXT PRIMARY KEY,
         min_role INTEGER NOT NULL CHECK(min_role BETWEEN 0 AND 2)
     )");
-    $legacyUar = $db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='user_app_restrictions' LIMIT 1");
+    $legacyUar = $db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='user_app_restrictions' LIMIT 1");
     if ($legacyUar) {
         $db->exec("DROP TABLE user_app_restrictions");
     }
@@ -600,7 +557,7 @@ function initDB(AppDatabase $db): void {
         sync_mode        TEXT    NOT NULL DEFAULT 'mtime_size',
         sync_enabled     INTEGER NOT NULL DEFAULT 0,
         last_sync_at     INTEGER NOT NULL DEFAULT 0,
-        updated_at       INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        updated_at       INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     
@@ -608,14 +565,14 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_folder_state (
         email       TEXT    PRIMARY KEY,
         folder_json TEXT    NOT NULL DEFAULT '[]',
-        updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        updated_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_sync_logs (
-        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        id       BIGSERIAL PRIMARY KEY,
         email    TEXT    NOT NULL,
-        ts       INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        ts       INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         level    TEXT    NOT NULL DEFAULT 'INFO',
         root_key TEXT    NOT NULL DEFAULT '',
         action   TEXT    NOT NULL DEFAULT '',
@@ -632,8 +589,8 @@ function initDB(AppDatabase $db): void {
         status       TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
         asked_at     INTEGER,
         responded_at INTEGER,
-        created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        updated_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at   INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        updated_at   INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         PRIMARY KEY (consent_key, device_id)
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_site_cookie_consents_email ON site_cookie_consents(email)");
@@ -641,16 +598,16 @@ function initDB(AppDatabase $db): void {
     ensure_cloud_encryption_consents_schema($db);
     
     // Seed default quota settings for existing users
-    $db->exec("INSERT OR IGNORE INTO cloud_user_settings (email, quota_mb, session_limit_mb)
-               SELECT email, 500, 0 FROM users");
+    $db->exec("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb)
+               SELECT email, 500, 0 FROM users ON CONFLICT (email) DO NOTHING");
 
     // ── One-Time PINs ────────────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS one_time_pins (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        id          BIGSERIAL PRIMARY KEY,
         pin         TEXT    NOT NULL UNIQUE,
         email       TEXT    NOT NULL,
         expires     INTEGER NOT NULL,
-        created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_otp_pin ON one_time_pins(pin)");
@@ -662,7 +619,7 @@ function initDB(AppDatabase $db): void {
         lock_type    TEXT    NOT NULL,
         attempts     INTEGER NOT NULL DEFAULT 0,
         locked_until INTEGER,
-        last_attempt INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        last_attempt INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         PRIMARY KEY (ip, lock_type)
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
@@ -671,8 +628,8 @@ function initDB(AppDatabase $db): void {
         device_id    TEXT NOT NULL DEFAULT '',
         device_name  TEXT NOT NULL DEFAULT '',
         platform     TEXT NOT NULL DEFAULT '',
-        created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        last_used_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at   INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        last_used_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at   INTEGER NOT NULL,
         revoked      INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
@@ -680,14 +637,14 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS trusted_devices (
-        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        id               BIGSERIAL PRIMARY KEY,
         email            TEXT NOT NULL,
         fingerprint      TEXT NOT NULL,
         ip               TEXT NOT NULL DEFAULT '',
         device_name      TEXT NOT NULL DEFAULT '',
         device_token_hash TEXT DEFAULT NULL,
-        added_at         INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        last_seen        INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        added_at         INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        last_seen        INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         UNIQUE(email, fingerprint),
         UNIQUE(device_token_hash),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
@@ -701,13 +658,13 @@ function initDB(AppDatabase $db): void {
 
     // ── Quick Commands for SSH Terminal ──────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS quick_commands (
-        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        id          BIGSERIAL PRIMARY KEY,
         email       TEXT NOT NULL,
         name        TEXT NOT NULL DEFAULT '',
         command     TEXT NOT NULL DEFAULT '',
         directory   TEXT NOT NULL DEFAULT '',
-        created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        updated_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_quick_commands_email ON quick_commands(email)");
@@ -718,8 +675,8 @@ function initDB(AppDatabase $db): void {
 
     // ── Monitoring (grouped monitor_* tables) ───────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_system_snapshots (
-        id                         INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at                 INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        id                         BIGSERIAL PRIMARY KEY,
+        created_at                 INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         cpu_percent                REAL NOT NULL DEFAULT 0,
         memory_percent             REAL NOT NULL DEFAULT 0,
         swap_percent               REAL NOT NULL DEFAULT 0,
@@ -736,7 +693,7 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_system_snapshots_status ON monitor_system_snapshots(status, created_at)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_disk_snapshots (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        id            BIGSERIAL PRIMARY KEY,
         snapshot_id   INTEGER NOT NULL,
         drive_letter  TEXT NOT NULL,
         total_bytes   INTEGER NOT NULL DEFAULT 0,
@@ -749,8 +706,8 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_disk_snapshots_drive_created ON monitor_disk_snapshots(drive_letter, snapshot_id)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_app_events (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        id            BIGSERIAL PRIMARY KEY,
+        created_at    INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         level         TEXT NOT NULL DEFAULT 'info' CHECK(level IN ('debug','info','warning','error','critical')),
         app_id        TEXT NOT NULL DEFAULT '',
         event_type    TEXT NOT NULL,
@@ -767,8 +724,8 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_app_events_user ON monitor_app_events(user_email, created_at)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_http_requests (
-        id             INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at     INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        id             BIGSERIAL PRIMARY KEY,
+        created_at     INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         method         TEXT NOT NULL DEFAULT '',
         path           TEXT NOT NULL DEFAULT '',
         app_id         TEXT NOT NULL DEFAULT '',
@@ -787,8 +744,8 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_http_requests_user ON monitor_http_requests(user_email, created_at)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_errors (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        id            BIGSERIAL PRIMARY KEY,
+        created_at    INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         level         TEXT NOT NULL DEFAULT 'error' CHECK(level IN ('warning','error','critical')),
         app_id        TEXT NOT NULL DEFAULT '',
         user_email    TEXT,
@@ -807,7 +764,7 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_errors_trace ON monitor_errors(trace_hash, created_at)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_alert_rules (
-        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        id              BIGSERIAL PRIMARY KEY,
         name            TEXT NOT NULL UNIQUE,
         metric          TEXT NOT NULL,
         operator        TEXT NOT NULL CHECK(operator IN ('>','>=','<','<=','=','!=')),
@@ -816,15 +773,15 @@ function initDB(AppDatabase $db): void {
         severity        TEXT NOT NULL DEFAULT 'warning' CHECK(severity IN ('info','warning','critical')),
         enabled         INTEGER NOT NULL DEFAULT 1,
         notify_channels TEXT NOT NULL DEFAULT '[]',
-        created_at      INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        updated_at      INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        created_at      INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        updated_at      INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_alert_rules_metric ON monitor_alert_rules(metric, enabled)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_alerts (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        id            BIGSERIAL PRIMARY KEY,
         rule_id       INTEGER,
-        opened_at     INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        opened_at     INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         closed_at     INTEGER,
         severity      TEXT NOT NULL DEFAULT 'warning' CHECK(severity IN ('info','warning','critical')),
         status        TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','closed')),
@@ -838,9 +795,9 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_alerts_rule_status ON monitor_alerts(rule_id, status)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_notifications (
-        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        id            BIGSERIAL PRIMARY KEY,
         alert_id      INTEGER NOT NULL,
-        created_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at    INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         channel       TEXT NOT NULL,
         recipient     TEXT NOT NULL DEFAULT '',
         status        TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','sent','failed','skipped')),
@@ -859,7 +816,7 @@ function initDB(AppDatabase $db): void {
         avg_value   REAL NOT NULL DEFAULT 0,
         max_value   REAL NOT NULL DEFAULT 0,
         sample_count INTEGER NOT NULL DEFAULT 0,
-        updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        updated_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         PRIMARY KEY (metric_hour, metric, app_id)
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_metric_hourly_metric ON monitor_metric_hourly(metric, metric_hour)");
@@ -873,23 +830,23 @@ function initDB(AppDatabase $db): void {
         ['Frequent application errors', 'errors.count_5m', '>=', 10, 0, 'critical'],
         ['Frequent HTTP server errors', 'http.5xx_count_5m', '>=', 3, 0, 'critical'],
     ];
-    $ruleStmt = $db->prepare("INSERT OR IGNORE INTO monitor_alert_rules
+    $ruleStmt = $db->prepare("INSERT INTO monitor_alert_rules
         (name, metric, operator, threshold, duration_sec, severity, notify_channels)
-        VALUES(:name, :metric, :operator, :threshold, :duration_sec, :severity, '[]')");
+        VALUES(:name, :metric, :operator, :threshold, :duration_sec, :severity, '[]') ON CONFLICT (name) DO NOTHING");
     foreach ($defaultRules as $rule) {
-        $ruleStmt->bindValue(':name', $rule[0], SQLITE3_TEXT);
-        $ruleStmt->bindValue(':metric', $rule[1], SQLITE3_TEXT);
-        $ruleStmt->bindValue(':operator', $rule[2], SQLITE3_TEXT);
-        $ruleStmt->bindValue(':threshold', $rule[3], SQLITE3_FLOAT);
-        $ruleStmt->bindValue(':duration_sec', $rule[4], SQLITE3_INTEGER);
-        $ruleStmt->bindValue(':severity', $rule[5], SQLITE3_TEXT);
+        $ruleStmt->bindValue(':name', $rule[0], PDO::PARAM_STR);
+        $ruleStmt->bindValue(':metric', $rule[1], PDO::PARAM_STR);
+        $ruleStmt->bindValue(':operator', $rule[2], PDO::PARAM_STR);
+        $ruleStmt->bindValue(':threshold', $rule[3], PDO::PARAM_STR);
+        $ruleStmt->bindValue(':duration_sec', $rule[4], PDO::PARAM_INT);
+        $ruleStmt->bindValue(':severity', $rule[5], PDO::PARAM_STR);
         $ruleStmt->execute();
     }
 
     // ── Migration: remove incorrect FK constraints from pending_users & verification_tokens
     $fkMigDone = $db->querySingle("SELECT value FROM app_meta WHERE key='fk_drop_pending_vt_v1'");
     if (!$fkMigDone) {
-        $db->exec("PRAGMA foreign_keys = OFF");
+        $db->exec("SELECT 1");
 
         // Recreate pending_users without FK
         $db->exec("CREATE TABLE IF NOT EXISTS pending_users_tmp (
@@ -901,10 +858,10 @@ function initDB(AppDatabase $db): void {
             language    TEXT NOT NULL DEFAULT 'en',
             theme       TEXT NOT NULL DEFAULT 'light',
             color       TEXT NOT NULL DEFAULT '#007bff',
-            created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+            created_at  TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
             reg_method  TEXT NOT NULL DEFAULT 'Email'
         )");
-        $db->exec("INSERT OR IGNORE INTO pending_users_tmp
+        $db->exec("INSERT INTO pending_users_tmp
                     SELECT email,name,password,photo,role,language,theme,color,created_at,reg_method
                     FROM pending_users");
         $db->exec("DROP TABLE pending_users");
@@ -916,19 +873,19 @@ function initDB(AppDatabase $db): void {
             token   TEXT NOT NULL,
             expires INTEGER NOT NULL
         )");
-        $db->exec("INSERT OR IGNORE INTO verification_tokens_tmp
+        $db->exec("INSERT INTO verification_tokens_tmp
                     SELECT email,token,expires FROM verification_tokens");
         $db->exec("DROP TABLE verification_tokens");
         $db->exec("ALTER TABLE verification_tokens_tmp RENAME TO verification_tokens");
 
-        $db->exec("PRAGMA foreign_keys = ON");
-        $db->exec("INSERT OR REPLACE INTO app_meta(key,value) VALUES('fk_drop_pending_vt_v1','1')");
+        $db->exec("SELECT 1");
+        $db->exec("INSERT INTO app_meta(key,value) VALUES('fk_drop_pending_vt_v1','1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     }
     $cloudSettingsV2 = $db->querySingle("SELECT value FROM app_meta WHERE key='cloud_user_settings_v2'");
     if (!$cloudSettingsV2) {
         $cols = [];
-        $res = $db->query("PRAGMA table_info(cloud_user_settings)");
-        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='cloud_user_settings'");
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
             $cols[] = $row['name'] ?? '';
         }
         if (!in_array('sync_local_path', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_local_path TEXT NOT NULL DEFAULT ''");
@@ -936,7 +893,7 @@ function initDB(AppDatabase $db): void {
         if (!in_array('sync_mode', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'mtime_size'");
         if (!in_array('sync_enabled', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0");
         if (!in_array('last_sync_at', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN last_sync_at INTEGER NOT NULL DEFAULT 0");
-        $db->exec("INSERT OR REPLACE INTO app_meta(key,value) VALUES('cloud_user_settings_v2','1')");
+        $db->exec("INSERT INTO app_meta(key,value) VALUES('cloud_user_settings_v2','1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     }
 
     $db->exec("CREATE TABLE IF NOT EXISTS smart_app_logs (
@@ -964,7 +921,7 @@ function initDB(AppDatabase $db): void {
                     device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_devices.device_name END,
                     device_token_hash = CASE WHEN excluded.device_token_hash != '' THEN excluded.device_token_hash ELSE trusted_devices.device_token_hash END,
                     last_seen = MAX(trusted_devices.last_seen, excluded.last_seen)");
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $email = (string)($row['email'] ?? '');
                 $trustedDevices = json_decode((string)($row['trusted_devices'] ?? '[]'), true);
                 if ($email === '' || !is_array($trustedDevices)) continue;
@@ -976,22 +933,22 @@ function initDB(AppDatabase $db): void {
                     $deviceTokenHash = $encryptedToken !== '' ? hash('sha256', $encryptedToken) : null;
                     $addedAt = (int)($device['added_at'] ?? time());
                     $lastSeen = (int)($device['last_seen'] ?? $addedAt);
-                    $upsertTrusted->bindValue(':email', $email, SQLITE3_TEXT);
-                    $upsertTrusted->bindValue(':fingerprint', $fingerprint, SQLITE3_TEXT);
-                    $upsertTrusted->bindValue(':ip', (string)($device['ip'] ?? ''), SQLITE3_TEXT);
-                    $upsertTrusted->bindValue(':device_name', (string)($device['device_name'] ?? ''), SQLITE3_TEXT);
+                    $upsertTrusted->bindValue(':email', $email, PDO::PARAM_STR);
+                    $upsertTrusted->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
+                    $upsertTrusted->bindValue(':ip', (string)($device['ip'] ?? ''), PDO::PARAM_STR);
+                    $upsertTrusted->bindValue(':device_name', (string)($device['device_name'] ?? ''), PDO::PARAM_STR);
                     if ($deviceTokenHash !== null) {
-                        $upsertTrusted->bindValue(':device_token_hash', $deviceTokenHash, SQLITE3_TEXT);
+                        $upsertTrusted->bindValue(':device_token_hash', $deviceTokenHash, PDO::PARAM_STR);
                     } else {
-                        $upsertTrusted->bindValue(':device_token_hash', null, SQLITE3_NULL);
+                        $upsertTrusted->bindValue(':device_token_hash', null, PDO::PARAM_NULL);
                     }
-                    $upsertTrusted->bindValue(':added_at', $addedAt, SQLITE3_INTEGER);
-                    $upsertTrusted->bindValue(':last_seen', $lastSeen, SQLITE3_INTEGER);
+                    $upsertTrusted->bindValue(':added_at', $addedAt, PDO::PARAM_INT);
+                    $upsertTrusted->bindValue(':last_seen', $lastSeen, PDO::PARAM_INT);
                     $upsertTrusted->execute();
                 }
             }
         }
-        $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('trusted_devices_v2_migrated', '1')");
+        $db->exec("INSERT INTO app_meta(key, value) VALUES('trusted_devices_v2_migrated', '1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     }
 
 }
@@ -1003,7 +960,7 @@ function loadUsers(): array {
     $db = getDB();
     $result = $db->query("SELECT * FROM users");
     $users = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         $email = $row['email'];
         $row['verified'] = (bool)$row['verified'];
         $users[$email] = $row;
@@ -1046,7 +1003,7 @@ function saveUsers(array $users): void {
         // Проверяем, существует ли пользователь
         $checkStmt = $db->prepare("SELECT COUNT(*) FROM users WHERE email = :email");
         $checkStmt->bindValue(':email', $email);
-        $exists = (int)$checkStmt->execute()->fetchArray(SQLITE3_NUM)[0] > 0;
+        $exists = (int)$checkStmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
         
         if ($exists) {
             // Используем UPDATE для существующих пользователей
@@ -1075,8 +1032,8 @@ function saveUsers(array $users): void {
         $stmt->bindValue(':name',       $u['name']       ?? '');
         $stmt->bindValue(':password',   $u['password']   ?? '');
         $stmt->bindValue(':photo',      $u['photo']      ?? 'default_avatar.png');
-        $stmt->bindValue(':role',       (int)($u['role'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':verified',   (int)(bool)($u['verified'] ?? false), SQLITE3_INTEGER);
+        $stmt->bindValue(':role',       (int)($u['role'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':verified',   (int)(bool)($u['verified'] ?? false), PDO::PARAM_INT);
         $stmt->bindValue(':language',   $u['language']   ?? 'en');
         $stmt->bindValue(':theme',      $u['theme']      ?? 'light');
         $stmt->bindValue(':color',      $u['color']      ?? '#007bff');
@@ -1099,7 +1056,7 @@ function getUserByEmail(string $email): ?array {
     $db   = getDB();
     $stmt = $db->prepare("SELECT * FROM users WHERE email=:e LIMIT 1");
     $stmt->bindValue(':e', $email);
-    $row  = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     $row['verified'] = (bool)$row['verified'];
     return $row;
@@ -1122,15 +1079,15 @@ function upsertUser(string $email, array $fields): void {
         'wallpaper' => 'default',
         'created_at' => date('Y-m-d H:i:s'),
     ], $current, $fields);
-    $stmt = $db->prepare("INSERT OR REPLACE INTO users
+    $stmt = $db->prepare("INSERT INTO users
         (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at)
         VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at)");
     $stmt->bindValue(':email',      $email);
     $stmt->bindValue(':name',       $merged['name']);
     $stmt->bindValue(':password',   $merged['password']);
     $stmt->bindValue(':photo',      $merged['photo']);
-    $stmt->bindValue(':role',       (int)$merged['role'],              SQLITE3_INTEGER);
-    $stmt->bindValue(':verified',   (int)(bool)$merged['verified'],    SQLITE3_INTEGER);
+    $stmt->bindValue(':role',       (int)$merged['role'],              PDO::PARAM_INT);
+    $stmt->bindValue(':verified',   (int)(bool)$merged['verified'],    PDO::PARAM_INT);
     $stmt->bindValue(':language',   $merged['language']);
     $stmt->bindValue(':theme',      $merged['theme']);
     $stmt->bindValue(':color',      $merged['color']);
@@ -1156,7 +1113,7 @@ function loadPendingUsers(): array {
     $db     = getDB();
     $result = $db->query("SELECT * FROM pending_users");
     $out    = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['email']] = $row;
     }
     return $out;
@@ -1174,7 +1131,7 @@ function savePendingUsers(array $pending): void {
         $stmt->bindValue(':name',       $u['name']       ?? '');
         $stmt->bindValue(':password',   $u['password']   ?? '');
         $stmt->bindValue(':photo',      $u['photo']      ?? 'default_avatar.png');
-        $stmt->bindValue(':role',       (int)($u['role'] ?? 0),  SQLITE3_INTEGER);
+        $stmt->bindValue(':role',       (int)($u['role'] ?? 0),  PDO::PARAM_INT);
         $stmt->bindValue(':language',   $u['language']   ?? 'en');
         $stmt->bindValue(':theme',      $u['theme']      ?? 'light');
         $stmt->bindValue(':color',      $u['color']      ?? '#007bff');
@@ -1189,7 +1146,7 @@ function getPendingUser(string $email): ?array {
     $db   = getDB();
     $stmt = $db->prepare("SELECT * FROM pending_users WHERE email=:e LIMIT 1");
     $stmt->bindValue(':e', $email);
-    $row  = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -1215,7 +1172,7 @@ function loadActiveSessions(): array {
     }
     $result = $db->query("SELECT * FROM active_sessions");
     $out    = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         $row['user_data'] = json_decode($row['user_data'], true) ?? [];
         $out[$row['session_id']] = $row;
     }
@@ -1233,8 +1190,8 @@ function saveActiveSessions(array $sessions): void {
         $stmt->bindValue(':sid',   $sid);
         $stmt->bindValue(':email', $s['email']);
         $stmt->bindValue(':ud',    json_encode($s['user_data'] ?? []));
-        $stmt->bindValue(':lt',    (int)($s['login_time']    ?? time()), SQLITE3_INTEGER);
-        $stmt->bindValue(':la',    (int)($s['last_activity'] ?? time()), SQLITE3_INTEGER);
+        $stmt->bindValue(':lt',    (int)($s['login_time']    ?? time()), PDO::PARAM_INT);
+        $stmt->bindValue(':la',    (int)($s['last_activity'] ?? time()), PDO::PARAM_INT);
         $stmt->bindValue(':ip',    $s['ip_address'] ?? '');
         $stmt->bindValue(':ua',    $s['user_agent']  ?? '');
         $stmt->bindValue(':dev',   $s['device']      ?? '');
@@ -1325,7 +1282,7 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
     // Проверяем, существует ли уже такая сессия
     $checkStmt = $db->prepare("SELECT session_id FROM active_sessions WHERE session_id = :sid");
     $checkStmt->bindValue(':sid', $sessionId);
-    $exists = $checkStmt->execute()->fetchArray();
+    $exists = $checkStmt->execute()->fetch();
     
     if ($exists) {
         // Обновляем существующую сессию
@@ -1344,8 +1301,8 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
     $stmt->bindValue(':sid',   $sessionId);
     $stmt->bindValue(':email', $email);
     $stmt->bindValue(':ud',    json_encode($actual));
-    $stmt->bindValue(':lt',    $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':la',    $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':lt',    $now, PDO::PARAM_INT);
+    $stmt->bindValue(':la',    $now, PDO::PARAM_INT);
     $stmt->bindValue(':ip',    $ip);
     $stmt->bindValue(':ua',    $ua);
     $stmt->bindValue(':dev',   $detection['device']);
@@ -1359,7 +1316,7 @@ function updateUserActivity(string $sessionId): ?array {
     // Reload user_data from users table to keep it fresh
     $stmt = $db->prepare("SELECT email FROM active_sessions WHERE session_id=:sid LIMIT 1");
     $stmt->bindValue(':sid', $sessionId);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     $email = $row['email'];
     $user  = getUserByEmail($email);
@@ -1372,7 +1329,7 @@ function updateUserActivity(string $sessionId): ?array {
     $ud = json_encode($freshUser);
     $now  = time();
     $stmt = $db->prepare("UPDATE active_sessions SET last_activity=:la, user_data=:ud WHERE session_id=:sid");
-    $stmt->bindValue(':la',  $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':la',  $now, PDO::PARAM_INT);
     $stmt->bindValue(':ud',  $ud);
     $stmt->bindValue(':sid', $sessionId);
     $stmt->execute();
@@ -1398,7 +1355,7 @@ function getUserActiveSessions(string $email): array {
     $stmt->bindValue(':e', $email);
     $res  = $stmt->execute();
     $out  = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $row['user_data'] = json_decode($row['user_data'], true) ?? [];
         $out[$row['session_id']] = $row;
     }
@@ -1414,7 +1371,7 @@ function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 
     $cutoff = time() - $authTimeout;
     $stmt = $db->prepare("DELETE FROM active_sessions WHERE email = :email AND last_activity < :cutoff");
     $stmt->bindValue(':email', $email);
-    $stmt->bindValue(':cutoff', $cutoff, SQLITE3_INTEGER);
+    $stmt->bindValue(':cutoff', $cutoff, PDO::PARAM_INT);
     $stmt->execute();
     return $db->changes();
 }
@@ -1425,7 +1382,7 @@ function getUserFromActiveSessions(string $sessionId): ?array {
     $authTimeout = 8 * 3600;
     $stmt        = $db->prepare("SELECT * FROM active_sessions WHERE session_id=:sid LIMIT 1");
     $stmt->bindValue(':sid', $sessionId);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     if (time() - $row['last_activity'] > $authTimeout) {
         try { $db->exec("DELETE FROM active_sessions WHERE session_id='" . AppDatabase::escapeString($sessionId) . "'"); } catch(Exception $e) {}
@@ -1459,7 +1416,7 @@ function loadVisitStatsRange(?string $dateFrom = null, ?string $dateTo = null): 
     $sql .= " ORDER BY stat_date ASC";
     $res = $db->query($sql);
     $out = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['app_id']][$row['stat_date']] = (int)$row['visits'];
     }
     return $out;
@@ -1473,13 +1430,13 @@ function loadVisitStats(): array {
 function saveVisitStats(array $stats): void {
     $db = getDB();
     $db->exec("DELETE FROM visit_stats");
-    $stmt = $db->prepare("INSERT OR REPLACE INTO visit_stats(app_id,stat_date,visits) VALUES(:a,:d,:v)");
+    $stmt = $db->prepare("INSERT INTO visit_stats(app_id,stat_date,visits) VALUES(:a,:d,:v)");
     foreach ($stats as $appId => $dates) {
         if (!is_array($dates)) continue;
         foreach ($dates as $date => $visits) {
             $stmt->bindValue(':a', $appId);
             $stmt->bindValue(':d', (string)$date);
-            $stmt->bindValue(':v', (int)$visits, SQLITE3_INTEGER);
+            $stmt->bindValue(':v', (int)$visits, PDO::PARAM_INT);
             $stmt->execute();
         }
     }
@@ -1490,7 +1447,7 @@ function getTotalVisitsPerApp(): array {
     $db  = getDB();
     $res = $db->query("SELECT app_id, SUM(visits) as total FROM visit_stats GROUP BY app_id");
     $out = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['app_id']] = (int)$row['total'];
     }
     return $out;
@@ -1516,7 +1473,7 @@ function loadSharedFiles(?string $userEmail = null, bool $loadAllForAdmin = fals
     }
     
     $out = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['share_id']] = $row;
     }
     return $out;
@@ -1537,11 +1494,11 @@ function saveSharedFiles(array $files): void {
         $stmt->bindValue(':ex', $f['expires']    ?? null);
         $stmt->bindValue(':eo', $f['expires_option'] ?? 'never');
         $stmt->bindValue(':ph', $f['password_hash'] ?? '');
-        $stmt->bindValue(':vo', (int)($f['view_only'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':dd', (int)($f['disable_download'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':dc', (int)($f['disable_copy'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':mv', (int)($f['max_views'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':vc', (int)($f['view_count'] ?? 0), SQLITE3_INTEGER);
+        $stmt->bindValue(':vo', (int)($f['view_only'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':dd', (int)($f['disable_download'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':dc', (int)($f['disable_copy'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':mv', (int)($f['max_views'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':vc', (int)($f['view_count'] ?? 0), PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -1556,7 +1513,7 @@ function getSharedFileById(string $shareId, ?string $userEmail = null): ?array {
         $stmt = $db->prepare("SELECT * FROM shared_files WHERE share_id = :id LIMIT 1");
     }
     $stmt->bindValue(':id', $shareId);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -1583,10 +1540,10 @@ function deleteSharedFilesBatch(array $ids): int {
 function updateSharedFileExpiration(string $shareId, ?int $expires, string $expiresOption = 'never'): bool {
     $db = getDB();
     $stmt = $db->prepare("UPDATE shared_files SET expires = :expires, expires_option = :expires_option WHERE share_id = :id");
-    if ($expires === null) $stmt->bindValue(':expires', null, SQLITE3_NULL);
-    else $stmt->bindValue(':expires', $expires, SQLITE3_INTEGER);
-    $stmt->bindValue(':expires_option', $expiresOption ?: 'never', SQLITE3_TEXT);
-    $stmt->bindValue(':id', $shareId, SQLITE3_TEXT);
+    if ($expires === null) $stmt->bindValue(':expires', null, PDO::PARAM_NULL);
+    else $stmt->bindValue(':expires', $expires, PDO::PARAM_INT);
+    $stmt->bindValue(':expires_option', $expiresOption ?: 'never', PDO::PARAM_STR);
+    $stmt->bindValue(':id', $shareId, PDO::PARAM_STR);
     $stmt->execute();
     return $db->changes() > 0;
 }
@@ -1598,7 +1555,7 @@ function loadResetCodes(): array {
     $db  = getDB();
     $res = $db->query("SELECT * FROM reset_codes WHERE expires > " . time());
     $out = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['email']] = ['code' => $row['code'], 'expires' => (int)$row['expires']];
     }
     return $out;
@@ -1611,7 +1568,7 @@ function saveResetCodes(array $codes): void {
     foreach ($codes as $email => $data) {
         $stmt->bindValue(':e',  $email);
         $stmt->bindValue(':c',  $data['code']);
-        $stmt->bindValue(':ex', (int)$data['expires'], SQLITE3_INTEGER);
+        $stmt->bindValue(':ex', (int)$data['expires'], PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -1665,8 +1622,8 @@ function ensureVerificationTokensSchema(AppDatabase $db): void {
             return;
         }
         $pkCol = null;
-        $cols = $db->query('PRAGMA table_info(verification_tokens)');
-        while ($row = $cols->fetchArray(SQLITE3_ASSOC)) {
+        $cols = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='verification_tokens'");
+        while ($row = $cols->fetch(PDO::FETCH_ASSOC)) {
             if (!empty($row['pk'])) $pkCol = (string)$row['name'];
         }
         if ($pkCol === 'token') return;
@@ -1675,7 +1632,7 @@ function ensureVerificationTokensSchema(AppDatabase $db): void {
             email TEXT NOT NULL,
             expires INTEGER NOT NULL
         )');
-        $db->exec('INSERT OR IGNORE INTO verification_tokens_v2 (token, email, expires)
+        $db->exec('INSERT INTO verification_tokens_v2 (token, email, expires)
             SELECT token, email, expires FROM verification_tokens');
         $db->exec('DROP TABLE verification_tokens');
         $db->exec('ALTER TABLE verification_tokens_v2 RENAME TO verification_tokens');
@@ -1690,7 +1647,7 @@ function loadVerificationTokens(): array {
     $db  = getDB();
     $res = $db->query("SELECT * FROM verification_tokens");
     $out = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $email = (string)$row['email'];
         if (!isset($out[$email]) || (int)$row['expires'] > (int)$out[$email]['expires']) {
             $out[$email] = ['token' => $row['token'], 'expires' => (int)$row['expires']];
@@ -1707,7 +1664,7 @@ function saveVerificationTokens(array $tokens): void {
     foreach ($tokens as $email => $data) {
         $stmt->bindValue(':t',  $data['token']);
         $stmt->bindValue(':e',  normalizeAuthEmail($email));
-        $stmt->bindValue(':ex', (int)$data['expires'], SQLITE3_INTEGER);
+        $stmt->bindValue(':ex', (int)$data['expires'], PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -1727,7 +1684,7 @@ function saveVerificationTokenForEmail(string $email, string $token, int $expire
         ON CONFLICT(token) DO UPDATE SET email=excluded.email, expires=excluded.expires");
     $stmt->bindValue(':t', $token);
     $stmt->bindValue(':e', $email);
-    $stmt->bindValue(':ex', $expires, SQLITE3_INTEGER);
+    $stmt->bindValue(':ex', $expires, PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -1737,7 +1694,7 @@ function findVerificationTokenRow(string $token): ?array {
     $db = getDB();
     $stmt = $db->prepare('SELECT email, token, expires FROM verification_tokens WHERE token = :t LIMIT 1');
     $stmt->bindValue(':t', $token);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -1747,8 +1704,8 @@ function findLatestVerificationTokenForEmail(string $email): ?array {
     $db = getDB();
     $stmt = $db->prepare('SELECT email, token, expires FROM verification_tokens WHERE email = :e AND expires > :now ORDER BY expires DESC LIMIT 1');
     $stmt->bindValue(':e', $email);
-    $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -1759,13 +1716,13 @@ function getConfig(string $key, string $default = ''): string {
     $db   = getDB();
     $stmt = $db->prepare("SELECT value FROM config WHERE key=:k LIMIT 1");
     $stmt->bindValue(':k', $key);
-    $row  = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ? $row['value'] : $default;
 }
 
 function setConfig(string $key, string $value): void {
     $db   = getDB();
-    $stmt = $db->prepare("INSERT OR REPLACE INTO config(key,value) VALUES(:k,:v)");
+    $stmt = $db->prepare("INSERT INTO config(key,value) VALUES(:k,:v) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     $stmt->bindValue(':k', $key);
     $stmt->bindValue(':v', $value);
     $stmt->execute();
@@ -1777,7 +1734,7 @@ function loadAuthConfig(): array {
     $db = getDB();
     $quoted = implode(',', array_map(static fn($k) => "'" . AppDatabase::escapeString($k) . "'", $keys));
     $res = $db->query("SELECT key,value FROM config WHERE key IN ($quoted)");
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[(string)$row['key']] = (string)$row['value'];
     }
     $out['smtp_port'] = (int)($out['smtp_port'] ?: 587);
@@ -1794,10 +1751,10 @@ function getOAuthConnectionsForUser(string $email): array {
     ensureOAuthConnectionsSchema(getDB());
     $db = getDB();
     $stmt = $db->prepare("SELECT provider, provider_user_id, provider_email, provider_name, provider_photo, linked_at FROM oauth_connections WHERE email = :e ORDER BY provider");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $res = $stmt->execute();
     $out = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[(string)$row['provider']] = $row;
     }
     return $out;
@@ -1812,9 +1769,9 @@ function findUserEmailByOAuthProvider(string $provider, string $providerUserId):
     ensureOAuthConnectionsSchema(getDB());
     $db = getDB();
     $stmt = $db->prepare("SELECT email FROM oauth_connections WHERE provider = :p AND provider_user_id = :id LIMIT 1");
-    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
-    $stmt->bindValue(':id', $providerUserId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':p', $provider, PDO::PARAM_STR);
+    $stmt->bindValue(':id', $providerUserId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ? (string)$row['email'] : null;
 }
 
@@ -1827,17 +1784,17 @@ function saveOAuthPendingLink(string $email, array $profile): void {
         return;
     }
     $del = $db->prepare("DELETE FROM oauth_pending_links WHERE email = :e");
-    $del->bindValue(':e', $email, SQLITE3_TEXT);
+    $del->bindValue(':e', $email, PDO::PARAM_STR);
     $del->execute();
     $stmt = $db->prepare("INSERT INTO oauth_pending_links (email, provider, provider_user_id, provider_email, provider_name, provider_photo, created_at)
         VALUES (:e, :p, :pid, :pe, :pn, :pp, :ca)");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
-    $stmt->bindValue(':pid', $providerUserId, SQLITE3_TEXT);
-    $stmt->bindValue(':pe', (string)($profile['email'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':pn', (string)($profile['name'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':pp', (string)($profile['photo'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':ca', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':p', $provider, PDO::PARAM_STR);
+    $stmt->bindValue(':pid', $providerUserId, PDO::PARAM_STR);
+    $stmt->bindValue(':pe', (string)($profile['email'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':pn', (string)($profile['name'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':pp', (string)($profile['photo'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':ca', time(), PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -1845,13 +1802,13 @@ function oauthConsumePendingLink(string $email): void {
     ensureOAuthConnectionsSchema(getDB());
     $db = getDB();
     $stmt = $db->prepare("SELECT provider, provider_user_id, provider_email, provider_name, provider_photo FROM oauth_pending_links WHERE email = :e LIMIT 1");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
         return;
     }
     $del = $db->prepare("DELETE FROM oauth_pending_links WHERE email = :e");
-    $del->bindValue(':e', $email, SQLITE3_TEXT);
+    $del->bindValue(':e', $email, PDO::PARAM_STR);
     $del->execute();
     linkOAuthConnection($email, [
         'provider' => (string)$row['provider'],
@@ -1872,19 +1829,19 @@ function linkOAuthConnection(string $email, array $profile, bool $allowPending =
     $provider = (string)$profile['provider'];
     $providerUserId = (string)$profile['provider_user_id'];
     $del = $db->prepare("DELETE FROM oauth_connections WHERE (email = :e AND provider = :p) OR (provider = :p AND provider_user_id = :pid)");
-    $del->bindValue(':e', $email, SQLITE3_TEXT);
-    $del->bindValue(':p', $provider, SQLITE3_TEXT);
-    $del->bindValue(':pid', $providerUserId, SQLITE3_TEXT);
+    $del->bindValue(':e', $email, PDO::PARAM_STR);
+    $del->bindValue(':p', $provider, PDO::PARAM_STR);
+    $del->bindValue(':pid', $providerUserId, PDO::PARAM_STR);
     $del->execute();
     $stmt = $db->prepare("INSERT INTO oauth_connections (email, provider, provider_user_id, provider_email, provider_name, provider_photo, linked_at)
         VALUES (:e, :p, :pid, :pe, :pn, :pp, :la)");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
-    $stmt->bindValue(':pid', $providerUserId, SQLITE3_TEXT);
-    $stmt->bindValue(':pe', (string)($profile['email'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':pn', (string)($profile['name'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':pp', (string)($profile['photo'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':la', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':p', $provider, PDO::PARAM_STR);
+    $stmt->bindValue(':pid', $providerUserId, PDO::PARAM_STR);
+    $stmt->bindValue(':pe', (string)($profile['email'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':pn', (string)($profile['name'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':pp', (string)($profile['photo'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':la', time(), PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -1892,8 +1849,8 @@ function unlinkOAuthConnection(string $email, string $provider): bool {
     ensureOAuthConnectionsSchema(getDB());
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM oauth_connections WHERE email = :e AND provider = :p");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':p', $provider, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':p', $provider, PDO::PARAM_STR);
     $stmt->execute();
     return $db->changes() > 0;
 }
@@ -2054,10 +2011,10 @@ function syncOnlyofficeJwtSecretConfig(?AppDatabase $db = null): ?string {
     $db = $db ?: getDB();
     $stmt = $db->prepare("SELECT value FROM config WHERE key=:k LIMIT 1");
     $stmt->bindValue(':k', 'onlyoffice_jwt_secret');
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $current = $row['value'] ?? '';
     if ($current !== $env) {
-        $upsert = $db->prepare('INSERT OR REPLACE INTO config(key,value) VALUES(:k,:v)');
+        $upsert = $db->prepare('INSERT INTO config(key,value) VALUES(:k,:v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
         $upsert->bindValue(':k', 'onlyoffice_jwt_secret');
         $upsert->bindValue(':v', $env);
         $upsert->execute();
@@ -2150,7 +2107,7 @@ function loadAppAccessLevels(): array {
     $db  = getDB();
     $res = $db->query("SELECT app_id, min_role FROM app_access_levels");
     $out = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['app_id']] = (int)$row['min_role'];
     }
     return $out;
@@ -2160,7 +2117,7 @@ function getAppMinRole(string $appId): int {
     $db   = getDB();
     $stmt = $db->prepare("SELECT min_role FROM app_access_levels WHERE app_id=:a LIMIT 1");
     $stmt->bindValue(':a', $appId);
-    $row  = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
         return 2;
     }
@@ -2182,7 +2139,7 @@ function saveAppAccessLevelsFromMap(array $levels): void {
             continue;
         }
         $stmt->bindValue(':a', (string)$appId);
-        $stmt->bindValue(':r', $lvl, SQLITE3_INTEGER);
+        $stmt->bindValue(':r', $lvl, PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -2347,7 +2304,7 @@ function syncUserFoldersConfig(): array {
     $desired = discoverUserFoldersConfig();
     $existing = [];
     $res = $db->query("SELECT app_key, path FROM user_folder_paths");
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
         $existing[(string)$row['app_key']] = (string)$row['path'];
     }
     ksort($existing, SORT_NATURAL | SORT_FLAG_CASE);
@@ -2355,8 +2312,8 @@ function syncUserFoldersConfig(): array {
         $db->exec("DELETE FROM user_folder_paths");
         $stmt = $db->prepare("INSERT INTO user_folder_paths(app_key,path) VALUES(:k,:p)");
         foreach ($desired['apps'] as $appKey => $path) {
-            $stmt->bindValue(':k', (string)$appKey, SQLITE3_TEXT);
-            $stmt->bindValue(':p', (string)$path, SQLITE3_TEXT);
+            $stmt->bindValue(':k', (string)$appKey, PDO::PARAM_STR);
+            $stmt->bindValue(':p', (string)$path, PDO::PARAM_STR);
             $stmt->execute();
         }
     }
@@ -2383,7 +2340,7 @@ function getLastActiveUser(): ?string {
 
 function setLastActiveUser(string $email): void {
     $db   = getDB();
-    $stmt = $db->prepare("INSERT OR REPLACE INTO app_meta(key,value) VALUES('last_active_user',:e)");
+    $stmt = $db->prepare("INSERT INTO app_meta(key,value) VALUES('last_active_user',:e) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     $stmt->bindValue(':e', $email);
     $stmt->execute();
 }
@@ -2505,7 +2462,7 @@ function generateUniqueOTP(): string {
         $pin  = sprintf('%06d', random_int(0, 999999));
         $stmt = $db->prepare("SELECT COUNT(*) FROM one_time_pins WHERE pin=:p");
         $stmt->bindValue(':p', $pin);
-        $exists = (int)$stmt->execute()->fetchArray(SQLITE3_NUM)[0] > 0;
+        $exists = (int)$stmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
         $attempts++;
         if ($attempts > 200) break; // защита от бесконечного цикла
     } while ($exists);
@@ -2537,7 +2494,7 @@ function createOTP(string $email, int $ttlSec = 300): string {
     $stmt = $db->prepare("INSERT INTO one_time_pins (pin, email, expires) VALUES (:p, :e, :ex)");
     $stmt->bindValue(':p',  $pin);
     $stmt->bindValue(':e',  $email);
-    $stmt->bindValue(':ex', $expires, SQLITE3_INTEGER);
+    $stmt->bindValue(':ex', $expires, PDO::PARAM_INT);
     $stmt->execute();
 
     return $pin;
@@ -2552,7 +2509,7 @@ function verifyAndConsumeOTP(string $pin): ?string {
     $now  = time();
     $stmt = $db->prepare("SELECT email, expires FROM one_time_pins WHERE pin=:p LIMIT 1");
     $stmt->bindValue(':p', $pin);
-    $row  = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
     if (!$row) return null;
 
@@ -2585,7 +2542,7 @@ function getLockout(string $ip, string $lockType): array {
     $stmt = $db->prepare("SELECT * FROM ip_lockouts WHERE ip=:ip AND lock_type=:t LIMIT 1");
     $stmt->bindValue(':ip', $ip);
     $stmt->bindValue(':t',  $lockType);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: [
         'ip'           => $ip,
         'lock_type'    => $lockType,
@@ -2635,9 +2592,9 @@ function recordFailedAttempt(string $ip, string $lockType): void {
     );
     $stmt->bindValue(':ip', $ip);
     $stmt->bindValue(':t',  $lockType);
-    $stmt->bindValue(':a',  $newAttempts, SQLITE3_INTEGER);
-    $stmt->bindValue(':lu', $lockedUntil, $lockedUntil !== null ? SQLITE3_INTEGER : SQLITE3_NULL);
-    $stmt->bindValue(':la', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':a',  $newAttempts, PDO::PARAM_INT);
+    $stmt->bindValue(':lu', $lockedUntil, $lockedUntil !== null ? PDO::PARAM_INT : PDO::PARAM_NULL);
+    $stmt->bindValue(':la', $now, PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -2707,10 +2664,10 @@ function getUserTrustedDevices(string $email): array {
         FROM trusted_devices
         WHERE email = :e
         ORDER BY last_seen DESC, id DESC");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $result = $stmt->execute();
     $devices = [];
-    while ($result && ($row = $result->fetchArray(SQLITE3_ASSOC))) {
+    while ($result && ($row = $result->fetch(PDO::FETCH_ASSOC))) {
         $devices[] = [
             'fingerprint' => (string)($row['fingerprint'] ?? ''),
             'ip' => (string)($row['ip'] ?? ''),
@@ -2729,7 +2686,7 @@ function getUserTrustedDevices(string $email): array {
 function setUserTrustedDevices(string $email, array $devices): void {
     $db = getDB();
     $delete = $db->prepare("DELETE FROM trusted_devices WHERE email = :e");
-    $delete->bindValue(':e', $email, SQLITE3_TEXT);
+    $delete->bindValue(':e', $email, PDO::PARAM_STR);
     $delete->execute();
 
     $insert = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, device_name, device_token_hash, added_at, last_seen)
@@ -2739,17 +2696,17 @@ function setUserTrustedDevices(string $email, array $devices): void {
         $fingerprint = trim((string)($device['fingerprint'] ?? ''));
         if ($fingerprint === '') continue;
         $deviceToken = trim((string)($device['device_token'] ?? ''));
-        $insert->bindValue(':email', $email, SQLITE3_TEXT);
-        $insert->bindValue(':fingerprint', $fingerprint, SQLITE3_TEXT);
-        $insert->bindValue(':ip', (string)($device['ip'] ?? ''), SQLITE3_TEXT);
-        $insert->bindValue(':device_name', (string)($device['device_name'] ?? ''), SQLITE3_TEXT);
+        $insert->bindValue(':email', $email, PDO::PARAM_STR);
+        $insert->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
+        $insert->bindValue(':ip', (string)($device['ip'] ?? ''), PDO::PARAM_STR);
+        $insert->bindValue(':device_name', (string)($device['device_name'] ?? ''), PDO::PARAM_STR);
         if ($deviceToken !== '') {
-            $insert->bindValue(':device_token_hash', hash('sha256', $deviceToken), SQLITE3_TEXT);
+            $insert->bindValue(':device_token_hash', hash('sha256', $deviceToken), PDO::PARAM_STR);
         } else {
-            $insert->bindValue(':device_token_hash', null, SQLITE3_NULL);
+            $insert->bindValue(':device_token_hash', null, PDO::PARAM_NULL);
         }
-        $insert->bindValue(':added_at', (int)($device['added_at'] ?? time()), SQLITE3_INTEGER);
-        $insert->bindValue(':last_seen', (int)($device['last_seen'] ?? time()), SQLITE3_INTEGER);
+        $insert->bindValue(':added_at', (int)($device['added_at'] ?? time()), PDO::PARAM_INT);
+        $insert->bindValue(':last_seen', (int)($device['last_seen'] ?? time()), PDO::PARAM_INT);
         $insert->execute();
     }
 }
@@ -2758,9 +2715,9 @@ function isTrustedDevice(string $email, string $fingerprint): bool {
     if ($fingerprint === '') return false;
     $db = getDB();
     $stmt = $db->prepare("SELECT 1 FROM trusted_devices WHERE email = :e AND fingerprint = :f LIMIT 1");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':f', $fingerprint, SQLITE3_TEXT);
-    return (bool)$stmt->execute()->fetchArray(SQLITE3_NUM);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+    return (bool)$stmt->execute()->fetch(PDO::FETCH_NUM);
 }
 
 function trustedDeviceExistsForHint(string $email, string $fingerprint): bool {
@@ -2807,13 +2764,13 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
             device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_devices.device_name END,
             device_token_hash = excluded.device_token_hash,
             last_seen = excluded.last_seen");
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':fingerprint', $fingerprint, SQLITE3_TEXT);
-    $stmt->bindValue(':ip', $ip, SQLITE3_TEXT);
-    $stmt->bindValue(':device_name', $deviceName, SQLITE3_TEXT);
-    $stmt->bindValue(':device_token_hash', hash('sha256', $encryptedToken), SQLITE3_TEXT);
-    $stmt->bindValue(':added_at', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':last_seen', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
+    $stmt->bindValue(':ip', $ip, PDO::PARAM_STR);
+    $stmt->bindValue(':device_name', $deviceName, PDO::PARAM_STR);
+    $stmt->bindValue(':device_token_hash', hash('sha256', $encryptedToken), PDO::PARAM_STR);
+    $stmt->bindValue(':added_at', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':last_seen', $now, PDO::PARAM_INT);
     $stmt->execute();
     return ['token' => $deviceToken, 'encrypted_token' => $encryptedToken];
 }
@@ -2821,8 +2778,8 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
 function removeTrustedDevice(string $email, string $fingerprint): void {
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM trusted_devices WHERE email = :e AND fingerprint = :f");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':f', $fingerprint, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
     $stmt->execute();
     removeTrustedDeviceCookies($email, $fingerprint);
 }
@@ -2833,7 +2790,7 @@ function removeTrustedDevice(string $email, string $fingerprint): void {
 function clearTrustedDevices(string $email): void {
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM trusted_devices WHERE email = :e");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->execute();
 }
 
@@ -2864,7 +2821,7 @@ function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
         ip           TEXT    NOT NULL DEFAULT '',
         fingerprint  TEXT    NOT NULL DEFAULT '',
         device_name  TEXT    NOT NULL DEFAULT '',
-        created_at   INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at   INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         last_used_at INTEGER NOT NULL DEFAULT 0,
         expires_at   INTEGER NOT NULL
     )");
@@ -2906,14 +2863,14 @@ function createTrustedDeviceCookie(string $email, string $fingerprint, string $d
             device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_device_cookies.device_name END,
             last_used_at = excluded.last_used_at,
             expires_at = excluded.expires_at");
-    $stmt->bindValue(':h', $cookieHash, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':i', $ip, SQLITE3_TEXT);
-    $stmt->bindValue(':f', $fingerprint, SQLITE3_TEXT);
-    $stmt->bindValue(':n', $deviceName, SQLITE3_TEXT);
-    $stmt->bindValue(':c', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':u', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':x', $expiresAt, SQLITE3_INTEGER);
+    $stmt->bindValue(':h', $cookieHash, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':i', $ip, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+    $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
+    $stmt->bindValue(':c', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':u', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);
     $stmt->execute();
     return $rawCookie;
 }
@@ -2925,9 +2882,9 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
     $now = time();
     $db->exec("DELETE FROM trusted_device_cookies WHERE expires_at < $now");
     $stmt = $db->prepare("SELECT * FROM trusted_device_cookies WHERE cookie_hash = :h AND expires_at > :t LIMIT 1");
-    $stmt->bindValue(':h', $cookieHash, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $now, SQLITE3_INTEGER);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':h', $cookieHash, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $now, PDO::PARAM_INT);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     $email = (string)($row['email'] ?? '');
     $fingerprint = (string)($row['fingerprint'] ?? '');
@@ -2941,20 +2898,20 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
                 ip = excluded.ip,
                 device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_devices.device_name END,
                 last_seen = excluded.last_seen");
-        $migrateTrusted->bindValue(':new_fingerprint', $currentFingerprint, SQLITE3_TEXT);
-        $migrateTrusted->bindValue(':now', $now, SQLITE3_INTEGER);
-        $migrateTrusted->bindValue(':email', $email, SQLITE3_TEXT);
-        $migrateTrusted->bindValue(':old_fingerprint', $fingerprint, SQLITE3_TEXT);
+        $migrateTrusted->bindValue(':new_fingerprint', $currentFingerprint, PDO::PARAM_STR);
+        $migrateTrusted->bindValue(':now', $now, PDO::PARAM_INT);
+        $migrateTrusted->bindValue(':email', $email, PDO::PARAM_STR);
+        $migrateTrusted->bindValue(':old_fingerprint', $fingerprint, PDO::PARAM_STR);
         $migrateTrusted->execute();
         $deleteOldTrusted = $db->prepare("DELETE FROM trusted_devices WHERE email = :email AND fingerprint = :old_fingerprint");
-        $deleteOldTrusted->bindValue(':email', $email, SQLITE3_TEXT);
-        $deleteOldTrusted->bindValue(':old_fingerprint', $fingerprint, SQLITE3_TEXT);
+        $deleteOldTrusted->bindValue(':email', $email, PDO::PARAM_STR);
+        $deleteOldTrusted->bindValue(':old_fingerprint', $fingerprint, PDO::PARAM_STR);
         $deleteOldTrusted->execute();
         $fingerprint = $currentFingerprint;
     }
     if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint)) {
         $del = $db->prepare("DELETE FROM trusted_device_cookies WHERE cookie_hash = :h");
-        $del->bindValue(':h', $cookieHash, SQLITE3_TEXT);
+        $del->bindValue(':h', $cookieHash, PDO::PARAM_STR);
         $del->execute();
         return null;
     }
@@ -2962,17 +2919,17 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
     $newHash = hash('sha256', $newRawCookie);
     $newExpires = $now + (365 * 24 * 3600);
     $upd = $db->prepare("UPDATE trusted_device_cookies SET cookie_hash = :nh, fingerprint = :f, last_used_at = :u, expires_at = :x WHERE cookie_hash = :oh");
-    $upd->bindValue(':nh', $newHash, SQLITE3_TEXT);
-    $upd->bindValue(':f', $fingerprint, SQLITE3_TEXT);
-    $upd->bindValue(':u', $now, SQLITE3_INTEGER);
-    $upd->bindValue(':x', $newExpires, SQLITE3_INTEGER);
-    $upd->bindValue(':oh', $cookieHash, SQLITE3_TEXT);
+    $upd->bindValue(':nh', $newHash, PDO::PARAM_STR);
+    $upd->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+    $upd->bindValue(':u', $now, PDO::PARAM_INT);
+    $upd->bindValue(':x', $newExpires, PDO::PARAM_INT);
+    $upd->bindValue(':oh', $cookieHash, PDO::PARAM_STR);
     $upd->execute();
     $touch = $db->prepare("UPDATE trusted_devices SET last_seen = :t, ip = :ip WHERE email = :e AND fingerprint = :f");
-    $touch->bindValue(':t', $now, SQLITE3_INTEGER);
-    $touch->bindValue(':ip', getClientIp(), SQLITE3_TEXT);
-    $touch->bindValue(':e', $email, SQLITE3_TEXT);
-    $touch->bindValue(':f', $fingerprint, SQLITE3_TEXT);
+    $touch->bindValue(':t', $now, PDO::PARAM_INT);
+    $touch->bindValue(':ip', getClientIp(), PDO::PARAM_STR);
+    $touch->bindValue(':e', $email, PDO::PARAM_STR);
+    $touch->bindValue(':f', $fingerprint, PDO::PARAM_STR);
     $touch->execute();
     return ['email' => $email, 'new_token' => $newRawCookie];
 }
@@ -2981,8 +2938,8 @@ function removeTrustedDeviceCookies(string $email, string $fingerprint): void {
     $db = getDB();
     ensureTrustedDeviceCookiesSchema($db);
     $stmt = $db->prepare("DELETE FROM trusted_device_cookies WHERE email = :e AND fingerprint = :f");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':f', $fingerprint, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
     $stmt->execute();
 }
 
@@ -3306,9 +3263,9 @@ function getCookieConsentRecord(string $deviceId, string $consentKey = 'site_coo
     if ($deviceId === '') return null;
     $db = getDB();
     $stmt = $db->prepare("SELECT * FROM site_cookie_consents WHERE consent_key = :k AND device_id = :d LIMIT 1");
-    $stmt->bindValue(':k', $consentKey, SQLITE3_TEXT);
-    $stmt->bindValue(':d', $deviceId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':k', $consentKey, PDO::PARAM_STR);
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -3322,10 +3279,10 @@ function markCookieConsentPrompted(string $deviceId, string $email = '', string 
             email = CASE WHEN excluded.email != '' THEN excluded.email ELSE site_cookie_consents.email END,
             asked_at = COALESCE(site_cookie_consents.asked_at, excluded.asked_at),
             updated_at = excluded.updated_at");
-    $stmt->bindValue(':k', $consentKey, SQLITE3_TEXT);
-    $stmt->bindValue(':d', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':k', $consentKey, PDO::PARAM_STR);
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $now, PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -3344,11 +3301,11 @@ function saveCookieConsentDecision(string $deviceId, string $status, string $ema
             asked_at = COALESCE(site_cookie_consents.asked_at, excluded.asked_at),
             responded_at = excluded.responded_at,
             updated_at = excluded.updated_at");
-    $stmt->bindValue(':k', $consentKey, SQLITE3_TEXT);
-    $stmt->bindValue(':d', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':s', $status, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':k', $consentKey, PDO::PARAM_STR);
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':s', $status, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $now, PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -3356,8 +3313,8 @@ function getCloudEncryptionConsent(string $email): ?array {
     if ($email === '') return null;
     $db = getDB();
     $stmt = $db->prepare("SELECT * FROM cloud_encryption_consents WHERE email = :e LIMIT 1");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -3370,8 +3327,8 @@ function saveCloudEncryptionConsent(string $email): void {
         ON CONFLICT(email) DO UPDATE SET
             status = 'accepted',
             updated_at = excluded.updated_at");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $now, PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -3413,8 +3370,8 @@ function monitorNullableUserEmail(?string $email): ?string {
     try {
         $db = getDB();
         $stmt = $db->prepare('SELECT 1 FROM users WHERE email = :email LIMIT 1');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row ? $email : null;
     } catch (Exception $e) {
         return null;
@@ -3454,8 +3411,8 @@ function monitorOpenAlert(AppDatabase $db, array $rule, float $value, array $con
         return;
     }
     $exists = $db->prepare("SELECT id FROM monitor_alerts WHERE rule_id = :rule_id AND status = 'open' LIMIT 1");
-    $exists->bindValue(':rule_id', $ruleId, SQLITE3_INTEGER);
-    if ($exists->execute()->fetchArray(SQLITE3_ASSOC)) {
+    $exists->bindValue(':rule_id', $ruleId, PDO::PARAM_INT);
+    if ($exists->execute()->fetch(PDO::FETCH_ASSOC)) {
         return;
     }
 
@@ -3470,12 +3427,12 @@ function monitorOpenAlert(AppDatabase $db, array $rule, float $value, array $con
     $stmt = $db->prepare("INSERT INTO monitor_alerts
         (rule_id, severity, status, title, message, value, context_json)
         VALUES(:rule_id, :severity, 'open', :title, :message, :value, :context_json)");
-    $stmt->bindValue(':rule_id', $ruleId, SQLITE3_INTEGER);
-    $stmt->bindValue(':severity', (string)($rule['severity'] ?? 'warning'), SQLITE3_TEXT);
-    $stmt->bindValue(':title', $title, SQLITE3_TEXT);
-    $stmt->bindValue(':message', $message, SQLITE3_TEXT);
-    $stmt->bindValue(':value', $value, SQLITE3_FLOAT);
-    $stmt->bindValue(':context_json', monitorJson($context), SQLITE3_TEXT);
+    $stmt->bindValue(':rule_id', $ruleId, PDO::PARAM_INT);
+    $stmt->bindValue(':severity', (string)($rule['severity'] ?? 'warning'), PDO::PARAM_STR);
+    $stmt->bindValue(':title', $title, PDO::PARAM_STR);
+    $stmt->bindValue(':message', $message, PDO::PARAM_STR);
+    $stmt->bindValue(':value', $value, PDO::PARAM_STR);
+    $stmt->bindValue(':context_json', monitorJson($context), PDO::PARAM_STR);
     $stmt->execute();
 }
 
@@ -3486,8 +3443,8 @@ function monitorCloseAlert(AppDatabase $db, int $ruleId): void {
     $stmt = $db->prepare("UPDATE monitor_alerts
         SET status = 'closed', closed_at = :closed_at
         WHERE rule_id = :rule_id AND status = 'open'");
-    $stmt->bindValue(':closed_at', time(), SQLITE3_INTEGER);
-    $stmt->bindValue(':rule_id', $ruleId, SQLITE3_INTEGER);
+    $stmt->bindValue(':closed_at', time(), PDO::PARAM_INT);
+    $stmt->bindValue(':rule_id', $ruleId, PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -3514,7 +3471,7 @@ function monitorRuleSustained(AppDatabase $db, array $rule, float $currentValue)
     $column = $columnMap[$metric];
     $res = $db->query("SELECT $column AS value FROM monitor_system_snapshots WHERE created_at >= $since ORDER BY created_at ASC");
     $count = 0;
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $count++;
         if (!monitorCompare((float)$row['value'], $operator, $threshold)) {
             return false;
@@ -3527,7 +3484,7 @@ function monitorEvaluateAlerts(array $metricValues, array $context = []): void {
     try {
         $db = getDB();
         $res = $db->query("SELECT * FROM monitor_alert_rules WHERE enabled = 1");
-        while ($rule = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($rule = $res->fetch(PDO::FETCH_ASSOC)) {
             $metric = (string)($rule['metric'] ?? '');
             if (!array_key_exists($metric, $metricValues)) {
                 continue;
@@ -3581,21 +3538,21 @@ function monitorRecordSystemSnapshot(array $metrics, int $minIntervalSec = 60): 
              network_sent_bytes_per_sec, uptime_seconds, status, context_json)
             VALUES(:created_at, :cpu, :memory, :swap, :disk_io, :disk_read, :disk_write,
                    :network_recv, :network_sent, :uptime, :status, :context_json)");
-        $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
-        $stmt->bindValue(':cpu', (float)($metrics['cpu_usage'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':memory', (float)($metrics['memory_usage'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':swap', (float)($metrics['swap_usage'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':disk_io', (float)($metrics['disk_usage'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':disk_read', (int)($metrics['disk_read_bytes_per_sec'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':disk_write', (int)($metrics['disk_write_bytes_per_sec'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':network_recv', $networkRecv, SQLITE3_INTEGER);
-        $stmt->bindValue(':network_sent', $networkSent, SQLITE3_INTEGER);
+        $stmt->bindValue(':created_at', $now, PDO::PARAM_INT);
+        $stmt->bindValue(':cpu', (float)($metrics['cpu_usage'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':memory', (float)($metrics['memory_usage'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':swap', (float)($metrics['swap_usage'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':disk_io', (float)($metrics['disk_usage'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':disk_read', (int)($metrics['disk_read_bytes_per_sec'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':disk_write', (int)($metrics['disk_write_bytes_per_sec'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':network_recv', $networkRecv, PDO::PARAM_INT);
+        $stmt->bindValue(':network_sent', $networkSent, PDO::PARAM_INT);
         if ($uptimeSeconds === null) {
-            $stmt->bindValue(':uptime', null, SQLITE3_NULL);
+            $stmt->bindValue(':uptime', null, PDO::PARAM_NULL);
         } else {
-            $stmt->bindValue(':uptime', $uptimeSeconds, SQLITE3_INTEGER);
+            $stmt->bindValue(':uptime', $uptimeSeconds, PDO::PARAM_INT);
         }
-        $stmt->bindValue(':status', (string)($metrics['status'] ?? 'ok'), SQLITE3_TEXT);
+        $stmt->bindValue(':status', (string)($metrics['status'] ?? 'ok'), PDO::PARAM_STR);
         $context = is_array($metrics['context'] ?? null) ? $metrics['context'] : [];
         if (!empty($metrics['network_data']) && is_array($metrics['network_data'])) {
             $context['network_data'] = $metrics['network_data'];
@@ -3603,7 +3560,7 @@ function monitorRecordSystemSnapshot(array $metrics, int $minIntervalSec = 60): 
         if (!empty($metrics['smart']) && is_array($metrics['smart'])) {
             $context['smart'] = $metrics['smart'];
         }
-        $stmt->bindValue(':context_json', monitorJson($context), SQLITE3_TEXT);
+        $stmt->bindValue(':context_json', monitorJson($context), PDO::PARAM_STR);
         $stmt->execute();
         $snapshotId = (int)$db->lastInsertRowID();
 
@@ -3617,12 +3574,12 @@ function monitorRecordSystemSnapshot(array $metrics, int $minIntervalSec = 60): 
             $total = (int)($drive['total_space'] ?? 0);
             $free = (int)($drive['free_space'] ?? 0);
             $used = max(0, $total - $free);
-            $diskStmt->bindValue(':snapshot_id', $snapshotId, SQLITE3_INTEGER);
-            $diskStmt->bindValue(':drive_letter', substr((string)($drive['letter'] ?? ''), 0, 32), SQLITE3_TEXT);
-            $diskStmt->bindValue(':total_bytes', $total, SQLITE3_INTEGER);
-            $diskStmt->bindValue(':free_bytes', $free, SQLITE3_INTEGER);
-            $diskStmt->bindValue(':used_bytes', $used, SQLITE3_INTEGER);
-            $diskStmt->bindValue(':used_percent', (float)($drive['usage_percent'] ?? 0), SQLITE3_FLOAT);
+            $diskStmt->bindValue(':snapshot_id', $snapshotId, PDO::PARAM_INT);
+            $diskStmt->bindValue(':drive_letter', substr((string)($drive['letter'] ?? ''), 0, 32), PDO::PARAM_STR);
+            $diskStmt->bindValue(':total_bytes', $total, PDO::PARAM_INT);
+            $diskStmt->bindValue(':free_bytes', $free, PDO::PARAM_INT);
+            $diskStmt->bindValue(':used_bytes', $used, PDO::PARAM_INT);
+            $diskStmt->bindValue(':used_percent', (float)($drive['usage_percent'] ?? 0), PDO::PARAM_STR);
             $diskStmt->execute();
         }
 
@@ -3655,15 +3612,15 @@ function monitorRecordAppEvent(string $eventType, string $message = '', array $c
         $stmt = $db->prepare("INSERT INTO monitor_app_events
             (level, app_id, event_type, user_email, ip_address, user_agent, message, context_json)
             VALUES(:level, :app_id, :event_type, :user_email, :ip_address, :user_agent, :message, :context_json)");
-        $stmt->bindValue(':level', in_array($level, ['debug','info','warning','error','critical'], true) ? $level : 'info', SQLITE3_TEXT);
-        $stmt->bindValue(':app_id', substr($appId, 0, 128), SQLITE3_TEXT);
-        $stmt->bindValue(':event_type', substr($eventType, 0, 160), SQLITE3_TEXT);
+        $stmt->bindValue(':level', in_array($level, ['debug','info','warning','error','critical'], true) ? $level : 'info', PDO::PARAM_STR);
+        $stmt->bindValue(':app_id', substr($appId, 0, 128), PDO::PARAM_STR);
+        $stmt->bindValue(':event_type', substr($eventType, 0, 160), PDO::PARAM_STR);
         $email = monitorNullableUserEmail($userEmail) ?? monitorCurrentUserEmail();
-        $stmt->bindValue(':user_email', $email, $email === null ? SQLITE3_NULL : SQLITE3_TEXT);
-        $stmt->bindValue(':ip_address', monitorClientIp(), SQLITE3_TEXT);
-        $stmt->bindValue(':user_agent', substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 512), SQLITE3_TEXT);
-        $stmt->bindValue(':message', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':context_json', monitorJson($context), SQLITE3_TEXT);
+        $stmt->bindValue(':user_email', $email, $email === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':ip_address', monitorClientIp(), PDO::PARAM_STR);
+        $stmt->bindValue(':user_agent', substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 512), PDO::PARAM_STR);
+        $stmt->bindValue(':message', $message, PDO::PARAM_STR);
+        $stmt->bindValue(':context_json', monitorJson($context), PDO::PARAM_STR);
         $stmt->execute();
     } catch (Exception $e) {
         error_log('monitorRecordAppEvent failed: ' . $e->getMessage());
@@ -3676,17 +3633,17 @@ function monitorRecordHttpRequest(array $data): void {
         $stmt = $db->prepare("INSERT INTO monitor_http_requests
             (method, path, app_id, user_email, ip_address, status_code, duration_ms, response_bytes, error_message, context_json)
             VALUES(:method, :path, :app_id, :user_email, :ip_address, :status_code, :duration_ms, :response_bytes, :error_message, :context_json)");
-        $stmt->bindValue(':method', substr((string)($data['method'] ?? ''), 0, 16), SQLITE3_TEXT);
-        $stmt->bindValue(':path', substr((string)($data['path'] ?? ''), 0, 1024), SQLITE3_TEXT);
-        $stmt->bindValue(':app_id', substr((string)($data['app_id'] ?? ''), 0, 128), SQLITE3_TEXT);
+        $stmt->bindValue(':method', substr((string)($data['method'] ?? ''), 0, 16), PDO::PARAM_STR);
+        $stmt->bindValue(':path', substr((string)($data['path'] ?? ''), 0, 1024), PDO::PARAM_STR);
+        $stmt->bindValue(':app_id', substr((string)($data['app_id'] ?? ''), 0, 128), PDO::PARAM_STR);
         $email = monitorNullableUserEmail($data['user_email'] ?? null);
-        $stmt->bindValue(':user_email', $email, $email === null ? SQLITE3_NULL : SQLITE3_TEXT);
-        $stmt->bindValue(':ip_address', substr((string)($data['ip_address'] ?? monitorClientIp()), 0, 128), SQLITE3_TEXT);
-        $stmt->bindValue(':status_code', (int)($data['status_code'] ?? 200), SQLITE3_INTEGER);
-        $stmt->bindValue(':duration_ms', (int)($data['duration_ms'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':response_bytes', (int)($data['response_bytes'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':error_message', substr((string)($data['error_message'] ?? ''), 0, 2048), SQLITE3_TEXT);
-        $stmt->bindValue(':context_json', monitorJson($data['context'] ?? []), SQLITE3_TEXT);
+        $stmt->bindValue(':user_email', $email, $email === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':ip_address', substr((string)($data['ip_address'] ?? monitorClientIp()), 0, 128), PDO::PARAM_STR);
+        $stmt->bindValue(':status_code', (int)($data['status_code'] ?? 200), PDO::PARAM_INT);
+        $stmt->bindValue(':duration_ms', (int)($data['duration_ms'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':response_bytes', (int)($data['response_bytes'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':error_message', substr((string)($data['error_message'] ?? ''), 0, 2048), PDO::PARAM_STR);
+        $stmt->bindValue(':context_json', monitorJson($data['context'] ?? []), PDO::PARAM_STR);
         $stmt->execute();
 
         if (getenv('APP_MONITOR_SYNC_ALERTS') === '1') {
@@ -3707,19 +3664,19 @@ function monitorRecordError(string $message, string $level = 'error', string $fi
         $stmt = $db->prepare("INSERT INTO monitor_errors
             (level, app_id, user_email, file, line, message, trace_hash, context_json)
             VALUES(:level, :app_id, :user_email, :file, :line, :message, :trace_hash, :context_json)");
-        $stmt->bindValue(':level', $level, SQLITE3_TEXT);
-        $stmt->bindValue(':app_id', substr($appId, 0, 128), SQLITE3_TEXT);
+        $stmt->bindValue(':level', $level, PDO::PARAM_STR);
+        $stmt->bindValue(':app_id', substr($appId, 0, 128), PDO::PARAM_STR);
         $email = monitorNullableUserEmail($userEmail) ?? monitorCurrentUserEmail();
-        $stmt->bindValue(':user_email', $email, $email === null ? SQLITE3_NULL : SQLITE3_TEXT);
-        $stmt->bindValue(':file', substr($file, 0, 1024), SQLITE3_TEXT);
+        $stmt->bindValue(':user_email', $email, $email === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $stmt->bindValue(':file', substr($file, 0, 1024), PDO::PARAM_STR);
         if ($line === null) {
-            $stmt->bindValue(':line', null, SQLITE3_NULL);
+            $stmt->bindValue(':line', null, PDO::PARAM_NULL);
         } else {
-            $stmt->bindValue(':line', $line, SQLITE3_INTEGER);
+            $stmt->bindValue(':line', $line, PDO::PARAM_INT);
         }
-        $stmt->bindValue(':message', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':trace_hash', $traceHash, SQLITE3_TEXT);
-        $stmt->bindValue(':context_json', monitorJson($context), SQLITE3_TEXT);
+        $stmt->bindValue(':message', $message, PDO::PARAM_STR);
+        $stmt->bindValue(':trace_hash', $traceHash, PDO::PARAM_STR);
+        $stmt->bindValue(':context_json', monitorJson($context), PDO::PARAM_STR);
         $stmt->execute();
 
         if (getenv('APP_MONITOR_SYNC_ALERTS') === '1') {
@@ -3763,17 +3720,17 @@ function monitorRetentionCleanup(int $rawDays = 365, int $retentionDays = 365, i
                     WHERE created_at < $rawCutoff
                     GROUP BY metric_hour";
             $res = $db->query($sql);
-            $stmt = $db->prepare("INSERT OR REPLACE INTO monitor_metric_hourly
+            $stmt = $db->prepare("INSERT INTO monitor_metric_hourly
                 (metric_hour, metric, app_id, min_value, avg_value, max_value, sample_count, updated_at)
                 VALUES(:metric_hour, :metric, '', :min_value, :avg_value, :max_value, :sample_count, :updated_at)");
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-                $stmt->bindValue(':metric_hour', (int)$row['metric_hour'], SQLITE3_INTEGER);
-                $stmt->bindValue(':metric', $metricName, SQLITE3_TEXT);
-                $stmt->bindValue(':min_value', (float)$row['min_value'], SQLITE3_FLOAT);
-                $stmt->bindValue(':avg_value', (float)$row['avg_value'], SQLITE3_FLOAT);
-                $stmt->bindValue(':max_value', (float)$row['max_value'], SQLITE3_FLOAT);
-                $stmt->bindValue(':sample_count', (int)$row['sample_count'], SQLITE3_INTEGER);
-                $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+                $stmt->bindValue(':metric_hour', (int)$row['metric_hour'], PDO::PARAM_INT);
+                $stmt->bindValue(':metric', $metricName, PDO::PARAM_STR);
+                $stmt->bindValue(':min_value', (float)$row['min_value'], PDO::PARAM_STR);
+                $stmt->bindValue(':avg_value', (float)$row['avg_value'], PDO::PARAM_STR);
+                $stmt->bindValue(':max_value', (float)$row['max_value'], PDO::PARAM_STR);
+                $stmt->bindValue(':sample_count', (int)$row['sample_count'], PDO::PARAM_INT);
+                $stmt->bindValue(':updated_at', $now, PDO::PARAM_INT);
                 $stmt->execute();
             }
         }
@@ -3784,7 +3741,7 @@ function monitorRetentionCleanup(int $rawDays = 365, int $retentionDays = 365, i
         $db->exec("DELETE FROM monitor_app_events WHERE created_at < $eventCutoff");
         $db->exec("DELETE FROM monitor_http_requests WHERE created_at < $eventCutoff");
         $db->exec("DELETE FROM monitor_errors WHERE created_at < $eventCutoff AND resolved = 1");
-        $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('monitor_retention_last_cleanup', '$now')");
+        $db->exec("INSERT INTO app_meta(key, value) VALUES('monitor_retention_last_cleanup', '$now') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     } catch (Exception $e) {
         error_log('monitorRetentionCleanup failed: ' . $e->getMessage());
     }

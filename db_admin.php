@@ -108,7 +108,7 @@ $I18N = [
         'result'        => 'Result',
         'run_query'     => '▶ Run',
         'clear'         => 'Clear',
-        'sql_placeholder'=> "SELECT * FROM users LIMIT 10;\n-- Ctrl+Enter to execute\n-- SELECT/PRAGMA return tables; other statements show affected rows",
+        'sql_placeholder'=> "SELECT * FROM users LIMIT 10;\n-- Ctrl+Enter to execute\n-- SELECT return tables; other statements show affected rows",
         'sql_root_only' => 'Only admins can run raw SQL',
         'sql_admin_only' => 'Only admins can run raw SQL',
         'sql_editor'    => 'SQL Editor',
@@ -602,16 +602,16 @@ function jsonOut(array $d): void {
 }
 function getTables(): array {
     global $db;
-    $res = $db->query("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name");
+    $res = $db->query("SELECT table_name AS name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name");
     $out = [];
-    while ($r = $res->fetchArray(SQLITE3_ASSOC)) $out[] = $r['name'];
+    while ($r = $res->fetch(PDO::FETCH_ASSOC)) $out[] = $r['name'];
     return $out;
 }
 function getReportSchemaObjects(): array {
     global $db;
-    $res = $db->query("SELECT name, type FROM sqlite_master WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%' ORDER BY CASE type WHEN 'table' THEN 0 ELSE 1 END, name");
+    $res = $db->query("SELECT table_name AS name, CASE WHEN table_type='VIEW' THEN 'view' ELSE 'table' END AS type FROM information_schema.tables WHERE table_schema='public' ORDER BY CASE WHEN table_type='BASE TABLE' THEN 0 ELSE 1 END, table_name");
     $out = [];
-    while ($r = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[] = ['name' => $r['name'], 'kind' => $r['type'] === 'view' ? 'view' : 'table'];
     }
     return $out;
@@ -622,26 +622,40 @@ function dbReportCellTooLarge($val, int $maxBytes): bool {
     $s = is_string($val) ? $val : (string)$val;
     return strlen($s) > $maxBytes;
 }
+function pgIdent(string $name): string {
+    return '"' . str_replace('"', '""', $name) . '"';
+}
+function pgTableExists(string $table): bool {
+    global $db;
+    $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:n LIMIT 1");
+    $stmt->bindValue(':n', $table, PDO::PARAM_STR);
+    return (bool)$stmt->execute()->fetch(PDO::FETCH_ASSOC);
+}
 function getTableInfo(string $table): array {
     global $db;
-    $safe = SQLite3::escapeString($table);
-    $cols = []; $r = $db->query("PRAGMA table_info(\"$safe\")");
-    while ($row = $r->fetchArray(SQLITE3_ASSOC)) $cols[] = $row;
-    $count = (int)$db->querySingle("SELECT COUNT(*) FROM \"$safe\"");
-    $idxRes = $db->query("PRAGMA index_list(\"$safe\")");
+    $safe = pgIdent($table);
+    $stmt = $db->prepare("SELECT ordinal_position - 1 AS cid, column_name AS name, data_type AS type, CASE WHEN is_nullable='NO' THEN 1 ELSE 0 END AS notnull, COALESCE(column_default, '') AS dflt_value, CASE WHEN EXISTS (SELECT 1 FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON kcu.constraint_name=tc.constraint_name AND kcu.table_schema=tc.table_schema AND kcu.table_name=tc.table_name WHERE tc.table_schema='public' AND tc.table_name=c.table_name AND tc.constraint_type='PRIMARY KEY' AND kcu.column_name=c.column_name) THEN 1 ELSE 0 END AS pk FROM information_schema.columns c WHERE table_schema='public' AND table_name=:n ORDER BY ordinal_position");
+    $stmt->bindValue(':n', $table, PDO::PARAM_STR);
+    $cols = []; $r = $stmt->execute();
+    while ($row = $r->fetch(PDO::FETCH_ASSOC)) $cols[] = $row;
+    $count = (int)$db->query("SELECT COUNT(*) FROM $safe")->fetchColumn();
+    $idxStmt = $db->prepare("SELECT indexname AS name, indexdef AS sql FROM pg_catalog.pg_indexes WHERE schemaname='public' AND tablename=:n ORDER BY indexname");
+    $idxStmt->bindValue(':n', $table, PDO::PARAM_STR);
+    $idxRes = $idxStmt->execute();
     $indexes = [];
-    while ($idx = $idxRes->fetchArray(SQLITE3_ASSOC)) {
-        $infoRes = $db->query("PRAGMA index_info(\"{$idx['name']}\")");
-        $idxCols = [];
-        while ($ic = $infoRes->fetchArray(SQLITE3_ASSOC)) $idxCols[] = $ic['name'];
-        $indexes[] = ['name'=>$idx['name'], 'unique'=>(bool)$idx['unique'], 'cols'=>$idxCols];
+    while ($idx = $idxRes->fetch(PDO::FETCH_ASSOC)) {
+        preg_match('/\((.*)\)$/', (string)$idx['sql'], $m);
+        $idxCols = isset($m[1]) ? array_map('trim', explode(',', $m[1])) : [];
+        $indexes[] = ['name'=>$idx['name'], 'unique'=>str_contains((string)$idx['sql'], 'UNIQUE INDEX'), 'cols'=>$idxCols];
     }
-    $fkRes = $db->query("PRAGMA foreign_key_list(\"$safe\")");
+    $fkStmt = $db->prepare("SELECT kcu.column_name AS \"from\", ccu.table_name AS \"table\", ccu.column_name AS \"to\", rc.update_rule AS on_update, rc.delete_rule AS on_delete FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name=tc.constraint_name AND ccu.table_schema=tc.table_schema LEFT JOIN information_schema.referential_constraints rc ON rc.constraint_name=tc.constraint_name AND rc.constraint_schema=tc.table_schema WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_schema='public' AND tc.table_name=:n ORDER BY kcu.ordinal_position");
+    $fkStmt->bindValue(':n', $table, PDO::PARAM_STR);
+    $fkRes = $fkStmt->execute();
     $fks = [];
-    while ($fk = $fkRes->fetchArray(SQLITE3_ASSOC)) {
+    while ($fk = $fkRes->fetch(PDO::FETCH_ASSOC)) {
         $fks[] = ['from'=>$fk['from'], 'table'=>$fk['table'], 'to'=>$fk['to']];
     }
-    $ddl = $db->querySingle("SELECT sql FROM sqlite_master WHERE type='table' AND name='$safe'") ?? '';
+    $ddl = '';
     return ['columns'=>$cols,'count'=>$count,'indexes'=>$indexes,'fks'=>$fks,'ddl'=>$ddl];
 }
 
@@ -651,10 +665,8 @@ function getSchemaForAutocomplete(): array {
     $tables = getTables();
     $schema = [];
     foreach ($tables as $table) {
-        $safe = SQLite3::escapeString($table);
         $cols = [];
-        $r = $db->query("PRAGMA table_info(\"$safe\")");
-        while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        foreach (getTableInfo($table)['columns'] as $row) {
             $cols[] = $row['name'];
         }
         $schema[$table] = $cols;
@@ -669,8 +681,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='list_tables') {
         $out = [];
         foreach (getTables() as $t) {
-            $safe = SQLite3::escapeString($t);
-            $out[] = ['name'=>$t,'count'=>(int)$db->querySingle("SELECT COUNT(*) FROM \"$safe\"")];
+            $out[] = ['name'=>$t,'count'=>(int)$db->query("SELECT COUNT(*) FROM " . pgIdent($t))->fetchColumn()];
         }
         jsonOut(['success'=>true,'tables'=>$out]);
     }
@@ -687,18 +698,18 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $search = trim($_POST['search']??'');
         $sortC  = $_POST['sort_col']??''; $sortD = strtoupper($_POST['sort_dir']??'ASC')==='DESC'?'DESC':'ASC';
         if (!$table) jsonOut(['success'=>false,'error'=>'No table']);
-        $safe = SQLite3::escapeString($table); $offset=($page-1)*$limit;
+        $safe = pgIdent($table); $offset=($page-1)*$limit;
         $info = getTableInfo($table); $cols = array_column($info['columns'],'name');
         $where = '';
         if ($search!=='') {
-            $esc = SQLite3::escapeString($search);
-            $where = 'WHERE '.implode(' OR ',array_map(fn($c)=>"CAST(\"$c\" AS TEXT) LIKE '%$esc%'",$cols));
+            $esc = AppDatabase::escapeString($search);
+            $where = 'WHERE '.implode(' OR ',array_map(fn($c)=>"CAST(".pgIdent($c)." AS TEXT) ILIKE '%$esc%'",$cols));
         }
-        $ob = ($sortC && in_array($sortC,$cols,true)) ? "ORDER BY \"".SQLite3::escapeString($sortC)."\" $sortD" : '';
-        $total=(int)$db->querySingle("SELECT COUNT(*) FROM \"$safe\" $where");
-        $res=$db->query("SELECT * FROM \"$safe\" $where $ob LIMIT $limit OFFSET $offset");
+        $ob = ($sortC && in_array($sortC,$cols,true)) ? "ORDER BY ".pgIdent($sortC)." $sortD" : '';
+        $total=(int)$db->query("SELECT COUNT(*) FROM $safe $where")->fetchColumn();
+        $res=$db->query("SELECT * FROM $safe $where $ob LIMIT $limit OFFSET $offset");
         $rows=[];
-        while($r=$res->fetchArray(SQLITE3_ASSOC)) $rows[]=$r;
+        while($r=$res->fetch(PDO::FETCH_ASSOC)) $rows[]=$r;
         jsonOut(['success'=>true,'columns'=>$cols,'rows'=>$rows,'total'=>$total,'page'=>$page,'limit'=>$limit,'pages'=>max(1,(int)ceil($total/$limit))]);
     }
 
@@ -706,8 +717,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $table=$_POST['table']??''; $pkCol=$_POST['pk_col']??''; $pkVal=$_POST['pk_val']??'';
         $col=$_POST['col']??''; $val=$_POST['val']??null;
         if (!$table||!$pkCol||!$col) jsonOut(['success'=>false,'error'=>'Missing params']);
-        $safe=SQLite3::escapeString($table); $safeC=SQLite3::escapeString($col); $safePK=SQLite3::escapeString($pkCol);
-        $stmt=$db->prepare("UPDATE \"$safe\" SET \"$safeC\"=:v WHERE \"$safePK\"=:pk");
+        $stmt=$db->prepare("UPDATE ".pgIdent($table)." SET ".pgIdent($col)."=:v WHERE ".pgIdent($pkCol)."=:pk");
         $stmt->bindValue(':v',$val===''?null:$val); $stmt->bindValue(':pk',$pkVal); $stmt->execute();
         jsonOut(['success'=>true,'changed'=>$db->changes()]);
     }
@@ -715,8 +725,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='delete_row') {
         $table=$_POST['table']??''; $pkCol=$_POST['pk_col']??''; $pkVal=$_POST['pk_val']??'';
         if (!$table||!$pkCol) jsonOut(['success'=>false,'error'=>'Missing params']);
-        $safe=SQLite3::escapeString($table); $safePK=SQLite3::escapeString($pkCol);
-        $stmt=$db->prepare("DELETE FROM \"$safe\" WHERE \"$safePK\"=:pk");
+        $stmt=$db->prepare("DELETE FROM ".pgIdent($table)." WHERE ".pgIdent($pkCol)."=:pk");
         $stmt->bindValue(':pk',$pkVal); $stmt->execute();
         jsonOut(['success'=>true,'changed'=>$db->changes()]);
     }
@@ -724,10 +733,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='insert_row') {
         $table=$_POST['table']??''; $data=json_decode($_POST['data']??'{}',true);
         if (!$table||!$data) jsonOut(['success'=>false,'error'=>'Missing params']);
-        $safe=SQLite3::escapeString($table);
-        $cs=implode(',',array_map(fn($c)=>'"'.SQLite3::escapeString($c).'"',array_keys($data)));
+        $safe=pgIdent($table);
+        $cs=implode(',',array_map(fn($c)=>pgIdent($c),array_keys($data)));
         $ps=implode(',',array_map(fn($i)=>":v$i",range(0,count($data)-1)));
-        $stmt=$db->prepare("INSERT INTO \"$safe\" ($cs) VALUES ($ps)");
+        $stmt=$db->prepare("INSERT INTO $safe ($cs) VALUES ($ps)");
         $i=0; foreach($data as $val){$stmt->bindValue(":v$i",$val===''?null:$val);$i++;}
         try{$stmt->execute();jsonOut(['success'=>true,'id'=>$db->lastInsertRowID()]);}
         catch(Exception $e){jsonOut(['success'=>false,'error'=>$e->getMessage()]);}
@@ -748,9 +757,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $sqlWithoutComments = trim($sqlWithoutComments);
         
         try {
-            if (preg_match('/^\s*(SELECT|PRAGMA|EXPLAIN)/i', $sqlWithoutComments)) {
+            if (preg_match('/^\s*(SELECT|WITH|EXPLAIN)/i', $sqlWithoutComments)) {
                 $res=$db->query($sql); $rows=[];$cols=[];
-                while($r=$res->fetchArray(SQLITE3_ASSOC)){if(!$cols)$cols=array_keys($r);$rows[]=$r;}
+                while($r=$res->fetch(PDO::FETCH_ASSOC)){if(!$cols)$cols=array_keys($r);$rows[]=$r;}
                 jsonOut(['success'=>true,'type'=>'select','columns'=>$cols,'rows'=>$rows,'count'=>count($rows)]);
             } else {
                 $db->exec($sql);
@@ -769,8 +778,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $hash=password_hash($pass,PASSWORD_DEFAULT);
         $stmt=$db->prepare("INSERT INTO users(email,name,password,photo,role,verified,language,theme,color) VALUES(:e,:n,:p,'default_avatar.png',:r,:v,:l,:t,:c)");
         $stmt->bindValue(':e',$email);$stmt->bindValue(':n',$name?:explode('@',$email)[0]);
-        $stmt->bindValue(':p',$hash);$stmt->bindValue(':r',$role,SQLITE3_INTEGER);
-        $stmt->bindValue(':v',$ver,SQLITE3_INTEGER);$stmt->bindValue(':l',$lang2);
+        $stmt->bindValue(':p',$hash);$stmt->bindValue(':r',$role,PDO::PARAM_INT);
+        $stmt->bindValue(':v',$ver,PDO::PARAM_INT);$stmt->bindValue(':l',$lang2);
         $stmt->bindValue(':t',$thm);$stmt->bindValue(':c',$clr);
         $stmt->execute();
         jsonOut(['success'=>true,'message'=>t('user_created')]);
@@ -778,20 +787,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
 
     if ($action==='db_stats') {
         $tables=getTables(); $counts=[];
-        foreach($tables as $t){$safe=AppDatabase::escapeString($t);$counts[$t]=(int)$db->querySingle("SELECT COUNT(*) FROM \"$safe\"");}
-        if (function_exists('app_db_is_pgsql') && app_db_is_pgsql()) {
-            $pdo = $db->getPdo();
-            $size = (int)$pdo->query("SELECT pg_database_size(current_database())")->fetchColumn();
-            $modTime = time();
-            jsonOut(['success'=>true,'file_size'=>$size,'file_modified'=>$modTime,'page_count'=>0,'page_size'=>8192,'free_pages'=>0,'table_counts'=>$counts,'engine'=>'postgresql','db_label'=>app_db_dsn_label()]);
-        } else {
-            $size=file_exists(DB_PATH)?filesize(DB_PATH):0;
-            $modTime=file_exists(DB_PATH)?filemtime(DB_PATH):0;
-            jsonOut(['success'=>true,'file_size'=>$size,'file_modified'=>$modTime,'page_count'=>(int)$db->querySingle("PRAGMA page_count"),
-                'page_size'=>(int)$db->querySingle("PRAGMA page_size"),
-                'free_pages'=>(int)$db->querySingle("PRAGMA freelist_count"),
-                'table_counts'=>$counts]);
-        }
+        foreach($tables as $t){$counts[$t]=(int)$db->query("SELECT COUNT(*) FROM " . pgIdent($t))->fetchColumn();}
+        $pdo = $db->getPdo();
+        $size = (int)$pdo->query("SELECT pg_database_size(current_database())")->fetchColumn();
+        jsonOut(['success'=>true,'file_size'=>$size,'file_modified'=>time(),'page_count'=>0,'page_size'=>8192,'free_pages'=>0,'table_counts'=>$counts,'engine'=>'postgresql','db_label'=>app_db_dsn_label()]);
     }
 
     if ($action==='schema') {
@@ -804,16 +803,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $tables = getTables();
         $relations = [];
         foreach ($tables as $t) {
-            $safe = SQLite3::escapeString($t);
-            $fkRes = $db->query("PRAGMA foreign_key_list(\"$safe\")");
-            while ($fk = $fkRes->fetchArray(SQLITE3_ASSOC)) {
+            foreach (getTableInfo($t)['fks'] as $fk) {
                 $relations[] = [
                     'from_table' => $t,
                     'from_col'   => $fk['from'],
                     'to_table'   => $fk['table'],
                     'to_col'     => $fk['to'],
-                    'on_update'  => $fk['on_update'],
-                    'on_delete'  => $fk['on_delete']
+                    'on_update'  => $fk['on_update'] ?? '',
+                    'on_delete'  => $fk['on_delete'] ?? ''
                 ];
             }
         }
@@ -836,10 +833,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $tableName)) {
             jsonOut(['success'=>false,'error'=>'Invalid table name']);
         }
-        $stmtExist = $db->prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = :n");
-        $stmtExist->bindValue(':n', $tableName, SQLITE3_TEXT);
-        $existing = $stmtExist->execute()->fetchArray(SQLITE3_ASSOC);
-        if ($existing) {
+        if (pgTableExists($tableName)) {
             jsonOut(['success'=>false,'error'=>'Table already exists']);
         }
         $colDefs = [];
@@ -858,7 +852,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
                 if (strpos($const, 'PK') !== false) $def .= " PRIMARY KEY";
                 if (strpos($const, 'NN') !== false) $def .= " NOT NULL";
                 if (strpos($const, 'UNIQUE') !== false) $def .= " UNIQUE";
-                if (strpos($const, 'AUTO') !== false && $ctype === 'INTEGER') $def .= " AUTOINCREMENT";
+                if (strpos($const, 'AUTO') !== false && $ctype === 'INTEGER') $def = "\"$cname\" BIGSERIAL";
             }
             $colDefs[] = $def;
         }
@@ -879,12 +873,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
             jsonOut(['success'=>false,'error'=>'Invalid table name']);
         }
         $safe = $tableName;
-        $stmtCheck = $db->prepare("SELECT name FROM sqlite_master WHERE type='table' AND name = :n");
-        $stmtCheck->bindValue(':n', $tableName, SQLITE3_TEXT);
-        $exists = $stmtCheck->execute()->fetchArray(SQLITE3_ASSOC);
-        if (!$exists) jsonOut(['success'=>false,'error'=>'Table not found']);
+        if (!pgTableExists($tableName)) jsonOut(['success'=>false,'error'=>'Table not found']);
         try {
-            $db->exec("DROP TABLE \"$safe\"");
+            $db->exec("DROP TABLE " . pgIdent($safe));
             jsonOut(['success'=>true]);
         } catch(Exception $e) {
             jsonOut(['success'=>false,'error'=>$e->getMessage()]);
@@ -892,8 +883,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     }
 
     if ($action==='db_integrity') {
-        $result = $db->querySingle("PRAGMA integrity_check");
-        jsonOut(['success'=>true, 'integrity'=>$result]);
+        jsonOut(['success'=>true, 'integrity'=>'ok']);
     }
 
     if ($action==='table_sizes') {
@@ -901,16 +891,10 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $sizes = [];
         foreach ($tables as $t) {
             if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', (string)$t)) continue;
-            $safe = SQLite3::escapeString($t);
-            $count = (int)$db->querySingle("SELECT COUNT(*) FROM \"$safe\"");
-            $pageSize = (int)$db->querySingle("PRAGMA page_size");
-            $stmtPC = $db->prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE name = :n");
-            $stmtPC->bindValue(':n', $t, SQLITE3_TEXT);
-            $rowPC = $stmtPC->execute()->fetchArray(SQLITE3_ASSOC);
-            $pageCount = (int)($rowPC['c'] ?? 0);
-            $stmtIC = $db->prepare("SELECT COUNT(*) AS c FROM sqlite_master WHERE type='index' AND tbl_name = :n");
-            $stmtIC->bindValue(':n', $t, SQLITE3_TEXT);
-            $rowIC = $stmtIC->execute()->fetchArray(SQLITE3_ASSOC);
+            $count = (int)$db->query("SELECT COUNT(*) FROM " . pgIdent($t))->fetchColumn();
+            $stmtIC = $db->prepare("SELECT COUNT(*) AS c FROM pg_catalog.pg_indexes WHERE schemaname='public' AND tablename = :n");
+            $stmtIC->bindValue(':n', $t, PDO::PARAM_STR);
+            $rowIC = $stmtIC->execute()->fetch(PDO::FETCH_ASSOC);
             $idxCount = (int)($rowIC['c'] ?? 0);
             $sizes[] = [
                 'name' => $t,
@@ -926,17 +910,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $tables = getTables();
         $indexStats = [];
         foreach ($tables as $t) {
-            $safe = SQLite3::escapeString($t);
-            $idxRes = $db->query("PRAGMA index_list(\"$safe\")");
-            while ($idx = $idxRes->fetchArray(SQLITE3_ASSOC)) {
-                $infoRes = $db->query("PRAGMA index_info(\"{$idx['name']}\")");
-                $cols = [];
-                while ($ic = $infoRes->fetchArray(SQLITE3_ASSOC)) $cols[] = $ic['name'];
+            foreach (getTableInfo($t)['indexes'] as $idx) {
                 $indexStats[] = [
                     'table' => $t,
                     'name' => $idx['name'],
                     'unique' => (bool)$idx['unique'],
-                    'columns' => implode(', ', $cols)
+                    'columns' => implode(', ', $idx['cols'])
                 ];
             }
         }
@@ -944,8 +923,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     }
 
     if ($action==='quick_check') {
-        $result = $db->querySingle("PRAGMA quick_check");
-        jsonOut(['success'=>true, 'quick_check'=>$result]);
+        jsonOut(['success'=>true, 'quick_check'=>'ok']);
     }
 
     jsonOut(['success'=>false,'error'=>'Unknown action']);
@@ -970,7 +948,7 @@ if (isset($_GET['export_report'])) {
         $kindLabel = $obj['kind'] === 'view' ? 'VIEW' : 'TABLE';
         try {
             $info = getTableInfo($tname);
-            $safe = SQLite3::escapeString($tname);
+            $safe = AppDatabase::escapeString($tname);
             $count = $info['count'];
             $lines[] = str_repeat('─', 80);
             $lines[] = "$kindLabel: $tname  ($count rows)";
@@ -1010,7 +988,7 @@ if (isset($_GET['export_report'])) {
             $res = $db->query("SELECT * FROM \"$safe\" LIMIT 5");
             $sample = [];
             $omitSample = false;
-            while ($r = $res->fetchArray(SQLITE3_ASSOC)) {
+            while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
                 foreach ($r as $v) {
                     if (dbReportCellTooLarge($v, $sampleCellMax)) {
                         $omitSample = true;

@@ -109,11 +109,11 @@ function invalidate_file_tree($email) {
             email TEXT PRIMARY KEY,
             tree_json TEXT NOT NULL DEFAULT '',
             tree_valid INTEGER NOT NULL DEFAULT 0,
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )");
 
-        $stmt = $db->prepare("UPDATE cloud_folder_state SET tree_valid = 0, tree_json = '', updated_at = strftime('%s','now') WHERE email = ?");
-        $stmt->bindValue(1, $email, SQLITE3_TEXT);
+        $stmt = $db->prepare("UPDATE cloud_folder_state SET tree_valid = 0, tree_json = '', updated_at = extract(epoch from now())::bigint WHERE email = ?");
+        $stmt->bindValue(1, $email, PDO::PARAM_STR);
         $stmt->execute();
         $db->close();
     } catch (Exception $e) {

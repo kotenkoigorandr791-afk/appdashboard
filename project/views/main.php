@@ -6315,6 +6315,25 @@ var apEditMode     = false;
 var apJsonAllFiles = [];
 var apJsonSortAsc  = true;
 var monacoInjected = false;
+window.apLoadMonaco = window.apLoadMonaco || function(){
+    if(window.monaco) return Promise.resolve(window.monaco);
+    if(window.__apMonacoPromise) return window.__apMonacoPromise;
+    window.__apMonacoPromise = new Promise(function(resolve,reject){
+        function loadEditor(){
+            try{
+                require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});
+                require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
+            }catch(e){reject(e);}
+        }
+        if(typeof require==='function'){loadEditor();return;}
+        var existing=document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
+        var s=existing||document.createElement('script');
+        s.addEventListener('load',loadEditor,{once:true});
+        s.addEventListener('error',reject,{once:true});
+        if(!existing){s.src='/project/assets/monaco-0.45.0/vs/loader.js';document.head.appendChild(s);}
+    });
+    return window.__apMonacoPromise;
+};
 
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
@@ -6460,15 +6479,7 @@ function clearHash(){history.replaceState(null,'',location.pathname+location.sea
 
 /* ── Monaco lazy loader ── */
 function ensureMonaco(cb){
-    if(typeof monaco!=='undefined'){cb();return;}
-    if(typeof require!=='undefined'){require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});require(['vs/editor/editor.main'],cb);return;}
-    if(!monacoInjected){
-        monacoInjected=true;
-        var s=document.createElement('script');
-        s.src='/project/assets/monaco-0.45.0/vs/loader.js';
-        s.onload=function(){require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});require(['vs/editor/editor.main'],cb);};
-        document.head.appendChild(s);
-    } else {var poll=setInterval(function(){if(typeof monaco!=='undefined'){clearInterval(poll);cb();}},100);}
+    window.apLoadMonaco().then(cb).catch(function(e){console.error('Failed to load Monaco:',e);});
 }
 
 /* ── Panel switch ── */
@@ -11622,20 +11633,7 @@ function copyOtpLink(){
     }
 
     function loadMonacoEditor(callback) {
-        if (window.monaco) {
-            callback();
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = '/project/assets/monaco-0.45.0/vs/loader.js';
-        script.onload = function() {
-            require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
-            require(['vs/editor/editor.main'], function() {
-                callback();
-            });
-        };
-        document.head.appendChild(script);
+        window.apLoadMonaco().then(callback).catch(function(e){console.error('Failed to load Monaco:', e);});
     }
 
     function closeSupportChatDeleteModal() {

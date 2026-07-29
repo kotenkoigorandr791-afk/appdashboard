@@ -1321,5 +1321,6 @@
     "noActiveTokens": "Brak aktywnych tokenów",
     "selectTokenToManage": "Wybierz urządzenie do zarządzania tokenem",
     "noUsernameToCopy": "Brak nazwy użytkownika do skopiowania",
-    "monacoSpellAuto": "Automat"
+    "monacoSpellAuto": "Automat",
+    "aiMathBlock": "Myśl"
 }

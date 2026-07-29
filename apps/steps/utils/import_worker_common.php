@@ -286,9 +286,9 @@ function steps_worker_existing_dates_map(AppDatabase $db, array $days): array {
             $params[$key] = $day;
         }
         $stmt = $db->prepare('SELECT date, steps FROM steps WHERE date IN (' . implode(',', $ph) . ')');
-        foreach ($params as $key => $day) $stmt->bindValue($key, $day, SQLITE3_TEXT);
+        foreach ($params as $key => $day) $stmt->bindValue($key, $day, PDO::PARAM_STR);
         $res = $stmt->execute();
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $map[(string)$row['date']] = (int)$row['steps'];
         }
     }
@@ -298,8 +298,8 @@ function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mo
     if (!$daySteps) return 0;
     ksort($daySteps);
     $existing = steps_worker_existing_dates_map($db, array_keys($daySteps));
-    $replaceStmt = $db->prepare('INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)');
-    $insertStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s)');
+    $replaceStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
+    $insertStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
     $n = 0;
     foreach ($daySteps as $d => $s) {
         if ($allowZero ? $s < 0 : $s <= 0) continue;
@@ -307,8 +307,8 @@ function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mo
         $steps = (int)$s;
         if ($mode === 'new_only') {
             if (array_key_exists($date, $existing)) continue;
-            $insertStmt->bindValue(':d', $date, SQLITE3_TEXT);
-            $insertStmt->bindValue(':s', $steps, SQLITE3_INTEGER);
+            $insertStmt->bindValue(':d', $date, PDO::PARAM_STR);
+            $insertStmt->bindValue(':s', $steps, PDO::PARAM_INT);
             $insertStmt->execute();
             if ($db->changes() > 0) {
                 $n++;
@@ -319,8 +319,8 @@ function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mo
         if ($mode === 'keep' && array_key_exists($date, $existing) && $existing[$date] !== $steps) {
             continue;
         }
-        $replaceStmt->bindValue(':d', $date, SQLITE3_TEXT);
-        $replaceStmt->bindValue(':s', $steps, SQLITE3_INTEGER);
+        $replaceStmt->bindValue(':d', $date, PDO::PARAM_STR);
+        $replaceStmt->bindValue(':s', $steps, PDO::PARAM_INT);
         $replaceStmt->execute();
         if ($db->changes() > 0) $n++;
         $existing[$date] = $steps;
@@ -332,8 +332,8 @@ function steps_worker_conflicts_app_db(AppDatabase $db, array $daySteps): int {
     $n = 0;
     foreach ($daySteps as $day => $steps) {
         $stmt = $db->prepare('SELECT steps FROM steps WHERE date = :d');
-        $stmt->bindValue(':d', (string)$day, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':d', (string)$day, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row !== null && (int)$row['steps'] !== (int)$steps) $n++;
     }
     return $n;

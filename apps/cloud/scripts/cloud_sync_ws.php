@@ -81,13 +81,13 @@ function csws_auth_token(string $token): ?string {
     try {
         ensure_client_auth_tokens_table();
         $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
-        $stmt->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
-        $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
+        $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['email'])) {
             $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
-            $upd->bindValue(':t', time(), SQLITE3_INTEGER);
-            $upd->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
+            $upd->bindValue(':t', time(), PDO::PARAM_INT);
+            $upd->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
             $upd->execute();
             return (string)$row['email'];
         }

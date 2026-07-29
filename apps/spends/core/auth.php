@@ -7,8 +7,8 @@ function getCurrentUserFromActiveSessions() {
         if (!$sid) continue;
         try {
             $st = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :s');
-            $st->bindValue(':s', $sid, SQLITE3_TEXT);
-            $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+            $st->bindValue(':s', $sid, PDO::PARAM_STR);
+            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
             if ($r && isset($r['email'])) return $r['email'];
         } catch (Exception $e) {}
     }
@@ -26,8 +26,8 @@ function getUserRoleByEmail($email) {
     if (!$db || !$email) return 0;
     try {
         $st = $db->prepare('SELECT role FROM users WHERE email = :e');
-        $st->bindValue(':e', $email, SQLITE3_TEXT);
-        $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+        $st->bindValue(':e', $email, PDO::PARAM_STR);
+        $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
         if ($r && isset($r['role'])) return (int)$r['role'];
     } catch (Exception $e) {}
     return 0;
@@ -42,8 +42,8 @@ function isUserRoot() {
         if (!$sid) continue;
         try {
             $st = $db->prepare($sql);
-            $st->bindValue(':s', $sid, SQLITE3_TEXT);
-            $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+            $st->bindValue(':s', $sid, PDO::PARAM_STR);
+            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
             if ($r && isset($r['role'])) return $r['role'] === 2;
         } catch (Exception $e) {}
     }

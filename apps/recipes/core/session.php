@@ -6,9 +6,9 @@ function getUserRoleByEmail($email): int {
     } 
     try { 
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :email'); 
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT); 
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR); 
         $result = $stmt->execute(); 
-        $row = $result->fetchArray(SQLITE3_ASSOC); 
+        $row = $result->fetch(PDO::FETCH_ASSOC); 
         if ($row && isset($row['role'])) { 
             return (int)$row['role']; 
         } 

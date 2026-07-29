@@ -5,7 +5,7 @@ if (isset($_GET['get_products'])) {
     if ($db) {
         try {
             $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $products[] = [
                     'id' => $row['id'],
                     'name' => [
@@ -37,7 +37,7 @@ if (isset($_GET['get_recipes'])) {
     if ($db) {
         try {
             $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en");
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $recipe = [
                     'id' => $row['id'],
                     'title' => [
@@ -68,9 +68,9 @@ if (isset($_GET['get_recipe_full']) && isset($_GET['recipe_id'])) {
         try {
             // Get recipe
             $stmt = $db->prepare("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :id");
-            $stmt->bindValue(':id', $recipe_id, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $recipe_data = $result->fetchArray(SQLITE3_ASSOC);
+            $recipe_data = $result->fetch(PDO::FETCH_ASSOC);
             
             if ($recipe_data) {
                 $recipe = [
@@ -87,10 +87,10 @@ if (isset($_GET['get_recipe_full']) && isset($_GET['recipe_id'])) {
                 
                 // Get steps
                 $stmt = $db->prepare("SELECT * FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :id ORDER BY step_order");
-                $stmt->bindValue(':id', $recipe_id, SQLITE3_TEXT);
+                $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
                 $result = $stmt->execute();
                 
-                while ($step = $result->fetchArray(SQLITE3_ASSOC)) {
+                while ($step = $result->fetch(PDO::FETCH_ASSOC)) {
                     $new_step = [
                         'type' => $step['step_type'],
                         'timer' => null

@@ -10,9 +10,9 @@ function get_current_user_from_sessions(): string {
     if ($session_id) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-            $stmt->bindValue(':session_id', $session_id, SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $session_id, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['email'])) {
                 $username = explode('@', $row['email'])[0] ?? 'user';
                 $username = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $username);
@@ -27,9 +27,9 @@ function get_current_user_from_sessions(): string {
         $cookie_session = $_COOKIE['PHPSESSID'];
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-            $stmt->bindValue(':session_id', $cookie_session, SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $cookie_session, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['email'])) {
                 $username = explode('@', $row['email'])[0] ?? 'user';
                 $username = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $username);
@@ -52,9 +52,9 @@ function getUserRoleByEmail(string $email): int {
     }
     try {
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) {
             return (int)$row['role'];
         }
@@ -77,9 +77,9 @@ function isUserRoot(): bool {
             WHERE s.session_id = :session_id";
     try {
         $stmt = $db->prepare($sql);
-        $stmt->bindValue(':session_id', $session_id, SQLITE3_TEXT);
+        $stmt->bindValue(':session_id', $session_id, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) {
             return $row['role'] === 2;
         }
@@ -87,9 +87,9 @@ function isUserRoot(): bool {
         if (isset($_COOKIE['PHPSESSID'])) {
             $cookie_session = $_COOKIE['PHPSESSID'];
             $stmt = $db->prepare($sql);
-            $stmt->bindValue(':session_id', $cookie_session, SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $cookie_session, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['role'])) {
                 return $row['role'] === 2;
             }
@@ -117,9 +117,9 @@ function get_current_user_data(): array {
     $trySession = function(string $sid) use ($db, $sql): ?array {
         try {
             $stmt = $db->prepare($sql);
-            $stmt->bindValue(':session_id', $sid, SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $sid, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['email'])) {
                 $username = explode('@', $row['email'])[0] ?? 'user';
                 $username = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $username);

@@ -37,14 +37,14 @@ function app_notify(string $email, string $appId, string $severity, string $titl
         app_notifications_ensure($db);
         $severity = in_array($severity, ['info','success','warning','error','critical'], true) ? $severity : 'info';
         $st = $db->prepare("INSERT INTO app_notifications(user_email,app_id,severity,title,message,event_type,context_json,is_read,created_at) VALUES(:u,:a,:s,:t,:m,:e,:c,0,:n)");
-        $st->bindValue(':u', $email, SQLITE3_TEXT);
-        $st->bindValue(':a', $appId, SQLITE3_TEXT);
-        $st->bindValue(':s', $severity, SQLITE3_TEXT);
-        $st->bindValue(':t', $title, SQLITE3_TEXT);
-        $st->bindValue(':m', $message, SQLITE3_TEXT);
-        $st->bindValue(':e', $eventType, SQLITE3_TEXT);
-        $st->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-        $st->bindValue(':n', time(), SQLITE3_INTEGER);
+        $st->bindValue(':u', $email, PDO::PARAM_STR);
+        $st->bindValue(':a', $appId, PDO::PARAM_STR);
+        $st->bindValue(':s', $severity, PDO::PARAM_STR);
+        $st->bindValue(':t', $title, PDO::PARAM_STR);
+        $st->bindValue(':m', $message, PDO::PARAM_STR);
+        $st->bindValue(':e', $eventType, PDO::PARAM_STR);
+        $st->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+        $st->bindValue(':n', time(), PDO::PARAM_INT);
         $st->execute();
     } catch (Throwable $e) {
         error_log('app_notify: ' . $e->getMessage());
@@ -55,13 +55,13 @@ function app_metric(string $email, string $appId, string $metric, float $value, 
         $db = app_main_db();
         app_notifications_ensure($db);
         $st = $db->prepare("INSERT INTO app_metrics(app_id,metric,value,unit,user_email,context_json,created_at) VALUES(:a,:m,:v,:u,:e,:c,:t)");
-        $st->bindValue(':a', $appId, SQLITE3_TEXT);
-        $st->bindValue(':m', $metric, SQLITE3_TEXT);
-        $st->bindValue(':v', $value, SQLITE3_FLOAT);
-        $st->bindValue(':u', $unit, SQLITE3_TEXT);
-        $st->bindValue(':e', $email, SQLITE3_TEXT);
-        $st->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-        $st->bindValue(':t', time(), SQLITE3_INTEGER);
+        $st->bindValue(':a', $appId, PDO::PARAM_STR);
+        $st->bindValue(':m', $metric, PDO::PARAM_STR);
+        $st->bindValue(':v', $value, PDO::PARAM_STR);
+        $st->bindValue(':u', $unit, PDO::PARAM_STR);
+        $st->bindValue(':e', $email, PDO::PARAM_STR);
+        $st->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+        $st->bindValue(':t', time(), PDO::PARAM_INT);
         $st->execute();
     } catch (Throwable $e) {
         error_log('app_metric: ' . $e->getMessage());

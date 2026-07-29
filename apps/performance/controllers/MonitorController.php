@@ -11,7 +11,7 @@ if (isset($_GET['monitor_stats'])) {
 
     try {
         $db->busyTimeout(5000);
-        $db->exec('PRAGMA foreign_keys=ON');
+        $db->exec('SELECT 1');
         $now = time();
         $period = isset($_GET['period']) ? strtolower((string)$_GET['period']) : '24h';
         $periodSecondsMap = [
@@ -36,10 +36,10 @@ if (isset($_GET['monitor_stats'])) {
             ORDER BY s.created_at DESC, d.drive_letter ASC
             LIMIT :limit
         ) recent ORDER BY created_at ASC, drive_letter ASC");
-        $stmt->bindValue(':since', $since, SQLITE3_INTEGER);
-        $stmt->bindValue(':limit', $diskLimit, SQLITE3_INTEGER);
+        $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $diskLimit, PDO::PARAM_INT);
         $res = $stmt->execute();
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $drive = (string)($row['drive_letter'] ?? '');
             if ($drive === '') {
                 continue;
@@ -63,10 +63,10 @@ if (isset($_GET['monitor_stats'])) {
             ORDER BY metric_hour DESC, metric ASC, app_id ASC
             LIMIT :limit
         ) recent ORDER BY metric_hour ASC, metric ASC, app_id ASC");
-        $stmt->bindValue(':since', $since, SQLITE3_INTEGER);
-        $stmt->bindValue(':limit', $hourlyLimit, SQLITE3_INTEGER);
+        $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $hourlyLimit, PDO::PARAM_INT);
         $res = $stmt->execute();
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $metric = (string)($row['metric'] ?? '');
             if ($metric === '') {
                 continue;
@@ -99,10 +99,10 @@ if (isset($_GET['monitor_stats'])) {
             ORDER BY created_at DESC
             LIMIT :limit
         ) recent ORDER BY created_at ASC");
-        $stmt->bindValue(':since', $since, SQLITE3_INTEGER);
-        $stmt->bindValue(':limit', $systemLimit, SQLITE3_INTEGER);
+        $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+        $stmt->bindValue(':limit', $systemLimit, PDO::PARAM_INT);
         $res = $stmt->execute();
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $label = monitor_format_time_label((int)$row['created_at']);
             $system['cpu_percent'][] = ['x' => $label, 'y' => round((float)$row['cpu_percent'], 2)];
             $system['memory_percent'][] = ['x' => $label, 'y' => round((float)$row['memory_percent'], 2)];

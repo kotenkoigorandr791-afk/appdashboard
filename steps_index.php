@@ -47,7 +47,7 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
     $settings = $defaults;
     try {
         $result = $db->query('SELECT key, value FROM settings');
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $settings[$row['key']] = $row['value'];
         }
     } catch (Exception $e) {
@@ -68,17 +68,17 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
 }
 
 function saveUserSetting(AppDatabase $db, string $key, string $value): void {
-    $stmt = $db->prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (:k, :v)');
-    $stmt->bindValue(':k', $key, SQLITE3_TEXT);
-    $stmt->bindValue(':v', $value, SQLITE3_TEXT);
+    $stmt = $db->prepare('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
+    $stmt->bindValue(':k', $key, PDO::PARAM_STR);
+    $stmt->bindValue(':v', $value, PDO::PARAM_STR);
     $stmt->execute();
 }
 
 // тФАтФАтФА ╨и╨░╨│╨╕ тАФ ╨▒╨░╨╖╨╛╨▓╤Л╨╡ ╨╛╨┐╨╡╤А╨░╤Ж╨╕╨╕ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
 function upsertStep(AppDatabase $db, string $date, int $steps): void {
-    $stmt = $db->prepare('INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)');
-    $stmt->bindValue(':d', $date, SQLITE3_TEXT);
-    $stmt->bindValue(':s', $steps, SQLITE3_INTEGER);
+    $stmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
+    $stmt->bindValue(':d', $date, PDO::PARAM_STR);
+    $stmt->bindValue(':s', $steps, PDO::PARAM_INT);
     $stmt->execute();
 }
 function normalizeStoredDate(string $raw): ?string {
@@ -111,7 +111,7 @@ function normalizeStepsDatesTable(AppDatabase $db): void {
     $rows = [];
     try {
         $res = $db->query('SELECT date, steps FROM steps');
-        while ($r = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
             $iso = normalizeStoredDate((string)($r['date'] ?? ''));
             if (!$iso) continue;
             $steps = (int)($r['steps'] ?? 0);
@@ -121,12 +121,12 @@ function normalizeStepsDatesTable(AppDatabase $db): void {
         return;
     }
     try {
-        $db->exec('BEGIN IMMEDIATE TRANSACTION');
+        $db->exec('BEGIN');
         $db->exec('DELETE FROM steps');
-        $st = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s)');
+        $st = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
         foreach ($rows as $d => $s) {
-            $st->bindValue(':d', $d, SQLITE3_TEXT);
-            $st->bindValue(':s', $s, SQLITE3_INTEGER);
+            $st->bindValue(':d', $d, PDO::PARAM_STR);
+            $st->bindValue(':s', $s, PDO::PARAM_INT);
             $st->execute();
         }
         $db->exec('COMMIT');
@@ -142,10 +142,10 @@ function loadStepsRange(AppDatabase $db, string $from, string $to): array {
         $stmt = $db->prepare(
             'SELECT date, steps FROM steps WHERE date >= :from AND date <= :to ORDER BY date ASC'
         );
-        $stmt->bindValue(':from', $from, SQLITE3_TEXT);
-        $stmt->bindValue(':to',   $to,   SQLITE3_TEXT);
+        $stmt->bindValue(':from', $from, PDO::PARAM_STR);
+        $stmt->bindValue(':to',   $to,   PDO::PARAM_STR);
         $result = $stmt->execute();
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $steps[$row['date']] = ['date' => $row['date'], 'steps' => (int)$row['steps']];
         }
     } catch (Exception $e) {
@@ -177,18 +177,18 @@ function loadStepsPage(AppDatabase $db, int $page, int $pageSize, string $filter
         $countSql = "SELECT COUNT(*) FROM steps" . ($where ? " WHERE $where" : '');
         $countStmt = $db->prepare($countSql);
         foreach ($params as $k => $v) $countStmt->bindValue($k, $v[0], $v[1]);
-        $total = (int)$countStmt->execute()->fetchArray(SQLITE3_NUM)[0];
+        $total = (int)$countStmt->execute()->fetch(PDO::FETCH_NUM)[0];
 
         // ╨б╤В╤А╨░╨╜╨╕╤Ж╨░
         $sql = "SELECT date, steps FROM steps" . ($where ? " WHERE $where" : '') . " ORDER BY date DESC LIMIT :lim OFFSET :off";
         $stmt = $db->prepare($sql);
         foreach ($params as $k => $v) $stmt->bindValue($k, $v[0], $v[1]);
-        $stmt->bindValue(':lim', $pageSize, SQLITE3_INTEGER);
-        $stmt->bindValue(':off', $offset,   SQLITE3_INTEGER);
+        $stmt->bindValue(':lim', $pageSize, PDO::PARAM_INT);
+        $stmt->bindValue(':off', $offset,   PDO::PARAM_INT);
         $result = $stmt->execute();
 
         $rows = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $rows[] = ['date' => $row['date'], 'steps' => (int)$row['steps']];
         }
 
@@ -206,27 +206,27 @@ function buildStepsWhere(string $op, ?int $val, ?int $valTo, ?string $dateFrom, 
     $safeDateTo = (is_string($dateTo) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) ? $dateTo : null;
     if ($safeDateFrom !== null) {
         $parts[] = 'date >= :df';
-        $params[':df'] = [$safeDateFrom, SQLITE3_TEXT];
+        $params[':df'] = [$safeDateFrom, PDO::PARAM_STR];
     }
     if ($safeDateTo !== null) {
         $parts[] = 'date <= :dt';
-        $params[':dt'] = [$safeDateTo, SQLITE3_TEXT];
+        $params[':dt'] = [$safeDateTo, PDO::PARAM_STR];
     }
     if ($val === null) return [implode(' AND ', $parts), $params];
     switch ($op) {
-        case '=':  $w = 'steps = :v1';                   $params[':v1'] = [$val, SQLITE3_INTEGER]; break;
-        case '>':  $w = 'steps > :v1';                   $params[':v1'] = [$val, SQLITE3_INTEGER]; break;
-        case '<':  $w = 'steps < :v1';                   $params[':v1'] = [$val, SQLITE3_INTEGER]; break;
-        case '>=': $w = 'steps >= :v1';                  $params[':v1'] = [$val, SQLITE3_INTEGER]; break;
-        case '<=': $w = 'steps <= :v1';                  $params[':v1'] = [$val, SQLITE3_INTEGER]; break;
+        case '=':  $w = 'steps = :v1';                   $params[':v1'] = [$val, PDO::PARAM_INT]; break;
+        case '>':  $w = 'steps > :v1';                   $params[':v1'] = [$val, PDO::PARAM_INT]; break;
+        case '<':  $w = 'steps < :v1';                   $params[':v1'] = [$val, PDO::PARAM_INT]; break;
+        case '>=': $w = 'steps >= :v1';                  $params[':v1'] = [$val, PDO::PARAM_INT]; break;
+        case '<=': $w = 'steps <= :v1';                  $params[':v1'] = [$val, PDO::PARAM_INT]; break;
         case 'range':
             if ($valTo !== null) {
                 $w = 'steps >= :v1 AND steps <= :v2';
-                $params[':v1'] = [$val, SQLITE3_INTEGER];
-                $params[':v2'] = [$valTo, SQLITE3_INTEGER];
+                $params[':v1'] = [$val, PDO::PARAM_INT];
+                $params[':v2'] = [$valTo, PDO::PARAM_INT];
             } else {
                 $w = 'steps >= :v1';
-                $params[':v1'] = [$val, SQLITE3_INTEGER];
+                $params[':v1'] = [$val, PDO::PARAM_INT];
             }
             break;
         default: return [implode(' AND ', $parts), $params];
@@ -240,7 +240,7 @@ function exportStepsToCSV(AppDatabase $db): string {
     $out = '';
     try {
         $result = $db->query('SELECT date, steps FROM steps ORDER BY date ASC');
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $out .= isoToCSVDate($row['date']) . ',' . $row['steps'] . "\n";
         }
     } catch (Exception $e) {
@@ -253,7 +253,7 @@ function exportStepsToCSV(AppDatabase $db): string {
 function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $replace = true): array {
     $imported = [];
     $lines = explode("\n", $csvContent);
-    $db->exec('BEGIN TRANSACTION');
+    $db->exec('BEGIN');
     try {
         foreach ($lines as $line) {
             $line = trim($line);
@@ -266,11 +266,11 @@ function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $re
             if (!$isoDate) continue;
             $steps = (int)$row[1];
             $sql   = $replace
-                ? 'INSERT OR REPLACE INTO steps (date, steps) VALUES (:d, :s)'
-                : 'INSERT OR IGNORE INTO steps  (date, steps) VALUES (:d, :s)';
+                ? 'INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps'
+                : 'INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO NOTHING';
             $stmt = $db->prepare($sql);
-            $stmt->bindValue(':d', $isoDate, SQLITE3_TEXT);
-            $stmt->bindValue(':s', $steps,   SQLITE3_INTEGER);
+            $stmt->bindValue(':d', $isoDate, PDO::PARAM_STR);
+            $stmt->bindValue(':s', $steps,   PDO::PARAM_INT);
             $stmt->execute();
             $imported[$isoDate] = $steps;
         }
@@ -307,8 +307,8 @@ function getUserPhoto(string $email): ?string {
     if (!$db) return null;
     try {
         $stmt = $db->prepare('SELECT photo FROM users WHERE email = :e');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['photo'])) return $row['photo'];
     } catch (Exception $e) { }
     return null;
@@ -319,8 +319,8 @@ function getUserRoleByEmail(string $email): int {
     if (!$db) return 0;
     try {
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :e');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) return (int)$row['role'];
     } catch (Exception $e) { }
     return 0;
@@ -335,8 +335,8 @@ function isUserRoot(): bool {
             $stmt = $db->prepare(
                 'SELECT u.role FROM active_sessions s JOIN users u ON s.email = u.email WHERE s.session_id = :sid'
             );
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['role'])) return $row['role'] === 2;
         } catch (Exception $e) { }
     }
@@ -409,7 +409,7 @@ $totalCount = (int)$userDb->querySingle('SELECT COUNT(*) FROM steps');
 if ($totalCount === 0) {
     $sd = (new DateTime())->modify('-1 month');
     $ed = new DateTime();
-    $userDb->exec('BEGIN TRANSACTION');
+    $userDb->exec('BEGIN');
     while ($sd <= $ed) {
         upsertStep($userDb, $sd->format('Y-m-d'), 0);
         $sd->modify('+1 day');
@@ -418,7 +418,7 @@ if ($totalCount === 0) {
 }
 
 // ╨г╨▒╨╡╨┤╨╕╨╝╤Б╤П, ╤З╤В╨╛ ╤Б╨╡╨│╨╛╨┤╨╜╤П╤И╨╜╨╕╨╣ ╨┤╨╡╨╜╤М ╨╡╤Б╤В╤М ╨▓ ╨▒╨░╨╖╨╡
-$userDb->exec("INSERT OR IGNORE INTO steps (date, steps) VALUES ('$today', 0)");
+$userDb->exec("INSERT INTO steps (date, steps) VALUES ('$today', 0) ON CONFLICT (date) DO NOTHING");
 
 // ╨Ю╨┐╤А╨╡╨┤╨╡╨╗╤П╨╡╨╝ ╤Б╨░╨╝╤Г╤О ╤А╨░╨╜╨╜╤О╤О ╨┤╨░╤В╤Г
 [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
@@ -439,7 +439,7 @@ while ($cd <= $ed2) {
     $cd->modify('+1 day');
 }
 if ($toInsert) {
-    $userDb->exec('BEGIN TRANSACTION');
+    $userDb->exec('BEGIN');
     foreach ($toInsert as $ds) {
         upsertStep($userDb, $ds, 0);
         $stepsDataRaw[$ds] = ['date' => $ds, 'steps' => 0];
@@ -500,7 +500,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit(json_encode(['status' => 'error', 'message' => $translations['invalid_goal_steps'] ?? 'Invalid goal steps']));
 
         try {
-            $userDb->exec('BEGIN TRANSACTION');
+            $userDb->exec('BEGIN');
             saveUserSetting($userDb, 'goal_steps',    (string)(int)($goalSteps * 1000));
             saveUserSetting($userDb, 'height',        (string)(filter_var($_POST['height'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 170));
             saveUserSetting($userDb, 'weight',        (string)(filter_var($_POST['weight'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 70));
@@ -542,7 +542,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         for ($attempt = 0; $attempt < 8; $attempt++) {
             try {
                 $imported = [];
-                $userDb->exec('BEGIN IMMEDIATE TRANSACTION');
+                $userDb->exec('BEGIN');
                 foreach ($rows as $r) {
                     if (!is_array($r)) {
                         continue;

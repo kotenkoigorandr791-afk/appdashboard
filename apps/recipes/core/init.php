@@ -16,7 +16,7 @@ $config = ['items_per_page' => 12]; // Default
 if ($db) {
     try {
         $config_result = $db->query("SELECT key, value FROM " . RECIPES_DB_TABLE_PREFIX . "config");
-        while ($row = $config_result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $config_result->fetch(PDO::FETCH_ASSOC)) {
             $value = $row['value'];
             // Try to decode JSON values
             $decoded = json_decode($value, true);
@@ -42,9 +42,9 @@ if ($db && $session_id) {
     try {
         // Get email from active session
         $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', $session_id, SQLITE3_TEXT);
+        $stmt->bindValue(':session_id', $session_id, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row && isset($row['email'])) {
             $email = $row['email'];
@@ -64,9 +64,9 @@ if ($userRole === 0 && $db && isset($_COOKIE['PHPSESSID'])) {
     try {
         $cookie_session = $_COOKIE['PHPSESSID'];
         $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', $cookie_session, SQLITE3_TEXT);
+        $stmt->bindValue(':session_id', $cookie_session, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row && isset($row['email'])) {
             $email = $row['email'];
@@ -90,7 +90,7 @@ $recipe_state = ['current_recipe' => null, 'completed_steps' => []];
 if ($db) {
     try {
         $state_result = $db->query("SELECT key, value FROM " . RECIPES_DB_TABLE_PREFIX . "state");
-        while ($row = $state_result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $state_result->fetch(PDO::FETCH_ASSOC)) {
             $value = $row['value'];
             $decoded = json_decode($value, true);
             $recipe_state[$row['key']] = $decoded !== null ? $decoded : $value;

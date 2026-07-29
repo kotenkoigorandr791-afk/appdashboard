@@ -27,6 +27,7 @@ if (empty($config['api_key']) || empty($config['api_endpoint'])) {
 
 const AI_CHAT_TABLE = 'cloud_ai_assistant_chats';
 const AI_CHAT_OLD_TABLE = 'ai_assistant_chats';
+const AI_CHAT_SESSION_TABLE = 'cloud_ai_assistant_chat_sessions';
 const AI_USER_SETTINGS_TABLE = 'cloud_ai_assistant_user_settings';
 const AI_USER_SETTINGS_OLD_TABLE = 'ai_assistant_user_settings';
 
@@ -84,16 +85,26 @@ if ($action === 'ai_chat_append') {
         $_POST['time_seconds'] ?? '',
         $_POST['tokens'] ?? '',
         $_POST['speed'] ?? '',
-        $_POST['meta_json'] ?? ''
+        $_POST['meta_json'] ?? '',
+        $_POST['chat_id'] ?? ''
     ));
     exit;
 } elseif ($action === 'ai_chat_load') {
     $offset = isset($_POST['offset']) ? (int)$_POST['offset'] : 0;
     $limit = isset($_POST['limit']) ? (int)$_POST['limit'] : 5;
-    echo json_encode(aiChatLoad($offset, $limit));
+    echo json_encode(aiChatLoad($offset, $limit, $_POST['chat_id'] ?? ''));
     exit;
 } elseif ($action === 'ai_chat_clear') {
-    echo json_encode(aiChatClear());
+    echo json_encode(aiChatDelete($_POST['chat_id'] ?? ''));
+    exit;
+} elseif ($action === 'ai_chat_sessions') {
+    echo json_encode(aiChatSessions());
+    exit;
+} elseif ($action === 'ai_chat_create') {
+    echo json_encode(aiChatCreate($_POST['title'] ?? ''));
+    exit;
+} elseif ($action === 'ai_chat_delete') {
+    echo json_encode(aiChatDelete($_POST['chat_id'] ?? ''));
     exit;
 } elseif ($action === 'ai_user_settings_get') {
     echo json_encode(aiUserSettingsGet());
@@ -277,9 +288,9 @@ function getCurrentUserFromMainAPI() {
         // Try to get email from active_sessions table using current session
         if ($session_id) {
             $stmt = aiPrepare($db, "SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1");
-            $stmt->bindValue(':sid', $session_id, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $session_id, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result ? $result->fetchArray(SQLITE3_ASSOC) : null;
+            $row = $result ? $result->fetch(PDO::FETCH_ASSOC) : null;
             
             if ($row && !empty($row['email'])) {
                 $email = $row['email'];
@@ -293,9 +304,9 @@ function getCurrentUserFromMainAPI() {
         if (isset($_COOKIE['PHPSESSID'])) {
             $cookie_session = $_COOKIE['PHPSESSID'];
             $stmt = aiPrepare($db, "SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1");
-            $stmt->bindValue(':sid', $cookie_session, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $cookie_session, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result ? $result->fetchArray(SQLITE3_ASSOC) : null;
+            $row = $result ? $result->fetch(PDO::FETCH_ASSOC) : null;
             
             if ($row && !empty($row['email'])) {
                 $email = $row['email'];
@@ -329,9 +340,9 @@ function getCurrentUserEmailFromMainAPI() {
         // Try to get email from active_sessions table using current session
         if ($session_id) {
             $stmt = aiPrepare($db, "SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1");
-            $stmt->bindValue(':sid', $session_id, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $session_id, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result ? $result->fetchArray(SQLITE3_ASSOC) : null;
+            $row = $result ? $result->fetch(PDO::FETCH_ASSOC) : null;
             
             if ($row && !empty($row['email'])) {
                 return (string)$row['email'];
@@ -342,9 +353,9 @@ function getCurrentUserEmailFromMainAPI() {
         if (isset($_COOKIE['PHPSESSID'])) {
             $cookie_session = $_COOKIE['PHPSESSID'];
             $stmt = aiPrepare($db, "SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1");
-            $stmt->bindValue(':sid', $cookie_session, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $cookie_session, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result ? $result->fetchArray(SQLITE3_ASSOC) : null;
+            $row = $result ? $result->fetch(PDO::FETCH_ASSOC) : null;
             
             if ($row && !empty($row['email'])) {
                 return (string)$row['email'];
@@ -370,8 +381,8 @@ function aiIsRootUser(): bool
         $db = app_main_db();
         
         $stmt = aiPrepare($db, 'SELECT role FROM users WHERE email = :email LIMIT 1');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         $db->close();
         return $row && (int)($row['role'] ?? 0) === 2;
     } catch (Exception $e) {
@@ -379,7 +390,23 @@ function aiIsRootUser(): bool
     }
 }
 
-function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeconds = '', $tokens = '', $speed = '', $metaJson = '') {
+function aiCurrentEmailForChat(): string {
+    $email = getCurrentUserEmailFromMainAPI();
+    if ($email === '') {
+        $safe = getCurrentUserFromMainAPI();
+        $email = $safe . '@local';
+    }
+    return $email;
+}
+
+function aiChatTitleFromQuestion(string $question): string {
+    $title = trim(preg_replace('/\s+/u', ' ', $question));
+    if ($title === '') return 'New chat';
+    if (function_exists('mb_substr')) return mb_substr($title, 0, 60);
+    return substr($title, 0, 60);
+}
+
+function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeconds = '', $tokens = '', $speed = '', $metaJson = '', $chatId = '') {
     $question = is_string($question) ? trim($question) : '';
     $answer = is_string($answer) ? trim($answer) : '';
     $model = is_string($model) ? trim($model) : '';
@@ -397,81 +424,86 @@ function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeco
         return ['success' => false, 'error' => 'Question and answer are required'];
     }
 
-    $email = getCurrentUserEmailFromMainAPI();
-    if ($email === '') {
-        // Fallback to legacy safe user id (still store in shared table)
-        $safe = getCurrentUserFromMainAPI();
-        $email = $safe . '@local';
-    }
+    $email = aiCurrentEmailForChat();
 
     try {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
 
         ensureAiChatTable($db);
+        ensureAiChatSessionTable($db);
+        $chatId = aiEnsureChatSession($db, $email, (string)$chatId, $question);
 
         $stmt = aiPrepare($db, "
-            INSERT INTO " . AI_CHAT_TABLE . " (email, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
-            VALUES (:email, :q, :a, :m, :f, :t, :tok, :s, :meta, strftime('%s','now'))
+            INSERT INTO " . AI_CHAT_TABLE . " (email, chat_id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
+            VALUES (:email, :chat_id, :q, :a, :m, :f, :t, :tok, :s, :meta, extract(epoch from now())::bigint)
         ");
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':q', $question, SQLITE3_TEXT);
-        $stmt->bindValue(':a', $answer, SQLITE3_TEXT);
-        $stmt->bindValue(':m', $model, SQLITE3_TEXT);
-        $stmt->bindValue(':f', $fileName, SQLITE3_TEXT);
-        $stmt->bindValue(':meta', $metaJson, SQLITE3_TEXT);
-        if ($timeVal === null) $stmt->bindValue(':t', null, SQLITE3_NULL); else $stmt->bindValue(':t', $timeVal, SQLITE3_FLOAT);
-        if ($tokensVal === null) $stmt->bindValue(':tok', null, SQLITE3_NULL); else $stmt->bindValue(':tok', $tokensVal, SQLITE3_INTEGER);
-        if ($speedVal === null) $stmt->bindValue(':s', null, SQLITE3_NULL); else $stmt->bindValue(':s', $speedVal, SQLITE3_FLOAT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
+        $stmt->bindValue(':q', $question, PDO::PARAM_STR);
+        $stmt->bindValue(':a', $answer, PDO::PARAM_STR);
+        $stmt->bindValue(':m', $model, PDO::PARAM_STR);
+        $stmt->bindValue(':f', $fileName, PDO::PARAM_STR);
+        $stmt->bindValue(':meta', $metaJson, PDO::PARAM_STR);
+        if ($timeVal === null) $stmt->bindValue(':t', null, PDO::PARAM_NULL); else $stmt->bindValue(':t', $timeVal, PDO::PARAM_STR);
+        if ($tokensVal === null) $stmt->bindValue(':tok', null, PDO::PARAM_NULL); else $stmt->bindValue(':tok', $tokensVal, PDO::PARAM_INT);
+        if ($speedVal === null) $stmt->bindValue(':s', null, PDO::PARAM_NULL); else $stmt->bindValue(':s', $speedVal, PDO::PARAM_STR);
         $stmt->execute();
-        return ['success' => true];
+        $upd = aiPrepare($db, "UPDATE " . AI_CHAT_SESSION_TABLE . " SET updated_at = extract(epoch from now())::bigint, title = CASE WHEN title = 'New chat' THEN :title ELSE title END WHERE id = :id AND email = :email");
+        $upd->bindValue(':title', aiChatTitleFromQuestion($question), PDO::PARAM_STR);
+        $upd->bindValue(':id', $chatId, PDO::PARAM_STR);
+        $upd->bindValue(':email', $email, PDO::PARAM_STR);
+        $upd->execute();
+        aiPruneChatSessions($db, $email);
+        return ['success' => true, 'chat_id' => $chatId];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
     }
 }
 
-function aiChatLoad($offset, $limit) {
+function aiChatLoad($offset, $limit, $chatId = '') {
     $offset = max(0, (int)$offset);
     $limit = (int)$limit;
     if ($limit <= 0) $limit = 5;
     if ($limit > 50) $limit = 50;
 
-    $email = getCurrentUserEmailFromMainAPI();
-    if ($email === '') {
-        $safe = getCurrentUserFromMainAPI();
-        $email = $safe . '@local';
-    }
+    $email = aiCurrentEmailForChat();
 
     try {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable', 'items' => [], 'has_more' => false];
 
         ensureAiChatTable($db);
+        ensureAiChatSessionTable($db);
+        $chatId = aiEnsureChatSession($db, $email, (string)$chatId);
 
         $stmt = aiPrepare($db, "
             SELECT id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at
             FROM " . AI_CHAT_TABLE . "
-            WHERE email = :email
+            WHERE email = :email AND chat_id = :chat_id
             ORDER BY id DESC
             LIMIT :limit OFFSET :offset
         ");
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
-        $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $res = $stmt->execute();
         $rows = [];
-        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
             $rows[] = $row;
         }
 
-        $countStmt = aiPrepare($db, "SELECT COUNT(*) AS cnt FROM " . AI_CHAT_TABLE . " WHERE email = :email");
-        $countStmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $countStmt = aiPrepare($db, "SELECT COUNT(*) AS cnt FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id = :chat_id");
+        $countStmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $countStmt->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
         $countRes = $countStmt->execute();
-        $cntRow = $countRes ? $countRes->fetchArray(SQLITE3_ASSOC) : null;
+        $cntRow = $countRes ? $countRes->fetch(PDO::FETCH_ASSOC) : null;
         $total = (int)($cntRow['cnt'] ?? 0);
 
         return [
             'success' => true,
+            'chat_id' => $chatId,
             'items' => $rows,
             'has_more' => ($offset + count($rows)) < $total
         ];
@@ -480,22 +512,61 @@ function aiChatLoad($offset, $limit) {
     }
 }
 
-function aiChatClear() {
-    $email = getCurrentUserEmailFromMainAPI();
-    if ($email === '') {
-        $safe = getCurrentUserFromMainAPI();
-        $email = $safe . '@local';
+function aiChatSessions() {
+    $email = aiCurrentEmailForChat();
+    try {
+        $db = getAiDb();
+        if (!$db) return ['success' => false, 'error' => 'Database unavailable', 'items' => []];
+        ensureAiChatTable($db);
+        ensureAiChatSessionTable($db);
+        aiEnsureChatSession($db, $email, '');
+        $stmt = aiPrepare($db, "SELECT id, title, created_at, updated_at FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 50");
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $res = $stmt->execute();
+        $rows = [];
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) $rows[] = $row;
+        return ['success' => true, 'items' => $rows];
+    } catch (Exception $e) {
+        return ['success' => false, 'error' => $e->getMessage(), 'items' => []];
     }
+}
+
+function aiChatCreate($title = '') {
+    $email = aiCurrentEmailForChat();
+    try {
+        $db = getAiDb();
+        if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
+        ensureAiChatTable($db);
+        ensureAiChatSessionTable($db);
+        $id = aiCreateChatSession($db, $email, trim((string)$title) ?: 'New chat');
+        aiPruneChatSessions($db, $email);
+        return ['success' => true, 'chat_id' => $id];
+    } catch (Exception $e) {
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function aiChatDelete($chatId = '') {
+    $email = aiCurrentEmailForChat();
+    $chatId = trim((string)$chatId);
 
     try {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
 
         ensureAiChatTable($db);
+        ensureAiChatSessionTable($db);
+        if ($chatId === '') $chatId = aiEnsureChatSession($db, $email, '');
 
-        $stmt = aiPrepare($db, "DELETE FROM " . AI_CHAT_TABLE . " WHERE email = :email");
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt = aiPrepare($db, "DELETE FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id = :chat_id");
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
         $stmt->execute();
+        $del = aiPrepare($db, "DELETE FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :chat_id");
+        $del->bindValue(':email', $email, PDO::PARAM_STR);
+        $del->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
+        $del->execute();
+        aiEnsureChatSession($db, $email, '');
         return ['success' => true];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
@@ -530,9 +601,9 @@ function aiUserSettingsGet() {
             ? "SELECT settings_json, COALESCE(auto_confirm_agent_edits, 0) AS auto_confirm_agent_edits FROM " . AI_USER_SETTINGS_TABLE . " WHERE email = :email LIMIT 1"
             : "SELECT settings_json, 0 AS auto_confirm_agent_edits FROM " . AI_USER_SETTINGS_TABLE . " WHERE email = :email LIMIT 1";
         $stmt = aiPrepare($db, $sql);
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $res = $stmt->execute();
-        $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
+        $row = $res ? $res->fetch(PDO::FETCH_ASSOC) : null;
         if (!$row || !isset($row['settings_json'])) {
             return [
                 'success' => true,
@@ -620,9 +691,9 @@ function aiUserSettingsSet($selectedModel, $selectedRole, $chatMode, $includeFil
             ? "SELECT settings_json, COALESCE(auto_confirm_agent_edits, 0) AS auto_confirm_agent_edits FROM " . AI_USER_SETTINGS_TABLE . " WHERE email = :email LIMIT 1"
             : "SELECT settings_json, 0 AS auto_confirm_agent_edits FROM " . AI_USER_SETTINGS_TABLE . " WHERE email = :email LIMIT 1";
         $sel = aiPrepare($db, $selectSql);
-        $sel->bindValue(':email', $email, SQLITE3_TEXT);
+        $sel->bindValue(':email', $email, PDO::PARAM_STR);
         $res = $sel->execute();
-        $row = $res ? $res->fetchArray(SQLITE3_ASSOC) : null;
+        $row = $res ? $res->fetch(PDO::FETCH_ASSOC) : null;
         if ($row && isset($row['settings_json'])) {
             $decoded = json_decode((string)$row['settings_json'], true);
             if (is_array($decoded)) $existing = $decoded;
@@ -645,7 +716,7 @@ function aiUserSettingsSet($selectedModel, $selectedRole, $chatMode, $includeFil
         $stmt = $hasAutoConfirmColumn
             ? aiPrepare($db, "
                 INSERT INTO " . AI_USER_SETTINGS_TABLE . " (email, settings_json, updated_at, auto_confirm_agent_edits)
-                VALUES (:email, :json, strftime('%s','now'), :auto_confirm)
+                VALUES (:email, :json, extract(epoch from now())::bigint, :auto_confirm)
                 ON CONFLICT(email) DO UPDATE SET
                     settings_json = excluded.settings_json,
                     updated_at = excluded.updated_at,
@@ -653,14 +724,14 @@ function aiUserSettingsSet($selectedModel, $selectedRole, $chatMode, $includeFil
             ")
             : aiPrepare($db, "
                 INSERT INTO " . AI_USER_SETTINGS_TABLE . " (email, settings_json, updated_at)
-                VALUES (:email, :json, strftime('%s','now'))
+                VALUES (:email, :json, extract(epoch from now())::bigint)
                 ON CONFLICT(email) DO UPDATE SET
                     settings_json = excluded.settings_json,
                     updated_at = excluded.updated_at
             ");
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':json', $payload, SQLITE3_TEXT);
-        if ($hasAutoConfirmColumn) $stmt->bindValue(':auto_confirm', $autoVal, SQLITE3_INTEGER);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':json', $payload, PDO::PARAM_STR);
+        if ($hasAutoConfirmColumn) $stmt->bindValue(':auto_confirm', $autoVal, PDO::PARAM_INT);
         $stmt->execute();
         return ['success' => true];
     } catch (Exception $e) {
@@ -677,8 +748,8 @@ function getAiDb() {
         $db = app_main_db();
         $db->enableExceptions(true);
         
-        $db->exec("PRAGMA journal_mode = WAL");
-        $db->exec("PRAGMA foreign_keys = ON");
+        $db->exec("SELECT 1");
+        $db->exec("SELECT 1");
         return $db;
     } catch (Exception $e) {
         cloud_safe_error_log("AI DB connection failed: " . $e->getMessage());
@@ -700,8 +771,9 @@ function ensureAiChatTable($db) {
     // Create table if missing (one shared table across all users; filtered by email)
     $db->exec("
         CREATE TABLE IF NOT EXISTS " . AI_CHAT_TABLE . " (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            id         BIGSERIAL PRIMARY KEY,
             email      TEXT    NOT NULL,
+            chat_id    TEXT    NOT NULL DEFAULT '',
             question   TEXT    NOT NULL,
             answer     TEXT    NOT NULL,
             model      TEXT    NOT NULL DEFAULT '',
@@ -709,25 +781,108 @@ function ensureAiChatTable($db) {
             time_seconds REAL   NULL,
             tokens       INTEGER NULL,
             speed        REAL   NULL,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )
     ");
     $db->exec("DROP INDEX IF EXISTS idx_ai_assistant_chats_email_created");
-    $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_ai_assistant_chats_email_created ON " . AI_CHAT_TABLE . "(email, created_at DESC)");
-
-    // Backfill schema if table existed before columns were added
     try {
         $cols = [];
-        $res = $db->query("PRAGMA table_info(" . AI_CHAT_TABLE . ")");
-        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . AI_CHAT_TABLE . "'");
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
             if (isset($row['name'])) $cols[$row['name']] = true;
         }
         if (!isset($cols['time_seconds'])) $db->exec("ALTER TABLE " . AI_CHAT_TABLE . " ADD COLUMN time_seconds REAL NULL");
         if (!isset($cols['tokens'])) $db->exec("ALTER TABLE " . AI_CHAT_TABLE . " ADD COLUMN tokens INTEGER NULL");
         if (!isset($cols['speed'])) $db->exec("ALTER TABLE " . AI_CHAT_TABLE . " ADD COLUMN speed REAL NULL");
         if (!isset($cols['meta_json'])) $db->exec("ALTER TABLE " . AI_CHAT_TABLE . " ADD COLUMN meta_json TEXT NOT NULL DEFAULT ''");
+        if (!isset($cols['chat_id'])) $db->exec("ALTER TABLE " . AI_CHAT_TABLE . " ADD COLUMN chat_id TEXT NOT NULL DEFAULT ''");
     } catch (Exception $e) {
         // ignore
+    }
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_ai_assistant_chats_email_created ON " . AI_CHAT_TABLE . "(email, created_at DESC)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_ai_assistant_chats_email_chat_created ON " . AI_CHAT_TABLE . "(email, chat_id, created_at DESC)");
+}
+
+function ensureAiChatSessionTable($db) {
+    if (!$db) return;
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS " . AI_CHAT_SESSION_TABLE . " (
+            id         TEXT    PRIMARY KEY,
+            email      TEXT    NOT NULL,
+            title      TEXT    NOT NULL DEFAULT 'New chat',
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
+        )
+    ");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_ai_chat_sessions_email_updated ON " . AI_CHAT_SESSION_TABLE . "(email, updated_at DESC)");
+}
+
+function aiCreateChatSession($db, string $email, string $title): string {
+    $id = bin2hex(random_bytes(12));
+    $stmt = aiPrepare($db, "INSERT INTO " . AI_CHAT_SESSION_TABLE . " (id, email, title, created_at, updated_at) VALUES (:id, :email, :title, extract(epoch from now())::bigint, extract(epoch from now())::bigint)");
+    $stmt->bindValue(':id', $id, PDO::PARAM_STR);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':title', $title !== '' ? $title : 'New chat', PDO::PARAM_STR);
+    $stmt->execute();
+    return $id;
+}
+
+function aiEnsureChatSession($db, string $email, string $chatId, string $question = ''): string {
+    ensureAiChatSessionTable($db);
+    $chatId = trim($chatId);
+    if ($chatId !== '') {
+        $stmt = aiPrepare($db, "SELECT id FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :id LIMIT 1");
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':id', $chatId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row) return $chatId;
+    }
+    $stmt = aiPrepare($db, "SELECT id FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 1");
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if ($row && $chatId === '') return (string)$row['id'];
+    $id = aiCreateChatSession($db, $email, $question !== '' ? aiChatTitleFromQuestion($question) : 'New chat');
+    $upd = aiPrepare($db, "UPDATE " . AI_CHAT_TABLE . " SET chat_id = :id WHERE email = :email AND (chat_id = '' OR chat_id IS NULL)");
+    $upd->bindValue(':id', $id, PDO::PARAM_STR);
+    $upd->bindValue(':email', $email, PDO::PARAM_STR);
+    $upd->execute();
+    return $id;
+}
+
+function aiPruneChatSessions($db, string $email): void {
+    $stmt = aiPrepare($db, "SELECT id FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT -1 OFFSET 50");
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $res = $stmt->execute();
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+        $id = (string)$row['id'];
+        $delMsg = aiPrepare($db, "DELETE FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id = :id");
+        $delMsg->bindValue(':email', $email, PDO::PARAM_STR);
+        $delMsg->bindValue(':id', $id, PDO::PARAM_STR);
+        $delMsg->execute();
+        $del = aiPrepare($db, "DELETE FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :id");
+        $del->bindValue(':email', $email, PDO::PARAM_STR);
+        $del->bindValue(':id', $id, PDO::PARAM_STR);
+        $del->execute();
+    }
+}
+
+function aiPruneEmptyChatSessions($db, string $email): void {
+    try {
+        $sql = "DELETE FROM " . AI_CHAT_SESSION_TABLE . " s
+            WHERE s.email = :email
+              AND s.title = 'New chat'
+              AND NOT EXISTS (SELECT 1 FROM " . AI_CHAT_TABLE . " c WHERE c.email = s.email AND c.chat_id = s.id)
+              AND s.id NOT IN (
+                  SELECT id FROM " . AI_CHAT_SESSION_TABLE . "
+                  WHERE email = :email_keep AND title = 'New chat'
+                  ORDER BY updated_at DESC, created_at DESC
+                  LIMIT 1
+              )";
+        $stmt = aiPrepare($db, $sql);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':email_keep', $email, PDO::PARAM_STR);
+        $stmt->execute();
+    } catch (Exception $e) {
     }
 }
 
@@ -745,8 +900,8 @@ function ensureAiAssistantUserSettingsTable($db) {
     ");
     try {
         $cols = [];
-        $res = $db->query("PRAGMA table_info(" . AI_USER_SETTINGS_TABLE . ")");
-        while ($res && ($r = $res->fetchArray(SQLITE3_ASSOC))) {
+        $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . AI_USER_SETTINGS_TABLE . "'");
+        while ($res && ($r = $res->fetch(PDO::FETCH_ASSOC))) {
             if (isset($r['name'])) $cols[$r['name']] = true;
         }
         if (!isset($cols['auto_confirm_agent_edits'])) {
@@ -762,16 +917,16 @@ function migrateAiTableIfNeeded($db, $oldName, $newName) {
 }
 
 function aiSqliteTableExists($db, $name) {
-    $stmt = aiPrepare($db, "SELECT name FROM sqlite_master WHERE type='table' AND name = :name LIMIT 1");
-    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
+    $stmt = aiPrepare($db, "SELECT table_name AS name FROM information_schema.tables WHERE table_schema='public' AND table_name = :name LIMIT 1");
+    $stmt->bindValue(':name', $name, PDO::PARAM_STR);
     $res = $stmt->execute();
-    return (bool)($res && $res->fetchArray(SQLITE3_ASSOC));
+    return (bool)($res && $res->fetch(PDO::FETCH_ASSOC));
 }
 function aiTableHasColumn($db, $table, $column) {
     if (!$db || !$table || !$column) return false;
     try {
-        $res = $db->query("PRAGMA table_info(" . $table . ")");
-        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . AppDatabase::escapeString($table) . "'");
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
             if (isset($row['name']) && $row['name'] === $column) return true;
         }
     } catch (Exception $e) {

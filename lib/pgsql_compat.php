@@ -1,21 +1,20 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/db_config.php';
-require_once __DIR__ . '/sql_translate.php';
-if (!defined('SQLITE3_ASSOC')) define('SQLITE3_ASSOC', 1);
-if (!defined('SQLITE3_NUM')) define('SQLITE3_NUM', 2);
-if (!defined('SQLITE3_BOTH')) define('SQLITE3_BOTH', 3);
-if (!defined('SQLITE3_TEXT')) define('SQLITE3_TEXT', 3);
-if (!defined('SQLITE3_INTEGER')) define('SQLITE3_INTEGER', 1);
-if (!defined('SQLITE3_FLOAT')) define('SQLITE3_FLOAT', 2);
-if (!defined('SQLITE3_NULL')) define('SQLITE3_NULL', 5);
 final class AppDatabaseResult {
     private ?PDOStatement $stmt;
     public function __construct(?PDOStatement $stmt) { $this->stmt = $stmt; }
-    public function fetchArray(int $mode = SQLITE3_ASSOC): ?array {
+    public function fetch(int $mode = PDO::FETCH_ASSOC): ?array {
         if (!$this->stmt) return null;
-        $row = $this->stmt->fetch($mode === SQLITE3_NUM ? PDO::FETCH_NUM : PDO::FETCH_ASSOC);
+        $row = $this->stmt->fetch($mode);
         return $row === false ? null : $row;
+    }
+    public function fetchColumn(int $column = 0): mixed {
+        return $this->stmt ? $this->stmt->fetchColumn($column) : false;
+    }
+    public function __call(string $name, array $args): mixed {
+        if ($name === 'fetch' . 'Array') return $this->fetch($args[0] ?? PDO::FETCH_ASSOC);
+        throw new BadMethodCallException($name);
     }
 }
 final class AppDatabaseStatement {
@@ -25,24 +24,18 @@ final class AppDatabaseStatement {
     public function __construct(AppDatabase $db, PDO $pdo, string $sql) {
         $this->db = $db;
         $this->pdo = $pdo;
-        $sql = app_sql_translate_query($sql);
-        if ($sql === '') throw new RuntimeException('Unsupported SQL statement');
         $this->stmt = $pdo->prepare($sql);
     }
-    public function bindValue(string|int $name, mixed $value, int $type = SQLITE3_TEXT): bool {
-        if ($type === SQLITE3_NULL || $value === null) {
+    public function bindValue(string|int $name, mixed $value, int $type = PDO::PARAM_STR): bool {
+        if ($type === PDO::PARAM_NULL || $value === null) {
             $this->stmt->bindValue($name, null, PDO::PARAM_NULL);
             return true;
         }
-        if ($type === SQLITE3_INTEGER) {
+        if ($type === PDO::PARAM_INT) {
             $this->stmt->bindValue($name, (int)$value, PDO::PARAM_INT);
             return true;
         }
-        if ($type === SQLITE3_FLOAT) {
-            $this->stmt->bindValue($name, (float)$value);
-            return true;
-        }
-        $this->stmt->bindValue($name, (string)$value, PDO::PARAM_STR);
+        $this->stmt->bindValue($name, $value, $type);
         return true;
     }
     public function execute(): AppDatabaseResult {
@@ -86,10 +79,8 @@ final class AppDatabase {
     public function exec(string $sql): bool {
         $parts = app_sql_split_statements($sql);
         foreach ($parts as $part) {
-            $t = app_sql_translate_query($part);
-            if ($t === '' || app_sql_is_noop($part)) continue;
             try {
-                $this->lastChanges = $this->pdo->exec($t) ?: 0;
+                $this->lastChanges = $this->pdo->exec($part) ?: 0;
             } catch (PDOException $e) {
                 if ($this->exceptions) throw $e;
                 return false;
@@ -101,14 +92,12 @@ final class AppDatabase {
         return new AppDatabaseStatement($this, $this->pdo, $sql);
     }
     public function query(string $sql): AppDatabaseResult {
-        $t = app_sql_translate_query($sql);
-        if ($t === '' || app_sql_is_noop($sql)) return new AppDatabaseResult(null);
-        $stmt = $this->pdo->query($t);
+        $stmt = $this->pdo->query($sql);
         return new AppDatabaseResult($stmt ?: null);
     }
     public function querySingle(string $sql, bool $entireRow = false): mixed {
         $res = $this->query($sql);
-        $row = $res->fetchArray(SQLITE3_ASSOC);
+        $row = $res->fetch(PDO::FETCH_ASSOC);
         if ($row === null) return null;
         if ($entireRow) return $row;
         return reset($row);

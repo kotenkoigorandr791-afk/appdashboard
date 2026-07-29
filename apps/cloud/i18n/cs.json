@@ -1321,5 +1321,6 @@
     "noActiveTokens": "Zatím žádné aktivní tokeny",
     "selectTokenToManage": "Vyberte zařízení pro správu tokenu",
     "noUsernameToCopy": "Žádné uživatelské jméno ke kopírování",
-    "monacoSpellAuto": "Auto"
+    "monacoSpellAuto": "Auto",
+    "aiMathBlock": "Myšlenka"
 }

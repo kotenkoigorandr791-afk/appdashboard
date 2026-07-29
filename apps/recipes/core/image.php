@@ -200,8 +200,8 @@ function recipes_save_product_json(string $products_dir, array $row): void {
 function recipes_load_product_row($db, string $product_id): ?array {
     try {
         $stmt = $db->prepare("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products WHERE id = :id");
-        $stmt->bindValue(':id', $product_id, SQLITE3_TEXT);
-        $r = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $product_id, PDO::PARAM_STR);
+        $r = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $r ?: null;
     } catch (Exception $e) {
         return null;
@@ -215,7 +215,7 @@ function recipes_backfill_product_previews(): void {
     if (!$db) return;
     recipes_ensure_products_image_preview_column($db);
     try {
-        $chk = $db->query("SELECT value FROM " . RECIPES_DB_TABLE_PREFIX . "config WHERE key = 'product_previews_v1'")->fetchArray(SQLITE3_ASSOC);
+        $chk = $db->query("SELECT value FROM " . RECIPES_DB_TABLE_PREFIX . "config WHERE key = 'product_previews_v1'")->fetch(PDO::FETCH_ASSOC);
         if ($chk && ($chk['value'] ?? '') === '1') return;
     } catch (Exception $e) {
         return;
@@ -223,19 +223,19 @@ function recipes_backfill_product_previews(): void {
     $pd = 'products';
     try {
         $q = $db->query("SELECT id FROM " . RECIPES_DB_TABLE_PREFIX . "products");
-        while ($row = $q->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $q->fetch(PDO::FETCH_ASSOC)) {
             $full = recipes_load_product_row($db, $row['id']);
             if (!$full) continue;
             $main = $full['image'] ?? '';
             $preview_name = ($main !== '') ? recipes_product_preview_refresh($pd, $full['id'], $main) : null;
             $stmt = $db->prepare("UPDATE " . RECIPES_DB_TABLE_PREFIX . "products SET image_preview = :p WHERE id = :id");
-            $stmt->bindValue(':p', $preview_name, $preview_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
-            $stmt->bindValue(':id', $full['id'], SQLITE3_TEXT);
+            $stmt->bindValue(':p', $preview_name, $preview_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':id', $full['id'], PDO::PARAM_STR);
             $stmt->execute();
             $full['image_preview'] = $preview_name;
             recipes_save_product_json($pd, $full);
         }
-        $ins = $db->prepare("INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at) VALUES ('product_previews_v1', '1', CURRENT_TIMESTAMP)");
+        $ins = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at) VALUES ('product_previews_v1', '1', CURRENT_TIMESTAMP) ON CONFLICT (key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at");
         $ins->execute();
     } catch (Exception $e) {
         error_log('product preview backfill: ' . $e->getMessage());
@@ -276,10 +276,10 @@ function recipes_product_name_exists($db, array $names): bool {
         }
         $stmt = $db->prepare("SELECT id FROM " . RECIPES_DB_TABLE_PREFIX . "products WHERE " . implode(' OR ', $conditions) . " LIMIT 1");
         foreach ($normalized as $idx => $name) {
-            $stmt->bindValue(":name_$idx", $name, SQLITE3_TEXT);
+            $stmt->bindValue(":name_$idx", $name, PDO::PARAM_STR);
         }
         $result = $stmt->execute();
-        return (bool)$result->fetchArray(SQLITE3_ASSOC);
+        return (bool)$result->fetch(PDO::FETCH_ASSOC);
     } catch (Exception $e) {
         error_log("Product duplicate check failed: " . $e->getMessage());
         return false;

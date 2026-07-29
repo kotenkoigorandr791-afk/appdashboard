@@ -1175,5 +1175,6 @@
     "noActiveTokens": "No active tokens yet.",
     "selectTokenToManage": "Select a device to manage its token.",
     "noUsernameToCopy": "No username to copy",
-    "czech": "Czech"
+    "czech": "Czech",
+    "aiMathBlock": "Thought"
 }

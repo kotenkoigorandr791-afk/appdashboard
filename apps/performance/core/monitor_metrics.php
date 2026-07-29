@@ -390,7 +390,7 @@ function monitorEnsureSmartTable(): void {
         if (!$db) return;
         monitorEnsureBaseSchema();
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_smart_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             created_at INTEGER NOT NULL,
             device_path TEXT NOT NULL,
             model TEXT DEFAULT '',
@@ -457,31 +457,31 @@ function monitorStoreSmartSnapshots(array $smartDevices): void {
 
         foreach ($smartDevices as $device) {
             if (!is_array($device)) continue;
-            $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
-            $stmt->bindValue(':device_path', (string)($device['device'] ?? ''), SQLITE3_TEXT);
-            $stmt->bindValue(':model', (string)($device['model'] ?? ''), SQLITE3_TEXT);
-            $stmt->bindValue(':serial', (string)($device['serial'] ?? ''), SQLITE3_TEXT);
-            $stmt->bindValue(':firmware', (string)($device['firmware'] ?? ''), SQLITE3_TEXT);
-            $stmt->bindValue(':capacity_bytes', isset($device['capacity_bytes']) && is_numeric($device['capacity_bytes']) ? (int)$device['capacity_bytes'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':health_passed', isset($device['health_passed']) ? ($device['health_passed'] ? 1 : 0) : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':temperature_c', isset($device['temperature_c']) && is_numeric($device['temperature_c']) ? (int)$device['temperature_c'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':power_on_hours', isset($device['power_on_hours']) && is_numeric($device['power_on_hours']) ? (int)$device['power_on_hours'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':power_cycle_count', isset($device['power_cycle_count']) && is_numeric($device['power_cycle_count']) ? (int)$device['power_cycle_count'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':data_written_bytes', isset($device['data_written_bytes']) && is_numeric($device['data_written_bytes']) ? (int)$device['data_written_bytes'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':wear_used_percent', isset($device['wear_used_percent']) && is_numeric($device['wear_used_percent']) ? (int)$device['wear_used_percent'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':life_remaining_percent', isset($device['life_remaining_percent']) && is_numeric($device['life_remaining_percent']) ? (int)$device['life_remaining_percent'] : null, SQLITE3_INTEGER);
-            $stmt->bindValue(':reallocated_sectors', (int)($device['reallocated_sectors'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':reserved_block_count', (int)($device['reserved_block_count'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':program_fail_count', (int)($device['program_fail_count'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':erase_fail_count', (int)($device['erase_fail_count'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':runtime_bad_blocks', (int)($device['runtime_bad_blocks'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':uncorrectable_error_count', (int)($device['uncorrectable_error_count'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':crc_error_count', (int)($device['crc_error_count'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':error_log_count', (int)($device['error_log_count'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':completed_self_tests', (int)($device['completed_self_tests'] ?? 0), SQLITE3_INTEGER);
-            $stmt->bindValue(':status', (string)($device['status'] ?? 'unknown'), SQLITE3_TEXT);
-            $stmt->bindValue(':messages_json', json_encode($device['messages'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $stmt->bindValue(':self_tests_json', json_encode($device['self_tests'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+            $stmt->bindValue(':created_at', $now, PDO::PARAM_INT);
+            $stmt->bindValue(':device_path', (string)($device['device'] ?? ''), PDO::PARAM_STR);
+            $stmt->bindValue(':model', (string)($device['model'] ?? ''), PDO::PARAM_STR);
+            $stmt->bindValue(':serial', (string)($device['serial'] ?? ''), PDO::PARAM_STR);
+            $stmt->bindValue(':firmware', (string)($device['firmware'] ?? ''), PDO::PARAM_STR);
+            $stmt->bindValue(':capacity_bytes', isset($device['capacity_bytes']) && is_numeric($device['capacity_bytes']) ? (int)$device['capacity_bytes'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':health_passed', isset($device['health_passed']) ? ($device['health_passed'] ? 1 : 0) : null, PDO::PARAM_INT);
+            $stmt->bindValue(':temperature_c', isset($device['temperature_c']) && is_numeric($device['temperature_c']) ? (int)$device['temperature_c'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':power_on_hours', isset($device['power_on_hours']) && is_numeric($device['power_on_hours']) ? (int)$device['power_on_hours'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':power_cycle_count', isset($device['power_cycle_count']) && is_numeric($device['power_cycle_count']) ? (int)$device['power_cycle_count'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':data_written_bytes', isset($device['data_written_bytes']) && is_numeric($device['data_written_bytes']) ? (int)$device['data_written_bytes'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':wear_used_percent', isset($device['wear_used_percent']) && is_numeric($device['wear_used_percent']) ? (int)$device['wear_used_percent'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':life_remaining_percent', isset($device['life_remaining_percent']) && is_numeric($device['life_remaining_percent']) ? (int)$device['life_remaining_percent'] : null, PDO::PARAM_INT);
+            $stmt->bindValue(':reallocated_sectors', (int)($device['reallocated_sectors'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':reserved_block_count', (int)($device['reserved_block_count'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':program_fail_count', (int)($device['program_fail_count'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':erase_fail_count', (int)($device['erase_fail_count'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':runtime_bad_blocks', (int)($device['runtime_bad_blocks'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':uncorrectable_error_count', (int)($device['uncorrectable_error_count'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':crc_error_count', (int)($device['crc_error_count'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':error_log_count', (int)($device['error_log_count'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':completed_self_tests', (int)($device['completed_self_tests'] ?? 0), PDO::PARAM_INT);
+            $stmt->bindValue(':status', (string)($device['status'] ?? 'unknown'), PDO::PARAM_STR);
+            $stmt->bindValue(':messages_json', json_encode($device['messages'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $stmt->bindValue(':self_tests_json', json_encode($device['self_tests'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
             $stmt->execute();
         }
     } catch (Exception $e) {
@@ -886,10 +886,10 @@ function monitorSaveModulesToDb(): void {
         }
         $payload = monitorCollectModulesLists();
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-        $stmt = $db->prepare("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_modules', :value)");
-        $stmt->bindValue(':value', json_encode($payload, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+        $stmt = $db->prepare("INSERT INTO app_meta(key, value) VALUES('performance_monitor_modules', :value) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        $stmt->bindValue(':value', json_encode($payload, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
         $stmt->execute();
-        $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_modules_last', '" . time() . "')");
+        $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_modules_last', '" . time() . "') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     } catch (Exception $e) {
         error_log('monitorSaveModulesToDb failed: ' . $e->getMessage());
     }
@@ -900,10 +900,10 @@ function monitorSaveDrivesToDb(array $drives): void {
         $db = getDB();
         if (!$db) return;
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-        $stmt = $db->prepare("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_drives', :value)");
-        $stmt->bindValue(':value', json_encode(['drives' => $drives, 'updated_at' => time()], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+        $stmt = $db->prepare("INSERT INTO app_meta(key, value) VALUES('performance_monitor_drives', :value) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        $stmt->bindValue(':value', json_encode(['drives' => $drives, 'updated_at' => time()], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
         $stmt->execute();
-        $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_drives_last', '" . time() . "')");
+        $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_drives_last', '" . time() . "') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     } catch (Exception $e) {
         error_log('monitorSaveDrivesToDb failed: ' . $e->getMessage());
     }
@@ -927,10 +927,10 @@ function monitorSaveSmartToDb(array $smart): void {
         $db = getDB();
         if (!$db) return;
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-        $stmt = $db->prepare("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_smart', :value)");
-        $stmt->bindValue(':value', json_encode($smart, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+        $stmt = $db->prepare("INSERT INTO app_meta(key, value) VALUES('performance_monitor_smart', :value) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        $stmt->bindValue(':value', json_encode($smart, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
         $stmt->execute();
-        $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_smart_last', '" . time() . "')");
+        $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_smart_last', '" . time() . "') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
     } catch (Exception $e) {
         error_log('monitorSaveSmartToDb failed: ' . $e->getMessage());
     }
@@ -984,8 +984,8 @@ function monitorGetDbSafe() {
 
 function monitorTableColumns($db, string $table): array {
     $columns = [];
-    $res = $db->query("PRAGMA table_info($table)");
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name=$table");
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $columns[(string)$row['name']] = true;
     }
     return $columns;
@@ -1005,8 +1005,8 @@ function monitorEnsureBaseSchema(): void {
         $db->busyTimeout(5000);
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_system_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            id BIGSERIAL PRIMARY KEY,
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             cpu_percent REAL NOT NULL DEFAULT 0,
             memory_percent REAL NOT NULL DEFAULT 0,
             swap_percent REAL NOT NULL DEFAULT 0,
@@ -1034,7 +1034,7 @@ function monitorEnsureBaseSchema(): void {
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_system_snapshots_created ON monitor_system_snapshots(created_at)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_system_snapshots_status ON monitor_system_snapshots(status, created_at)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_disk_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             snapshot_id INTEGER NOT NULL,
             drive_letter TEXT NOT NULL,
             total_bytes BIGINT NOT NULL DEFAULT 0,
@@ -1061,12 +1061,12 @@ function monitorEnsureBaseSchema(): void {
             avg_value REAL NOT NULL DEFAULT 0,
             max_value REAL NOT NULL DEFAULT 0,
             sample_count INTEGER NOT NULL DEFAULT 0,
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             PRIMARY KEY (metric_hour, metric, app_id)
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_metric_hourly_metric ON monitor_metric_hourly(metric, metric_hour)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_alert_rules (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             name TEXT NOT NULL UNIQUE,
             metric TEXT NOT NULL,
             operator TEXT NOT NULL,
@@ -1075,13 +1075,13 @@ function monitorEnsureBaseSchema(): void {
             severity TEXT NOT NULL DEFAULT 'warning',
             enabled INTEGER NOT NULL DEFAULT 1,
             notify_channels TEXT NOT NULL DEFAULT '[]',
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_alerts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             rule_id INTEGER,
-            opened_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            opened_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             closed_at INTEGER,
             severity TEXT NOT NULL DEFAULT 'warning',
             status TEXT NOT NULL DEFAULT 'open',
@@ -1091,8 +1091,8 @@ function monitorEnsureBaseSchema(): void {
             context_json TEXT NOT NULL DEFAULT '{}'
         )");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_app_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            id BIGSERIAL PRIMARY KEY,
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             level TEXT NOT NULL DEFAULT 'info',
             app_id TEXT NOT NULL DEFAULT '',
             event_type TEXT NOT NULL DEFAULT '',
@@ -1104,8 +1104,8 @@ function monitorEnsureBaseSchema(): void {
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_app_events_created ON monitor_app_events(created_at)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_http_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            id BIGSERIAL PRIMARY KEY,
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             method TEXT NOT NULL DEFAULT '',
             path TEXT NOT NULL DEFAULT '',
             app_id TEXT NOT NULL DEFAULT '',
@@ -1119,8 +1119,8 @@ function monitorEnsureBaseSchema(): void {
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_http_requests_created ON monitor_http_requests(created_at)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_errors (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            id BIGSERIAL PRIMARY KEY,
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             level TEXT NOT NULL DEFAULT 'error',
             app_id TEXT NOT NULL DEFAULT '',
             user_email TEXT,
@@ -1146,7 +1146,7 @@ function monitorEnsureUptimeSchema(): void {
         $db->busyTimeout(5000);
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_uptime_checks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             type TEXT NOT NULL DEFAULT 'http',
             target TEXT NOT NULL DEFAULT '',
@@ -1160,8 +1160,8 @@ function monitorEnsureUptimeSchema(): void {
             docker_container_name TEXT NOT NULL DEFAULT '',
             enabled INTEGER NOT NULL DEFAULT 1,
             auto_discovered INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )");
         monitorEnsureColumn($db, 'monitor_uptime_checks', 'method', "TEXT NOT NULL DEFAULT 'GET'");
         monitorEnsureColumn($db, 'monitor_uptime_checks', 'expected_status', 'INTEGER NOT NULL DEFAULT 200');
@@ -1178,9 +1178,9 @@ function monitorEnsureUptimeSchema(): void {
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_checks_type_enabled ON monitor_uptime_checks(type, enabled)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_checks_docker ON monitor_uptime_checks(docker_container_id)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_uptime_results (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             check_id INTEGER NOT NULL,
-            checked_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            checked_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             status TEXT NOT NULL DEFAULT 'unknown',
             latency_ms INTEGER,
             http_status INTEGER,
@@ -1196,7 +1196,7 @@ function monitorEnsureUptimeSchema(): void {
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_results_check_time ON monitor_uptime_results(check_id, checked_at)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_results_status_time ON monitor_uptime_results(status, checked_at)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_uptime_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             check_id INTEGER NOT NULL,
             check_name TEXT NOT NULL DEFAULT '',
             check_type TEXT NOT NULL DEFAULT '',
@@ -1219,8 +1219,8 @@ function monitorEnsureUptimeSchema(): void {
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_logs_check_time ON monitor_uptime_logs(check_id, started_at)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_uptime_logs_status_time ON monitor_uptime_logs(status, started_at)");
         $db->exec("CREATE TABLE IF NOT EXISTS monitor_docker_snapshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            id BIGSERIAL PRIMARY KEY,
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             container_id TEXT NOT NULL,
             container_name TEXT NOT NULL DEFAULT '',
             image TEXT NOT NULL DEFAULT '',
@@ -1502,11 +1502,11 @@ function monitorSyncDockerChecks(array $containers): void {
             $exists = (int)$db->querySingle("SELECT COUNT(*) FROM monitor_uptime_checks WHERE docker_container_id = '" . AppDatabase::escapeString($id) . "'");
             if ($exists > 0) continue;
             $name = 'Docker: ' . (string)($container['name'] ?? substr($id, 0, 12));
-            $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-            $stmt->bindValue(':target', (string)($container['name'] ?? $id), SQLITE3_TEXT);
-            $stmt->bindValue(':container_id', $id, SQLITE3_TEXT);
-            $stmt->bindValue(':container_name', (string)($container['name'] ?? ''), SQLITE3_TEXT);
-            $stmt->bindValue(':now', $now, SQLITE3_INTEGER);
+            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+            $stmt->bindValue(':target', (string)($container['name'] ?? $id), PDO::PARAM_STR);
+            $stmt->bindValue(':container_id', $id, PDO::PARAM_STR);
+            $stmt->bindValue(':container_name', (string)($container['name'] ?? ''), PDO::PARAM_STR);
+            $stmt->bindValue(':now', $now, PDO::PARAM_INT);
             $stmt->execute();
         }
         if ($currentIds !== []) {
@@ -1526,7 +1526,7 @@ function monitorReadUptimeChecks(bool $enabledOnly = false): array {
     $sql .= ' ORDER BY auto_discovered DESC, name ASC';
     $res = $db->query($sql);
     $checks = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $checks[] = $row;
     }
     return $checks;
@@ -1653,14 +1653,14 @@ function monitorStoreUptimeResult(int $checkId, array $result): void {
     $stmt = $db->prepare("INSERT INTO monitor_uptime_results
         (check_id, checked_at, status, latency_ms, http_status, message, response_excerpt, meta_json)
         VALUES(:check_id, :checked_at, :status, :latency_ms, :http_status, :message, :response_excerpt, :meta_json)");
-    $stmt->bindValue(':check_id', $checkId, SQLITE3_INTEGER);
-    $stmt->bindValue(':checked_at', time(), SQLITE3_INTEGER);
-    $stmt->bindValue(':status', (string)($result['status'] ?? 'unknown'), SQLITE3_TEXT);
-    $stmt->bindValue(':latency_ms', isset($result['latency_ms']) && is_numeric($result['latency_ms']) ? (int)$result['latency_ms'] : null, SQLITE3_INTEGER);
-    $stmt->bindValue(':http_status', isset($result['http_status']) && is_numeric($result['http_status']) ? (int)$result['http_status'] : null, SQLITE3_INTEGER);
-    $stmt->bindValue(':message', substr((string)($result['message'] ?? ''), 0, 500), SQLITE3_TEXT);
-    $stmt->bindValue(':response_excerpt', substr((string)($result['response_excerpt'] ?? ''), 0, 500), SQLITE3_TEXT);
-    $stmt->bindValue(':meta_json', json_encode($result['meta'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+    $stmt->bindValue(':check_id', $checkId, PDO::PARAM_INT);
+    $stmt->bindValue(':checked_at', time(), PDO::PARAM_INT);
+    $stmt->bindValue(':status', (string)($result['status'] ?? 'unknown'), PDO::PARAM_STR);
+    $stmt->bindValue(':latency_ms', isset($result['latency_ms']) && is_numeric($result['latency_ms']) ? (int)$result['latency_ms'] : null, PDO::PARAM_INT);
+    $stmt->bindValue(':http_status', isset($result['http_status']) && is_numeric($result['http_status']) ? (int)$result['http_status'] : null, PDO::PARAM_INT);
+    $stmt->bindValue(':message', substr((string)($result['message'] ?? ''), 0, 500), PDO::PARAM_STR);
+    $stmt->bindValue(':response_excerpt', substr((string)($result['response_excerpt'] ?? ''), 0, 500), PDO::PARAM_STR);
+    $stmt->bindValue(':meta_json', json_encode($result['meta'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
     $stmt->execute();
 }
 
@@ -1670,17 +1670,17 @@ function monitorStoreUptimeLog(array $check, array $result, int $startedAt, int 
     $stmt = $db->prepare("INSERT INTO monitor_uptime_logs
         (check_id, check_name, check_type, target, started_at, finished_at, status, latency_ms, http_status, message, meta_json)
         VALUES(:check_id, :check_name, :check_type, :target, :started_at, :finished_at, :status, :latency_ms, :http_status, :message, :meta_json)");
-    $stmt->bindValue(':check_id', (int)($check['id'] ?? 0), SQLITE3_INTEGER);
-    $stmt->bindValue(':check_name', (string)($check['name'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':check_type', (string)($check['type'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':target', (string)($check['target'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':started_at', $startedAt, SQLITE3_INTEGER);
-    $stmt->bindValue(':finished_at', $finishedAt, SQLITE3_INTEGER);
-    $stmt->bindValue(':status', (string)($result['status'] ?? 'unknown'), SQLITE3_TEXT);
-    $stmt->bindValue(':latency_ms', isset($result['latency_ms']) && is_numeric($result['latency_ms']) ? (int)$result['latency_ms'] : null, SQLITE3_INTEGER);
-    $stmt->bindValue(':http_status', isset($result['http_status']) && is_numeric($result['http_status']) ? (int)$result['http_status'] : null, SQLITE3_INTEGER);
-    $stmt->bindValue(':message', substr((string)($result['message'] ?? ''), 0, 500), SQLITE3_TEXT);
-    $stmt->bindValue(':meta_json', json_encode($result['meta'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+    $stmt->bindValue(':check_id', (int)($check['id'] ?? 0), PDO::PARAM_INT);
+    $stmt->bindValue(':check_name', (string)($check['name'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':check_type', (string)($check['type'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':target', (string)($check['target'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':started_at', $startedAt, PDO::PARAM_INT);
+    $stmt->bindValue(':finished_at', $finishedAt, PDO::PARAM_INT);
+    $stmt->bindValue(':status', (string)($result['status'] ?? 'unknown'), PDO::PARAM_STR);
+    $stmt->bindValue(':latency_ms', isset($result['latency_ms']) && is_numeric($result['latency_ms']) ? (int)$result['latency_ms'] : null, PDO::PARAM_INT);
+    $stmt->bindValue(':http_status', isset($result['http_status']) && is_numeric($result['http_status']) ? (int)$result['http_status'] : null, PDO::PARAM_INT);
+    $stmt->bindValue(':message', substr((string)($result['message'] ?? ''), 0, 500), PDO::PARAM_STR);
+    $stmt->bindValue(':meta_json', json_encode($result['meta'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
     $stmt->execute();
 }
 
@@ -1718,18 +1718,18 @@ function monitorStoreDockerSnapshots(array $containers): void {
     foreach ($containers as $container) {
         if (!is_array($container)) continue;
         $stats = is_array($container['stats'] ?? null) ? $container['stats'] : [];
-        $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
-        $stmt->bindValue(':container_id', (string)($container['id'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':container_name', (string)($container['name'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':image', (string)($container['image'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':state', (string)($container['state'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':health', (string)($container['health'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':cpu_percent', (float)($stats['cpu_percent'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':memory_percent', (float)($stats['memory_percent'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':memory_text', (string)($stats['memory'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':network_io', (string)($stats['network_io'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':block_io', (string)($stats['block_io'] ?? ''), SQLITE3_TEXT);
-        $stmt->bindValue(':pids', (int)($stats['pids'] ?? 0), SQLITE3_INTEGER);
+        $stmt->bindValue(':created_at', $now, PDO::PARAM_INT);
+        $stmt->bindValue(':container_id', (string)($container['id'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':container_name', (string)($container['name'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':image', (string)($container['image'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':state', (string)($container['state'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':health', (string)($container['health'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':cpu_percent', (float)($stats['cpu_percent'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':memory_percent', (float)($stats['memory_percent'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':memory_text', (string)($stats['memory'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':network_io', (string)($stats['network_io'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':block_io', (string)($stats['block_io'] ?? ''), PDO::PARAM_STR);
+        $stmt->bindValue(':pids', (int)($stats['pids'] ?? 0), PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -1747,17 +1747,17 @@ function monitorFetchUptimePayload(int $historyLimit = 24): array {
         )
         ORDER BY c.auto_discovered DESC, c.name ASC");
     $summary = ['up' => 0, 'down' => 0, 'unknown' => 0, 'total' => 0];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $status = (string)($row['last_status'] ?? 'unknown');
         if (!isset($summary[$status])) $status = 'unknown';
         $summary[$status]++;
         $summary['total']++;
         $hist = [];
         $histStmt = $db->prepare('SELECT checked_at, status, latency_ms FROM monitor_uptime_results WHERE check_id = :id ORDER BY checked_at DESC LIMIT :limit');
-        $histStmt->bindValue(':id', (int)$row['id'], SQLITE3_INTEGER);
-        $histStmt->bindValue(':limit', $historyLimit, SQLITE3_INTEGER);
+        $histStmt->bindValue(':id', (int)$row['id'], PDO::PARAM_INT);
+        $histStmt->bindValue(':limit', $historyLimit, PDO::PARAM_INT);
         $histRes = $histStmt->execute();
-        while ($h = $histRes->fetchArray(SQLITE3_ASSOC)) {
+        while ($h = $histRes->fetch(PDO::FETCH_ASSOC)) {
             $hist[] = $h;
         }
         $row['history'] = array_reverse($hist);
@@ -1835,12 +1835,12 @@ function monitorFetchDockerHistory(string $containerId, string $period = '24h'):
         WHERE container_id = :container_id AND created_at >= :since
         ORDER BY created_at DESC
         LIMIT :limit");
-    $stmt->bindValue(':container_id', $containerId, SQLITE3_TEXT);
-    $stmt->bindValue(':since', $since, SQLITE3_INTEGER);
-    $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+    $stmt->bindValue(':container_id', $containerId, PDO::PARAM_STR);
+    $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $res = $stmt->execute();
     $points = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $points[] = [
             'created_at' => (int)($row['created_at'] ?? 0),
             'cpu_percent' => (float)($row['cpu_percent'] ?? 0),
@@ -1868,23 +1868,23 @@ function monitorSaveUptimeCheckFromInput(array $input): array {
         $stmt = $db->prepare("UPDATE monitor_uptime_checks SET name=:name, type=:type, target=:target, method=:method,
             expected_status=:expected_status, keyword=:keyword, interval_sec=:interval_sec, timeout_sec=:timeout_sec,
             retries=:retries, enabled=:enabled, updated_at=:updated_at WHERE id=:id");
-        $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
     } else {
         $stmt = $db->prepare("INSERT INTO monitor_uptime_checks
             (name, type, target, method, expected_status, keyword, interval_sec, timeout_sec, retries, enabled, auto_discovered, created_at, updated_at)
             VALUES(:name, :type, :target, :method, :expected_status, :keyword, :interval_sec, :timeout_sec, :retries, :enabled, 0, :updated_at, :updated_at)");
     }
-    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-    $stmt->bindValue(':type', $type, SQLITE3_TEXT);
-    $stmt->bindValue(':target', $target, SQLITE3_TEXT);
-    $stmt->bindValue(':method', strtoupper((string)($input['method'] ?? 'GET')), SQLITE3_TEXT);
-    $stmt->bindValue(':expected_status', max(0, (int)($input['expected_status'] ?? 200)), SQLITE3_INTEGER);
-    $stmt->bindValue(':keyword', (string)($input['keyword'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':interval_sec', max(10, (int)($input['interval_sec'] ?? 60)), SQLITE3_INTEGER);
-    $stmt->bindValue(':timeout_sec', max(1, (int)($input['timeout_sec'] ?? 10)), SQLITE3_INTEGER);
-    $stmt->bindValue(':retries', max(1, (int)($input['retries'] ?? 1)), SQLITE3_INTEGER);
-    $stmt->bindValue(':enabled', !empty($input['enabled']) ? 1 : 0, SQLITE3_INTEGER);
-    $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+    $stmt->bindValue(':type', $type, PDO::PARAM_STR);
+    $stmt->bindValue(':target', $target, PDO::PARAM_STR);
+    $stmt->bindValue(':method', strtoupper((string)($input['method'] ?? 'GET')), PDO::PARAM_STR);
+    $stmt->bindValue(':expected_status', max(0, (int)($input['expected_status'] ?? 200)), PDO::PARAM_INT);
+    $stmt->bindValue(':keyword', (string)($input['keyword'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':interval_sec', max(10, (int)($input['interval_sec'] ?? 60)), PDO::PARAM_INT);
+    $stmt->bindValue(':timeout_sec', max(1, (int)($input['timeout_sec'] ?? 10)), PDO::PARAM_INT);
+    $stmt->bindValue(':retries', max(1, (int)($input['retries'] ?? 1)), PDO::PARAM_INT);
+    $stmt->bindValue(':enabled', !empty($input['enabled']) ? 1 : 0, PDO::PARAM_INT);
+    $stmt->bindValue(':updated_at', $now, PDO::PARAM_INT);
     $stmt->execute();
     return ['ok' => true, 'id' => $id > 0 ? $id : (int)$db->lastInsertRowID()];
 }
@@ -1894,7 +1894,7 @@ function monitorDeleteUptimeCheck(int $id): array {
     $db = monitorGetDbSafe();
     if (!$db) return ['ok' => false, 'error' => 'db_unavailable'];
     $stmt = $db->prepare('DELETE FROM monitor_uptime_checks WHERE id = :id AND auto_discovered = 0');
-    $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
+    $stmt->bindValue(':id', $id, PDO::PARAM_INT);
     $stmt->execute();
     return ['ok' => true];
 }
@@ -2005,9 +2005,9 @@ function monitorFetchDisplayPayloadFromDb(): array {
         $hasContextDrives = $drives !== [];
         $stmt = $db->prepare('SELECT drive_letter, total_bytes, free_bytes, used_bytes, used_percent
             FROM monitor_disk_snapshots WHERE snapshot_id = :snapshot_id ORDER BY drive_letter ASC');
-        $stmt->bindValue(':snapshot_id', $snapshotId, SQLITE3_INTEGER);
+        $stmt->bindValue(':snapshot_id', $snapshotId, PDO::PARAM_INT);
         $res = $stmt->execute();
-        while ($diskRow = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($diskRow = $res->fetch(PDO::FETCH_ASSOC)) {
             $total = (int)($diskRow['total_bytes'] ?? 0);
             $free = (int)($diskRow['free_bytes'] ?? 0);
             $used = (int)($diskRow['used_bytes'] ?? max(0, $total - $free));

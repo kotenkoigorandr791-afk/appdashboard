@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ai_code_security.php';
+require_once __DIR__ . '/cloud_sandbox.php';
 
 function cloud_ai_text_slice(string $text, int $start, int $length): string
 {
@@ -79,6 +80,19 @@ function cloud_ai_sanitize_latex_output(string $text, string $dir, string $base)
     return trim($text);
 }
 
+function cloud_ai_latex_exec(string $cmd, string $dir, int &$code): array
+{
+    try {
+        $result = cloud_sandbox_exec($dir, $cmd, null, 90, true);
+        $code = (int)($result['exitCode'] ?? 1);
+        $out = (string)($result['output'] ?? '');
+        return $out === '' ? [] : preg_split('/\r\n|\r|\n/', $out);
+    } catch (Throwable $e) {
+        $code = 1;
+        return [$e->getMessage()];
+    }
+}
+
 function cloud_ai_compile_latex(string $latex): array
 {
     $latexmk = '/usr/bin/latexmk';
@@ -105,17 +119,17 @@ function cloud_ai_compile_latex(string $latex): array
     $env = 'HOME=' . escapeshellarg($cacheDir) . ' TEXMFVAR=' . escapeshellarg($cacheDir) . ' TEXMFCACHE=' . escapeshellarg($cacheDir);
     if (!$needsLua && is_executable($pdflatex)) {
         $cmd = $env . ' ' . escapeshellarg($pdflatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } elseif ($needsLua && is_executable($latexmk) && is_executable($lualatex)) {
         $rule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
         $cmd = $env . ' ' . escapeshellarg($latexmk) . ' -e ' . $rule . ' -lualatex -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } elseif ($needsLua && is_executable($lualatex)) {
         $cmd = $env . ' ' . escapeshellarg($lualatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } elseif (is_executable($pdflatex)) {
         $cmd = escapeshellarg($pdflatex) . ' -interaction=nonstopmode -halt-on-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } else {
         $output = [$needsLua ? 'LuaLaTeX is required for this document but is not available.' : 'pdfLaTeX is required for this document but is not available.'];
         $code = 127;
@@ -175,14 +189,14 @@ function cloud_ai_compile_latex_to_pdf_file(string $latex, string $pdfTarget): a
     $env = 'HOME=' . escapeshellarg($cacheDir) . ' TEXMFVAR=' . escapeshellarg($cacheDir) . ' TEXMFCACHE=' . escapeshellarg($cacheDir);
     if (!$needsLua && is_executable($pdflatex)) {
         $cmd = $env . ' ' . escapeshellarg($pdflatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } elseif ($needsLua && is_executable($latexmk) && is_executable($lualatex)) {
         $rule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
         $cmd = $env . ' ' . escapeshellarg($latexmk) . ' -e ' . $rule . ' -lualatex -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } elseif ($needsLua && is_executable($lualatex)) {
         $cmd = $env . ' ' . escapeshellarg($lualatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        exec($cmd . ' 2>&1', $output, $code);
+        $output = cloud_ai_latex_exec($cmd, $dir, $code);
     } else {
         $output = [$needsLua ? 'LuaLaTeX is required for this document but is not available.' : 'pdfLaTeX is required for this document but is not available.'];
         $code = 127;

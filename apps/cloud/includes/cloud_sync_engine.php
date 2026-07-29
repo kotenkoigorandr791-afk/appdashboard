@@ -19,8 +19,8 @@ function cloud_sync_user_mode(string $email): string {
     ensureCloudUserSettingsSchema($db);
     try {
         $stmt = $db->prepare('SELECT sync_mode FROM cloud_user_settings WHERE email = :e LIMIT 1');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         $sm = (string)($row['sync_mode'] ?? 'mtime_size');
         return ($sm === 'mtime_size_hash') ? 'mtime_size_hash' : 'mtime_size';
     } catch (Exception $e) {
@@ -216,9 +216,9 @@ function cloud_sync_touch_last(string $email): void {
     $db = getDB();
     if (!$db) return;
     ensureCloudUserSettingsSchema($db);
-    $upd = $db->prepare("UPDATE cloud_user_settings SET last_sync_at = :t, updated_at = strftime('%s','now') WHERE email = :e");
-    $upd->bindValue(':t', time(), SQLITE3_INTEGER);
-    $upd->bindValue(':e', $email, SQLITE3_TEXT);
+    $upd = $db->prepare("UPDATE cloud_user_settings SET last_sync_at = :t, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+    $upd->bindValue(':t', time(), PDO::PARAM_INT);
+    $upd->bindValue(':e', $email, PDO::PARAM_STR);
     @$upd->execute();
 }
 function cloud_sync_publish_router_event(string $email, string $rootKey, string $actionName, string $path, array $busExtra = []): void {

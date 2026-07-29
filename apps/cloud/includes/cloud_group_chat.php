@@ -20,7 +20,7 @@ function ensureCloudGroupChatSchema($db): void
     if (!$db) return;
     ensureCloudGroupsSchema($db);
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_group_chat_messages (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         group_id TEXT NOT NULL,
         sender_email TEXT NOT NULL,
         message TEXT NOT NULL DEFAULT '',
@@ -138,15 +138,15 @@ function cloud_group_chat_unread_count($db, string $groupId, string $email): int
 {
     $email = strtolower(trim($email));
     $stmt = $db->prepare('SELECT last_read_id FROM cloud_group_chat_read WHERE group_id = :gid AND member_email = :email LIMIT 1');
-    $stmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $lastRead = (int)($row['last_read_id'] ?? 0);
     $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM cloud_group_chat_messages WHERE group_id = :gid AND id > :lid AND LOWER(sender_email) != :email AND COALESCE(is_deleted,0)=0');
-    $cstmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
-    $cstmt->bindValue(':lid', $lastRead, SQLITE3_INTEGER);
-    $cstmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $crow = $cstmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $cstmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $cstmt->bindValue(':lid', $lastRead, PDO::PARAM_INT);
+    $cstmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
     return (int)($crow['c'] ?? 0);
 }
 function cloud_group_chat_mark_read($db, string $groupId, string $email, int $lastId): void
@@ -154,8 +154,8 @@ function cloud_group_chat_mark_read($db, string $groupId, string $email, int $la
     $email = strtolower(trim($email));
     $stmt = $db->prepare('INSERT INTO cloud_group_chat_read (group_id, member_email, last_read_id) VALUES (:gid, :email, :lid)
         ON CONFLICT(group_id, member_email) DO UPDATE SET last_read_id = CASE WHEN excluded.last_read_id > cloud_group_chat_read.last_read_id THEN excluded.last_read_id ELSE cloud_group_chat_read.last_read_id END');
-    $stmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':lid', max(0, $lastId), SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':lid', max(0, $lastId), PDO::PARAM_INT);
     $stmt->execute();
 }

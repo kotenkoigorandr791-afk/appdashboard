@@ -153,18 +153,18 @@ function smart_log_write(string $appId, string $level, string $message, string $
         $stmt = $db->prepare('INSERT INTO smart_app_logs (signature,app_id,level,script,source_file,source_line,message,hit_count,first_seen,last_seen)
             VALUES (:sig,:app,:lvl,:scr,:sf,:sl,:msg,1,:ts,:ts)
             ON CONFLICT(signature) DO UPDATE SET hit_count = smart_app_logs.hit_count + 1, last_seen = excluded.last_seen, script = excluded.script');
-        $stmt->bindValue(':sig', $sig, SQLITE3_TEXT);
-        $stmt->bindValue(':app', substr($appId, 0, 128), SQLITE3_TEXT);
-        $stmt->bindValue(':lvl', substr($level, 0, 32), SQLITE3_TEXT);
-        $stmt->bindValue(':scr', $script, SQLITE3_TEXT);
-        $stmt->bindValue(':sf', substr($sourceFile, 0, 1024), SQLITE3_TEXT);
+        $stmt->bindValue(':sig', $sig, PDO::PARAM_STR);
+        $stmt->bindValue(':app', substr($appId, 0, 128), PDO::PARAM_STR);
+        $stmt->bindValue(':lvl', substr($level, 0, 32), PDO::PARAM_STR);
+        $stmt->bindValue(':scr', $script, PDO::PARAM_STR);
+        $stmt->bindValue(':sf', substr($sourceFile, 0, 1024), PDO::PARAM_STR);
         if ($sourceLine === null) {
-            $stmt->bindValue(':sl', null, SQLITE3_NULL);
+            $stmt->bindValue(':sl', null, PDO::PARAM_NULL);
         } else {
-            $stmt->bindValue(':sl', $sourceLine, SQLITE3_INTEGER);
+            $stmt->bindValue(':sl', $sourceLine, PDO::PARAM_INT);
         }
-        $stmt->bindValue(':msg', substr($message, 0, 8000), SQLITE3_TEXT);
-        $stmt->bindValue(':ts', $now, SQLITE3_INTEGER);
+        $stmt->bindValue(':msg', substr($message, 0, 8000), PDO::PARAM_STR);
+        $stmt->bindValue(':ts', $now, PDO::PARAM_INT);
         $stmt->execute();
         smart_log_notify_telegram($db, $sig, $appId, $level, $message, $sourceFile, $sourceLine, $now);
     } catch (Throwable $e) {
@@ -177,15 +177,15 @@ function smart_log_notify_telegram(AppDatabase $db, string $sig, string $appId, 
     if (!in_array($level, ['error', 'critical'], true)) return;
     try {
         $row = $db->prepare("SELECT last_sent FROM smart_log_tg_sent WHERE signature = :s LIMIT 1");
-        $row->bindValue(':s', $sig, SQLITE3_TEXT);
-        $sent = $row->execute()->fetchArray(SQLITE3_ASSOC);
+        $row->bindValue(':s', $sig, PDO::PARAM_STR);
+        $sent = $row->execute()->fetch(PDO::FETCH_ASSOC);
         if ($sent && $now - (int)($sent['last_sent'] ?? 0) < 900) return;
-        $tokenRow = $db->query("SELECT value FROM config WHERE key='tg_bot_token' LIMIT 1")->fetchArray(SQLITE3_ASSOC);
+        $tokenRow = $db->query("SELECT value FROM config WHERE key='tg_bot_token' LIMIT 1")->fetch(PDO::FETCH_ASSOC);
         $token = trim((string)($tokenRow['value'] ?? ''));
         if ($token === '') return;
         $res = $db->query("SELECT s.chat_id FROM tg_bot_sessions s INNER JOIN users u ON u.email=s.email WHERE u.role >= 2");
         $chatIds = [];
-        while ($res && ($r = $res->fetchArray(SQLITE3_ASSOC))) {
+        while ($res && ($r = $res->fetch(PDO::FETCH_ASSOC))) {
             $cid = trim((string)($r['chat_id'] ?? ''));
             if ($cid !== '') $chatIds[] = $cid;
         }
@@ -208,8 +208,8 @@ function smart_log_notify_telegram(AppDatabase $db, string $sig, string $appId, 
             curl_close($ch);
         }
         $up = $db->prepare("INSERT INTO smart_log_tg_sent(signature,last_sent) VALUES(:s,:t) ON CONFLICT(signature) DO UPDATE SET last_sent = excluded.last_sent");
-        $up->bindValue(':s', $sig, SQLITE3_TEXT);
-        $up->bindValue(':t', $now, SQLITE3_INTEGER);
+        $up->bindValue(':s', $sig, PDO::PARAM_STR);
+        $up->bindValue(':t', $now, PDO::PARAM_INT);
         $up->execute();
     } catch (Throwable $e) {
         cloud_safe_error_log('smart_log_notify_telegram: ' . $e->getMessage());

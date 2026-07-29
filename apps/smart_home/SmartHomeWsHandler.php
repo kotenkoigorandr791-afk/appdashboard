@@ -22,7 +22,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $db->enableExceptions(true);
         $db->exec("CREATE TABLE IF NOT EXISTS smarthome_ws_tokens (
             token TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
-            expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+            expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
         )");
         $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_queue (
             id TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
@@ -194,20 +194,20 @@ class SmartHomeWsHandler implements MessageComponentInterface
     {
         try {
             $db = $this->db();
-            $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at < datetime('now', '-30 days', 'localtime')");
+            $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
             if ($deviceId && empty($data['device_name'])) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
-                $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-                $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+                $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+                $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($row) {
                     $data['device_name'] = (string)($row['name'] ?? '');
                 }
             }
             $stmt = $db->prepare('INSERT INTO smarthome_monitor_logs (user_email, device_id, event_type, event_data) VALUES (:em, :did, :et, :ed)');
-            $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-            $stmt->bindValue(':did', $deviceId ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':et', $eventType, SQLITE3_TEXT);
-            $stmt->bindValue(':ed', json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+            $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+            $stmt->bindValue(':did', $deviceId ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':et', $eventType, PDO::PARAM_STR);
+            $stmt->bindValue(':ed', json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
             $stmt->execute();
         } catch (\Throwable $e) {
             error_log('WS monitorLog: ' . $e->getMessage());
@@ -218,22 +218,22 @@ class SmartHomeWsHandler implements MessageComponentInterface
     {
         try {
             $db = $this->db();
-            $db->exec("DELETE FROM smarthome_errors WHERE created_at < datetime('now', '-30 days', 'localtime')");
+            $db->exec("DELETE FROM smarthome_errors WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
             if ($deviceName === '' && $deviceId) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
-                $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-                $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+                $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+                $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($row) {
                     $deviceName = (string)($row['name'] ?? '');
                 }
             }
             $stmt = $db->prepare('INSERT INTO smarthome_errors (user_email, device_id, device_name, source, message, context_json) VALUES (:em, :did, :dn, :src, :msg, :ctx)');
-            $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-            $stmt->bindValue(':did', $deviceId ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':dn', $deviceName, SQLITE3_TEXT);
-            $stmt->bindValue(':src', $source, SQLITE3_TEXT);
-            $stmt->bindValue(':msg', $message, SQLITE3_TEXT);
-            $stmt->bindValue(':ctx', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
+            $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+            $stmt->bindValue(':did', $deviceId ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':dn', $deviceName, PDO::PARAM_STR);
+            $stmt->bindValue(':src', $source, PDO::PARAM_STR);
+            $stmt->bindValue(':msg', $message, PDO::PARAM_STR);
+            $stmt->bindValue(':ctx', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
             $stmt->execute();
         } catch (\Throwable $e) {
             error_log('WS logError: ' . $e->getMessage());
@@ -389,8 +389,8 @@ class SmartHomeWsHandler implements MessageComponentInterface
         }
         $db = $this->db();
         $stmt = $db->prepare('SELECT * FROM smarthome_token_index WHERE token = :tok');
-        $stmt->bindValue(':tok', $deviceToken, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':tok', $deviceToken, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
             $this->sendJson($conn, ['type' => 'error', 'message' => 'Unknown device token']);
             return;
@@ -454,8 +454,8 @@ class SmartHomeWsHandler implements MessageComponentInterface
         }
         $db = $this->db();
         $stmt = $db->prepare('SELECT user_email, device_id, expires_at FROM smarthome_ws_tokens WHERE token = :tok');
-        $stmt->bindValue(':tok', $sessionToken, SQLITE3_TEXT);
-        $meta = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':tok', $sessionToken, PDO::PARAM_STR);
+        $meta = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$meta || (int)($meta['expires_at'] ?? 0) < time()) {
             $this->sendJson($conn, ['type' => 'error', 'message' => 'Invalid dashboard token']);
             return;
@@ -466,7 +466,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $state['device_id'] = (string)($meta['device_id'] ?? '');
         $this->clients[$conn] = $state;
         $del = $db->prepare('DELETE FROM smarthome_ws_tokens WHERE token = :tok');
-        $del->bindValue(':tok', $sessionToken, SQLITE3_TEXT);
+        $del->bindValue(':tok', $sessionToken, PDO::PARAM_STR);
         $del->execute();
 
         $device = $this->loadDevice((string)$state['user_email'], (string)$state['device_id']);
@@ -658,9 +658,9 @@ class SmartHomeWsHandler implements MessageComponentInterface
         try {
             $db = $this->db();
             $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id AND user_email = :em');
-            $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-            $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+            $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             return $row ? $this->rowToArray($row) : null;
         } catch (\Throwable $e) {
             error_log('WS loadDevice: ' . $e->getMessage());
@@ -687,23 +687,23 @@ class SmartHomeWsHandler implements MessageComponentInterface
                 controls = :ctrls,
                 params = :params,
                 files = :files,
-                updated_at = datetime('now','localtime')
+                updated_at = CURRENT_TIMESTAMP
                 WHERE id = :id");
-            $stmt->bindValue(':name', $device['name'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':room', $device['room'] ?? 'Home', SQLITE3_TEXT);
-            $stmt->bindValue(':type', $device['type'] ?? 'generic_sensor', SQLITE3_TEXT);
-            $stmt->bindValue(':status', $device['status'] ?? 'unknown', SQLITE3_TEXT);
-            $stmt->bindValue(':local', $device['local_url'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':sd', $device['server_domain'] ?? 'serverkherson.xyz', SQLITE3_TEXT);
-            $stmt->bindValue(':ad', $device['ap_domain'] ?? 'serverkherson.xyz', SQLITE3_TEXT);
-            $stmt->bindValue(':mqtt', $device['mqtt_topic'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':tok', $device['device_token'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':notes', $device['notes'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':icon', $device['icon'] ?? 'smart-device', SQLITE3_TEXT);
-            $stmt->bindValue(':ctrls', json_encode($device['controls'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $stmt->bindValue(':params', json_encode($device['params'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $stmt->bindValue(':files', json_encode($device['files'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $stmt->bindValue(':id', $device['id'] ?? '', SQLITE3_TEXT);
+            $stmt->bindValue(':name', $device['name'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':room', $device['room'] ?? 'Home', PDO::PARAM_STR);
+            $stmt->bindValue(':type', $device['type'] ?? 'generic_sensor', PDO::PARAM_STR);
+            $stmt->bindValue(':status', $device['status'] ?? 'unknown', PDO::PARAM_STR);
+            $stmt->bindValue(':local', $device['local_url'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':sd', $device['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+            $stmt->bindValue(':ad', $device['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+            $stmt->bindValue(':mqtt', $device['mqtt_topic'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':tok', $device['device_token'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':notes', $device['notes'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':icon', $device['icon'] ?? 'smart-device', PDO::PARAM_STR);
+            $stmt->bindValue(':ctrls', json_encode($device['controls'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $stmt->bindValue(':params', json_encode($device['params'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $stmt->bindValue(':files', json_encode($device['files'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $stmt->bindValue(':id', $device['id'] ?? '', PDO::PARAM_STR);
             $stmt->execute();
         } catch (\Throwable $e) {
             error_log('WS persistDevice: ' . $e->getMessage());
@@ -725,10 +725,10 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $now = microtime(true);
         $db = $this->db();
         $stmt = $db->prepare('SELECT control_id FROM smarthome_control_queue WHERE device_id = :did AND expires_at > :now');
-        $stmt->bindValue(':did', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':now', $now, SQLITE3_FLOAT);
+        $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+        $stmt->bindValue(':now', $now, PDO::PARAM_STR);
         $res = $stmt->execute();
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $ids[] = (string)($row['control_id'] ?? '');
         }
         return $ids;
@@ -760,10 +760,10 @@ class SmartHomeWsHandler implements MessageComponentInterface
     {
         $db = $this->db();
         $result['updated_at'] = microtime(true);
-        $ins = $db->prepare('INSERT OR REPLACE INTO smarthome_control_results (id, result_json, updated_at) VALUES (:id, :rj, :ua)');
-        $ins->bindValue(':id', $requestId, SQLITE3_TEXT);
-        $ins->bindValue(':rj', json_encode($result, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-        $ins->bindValue(':ua', microtime(true), SQLITE3_FLOAT);
+        $ins = $db->prepare('INSERT INTO smarthome_control_results (id, result_json, updated_at) VALUES (:id, :rj, :ua)');
+        $ins->bindValue(':id', $requestId, PDO::PARAM_STR);
+        $ins->bindValue(':rj', json_encode($result, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+        $ins->bindValue(':ua', microtime(true), PDO::PARAM_STR);
         $ins->execute();
     }
 
@@ -774,7 +774,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $now = microtime(true);
         $items = [];
         $res = $db->query('SELECT * FROM smarthome_control_queue');
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $items[] = $row;
         }
         unset($res);
@@ -808,7 +808,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
                     'visible_devices' => $visibleDevices,
                 ]);
                 $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, SQLITE3_TEXT);
+                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
                 $d->execute();
                 continue;
             }
@@ -819,7 +819,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
                     'message' => 'Invalid control request',
                 ]);
                 $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, SQLITE3_TEXT);
+                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
                 $d->execute();
                 continue;
             }
@@ -845,7 +845,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
                     'message' => 'Device record not found',
                 ]);
                 $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, SQLITE3_TEXT);
+                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
                 $d->execute();
                 continue;
             }
@@ -872,7 +872,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
                     'message' => 'Unknown control',
                 ]);
                 $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, SQLITE3_TEXT);
+                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
                 $d->execute();
                 continue;
             }
@@ -893,7 +893,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
                 'device' => $device,
             ]);
             $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-            $d->bindValue(':id', $requestId, SQLITE3_TEXT);
+            $d->bindValue(':id', $requestId, PDO::PARAM_STR);
             $d->execute();
         }
         } catch (\Throwable $e) {

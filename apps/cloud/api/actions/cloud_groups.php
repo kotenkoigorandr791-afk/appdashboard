@@ -26,10 +26,10 @@ if ($action === 'groups_create') {
     $groupId = cloud_group_generate_id();
     $now = time();
     $stmt = $db->prepare('INSERT INTO cloud_groups (group_id, name, admin_email, created_at) VALUES (:gid, :name, :email, :ts)');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':ts', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':ts', $now, PDO::PARAM_INT);
     if (!$stmt->execute()) json_out(['ok' => false, 'error' => 'create failed'], 500);
     $adminUser = cloud_path_username($email);
     $base = appdata_user_root_dir('cloud', $adminUser, 'main', true) . '/' . cloud_group_storage_rel($groupId);
@@ -56,9 +56,9 @@ if ($action === 'groups_members') {
     if (!$access || !$access['is_admin']) json_out(['ok' => false, 'error' => 'admin only'], 403);
     $members = [];
     $stmt = $db->prepare('SELECT member_email, permission, joined_at FROM cloud_group_members WHERE group_id = :gid ORDER BY joined_at ASC');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
     $res = $stmt->execute();
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
         $members[] = [
             'email' => (string)$row['member_email'],
             'permission' => (string)$row['permission'],
@@ -85,10 +85,10 @@ if ($action === 'groups_add_member') {
     $stmt = $db->prepare('INSERT INTO cloud_group_members (group_id, member_email, permission, joined_at)
         VALUES (:gid, :email, :perm, :ts)
         ON CONFLICT(group_id, member_email) DO UPDATE SET permission = excluded.permission');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':email', $memberEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':perm', $permission, SQLITE3_TEXT);
-    $stmt->bindValue(':ts', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':email', $memberEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':perm', $permission, PDO::PARAM_STR);
+    $stmt->bindValue(':ts', time(), PDO::PARAM_INT);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -107,9 +107,9 @@ if ($action === 'groups_update_member') {
     if (!$access || !$access['is_admin']) json_out(['ok' => false, 'error' => 'admin only'], 403);
     if ($memberEmail === strtolower($access['admin_email'])) json_out(['ok' => false, 'error' => 'cannot change admin'], 400);
     $stmt = $db->prepare('UPDATE cloud_group_members SET permission = :perm WHERE group_id = :gid AND member_email = :email');
-    $stmt->bindValue(':perm', $permission, SQLITE3_TEXT);
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':email', $memberEmail, SQLITE3_TEXT);
+    $stmt->bindValue(':perm', $permission, PDO::PARAM_STR);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':email', $memberEmail, PDO::PARAM_STR);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -126,8 +126,8 @@ if ($action === 'groups_remove_member') {
     if (!$access || !$access['is_admin']) json_out(['ok' => false, 'error' => 'admin only'], 403);
     if ($memberEmail === strtolower($access['admin_email'])) json_out(['ok' => false, 'error' => 'cannot remove admin'], 400);
     $stmt = $db->prepare('DELETE FROM cloud_group_members WHERE group_id = :gid AND member_email = :email');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':email', $memberEmail, SQLITE3_TEXT);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':email', $memberEmail, PDO::PARAM_STR);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -143,8 +143,8 @@ if ($action === 'groups_leave') {
     if (!$access) json_out(['ok' => false, 'error' => 'not a member'], 404);
     if ($access['is_admin']) json_out(['ok' => false, 'error' => 'admin cannot leave'], 400);
     $stmt = $db->prepare('DELETE FROM cloud_group_members WHERE group_id = :gid AND member_email = :email');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':email', strtolower($email), SQLITE3_TEXT);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':email', strtolower($email), PDO::PARAM_STR);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -163,8 +163,8 @@ if ($action === 'groups_lookup_user') {
     $access = cloud_group_member_access($db, $groupId, $email);
     if (!$access || !$access['is_admin']) json_out(['ok' => false, 'error' => 'admin only'], 403);
     $stmt = $db->prepare('SELECT email, photo FROM users WHERE LOWER(email) = :email LIMIT 1');
-    $stmt->bindValue(':email', $target, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':email', $target, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) json_out(['ok' => true, 'found' => false]);
     $userEmail = (string)$row['email'];
     json_out(['ok' => true, 'found' => true, 'user' => [
@@ -206,7 +206,7 @@ if ($action === 'groups_delete') {
     }
     cloud_group_delete_storage($groupId, (string)$group['admin_email']);
     $stmt = $db->prepare('DELETE FROM cloud_groups WHERE group_id = :gid');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -222,11 +222,11 @@ if ($action === 'groups_history') {
     if (!$access || !$access['is_admin']) json_out(['ok' => false, 'error' => 'admin only'], 403);
     $limit = min(500, max(1, (int)($_GET['limit'] ?? 200)));
     $stmt = $db->prepare('SELECT file_path, user_email, action, created_at FROM cloud_group_file_history WHERE group_id = :gid ORDER BY created_at DESC LIMIT :lim');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':lim', $limit, SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
     $items = [];
     $res = $stmt->execute();
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
         $items[] = [
             'file_path' => (string)$row['file_path'],
             'user_email' => (string)$row['user_email'],
@@ -262,8 +262,8 @@ if ($action === 'groups_rename') {
     $access = cloud_group_member_access($db, $groupId, $email);
     if (!$access || !$access['is_admin']) json_out(['ok' => false, 'error' => 'admin only'], 403);
     $stmt = $db->prepare('UPDATE cloud_groups SET name = :name WHERE group_id = :gid');
-    $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
+    $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
     $stmt->execute();
     json_out(['ok' => true, 'name' => $name]);
 }

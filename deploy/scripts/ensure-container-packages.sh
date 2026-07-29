@@ -6,11 +6,18 @@ need=""
 command -v 7z >/dev/null 2>&1 || need="p7zip-full"
 command -v unzip >/dev/null 2>&1 || need="${need:+$need }unzip"
 command -v ffmpeg >/dev/null 2>&1 || need="${need:+$need }ffmpeg"
+command -v bwrap >/dev/null 2>&1 || need="${need:+$need }bubblewrap"
+command -v gcc >/dev/null 2>&1 || need="${need:+$need }gcc"
+command -v g++ >/dev/null 2>&1 || need="${need:+$need }g++"
+command -v javac >/dev/null 2>&1 || need="${need:+$need }default-jdk-headless"
 if [ -n "$need" ]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends $need
     rm -rf /var/lib/apt/lists/*
+fi
+if command -v bwrap >/dev/null 2>&1; then
+    chmod u+s "$(command -v bwrap)" 2>/dev/null || true
 fi
 
 # Ensure Python packages for image processing & background removal

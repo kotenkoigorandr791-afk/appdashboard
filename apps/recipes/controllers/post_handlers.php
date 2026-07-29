@@ -50,9 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $db->prepare("UPDATE " . RECIPES_DB_TABLE_PREFIX . "products SET $update_fields WHERE id = :id");
                 foreach ($params as $key => $value) {
                     if (($key === ':image_preview' || $key === ':image') && ($value === null || $value === '')) {
-                        $stmt->bindValue($key, null, SQLITE3_NULL);
+                        $stmt->bindValue($key, null, PDO::PARAM_NULL);
                     } else {
-                        $stmt->bindValue($key, $value, SQLITE3_TEXT);
+                        $stmt->bindValue($key, $value, PDO::PARAM_STR);
                     }
                 }
                 $result = $stmt->execute();
@@ -142,14 +142,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "products 
                     (id, name_en, name_uk, name_ru, name_be, category, image, image_preview)
                     VALUES (:id, :name_en, :name_uk, :name_ru, :name_be, :category, :image, :image_preview)");
-                $stmt->bindValue(':id', $product_id, SQLITE3_TEXT);
-                $stmt->bindValue(':name_en', $product_names['en'], SQLITE3_TEXT);
-                $stmt->bindValue(':name_uk', $product_names['uk'], SQLITE3_TEXT);
-                $stmt->bindValue(':name_ru', $product_names['ru'], SQLITE3_TEXT);
-                $stmt->bindValue(':name_be', $product_names['be'], SQLITE3_TEXT);
-                $stmt->bindValue(':category', $_POST['category'] ?? '', SQLITE3_TEXT);
-                $stmt->bindValue(':image', $image_name, SQLITE3_TEXT);
-                $stmt->bindValue(':image_preview', $preview_name, $preview_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
+                $stmt->bindValue(':id', $product_id, PDO::PARAM_STR);
+                $stmt->bindValue(':name_en', $product_names['en'], PDO::PARAM_STR);
+                $stmt->bindValue(':name_uk', $product_names['uk'], PDO::PARAM_STR);
+                $stmt->bindValue(':name_ru', $product_names['ru'], PDO::PARAM_STR);
+                $stmt->bindValue(':name_be', $product_names['be'], PDO::PARAM_STR);
+                $stmt->bindValue(':category', $_POST['category'] ?? '', PDO::PARAM_STR);
+                $stmt->bindValue(':image', $image_name, PDO::PARAM_STR);
+                $stmt->bindValue(':image_preview', $preview_name, $preview_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
                 $stmt->execute();
                 $row = recipes_load_product_row($db, $product_id);
                 if ($row) recipes_save_product_json($products_dir, $row);
@@ -287,12 +287,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Сохранение рецепта в базу данных
             try {
-                $db->exec("BEGIN TRANSACTION");
+                $db->exec("BEGIN");
                 
                 // Удаляем старые шаги при редактировании
                 if ($base_action === 'edit_recipe') {
                     $stmt = $db->prepare("DELETE FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :recipe_id");
-                    $stmt->bindValue(':recipe_id', $recipe_id, SQLITE3_TEXT);
+                    $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                     $stmt->execute();
                     
                     // Обновляем рецепт
@@ -306,12 +306,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         VALUES (:id, :title_en, :title_uk, :title_ru, :title_be, :image)");
                 }
                 
-                $stmt->bindValue(':id', $recipe_id, SQLITE3_TEXT);
-                $stmt->bindValue(':title_en', $recipe['title']['en'], SQLITE3_TEXT);
-                $stmt->bindValue(':title_uk', $recipe['title']['uk'], SQLITE3_TEXT);
-                $stmt->bindValue(':title_ru', $recipe['title']['ru'], SQLITE3_TEXT);
-                $stmt->bindValue(':title_be', $recipe['title']['be'], SQLITE3_TEXT);
-                $stmt->bindValue(':image', $recipe['image'], SQLITE3_TEXT);
+                $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
+                $stmt->bindValue(':title_en', $recipe['title']['en'], PDO::PARAM_STR);
+                $stmt->bindValue(':title_uk', $recipe['title']['uk'], PDO::PARAM_STR);
+                $stmt->bindValue(':title_ru', $recipe['title']['ru'], PDO::PARAM_STR);
+                $stmt->bindValue(':title_be', $recipe['title']['be'], PDO::PARAM_STR);
+                $stmt->bindValue(':image', $recipe['image'], PDO::PARAM_STR);
                 $stmt->execute();
                 
                 // Сохраняем шаги
@@ -347,14 +347,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $timer_minutes = $step['timer']['minutes'] ?? null;
                     }
                     
-                    $stmt->bindValue(':recipe_id', $recipe_id, SQLITE3_TEXT);
-                    $stmt->bindValue(':step_order', $step_index, SQLITE3_INTEGER);
-                    $stmt->bindValue(':step_type', $step['type'], SQLITE3_TEXT);
-                    $stmt->bindValue(':content', $content, SQLITE3_TEXT);
-                    $stmt->bindValue(':quantity_value', $quantity_value, $quantity_value === null ? SQLITE3_NULL : SQLITE3_FLOAT);
-                    $stmt->bindValue(':quantity_unit', $quantity_unit, $quantity_unit === null ? SQLITE3_NULL : SQLITE3_TEXT);
-                    $stmt->bindValue(':timer_hours', $timer_hours, $timer_hours === null ? SQLITE3_NULL : SQLITE3_INTEGER);
-                    $stmt->bindValue(':timer_minutes', $timer_minutes, $timer_minutes === null ? SQLITE3_NULL : SQLITE3_INTEGER);
+                    $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
+                    $stmt->bindValue(':step_order', $step_index, PDO::PARAM_INT);
+                    $stmt->bindValue(':step_type', $step['type'], PDO::PARAM_STR);
+                    $stmt->bindValue(':content', $content, PDO::PARAM_STR);
+                    $stmt->bindValue(':quantity_value', $quantity_value, $quantity_value === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmt->bindValue(':quantity_unit', $quantity_unit, $quantity_unit === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmt->bindValue(':timer_hours', $timer_hours, $timer_hours === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+                    $stmt->bindValue(':timer_minutes', $timer_minutes, $timer_minutes === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
                     $stmt->execute();
                 }
                 
@@ -381,11 +381,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 // Удаляем из базы данных
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :recipe_id");
-                $stmt->bindValue(':recipe_id', $recipe_id, SQLITE3_TEXT);
+                $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                 $stmt->execute();
                 
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :recipe_id");
-                $stmt->bindValue(':recipe_id', $recipe_id, SQLITE3_TEXT);
+                $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                 $stmt->execute();
                 
                 // Удаляем файлы
@@ -418,7 +418,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
                 // Удаляем из базы данных
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "products WHERE id = :product_id");
-                $stmt->bindValue(':product_id', $product_id, SQLITE3_TEXT);
+                $stmt->bindValue(':product_id', $product_id, PDO::PARAM_STR);
                 $stmt->execute();
                 
                 // Удаляем файлы
@@ -440,14 +440,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Save state to database
             if ($db && $state) {
                 try {
-                    $db->exec("BEGIN TRANSACTION");
+                    $db->exec("BEGIN");
                     foreach ($state as $key => $value) {
                         $stmt = $db->prepare("
-                            INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value, updated_at)
+                            INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value, updated_at)
                             VALUES (:key, :value, CURRENT_TIMESTAMP)
                         ");
-                        $stmt->bindValue(':key', $key, SQLITE3_TEXT);
-                        $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, SQLITE3_TEXT);
+                        $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+                        $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
                         $stmt->execute();
                     }
                     $db->exec("COMMIT");
@@ -467,14 +467,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Save config to database
             if ($db && $config_data) {
                 try {
-                    $db->exec("BEGIN TRANSACTION");
+                    $db->exec("BEGIN");
                     foreach ($config_data as $key => $value) {
                         $stmt = $db->prepare("
-                            INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at)
+                            INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at)
                             VALUES (:key, :value, CURRENT_TIMESTAMP)
                         ");
-                        $stmt->bindValue(':key', $key, SQLITE3_TEXT);
-                        $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, SQLITE3_TEXT);
+                        $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+                        $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
                         $stmt->execute();
                     }
                     $db->exec("COMMIT");

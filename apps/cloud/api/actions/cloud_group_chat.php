@@ -36,21 +36,21 @@ if ($action === 'group_chat_messages') {
     if ((int)($_GET['full'] ?? 0) === 1) {
         $stmt = $db->prepare('SELECT id, group_id, sender_email, message, media_file, media_type, is_deleted, is_edited, created_at, edited_at
             FROM cloud_group_chat_messages WHERE group_id = :gid ORDER BY created_at ASC LIMIT 500');
-        $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
+        $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
         $result = $stmt->execute();
         $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) $messages[] = $mapRow($row, $groupId, $email);
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) $messages[] = $mapRow($row, $groupId, $email);
         json_out(['ok' => true, 'messages' => $messages, 'mode' => 'full', 'has_more_older' => false]);
     }
     $sinceId = (int)($_GET['since_id'] ?? 0);
     if ($sinceId > 0) {
         $stmt = $db->prepare('SELECT id, group_id, sender_email, message, media_file, media_type, is_deleted, is_edited, created_at, edited_at
             FROM cloud_group_chat_messages WHERE group_id = :gid AND id > :sid ORDER BY created_at ASC LIMIT 100');
-        $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-        $stmt->bindValue(':sid', $sinceId, SQLITE3_INTEGER);
+        $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+        $stmt->bindValue(':sid', $sinceId, PDO::PARAM_INT);
         $result = $stmt->execute();
         $messages = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) $messages[] = $mapRow($row, $groupId, $email);
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) $messages[] = $mapRow($row, $groupId, $email);
         json_out(['ok' => true, 'messages' => $messages, 'mode' => 'delta']);
     }
     $chunk = min(100, max(10, (int)($_GET['limit'] ?? 30)));
@@ -58,31 +58,31 @@ if ($action === 'group_chat_messages') {
     if ($beforeId > 0) {
         $stmt = $db->prepare('SELECT id, group_id, sender_email, message, media_file, media_type, is_deleted, is_edited, created_at, edited_at
             FROM cloud_group_chat_messages WHERE group_id = :gid AND id < :bid ORDER BY created_at DESC LIMIT :lim');
-        $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-        $stmt->bindValue(':bid', $beforeId, SQLITE3_INTEGER);
-        $stmt->bindValue(':lim', $chunk, SQLITE3_INTEGER);
+        $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+        $stmt->bindValue(':bid', $beforeId, PDO::PARAM_INT);
+        $stmt->bindValue(':lim', $chunk, PDO::PARAM_INT);
         $result = $stmt->execute();
         $rows = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) $rows[] = $mapRow($row, $groupId, $email);
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) $rows[] = $mapRow($row, $groupId, $email);
         $messages = array_reverse($rows);
         $minId = $messages ? $messages[0]['id'] : null;
         $hasMore = false;
         if ($minId !== null) {
             $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM cloud_group_chat_messages WHERE group_id = :gid AND id < :mid');
-            $cstmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-            $cstmt->bindValue(':mid', $minId, SQLITE3_INTEGER);
-            $crow = $cstmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $cstmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+            $cstmt->bindValue(':mid', $minId, PDO::PARAM_INT);
+            $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
             $hasMore = $crow && (int)$crow['c'] > 0;
         }
         json_out(['ok' => true, 'messages' => $messages, 'mode' => 'older', 'has_more_older' => $hasMore, 'min_id' => $minId]);
     }
     $stmt = $db->prepare('SELECT id, group_id, sender_email, message, media_file, media_type, is_deleted, is_edited, created_at, edited_at
         FROM cloud_group_chat_messages WHERE group_id = :gid ORDER BY created_at DESC LIMIT :lim');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':lim', $chunk, SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':lim', $chunk, PDO::PARAM_INT);
     $result = $stmt->execute();
     $rows = [];
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) $rows[] = $mapRow($row, $groupId, $email);
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) $rows[] = $mapRow($row, $groupId, $email);
     $messages = array_reverse($rows);
     $minId = null;
     $maxId = null;
@@ -93,9 +93,9 @@ if ($action === 'group_chat_messages') {
     $hasMore = false;
     if ($minId !== null) {
         $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM cloud_group_chat_messages WHERE group_id = :gid AND id < :mid');
-        $cstmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-        $cstmt->bindValue(':mid', $minId, SQLITE3_INTEGER);
-        $crow = $cstmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $cstmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+        $cstmt->bindValue(':mid', $minId, PDO::PARAM_INT);
+        $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
         $hasMore = $crow && (int)$crow['c'] > 0;
     }
     json_out(['ok' => true, 'messages' => $messages, 'mode' => 'initial', 'has_more_older' => $hasMore, 'min_id' => $minId, 'max_id' => $maxId]);
@@ -125,12 +125,12 @@ if ($action === 'group_chat_send') {
     }
     $stmt = $db->prepare('INSERT INTO cloud_group_chat_messages (group_id, sender_email, message, media_file, media_type, created_at)
         VALUES (:gid, :sender, :msg, :mf, :mt, :ts)');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':sender', strtolower($email), SQLITE3_TEXT);
-    $stmt->bindValue(':msg', $message, SQLITE3_TEXT);
-    $stmt->bindValue(':mf', $mediaFile, $mediaFile ? SQLITE3_TEXT : SQLITE3_NULL);
-    $stmt->bindValue(':mt', $mediaType, $mediaType ? SQLITE3_TEXT : SQLITE3_NULL);
-    $stmt->bindValue(':ts', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':sender', strtolower($email), PDO::PARAM_STR);
+    $stmt->bindValue(':msg', $message, PDO::PARAM_STR);
+    $stmt->bindValue(':mf', $mediaFile, $mediaFile ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':mt', $mediaType, $mediaType ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':ts', time(), PDO::PARAM_INT);
     $stmt->execute();
     json_out(['ok' => true, 'message_id' => (int)$db->lastInsertRowID()]);
 }
@@ -151,13 +151,13 @@ if ($action === 'group_chat_delete') {
         json_out(['ok' => false, 'error' => 'access denied'], 403);
     }
     $stmt = $db->prepare('SELECT sender_email FROM cloud_group_chat_messages WHERE id = :id AND group_id = :gid LIMIT 1');
-    $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) json_out(['ok' => false, 'error' => 'message_not_found'], 404);
     if (strtolower((string)$row['sender_email']) !== strtolower($email)) json_out(['ok' => false, 'error' => 'permission_denied'], 403);
     $stmt = $db->prepare('UPDATE cloud_group_chat_messages SET is_deleted = 1 WHERE id = :id');
-    $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
+    $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -177,9 +177,9 @@ if ($action === 'group_chat_edit') {
         json_out(['ok' => false, 'error' => 'access denied'], 403);
     }
     $stmt = $db->prepare('SELECT sender_email, media_file, media_type FROM cloud_group_chat_messages WHERE id = :id AND group_id = :gid LIMIT 1');
-    $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) json_out(['ok' => false, 'error' => 'message_not_found'], 404);
     if (strtolower((string)$row['sender_email']) !== strtolower($email)) json_out(['ok' => false, 'error' => 'permission_denied'], 403);
     $mediaFile = $row['media_file'];
@@ -196,11 +196,11 @@ if ($action === 'group_chat_edit') {
         $mediaType = $stored['type'];
     }
     $stmt = $db->prepare('UPDATE cloud_group_chat_messages SET message = :msg, is_edited = 1, edited_at = :edited, media_file = :mf, media_type = :mt WHERE id = :id');
-    $stmt->bindValue(':msg', $newMessage, SQLITE3_TEXT);
-    $stmt->bindValue(':edited', time(), SQLITE3_INTEGER);
-    $stmt->bindValue(':mf', $mediaFile, $mediaFile ? SQLITE3_TEXT : SQLITE3_NULL);
-    $stmt->bindValue(':mt', $mediaType, $mediaType ? SQLITE3_TEXT : SQLITE3_NULL);
-    $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
+    $stmt->bindValue(':msg', $newMessage, PDO::PARAM_STR);
+    $stmt->bindValue(':edited', time(), PDO::PARAM_INT);
+    $stmt->bindValue(':mf', $mediaFile, $mediaFile ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':mt', $mediaType, $mediaType ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
     $stmt->execute();
     json_out(['ok' => true]);
 }
@@ -238,9 +238,9 @@ if ($action === 'group_chat_media') {
         json_out(['ok' => false, 'error' => 'access denied'], 403);
     }
     $stmt = $db->prepare('SELECT COUNT(*) AS c FROM cloud_group_chat_messages WHERE group_id = :gid AND media_file = :f');
-    $stmt->bindValue(':gid', $groupId, SQLITE3_TEXT);
-    $stmt->bindValue(':f', $file, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':gid', $groupId, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $file, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row || (int)$row['c'] === 0) json_out(['ok' => false, 'error' => 'not found'], 404);
     $dir = cloud_group_chat_media_dir($groupId);
     if (!$dir) json_out(['ok' => false, 'error' => 'not found'], 404);

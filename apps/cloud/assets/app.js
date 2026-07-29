@@ -498,7 +498,7 @@ function setTreeDragPayload(event, path, type, root = getCurrentCloudRoot()) {
     if (!paths.length) return;
     currentTreeDragPaths = paths;
     currentTreeDragSourceRoot = root || getCurrentCloudRoot();
-    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.effectAllowed = 'copyMove';
     event.dataTransfer.setData('application/x-cloud-file-path', path);
     event.dataTransfer.setData('application/x-cloud-file-paths', JSON.stringify(paths));
     event.dataTransfer.setData('application/x-cloud-file-type', type);

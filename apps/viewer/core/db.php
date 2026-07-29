@@ -12,7 +12,7 @@ function ensureViewerSchema(AppDatabase $db): void {
         token TEXT NOT NULL DEFAULT \'\'
     )');
     $db->exec('CREATE TABLE IF NOT EXISTS viewer_sites (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         sort_order INTEGER NOT NULL DEFAULT 0,
         name TEXT NOT NULL,
         url TEXT NOT NULL,
@@ -20,7 +20,7 @@ function ensureViewerSchema(AppDatabase $db): void {
         hidden INTEGER NOT NULL DEFAULT 0,
         use_token INTEGER NOT NULL DEFAULT 0
     )');
-    $db->exec('INSERT OR IGNORE INTO viewer_meta (id) VALUES (1)');
+    $db->exec('INSERT INTO viewer_meta (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
 }
 function getDB(): ?AppDatabase {
     static $db = null;

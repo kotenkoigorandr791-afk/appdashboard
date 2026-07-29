@@ -57,8 +57,8 @@ function getUserPhoto($userEmail) {
             if (!$s) continue;
             try {
                 $st = $db->prepare('SELECT user_data FROM active_sessions WHERE session_id = :s');
-                $st->bindValue(':s', $s, SQLITE3_TEXT);
-                $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+                $st->bindValue(':s', $s, PDO::PARAM_STR);
+                $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($r && isset($r['user_data'])) {
                     $ud = json_decode($r['user_data'], true);
                     if (!empty($ud['photo'])) {
@@ -80,8 +80,8 @@ function getUserPhoto($userEmail) {
         if ($userEmail !== 'default_user') {
             try {
                 $st = $db->prepare('SELECT photo FROM users WHERE email = :e');
-                $st->bindValue(':e', $userEmail, SQLITE3_TEXT);
-                $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+                $st->bindValue(':e', $userEmail, PDO::PARAM_STR);
+                $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($r && !empty($r['photo']) && $r['photo'] !== 'default_avatar.png') {
                     $web = dashboardPhotoWebPath($r['photo']);
                     if ($web !== '') {
@@ -107,8 +107,8 @@ $db = getDB();
 if ($db && $currentUserEmail !== 'default_user') {
     try {
         $st = $db->prepare('SELECT name FROM users WHERE email = :e');
-        $st->bindValue(':e', $currentUserEmail, SQLITE3_TEXT);
-        $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+        $st->bindValue(':e', $currentUserEmail, PDO::PARAM_STR);
+        $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
         if ($r && !empty($r['name'])) $displayName = $r['name'];
     } catch (Exception $e) {}
 }
@@ -127,14 +127,14 @@ function exportExpensesToCSV($udb, $stores) {
     $storeNames = array_map(fn($s) => $s['name'], $stores);
     $lines = [];
     $lines[] = implode(',', array_map(fn($s) => '"'.$s.'"', array_merge(['Date'], $storeNames)));
-    $mm = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses")->fetchArray(SQLITE3_ASSOC);
+    $mm = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses")->fetch(PDO::FETCH_ASSOC);
     if (empty($mm['lo'])) return implode("\n", $lines);
     foreach (listCalendarDaysInclusive($mm['lo'], $mm['hi']) as $d) {
         $cells = [$d];
         foreach ($storeNames as $sn) {
             $st = $udb->prepare('SELECT amount FROM expenses WHERE date=:d AND store=:s');
             $st->bindValue(':d', $d); $st->bindValue(':s', $sn);
-            $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
             $cells[] = $r ? number_format((float)$r['amount'], 2, '.', '') : '0.00';
         }
         $lines[] = implode(',', $cells);

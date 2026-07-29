@@ -30,14 +30,14 @@ function handleLocationAPI() {
         $token = bin2hex(random_bytes(32));
         $expiresAt = date('Y-m-d H:i:s', strtotime('+365 days'));
 
-        // Use INSERT OR REPLACE to ensure only one token per user
+        // Use INSERT to ensure only one token per user
         $stmt = $db->prepare("
-            INSERT OR REPLACE INTO map_location_tokens (token, user_email, expires_at, is_active)
+            INSERT INTO map_location_tokens (token, user_email, expires_at, is_active)
             VALUES (:token, :email, :expires, 1)
         ");
-        $stmt->bindValue(':token', $token, SQLITE3_TEXT);
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':expires', $expiresAt, SQLITE3_TEXT);
+        $stmt->bindValue(':token', $token, PDO::PARAM_STR);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':expires', $expiresAt, PDO::PARAM_STR);
         try {
             $stmt->execute();
         } catch (Exception $e) {
@@ -65,7 +65,7 @@ function handleLocationAPI() {
         }
 
         $stmt = $db->prepare("SELECT token, created_at, expires_at, is_active FROM map_location_tokens WHERE user_email = :email ORDER BY created_at DESC LIMIT 1");
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         try {
             $result = $stmt->execute();
         } catch (Exception $e) {
@@ -76,7 +76,7 @@ function handleLocationAPI() {
         }
 
         $tokens = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $tokens[] = $row;
         }
         
@@ -96,9 +96,9 @@ function handleLocationAPI() {
         
         // Validate token
         $stmt = $db->prepare("SELECT id,user_email FROM map_location_tokens WHERE token = :token AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP");
-        $stmt->bindValue(':token', $token, SQLITE3_TEXT);
+        $stmt->bindValue(':token', $token, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $tokenRow = $result->fetchArray(SQLITE3_ASSOC);
+        $tokenRow = $result->fetch(PDO::FETCH_ASSOC);
         if (!$tokenRow) {
             http_response_code(401);
             echo json_encode(['error' => 'Invalid or expired token']);
@@ -161,18 +161,18 @@ function handleLocationAPI() {
                 :device_name, :device_type, :speed, :altitude, :satellites, :telemetry_json
             )
         ");
-        $stmt->bindValue(':token', $token, SQLITE3_TEXT);
-        $stmt->bindValue(':lat', (float)$latitude, SQLITE3_FLOAT);
-        $stmt->bindValue(':lon', (float)$longitude, SQLITE3_FLOAT);
-        $stmt->bindValue(':accuracy', ($accuracy !== null && $accuracy !== '') ? (float)$accuracy : null, SQLITE3_FLOAT);
-        $stmt->bindValue(':message', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':photo', $photoPath, SQLITE3_TEXT);
-        $stmt->bindValue(':device_name', $deviceName, SQLITE3_TEXT);
-        $stmt->bindValue(':device_type', $deviceType, SQLITE3_TEXT);
-        $stmt->bindValue(':speed', ($speed !== null && $speed !== '') ? (float)$speed : null, SQLITE3_FLOAT);
-        $stmt->bindValue(':altitude', ($altitude !== null && $altitude !== '') ? (float)$altitude : null, SQLITE3_FLOAT);
-        $stmt->bindValue(':satellites', ($satellites !== null && $satellites !== '') ? (int)$satellites : null, SQLITE3_INTEGER);
-        $stmt->bindValue(':telemetry_json', $telemetryJson, SQLITE3_TEXT);
+        $stmt->bindValue(':token', $token, PDO::PARAM_STR);
+        $stmt->bindValue(':lat', (float)$latitude, PDO::PARAM_STR);
+        $stmt->bindValue(':lon', (float)$longitude, PDO::PARAM_STR);
+        $stmt->bindValue(':accuracy', ($accuracy !== null && $accuracy !== '') ? (float)$accuracy : null, PDO::PARAM_STR);
+        $stmt->bindValue(':message', $message, PDO::PARAM_STR);
+        $stmt->bindValue(':photo', $photoPath, PDO::PARAM_STR);
+        $stmt->bindValue(':device_name', $deviceName, PDO::PARAM_STR);
+        $stmt->bindValue(':device_type', $deviceType, PDO::PARAM_STR);
+        $stmt->bindValue(':speed', ($speed !== null && $speed !== '') ? (float)$speed : null, PDO::PARAM_STR);
+        $stmt->bindValue(':altitude', ($altitude !== null && $altitude !== '') ? (float)$altitude : null, PDO::PARAM_STR);
+        $stmt->bindValue(':satellites', ($satellites !== null && $satellites !== '') ? (int)$satellites : null, PDO::PARAM_INT);
+        $stmt->bindValue(':telemetry_json', $telemetryJson, PDO::PARAM_STR);
         $stmt->execute();
         $insertId = $db->lastInsertRowID();
         pruneLocationHistory($db, $token, 50);
@@ -196,9 +196,9 @@ function handleLocationAPI() {
         
         // Validate token
         $stmt = $db->prepare("SELECT id FROM map_location_tokens WHERE token = :token AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP");
-        $stmt->bindValue(':token', $token, SQLITE3_TEXT);
+        $stmt->bindValue(':token', $token, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $isValidToken = (bool)$result->fetchArray();
+        $isValidToken = (bool)$result->fetch();
         if (!$isValidToken) {
             http_response_code(401);
             echo json_encode(['error' => 'Invalid or expired token']);
@@ -216,8 +216,8 @@ function handleLocationAPI() {
             ORDER BY timestamp DESC
             LIMIT :limit
         ");
-        $stmt->bindValue(':token', $token, SQLITE3_TEXT);
-        $stmt->bindValue(':limit', $limit, SQLITE3_INTEGER);
+        $stmt->bindValue(':token', $token, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         try {
             $result = $stmt->execute();
         } catch (Throwable $e) {
@@ -228,7 +228,7 @@ function handleLocationAPI() {
         }
         
         $locations = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             if (!empty($row['photo_path']) && strpos($row['photo_path'], '/apps/map/') !== 0) {
                 $row['photo_path'] = '/apps/map/' . ltrim($row['photo_path'], '/');
             }
@@ -256,8 +256,8 @@ function handleLocationAPI() {
         
         $tokenToDelete = $matches[1];
         $stmt = $db->prepare("DELETE FROM map_location_tokens WHERE token = :token AND user_email = :email");
-        $stmt->bindValue(':token', $tokenToDelete, SQLITE3_TEXT);
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':token', $tokenToDelete, PDO::PARAM_STR);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $stmt->execute();
         
         echo json_encode(['success' => true]);
