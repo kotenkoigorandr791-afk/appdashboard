@@ -414,6 +414,10 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+  function downloadWindowsWebdavScript() {
+    downloadTextFile('appdashboard-webdav-connect.ps1', windowsWebdavScript(), 'text/plain');
+  }
+
   function detectedDesktopOS() {
     const platform = `${navigator.userAgentData?.platform || ''} ${navigator.platform || ''} ${navigator.userAgent || ''}`.toLowerCase();
     if (platform.includes('win')) return 'windows';
@@ -686,51 +690,146 @@ else echo "$WEBDAV_BROWSER_URL"; fi
   function windowsWebdavScript() {
     const cfg = webdavConfig();
     return `$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
 $WebDavUrl = ${psQuote(cfg.url)}
 $Username = ${psQuote(cfg.username)}
 $Token = ${psQuote(cfg.token)}
-$IconUrl = ${psQuote(cfg.iconUrl)}
 $IconIcoUrl = ${psQuote(cfg.iconIcoUrl)}
-$Drive = 'Z:'
 $Name = 'AppDashboard Cloud'
-function Convert-WebDavToUnc([string]$Url) {
-  $u = [Uri]$Url
-  $path = $u.AbsolutePath.TrimEnd('/')
-  if ($u.Scheme -eq 'https' -or $u.Scheme -eq 'webdavs') { return "\\\\$($u.Host)@SSL\\DavWWWRoot$path" }
-  return "\\\\$($u.Host)\\DavWWWRoot$path"
+$PreferredLetter = 'Z'
+[Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+function Get-HttpUrl([string]$Url) {
+  $normalized = $Url -replace '^webdavs://', 'https://' -replace '^webdav://', 'http://'
+  return $normalized.TrimEnd('/') + '/'
+}
+function Get-DavUnc([string]$Url) {
+  $parsed = [Uri](Get-HttpUrl $Url)
+  $hostPart = $parsed.Host
+  if ($parsed.Scheme -eq 'https') { $hostPart = $hostPart + '@SSL' }
+  if (-not $parsed.IsDefaultPort) { $hostPart = $hostPart + '@' + $parsed.Port }
+  return '\\\\' + $hostPart + '\\DavWWWRoot' + $parsed.AbsolutePath.TrimEnd('/').Replace('/', '\\')
+}
+function Invoke-Net([string[]]$NetArgs) {
+  $previous = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  $lines = & net.exe @NetArgs 2>&1 | ForEach-Object {
+    if ($_ -is [Management.Automation.ErrorRecord]) { $_.Exception.Message.Trim() } else { $_.ToString().Trim() }
+  } | Where-Object { $_ -ne '' }
+  $code = $LASTEXITCODE
+  $ErrorActionPreference = $previous
+  return [pscustomobject]@{ ExitCode = $code; Output = ($lines -join ' ') }
+}
+function Invoke-Elevated([string]$Command, [string]$FailureMessage) {
+  try {
+    Start-Process -FilePath 'powershell.exe' -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList '-NoProfile', '-Command', $Command
+  } catch {
+    throw $FailureMessage
+  }
+}
+function Enable-WebClient {
+  $service = Get-Service -Name WebClient -ErrorAction SilentlyContinue
+  if (-not $service) { throw 'The WebClient (WebDAV) service is not available on this system.' }
+  if ($service.Status -ne 'Running') {
+    try {
+      Start-Service -Name WebClient -ErrorAction Stop
+    } catch {
+      Invoke-Elevated 'Set-Service -Name WebClient -StartupType Automatic; Start-Service -Name WebClient' 'The WebClient service must be running. Start it in services.msc and rerun this script.'
+    }
+  }
+  for ($i = 0; $i -lt 20; $i++) {
+    if ((Get-Service -Name WebClient).Status -eq 'Running') { return }
+    Start-Sleep -Milliseconds 500
+  }
+  throw 'The WebClient service did not start.'
+}
+function Enable-BasicAuthOverHttp {
+  $key = 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters'
+  $current = (Get-ItemProperty -Path $key -Name BasicAuthLevel -ErrorAction SilentlyContinue).BasicAuthLevel
+  if ($current -eq 2) { return }
+  Invoke-Elevated ('New-Item -Path ''' + $key + ''' -Force | Out-Null; Set-ItemProperty -Path ''' + $key + ''' -Name BasicAuthLevel -Value 2 -Type DWord; Restart-Service WebClient') 'Plain HTTP WebDAV needs administrator rights. Approve the elevation prompt or use an HTTPS address.'
+}
+function Test-WebDavAccess([string]$Url) {
+  try {
+    $request = [Net.WebRequest]::Create($Url)
+    $request.Method = 'PROPFIND'
+    $request.Timeout = 30000
+    $request.AllowAutoRedirect = $false
+    $request.Headers['Depth'] = '0'
+    $request.Headers['Authorization'] = 'Basic ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Username + ':' + $Token))
+    $request.ContentLength = 0
+    $request.GetRequestStream().Close()
+    $response = $request.GetResponse()
+    $code = [int]$response.StatusCode
+    $response.Close()
+    return $code
+  } catch [Net.WebException] {
+    if ($_.Exception.Response) {
+      $failed = $_.Exception.Response
+      $code = [int]$failed.StatusCode
+      $failed.Close()
+      return $code
+    }
+    throw ('Cannot reach ' + $Url + ': ' + $_.Exception.Message)
+  }
+}
+function Get-DriveLetter([string]$Preferred) {
+  $used = @(Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue | ForEach-Object { $_.Name.ToUpper() })
+  foreach ($candidate in @($Preferred) + @('Y', 'X', 'W', 'V', 'U', 'T', 'S', 'R', 'Q', 'P', 'N', 'M')) {
+    if ($used -notcontains $candidate.ToUpper()) { return $candidate.ToUpper() }
+  }
+  throw 'No free drive letter is available.'
+}
+function Disconnect-Drive([string]$Drive) {
+  $deleteArgs = @('use', $Drive, '/delete', '/y')
+  Invoke-Net $deleteArgs | Out-Null
+}
+function Connect-WebDavDrive([string]$Drive, [string]$Unc) {
+  $userArgument = '/user:' + $Username
+  $connectArgs = @('use', $Drive, $Unc, $Token, $userArgument, '/persistent:yes')
+  for ($attempt = 1; $attempt -le 3; $attempt++) {
+    $result = Invoke-Net $connectArgs
+    Start-Sleep -Milliseconds 500
+    if ($result.ExitCode -eq 0 -and (Test-Path ($Drive + '\\'))) { return }
+    Disconnect-Drive $Drive
+    if ($attempt -eq 3) { throw ('Windows could not map ' + $Unc + ' (net use exit code ' + $result.ExitCode + '). ' + $result.Output) }
+    Start-Sleep -Seconds 3
+  }
+}
+function New-DesktopShortcut([string]$Drive) {
+  $iconDir = Join-Path $env:APPDATA 'AppDashboard'
+  New-Item -ItemType Directory -Force -Path $iconDir | Out-Null
+  $iconIco = Join-Path $iconDir 'cloud.ico'
+  try { Invoke-WebRequest -Uri $IconIcoUrl -OutFile $iconIco -UseBasicParsing -TimeoutSec 20 } catch {}
+  $shell = New-Object -ComObject WScript.Shell
+  $link = $shell.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) ($Name + '.lnk')))
+  $link.TargetPath = $Drive + '\\'
+  $link.WorkingDirectory = $Drive + '\\'
+  if (Test-Path $iconIco) { $link.IconLocation = $iconIco + ',0' }
+  $link.Save()
 }
 try {
-  Set-Service WebClient -StartupType Automatic -ErrorAction SilentlyContinue
-  Start-Service WebClient -ErrorAction SilentlyContinue
-  if ([Uri]$WebDavUrl -as [Uri] -and (([Uri]$WebDavUrl).Scheme -eq 'http' -or ([Uri]$WebDavUrl).Scheme -eq 'webdav')) {
-    New-Item -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters' -Force | Out-Null
-    New-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\WebClient\\Parameters' -Name BasicAuthLevel -Value 2 -PropertyType DWord -Force | Out-Null
-    Restart-Service WebClient -ErrorAction SilentlyContinue
-  }
-} catch {}
-$Unc = Convert-WebDavToUnc $WebDavUrl
-& cmd.exe /c net use $Drive /delete /y | Out-Null
-& cmd.exe /c net use $Drive $Unc "/user:$Username" $Token /persistent:yes
-$IconDir = Join-Path $env:APPDATA 'AppDashboard'
-New-Item -ItemType Directory -Force -Path $IconDir | Out-Null
-$IconFile = Join-Path $IconDir 'cloud.png'
-$IconIco = Join-Path $IconDir 'cloud.ico'
-try { Invoke-WebRequest -Uri $IconUrl -OutFile $IconFile -UseBasicParsing } catch {}
-try { Invoke-WebRequest -Uri $IconIcoUrl -OutFile $IconIco -UseBasicParsing } catch {}
-$Shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) "$Name.lnk"
-$Shell = New-Object -ComObject WScript.Shell
-$Link = $Shell.CreateShortcut($Shortcut)
-$Link.TargetPath = "$Drive\\"
-$Link.WorkingDirectory = "$Drive\\"
-if (Test-Path $IconIco) { $Link.IconLocation = "$IconIco,0" }
-$Link.Save()
-Write-Host "Connected $Name as $Drive"
+  $httpUrl = Get-HttpUrl $WebDavUrl
+  $unc = Get-DavUnc $WebDavUrl
+  Enable-WebClient
+  if (([Uri]$httpUrl).Scheme -eq 'http') { Enable-BasicAuthOverHttp }
+  $status = Test-WebDavAccess $httpUrl
+  if ($status -eq 401 -or $status -eq 403) { throw 'The cloud rejected the token. Generate a new token and download the script again.' }
+  if ($status -ne 200 -and $status -ne 207) { throw ('The cloud returned HTTP ' + $status + ' for ' + $httpUrl + '.') }
+  Disconnect-Drive ($PreferredLetter + ':')
+  $drive = (Get-DriveLetter $PreferredLetter) + ':'
+  Connect-WebDavDrive $drive $unc
+  New-DesktopShortcut $drive
+  Write-Host ('Connected ' + $Name + ' as ' + $drive)
+} catch {
+  Write-Host ('Connection failed: ' + $_.Exception.Message) -ForegroundColor Red
+  exit 1
+}
 `;
   }
 
   function downloadDetectedScript() {
     if (detectedDesktopOS() === 'windows') {
-      downloadTextFile('appdashboard-webdav-connect.ps1', windowsWebdavScript(), 'text/plain');
+      downloadWindowsWebdavScript();
       return;
     }
     downloadTextFile('appdashboard-webdav-connect.sh', linuxWebdavScript(), 'text/x-shellscript');
@@ -792,7 +891,7 @@ Write-Host "Connected $Name as $Drive"
         flashStatus(tr('noTokenToCopy', 'No token to copy'));
         return;
       }
-      downloadTextFile('appdashboard-webdav-connect.ps1', windowsWebdavScript(), 'text/plain');
+      downloadWindowsWebdavScript();
     });
   }
   tokensListContainer.addEventListener('click', (event) => {

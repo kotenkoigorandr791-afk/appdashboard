@@ -117,10 +117,6 @@ if ($webdavEmail === '') {
     exit;
 }
 $requestPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '/webdav/';
-if ($requestPath === '/webdav' || $requestPath === '/apps/cloud/webdav.php') {
-    header('Location: ' . $requestPath . '/');
-    exit;
-}
 $user = email_to_cloud_username($webdavEmail);
 $root = user_root($user, 'clientsync');
 if (!is_dir($root)) @mkdir($root, 0775, true);

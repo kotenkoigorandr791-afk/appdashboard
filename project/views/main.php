@@ -2045,9 +2045,11 @@ endif; // showOtpPage
             <hr style="margin:20px 0;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['trusted_devices']); ?></h3><button id="refresh-trusted" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
             <p style="font-size:13px;opacity:.7;margin-bottom:15px;"><?php echo my_htmlspecialchars($translations['trusted_devices_desc']); ?></p>
-            <?php if(!$isCurrentDeviceTrusted):?>
-            <div style="margin-bottom:15px;"><button type="button" id="add-trusted-device-btn" class="sidebar-button" style="background:#4CAF50;color:white;border:none;padding:10px 16px;border-radius:4px;cursor:pointer;font-size:14px;width:100%;"><?php echo my_htmlspecialchars($translations['add_trusted_device']); ?></button></div>
-            <?php endif;?>
+            <div id="add-trusted-device-container">
+                <?php if(!$isCurrentDeviceTrusted):?>
+                <div style="margin-bottom:15px;"><button type="button" id="add-trusted-device-btn" class="sidebar-button" style="background:#4CAF50;color:white;border:none;padding:10px 16px;border-radius:4px;cursor:pointer;font-size:14px;width:100%;"><?php echo my_htmlspecialchars($translations['add_trusted_device']); ?></button></div>
+                <?php endif;?>
+            </div>
             <div id="trusted-devices-container">
                 <?php if(empty($trustedDevices)):?>
                     <p id="no-trusted-msg"><?php echo my_htmlspecialchars($translations['no_trusted_devices']); ?></p>
@@ -3529,8 +3531,7 @@ var T=<?php echo json_encode([
             });
         }
         
-        const addTrustedBtn=document.getElementById('add-trusted-device-btn');
-        if(addTrustedBtn){addTrustedBtn.addEventListener('click',function(){
+        function addCurrentDeviceToTrusted(){
             showTrustedConfirm(T.add_trusted_device_confirm||'Add this device to your trusted list? You will stay logged in even after the session timeout.', function(ok){
                 if(!ok) return;
                 fetch('/main?api=client_auth&action=add_trusted_device',{method:'POST',headers:trustedDeviceRequestHeaders(),body:JSON.stringify({})})
@@ -3543,7 +3544,12 @@ var T=<?php echo json_encode([
                     else{showTempNotification(data.error||'Error','error');}
                 }).catch(()=>showTempNotification(T.network_error||'Network error','error'));
             });
-        });}
+        }
+        function bindAddTrustedDeviceButton(){
+            const btn=document.getElementById('add-trusted-device-btn');
+            if(btn){btn.addEventListener('click',addCurrentDeviceToTrusted);}
+        }
+        bindAddTrustedDeviceButton();
         const refreshTrustedBtn=document.getElementById('refresh-trusted');
         if(refreshTrustedBtn){refreshTrustedBtn.addEventListener('click',function(){refreshTrustedDevices();});}
         
@@ -3585,28 +3591,17 @@ var T=<?php echo json_encode([
                 const container=document.getElementById('trusted-devices-container');
                 if(!container)return;
                 const devices=data.devices||[];
-                const currentIp=data.current_ip||'';
                 const noTrusted=T.no_trusted_devices||'No trusted devices';
+                const addContainer=document.getElementById('add-trusted-device-container');
+                if(addContainer){
+                    addContainer.innerHTML=data.is_current_trusted?'':'<div style="margin-bottom:15px;"><button type="button" id="add-trusted-device-btn" class="sidebar-button" style="background:#4CAF50;color:white;border:none;padding:10px 16px;border-radius:4px;cursor:pointer;font-size:14px;width:100%;">'+(T.add_trusted_device||'Add This Device')+'</button></div>';
+                    bindAddTrustedDeviceButton();
+                }
                 if(devices.length===0){
-                    container.innerHTML='<p id="no-trusted-msg">'+noTrusted+'</p><div style="margin-bottom:15px;"><button type="button" id="add-trusted-device-btn" class="sidebar-button" style="background:#4CAF50;color:white;border:none;padding:10px 16px;border-radius:4px;cursor:pointer;font-size:14px;width:100%;">'+(T.add_trusted_device||'Add This Device')+'</button></div>';
-                    const newBtn=document.getElementById('add-trusted-device-btn');
-                    if(newBtn){newBtn.addEventListener('click',function(){
-                        showTrustedConfirm(T.add_trusted_device_confirm||'Add this device to your trusted list? You will stay logged in even after the session timeout.', function(ok){
-                            if(!ok) return;
-                            fetch('/main?api=client_auth&action=add_trusted_device',{method:'POST',headers:trustedDeviceRequestHeaders(),body:JSON.stringify({})})
-                            .then(r=>r.json()).then(d=>{
-                                if(d.ok){
-                                    persistTrustedDeviceClientState(d.encrypted_token || '');
-                                    showTempNotification(T.device_added_trusted||'Device added','success');
-                                    refreshTrustedDevices();
-                                }
-                                else{showTempNotification(d.error||'Error','error');}
-                            }).catch(()=>showTempNotification(T.network_error||'Network error','error'));
-                        });
-                    });}
+                    container.innerHTML='<p id="no-trusted-msg">'+noTrusted+'</p>';
                     return;
                 }
-                let html='<div style="margin-bottom:15px;"><button type="button" id="add-trusted-device-btn" class="sidebar-button" style="background:#4CAF50;color:white;border:none;padding:10px 16px;border-radius:4px;cursor:pointer;font-size:14px;width:100%;">'+(T.add_trusted_device||'Add This Device')+'</button></div>';
+                let html='';
                 const currentFp=data.current_fingerprint||'';
                 html+='<table class="trusted-devices-table"><thead><tr><th>'+(T.trusted_ip||'IP')+'</th><th>'+(T.device_name||'Device Name')+'</th><th>'+(T.trusted_since||'Trusted Since')+'</th><th>'+(T.trusted_last_seen||'Last Seen')+'</th><th></th></tr></thead><tbody>';
                 devices.forEach(function(d){
@@ -3616,8 +3611,6 @@ var T=<?php echo json_encode([
                 });
                 html+='</tbody></table>';
                 container.innerHTML=html;
-                const btn=document.getElementById('add-trusted-device-btn');
-                if(btn){btn.style.display='none';}
             }).catch(()=>{});
         }
         function formatDate(ts){if(!ts)return'—';const d=new Date(ts*1000);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0');}
