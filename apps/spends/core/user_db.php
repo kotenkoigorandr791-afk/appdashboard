@@ -3,7 +3,8 @@ require_once __DIR__ . '/../../../lib/user_schema_pg.php';
 function getUserDBPath($userEmail) {
     $safe = getSafeFolderName($userEmail);
     $dir  = APPS_DATA_DIR . $safe;
-    if (!file_exists($dir)) mkdir($dir, 0755, true);
+    if (!file_exists($dir)) mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true);
+    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     return $dir . '/data.sqlite3';
 }
 function getUserSQLite($userEmail) {

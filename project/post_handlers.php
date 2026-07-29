@@ -71,27 +71,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     cleanupExpiredUserSessions($otpEmail);
                     addUserToActiveSessions($otpEmail,session_id(),$_SESSION['user']);
                     
-                    // Check if this is a new device
-                    $loginFp = getDeviceFingerprint();
-                    $isTrusted = isTrustedDevice($otpEmail, $loginFp);
-                    if ($isTrusted && getTrustedDeviceCookieForEmail($otpEmail) !== '') {
-                        rememberTrustedDeviceBrowserAccount($otpEmail);
-                        setTrustedDeviceHintCookie($otpEmail, $loginFp);
-                    }
-                    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-                    $det = detectDeviceAndBrowser($ua);
-                    $db = getDB();
-                    $devCheckStmt = $db->prepare("SELECT COUNT(*) as cnt FROM active_sessions WHERE email = :e AND device = :dev AND browser = :br AND session_id != :sid");
-                    $devCheckStmt->bindValue(':e', $otpEmail, SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':dev', $det['device'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':br', $det['browser'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':sid', session_id(), SQLITE3_TEXT);
-                    $devResult = $devCheckStmt->execute()->fetchArray(SQLITE3_ASSOC);
-                    $hasOtherSession = $devResult && $devResult['cnt'] > 0;
-                    if(!$isTrusted && !$hasOtherSession){
-                        $_SESSION['new_device_login'] = true;
-                    }
-                    
+                    scheduleTrustedDevicePromptIfNeeded($otpEmail);
                     header('Location: ' . takePostLoginRedirect('/main'));
                     exit;
                 }else{
@@ -140,26 +120,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     cleanupExpiredUserSessions($email);
                     addUserToActiveSessions($email,session_id(),$_SESSION['user']);
                     
-                    $loginFp = getDeviceFingerprint();
-                    $isTrusted = isTrustedDevice($email, $loginFp);
-                    if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
-                        rememberTrustedDeviceBrowserAccount($email);
-                        setTrustedDeviceHintCookie($email, $loginFp);
-                    }
-                    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-                    $det = detectDeviceAndBrowser($ua);
-                    $db = getDB();
-                    $devCheckStmt = $db->prepare("SELECT COUNT(*) as cnt FROM active_sessions WHERE email = :e AND device = :dev AND browser = :br AND session_id != :sid");
-                    $devCheckStmt->bindValue(':e', $email, SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':dev', $det['device'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':br', $det['browser'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':sid', session_id(), SQLITE3_TEXT);
-                    $devResult = $devCheckStmt->execute()->fetchArray(SQLITE3_ASSOC);
-                    $hasOtherSession = $devResult && $devResult['cnt'] > 0;
-                    if(!$isTrusted && !$hasOtherSession){
-                        $_SESSION['new_device_login'] = true;
-                    }
-                    
+                    scheduleTrustedDevicePromptIfNeeded($email);
                     header('Location: ' . takePostLoginRedirect('/main'));
                     exit;
                 }
@@ -230,6 +191,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 setLastActiveUser($email);
                 cleanupExpiredUserSessions($email);
                 addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                scheduleTrustedDevicePromptIfNeeded($email);
                 header('Location: '.takePostLoginRedirect('/main'));
                 exit;
             }elseif(isset($users[$email])){

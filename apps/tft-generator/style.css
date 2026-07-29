@@ -40,7 +40,7 @@ body::before {
     height: auto;
     display: grid;
     grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
+    align-items: start;
     column-gap: 8px;
     row-gap: 6px;
     z-index: 20;
@@ -54,25 +54,32 @@ body::before {
     flex-wrap: nowrap;
     flex-shrink: 0;
 }
-.toolbar-edge--left { grid-column: 1; grid-row: 1; justify-self: start; }
-.toolbar-edge--right { grid-column: 3; grid-row: 1; justify-self: end; }
+.toolbar-edge--left { grid-column: 1; grid-row: 1; justify-self: start; align-self: start; }
+.toolbar-edge--right { grid-column: 3; grid-row: 1; justify-self: end; align-self: start; }
 .toolbar-tools {
     grid-column: 2;
     grid-row: 1;
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-rows: repeat(2, 38px);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(56px, 1fr);
     align-items: center;
     justify-content: center;
     justify-self: stretch;
     min-width: 0;
-    gap: 0;
+    gap: 6px;
+    padding: 6px;
+    border-radius: 8px;
+    box-sizing: border-box;
 }
-body.dark #top-bar { background-color: #222; } 
+body.dark #top-bar { background-color: #222; }
 body.light #top-bar { background-color: #ddd; }
+body.dark .toolbar-tools { background-color: #2b2b2b; border: 1px solid #4a4a4a; }
+body.light .toolbar-tools { background-color: #e7e7e7; border: 1px solid #b8b8b8; }
 
-#top-bar button { 
-    margin: 2px 5px; 
-    padding: 8px; 
+#top-bar button {
+    margin: 0;
+    padding: 8px;
     cursor: pointer; 
     transition: background-color 0.3s, color 0.3s; 
     white-space: nowrap; 
@@ -82,7 +89,17 @@ body.light #top-bar { background-color: #ddd; }
     gap: 5px; 
     box-sizing: border-box;
     min-height: 38px;
-} 
+}
+.toolbar-tools button {
+    width: 100%;
+    height: 38px;
+    justify-content: center;
+}
+.toolbar-edge button {
+    width: 38px;
+    height: 38px;
+    justify-content: center;
+}
 body.dark #top-bar button { background-color: #444; color: #fff; border: 1px solid #666; } 
 body.light #top-bar button { background-color: #ccc; color: #000; border: 1px solid #999; }
 
@@ -1010,11 +1027,24 @@ body.light #footer {
 }
 
 @media (max-width: 480px) { 
-    #top-bar button { 
-        font-size: 10px; 
-        padding: 4px; 
+    #top-bar button {
+        font-size: 10px;
+        padding: 4px;
         min-height: 32px;
-    } 
+    }
+    .toolbar-tools {
+        grid-template-rows: repeat(2, 32px);
+        grid-auto-columns: minmax(36px, 1fr);
+        gap: 4px;
+        padding: 4px;
+    }
+    .toolbar-tools button, .toolbar-edge button {
+        height: 32px;
+        width: 100%;
+    }
+    .toolbar-edge button {
+        width: 32px;
+    }
 }
 
 #tool-text { 

@@ -339,6 +339,31 @@ function loginUserSession(string $email, array $users): bool {
     }
     return true;
 }
+function scheduleTrustedDevicePromptIfNeeded(string $email): void {
+    $fp = getDeviceFingerprint();
+    $isTrusted = isTrustedDevice($email, $fp);
+    if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
+        rememberTrustedDeviceBrowserAccount($email);
+        setTrustedDeviceHintCookie($email, $fp);
+    }
+    if (!$isTrusted) {
+        $_SESSION['new_device_login'] = true;
+        $_SESSION['new_device_login_at'] = time() + random_int(30, 180);
+    } else {
+        unset($_SESSION['new_device_login'], $_SESSION['new_device_login_at']);
+    }
+}
+function consumeTrustedDevicePromptDelayMs(): ?int {
+    if (empty($_SESSION['new_device_login']) || !isset($_SESSION['user']['email'])) return null;
+    $email = (string)$_SESSION['user']['email'];
+    if (isTrustedDevice($email, getDeviceFingerprint())) {
+        unset($_SESSION['new_device_login'], $_SESSION['new_device_login_at']);
+        return null;
+    }
+    $showAt = (int)($_SESSION['new_device_login_at'] ?? 0);
+    unset($_SESSION['new_device_login'], $_SESSION['new_device_login_at']);
+    return max(0, $showAt - time()) * 1000;
+}
 
 $trustedDeviceRestoreNotice = null;
 $trustedDeviceHint = parseTrustedDeviceHintCookie((string)($_COOKIE['trusted_device_hint'] ?? ''));
@@ -2079,6 +2104,7 @@ function completeEmailVerification(string $email): bool {
     $_SESSION['auth_time'] = time();
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    scheduleTrustedDevicePromptIfNeeded($email);
     notifyTelegramEmailVerified($email, $name);
     return true;
 }

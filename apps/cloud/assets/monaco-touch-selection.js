@@ -25,8 +25,15 @@
         let isScrolling = false;
         let isDraggingHandle = null;
         let selectionHandles = null;
+        let autoScrollFrame = null;
+        let autoScrollTouch = null;
+        let autoScrollStartedAt = 0;
         const LONG_PRESS_DELAY = 400;
         const SCROLL_THRESHOLD = 15;
+        const AUTO_SCROLL_ZONE = 72;
+        const AUTO_SCROLL_MAX_PX = 16;
+        const AUTO_SCROLL_ACCEL_MS = 1000;
+        const AUTO_SCROLL_INITIAL_FACTOR = 1 / 3;
 
         function createSelectionHandles() {
             removeSelectionHandles();
@@ -66,29 +73,15 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const touch = e.touches[0];
-                    const target = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
-                    if (!target || !target.position) return;
-                    const { lineNumber, column } = target.position;
-                    if (!lineNumber || !column) return;
-                    const model = editor.getModel();
-                    if (!model) return;
-                    const safeLine = Math.max(1, Math.min(lineNumber, model.getLineCount()));
-                    const safeCol = Math.max(1, Math.min(column, model.getLineMaxColumn(safeLine)));
-                    const sel = editor.getSelection();
-                    if (!sel) return;
-                    const newRange = isDraggingHandle === 'start'
-                        ? new monaco.Range(safeLine, safeCol, sel.endLineNumber, sel.endColumn)
-                        : new monaco.Range(sel.startLineNumber, sel.startColumn, safeLine, safeCol);
-                    if (newRange.isEmpty()) return;
-                    try { editor.setSelection(newRange); } catch (_) {}
-                    editor.revealLineInCenterIfOutsideViewport(safeLine);
-                    updateHandlePositions();
+                    try { setSelectionFromClientPoint(touch.clientX, touch.clientY); } catch (_) {}
+                    updateTouchAutoScroll(touch);
                 }, { passive: false });
 
                 handle.addEventListener('touchend', (e) => {
                     if (isDraggingHandle === handle.dataset.handle) {
                         e.stopPropagation();
                         isDraggingHandle = null;
+                        stopTouchAutoScroll();
                         container.style.touchAction = 'pan-x pan-y';
                     }
                 });
@@ -98,6 +91,7 @@
         function removeSelectionHandles() {
             if (selectionHandles) { selectionHandles.remove(); selectionHandles = null; }
             isDraggingHandle = null;
+            stopTouchAutoScroll();
         }
 
         function updateHandlePositions() {
@@ -122,6 +116,78 @@
         function hideHandles() {
             if (!selectionHandles) return;
             selectionHandles.querySelectorAll('.monaco-selection-handle').forEach(h => h.style.display = 'none');
+        }
+
+        function setSelectionFromClientPoint(clientX, clientY) {
+            const target = editor.getTargetAtClientPoint(clientX, clientY);
+            if (!target || !target.position) return false;
+            const model = editor.getModel();
+            if (!model) return false;
+            const lineNumber = Math.max(1, Math.min(target.position.lineNumber, model.getLineCount()));
+            const column = Math.max(1, Math.min(target.position.column, model.getLineMaxColumn(lineNumber)));
+            if (isDraggingHandle) {
+                const sel = editor.getSelection();
+                if (!sel) return false;
+                const range = isDraggingHandle === 'start'
+                    ? new monaco.Range(lineNumber, column, sel.endLineNumber, sel.endColumn)
+                    : new monaco.Range(sel.startLineNumber, sel.startColumn, lineNumber, column);
+                if (range.isEmpty()) return false;
+                editor.setSelection(range);
+            } else {
+                if (!touchStart || !touchStart.position) return false;
+                editor.setSelection(new monaco.Range(touchStart.position.lineNumber, touchStart.position.column, lineNumber, column));
+            }
+            updateHandlePositions();
+            return true;
+        }
+
+        function stopTouchAutoScroll() {
+            if (autoScrollFrame) cancelAnimationFrame(autoScrollFrame);
+            autoScrollFrame = null;
+            autoScrollTouch = null;
+            autoScrollStartedAt = 0;
+        }
+
+        function autoScrollDirection(clientY) {
+            const rect = container.getBoundingClientRect();
+            const topDistance = clientY - rect.top;
+            const bottomDistance = rect.bottom - clientY;
+            if (topDistance < AUTO_SCROLL_ZONE) return { direction: -1, distance: Math.max(0, topDistance) };
+            if (bottomDistance < AUTO_SCROLL_ZONE) return { direction: 1, distance: Math.max(0, bottomDistance) };
+            return { direction: 0, distance: AUTO_SCROLL_ZONE };
+        }
+
+        function runTouchAutoScroll() {
+            if (!autoScrollTouch) {
+                autoScrollFrame = null;
+                return;
+            }
+            const edge = autoScrollDirection(autoScrollTouch.clientY);
+            if (!edge.direction) {
+                stopTouchAutoScroll();
+                return;
+            }
+            const elapsed = Date.now() - autoScrollStartedAt;
+            const accel = Math.min(1, elapsed / AUTO_SCROLL_ACCEL_MS);
+            const factor = AUTO_SCROLL_INITIAL_FACTOR + ((1 - AUTO_SCROLL_INITIAL_FACTOR) * accel);
+            const intensity = 1 - (edge.distance / AUTO_SCROLL_ZONE);
+            const delta = edge.direction * Math.max(1, AUTO_SCROLL_MAX_PX * intensity * intensity * factor);
+            editor.setScrollTop(editor.getScrollTop() + delta);
+            setSelectionFromClientPoint(autoScrollTouch.clientX, autoScrollTouch.clientY);
+            autoScrollFrame = requestAnimationFrame(runTouchAutoScroll);
+        }
+
+        function updateTouchAutoScroll(touch) {
+            const edge = autoScrollDirection(touch.clientY);
+            if (!edge.direction) {
+                stopTouchAutoScroll();
+                return;
+            }
+            autoScrollTouch = { clientX: touch.clientX, clientY: touch.clientY };
+            if (!autoScrollFrame) {
+                autoScrollStartedAt = Date.now();
+                autoScrollFrame = requestAnimationFrame(runTouchAutoScroll);
+            }
         }
 
         container.style.touchAction = 'pan-x pan-y';
@@ -166,12 +232,8 @@
             }
             if (!selectionInProgress) return;
             e.preventDefault();
-            const hit = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
-            if (!hit || !hit.position || !touchStart.position) return;
-            const range = new monaco.Range(touchStart.position.lineNumber, touchStart.position.column, hit.position.lineNumber, hit.position.column);
-            try { editor.setSelection(range); } catch (_) {}
-            editor.revealLineInCenterIfOutsideViewport(hit.position.lineNumber);
-            updateHandlePositions();
+            try { setSelectionFromClientPoint(touch.clientX, touch.clientY); } catch (_) {}
+            updateTouchAutoScroll(touch);
         }, { passive: false });
 
         container.addEventListener('touchend', (e) => {
@@ -207,6 +269,7 @@
             lastTapTime = now;
             touchStart = null;
             isScrolling = false;
+            stopTouchAutoScroll();
         }, { passive: false });
 
         editor.onDidScrollChange(updateHandlePositions);

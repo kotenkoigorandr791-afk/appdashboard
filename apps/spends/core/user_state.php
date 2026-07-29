@@ -10,7 +10,8 @@ if (!$currentUserEmail || $currentUserEmail === 'default_user') {
 $currentUser = $currentUserEmail;
 
 $userDir = APPS_DATA_DIR . $currentUserFolder;
-if (!file_exists($userDir)) mkdir($userDir, 0755, true);
+if (!file_exists($userDir)) mkdir($userDir, SPENDS_RUNTIME_DIR_MODE, true);
+@chmod($userDir, SPENDS_RUNTIME_DIR_MODE);
 
 $udb = getUserSQLite($currentUserEmail);
 
@@ -47,7 +48,8 @@ function getUserPhoto($userEmail) {
     $userDir  = APPS_DATA_DIR . $safe;
     $photoPath= $userDir . '/profile.jpg';
     if (file_exists($photoPath)) return "users/{$safe}/profile.jpg?t=" . filemtime($photoPath);
-    if (!file_exists($userDir)) mkdir($userDir, 0755, true);
+    if (!file_exists($userDir)) mkdir($userDir, SPENDS_RUNTIME_DIR_MODE, true);
+    @chmod($userDir, SPENDS_RUNTIME_DIR_MODE);
     $db = getDB();
     if ($db) {
         $sid = session_id();
@@ -116,7 +118,8 @@ $visibleStores = array_filter($userSettings['stores'], fn($s) => $s['visible'] ?
 function getUserBackupDir($userEmail) {
     $safe = getSafeFolderName($userEmail);
     $dir  = __DIR__ . '/../backups/' . $safe;
-    if (!file_exists($dir)) mkdir($dir, 0755, true);
+    if (!file_exists($dir)) mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true);
+    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     return $dir;
 }
 

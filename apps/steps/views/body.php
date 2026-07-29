@@ -252,11 +252,6 @@
                         <input type="text" id="steps-input" inputmode="numeric" placeholder="<?php echo htmlspecialchars($translations['add_steps']); ?>" autocomplete="one-time-code" autocorrect="off" spellcheck="false" name="steps_count" data-lpignore="true" data-1p-ignore data-form-type="other" readonly onfocus="this.removeAttribute('readonly')">
                     </div>
                     <div class="adjacent-dates" id="next-dates"></div>
-                    <div class="save-button-container">
-                        <button id="add-steps-submit" class="save-button">
-                            <i class="fas fa-save"></i> <?php echo htmlspecialchars($translations['add_steps']); ?>
-                        </button>
-                    </div>
                     <form id="add-steps-form" method="post" style="display:none;">
                         <input type="hidden" name="date" id="selected-date">
                         <input type="hidden" name="steps" id="selected-steps">

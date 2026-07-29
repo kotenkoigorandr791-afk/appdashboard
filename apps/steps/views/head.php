@@ -1317,8 +1317,9 @@
         .adjacent-dates { width: 100%; margin: 10px 0; }
         .adjacent-date { display: flex; justify-content: space-between; padding: 5px; background: var(--group-block-bg); border-radius: 4px; margin: 5px 0; opacity: 0.7; cursor: pointer; } 
         .adjacent-date:hover { opacity: 1; background: var(--primary-color); color: #fff; }
-        .current-date { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: var(--modal-bg); border: 1px solid var(--primary-color); border-radius: 4px; margin: 10px auto; width: 50%; }
-        .current-date input[type="date"], .current-date input[type="text"] { width: 45%; font-size: 16px; }
+        .current-date { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px; background: var(--modal-bg); border: 1px solid var(--primary-color); border-radius: 4px; margin: 10px auto; width: min(100%, 420px); box-sizing: border-box; }
+        .current-date input[type="date"], .current-date input[type="text"] { flex: 1 1 0; min-width: 0; width: auto; font-size: 16px; box-sizing: border-box; }
+        .current-date input[type="date"] { flex-basis: 150px; min-width: 145px; }
         
         #notifications { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; max-width: min(100vw - 32px, 100%); box-sizing: border-box; }
         #worker-progress-widget { position: fixed; left: 20px; bottom: 20px; z-index: 10000; display: none; flex-direction: column; gap: 8px; align-items: flex-start; }
@@ -1745,10 +1746,8 @@
                 width: 100%;
             }
             
-            .current-date input[type="date"], 
-            .current-date input[type="text"] {
-                width: 48%;
-            }
+            .current-date { width: 100%; }
+            .current-date input[type="date"] { min-width: 145px; }
         }
     </style>
 </head>

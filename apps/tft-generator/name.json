@@ -5,9 +5,15 @@
     "be": "Генератар TFT",
     "menu_button": {
         "left": 8,
-        "top": 30,
-        "width": 34,
-        "height": 34
+        "top": 5,
+        "width": 38,
+        "height": 38
+    },
+    "menu_button_style": {
+        "background": "linear-gradient(135deg,#0f172a,#334155)",
+        "color": "#ffffff",
+        "border": "1px solid rgba(255,255,255,0.38)",
+        "box-shadow": "0 0 0 2px rgba(59,130,246,0.35),0 8px 18px rgba(0,0,0,0.28)"
     },
     "pl": "Generator TFT",
     "cs": "Generátor TFT"

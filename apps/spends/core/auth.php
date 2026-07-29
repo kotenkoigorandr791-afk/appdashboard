@@ -51,18 +51,16 @@ function isUserRoot() {
 }
 
 define('APPS_DATA_DIR', __DIR__ . '/../users/');
+define('SPENDS_RUNTIME_DIR_MODE', 02775);
 function logError($message) { error_log("[ExpenseApp] $message"); }
 function checkDirectory($dir) {
     if (!file_exists($dir)) {
-        if (!mkdir($dir, 0755, true)) { logError("Failed to create directory $dir"); exit(json_encode(['status'=>'error','message'=>'Failed to create directory'])); }
+        if (!mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true)) { logError("Failed to create directory $dir"); exit(json_encode(['status'=>'error','message'=>'Failed to create directory'])); }
     }
+    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     if (!is_writable($dir)) { logError("Directory $dir is not writable"); exit(json_encode(['status'=>'error','message'=>'Directory is not writable'])); }
 }
 
-$utilsDir   = __DIR__ . '/../utils';
-$resultsDir = __DIR__ . '/../utils/results';
-checkDirectory($utilsDir);
-checkDirectory($resultsDir);
-if (!file_exists(APPS_DATA_DIR)) mkdir(APPS_DATA_DIR, 0755, true);
+checkDirectory(APPS_DATA_DIR);
 $backupBaseDir = __DIR__ . '/../backups';
 checkDirectory($backupBaseDir);

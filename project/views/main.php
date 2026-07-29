@@ -3008,13 +3008,25 @@ var T=<?php echo json_encode([
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyAutoTheme);
         showNotification();
         
-        // Show new device notification immediately if flag is set
-        <?php if(isset($_SESSION['new_device_login']) && $_SESSION['new_device_login']): ?>
-        showNewDeviceNotification();
-        <?php
-        // Clear the flag after showing notification
-        unset($_SESSION['new_device_login']);
-        endif; ?>
+        const trustedPromptKey='trusted_device_prompt_due';
+        function scheduleTrustedPrompt(delayMs){
+            const due=Date.now()+Math.max(0,delayMs);
+            try{localStorage.setItem(trustedPromptKey,String(due));}catch(e){}
+            setTimeout(function(){
+                try{localStorage.removeItem(trustedPromptKey);}catch(e){}
+                showNewDeviceNotification();
+            },Math.max(0,delayMs));
+        }
+        <?php if($newDeviceLoginNotificationDelayMs !== null): ?>
+        scheduleTrustedPrompt(<?php echo (int)$newDeviceLoginNotificationDelayMs; ?>);
+        <?php else: ?>
+        try{
+            const storedTrustedPromptDue=parseInt(localStorage.getItem(trustedPromptKey)||'0',10);
+            if(storedTrustedPromptDue>0){
+                scheduleTrustedPrompt(storedTrustedPromptDue-Date.now());
+            }
+        }catch(e){}
+        <?php endif; ?>
         
         const menuButton=document.getElementById('menu-button');
         const sidebar=document.getElementById('sidebar');
@@ -3497,6 +3509,9 @@ var T=<?php echo json_encode([
         function persistTrustedDeviceClientState(encryptedToken) {
             if (!encryptedToken) return true;
             const saved = saveTrustedDeviceToken(encryptedToken);
+            if (saved) {
+                try{localStorage.removeItem(trustedPromptKey);}catch(e){}
+            }
             if (!saved) {
                 showTempNotification(T.trusted_device_storage_failed || 'The browser did not fully save the remembered-device state. Automatic restore on this PC may not work until storage/cookies are allowed.', 'error');
             }

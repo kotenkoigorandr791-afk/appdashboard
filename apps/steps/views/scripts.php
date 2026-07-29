@@ -661,7 +661,12 @@
         function applyManualDate(date, lang = currentLocale, direction = 'none') {
             document.getElementById('selected-date-input').value = date;
             setStepsInputValue((stepsData.find(entry => entry.date === date) || { steps: 0 }).steps);
+            manualSaveSignature = getManualSaveSignature();
             updateAdjacentDates(date, lang, direction);
+        }
+        let manualSaveSignature = '';
+        function getManualSaveSignature() {
+            return document.getElementById('selected-date-input').value + '|' + parseStepsRaw(document.getElementById('steps-input').value);
         }
         function handleDateWheelScroll(e) {
             e.preventDefault();
@@ -720,11 +725,13 @@
             });
         }
         
-        async function saveSteps() {
+        async function saveSteps(options = {}) {
+            const advance = options.advance !== false;
+            const silent = options.silent === true;
             const date = document.getElementById('selected-date-input').value;
             const steps = parseStepsRaw(document.getElementById('steps-input').value);
             if (!date || !/^\d*$/.test(steps)) {
-                await showAlert(translations.invalid_date_steps || 'Invalid date or steps');
+                if (!silent) await showAlert(translations.invalid_date_steps || 'Invalid date or steps');
                 return;
             }
             document.getElementById('selected-date').value = date;
@@ -741,11 +748,16 @@
                     stepsData = stepsData.filter(entry => entry.date !== date);
                     stepsData.push({ date, steps: parseInt(steps) });
                     stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    manualSaveSignature = date + '|' + steps;
                     
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
                     updateCalendar(currentLocale);
                     updateStatsNotification();
                     updateGoalNotification();
+                    if (!advance) {
+                        updateAdjacentDates(date, currentLocale);
+                        return;
+                    }
                     setStepsInputValue(0);
                     const nextDateObj = localDateFromYMD(date);
                     nextDateObj.setDate(nextDateObj.getDate() + 1);
@@ -753,11 +765,17 @@
                     applyManualDate(newDateStr, currentLocale, 'next');
                     document.getElementById('steps-input').focus();
                 } else {
-                    await showAlert(`${translations.invalid_request || 'Error'}: ${data.message}`);
+                    if (!silent) await showAlert(`${translations.invalid_request || 'Error'}: ${data.message}`);
                 }
             } catch (err) {
-                await showAlert(`${translations.invalid_request || 'Error'}: ${err.message}`);
+                if (!silent) await showAlert(`${translations.invalid_request || 'Error'}: ${err.message}`);
             }
+        }
+        async function autoSaveManualSteps() {
+            const steps = parseStepsRaw(document.getElementById('steps-input').value);
+            const signature = getManualSaveSignature();
+            if (steps === '' || signature === manualSaveSignature) return;
+            await saveSteps({ advance: false, silent: true });
         }
         
         // Функции для Excel модального окна
@@ -2646,10 +2664,8 @@
             
             // Кнопка добавления шагов
             document.getElementById('add-steps-button').addEventListener('click', () => { 
-                const today = formatLocalYMD(new Date()); 
-                document.getElementById('selected-date-input').value = today; 
-                setStepsInputValue((stepsData.find(entry => entry.date === today) || { steps: 0 }).steps); 
-                updateAdjacentDates(today, currentLocale); 
+                const today = formatLocalYMD(new Date());
+                applyManualDate(today, currentLocale);
                 openModal('add-steps-modal');
                 setTimeout(() => document.getElementById('steps-input').focus(), 100); 
             });
@@ -3056,11 +3072,11 @@
             });
             
             // Сохранение шагов
-            document.getElementById('add-steps-submit').addEventListener('click', saveSteps);
             const stepsInpEl = document.getElementById('steps-input');
             stepsInpEl.addEventListener('focus', function() { this.value = parseStepsRaw(this.value); });
-            stepsInpEl.addEventListener('blur', function() { const t = this.value.replace(/\D/g, ''); this.value = t ? formatNumber(parseInt(t, 10) || 0) : ''; });
+            stepsInpEl.addEventListener('blur', function() { const t = this.value.replace(/\D/g, ''); this.value = t ? formatNumber(parseInt(t, 10) || 0) : ''; autoSaveManualSteps(); });
             stepsInpEl.addEventListener('keypress', e => { if (e.key === 'Enter') saveSteps(); });
+            document.getElementById('selected-date-input').addEventListener('change', function() { applyManualDate(this.value, currentLocale); });
             
             // Прокрутка даты
             document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);

@@ -266,7 +266,8 @@ if (isset($_POST['add_edit_store'])) {
             $fn   = preg_replace('/[^a-zA-Z0-9]/', '_', $storeName);
             $safe = getSafeFolderName($currentUser);
             $uDir = APPS_DATA_DIR . $safe;
-            if (!file_exists($uDir)) mkdir($uDir, 0755, true);
+            if (!file_exists($uDir)) mkdir($uDir, SPENDS_RUNTIME_DIR_MODE, true);
+            @chmod($uDir, SPENDS_RUNTIME_DIR_MODE);
             imagejpeg($newImg, "$uDir/store_$fn.jpg", 90);
             imagedestroy($image); imagedestroy($newImg);
         }
@@ -354,8 +355,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     }
     $tmpDir = $userDir . '/bank_import';
     if (!is_dir($tmpDir)) {
-        mkdir($tmpDir, 0755, true);
+        mkdir($tmpDir, SPENDS_RUNTIME_DIR_MODE, true);
     }
+    @chmod($tmpDir, SPENDS_RUNTIME_DIR_MODE);
     $token = bin2hex(random_bytes(16));
     $dest = $tmpDir . '/' . $token . '.csv';
     if (!move_uploaded_file($_FILES['bank_csv_file']['tmp_name'], $dest)) {
@@ -719,4 +721,3 @@ if (!empty($storeNames)) {
 }
 $incResAll = $udb->query("SELECT date, amount FROM incomes WHERE date LIKE '$currentYear-%' ORDER BY date ASC");
 while ($row = $incResAll->fetchArray(SQLITE3_ASSOC)) $allIncomes[$row['date']] = (float)$row['amount'];
-

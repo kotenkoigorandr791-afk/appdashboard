@@ -338,25 +338,7 @@ function oauthCompleteLogin(string $email, array $users): void {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
-    $loginFp = getDeviceFingerprint();
-    $isTrusted = isTrustedDevice($email, $loginFp);
-    if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
-        rememberTrustedDeviceBrowserAccount($email);
-        setTrustedDeviceHintCookie($email, $loginFp);
-    }
-    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-    $det = detectDeviceAndBrowser($ua);
-    $db = getDB();
-    $devCheckStmt = $db->prepare("SELECT COUNT(*) as cnt FROM active_sessions WHERE email = :e AND device = :dev AND browser = :br AND session_id != :sid");
-    $devCheckStmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $devCheckStmt->bindValue(':dev', $det['device'], SQLITE3_TEXT);
-    $devCheckStmt->bindValue(':br', $det['browser'], SQLITE3_TEXT);
-    $devCheckStmt->bindValue(':sid', session_id(), SQLITE3_TEXT);
-    $devResult = $devCheckStmt->execute()->fetchArray(SQLITE3_ASSOC);
-    $hasOtherSession = $devResult && $devResult['cnt'] > 0;
-    if (!$isTrusted && !$hasOtherSession) {
-        $_SESSION['new_device_login'] = true;
-    }
+    scheduleTrustedDevicePromptIfNeeded($email);
 }
 
 function oauthHandleLoginFlow(array $profile): void {

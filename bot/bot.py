@@ -9,6 +9,7 @@ import subprocess
 import socket
 import hashlib
 import tempfile
+from datetime import datetime, timezone
 from typing import Optional
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'lib'))
 import pg_sqlite_compat as sqlite3
@@ -22,6 +23,7 @@ POLL_TIMEOUT = 30
 POLL_INTERVAL = 2
 TOKEN_CACHE_TTL = 60
 LOG_FILE = os.path.join(os.path.dirname(__file__), 'bot.log')
+BOT_SERVICE_PHP = os.path.join(os.path.dirname(__file__), 'bot_service.php')
 
 _token_cache: dict = {'value': '', 'ts': 0}
 
@@ -436,7 +438,7 @@ def build_stats_message(s: dict) -> str:
 
     lines += [
         '',
-        f'<i>Collected at {time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}</i>',
+        f'<i>Collected at {_fmt_datetime(int(time.time()))}</i>',
     ]
     return '\n'.join(lines)
 
@@ -561,7 +563,7 @@ def _fmt_ts(ts: Optional[int]) -> str:
     if ts is None:
         return '—'
     try:
-        return time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(int(ts)))
+        return _fmt_unix_local(int(ts))
     except Exception:
         return '—'
 
@@ -586,7 +588,7 @@ def build_errors_recent_message(rows: list) -> str:
         lines.append(f'<i>{msg}</i>')
         lines.append(f'<i>last {_fmt_ts(r["last_seen"])} · first {_fmt_ts(r["first_seen"])}</i>')
         lines.append('')
-    lines.append(f'<i>{time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}</i>')
+    lines.append(f'<i>{_fmt_datetime(int(time.time()))}</i>')
     return '\n'.join(lines)
 
 
@@ -607,7 +609,7 @@ def build_errors_top_message(rows: list) -> str:
         lines.append(f'<i>{msg}</i>')
         lines.append(f'<i>last {_fmt_ts(r["last_seen"])}</i>')
         lines.append('')
-    lines.append(f'<i>{time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}</i>')
+    lines.append(f'<i>{_fmt_datetime(int(time.time()))}</i>')
     return '\n'.join(lines)
 
 
@@ -628,9 +630,34 @@ def _fmt_unix_local(ts: Optional[int]) -> str:
     if ts is None:
         return '—'
     try:
-        return time.strftime('%Y-%m-%d %H:%M:%S UTC', time.gmtime(int(ts)))
+        return time.strftime('%d.%m.%Y %H:%M:%S', time.localtime(int(ts)))
     except Exception:
         return '—'
+
+
+def _fmt_datetime(value) -> str:
+    if value is None or value == '':
+        return '—'
+    if isinstance(value, (int, float)) or (isinstance(value, str) and value.strip().isdigit()):
+        ts = int(float(value))
+        if ts > 10_000_000_000:
+            ts //= 1000
+        return _fmt_unix_local(ts)
+    raw = str(value).strip()
+    for candidate in (raw, raw.replace('Z', '+00:00')):
+        try:
+            dt = datetime.fromisoformat(candidate)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone().strftime('%d.%m.%Y %H:%M:%S')
+        except Exception:
+            pass
+    for fmt in ('%Y%m%dT%H%M%SZ', '%Y%m%dT%H%M%S', '%Y-%m-%d %H:%M:%S'):
+        try:
+            return datetime.strptime(raw, fmt).astimezone().strftime('%d.%m.%Y %H:%M:%S')
+        except Exception:
+            pass
+    return raw
 
 
 def _strip_emoji_prefix(text: str) -> str:
@@ -643,48 +670,8 @@ def _run_command_lines(cmd: list[str], timeout: int = 15) -> list[str]:
 
 
 def _php_backup_credentials() -> dict:
-    php_code = '''
-require '/var/www/AppDashboard/db.php';
-function dupBackupCryptKeyBinary(): string {
-    $env = getenv('BACKUP_DASHBOARD_CRYPT_KEY');
-    if ($env !== false && $env !== '') {
-        return hash('sha256', $env, true);
-    }
-    $stored = getConfig('backup_dashboard_data_key', '');
-    return hash('sha256', $stored, true);
-}
-function dupBackupDecryptPayload(string $json): ?string {
-    $w = json_decode($json, true);
-    if (!is_array($w) || !isset($w['iv'], $w['tag']) || !array_key_exists('ct', $w)) {
-        return null;
-    }
-    $iv = base64_decode((string)$w['iv'], true);
-    $ct = base64_decode((string)$w['ct'], true);
-    $tag = base64_decode((string)$w['tag'], true);
-    if ($iv === false || $ct === false || $tag === false) {
-        return null;
-    }
-    $pt = openssl_decrypt($ct, 'aes-256-gcm', dupBackupCryptKeyBinary(), OPENSSL_RAW_DATA, $iv, $tag, '');
-    return $pt === false ? null : $pt;
-}
-$row = getConfig('dup_backup_secrets_enc', '');
-if ($row === '') {
-    echo json_encode(['host' => '', 'token' => '']);
-    return;
-}
-$inner = dupBackupDecryptPayload($row);
-$obj = is_string($inner) ? json_decode($inner, true) : null;
-if (!is_array($obj)) {
-    echo json_encode(['host' => '', 'token' => '']);
-    return;
-}
-echo json_encode([
-    'host' => rtrim((string)($obj['host'] ?? ''), '/'),
-    'token' => trim((string)($obj['token'] ?? '')),
-], JSON_UNESCAPED_SLASHES);
-'''
     try:
-        out = subprocess.check_output(['php', '-r', php_code], text=True, timeout=10)
+        out = subprocess.check_output(['php', BOT_SERVICE_PHP, 'backup-credentials'], text=True, timeout=10)
         data = json.loads(out.strip() or '{}')
         if isinstance(data, dict):
             return {'host': str(data.get('host') or ''), 'token': str(data.get('token') or '')}
@@ -767,7 +754,7 @@ def build_backup_monitor_message(data: dict) -> str:
         status = 'Running' if item.get('ActiveRunId') is not None else _strip_emoji_prefix(str(meta.get('LastResult') or meta.get('ParsedResult') or 'Idle'))
         schedule = item.get('Schedule') or {}
         repeat = _esc(str(schedule.get('Repeat') or 'manual'))
-        last_run = _esc(str(meta.get('LastBackupDate') or '—'))
+        last_run = _esc(_fmt_datetime(meta.get('LastBackupDate') or meta.get('LastBackupStarted')))
         lines.append(f'<b>{name}</b> · <code>{_esc(status)}</code>')
         lines.append(f'<code>{target}</code>')
         lines.append(f'<i>schedule {repeat} · last {last_run}</i>')
@@ -775,14 +762,150 @@ def build_backup_monitor_message(data: dict) -> str:
     return '\n'.join(lines).rstrip()
 
 
+def _font(size: int, bold: bool = False):
+    from PIL import ImageFont
+    try:
+        family = 'DejaVuSans-Bold.ttf' if bold else 'DejaVuSans.ttf'
+        return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/' + family, size)
+    except Exception:
+        return ImageFont.load_default()
+
+
+def _text(draw, pos, text: str, font, fill: str, max_width: int, max_lines: int = 3) -> int:
+    words = []
+    for word in str(text).split():
+        if draw.textlength(word, font=font) <= max_width:
+            words.append(word)
+            continue
+        part = ''
+        for ch in word:
+            test = part + ch
+            if draw.textlength(test, font=font) <= max_width or not part:
+                part = test
+            else:
+                words.append(part)
+                part = ch
+        if part:
+            words.append(part)
+    lines, current = [], ''
+    for word in words or ['']:
+        test = (current + ' ' + word).strip()
+        if draw.textlength(test, font=font) <= max_width or not current:
+            current = test
+        else:
+            lines.append(current)
+            current = word
+    if current:
+        lines.append(current)
+    x, y = pos
+    line_h = font.size + 7 if hasattr(font, 'size') else 22
+    for line in lines[:max_lines]:
+        draw.text((x, y), line, font=font, fill=fill)
+        y += line_h
+    return y
+
+
+def _backup_sources(backup: dict) -> str:
+    sources = backup.get('Sources') or backup.get('SourcePaths') or []
+    if isinstance(sources, list):
+        return '; '.join(str(s) for s in sources if str(s).strip()) or '—'
+    return str(sources or '—')
+
+
+def render_backup_report_png(data: dict) -> Optional[str]:
+    try:
+        from PIL import Image, ImageDraw
+    except Exception as e:
+        log.error(f'Pillow import failed: {e}')
+        return None
+    backups = data.get('backups') or []
+    width = 1200
+    item_h = 220
+    height = max(520, 260 + min(len(backups), 10) * item_h)
+    img = Image.new('RGB', (width, height), '#101418')
+    draw = ImageDraw.Draw(img)
+    title_font = _font(30, True)
+    head_font = _font(20, True)
+    font = _font(17)
+    small = _font(14)
+    draw.text((32, 26), 'Backup Monitor Report', fill='#f8fafc', font=title_font)
+    draw.text((32, 70), _fmt_datetime(int(time.time())), fill='#94a3b8', font=font)
+    state = data.get('server_state') or {}
+    program_state = str(state.get('ProgramState') or '—')
+    has_warning = 'yes' if state.get('HasWarning') else 'no'
+    has_error = 'yes' if state.get('HasError') else 'no'
+    active = sum(1 for item in backups if item.get('ActiveRunId') is not None)
+    summary = [
+        ('Host', str(data.get('host') or '—')),
+        ('State', program_state),
+        ('Jobs', f'{len(backups)} total, {active} active'),
+        ('Warnings', has_warning),
+        ('Errors', has_error),
+    ]
+    x = 32
+    y = 118
+    for label, value in summary:
+        draw.rounded_rectangle((x, y, x + 210, y + 76), radius=10, fill='#151b22', outline='#263241')
+        draw.text((x + 16, y + 13), label, fill='#94a3b8', font=small)
+        draw.text((x + 16, y + 39), value[:20], fill='#e5e7eb', font=font)
+        x += 226
+    if data.get('error'):
+        draw.text((32, 230), 'Could not load backup jobs', fill='#f87171', font=head_font)
+        _text(draw, (32, 266), str(data.get('error')), font, '#fecaca', width - 64)
+    elif not backups:
+        draw.text((32, 240), 'No backup jobs found in Duplicati.', fill='#cbd5e1', font=head_font)
+    else:
+        y = 230
+        for item in backups[:10]:
+            backup = item.get('Backup') or {}
+            meta = backup.get('Metadata') or {}
+            schedule = item.get('Schedule') or {}
+            name = str(backup.get('Name') or 'Unnamed')
+            status = 'Running' if item.get('ActiveRunId') is not None else _strip_emoji_prefix(str(meta.get('LastResult') or meta.get('ParsedResult') or 'Idle'))
+            color = '#22c55e' if status.lower() in ('success', 'idle') else '#f59e0b'
+            if 'fail' in status.lower() or 'error' in status.lower():
+                color = '#ef4444'
+            draw.rounded_rectangle((32, y, width - 32, y + 196), radius=10, fill='#151b22', outline='#263241')
+            draw.ellipse((52, y + 24, 68, y + 40), fill=color)
+            draw.text((82, y + 17), name[:70], fill='#f3f4f6', font=head_font)
+            draw.text((width - 245, y + 20), status[:22], fill=color, font=font)
+            rows = [
+                ('Target', str(backup.get('TargetURL') or '—')),
+                ('Sources', _backup_sources(backup)),
+                ('Schedule', str(schedule.get('Repeat') or 'manual')),
+                ('Last backup', _fmt_datetime(meta.get('LastBackupDate') or meta.get('LastBackupStarted'))),
+                ('Next run', _fmt_datetime(schedule.get('NextRun') or item.get('NextRun') or meta.get('NextBackupDate'))),
+            ]
+            yy = y + 58
+            for label, value in rows:
+                draw.text((54, yy), label + ':', fill='#94a3b8', font=small)
+                yy = _text(draw, (160, yy - 2), value, small, '#d1d5db', width - 220, 2)
+            y += item_h
+    tmp = tempfile.NamedTemporaryFile(prefix='appdashboard-backup-', suffix='.png', delete=False)
+    tmp.close()
+    img.save(tmp.name, 'PNG')
+    return tmp.name
+
+
+def send_backup_report(token: str, chat_id: str, kb: dict) -> None:
+    data = get_backup_monitor_data()
+    path = render_backup_report_png(data)
+    if not path:
+        tg_send_chunks(token, chat_id, build_backup_monitor_message(data), reply_markup=kb)
+        return
+    try:
+        tg_send_photo(token, chat_id, path, 'Backup monitor report', reply_markup=kb)
+    finally:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+
+
 
 def _php_docker_config() -> dict:
-    php_code = """
-require '/var/www/AppDashboard/db.php';
-echo json_encode(loadDockerConfig(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-"""
     try:
-        out = subprocess.check_output(['php', '-r', php_code], text=True, timeout=10)
+        out = subprocess.check_output(['php', BOT_SERVICE_PHP, 'docker-config'], text=True, timeout=10)
         data = json.loads(out.strip() or '{}')
         if isinstance(data, dict):
             return {
@@ -1147,7 +1270,7 @@ def build_status_message(s: dict) -> str:
 
     lines += [
         '',
-        f'<i>{time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime())}</i>',
+        f'<i>{_fmt_datetime(int(time.time()))}</i>',
     ]
     return '\n'.join(lines)
 
@@ -1809,8 +1932,8 @@ def dispatch_admin_command(
     elif cmd == '/backup_status':
         set_admin_menu(chat_id, 'admin_monitoring')
         admin_kb = admin_reply_keyboard(chat_id, is_root, 'admin_monitoring')
-        tg_send(token, chat_id, 'Checking backup status…', parse_mode='', reply_markup=admin_kb)
-        tg_send_chunks(token, chat_id, build_backup_monitor_message(get_backup_monitor_data()), reply_markup=admin_kb)
+        tg_send(token, chat_id, 'Rendering backup report…', parse_mode='', reply_markup=admin_kb)
+        send_backup_report(token, chat_id, admin_kb)
     elif cmd == '/docker_status':
         set_admin_menu(chat_id, 'admin_monitoring')
         admin_kb = admin_reply_keyboard(chat_id, is_root, 'admin_monitoring')
