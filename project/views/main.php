@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <link rel="icon" href="/project/views/icon.png" type="image/png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
     <?php if($path==='/main' && !$showLogin): ?>
@@ -184,9 +185,9 @@
 	            #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
 	        }
         <?php endif; ?>
-        #sidebar{position:fixed;top:54px;left:-320px;width:320px;height:calc(100% - 54px);background:var(--sidebar-bg);transition:left 0.3s cubic-bezier(.2,.8,.2,1);padding:20px;box-sizing:border-box;z-index:999;border-top-right-radius:var(--casa-radius);border-bottom-right-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);border-left:none;box-shadow:var(--glass-shadow);}
+        #sidebar{position:fixed;top:54px;left:-320px;width:320px;height:calc(100% - 54px);background:var(--sidebar-bg);transition:left 0.3s cubic-bezier(.2,.8,.2,1);padding:20px;box-sizing:border-box;z-index:999;border-top-right-radius:var(--casa-radius);border-bottom-right-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);border-left:none;box-shadow:var(--glass-shadow);-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 4px,black calc(100% - 4px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 4px,black calc(100% - 4px),transparent 100%);}
         <?php if(!$isHomeDashboard): ?>
-        #sidebar{top:0;height:100%;border-radius:0;display:flex;flex-direction:column;}
+        #sidebar{top:0;height:100%;border-radius:0;display:flex;flex-direction:column;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 4px,black calc(100% - 4px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 4px,black calc(100% - 4px),transparent 100%);}
         <?php endif; ?>
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:62px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
@@ -223,19 +224,21 @@
         .notification-row-copy svg{width:13px;height:13px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
         .notification-row-copy:hover{opacity:1!important;background:rgba(128,128,128,0.15);}
         #sidebar.open{left:0;}
-        #app-list-container{margin-top:0;padding-top:50px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;}
+        #app-list-container{margin-top:0;padding-top:16px;max-height:calc(100% - 120px);overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 28px,black calc(100% - 50px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 28px,black calc(100% - 50px),transparent 100%);}
         #app-list-container::-webkit-scrollbar{display:none;}
         #bottom-bar{position:absolute;bottom:20px;left:20px;right:20px;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;}
         <?php if(!$isHomeDashboard): ?>
         #app-list-container{padding-top:0;max-height:none;flex:1;min-height:0;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 60px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 80px,black calc(100% - 60px),transparent 100%);}
         #bottom-bar{position:relative;bottom:auto;left:auto;right:auto;flex-shrink:0;padding-top:8px;}
         <?php endif; ?>
-        .search-container{position:relative;flex:1 1 auto;min-width:0;}
-        .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.65;pointer-events:none;}
-        #search-bar{width:100%;padding:10px;box-sizing:border-box;border-radius:8px;border:1px solid var(--border-color);padding-right:35px;padding-left:34px;background:var(--modal-bg);color:var(--text-color);caret-color:var(--text-color);-webkit-text-fill-color:var(--text-color);}
+        .search-container{overflow:hidden;width:36px;height:36px;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 8px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:width 0.45s cubic-bezier(0.2,0.8,0.2,1),background 0.3s ease,border-color 0.3s ease;cursor:pointer;flex-shrink:0;}
+        .bottom-bar-actions{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0;}
+        .search-icon{color:var(--text-color);font-size:14px;flex-shrink:0;width:auto;height:auto;opacity:0.65;}
+        #search-bar{width:100%;background:transparent;border:none;outline:none;color:var(--text-color);font-size:13px;margin-left:8px;padding:0;opacity:0;transform:translateX(10px);transition:opacity 0.25s ease,transform 0.45s cubic-bezier(0.2,0.8,0.2,1);caret-color:var(--text-color);-webkit-text-fill-color:var(--text-color);}
         #search-bar::placeholder{color:color-mix(in srgb,var(--text-color) 42%,transparent);opacity:1;}
-        #clear-search{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#ff4444;font-size:18px;cursor:pointer;display:none;width:20px;height:20px;align-items:center;justify-content:center;border-radius:50%;}
-        #clear-search:hover{background-color:rgba(255,68,68,0.1);}
+        .search-container:hover{width:120px;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
+        .search-container:hover #search-bar{opacity:1;transform:translateX(0);}
+        #clear-search{display:none!important;}
         .group-letter{font-weight:bold;margin-bottom:5px;color:var(--text-color);}
         .group-block{background:var(--group-block-bg);border-radius:14px;padding:10px;margin-bottom:15px;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
         #app-list,#app-list ul{list-style:none;padding:0;margin:0;}
@@ -723,7 +726,7 @@
             #profile-content{width:95%;padding:15px 10px;margin:5% auto;}
             #app-grid{padding-top:calc(70px + 12px);grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;height:100%;max-height:100%;padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));}
             #bottom-bar{gap:5px;}
-            .search-container{min-width:0;}
+            .search-container:hover{width:100px;}
             .notification{bottom:20px;right:20px;left:20px;max-width:none;width:auto;}
         }
         #shared-files-list-container,#sessions-list-container,#users-content .users-table{-webkit-overflow-scrolling:touch;overflow-x:auto;}
@@ -2197,13 +2200,15 @@ endif; // showOtpPage
         </div>
         <div id="bottom-bar">
             <div class="search-container">
-                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+                <i class="search-icon fa-solid fa-magnifying-glass"></i>
                 <input type="text" id="search-bar" placeholder="<?php echo my_htmlspecialchars($translations['search_placeholder']); ?>">
                 <button id="clear-search" style="display:none;">&times;</button>
             </div>
-            <?php if(!$isHomeDashboard): ?><a href="/main" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a><?php endif; ?>
-            <button id="settings-button" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['settings_title']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg></button>
-            <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
+            <div class="bottom-bar-actions">
+                <?php if(!$isHomeDashboard): ?><a href="/main" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a><?php endif; ?>
+                <button id="settings-button" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['settings_title']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg></button>
+                <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
+            </div>
         </div>
     </div>
 <?php endif;?>
@@ -6476,6 +6481,59 @@ function getTheme(){var s=document.querySelector('select[name="theme"]');var v=s
 function setStatus(el,msg,type){if(!el)return;el.className='ap-status '+type;el.textContent=msg;el.style.display='block';if(el._t)clearTimeout(el._t);el._t=setTimeout(function(){el.className='ap-status';el.style.display='none';el.textContent='';},10000);}
 function setHash(id){history.replaceState(null,'','#adminpanel/'+(panelHash[id]||id));}
 function clearHash(){history.replaceState(null,'',location.pathname+location.search);}
+function apLoadStyleOnce(href){
+    if(document.querySelector('link[href="'+href+'"]')) return;
+    var l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href=href;
+    document.head.appendChild(l);
+}
+function apLoadScriptOnce(src,test){
+    if(test&&test()) return Promise.resolve();
+    if(window._apScriptPromises&&window._apScriptPromises[src]) return window._apScriptPromises[src];
+    window._apScriptPromises=window._apScriptPromises||{};
+    window._apScriptPromises[src]=new Promise(function(resolve,reject){
+        var existing=document.querySelector('script[src="'+src+'"]');
+        var s=existing||document.createElement('script');
+        s.addEventListener('load',function(){s.dataset.apLoaded='1';resolve();},{once:true});
+        s.addEventListener('error',function(){reject(new Error('Failed to load '+src));},{once:true});
+        if(existing&&existing.dataset.apLoaded==='1') setTimeout(resolve,0);
+        else if(existing&&existing.readyState==='complete') setTimeout(resolve,0);
+        else if(!existing){s.src=src;s.async=false;document.head.appendChild(s);}
+    }).then(function(){
+        if(test&&!test()) throw new Error('Library unavailable after load '+src);
+    });
+    return window._apScriptPromises[src];
+}
+function apEnsureStatsDeps(){
+    if(window.Handsontable&&window.Chart) return Promise.resolve();
+    if(window._apStatsDepsPromise) return window._apStatsDepsPromise;
+    apLoadStyleOnce('https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.css');
+    if(typeof require==='function'){
+        window._apStatsDepsPromise=new Promise(function(resolve,reject){
+            try{
+                require.config({paths:{
+                    Handsontable:'https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min',
+                    chartjs:'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min'
+                }});
+                require(['Handsontable','chartjs'],function(hot,chart){
+                    window.Handsontable=window.Handsontable||(hot&&hot.default?hot.default:hot);
+                    window.Chart=window.Chart||(chart&&chart.Chart?chart.Chart:(chart&&chart.default?chart.default:chart));
+                    if(!window.Handsontable||!window.Chart) reject(new Error('Statistics libraries unavailable after load'));
+                    else resolve();
+                },reject);
+            }catch(e){reject(e);}
+        });
+        return window._apStatsDepsPromise;
+    }
+    window._apStatsDepsPromise=Promise.all([
+        apLoadScriptOnce('https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.js'),
+        apLoadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js')
+    ]).then(function(){
+        if(!window.Handsontable||!window.Chart) throw new Error('Statistics libraries unavailable after load');
+    });
+    return window._apStatsDepsPromise;
+}
 
 /* ── Monaco lazy loader ── */
 function ensureMonaco(cb){
@@ -6491,7 +6549,7 @@ function openPanel(id){
     var p=dynRoot.querySelector('#'+id); if(p) p.classList.add('active');
     var nb=dynRoot.querySelector('[data-panel="'+id+'"]'); if(nb) nb.classList.add('active');
     setHash(id);
-    if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){initApStats();setTimeout(function(){initApChartRangePicker();renderApStatsChart();},300);});});}
+    if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){apEnsureStatsDeps().then(function(){apPopulateYearSelector();initApStats();initApChartRangePicker();renderApStatsChart();}).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');console.error('apStats init error:',e);});});});}
     else if(id==='ap-stats'&&apHotInst){requestAnimationFrame(function(){requestAnimationFrame(function(){apHotInst.render();initApChartRangePicker();renderApStatsChart();});});}
     if(id==='ap-jsonfiles'){ensureMonaco(function(){});if(!apPanelInited['ap-jsonfiles']){apPanelInited['ap-jsonfiles']=true;if(typeof window._apJsonLoadList==='function'){window._apJsonLoadList();}else{setTimeout(function(){if(typeof window._apJsonLoadList==='function')window._apJsonLoadList();},300);}}else{if(typeof window._apJsonLoadList==='function') window._apJsonLoadList();}}
     if(id==='ap-ssh'){
@@ -6547,16 +6605,7 @@ function loadPanel(target, year){
             dynRoot.innerHTML=d.html;
             skeleton.style.display='none';
             dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
-            if(typeof Handsontable==='undefined'){
-                var lnk=document.createElement('link');
-                lnk.rel='stylesheet';
-                lnk.href='https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.css';
-                document.head.appendChild(lnk);
-                var s=document.createElement('script');
-                s.src='https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.js';
-                s.async=false;
-                document.head.appendChild(s);
-            }
+            apEnsureStatsDeps().catch(function(e){console.error('[AdminPanel] stats dependencies:',e);});
             openPanel(target||'ap-users');
             wireEvents();
         })
@@ -6592,10 +6641,12 @@ function reloadAdminStats(year){
                     b.classList.remove('active');
                 });
             }
-            // Re-filter and re-render
             apFilterByYear();
-            renderApStatsChart();
-            if(apAnalysisVisible) renderApAnalysis();
+            apEnsureStatsDeps().then(function(){
+                initApStats();
+                renderApStatsChart();
+                if(apAnalysisVisible) renderApAnalysis();
+            }).catch(function(e){console.error('[AdminPanel]',e);});
         })
         .catch(function(err){console.error('[AdminPanel]',err);});
 }
@@ -8130,7 +8181,10 @@ window.apOpenResetPassword=function(email,name){
 function initApStats(){
     var container=dynRoot&&dynRoot.querySelector('#ap-stats-hot-table');
     if(!container)return;
-    if(typeof Handsontable==='undefined'){setTimeout(initApStats,300);return;}
+    if(typeof window.Handsontable==='undefined'){
+        apEnsureStatsDeps().then(initApStats).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');});
+        return;
+    }
     if(apHotInst){apHotInst.destroy();apHotInst=null;}
     var allD=new Set();Object.keys(apStatsData).forEach(function(id){Object.keys(apStatsData[id]||{}).forEach(function(d){allD.add(d);});});
     var sdates=Array.from(allD).sort(),appIds=Object.keys(apStatsData).filter(function(id){return id!==null&&id!==''&&id!==undefined;});
@@ -8143,9 +8197,9 @@ function initApStats(){
     container.style.setProperty('--hot-selection-bg', apSelBg);
 
     // Theme: set table wrapper bg so rows inherit correctly
-    var apIsDark = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim() === '#333';
+    var apIsDark = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim() === '#0f1419';
 
-    apHotInst=new Handsontable(container,{
+    apHotInst=new window.Handsontable(container,{
         data:data,colHeaders:['Date'].concat(appIds.map(function(id){return id||'';})),rowHeaders:true,height:'100%',width:'100%',
         licenseKey:'non-commercial-and-evaluation',contextMenu:true,stretchH:'all',
         themeName: apIsDark ? 'ht-theme-main-dark-auto' : 'ht-theme-main',
@@ -8194,8 +8248,8 @@ var apChartDateFrom = '';  // custom from date (YYYY-MM-DD)
 var apChartDateTo   = '';  // custom to date (YYYY-MM-DD)
 
 function getApThemeColors(){
-    var isDark = document.documentElement.style.getPropertyValue('--bg-color')==='#333'
-        || window.getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim()==='#333';
+    var isDark = document.documentElement.style.getPropertyValue('--bg-color')==='#0f1419'
+        || window.getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim()==='#0f1419';
     return {
         text:  isDark ? 'rgba(220,220,220,0.85)' : 'rgba(50,50,50,0.8)',
         grid:  isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
@@ -8284,13 +8338,8 @@ function initApChartRangePicker(){
 function renderApStatsChart(){
     var canvas = dynRoot&&dynRoot.querySelector('#ap-stats-canvas');
     if(!canvas) return;
-    if(typeof Chart === 'undefined'){
-        if(!document.querySelector('script[src*="chart.js"]')){
-            var s=document.createElement('script');
-            s.src='https://cdn.jsdelivr.net/npm/chart.js';
-            s.onload=function(){ setTimeout(renderApStatsChart,50); };
-            document.head.appendChild(s);
-        }
+    if(typeof window.Chart === 'undefined'){
+        apEnsureStatsDeps().then(renderApStatsChart).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');});
         return;
     }
     // Use filtered data if year is selected
@@ -8329,7 +8378,7 @@ function renderApStatsChart(){
         }
     };
     if(apStatsChart){ apStatsChart.destroy(); apStatsChart=null; }
-    apStatsChart = new Chart(canvas, chartCfg);
+    apStatsChart = new window.Chart(canvas, chartCfg);
     // Hook table edits to re-render
     if(apHotInst && !apHotInst._chartHooked){
         apHotInst._chartHooked = true;
@@ -8511,13 +8560,8 @@ function renderApPieChart(appTotals, totalVisits){
     var canvas = dynRoot && dynRoot.querySelector('#ap-pie-canvas');
     if(!canvas) return;
     
-    if(typeof Chart === 'undefined'){
-        if(!document.querySelector('script[src*="chart.js"]')){
-            var s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-            s.onload = function(){ setTimeout(function(){ renderApPieChart(appTotals, totalVisits); }, 50); };
-            document.head.appendChild(s);
-        }
+    if(typeof window.Chart === 'undefined'){
+        apEnsureStatsDeps().then(function(){renderApPieChart(appTotals,totalVisits);}).catch(function(e){console.error('[AdminPanel]',e);});
         return;
     }
     
@@ -8547,7 +8591,7 @@ function renderApPieChart(appTotals, totalVisits){
     if(apPieChart){ apPieChart.destroy(); apPieChart = null; }
     
     var tc = getApThemeColors();
-    apPieChart = new Chart(canvas, {
+    apPieChart = new window.Chart(canvas, {
         type: 'pie',
         data: {
             labels: labels,

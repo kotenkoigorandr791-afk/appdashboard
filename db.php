@@ -1081,7 +1081,20 @@ function upsertUser(string $email, array $fields): void {
     ], $current, $fields);
     $stmt = $db->prepare("INSERT INTO users
         (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at)
-        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at)");
+        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at)
+        ON CONFLICT (email) DO UPDATE SET
+            name=excluded.name,
+            password=excluded.password,
+            photo=excluded.photo,
+            role=excluded.role,
+            verified=excluded.verified,
+            language=excluded.language,
+            theme=excluded.theme,
+            color=excluded.color,
+            icon_sort_order=excluded.icon_sort_order,
+            icon_style=excluded.icon_style,
+            wallpaper=excluded.wallpaper,
+            created_at=excluded.created_at");
     $stmt->bindValue(':email',      $email);
     $stmt->bindValue(':name',       $merged['name']);
     $stmt->bindValue(':password',   $merged['password']);

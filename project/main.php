@@ -5649,6 +5649,59 @@ function getTheme(){var s=document.querySelector('select[name="theme"]');var v=s
 function setStatus(el,msg,type){if(!el)return;el.className='ap-status '+type;el.textContent=msg;el.style.display='block';if(el._t)clearTimeout(el._t);el._t=setTimeout(function(){el.className='ap-status';el.style.display='none';el.textContent='';},10000);}
 function setHash(id){history.replaceState(null,'','#adminpanel/'+(panelHash[id]||id));}
 function clearHash(){history.replaceState(null,'',location.pathname+location.search);}
+function apLoadStyleOnce(href){
+    if(document.querySelector('link[href="'+href+'"]')) return;
+    var l=document.createElement('link');
+    l.rel='stylesheet';
+    l.href=href;
+    document.head.appendChild(l);
+}
+function apLoadScriptOnce(src,test){
+    if(test&&test()) return Promise.resolve();
+    if(window._apScriptPromises&&window._apScriptPromises[src]) return window._apScriptPromises[src];
+    window._apScriptPromises=window._apScriptPromises||{};
+    window._apScriptPromises[src]=new Promise(function(resolve,reject){
+        var existing=document.querySelector('script[src="'+src+'"]');
+        var s=existing||document.createElement('script');
+        s.addEventListener('load',function(){s.dataset.apLoaded='1';resolve();},{once:true});
+        s.addEventListener('error',function(){reject(new Error('Failed to load '+src));},{once:true});
+        if(existing&&existing.dataset.apLoaded==='1') setTimeout(resolve,0);
+        else if(existing&&existing.readyState==='complete') setTimeout(resolve,0);
+        else if(!existing){s.src=src;s.async=false;document.head.appendChild(s);}
+    }).then(function(){
+        if(test&&!test()) throw new Error('Library unavailable after load '+src);
+    });
+    return window._apScriptPromises[src];
+}
+function apEnsureStatsDeps(){
+    if(window.Handsontable&&window.Chart) return Promise.resolve();
+    if(window._apStatsDepsPromise) return window._apStatsDepsPromise;
+    apLoadStyleOnce('https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.css');
+    if(typeof require==='function'){
+        window._apStatsDepsPromise=new Promise(function(resolve,reject){
+            try{
+                require.config({paths:{
+                    Handsontable:'https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min',
+                    chartjs:'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min'
+                }});
+                require(['Handsontable','chartjs'],function(hot,chart){
+                    window.Handsontable=window.Handsontable||(hot&&hot.default?hot.default:hot);
+                    window.Chart=window.Chart||(chart&&chart.Chart?chart.Chart:(chart&&chart.default?chart.default:chart));
+                    if(!window.Handsontable||!window.Chart) reject(new Error('Statistics libraries unavailable after load'));
+                    else resolve();
+                },reject);
+            }catch(e){reject(e);}
+        });
+        return window._apStatsDepsPromise;
+    }
+    window._apStatsDepsPromise=Promise.all([
+        apLoadScriptOnce('https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.js'),
+        apLoadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js')
+    ]).then(function(){
+        if(!window.Handsontable||!window.Chart) throw new Error('Statistics libraries unavailable after load');
+    });
+    return window._apStatsDepsPromise;
+}
 
 /* ── Monaco lazy loader ── */
 function ensureMonaco(cb){
@@ -5663,7 +5716,7 @@ function openPanel(id){
     var p=dynRoot.querySelector('#'+id); if(p) p.classList.add('active');
     var nb=dynRoot.querySelector('[data-panel="'+id+'"]'); if(nb) nb.classList.add('active');
     setHash(id);
-    if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){initApStats();setTimeout(function(){initApChartRangePicker();renderApStatsChart();},300);});});}
+    if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){apEnsureStatsDeps().then(function(){apPopulateYearSelector();initApStats();initApChartRangePicker();renderApStatsChart();}).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');console.error('apStats init error:',e);});});});}
     else if(id==='ap-stats'&&apHotInst){requestAnimationFrame(function(){requestAnimationFrame(function(){apHotInst.render();initApChartRangePicker();renderApStatsChart();});});}
     if(id==='ap-jsonfiles'){ensureMonaco(function(){});if(!apPanelInited['ap-jsonfiles']){apPanelInited['ap-jsonfiles']=true;if(typeof window._apJsonLoadList==='function'){window._apJsonLoadList();}else{setTimeout(function(){if(typeof window._apJsonLoadList==='function')window._apJsonLoadList();},300);}}else{if(typeof window._apJsonLoadList==='function') window._apJsonLoadList();}}
     if(id==='ap-ssh'){
@@ -5719,16 +5772,7 @@ function loadPanel(target, year){
             dynRoot.innerHTML=d.html;
             skeleton.style.display='none';
             dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
-            if(typeof Handsontable==='undefined'){
-                var lnk=document.createElement('link');
-                lnk.rel='stylesheet';
-                lnk.href='https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.css';
-                document.head.appendChild(lnk);
-                var s=document.createElement('script');
-                s.src='https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.js';
-                s.async=false;
-                document.head.appendChild(s);
-            }
+            apEnsureStatsDeps().catch(function(e){console.error('[AdminPanel] stats dependencies:',e);});
             openPanel(target||'ap-users');
             wireEvents();
         })
@@ -5764,10 +5808,12 @@ function reloadAdminStats(year){
                     b.classList.remove('active');
                 });
             }
-            // Re-filter and re-render
             apFilterByYear();
-            renderApStatsChart();
-            if(apAnalysisVisible) renderApAnalysis();
+            apEnsureStatsDeps().then(function(){
+                initApStats();
+                renderApStatsChart();
+                if(apAnalysisVisible) renderApAnalysis();
+            }).catch(function(e){console.error('[AdminPanel]',e);});
         })
         .catch(function(err){console.error('[AdminPanel]',err);});
 }
@@ -7289,7 +7335,10 @@ window.apOpenResetPassword=function(email,name){
 function initApStats(){
     var container=dynRoot&&dynRoot.querySelector('#ap-stats-hot-table');
     if(!container)return;
-    if(typeof Handsontable==='undefined'){setTimeout(initApStats,300);return;}
+    if(typeof window.Handsontable==='undefined'){
+        apEnsureStatsDeps().then(initApStats).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');});
+        return;
+    }
     if(apHotInst){apHotInst.destroy();apHotInst=null;}
     var allD=new Set();Object.keys(apStatsData).forEach(function(id){Object.keys(apStatsData[id]||{}).forEach(function(d){allD.add(d);});});
     var sdates=Array.from(allD).sort(),appIds=Object.keys(apStatsData).filter(function(id){return id!==null&&id!==''&&id!==undefined;});
@@ -7304,7 +7353,7 @@ function initApStats(){
     // Theme: set table wrapper bg so rows inherit correctly
     var apIsDark = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim() === '#333';
 
-    apHotInst=new Handsontable(container,{
+    apHotInst=new window.Handsontable(container,{
         data:data,colHeaders:['Date'].concat(appIds.map(function(id){return id||'';})),rowHeaders:true,height:'100%',width:'100%',
         licenseKey:'non-commercial-and-evaluation',contextMenu:true,stretchH:'all',
         themeName: apIsDark ? 'ht-theme-main-dark-auto' : 'ht-theme-main',
@@ -7443,13 +7492,8 @@ function initApChartRangePicker(){
 function renderApStatsChart(){
     var canvas = dynRoot&&dynRoot.querySelector('#ap-stats-canvas');
     if(!canvas) return;
-    if(typeof Chart === 'undefined'){
-        if(!document.querySelector('script[src*="chart.js"]')){
-            var s=document.createElement('script');
-            s.src='https://cdn.jsdelivr.net/npm/chart.js';
-            s.onload=function(){ setTimeout(renderApStatsChart,50); };
-            document.head.appendChild(s);
-        }
+    if(typeof window.Chart === 'undefined'){
+        apEnsureStatsDeps().then(renderApStatsChart).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');});
         return;
     }
     // Use filtered data if year is selected
@@ -7488,7 +7532,7 @@ function renderApStatsChart(){
         }
     };
     if(apStatsChart){ apStatsChart.destroy(); apStatsChart=null; }
-    apStatsChart = new Chart(canvas, chartCfg);
+    apStatsChart = new window.Chart(canvas, chartCfg);
     // Hook table edits to re-render
     if(apHotInst && !apHotInst._chartHooked){
         apHotInst._chartHooked = true;
@@ -7670,13 +7714,8 @@ function renderApPieChart(appTotals, totalVisits){
     var canvas = dynRoot && dynRoot.querySelector('#ap-pie-canvas');
     if(!canvas) return;
     
-    if(typeof Chart === 'undefined'){
-        if(!document.querySelector('script[src*="chart.js"]')){
-            var s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/chart.js';
-            s.onload = function(){ setTimeout(function(){ renderApPieChart(appTotals, totalVisits); }, 50); };
-            document.head.appendChild(s);
-        }
+    if(typeof window.Chart === 'undefined'){
+        apEnsureStatsDeps().then(function(){renderApPieChart(appTotals,totalVisits);}).catch(function(e){console.error('[AdminPanel]',e);});
         return;
     }
     
@@ -7706,7 +7745,7 @@ function renderApPieChart(appTotals, totalVisits){
     if(apPieChart){ apPieChart.destroy(); apPieChart = null; }
     
     var tc = getApThemeColors();
-    apPieChart = new Chart(canvas, {
+    apPieChart = new window.Chart(canvas, {
         type: 'pie',
         data: {
             labels: labels,
