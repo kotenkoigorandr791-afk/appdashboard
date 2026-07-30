@@ -58,7 +58,7 @@ function cloud_ai_table_has_rows(AppDatabase $db, string $table): bool
 {
     try {
         $stmt = $db->prepare("SELECT COUNT(*) AS c FROM $table");
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row && (int)$row['c'] > 0;
     } catch (Throwable $e) {
         return false;
@@ -68,9 +68,9 @@ function cloud_ai_table_has_rows(AppDatabase $db, string $table): bool
 function cloud_ai_table_exists(AppDatabase $db, string $table): bool
 {
     try {
-        $stmt = $db->prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = :n LIMIT 1");
-        $stmt->bindValue(':n', $table, SQLITE3_TEXT);
-        return (bool)$stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name = :n LIMIT 1");
+        $stmt->bindValue(':n', $table, PDO::PARAM_STR);
+        return (bool)$stmt->execute()->fetch(PDO::FETCH_ASSOC);
     } catch (Throwable $e) {
         return false;
     }
@@ -82,15 +82,15 @@ function cloud_ai_copy_config_rows(AppDatabase $db, string $fromTable, string $t
         return;
     }
     $rows = $db->query("SELECT key, value FROM $fromTable");
-    while ($row = $rows->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $rows->fetch(PDO::FETCH_ASSOC)) {
         $key = trim((string)($row['key'] ?? ''));
         $value = (string)($row['value'] ?? '');
         if ($key === '' || $value === '') {
             continue;
         }
-        $ins = $db->prepare("INSERT OR IGNORE INTO $toTable(key, value) VALUES(:k, :v)");
-        $ins->bindValue(':k', $key, SQLITE3_TEXT);
-        $ins->bindValue(':v', $value, SQLITE3_TEXT);
+        $ins = $db->prepare("INSERT INTO $toTable(key, value) VALUES(:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        $ins->bindValue(':k', $key, PDO::PARAM_STR);
+        $ins->bindValue(':v', $value, PDO::PARAM_STR);
         $ins->execute();
     }
 }
@@ -109,8 +109,8 @@ function cloud_ai_migrate_legacy_config(AppDatabase $db): void
         if (!cloud_ai_table_has_rows($db, $table)) {
             foreach (CLOUD_AI_LEGACY_KEYS as $newKey => $legacyKey) {
                 $stmt = $db->prepare('SELECT value FROM config WHERE key = :k LIMIT 1');
-                $stmt->bindValue(':k', $legacyKey, SQLITE3_TEXT);
-                $legacyRow = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+                $stmt->bindValue(':k', $legacyKey, PDO::PARAM_STR);
+                $legacyRow = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
                 if (!$legacyRow) {
                     continue;
                 }
@@ -118,15 +118,15 @@ function cloud_ai_migrate_legacy_config(AppDatabase $db): void
                 if ($value === '') {
                     continue;
                 }
-                $ins = $db->prepare("INSERT OR IGNORE INTO $table(key, value) VALUES(:k, :v)");
-                $ins->bindValue(':k', $newKey, SQLITE3_TEXT);
-                $ins->bindValue(':v', $value, SQLITE3_TEXT);
+                $ins = $db->prepare("INSERT INTO $table(key, value) VALUES(:k, :v)");
+                $ins->bindValue(':k', $newKey, PDO::PARAM_STR);
+                $ins->bindValue(':v', $value, PDO::PARAM_STR);
                 $ins->execute();
             }
         }
         foreach (CLOUD_AI_LEGACY_KEYS as $legacyKey) {
             $del = $db->prepare('DELETE FROM config WHERE key = :k');
-            $del->bindValue(':k', $legacyKey, SQLITE3_TEXT);
+            $del->bindValue(':k', $legacyKey, PDO::PARAM_STR);
             $del->execute();
         }
         if (cloud_ai_table_exists($db, CLOUD_AI_CONFIG_TABLE)) {
@@ -147,8 +147,8 @@ function cloud_ai_get_config(string $key, string $default = ''): string
     try {
         $table = APP_AI_CONFIG_TABLE;
         $stmt = $db->prepare("SELECT value FROM $table WHERE key = :k LIMIT 1");
-        $stmt->bindValue(':k', $key, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':k', $key, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row ? (string)$row['value'] : $default;
     } catch (Throwable $e) {
         cloud_safe_error_log('cloud_ai_get_config: ' . $e->getMessage());
@@ -164,9 +164,9 @@ function cloud_ai_set_config(string $key, string $value): bool
     }
     try {
         $table = APP_AI_CONFIG_TABLE;
-        $stmt = $db->prepare("INSERT OR REPLACE INTO $table(key, value) VALUES(:k, :v)");
-        $stmt->bindValue(':k', $key, SQLITE3_TEXT);
-        $stmt->bindValue(':v', $value, SQLITE3_TEXT);
+        $stmt = $db->prepare("INSERT INTO $table(key, value) VALUES(:k, :v)");
+        $stmt->bindValue(':k', $key, PDO::PARAM_STR);
+        $stmt->bindValue(':v', $value, PDO::PARAM_STR);
         $stmt->execute();
         return true;
     } catch (Throwable $e) {

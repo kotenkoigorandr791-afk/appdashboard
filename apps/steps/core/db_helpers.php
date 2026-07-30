@@ -30,17 +30,17 @@ function app_steps_migrate_sqlite_file(string $email, string $userDir, AppDataba
         $sqlite = new SQLite3($path);
         $sqlite->enableExceptions(true);
         $res = $sqlite->query('SELECT date, steps FROM steps');
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $st = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d,:s) ON CONFLICT (date) DO UPDATE SET steps=EXCLUDED.steps');
-            $st->bindValue(':d', (string)$row['date'], SQLITE3_TEXT);
-            $st->bindValue(':s', (int)$row['steps'], SQLITE3_INTEGER);
+            $st->bindValue(':d', (string)$row['date'], PDO::PARAM_STR);
+            $st->bindValue(':s', (int)$row['steps'], PDO::PARAM_INT);
             $st->execute();
         }
         $res = $sqlite->query('SELECT key, value FROM settings');
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $st = $db->prepare('INSERT INTO settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value');
-            $st->bindValue(':k', (string)$row['key'], SQLITE3_TEXT);
-            $st->bindValue(':v', (string)$row['value'], SQLITE3_TEXT);
+            $st->bindValue(':k', (string)$row['key'], PDO::PARAM_STR);
+            $st->bindValue(':v', (string)$row['value'], PDO::PARAM_STR);
             $st->execute();
         }
         $sqlite->close();

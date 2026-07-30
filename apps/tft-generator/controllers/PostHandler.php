@@ -22,22 +22,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     $canvasPayload['shapes'] = [];
                 }
                 $val = json_encode($canvasPayload);
-                $stmt = $udb->prepare('INSERT OR REPLACE INTO canvas (key, value) VALUES (:k, :v)');
-                $stmt->bindValue(':k', 'main', SQLITE3_TEXT);
-                $stmt->bindValue(':v', $val, SQLITE3_TEXT);
+                $stmt = $udb->prepare('INSERT INTO canvas (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
+                $stmt->bindValue(':k', 'main', PDO::PARAM_STR);
+                $stmt->bindValue(':v', $val, PDO::PARAM_STR);
                 $stmt->execute();
             } elseif (isset($data['type']) && $data['type'] === 'gears_settings') {
                 // Save gears settings with separate key
                 $val = json_encode($data['data'] ?? $data);
-                $stmt = $udb->prepare('INSERT OR REPLACE INTO config (key, value) VALUES (:k, :v)');
-                $stmt->bindValue(':k', 'gears_settings', SQLITE3_TEXT);
-                $stmt->bindValue(':v', $val, SQLITE3_TEXT);
+                $stmt = $udb->prepare('INSERT INTO config (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
+                $stmt->bindValue(':k', 'gears_settings', PDO::PARAM_STR);
+                $stmt->bindValue(':v', $val, PDO::PARAM_STR);
                 $stmt->execute();
             } else {
                 $val = json_encode($data);
-                $stmt = $udb->prepare('INSERT OR REPLACE INTO config (key, value) VALUES (:k, :v)');
-                $stmt->bindValue(':k', 'main', SQLITE3_TEXT);
-                $stmt->bindValue(':v', $val, SQLITE3_TEXT);
+                $stmt = $udb->prepare('INSERT INTO config (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
+                $stmt->bindValue(':k', 'main', PDO::PARAM_STR);
+                $stmt->bindValue(':v', $val, PDO::PARAM_STR);
                 $stmt->execute();
             }
             $udb->exec('COMMIT');

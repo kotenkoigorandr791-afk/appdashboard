@@ -25,26 +25,26 @@ function ensureCloudGroupsSchema($db): void
         group_id TEXT PRIMARY KEY,
         name TEXT NOT NULL DEFAULT '',
         admin_email TEXT NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (admin_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_group_members (
         group_id TEXT NOT NULL,
         member_email TEXT NOT NULL,
         permission TEXT NOT NULL DEFAULT 'read_edit',
-        joined_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        joined_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         PRIMARY KEY (group_id, member_email),
         FOREIGN KEY (group_id) REFERENCES cloud_groups(group_id) ON DELETE CASCADE,
         FOREIGN KEY (member_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_group_members_email ON cloud_group_members(member_email)");
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_group_file_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         group_id TEXT NOT NULL,
         file_path TEXT NOT NULL DEFAULT '',
         user_email TEXT NOT NULL DEFAULT '',
         action TEXT NOT NULL DEFAULT 'open',
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (group_id) REFERENCES cloud_groups(group_id) ON DELETE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_group_history_group_ts ON cloud_group_file_history(group_id, created_at DESC)");
@@ -66,8 +66,8 @@ function cloud_group_storage_rel(string $groupId): string
 function cloud_group_get_row($db, string $groupId): ?array
 {
     $stmt = $db->prepare('SELECT group_id, name, admin_email, created_at FROM cloud_groups WHERE group_id = :gid LIMIT 1');
-    $stmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -88,9 +88,9 @@ function cloud_group_member_access($db, string $groupId, string $email): ?array
         ];
     }
     $stmt = $db->prepare('SELECT permission FROM cloud_group_members WHERE group_id = :gid AND LOWER(member_email) = :email LIMIT 1');
-    $stmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $member = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $member = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$member) return null;
     $perm = (string)($member['permission'] ?? 'read');
     if (!in_array($perm, ['read', 'read_edit'], true)) $perm = 'read';
@@ -136,8 +136,8 @@ function cloud_path_session_email(): ?string
         if ($sid === '') return null;
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) return strtolower(trim((string)$row['email']));
         } catch (Throwable $e) {
         }
@@ -338,11 +338,11 @@ function cloud_group_log_activity(string $groupId, string $filePath, string $act
     $allowed = ['open', 'edit', 'create', 'delete', 'move', 'rename'];
     if (!in_array($action, $allowed, true)) $action = 'open';
     $stmt = $db->prepare('INSERT INTO cloud_group_file_history (group_id, file_path, user_email, action, created_at) VALUES (:gid, :path, :email, :action, :ts)');
-    $stmt->bindValue(':gid', strtolower($groupId), SQLITE3_TEXT);
-    $stmt->bindValue(':path', $filePath, SQLITE3_TEXT);
-    $stmt->bindValue(':email', strtolower($email), SQLITE3_TEXT);
-    $stmt->bindValue(':action', $action, SQLITE3_TEXT);
-    $stmt->bindValue(':ts', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $stmt->bindValue(':path', $filePath, PDO::PARAM_STR);
+    $stmt->bindValue(':email', strtolower($email), PDO::PARAM_STR);
+    $stmt->bindValue(':action', $action, PDO::PARAM_STR);
+    $stmt->bindValue(':ts', time(), PDO::PARAM_INT);
     $stmt->execute();
 }
 
@@ -355,9 +355,9 @@ function cloud_group_list_for_email(string $email): array
     if ($email === '') return [];
     $groups = [];
     $stmt = $db->prepare('SELECT group_id, name, admin_email, created_at FROM cloud_groups WHERE LOWER(admin_email) = :email ORDER BY LOWER(name)');
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
     $res = $stmt->execute();
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
         $groups[] = [
             'id' => (string)$row['group_id'],
             'name' => (string)$row['name'],
@@ -372,9 +372,9 @@ function cloud_group_list_for_email(string $email): array
         JOIN cloud_groups g ON g.group_id = m.group_id
         WHERE LOWER(m.member_email) = :email
         ORDER BY LOWER(g.name)');
-    $stmt2->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt2->bindValue(':email', $email, PDO::PARAM_STR);
     $res2 = $stmt2->execute();
-    while ($res2 && ($row = $res2->fetchArray(SQLITE3_ASSOC))) {
+    while ($res2 && ($row = $res2->fetch(PDO::FETCH_ASSOC))) {
         $gid = (string)$row['group_id'];
         if (array_filter($groups, static fn($g) => $g['id'] === $gid)) continue;
         $perm = (string)($row['permission'] ?? 'read');
@@ -435,7 +435,7 @@ function cloud_group_copy_tree(string $src, string $dst): bool
 function cloud_group_user_exists($db, string $email): bool
 {
     $stmt = $db->prepare('SELECT 1 FROM users WHERE email = :email LIMIT 1');
-    $stmt->bindValue(':email', strtolower(trim($email)), SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':email', strtolower(trim($email)), PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return (bool)$row;
 }

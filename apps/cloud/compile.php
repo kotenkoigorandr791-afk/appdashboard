@@ -15,6 +15,8 @@ session_start();
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'db.php';
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'smart_log.php';
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage_helper.php';
+require_once __DIR__ . '/includes/cloud_sandbox.php';
+require_once __DIR__ . '/includes/ai_code_security.php';
 smart_log_bootstrap('cloud');
 // compile.php — компиляция и выполнение кода (только для авторизованных пользователей с валидной сессией)
 if (!defined('CLOUD_COMPILE_AS_LIB')) {
@@ -113,72 +115,11 @@ function detectFileChanges($before, $after, $dir) {
 }
 
 function executeCommand($command, $workingDir, $input = null, $timeout = MAX_EXECUTION_TIME, $mergeStderr = true) {
-    $descriptorspec = [
-        0 => ["pipe", "r"],
-        1 => ["pipe", "w"],
-        2 => ["pipe", "w"]
-    ];
-
-    $redirect = $mergeStderr ? ' 2>&1' : '';
-    $cmd = 'bash -c ' . escapeshellarg('cd ' . escapeshellarg($workingDir) . ' && ' . $command . $redirect);
-
-    $process = proc_open($cmd, $descriptorspec, $pipes, $workingDir, null);
-
-    if (!is_resource($process)) {
-        return ['success' => false, 'output' => '', 'error' => 'Failed to execute command'];
+    try {
+        return cloud_sandbox_exec($workingDir, $command, $input, $timeout, $mergeStderr);
+    } catch (Throwable $e) {
+        return ['success' => false, 'output' => '', 'error' => $e->getMessage(), 'exitCode' => -1];
     }
-
-    if ($input !== null && $input !== '') {
-        fwrite($pipes[0], $input . "\n");
-    }
-    fclose($pipes[0]);
-
-    stream_set_blocking($pipes[1], false);
-    stream_set_blocking($pipes[2], false);
-
-    $output = '';
-    $startTime = microtime(true);
-    $exitCode = -1;
-    $timedOut = false;
-
-    while (true) {
-        $elapsed = microtime(true) - $startTime;
-        if ($elapsed > $timeout) {
-            $timedOut = true;
-            break;
-        }
-        $status = proc_get_status($process);
-        $chunk = fread($pipes[1], 8192);
-        if ($chunk !== false && $chunk !== '') {
-            $output .= $chunk;
-        }
-        if (!$status['running']) {
-            $exitCode = (int)$status['exitcode'];
-            while (($chunk = fread($pipes[1], 8192)) !== false && $chunk !== '') {
-                $output .= $chunk;
-            }
-            break;
-        }
-        usleep(50000);
-    }
-
-    if ($timedOut) {
-        proc_terminate($process);
-        usleep(200000);
-    }
-
-    fclose($pipes[1]);
-    fclose($pipes[2]);
-    proc_close($process);
-
-    $error = $timedOut ? 'Process timed out after ' . $timeout . ' seconds' : '';
-
-    return [
-        'success' => !$timedOut && $exitCode === 0,
-        'output' => trim($output),
-        'error' => trim($error),
-        'exitCode' => $exitCode
-    ];
 }
 
 function compileAndRun($language, $fileContent, $fileName, $input = null, $originalPath = null) {
@@ -208,7 +149,16 @@ function compileAndRun($language, $fileContent, $fileName, $input = null, $origi
 
             case 'c':
             case 'cpp':
-                return compileCppOnline($fileContent, $input);
+                if (file_put_contents($tempFilePath, $fileContent) === false) {
+                    return ['success' => false, 'output' => '', 'error' => 'Failed to write file to temp directory'];
+                }
+                $compiler = $language === 'c' ? GCC_PATH : GPP_PATH;
+                $standard = $language === 'c' ? '-std=c17' : '-std=c++20';
+                $compileResult = executeCommand(escapeshellarg($compiler) . ' ' . $standard . ' -O2 -pipe ' . escapeshellarg($fileName) . ' -o program', TEMP_DIR);
+                if (!$compileResult['success']) {
+                    return $compileResult;
+                }
+                return executeCommand('./program', TEMP_DIR, $input);
 
             case 'py':
                 // Для Python используем путь из запроса
@@ -249,7 +199,7 @@ function compileAndRun($language, $fileContent, $fileName, $input = null, $origi
                     }
                     
                     // Запускаем Python файл
-                    $runResult = executeCommand('"' . PYTHON_PATH . '" "' . $absolutePath . '"', $workingDir, $input);
+                    $runResult = executeCommand(escapeshellarg(PYTHON_PATH) . ' ' . escapeshellarg(basename($absolutePath)), $workingDir, $input);
                     
                     // Сохраняем состояние ПОСЛЕ выполнения (включая папки)
                     $afterFiles = getDirectorySnapshotWithFolders($workingDir);
@@ -383,188 +333,6 @@ function detectFileAndFolderChanges($before, $after, $dir) {
     return $changes;
 }
 
-function compileCppOnline($code, $input = null) {
-    $api_base = 'https://api.paiza.io';
-    $create_endpoint = $api_base . '/runners/create';
-    $get_status_endpoint = $api_base . '/runners/get_status';
-    $get_details_endpoint = $api_base . '/runners/get_details';
-    $api_key = 'guest';
-
-    $post_data = [
-        'source_code' => $code,
-        'language' => 'cpp',
-        'input' => $input ?? '',
-        'api_key' => $api_key,
-        'longpoll' => 'true',
-        'longpoll_timeout' => '30'
-    ];
-
-    $ch = curl_init($create_endpoint);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => 1,
-        CURLOPT_POSTFIELDS => http_build_query($post_data),
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/x-www-form-urlencoded'],
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_SSL_VERIFYPEER => false
-    ]);
-    
-    $create_response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curl_error = curl_error($ch);
-    curl_close($ch);
-
-    if ($http_code !== 200 || !$create_response) {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => "Failed to create runner: HTTP $http_code" . ($curl_error ? " - $curl_error" : "")
-        ];
-    }
-
-    $create_data = json_decode($create_response, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => "Invalid JSON response from API: " . json_last_error_msg()
-        ];
-    }
-
-    if (isset($create_data['error'])) {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => "API Error: " . $create_data['error']
-        ];
-    }
-
-    $runner_id = $create_data['id'] ?? null;
-    if (!$runner_id) {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => "Failed to get runner ID from response"
-        ];
-    }
-
-    // Если API поддерживает longpoll, результат может быть сразу готов
-    if (isset($create_data['stdout']) || isset($create_data['stderr']) || isset($create_data['build_stderr'])) {
-        return formatPaizaResult($create_data);
-    }
-
-    $attempts = 0;
-    $max_attempts = 30;
-    $status = $create_data['status'] ?? 'running';
-
-    while ($status === 'running' && $attempts < $max_attempts) {
-        sleep(1);
-        $status_url = $get_status_endpoint . '?id=' . urlencode($runner_id) . '&api_key=' . $api_key;
-        
-        $ch = curl_init($status_url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_SSL_VERIFYPEER => false
-        ]);
-        $status_response = curl_exec($ch);
-        $status_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($status_http !== 200 || !$status_response) {
-            break;
-        }
-
-        $status_data = json_decode($status_response, true);
-        if (json_last_error() === JSON_ERROR_NONE) {
-            $status = $status_data['status'] ?? 'unknown';
-        }
-        $attempts++;
-
-        if ($status === 'completed') {
-            break;
-        }
-    }
-
-    if ($attempts >= $max_attempts && $status !== 'completed') {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => 'Execution timeout (30 seconds)'
-        ];
-    }
-
-    $details_url = $get_details_endpoint . '?id=' . urlencode($runner_id) . '&api_key=' . $api_key;
-    
-    $ch = curl_init($details_url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_SSL_VERIFYPEER => false
-    ]);
-    $details_response = curl_exec($ch);
-    $details_http = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($details_http !== 200 || !$details_response) {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => "Failed to get details: HTTP $details_http"
-        ];
-    }
-
-    $result = json_decode($details_response, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        return [
-            'success' => false,
-            'output' => '',
-            'error' => "Invalid JSON in details response: " . json_last_error_msg()
-        ];
-    }
-
-    return formatPaizaResult($result);
-}
-
-function formatPaizaResult($result) {
-    $output = $result['stdout'] ?? '';
-    $build_error = $result['build_stderr'] ?? '';
-    $runtime_error = $result['stderr'] ?? '';
-    $build_result = $result['build_result'] ?? $result['result'] ?? 'unknown';
-    
-    $has_output = !empty($output);
-    $has_error = !empty($build_error) || !empty($runtime_error);
-    $success = ($build_result === 'success') || ($has_output && !$has_error);
-
-    $terminalOutput = "";
-    
-    if (!empty($output)) {
-        $terminalOutput .= "OUTPUT:\n" . trim($output) . "\n\n";
-    }
-    
-    if (!empty($build_error)) {
-        $terminalOutput .= "COMPILATION ERRORS:\n" . trim($build_error) . "\n\n";
-    }
-    
-    if (!empty($runtime_error)) {
-        $terminalOutput .= "RUNTIME ERRORS:\n" . trim($runtime_error) . "\n\n";
-    }
-    
-    if (empty($output) && empty($build_error) && empty($runtime_error)) {
-        $terminalOutput .= "Program executed successfully (no output)\n\n";
-    }
-    
-    $terminalOutput .= "Status: " . $build_result . "\n";
-    $terminalOutput .= "Execution Time: " . ($result['time'] ?? 'unknown') . "s\n";
-    $terminalOutput .= "Memory: " . ($result['memory'] ?? 'unknown') . " bytes";
-
-    return [
-        'success' => $success,
-        'output' => $terminalOutput,
-        'error' => ''
-    ];
-}
-
 function cleanupTempDir($dir) {
     if (!is_dir($dir)) return;
     
@@ -615,6 +383,13 @@ try {
         $supportedLanguages = ['java', 'c', 'cpp', 'py', 'm'];
         if (!in_array($language, $supportedLanguages)) {
             throw new Exception("Language $language is not supported");
+        }
+        $securityExt = $language === 'py' ? 'py' : $language;
+        if (cloud_ai_code_security_lang($securityExt) !== null) {
+            $sec = cloud_ai_scan_code_security($fileContent, $securityExt);
+            if (!empty($sec['blocked'])) {
+                throw new Exception($sec['error'] ?? 'Unsafe code is blocked');
+            }
         }
 
         $fileName = basename($filePath);

@@ -26,9 +26,9 @@ function getUserRoleByEmail(string $email): int {
     }
     try {
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) {
             return (int) $row['role'];
         }
@@ -46,9 +46,9 @@ function recipes_resolve_session_role(): int {
     if ($sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-            $stmt->bindValue(':session_id', $sid, SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $sid, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 return getUserRoleByEmail($row['email']);
             }
@@ -58,9 +58,9 @@ function recipes_resolve_session_role(): int {
     if (isset($_COOKIE['PHPSESSID'])) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-            $stmt->bindValue(':session_id', (string) $_COOKIE['PHPSESSID'], SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', (string) $_COOKIE['PHPSESSID'], PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 return getUserRoleByEmail($row['email']);
             }

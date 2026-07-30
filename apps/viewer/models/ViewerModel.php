@@ -15,7 +15,7 @@ function viewerLoadConfigArray(AppDatabase $db) {
     }
     $sites = [];
     $res = $db->query('SELECT name, url, priority, hidden, use_token FROM viewer_sites ORDER BY sort_order ASC, id ASC');
-    while ($s = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($s = $res->fetch(PDO::FETCH_ASSOC)) {
         $sites[] = [
             'name' => $s['name'],
             'url' => $s['url'],
@@ -41,7 +41,7 @@ function viewerEnsureToken(AppDatabase $db) {
     if ($t === null || $t === '') {
         $token = bin2hex(random_bytes(16));
         $st = $db->prepare('UPDATE viewer_meta SET token=:tk WHERE id=1');
-        $st->bindValue(':tk', $token, SQLITE3_TEXT);
+        $st->bindValue(':tk', $token, PDO::PARAM_STR);
         $st->execute();
         return $token;
     }
@@ -50,29 +50,29 @@ function viewerEnsureToken(AppDatabase $db) {
 
 function viewerSaveMetaFromArray(AppDatabase $db, array $c) {
     $st = $db->prepare('UPDATE viewer_meta SET theme=:th, language=:la, tile_size=:ts, sidebar_width=:sw, header_color=:hc, tiles_per_row=:tpr WHERE id=1');
-    $st->bindValue(':th', isset($c['theme']) ? (string)$c['theme'] : 'light', SQLITE3_TEXT);
-    $st->bindValue(':la', isset($c['language']) ? (string)$c['language'] : 'en', SQLITE3_TEXT);
-    $st->bindValue(':ts', isset($c['tileSize']) ? (int)$c['tileSize'] : 50, SQLITE3_INTEGER);
-    $st->bindValue(':sw', isset($c['sidebarWidth']) ? (int)$c['sidebarWidth'] : 300, SQLITE3_INTEGER);
-    $st->bindValue(':hc', isset($c['headerColor']) ? (string)$c['headerColor'] : '#34a853', SQLITE3_TEXT);
-    $st->bindValue(':tpr', isset($c['tilesPerRow']) ? (int)$c['tilesPerRow'] : 20, SQLITE3_INTEGER);
+    $st->bindValue(':th', isset($c['theme']) ? (string)$c['theme'] : 'light', PDO::PARAM_STR);
+    $st->bindValue(':la', isset($c['language']) ? (string)$c['language'] : 'en', PDO::PARAM_STR);
+    $st->bindValue(':ts', isset($c['tileSize']) ? (int)$c['tileSize'] : 50, PDO::PARAM_INT);
+    $st->bindValue(':sw', isset($c['sidebarWidth']) ? (int)$c['sidebarWidth'] : 300, PDO::PARAM_INT);
+    $st->bindValue(':hc', isset($c['headerColor']) ? (string)$c['headerColor'] : '#34a853', PDO::PARAM_STR);
+    $st->bindValue(':tpr', isset($c['tilesPerRow']) ? (int)$c['tilesPerRow'] : 20, PDO::PARAM_INT);
     $st->execute();
 }
 
 function viewerReplaceSites(AppDatabase $db, array $sites) {
-    $db->exec('BEGIN IMMEDIATE');
+    $db->exec('BEGIN');
     $db->exec('DELETE FROM viewer_sites');
     $ins = $db->prepare('INSERT INTO viewer_sites (sort_order, name, url, priority, hidden, use_token) VALUES (:so,:n,:u,:p,:h,:ut)');
     foreach ($sites as $i => $site) {
         if (!is_array($site)) continue;
         $ins->reset();
-        $ins->bindValue(':so', (int)$i, SQLITE3_INTEGER);
-        $ins->bindValue(':n', (string)($site['name'] ?? ''), SQLITE3_TEXT);
-        $ins->bindValue(':u', (string)($site['url'] ?? ''), SQLITE3_TEXT);
-        $ins->bindValue(':p', isset($site['priority']) ? (int)$site['priority'] : 0, SQLITE3_INTEGER);
-        $ins->bindValue(':h', !empty($site['hidden']) ? 1 : 0, SQLITE3_INTEGER);
+        $ins->bindValue(':so', (int)$i, PDO::PARAM_INT);
+        $ins->bindValue(':n', (string)($site['name'] ?? ''), PDO::PARAM_STR);
+        $ins->bindValue(':u', (string)($site['url'] ?? ''), PDO::PARAM_STR);
+        $ins->bindValue(':p', isset($site['priority']) ? (int)$site['priority'] : 0, PDO::PARAM_INT);
+        $ins->bindValue(':h', !empty($site['hidden']) ? 1 : 0, PDO::PARAM_INT);
         $ut = isset($site['use_token']) ? $site['use_token'] : false;
-        $ins->bindValue(':ut', ($ut === true || $ut === 1 || $ut === '1') ? 1 : 0, SQLITE3_INTEGER);
+        $ins->bindValue(':ut', ($ut === true || $ut === 1 || $ut === '1') ? 1 : 0, PDO::PARAM_INT);
         $ins->execute();
     }
     $db->exec('COMMIT');
@@ -85,7 +85,7 @@ function viewerUpdateToken(AppDatabase $db, $newToken) {
         $newToken = (string)$newToken;
     }
     $st = $db->prepare('UPDATE viewer_meta SET token=:tk WHERE id=1');
-    $st->bindValue(':tk', $newToken, SQLITE3_TEXT);
+    $st->bindValue(':tk', $newToken, PDO::PARAM_STR);
     $st->execute();
     return $newToken;
 }

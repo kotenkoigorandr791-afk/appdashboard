@@ -1842,8 +1842,15 @@ function monacoEnableTouchSelection(editor, container) {
     let isScrolling = false;
     let isDraggingHandle = null; // 'start' or 'end'
     let selectionHandles = null;
+    let autoScrollFrame = null;
+    let autoScrollTouch = null;
+    let autoScrollStartedAt = 0;
     const LONG_PRESS_DELAY = 400; // ms required to activate selection
     const SCROLL_THRESHOLD = 15; // px movement before long press triggers = scroll
+    const AUTO_SCROLL_ZONE = 72;
+    const AUTO_SCROLL_MAX_PX = 16;
+    const AUTO_SCROLL_ACCEL_MS = 1000;
+    const AUTO_SCROLL_INITIAL_FACTOR = 1 / 3;
     const domListeners = [];
     const addListener = (target, eventName, handler, options) => {
         target.addEventListener(eventName, handler, options);
@@ -1923,29 +1930,15 @@ function monacoEnableTouchSelection(editor, container) {
                 e.preventDefault();
                 e.stopPropagation();
                 const touch = e.touches[0];
-                const target = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
-                if (!target || !target.position) return;
-                const { lineNumber, column } = target.position;
-                if (!lineNumber || !column) return;
-                const model = editor.getModel();
-                if (!model) return;
-                const safeLine = Math.max(1, Math.min(lineNumber, model.getLineCount()));
-                const safeCol = Math.max(1, Math.min(column, model.getLineMaxColumn(safeLine)));
-                const sel = editor.getSelection();
-                if (!sel) return;
-                const newRange = isDraggingHandle === 'start'
-                    ? new monaco.Range(safeLine, safeCol, sel.endLineNumber, sel.endColumn)
-                    : new monaco.Range(sel.startLineNumber, sel.startColumn, safeLine, safeCol);
-                if (newRange.isEmpty()) return;
-                try { editor.setSelection(newRange); } catch (_) {}
-                editor.revealLineInCenterIfOutsideViewport(safeLine);
-                updateSelectionHandlesPosition();
+                try { setSelectionFromClientPoint(touch.clientX, touch.clientY); } catch (_) {}
+                updateTouchAutoScroll(touch);
             }, { passive: false });
 
             addListener(handle, 'touchend', (e) => {
                 if (isDraggingHandle === handle.dataset.handle) {
                     e.stopPropagation();
                     isDraggingHandle = null;
+                    stopTouchAutoScroll();
                     container.style.touchAction = 'pan-x pan-y';
                 }
             });
@@ -1958,6 +1951,7 @@ function monacoEnableTouchSelection(editor, container) {
             selectionHandles = null;
         }
         isDraggingHandle = null;
+        stopTouchAutoScroll();
     }
 
     function updateSelectionHandlesPosition() {
@@ -2018,6 +2012,83 @@ function monacoEnableTouchSelection(editor, container) {
         const endHandle = selectionHandles.querySelector('.monaco-selection-handle-end');
         if (startHandle) startHandle.style.display = 'none';
         if (endHandle) endHandle.style.display = 'none';
+    }
+
+    function setSelectionFromClientPoint(clientX, clientY) {
+        const currentPosition = editor.getTargetAtClientPoint(clientX, clientY);
+        if (!currentPosition || !currentPosition.position) return false;
+        const model = editor.getModel();
+        if (!model) return false;
+        const lineNumber = Math.max(1, Math.min(currentPosition.position.lineNumber, model.getLineCount()));
+        const column = Math.max(1, Math.min(currentPosition.position.column, model.getLineMaxColumn(lineNumber)));
+        if (isDraggingHandle) {
+            const selection = editor.getSelection();
+            if (!selection) return false;
+            const range = isDraggingHandle === 'start'
+                ? new monaco.Range(lineNumber, column, selection.endLineNumber, selection.endColumn)
+                : new monaco.Range(selection.startLineNumber, selection.startColumn, lineNumber, column);
+            if (range.isEmpty()) return false;
+            editor.setSelection(range);
+        } else {
+            if (!touchStart || !touchStart.position) return false;
+            editor.setSelection(new monaco.Range(
+                touchStart.position.lineNumber,
+                touchStart.position.column,
+                lineNumber,
+                column
+            ));
+        }
+        updateSelectionHandlesPosition();
+        return true;
+    }
+
+    function stopTouchAutoScroll() {
+        if (autoScrollFrame) cancelAnimationFrame(autoScrollFrame);
+        autoScrollFrame = null;
+        autoScrollTouch = null;
+        autoScrollStartedAt = 0;
+    }
+
+    function autoScrollDirection(clientY) {
+        const rect = container.getBoundingClientRect();
+        const topDistance = clientY - rect.top;
+        const bottomDistance = rect.bottom - clientY;
+        if (topDistance < AUTO_SCROLL_ZONE) return { direction: -1, distance: Math.max(0, topDistance) };
+        if (bottomDistance < AUTO_SCROLL_ZONE) return { direction: 1, distance: Math.max(0, bottomDistance) };
+        return { direction: 0, distance: AUTO_SCROLL_ZONE };
+    }
+
+    function runTouchAutoScroll() {
+        if (!autoScrollTouch) {
+            autoScrollFrame = null;
+            return;
+        }
+        const edge = autoScrollDirection(autoScrollTouch.clientY);
+        if (!edge.direction) {
+            stopTouchAutoScroll();
+            return;
+        }
+        const elapsed = Date.now() - autoScrollStartedAt;
+        const accel = Math.min(1, elapsed / AUTO_SCROLL_ACCEL_MS);
+        const factor = AUTO_SCROLL_INITIAL_FACTOR + ((1 - AUTO_SCROLL_INITIAL_FACTOR) * accel);
+        const intensity = 1 - (edge.distance / AUTO_SCROLL_ZONE);
+        const delta = edge.direction * Math.max(1, AUTO_SCROLL_MAX_PX * intensity * intensity * factor);
+        editor.setScrollTop(editor.getScrollTop() + delta);
+        setSelectionFromClientPoint(autoScrollTouch.clientX, autoScrollTouch.clientY);
+        autoScrollFrame = requestAnimationFrame(runTouchAutoScroll);
+    }
+
+    function updateTouchAutoScroll(touch) {
+        const edge = autoScrollDirection(touch.clientY);
+        if (!edge.direction) {
+            stopTouchAutoScroll();
+            return;
+        }
+        autoScrollTouch = { clientX: touch.clientX, clientY: touch.clientY };
+        if (!autoScrollFrame) {
+            autoScrollStartedAt = Date.now();
+            autoScrollFrame = requestAnimationFrame(runTouchAutoScroll);
+        }
     }
 
     // Allow text selection but prevent accidental selection during scroll
@@ -2119,25 +2190,8 @@ function monacoEnableTouchSelection(editor, container) {
         if (!selectionInProgress) return;
 
         e.preventDefault();
-
-        const currentPosition = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
-        if (!currentPosition || !currentPosition.position || !touchStart.position) return;
-
-        const startLine = touchStart.position.lineNumber;
-        const startColumn = touchStart.position.column;
-        const endLine = currentPosition.position.lineNumber;
-        const endColumn = currentPosition.position.column;
-
-        const range = new monaco.Range(
-            startLine,
-            startColumn,
-            endLine,
-            endColumn
-        );
-
-        editor.setSelection(range);
-        editor.revealLineInCenterIfOutsideViewport(endLine);
-        updateSelectionHandlesPosition();
+        try { setSelectionFromClientPoint(touch.clientX, touch.clientY); } catch (_) {}
+        updateTouchAutoScroll(touch);
 
     }, { passive: false });
 
@@ -2145,6 +2199,7 @@ function monacoEnableTouchSelection(editor, container) {
         // Завершаем перетаскивание маркера
         if (isDraggingHandle) {
             isDraggingHandle = null;
+            stopTouchAutoScroll();
             container.style.touchAction = 'pan-x pan-y';
             return;
         }
@@ -2241,6 +2296,7 @@ function monacoEnableTouchSelection(editor, container) {
         selectionInProgress = false;
         initialPosition = null;
         isScrolling = false;
+        stopTouchAutoScroll();
 
     }, { passive: false });
 

@@ -28,8 +28,8 @@ function get_current_user_email(): ?string {
     foreach ($ids as $sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 return (string)$row['email'];
             }

@@ -100,23 +100,23 @@ function get_cloud_device_id(): string {
 }
 
 function ensure_cloud_encryption_consents_schema_sqlite(AppDatabase $db): void {
-    $db->exec("PRAGMA foreign_keys = ON");
-    $hasTable = (bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_encryption_consents' LIMIT 1");
+    $db->exec("SELECT 1");
+    $hasTable = (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='cloud_encryption_consents' LIMIT 1");
     $hasDeviceId = false;
     if ($hasTable) {
-        $cols = $db->query("PRAGMA table_info(cloud_encryption_consents)");
-        while ($cols && ($row = $cols->fetchArray(SQLITE3_ASSOC))) {
+        $cols = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='cloud_encryption_consents'");
+        while ($cols && ($row = $cols->fetch(PDO::FETCH_ASSOC))) {
             if (($row['name'] ?? '') === 'device_id') $hasDeviceId = true;
         }
     }
     if ($hasTable && $hasDeviceId) {
-        $db->exec('BEGIN IMMEDIATE');
+        $db->exec('BEGIN');
         try {
             $db->exec("CREATE TABLE _cec_mig (
                 email         TEXT NOT NULL PRIMARY KEY,
                 status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
-                consented_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-                updated_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                consented_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+                updated_at    INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
                 FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
             )");
             $db->exec("INSERT INTO _cec_mig (email, status, consented_at, updated_at)
@@ -133,12 +133,12 @@ function ensure_cloud_encryption_consents_schema_sqlite(AppDatabase $db): void {
             throw $e;
         }
     }
-    if (!(bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_encryption_consents' LIMIT 1")) {
+    if (!(bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='cloud_encryption_consents' LIMIT 1")) {
         $db->exec("CREATE TABLE cloud_encryption_consents (
             email         TEXT NOT NULL PRIMARY KEY,
             status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
-            consented_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at    INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            consented_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            updated_at    INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
         )");
     }
@@ -243,8 +243,8 @@ function ensure_client_auth_tokens_table(): void {
             device_id TEXT NOT NULL DEFAULT '',
             device_name TEXT NOT NULL DEFAULT '',
             platform TEXT NOT NULL DEFAULT '',
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            last_used_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            last_used_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             expires_at INTEGER NOT NULL,
             revoked INTEGER NOT NULL DEFAULT 0
         )");
@@ -270,13 +270,13 @@ function get_email_from_client_auth_header(): ?string {
     try {
         ensure_client_auth_tokens_table();
         $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
-        $stmt->bindValue(':h', hash('sha256', $raw), SQLITE3_TEXT);
-        $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':h', hash('sha256', $raw), PDO::PARAM_STR);
+        $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['email'])) {
             $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
-            $upd->bindValue(':t', time(), SQLITE3_INTEGER);
-            $upd->bindValue(':h', hash('sha256', $raw), SQLITE3_TEXT);
+            $upd->bindValue(':t', time(), PDO::PARAM_INT);
+            $upd->bindValue(':h', hash('sha256', $raw), PDO::PARAM_STR);
             $upd->execute();
             $result = (string)$row['email'];
         }
@@ -296,14 +296,14 @@ function validate_client_token_for_email(string $email, string $token): bool {
         ensure_client_auth_tokens_table();
         $tokenHash = hash('sha256', $token);
         $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE email = :e AND token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':h', $tokenHash, SQLITE3_TEXT);
-        $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+        $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row || empty($row['email'])) return false;
         $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
-        $upd->bindValue(':t', time(), SQLITE3_INTEGER);
-        $upd->bindValue(':h', $tokenHash, SQLITE3_TEXT);
+        $upd->bindValue(':t', time(), PDO::PARAM_INT);
+        $upd->bindValue(':h', $tokenHash, PDO::PARAM_STR);
         $upd->execute();
         return true;
     } catch (Exception $e) {
@@ -328,12 +328,12 @@ function generate_client_token(string $email, string $deviceId = '', string $dev
         
         // Store token hash in database
         $stmt = $db->prepare('INSERT INTO client_auth_tokens (token_hash, email, device_id, device_name, platform, expires_at) VALUES (:h, :e, :d, :n, :p, :exp)');
-        $stmt->bindValue(':h', $tokenHash, SQLITE3_TEXT);
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':d', $deviceId, SQLITE3_TEXT);
-        $stmt->bindValue(':n', $deviceName, SQLITE3_TEXT);
-        $stmt->bindValue(':p', $platform, SQLITE3_TEXT);
-        $stmt->bindValue(':exp', $expiresAt, SQLITE3_INTEGER);
+        $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+        $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
+        $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
+        $stmt->bindValue(':exp', $expiresAt, PDO::PARAM_INT);
         $stmt->execute();
         
         return [
@@ -356,7 +356,7 @@ function revoke_all_client_tokens(string $email): array {
     try {
         ensure_client_auth_tokens_table();
         $stmt = $db->prepare('UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND revoked = 0');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $stmt->execute();
         
         return ['ok' => true, 'message' => 'All tokens revoked'];
@@ -374,8 +374,8 @@ function revoke_client_token(string $email, string $tokenHash): array {
     try {
         ensure_client_auth_tokens_table();
         $stmt = $db->prepare('UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND token_hash = :h AND revoked = 0');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':h', $tokenHash, SQLITE3_TEXT);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
         $stmt->execute();
 
         if ($db->changes() < 1) {
@@ -396,12 +396,12 @@ function get_active_tokens(string $email): array {
     try {
         ensure_client_auth_tokens_table();
         $stmt = $db->prepare('SELECT token_hash, device_id, device_name, platform, created_at, last_used_at, expires_at FROM client_auth_tokens WHERE email = :e AND revoked = 0 AND expires_at > :now ORDER BY created_at DESC');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $result = $stmt->execute();
         
         $tokens = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $tokens[] = [
                 'token_hash' => $row['token_hash'],
                 'device_id' => $row['device_id'],
@@ -451,9 +451,9 @@ function get_current_user_from_sessions(): string {
     foreach ($tryIds as $sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row    = $result->fetchArray(SQLITE3_ASSOC);
+            $row    = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 $username = str_replace(['@', '.'], '_', $row['email']) ?? 'guest';
                 $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
@@ -489,9 +489,9 @@ function get_session_email(): ?string {
     if ($session_id) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-            $stmt->bindValue(':sid', $session_id, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $session_id, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row    = $result->fetchArray(SQLITE3_ASSOC);
+            $row    = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 return $row['email'];
             }
@@ -507,9 +507,9 @@ function get_session_email(): ?string {
         if ($cookie_sid && $cookie_sid !== $session_id) {
             try {
                 $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-                $stmt->bindValue(':sid', $cookie_sid, SQLITE3_TEXT);
+                $stmt->bindValue(':sid', $cookie_sid, PDO::PARAM_STR);
                 $result = $stmt->execute();
-                $row    = $result->fetchArray(SQLITE3_ASSOC);
+                $row    = $result->fetch(PDO::FETCH_ASSOC);
                 if ($row && !empty($row['email'])) {
                     return $row['email'];
                 }
@@ -530,9 +530,9 @@ function getUserRoleByEmail($email): int {
     
     try {
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row && isset($row['role'])) {
             return (int)$row['role'];
@@ -549,9 +549,9 @@ function getUserPhotoByEmail(?string $email): string {
     if (!$db) return 'default_avatar.png';
     try {
         $stmt = $db->prepare('SELECT photo FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['photo'])) return (string)$row['photo'];
     } catch (Exception $e) {
         cloud_safe_error_log("Failed to get user photo: " . $e->getMessage());
@@ -588,9 +588,9 @@ function isUserRoot(): bool {
     foreach ($tryIds as $sid) {
         try {
             $stmt = $db->prepare($sql);
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row    = $result->fetchArray(SQLITE3_ASSOC);
+            $row    = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['role'])) {
                 return (int)$row['role'] === 2;
             }
@@ -735,9 +735,9 @@ function decrypt_documents_content(string $raw, string $user): string {
 function ensureCloudSyncLogsSchema($db): void {
     if (!$db) return;
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_sync_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         email TEXT NOT NULL,
-        ts INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        ts INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         level TEXT NOT NULL DEFAULT 'INFO',
         root_key TEXT NOT NULL DEFAULT '',
         action TEXT NOT NULL DEFAULT '',
@@ -756,7 +756,7 @@ function cloud_sync_logs_cleanup_legacy_files(AppDatabase $db): void {
     if ($flag === '1') return;
     $base = appdata_app_base_dir('cloud');
     if (!is_dir($base)) {
-        $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('cloud_sync_logs_legacy_files_migrated', '1')");
+        $db->exec("INSERT INTO app_meta(key, value) VALUES('cloud_sync_logs_legacy_files_migrated', '1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
         return;
     }
     foreach (scandir($base) ?: [] as $entry) {
@@ -774,34 +774,34 @@ function cloud_sync_logs_cleanup_legacy_files(AppDatabase $db): void {
         }
         @unlink($logFile);
     }
-    $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('cloud_sync_logs_legacy_files_migrated', '1')");
+    $db->exec("INSERT INTO app_meta(key, value) VALUES('cloud_sync_logs_legacy_files_migrated', '1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
 }
 function cloud_sync_logs_insert(AppDatabase $db, string $email, int $ts, string $level, string $rootKey, string $actionName, string $path, string $message): void {
     $stmt = $db->prepare("INSERT INTO cloud_sync_logs (email, ts, level, root_key, action, path, message) VALUES (:e, :ts, :l, :r, :a, :p, :m)");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':ts', $ts, SQLITE3_INTEGER);
-    $stmt->bindValue(':l', $level, SQLITE3_TEXT);
-    $stmt->bindValue(':r', $rootKey, SQLITE3_TEXT);
-    $stmt->bindValue(':a', $actionName, SQLITE3_TEXT);
-    $stmt->bindValue(':p', $path, SQLITE3_TEXT);
-    $stmt->bindValue(':m', $message, SQLITE3_TEXT);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':ts', $ts, PDO::PARAM_INT);
+    $stmt->bindValue(':l', $level, PDO::PARAM_STR);
+    $stmt->bindValue(':r', $rootKey, PDO::PARAM_STR);
+    $stmt->bindValue(':a', $actionName, PDO::PARAM_STR);
+    $stmt->bindValue(':p', $path, PDO::PARAM_STR);
+    $stmt->bindValue(':m', $message, PDO::PARAM_STR);
     $stmt->execute();
 }
 function cloud_sync_logs_prune(AppDatabase $db, string $email, int $max = 500): void {
     $stmt = $db->prepare("DELETE FROM cloud_sync_logs WHERE email = :e AND id NOT IN (SELECT id FROM cloud_sync_logs WHERE email = :e2 ORDER BY ts DESC, id DESC LIMIT :lim)");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':e2', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':lim', $max, SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':e2', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':lim', $max, PDO::PARAM_INT);
     $stmt->execute();
 }
 function cloud_sync_logs_migrate_legacy(AppDatabase $db, string $email, string $user): void {
     $chk = $db->prepare("SELECT COUNT(*) AS c FROM cloud_sync_logs WHERE email = :e");
-    $chk->bindValue(':e', $email, SQLITE3_TEXT);
-    if ((int)($chk->execute()->fetchArray(SQLITE3_ASSOC)['c'] ?? 0) > 0) return;
+    $chk->bindValue(':e', $email, PDO::PARAM_STR);
+    if ((int)($chk->execute()->fetch(PDO::FETCH_ASSOC)['c'] ?? 0) > 0) return;
     ensureCloudUserSettingsSchema($db);
     $stmt = $db->prepare("SELECT sync_log_json FROM cloud_user_settings WHERE email = :e LIMIT 1");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $logs = ($row && !empty($row['sync_log_json'])) ? (json_decode((string)$row['sync_log_json'], true) ?: []) : [];
     foreach ($logs as $entry) {
         if (!is_array($entry)) continue;
@@ -809,7 +809,7 @@ function cloud_sync_logs_migrate_legacy(AppDatabase $db, string $email, string $
     }
     if ($logs) {
         $clr = $db->prepare("UPDATE cloud_user_settings SET sync_log_json = '[]' WHERE email = :e");
-        $clr->bindValue(':e', $email, SQLITE3_TEXT);
+        $clr->bindValue(':e', $email, PDO::PARAM_STR);
         $clr->execute();
     }
     $logFile = user_root($user, 'main') . '/.sync_roots.log';
@@ -2947,8 +2947,8 @@ function getUserQuota(string $username): int {
     if ($email) {
         try {
             $stmt = $db->prepare('SELECT quota_mb FROM cloud_user_settings WHERE email = :e LIMIT 1');
-            $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row) return max(1, (int)$row['quota_mb']);
         } catch (Exception $e) {
             cloud_safe_error_log("getUserQuota by email failed: " . $e->getMessage());
@@ -2956,8 +2956,8 @@ function getUserQuota(string $username): int {
     }
     try {
         $stmt = $db->prepare('SELECT quota_mb FROM cloud_user_settings WHERE email LIKE :p LIMIT 1');
-        $stmt->bindValue(':p', $username, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':p', $username, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row ? max(1, (int)$row['quota_mb']) : 500;
     } catch (Exception $e) {
         cloud_safe_error_log("getUserQuota fallback failed: " . $e->getMessage());
@@ -2972,8 +2972,8 @@ function getSessionLimit(string $username): int {
     if ($email) {
         try {
             $stmt = $db->prepare('SELECT session_limit_mb FROM cloud_user_settings WHERE email = :e LIMIT 1');
-            $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row) return max(0, (int)$row['session_limit_mb']);
         } catch (Exception $e) {
             cloud_safe_error_log("getSessionLimit by email failed: " . $e->getMessage());
@@ -2981,8 +2981,8 @@ function getSessionLimit(string $username): int {
     }
     try {
         $stmt = $db->prepare('SELECT session_limit_mb FROM cloud_user_settings WHERE email LIKE :p LIMIT 1');
-        $stmt->bindValue(':p', $username, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':p', $username, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row ? max(0, (int)$row['session_limit_mb']) : 0;
     } catch (Exception $e) {
         cloud_safe_error_log("getSessionLimit fallback failed: " . $e->getMessage());
@@ -3003,7 +3003,7 @@ function ensureCloudUserSettingsSchema($db): void {
         sync_enabled INTEGER NOT NULL DEFAULT 0,
         last_sync_at INTEGER NOT NULL DEFAULT 0,
         sync_log_json TEXT NOT NULL DEFAULT '[]',
-        updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
     $hasHideLangSwitcher = false;
     $hasSyncLocalPath = false;
@@ -3012,8 +3012,8 @@ function ensureCloudUserSettingsSchema($db): void {
     $hasSyncEnabled = false;
     $hasLastSyncAt = false;
     $hasSyncLogJson = false;
-    $cols = $db->query("PRAGMA table_info(cloud_user_settings)");
-    while ($cols && ($col = $cols->fetchArray(SQLITE3_ASSOC))) {
+    $cols = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='cloud_user_settings'");
+    while ($cols && ($col = $cols->fetch(PDO::FETCH_ASSOC))) {
         if (($col['name'] ?? '') === 'hide_lang_switcher') $hasHideLangSwitcher = true;
         if (($col['name'] ?? '') === 'sync_local_path') $hasSyncLocalPath = true;
         if (($col['name'] ?? '') === 'sync_interval_sec') $hasSyncIntervalSec = true;
@@ -3038,7 +3038,7 @@ function resolve_cloud_user_email_from_legacy_name(AppDatabase $db, string $name
     if ($name === '' || $name === 'default' || $name === 'guest') return null;
     if (strpos($name, '@') !== false) return $name;
     $res = $db->query('SELECT email FROM users');
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
         $email = (string)($row['email'] ?? '');
         if ($email !== '' && email_to_cloud_username($email) === $name) return $email;
     }
@@ -3064,7 +3064,7 @@ function migrate_legacy_users_json(): void {
                 ensureCloudUserSettingsSchema($db);
                 $users = is_array($data['users'] ?? null) ? $data['users'] : [];
                 $stmt = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at)
-                    VALUES (:e, :q, :l, 0, strftime('%s','now'))
+                    VALUES (:e, :q, :l, 0, extract(epoch from now())::bigint)
                     ON CONFLICT(email) DO UPDATE SET
                         quota_mb = excluded.quota_mb,
                         session_limit_mb = excluded.session_limit_mb,
@@ -3073,9 +3073,9 @@ function migrate_legacy_users_json(): void {
                     if (!is_array($u)) continue;
                     $email = resolve_cloud_user_email_from_legacy_name($db, (string)($u['name'] ?? ''));
                     if (!$email) continue;
-                    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-                    $stmt->bindValue(':q', max(1, (int)($u['quota_mb'] ?? 500)), SQLITE3_INTEGER);
-                    $stmt->bindValue(':l', max(0, (int)($u['session_limit_mb'] ?? 0)), SQLITE3_INTEGER);
+                    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+                    $stmt->bindValue(':q', max(1, (int)($u['quota_mb'] ?? 500)), PDO::PARAM_INT);
+                    $stmt->bindValue(':l', max(0, (int)($u['session_limit_mb'] ?? 0)), PDO::PARAM_INT);
                     $stmt->execute();
                 }
             } catch (Exception $e) {
@@ -3287,7 +3287,7 @@ function ensure_file_tree_table(AppDatabase $db): void {
             folder_json TEXT    NOT NULL DEFAULT '[]',
             tree_json   TEXT    NOT NULL DEFAULT '',
             tree_valid  INTEGER NOT NULL DEFAULT 0,
-            updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            updated_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )
     ");
     // Add tree_json / tree_valid columns if upgrading from old schema
@@ -3307,10 +3307,10 @@ function invalidate_file_tree(string $email): void {
         ensure_file_tree_table($db);
         $stmt = $db->prepare("
             UPDATE cloud_folder_state
-            SET tree_valid = 0, tree_json = '', updated_at = strftime('%s','now')
+            SET tree_valid = 0, tree_json = '', updated_at = extract(epoch from now())::bigint
             WHERE email = :e
         ");
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $stmt->execute();
     } catch (Exception $e) {
         cloud_safe_error_log("invalidate_file_tree failed: " . $e->getMessage());
@@ -3322,8 +3322,8 @@ function patch_file_tree_cache_rename(string $email, string $oldPath, string $ne
     try {
         ensure_file_tree_table($db);
         $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e LIMIT 1");
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row || (int)($row['tree_valid'] ?? 0) !== 1 || empty($row['tree_json'])) return;
         $items = json_decode($row['tree_json'], true);
         if (!is_array($items)) return;
@@ -3344,9 +3344,9 @@ function patch_file_tree_cache_rename(string $email, string $oldPath, string $ne
         unset($item);
         if (!$changed) return;
         $json = json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $update = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = strftime('%s','now') WHERE email = :e");
-        $update->bindValue(':e', $email, SQLITE3_TEXT);
-        $update->bindValue(':j', $json, SQLITE3_TEXT);
+        $update = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+        $update->bindValue(':e', $email, PDO::PARAM_STR);
+        $update->bindValue(':j', $json, PDO::PARAM_STR);
         $update->execute();
     } catch (Exception $e) {
         cloud_safe_error_log("patch_file_tree_cache_rename failed: " . $e->getMessage());
@@ -3366,15 +3366,15 @@ function rebuild_file_tree(string $email, string $user): void {
         ensure_file_tree_table($db);
         // Upsert
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $check->bindValue(':e', $email, SQLITE3_TEXT);
-        $cnt = $check->execute()->fetchArray(SQLITE3_ASSOC)['cnt'] ?? 0;
+        $check->bindValue(':e', $email, PDO::PARAM_STR);
+        $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
         if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_valid, updated_at) VALUES (:e, '[]', :j, 1, strftime('%s','now'))");
+            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_valid, updated_at) VALUES (:e, '[]', :j, 1, extract(epoch from now())::bigint)");
         } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = strftime('%s','now') WHERE email = :e");
+            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
         }
-        $s->bindValue(':e', $email, SQLITE3_TEXT);
-        $s->bindValue(':j', $json, SQLITE3_TEXT);
+        $s->bindValue(':e', $email, PDO::PARAM_STR);
+        $s->bindValue(':j', $json, PDO::PARAM_STR);
         $s->execute();
     } catch (Exception $e) {
         cloud_safe_error_log("rebuild_file_tree failed: " . $e->getMessage());
@@ -3390,7 +3390,7 @@ function ensure_storage_usage_table(AppDatabase $db): void {
             email            TEXT PRIMARY KEY,
             stats_json       TEXT    NOT NULL DEFAULT '[]',
             root_total_bytes INTEGER NOT NULL DEFAULT 0,
-            updated_at       INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            updated_at       INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )
     ");
 }
@@ -3492,25 +3492,25 @@ function save_storage_usage_stats(string $email, string $user): array {
         if ($json === false) $json = '[]';
 
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_storage_usage_stats WHERE email = :e");
-        $check->bindValue(':e', $email, SQLITE3_TEXT);
-        $cnt = (int)($check->execute()->fetchArray(SQLITE3_ASSOC)['cnt'] ?? 0);
+        $check->bindValue(':e', $email, PDO::PARAM_STR);
+        $cnt = (int)($check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
 
         if ($cnt === 0) {
             $stmt = $db->prepare("
                 INSERT INTO cloud_storage_usage_stats (email, stats_json, root_total_bytes, updated_at)
-                VALUES (:e, :j, :r, strftime('%s','now'))
+                VALUES (:e, :j, :r, extract(epoch from now())::bigint)
             ");
         } else {
             $stmt = $db->prepare("
                 UPDATE cloud_storage_usage_stats
-                SET stats_json = :j, root_total_bytes = :r, updated_at = strftime('%s','now')
+                SET stats_json = :j, root_total_bytes = :r, updated_at = extract(epoch from now())::bigint
                 WHERE email = :e
             ");
         }
 
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':j', $json, SQLITE3_TEXT);
-        $stmt->bindValue(':r', (int)$data['root_total_bytes'], SQLITE3_INTEGER);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':j', $json, PDO::PARAM_STR);
+        $stmt->bindValue(':r', (int)$data['root_total_bytes'], PDO::PARAM_INT);
         $stmt->execute();
 
         $fresh = $db->prepare("
@@ -3518,8 +3518,8 @@ function save_storage_usage_stats(string $email, string $user): array {
             FROM cloud_storage_usage_stats
             WHERE email = :e
         ");
-        $fresh->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $fresh->execute()->fetchArray(SQLITE3_ASSOC);
+        $fresh->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $fresh->execute()->fetch(PDO::FETCH_ASSOC);
 
         $folders = $row ? (json_decode($row['stats_json'], true) ?? []) : [];
         $folders = array_values(array_filter($folders, function ($f) {

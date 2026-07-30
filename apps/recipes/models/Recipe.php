@@ -9,9 +9,9 @@ function getRecipeFromDB($recipe_id) {
     try {
         // Get recipe
         $stmt = $db->prepare("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :id");
-        $stmt->bindValue(':id', $recipe_id, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $recipe_data = $result->fetchArray(SQLITE3_ASSOC);
+        $recipe_data = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($recipe_data) {
             $recipe = [
@@ -27,10 +27,10 @@ function getRecipeFromDB($recipe_id) {
             
             // Get steps
             $stmt = $db->prepare("SELECT * FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :id ORDER BY step_order");
-            $stmt->bindValue(':id', $recipe_id, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
             $result = $stmt->execute();
             
-            while ($step = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($step = $result->fetch(PDO::FETCH_ASSOC)) {
                 $new_step = [
                     'type' => $step['step_type'],
                     'timer' => null
@@ -76,7 +76,7 @@ function getAllRecipesFromDB() {
     
     try {
         $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en");
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $recipe = [
                 'id' => $row['id'],
                 'title' => [
@@ -90,9 +90,9 @@ function getAllRecipesFromDB() {
             
             // Get step count
             $stmt = $db->prepare("SELECT COUNT(*) as step_count FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :id");
-            $stmt->bindValue(':id', $row['id'], SQLITE3_TEXT);
+            $stmt->bindValue(':id', $row['id'], PDO::PARAM_STR);
             $step_result = $stmt->execute();
-            $step_data = $step_result->fetchArray(SQLITE3_ASSOC);
+            $step_data = $step_result->fetch(PDO::FETCH_ASSOC);
             $recipe['step_count'] = $step_data['step_count'];
             $recipe['steps'] = []; // Will be loaded on demand
             
@@ -113,7 +113,7 @@ function getAllProductsFromDB() {
     
     try {
         $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $products[] = [
                 'id' => $row['id'],
                 'name' => [

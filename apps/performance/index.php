@@ -28,9 +28,9 @@ $db = getDB();
 if ($db && session_id()) {
     try {
         $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', session_id(), SQLITE3_TEXT);
+        $stmt->bindValue(':session_id', session_id(), PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['email'])) {
             $userEmail = $row['email'];
         }

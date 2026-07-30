@@ -47,9 +47,9 @@ if ($userEmail) {
         $locDb = initLocationSharingDB();
         if ($locDb) {
             $stmt = $locDb->prepare("SELECT token, expires_at FROM map_location_tokens WHERE user_email = :email AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1");
-            $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $existingToken = $result->fetchArray(SQLITE3_ASSOC);
+            $existingToken = $result->fetch(PDO::FETCH_ASSOC);
         }
     } catch (Exception $e) {
         error_log("Failed to get existing token: " . $e->getMessage());

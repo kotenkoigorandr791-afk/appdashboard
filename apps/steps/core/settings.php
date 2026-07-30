@@ -12,7 +12,7 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
     $settings = $defaults;
     try {
         $result = $db->query('SELECT key, value FROM settings');
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $settings[$row['key']] = $row['value'];
         }
     } catch (Exception $e) {
@@ -33,9 +33,9 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
 }
 
 function saveUserSetting(AppDatabase $db, string $key, string $value): void {
-    $stmt = $db->prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (:k, :v)');
-    $stmt->bindValue(':k', $key, SQLITE3_TEXT);
-    $stmt->bindValue(':v', $value, SQLITE3_TEXT);
+    $stmt = $db->prepare('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
+    $stmt->bindValue(':k', $key, PDO::PARAM_STR);
+    $stmt->bindValue(':v', $value, PDO::PARAM_STR);
     $stmt->execute();
 }
 

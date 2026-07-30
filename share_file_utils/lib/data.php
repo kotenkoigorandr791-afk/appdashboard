@@ -15,9 +15,9 @@ if ($fileId) {
     try {
         $db->exec('DELETE FROM shared_files WHERE expires IS NOT NULL AND expires < ' . time());
         $stmt = $db->prepare('SELECT * FROM shared_files WHERE share_id = :share_id');
-        $stmt->bindValue(':share_id', $fileId, SQLITE3_TEXT);
+        $stmt->bindValue(':share_id', $fileId, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row) {
             $resolvedFilePath = resolveSharedFilePath((string) $row['file_path']);
             $isFolderRow = isset($row['is_folder']) && (int) $row['is_folder'] === 1;

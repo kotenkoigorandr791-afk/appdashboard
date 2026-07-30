@@ -5,8 +5,8 @@ function getUserPhoto(string $email): ?string {
     if (!$db) return null;
     try {
         $stmt = $db->prepare('SELECT photo FROM users WHERE email = :e');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['photo'])) return $row['photo'];
     } catch (Exception $e) { }
     return null;
@@ -17,8 +17,8 @@ function getUserRoleByEmail(string $email): int {
     if (!$db) return 0;
     try {
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :e');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) return (int)$row['role'];
     } catch (Exception $e) { }
     return 0;
@@ -33,8 +33,8 @@ function isUserRoot(): bool {
             $stmt = $db->prepare(
                 'SELECT u.role FROM active_sessions s JOIN users u ON s.email = u.email WHERE s.session_id = :sid'
             );
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['role'])) return $row['role'] === 2;
         } catch (Exception $e) { }
     }

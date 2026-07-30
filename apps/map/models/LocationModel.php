@@ -9,7 +9,7 @@ function initLocationSharingDB() {
         // Create tokens table with map_ prefix
         $db->exec("
             CREATE TABLE IF NOT EXISTS map_location_tokens (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 token TEXT UNIQUE NOT NULL,
                 user_email TEXT UNIQUE NOT NULL,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -21,7 +21,7 @@ function initLocationSharingDB() {
         // Create locations table with map_ prefix
         $db->exec("
             CREATE TABLE IF NOT EXISTS map_location_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 token TEXT NOT NULL,
                 latitude REAL NOT NULL,
                 longitude REAL NOT NULL,
@@ -43,8 +43,8 @@ function initLocationSharingDB() {
 }
 
 function locationColumnExists(AppDatabase $db, string $table, string $column): bool {
-    $result = $db->query("PRAGMA table_info($table)");
-    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+    $result = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name=$table");
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
         if (($row['name'] ?? '') === $column) {
             return true;
         }
@@ -72,9 +72,9 @@ function ensureLocationTelemetrySchema(AppDatabase $db): void {
 function pruneLocationHistory(AppDatabase $db, string $token, int $keep = 50): void {
     $keep = max(1, $keep);
     $userEmailStmt = $db->prepare("SELECT user_email FROM map_location_tokens WHERE token = :token LIMIT 1");
-    $userEmailStmt->bindValue(':token', $token, SQLITE3_TEXT);
+    $userEmailStmt->bindValue(':token', $token, PDO::PARAM_STR);
     $userEmailResult = $userEmailStmt->execute();
-    $userRow = $userEmailResult ? $userEmailResult->fetchArray(SQLITE3_ASSOC) : false;
+    $userRow = $userEmailResult ? $userEmailResult->fetch(PDO::FETCH_ASSOC) : false;
     $userEmail = $userRow['user_email'] ?? null;
 
     if (!$userEmail) {
@@ -95,9 +95,9 @@ function pruneLocationHistory(AppDatabase $db, string $token, int $keep = 50): v
             LIMIT :keep
         )
     ");
-    $deleteStmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
-    $deleteStmt->bindValue(':email_keep', $userEmail, SQLITE3_TEXT);
-    $deleteStmt->bindValue(':keep', $keep, SQLITE3_INTEGER);
+    $deleteStmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
+    $deleteStmt->bindValue(':email_keep', $userEmail, PDO::PARAM_STR);
+    $deleteStmt->bindValue(':keep', $keep, PDO::PARAM_INT);
     $deleteStmt->execute();
 }
 
@@ -137,9 +137,9 @@ if ($userEmail) {
         $locDb = initLocationSharingDB();
         if ($locDb) {
             $stmt = $locDb->prepare("SELECT token, expires_at FROM map_location_tokens WHERE user_email = :email AND is_active = 1 AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1");
-            $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $existingToken = $result->fetchArray(SQLITE3_ASSOC);
+            $existingToken = $result->fetch(PDO::FETCH_ASSOC);
         }
     } catch (Exception $e) {
         error_log("Existing token lookup failed: " . $e->getMessage());

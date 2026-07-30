@@ -3,7 +3,8 @@ require_once __DIR__ . '/../../../lib/user_schema_pg.php';
 function getUserDBPath($userEmail) {
     $safe = getSafeFolderName($userEmail);
     $dir  = APPS_DATA_DIR . $safe;
-    if (!file_exists($dir)) mkdir($dir, 0755, true);
+    if (!file_exists($dir)) mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true);
+    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     return $dir . '/data.sqlite3';
 }
 function getUserSQLite($userEmail) {
@@ -26,28 +27,28 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
         foreach (['settings', 'stores', 'expenses', 'incomes', 'ocr_entries', 'table_settings'] as $table) {
             $res = @$sqlite->query("SELECT * FROM \"$table\"");
             if (!$res) continue;
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 if ($table === 'settings') dbSetSetting($udb, (string)$row['key'], (string)$row['value']);
                 elseif ($table === 'table_settings') dbSetTableSetting($udb, (string)$row['key'], (string)$row['value']);
                 elseif ($table === 'stores') {
                     $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,:v,:o) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, visible=EXCLUDED.visible, sort_order=EXCLUDED.sort_order');
-                    $st->bindValue(':id', (string)$row['id'], SQLITE3_TEXT);
-                    $st->bindValue(':n', (string)$row['name'], SQLITE3_TEXT);
-                    $st->bindValue(':v', (int)($row['visible'] ?? 1), SQLITE3_INTEGER);
-                    $st->bindValue(':o', (int)($row['sort_order'] ?? 0), SQLITE3_INTEGER);
+                    $st->bindValue(':id', (string)$row['id'], PDO::PARAM_STR);
+                    $st->bindValue(':n', (string)$row['name'], PDO::PARAM_STR);
+                    $st->bindValue(':v', (int)($row['visible'] ?? 1), PDO::PARAM_INT);
+                    $st->bindValue(':o', (int)($row['sort_order'] ?? 0), PDO::PARAM_INT);
                     $st->execute();
                 } elseif ($table === 'expenses') {
                     $st = $udb->prepare('INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:es,:or) ON CONFLICT (date,store) DO UPDATE SET amount=EXCLUDED.amount');
-                    $st->bindValue(':d', (string)$row['date'], SQLITE3_TEXT);
-                    $st->bindValue(':s', (string)$row['store'], SQLITE3_TEXT);
-                    $st->bindValue(':a', (float)($row['amount'] ?? 0), SQLITE3_FLOAT);
-                    $st->bindValue(':es', (string)($row['entry_source'] ?? 'manual'), SQLITE3_TEXT);
-                    $st->bindValue(':or', $row['ocr_raw_store'] ?? null, SQLITE3_NULL);
+                    $st->bindValue(':d', (string)$row['date'], PDO::PARAM_STR);
+                    $st->bindValue(':s', (string)$row['store'], PDO::PARAM_STR);
+                    $st->bindValue(':a', (float)($row['amount'] ?? 0), PDO::PARAM_STR);
+                    $st->bindValue(':es', (string)($row['entry_source'] ?? 'manual'), PDO::PARAM_STR);
+                    $st->bindValue(':or', $row['ocr_raw_store'] ?? null, PDO::PARAM_NULL);
                     $st->execute();
                 } elseif ($table === 'incomes') {
                     $st = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,:a) ON CONFLICT (date) DO UPDATE SET amount=EXCLUDED.amount');
-                    $st->bindValue(':d', (string)$row['date'], SQLITE3_TEXT);
-                    $st->bindValue(':a', (float)($row['amount'] ?? 0), SQLITE3_FLOAT);
+                    $st->bindValue(':d', (string)$row['date'], PDO::PARAM_STR);
+                    $st->bindValue(':a', (float)($row['amount'] ?? 0), PDO::PARAM_STR);
                     $st->execute();
                 }
             }
@@ -74,8 +75,8 @@ function migrateExistingFiles($userEmail, $udb) {
                 $stmt = $udb->prepare('INSERT INTO stores (id, name, visible, sort_order) VALUES (:id,:n,:v,:o) ON CONFLICT (id) DO NOTHING');
                 $stmt->bindValue(':id', $sid);
                 $stmt->bindValue(':n',  $s['name']);
-                $stmt->bindValue(':v',  $vis, SQLITE3_INTEGER);
-                $stmt->bindValue(':o',  $ord++, SQLITE3_INTEGER);
+                $stmt->bindValue(':v',  $vis, PDO::PARAM_INT);
+                $stmt->bindValue(':o',  $ord++, PDO::PARAM_INT);
                 $stmt->execute();
             }
         }
@@ -113,7 +114,7 @@ function migrateExistingFiles($userEmail, $udb) {
                     $st = $udb->prepare('INSERT INTO expenses (date, store, amount) VALUES (:d,:s,:a) ON CONFLICT (date,store) DO UPDATE SET amount=EXCLUDED.amount');
                     $st->bindValue(':d', $date);
                     $st->bindValue(':s', $store);
-                    $st->bindValue(':a', $amount, SQLITE3_FLOAT);
+                    $st->bindValue(':a', $amount, PDO::PARAM_STR);
                     $st->execute();
                 }
             }
@@ -131,7 +132,7 @@ function dbSetSetting($udb, $key, $value) {
 function dbGetSetting($udb, $key, $default = null) {
     $st = $udb->prepare('SELECT value FROM settings WHERE key = :k');
     $st->bindValue(':k', $key);
-    $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+    $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
     return $r ? $r['value'] : $default;
 }
 function dbSetTableSetting($udb, $key, $value) {
@@ -143,13 +144,13 @@ function dbSetTableSetting($udb, $key, $value) {
 function dbGetTableSetting($udb, $key, $default = null) {
     $st = $udb->prepare('SELECT value FROM table_settings WHERE key = :k');
     $st->bindValue(':k', $key);
-    $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+    $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
     return $r ? $r['value'] : $default;
 }
 function dbGetStores($udb) {
     $res  = $udb->query('SELECT id, name, visible, sort_order FROM stores ORDER BY sort_order ASC, id ASC');
     $list = [];
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $row['visible'] = (bool)(int)$row['visible'];
         $list[] = $row;
     }

@@ -43,6 +43,9 @@ if (!empty($userPhotoFromDB)) {
 
 // Открываем пользовательскую БД
 $userDb = getUserDB($userDir);
+if (!$userDb) {
+    throw new RuntimeException('Steps database unavailable');
+}
 normalizeStepsDatesTable($userDb);
 
 // Загружаем настройки
@@ -57,7 +60,7 @@ $totalCount = (int)$userDb->querySingle('SELECT COUNT(*) FROM steps');
 if ($totalCount === 0) {
     $sd = (new DateTime())->modify('-1 month');
     $ed = new DateTime();
-    $userDb->exec('BEGIN TRANSACTION');
+    $userDb->exec('BEGIN');
     while ($sd <= $ed) {
         upsertStep($userDb, $sd->format('Y-m-d'), 0);
         $sd->modify('+1 day');
@@ -66,7 +69,7 @@ if ($totalCount === 0) {
 }
 
 // Убедимся, что сегодняшний день есть в базе
-$userDb->exec("INSERT OR IGNORE INTO steps (date, steps) VALUES ('$today', 0)");
+$userDb->exec("INSERT INTO steps (date, steps) VALUES ('$today', 0) ON CONFLICT (date) DO NOTHING");
 
 // Определяем самую раннюю дату
 [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
@@ -89,7 +92,7 @@ while ($cd <= $ed2) {
     $cd->modify('+1 day');
 }
 if ($toInsert) {
-    $userDb->exec('BEGIN TRANSACTION');
+    $userDb->exec('BEGIN');
     foreach ($toInsert as $ds) {
         upsertStep($userDb, $ds, 0);
         $stepsDataRaw[$ds] = ['date' => $ds, 'steps' => 0];

@@ -27,7 +27,7 @@ if (PHP_SESSION_NONE === session_status()) {
 }
 session_start();
 require_once APP_ROOT . '/db.php';
-require_once APP_ROOT . '/tg_mini_auth.php';
+require_once APP_ROOT . '/bot/tg_mini_auth.php';
 if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
     tgMiniRestoreSessionFromCookie();
 }

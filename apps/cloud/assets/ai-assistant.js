@@ -30,6 +30,7 @@
     }
 
     const MAX_EXTERNAL_ATTACHMENTS = 4;
+    let aiTreeDragFallbackPaths = [];
     const AI_TEXT_FILE_ACCEPT =
         'text/plain,text/css,text/html,text/xml,text/csv,text/markdown,text/x-yaml,application/json,application/javascript,application/xml,.txt,.md,.markdown,.json,.csv,.xml,.html,.htm,.css,.js,.mjs,.cjs,.ts,.tsx,.jsx,.vue,.php,.py,.rb,.go,.java,.cs,.c,.cc,.cpp,.h,.hpp,.sh,.yaml,.yml,.sql,.log,.ini,.toml,.cfg,.env,.rst,.tex,.bat,.ps1,.properties,.gradle,.kt,.swift,.rs,.lua,.pl,.r,.dockerfile';
     /** Photos only (no SVG/heic/etc.); picker + runtime check via isAllowedImageFile */
@@ -85,6 +86,7 @@
         mentionQuery: '',
         mentionRange: null,
         selectedMentionFiles: [],
+        mentionedFileRoots: {},
         mentionFolderCache: {
             root: 'main',
             path: '',
@@ -99,6 +101,8 @@
         historyOffset: 0,
         historyHasMore: true,
         isLoadingMore: false,
+        activeChatId: localStorage.getItem('cloud_ai_active_chat_id') || '',
+        chatSessions: [],
         mentionPlacements: [], // [{ name, index }]
         chatMode: 'chat',
         pendingAgentPatch: null,
@@ -139,7 +143,7 @@
             selected_model: String(aiState.selectedModel || ''),
             selected_role: String(aiState.selectedRole || ''),
             chat_mode: String(aiState.chatMode || 'chat'),
-            remember_previous: aiState.rememberPrevious ? '1' : '0',
+            remember_previous: '0',
             notify_on_complete: aiState.notifyOnComplete ? '1' : '0',
             has_attached_files: hasAttachedFiles ? '1' : '0',
             attached_files_count: String(aiState.externalAttachments.length || 0),
@@ -159,6 +163,10 @@
             });
         }
         return text;
+    }
+
+    function escapeRegExp(value) {
+        return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
 
     function escapeHtml(text) {
@@ -355,13 +363,12 @@
         try {
             const savedModel = localStorage.getItem('ai_selected_model');
             const savedRole = localStorage.getItem('ai_selected_role');
-            const rememberPrev = localStorage.getItem('ai_remember_previous');
             const notifyComplete = localStorage.getItem('ai_notify_on_complete');
             const savedChatMode = localStorage.getItem('ai_chat_mode');
             
             if (savedModel) aiState.selectedModel = savedModel;
             if (savedRole) aiState.selectedRole = savedRole;
-            if (rememberPrev !== null) aiState.rememberPrevious = rememberPrev === '1';
+            aiState.rememberPrevious = false;
             if (notifyComplete !== null) aiState.notifyOnComplete = notifyComplete === '1';
             if (savedChatMode === 'agent' || savedChatMode === 'chat') aiState.chatMode = savedChatMode;
         } catch (e) {
@@ -382,7 +389,7 @@
             if (typeof settings.selected_role === 'string' && settings.selected_role) aiState.selectedRole = settings.selected_role;
             if (settings.chat_mode === 'chat' || settings.chat_mode === 'agent') aiState.chatMode = settings.chat_mode;
             aiState.includeFileContext = false;
-            if (typeof settings.remember_previous === 'boolean') aiState.rememberPrevious = settings.remember_previous;
+            aiState.rememberPrevious = false;
             if (typeof settings.notify_on_complete === 'boolean') aiState.notifyOnComplete = settings.notify_on_complete;
             rememberCurrentUserSettingsSnapshot();
         } catch (e) {
@@ -421,10 +428,8 @@
                 aiState.selectedRole = elements.roleSelect.value;
                 localStorage.setItem('ai_selected_role', aiState.selectedRole);
             }
-            if (elements.rememberCheckbox) {
-                aiState.rememberPrevious = elements.rememberCheckbox.checked;
-                localStorage.setItem('ai_remember_previous', aiState.rememberPrevious ? '1' : '0');
-            }
+            aiState.rememberPrevious = false;
+            localStorage.removeItem('ai_remember_previous');
             if (elements.notifyCheckbox) {
                 aiState.notifyOnComplete = elements.notifyCheckbox.checked;
                 localStorage.setItem('ai_notify_on_complete', aiState.notifyOnComplete ? '1' : '0');
@@ -846,9 +851,9 @@
                 min-width: 0 !important;
             }
             .ai-input-selectors-row .ai-mode-switch {
-                flex: 0 0 22% !important;
-                width: 22% !important;
-                min-width: 120px !important;
+                flex: 0 0 112px !important;
+                width: 112px !important;
+                min-width: 112px !important;
             }
             #ai-input-text {
                 min-width: 0 !important;
@@ -1061,6 +1066,9 @@
                 #ai-modal .modal-header .modal-actions {
                     margin-left: auto !important;
                 }
+                #ai-modal .ai-chat-session-controls {
+                    padding-left: 20% !important;
+                }
             }
             #ai-modal .ai-resize-handle {
                 position: absolute !important;
@@ -1078,6 +1086,21 @@
             #ai-modal .ai-chat {
                 padding-bottom: 0 !important;
                 max-height: none !important;
+                position: relative !important;
+                isolation: isolate !important;
+            }
+            #ai-modal .ai-chat .dot-field-canvas {
+                position: absolute !important;
+                inset: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                pointer-events: none !important;
+                z-index: 0 !important;
+            }
+            #ai-modal .ai-chat .message,
+            #ai-modal .ai-chat .typing-indicator {
+                position: relative !important;
+                z-index: 1 !important;
             }
             #ai-modal.ai-open .ai-modal-content {
                 transform: none !important;
@@ -1232,8 +1255,9 @@
             }
             .ai-mode-switch {
                 display: flex !important;
-                width: 100% !important;
+                width: 112px !important;
                 cursor: pointer !important;
+                flex: 0 0 112px !important;
             }
             .ai-mode-switch input {
                 position: absolute !important;
@@ -1244,7 +1268,8 @@
                 position: relative !important;
                 display: grid !important;
                 grid-template-columns: 1fr 1fr !important;
-                width: 100% !important;
+                width: 112px !important;
+                height: 30px !important;
                 border: 1px solid var(--border) !important;
                 border-radius: 999px !important;
                 background: var(--bg-secondary) !important;
@@ -1254,21 +1279,23 @@
                 position: absolute !important;
                 top: 2px !important;
                 left: 2px !important;
-                width: calc(50% - 2px) !important;
+                width: 52px !important;
+                height: 24px !important;
                 bottom: 2px !important;
                 border-radius: 999px !important;
                 background: var(--accent) !important;
                 transition: transform .18s ease !important;
             }
             .ai-mode-switch input:checked + .ai-mode-switch-track .ai-mode-switch-thumb {
-                transform: translateX(100%) !important;
+                transform: translateX(54px) !important;
             }
             .ai-mode-switch-label {
                 position: relative !important;
                 z-index: 1 !important;
-                text-align: center !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
                 font-size: 12px !important;
-                padding: 6px 0 !important;
             }
             .ai-agent-replaced {
                 background: rgba(133,181,3,.18) !important;
@@ -2000,33 +2027,25 @@
             
             /* Think block styles */
             .think-block {
-                margin: 8px 0;
-                border: 1px solid var(--border);
-                border-radius: 8px;
-                background: var(--bg-secondary);
+                margin: 10px 0;
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 12px;
+                background: color-mix(in srgb,var(--panel) 82%,var(--bg));
                 overflow: hidden;
-            }
-            
-            .think-block.collapsed .think-content {
-                display: none;
-            }
-            
-            .think-block.expanded .think-content {
-                display: block;
+                transition: border-color 0.25s ease;
             }
             
             .think-header {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                padding: 8px 12px;
-                background: var(--panel-header);
+                padding: 12px 14px;
                 cursor: pointer;
                 user-select: none;
             }
             
-            .think-header:hover {
-                background: var(--panel-header-hover);
+            .think-block.open {
+                border-color: rgba(255,255,255,0.2);
             }
             
             .think-header-left {
@@ -2035,7 +2054,7 @@
                 gap: 6px;
                 font-size: 12px;
                 font-weight: 500;
-                color: var(--text-secondary);
+                color: color-mix(in srgb,var(--fg) 50%,transparent);
             }
             
             .think-header-left svg {
@@ -2043,56 +2062,48 @@
                 height: 16px;
             }
             
-            .think-header-right svg {
-                width: 16px;
-                height: 16px;
-                transition: transform 0.2s;
+            .think-header-right {
+                font-size: 18px;
+                color: color-mix(in srgb,var(--fg) 30%,transparent);
+                line-height: 1;
+                transition: transform 0.3s ease,color 0.3s ease;
             }
             
-            .think-block.expanded .think-header-right svg {
-                transform: rotate(180deg);
+            .think-block.open .think-header-right {
+                transform: rotate(45deg);
+                color: var(--fg);
             }
             
             .think-content {
-                padding: 12px;
+                max-height: 0;
+                overflow: hidden;
+                padding: 0 14px;
                 font-size: 13px;
-                color: var(--text-secondary);
+                line-height: 1.7;
+                color: color-mix(in srgb,var(--fg) 45%,transparent);
                 white-space: pre-wrap;
-                font-family: 'Consolas', monospace;
-                background: var(--bg-tertiary);
-                border-top: 1px solid var(--border);
+                font-family: inherit;
+                transition: max-height 0.35s ease,padding 0.35s ease;
+            }
+
+            .think-block.open .think-content {
+                max-height: 360px;
+                padding: 0 14px 14px;
+                overflow-y: auto;
             }
             
             /* Message stats */
             .ai-chat .message-footer {
                 display: flex;
                 align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-                flex-wrap: wrap; /* allows actions to drop as a block */
+                justify-content: flex-end;
+                gap: 6px;
+                margin-top: 2px;
+                padding: 0 4px;
             }
-            .message-stats {
-                display: flex;
-                gap: 10px;
-                font-size: 10px;
-                color: var(--text-secondary);
-                flex-wrap: nowrap;
-                white-space: nowrap;
-                min-width: 0;
-                flex: 1 1 auto;
-            }
-            
-            .stat-item {
-                display: flex;
-                align-items: center;
-                gap: 4px;
-                white-space: nowrap;
-            }
-            
-            .stat-item svg {
-                width: 14px;
-                height: 14px;
-                flex: 0 0 auto;
+            .ai-chat .message-stats,
+            .ai-chat .stat-item {
+                display: none !important;
             }
 
             .ai-chat .message-actions {
@@ -2342,6 +2353,7 @@
             updateModelDropdownLabel();
         }
         refreshAttachI18n();
+        await loadAiChatSessions();
         
         // Make functions globally available
         window.toggleAIModal = toggleAIModal;
@@ -2395,6 +2407,8 @@
             modeSelect: document.getElementById('ai-mode-select'),
             roleSelect: document.getElementById('ai-role-select'),
             clearHistoryBtn: document.getElementById('btn-clear-ai-history'),
+            chatSelect: document.getElementById('ai-chat-select'),
+            newChatBtn: document.getElementById('btn-ai-new-chat'),
             toggleBtn: document.getElementById('btn-ai'),
             attachFileBtn: document.getElementById('btn-attach-file'),
             settingsBtn: document.getElementById('btn-ai-settings'),
@@ -2422,6 +2436,7 @@
         elements.modeSelect = document.getElementById('ai-mode-select') || elements.modeSelect;
         elements.settingsBtn = document.getElementById('btn-ai-settings') || elements.settingsBtn;
         elements.settingsModal = document.getElementById('ai-controls-modal') || elements.settingsModal;
+        ensureChatSessionControls();
         
         if (elements.modelSelect) {
             elements.modelSelect.addEventListener('change', () => {
@@ -2457,24 +2472,9 @@
         modalContent.querySelector('.ai-context-switch')?.remove();
         elements.toggleContextBtn = null;
 
-        // Remember previous message toggle
-        if (!elements.rememberCheckbox) {
-            if (modalContent) {
-                const wrap = document.createElement('label');
-                wrap.className = 'ai-mode-switch ai-remember-switch';
-                wrap.title = tr('aiRememberPrevious', 'Remember previous message');
-                wrap.innerHTML = '<input type="checkbox" id="ai-remember-prev"><span class="ai-mode-switch-track"><span class="ai-mode-switch-label">Off</span><span class="ai-mode-switch-label">On</span><span class="ai-mode-switch-thumb"></span></span>';
-                modalContent.appendChild(wrap);
-                elements.rememberCheckbox = wrap.querySelector('#ai-remember-prev');
-                if (elements.rememberCheckbox) {
-                    elements.rememberCheckbox.checked = !!aiState.rememberPrevious;
-                    elements.rememberCheckbox.addEventListener('change', () => {
-                        aiState.rememberPrevious = !!elements.rememberCheckbox.checked;
-                        saveSettings();
-                    });
-                }
-            }
-        }
+        elements.rememberCheckbox?.closest('.ai-setting-row, .ai-remember-switch')?.remove();
+        elements.rememberCheckbox = null;
+        elements.clearHistoryBtn?.closest('.ai-setting-row')?.remove();
 
         if (!elements.notifyCheckbox) {
             if (modalContent) {
@@ -2730,10 +2730,8 @@
         const body = elements.settingsModal?.querySelector('.ai-controls-modal-body');
         if (!body) return;
         const movable = [];
-        if (elements.rememberCheckbox?.parentElement) movable.push(elements.rememberCheckbox.parentElement);
         if (elements.notifyCheckbox?.parentElement) movable.push(elements.notifyCheckbox.parentElement);
         if (elements.roleSelect?.parentElement) movable.push(elements.roleSelect.parentElement);
-        if (elements.clearHistoryBtn) movable.push(elements.clearHistoryBtn);
         movable.forEach((el) => {
             if (!el || body.contains(el)) return;
             body.appendChild(el);
@@ -2753,10 +2751,8 @@
             if (row.contains(body) || el.contains(body)) return;
             body.appendChild(row);
         };
-        ensureRow(elements.rememberCheckbox?.parentElement, 'aiRememberPrevious', 'Remember previous');
         ensureRow(elements.notifyCheckbox?.parentElement, 'aiNotifyOnComplete', 'Notify when finished');
         ensureRow(elements.roleSelect?.parentElement, 'aiRole', 'Role');
-        ensureRow(elements.clearHistoryBtn, 'clearHistoryConfirmTitle', 'Clear history');
     }
 
     function attachEventListeners() {
@@ -3163,20 +3159,14 @@
         const value = elements.input.value;
         const prefix = value.slice(0, aiState.mentionRange.start);
         const suffix = value.slice(aiState.mentionRange.end);
-        // Remove the "@query" from textarea, but remember its position for prompt
-        elements.input.value = `${prefix}${suffix}`.replace(/\s{2,}/g, ' ');
-
         const insertionIndex = prefix.length;
-        aiState.mentionPlacements.push({ name: selected, index: insertionIndex });
-        if (!aiState.selectedMentionFiles.includes(selected)) {
-            aiState.selectedMentionFiles.push(selected);
-        }
+        elements.input.value = `${prefix}${suffix}`.replace(/\s{2,}/g, ' ');
+        addMentionedFileAttachment(selected, insertionIndex);
 
-        const newCursorPos = insertionIndex;
+        const newCursorPos = Math.min(insertionIndex, elements.input.value.length);
         elements.input.selectionStart = newCursorPos;
         elements.input.selectionEnd = newCursorPos;
         elements.input.focus();
-        renderMentionedAttachments();
         hideMentionSuggestions();
     }
 
@@ -3184,14 +3174,17 @@
         return String(path || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
     }
 
-    function addMentionedFileAttachment(path, insertionIndex = null) {
+    function addMentionedFileAttachment(path, insertionIndex = null, root = null) {
         const normalized = normalizeMentionedFilePath(path);
         if (!normalized || normalized.includes('..')) return false;
         if (!Array.isArray(aiState.selectedMentionFiles)) aiState.selectedMentionFiles = [];
         if (!Array.isArray(aiState.mentionPlacements)) aiState.mentionPlacements = [];
+        if (!aiState.mentionedFileRoots || typeof aiState.mentionedFileRoots !== 'object') aiState.mentionedFileRoots = {};
         if (!aiState.selectedMentionFiles.includes(normalized)) {
             aiState.selectedMentionFiles.push(normalized);
         }
+        const rootKey = String(root || '').trim();
+        if (rootKey) aiState.mentionedFileRoots[normalized] = rootKey;
         const idx = Number.isFinite(insertionIndex)
             ? insertionIndex
             : Math.max(0, Number(elements.input?.selectionStart ?? String(elements.input?.value || '').length));
@@ -3203,6 +3196,25 @@
         return true;
     }
 
+    function insertMentionTokenIntoInput(path) {
+        if (!elements.input) return null;
+        const normalized = normalizeMentionedFilePath(path);
+        if (!normalized) return null;
+        const value = String(elements.input.value || '');
+        const at = Math.max(0, Number(elements.input.selectionStart ?? value.length));
+        const before = value.slice(0, at);
+        const after = value.slice(at);
+        const prefix = before && !/\s$/.test(before) ? ' ' : '';
+        const suffix = after && !/^\s/.test(after) ? ' ' : '';
+        const token = `${prefix}@${normalized}${suffix || ' '}`;
+        elements.input.value = before + token + after;
+        const start = before.length + prefix.length;
+        const nextPos = before.length + token.length;
+        elements.input.selectionStart = nextPos;
+        elements.input.selectionEnd = nextPos;
+        return start;
+    }
+
     function getTreeFilePathFromDragEvent(event) {
         return getTreeFilePathsFromDragEvent(event)[0] || '';
     }
@@ -3210,8 +3222,8 @@
     function getTreeFilePathsFromDragEvent(event) {
         const dt = event?.dataTransfer;
         if (!dt) return [];
-        const hasCloudType = Array.from(dt.types || []).includes('application/x-cloud-file-path');
-        if (!hasCloudType) return [];
+        const hasCloudType = hasTreeFileDragEvent(event);
+        if (!hasCloudType && aiTreeDragFallbackPaths.length === 0) return [];
         const type = dt.getData('application/x-cloud-file-type');
         if (type && type !== 'file') return [];
         const paths = [];
@@ -3220,22 +3232,139 @@
             if (Array.isArray(many)) many.forEach(path => paths.push(path));
         } catch (_) {}
         paths.push(dt.getData('application/x-cloud-file-path') || dt.getData('text/plain'));
+        aiTreeDragFallbackPaths.forEach(path => paths.push(path));
         return Array.from(new Set(paths.map(normalizeMentionedFilePath).filter(path => path && !path.includes('..'))));
     }
 
+    function getTreeFileRootFromDragEvent(event) {
+        const dt = event?.dataTransfer;
+        if (!dt) return '';
+        return String(dt.getData('application/x-cloud-source-root') || dt.getData('application/x-cloud-file-root') || '').trim();
+    }
+
+    function hasTreeFileDragEvent(event) {
+        const types = Array.from(event?.dataTransfer?.types || []).map(type => String(type).toLowerCase());
+        return types.includes('application/x-cloud-file-path') || types.includes('application/x-cloud-file-paths') || aiTreeDragFallbackPaths.length > 0;
+    }
+
+    function hasExternalFileDragEvent(event) {
+        return Array.from(event?.dataTransfer?.types || []).map(type => String(type).toLowerCase()).includes('files');
+    }
+
+    async function attachDroppedExternalFiles(fileList) {
+        const files = Array.from(fileList || []);
+        if (!files.length) return 0;
+        let added = 0;
+        let skippedInvalid = false;
+        for (const file of files) {
+            if (aiState.externalAttachments.length >= MAX_EXTERNAL_ATTACHMENTS) {
+                flashStatus(tr('aiAttachLimit', 'You can attach up to {n} files', { n: MAX_EXTERNAL_ATTACHMENTS }));
+                break;
+            }
+            try {
+                if (isAllowedImageFile(file)) {
+                    const id = makeAttachmentId();
+                    const url = URL.createObjectURL(file);
+                    aiState.externalAttachments.push({
+                        id,
+                        kind: 'image',
+                        name: file.name,
+                        content: '',
+                        file,
+                        objectUrl: url,
+                        ocrConfidence: null,
+                        ocrLang: 'auto',
+                        ocrInProgress: false,
+                        autoProcessQueued: false,
+                        autoProcessDone: false,
+                        _ocrGen: 0,
+                        _ocrUiPct: 0
+                    });
+                    runOcrForAttachment(id);
+                    added++;
+                } else if (isAllowedDocumentFile(file)) {
+                    const text = await extractUploadedDocumentText(file);
+                    aiState.externalAttachments.push({ id: makeAttachmentId(), kind: 'text', name: file.name, content: text, file });
+                    added++;
+                } else if (isAllowedTextFile(file)) {
+                    const text = await readFileAsTextPromise(file);
+                    aiState.externalAttachments.push({ id: makeAttachmentId(), kind: 'text', name: file.name, content: text, file });
+                    added++;
+                } else {
+                    skippedInvalid = true;
+                }
+            } catch (err) {
+                skippedInvalid = true;
+            }
+        }
+        renderExternalAttachmentsUI();
+        if (added > 0) {
+            saveUserSettingsToDb();
+            flashStatus(tr('aiTextFilesAttached', '{count} file(s) attached', { count: added }));
+        } else if (skippedInvalid) {
+            flashStatus(tr('aiAttachUnsupported', 'Unsupported file type'));
+        }
+        return added;
+    }
+
     function setupAiTreeDropZone() {
-        const dropTarget = elements.input?.closest('.ai-input') || elements.modal?.querySelector('.ai-input');
+        const dropTarget = elements.input?.closest('.ai-input') || elements.chat || elements.modal?.querySelector('.ai-modal-content');
         if (!dropTarget || dropTarget.dataset.aiTreeDropBound === '1') return;
         dropTarget.dataset.aiTreeDropBound = '1';
 
         const clear = () => dropTarget.classList.remove('ai-tree-drop-active');
+        const isAiDrop = (event) => !!event.target?.closest?.('#ai-modal:not(.hidden)');
+        const handleDrop = async (event) => {
+            if (!isAiDrop(event)) return false;
+            if (hasExternalFileDragEvent(event) && event.dataTransfer?.files?.length) {
+                event.preventDefault();
+                event.stopPropagation();
+                clear();
+                await attachDroppedExternalFiles(event.dataTransfer.files);
+                return true;
+            }
+            const paths = getTreeFilePathsFromDragEvent(event);
+            if (paths.length === 0) return false;
+            event.preventDefault();
+            event.stopPropagation();
+            clear();
+            let added = 0;
+            const root = getTreeFileRootFromDragEvent(event);
+            paths.forEach(path => {
+                const insertionIndex = insertMentionTokenIntoInput(path);
+                if (addMentionedFileAttachment(path, insertionIndex, root)) added++;
+            });
+            aiTreeDragFallbackPaths = [];
+            renderMentionedAttachments();
+            if (added > 0) flashStatus(tr('aiFilesAdded', 'Added {count} @file(s) to context', { count: added }));
+            return true;
+        };
+        document.addEventListener('dragstart', (event) => {
+            const node = event.target?.closest?.('#tree .node[data-path], #tree .advanced-search-result[data-path]');
+            const path = normalizeMentionedFilePath(node?.dataset?.path || '');
+            const type = String(node?.dataset?.type || 'file');
+            const root = String(node?.dataset?.root || (typeof window.getCurrentCloudRoot === 'function' ? window.getCurrentCloudRoot() : getRootForFileContext()) || '').trim();
+            aiTreeDragFallbackPaths = path && type === 'file' ? [path] : [];
+            if (event.dataTransfer && path && type === 'file' && root) {
+                event.dataTransfer.setData('application/x-cloud-source-root', root);
+            }
+        }, true);
+        document.addEventListener('dragend', () => { aiTreeDragFallbackPaths = []; }, true);
+        document.addEventListener('dragover', (event) => {
+            if (!isAiDrop(event) || (!hasTreeFileDragEvent(event) && !hasExternalFileDragEvent(event))) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = 'copy';
+            dropTarget.classList.add('ai-tree-drop-active');
+        }, true);
+        document.addEventListener('drop', (event) => { void handleDrop(event); }, true);
         dropTarget.addEventListener('dragenter', (event) => {
-            if (getTreeFilePathsFromDragEvent(event).length === 0) return;
+            if (!hasTreeFileDragEvent(event) && !hasExternalFileDragEvent(event)) return;
             event.preventDefault();
             dropTarget.classList.add('ai-tree-drop-active');
         });
         dropTarget.addEventListener('dragover', (event) => {
-            if (getTreeFilePathsFromDragEvent(event).length === 0) return;
+            if (!hasTreeFileDragEvent(event) && !hasExternalFileDragEvent(event)) return;
             event.preventDefault();
             event.dataTransfer.dropEffect = 'copy';
             dropTarget.classList.add('ai-tree-drop-active');
@@ -3245,15 +3374,8 @@
             clear();
         });
         dropTarget.addEventListener('drop', (event) => {
-            const paths = getTreeFilePathsFromDragEvent(event);
-            if (paths.length === 0) return;
-            event.preventDefault();
-            event.stopPropagation();
-            clear();
-            let added = 0;
-            paths.forEach(path => { if (addMentionedFileAttachment(path)) added++; });
-            if (added > 0) flashStatus(tr('aiFilesAdded', 'Added {count} @file(s) to context', { count: added }));
-        });
+            void handleDrop(event);
+        }, true);
     }
 
     function renderMentionedAttachments() {
@@ -3448,6 +3570,7 @@
         if (!fileName) return;
         aiState.selectedMentionFiles = (aiState.selectedMentionFiles || []).filter(n => n !== fileName);
         aiState.mentionPlacements = (aiState.mentionPlacements || []).filter(p => p?.name !== fileName);
+        if (aiState.mentionedFileRoots) delete aiState.mentionedFileRoots[fileName];
         renderMentionedAttachments();
         elements.input?.focus();
     }
@@ -4307,6 +4430,12 @@
         }
     }
 
+    function getRootForToolRun() {
+        const firstMention = Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles[0] : '';
+        const mentionRoot = firstMention ? aiState.mentionedFileRoots?.[normalizeMentionedFilePath(firstMention)] : '';
+        return mentionRoot || getRootForFileContext();
+    }
+
     function getIframeEditorContent(tabId) {
         if (!tabId) return null;
         const iframe = Array.from(document.querySelectorAll('#viewer iframe[data-tab-id]'))
@@ -4478,9 +4607,9 @@
         return aiState.toolRunMode === 'chat';
     }
     function getToolRunRoleLabel() {
-        if (isChatToolRunMode()) return `ai · ${tr('aiModeChat', 'Chat')}`;
-        if (aiState.toolRunMode === 'agent') return `ai · ${tr('aiModeAgent', 'Agent')}`;
-        return `ai · ${getCurrentModelDisplayName()}`;
+        if (isChatToolRunMode()) return tr('aiModeChat', 'Chat');
+        if (aiState.toolRunMode === 'agent') return tr('aiModeAgent', 'Agent');
+        return getCurrentModelDisplayName();
     }
     function getToolRunWorkingLabel() {
         return isChatToolRunMode()
@@ -4554,6 +4683,7 @@
                 return `${tr('aiPlanSearch', 'Search in files')}: "${String(args.query || '').slice(0, 40)}" (${n})`;
             },
             web_search: () => `${tr('aiPlanWebSearch', 'Web search')}: "${String(args.query || '').slice(0, 40)}"`,
+            image_search: () => `${tr('aiPlanImageSearch', 'Image search')}: "${String(args.query || '').slice(0, 40)}"`,
             open_url_fetch: () => `${tr('aiPlanFetchUrl', 'Fetch URL')}: ${String(args.url || '').slice(0, 80)}`,
             download_file: () => `${tr('aiPlanDownloadFile', 'Download file')}: ${args.target_path || ''}`,
             diff_file: () => `${tr('aiPlanDiffFile', 'Diff file')}: ${p}`,
@@ -4566,6 +4696,8 @@
             list_directory: () => `${tr('aiPlanListDir', 'List folder')}: ${args.path || '.'}`,
             apply_editor_patch: () => `${tr('aiPlanPatchEditor', 'Edit in editor')} (${Array.isArray(args.patches) ? args.patches.length : 0})`,
             run_command: () => `${tr('aiPlanRunCommand', 'Run command')}: ${Array.isArray(args.command) ? args.command.join(' ') : ''}`,
+            run_script: () => `${tr('aiPlanRunScript', 'Run script')}: ${args.language || ''}`,
+            delegate_subagent: () => `${tr('aiPlanSubagent', 'Subagent')}: ${String(args.task || '').slice(0, 60)}`,
             save_open_document: () => tr('aiPlanSaveOpen', 'Save document'),
             export_markdown_pdf: () => `${tr('aiPlanExportMdPdf', 'Export PDF (Markdown)')}: ${p || '…'}`,
             export_latex_pdf: () => `${tr('aiPlanExportLatexPdf', 'Export PDF (LaTeX)')}: ${p || '…'}`,
@@ -4624,6 +4756,9 @@
         if (toolName === 'web_search') {
             return tr('aiPlanResultMatches', 'OK · {count} match(es)', { count: result.count ?? 0 });
         }
+        if (toolName === 'image_search') {
+            return tr('aiPlanResultMatches', 'OK · {count} match(es)', { count: result.count ?? 0 });
+        }
         if (toolName === 'csv_preview') {
             return tr('aiPlanResultMatches', 'OK · {count} match(es)', { count: result.rows_returned ?? 0 });
         }
@@ -4657,6 +4792,31 @@
         if (result.persisted) return tr('aiAgentSavedShort', 'Saved');
         if (result.success === true) return tr('aiPlanResultDone', 'Done');
         return tr('aiPlanResultDone', 'Done');
+    }
+    function appendAgentResourcePreview(host, step) {
+        const result = step?.rawResult || {};
+        const items = Array.isArray(result.results) ? result.results.slice(0, 6) : [];
+        if (!items.length || !['web_search', 'image_search'].includes(step.tool)) return;
+        const wrap = document.createElement('div');
+        wrap.className = step.tool === 'image_search' ? 'ai-agent-resource-grid' : 'ai-agent-resource-list';
+        items.forEach((item) => {
+            const link = document.createElement('a');
+            link.href = item.url || item.source || '#';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.className = 'ai-agent-resource-item';
+            if (step.tool === 'image_search') {
+                const img = document.createElement('img');
+                img.src = item.thumbnail || item.url || '';
+                img.alt = item.title || '';
+                link.appendChild(img);
+            }
+            const title = document.createElement('span');
+            title.textContent = item.title || item.url || item.source || '';
+            link.appendChild(title);
+            wrap.appendChild(link);
+        });
+        host.appendChild(wrap);
     }
     function planLabelFromStoredStep(step) {
         if (!step) return '';
@@ -4789,6 +4949,7 @@
             wrap.appendChild(body);
             wrap.appendChild(expandBtn);
             row.appendChild(wrap);
+            appendAgentResourcePreview(row, step);
         } else {
             row.style.gridTemplateColumns = '22px minmax(0, 1fr) auto';
             row.appendChild(label);
@@ -4796,6 +4957,7 @@
             result.className = 'ai-agent-plan-result';
             result.textContent = resultText;
             row.appendChild(result);
+            appendAgentResourcePreview(row, step);
         }
         stepsHost.appendChild(row);
     }
@@ -5609,17 +5771,18 @@
         return mentions;
     }
 
-    async function loadMentionedFilesContext(message, currentFilePath) {
+    async function loadMentionedFilesContext(message, currentFilePath, selectedFiles = null) {
         const seenMentions = new Set();
         const mentions = [];
-        const addMention = (name) => {
+        const addMention = (name, root = null) => {
             const normalized = normalizeMentionedFilePath(name);
             if (!normalized || normalized.includes('..') || seenMentions.has(normalized)) return;
             seenMentions.add(normalized);
-            mentions.push(normalized);
+            mentions.push({ path: normalized, root: String(root || '').trim() });
         };
-        extractMentionedFileNames(message).forEach(addMention);
-        (aiState.selectedMentionFiles || []).forEach(addMention);
+        const selected = Array.isArray(selectedFiles) ? selectedFiles : (aiState.selectedMentionFiles || []);
+        selected.forEach((name) => addMention(name, aiState.mentionedFileRoots?.[normalizeMentionedFilePath(name)] || ''));
+        if (selected.length === 0) extractMentionedFileNames(message).forEach((name) => addMention(name));
         mentions.splice(CONTEXT_LIMITS.maxMentionedFiles);
         if (mentions.length === 0) {
             return { files: [], skipped: [] };
@@ -5632,9 +5795,10 @@
         let usedChars = 0;
         const root = getRootForFileContext();
 
-        for (const fileName of mentions) {
+        for (const mention of mentions) {
+            const fileName = mention.path;
             const candidatePath = fileName.includes('/') ? fileName : (currentDir ? `${currentDir}/${fileName}` : fileName);
-            const fileData = await fetchFileContentFromApi(candidatePath, root);
+            const fileData = await fetchFileContentFromApi(candidatePath, mention.root || root);
 
             if (!fileData?.content) {
                 skipped.push({ name: fileName, reason: 'not_found_or_binary' });
@@ -5696,9 +5860,11 @@
             setupStickyCodeHeaders();
         }, 100);
         
-        if (elements.chat && elements.chat.children.length === 0) {
+        initDotField(elements.chat);
+
+        if (elements.chat && !elements.chat.querySelector('.message')) {
             resetChatPagination();
-            loadChatHistoryPage(false);
+            loadAiChatSessions().then(() => loadChatHistoryPage(false));
         } else {
             scrollChatToBottom();
         }
@@ -5995,7 +6161,217 @@
         aiState.isLoadingMore = false;
         aiState.chatHistory = [];
         aiState.processedMessageIds.clear();
-        if (elements.chat) elements.chat.innerHTML = '';
+        clearChatMessages();
+    }
+
+    function clearChatMessages() {
+        if (!elements.chat) return;
+        Array.from(elements.chat.children).forEach((node) => {
+            if (!node.classList?.contains('dot-field-canvas')) node.remove();
+        });
+        if (!elements.chat.querySelector('.dot-field-canvas')) delete elements.chat.dataset.dotField;
+        initDotField(elements.chat);
+    }
+
+    function bindChatSessionControls() {
+        const menu = document.getElementById('ai-chat-menu');
+        const wrap = elements.chatSelect?.closest('.ai-chat-session-controls');
+        if (elements.chatSelect && menu && elements.chatSelect.dataset.aiChatSelectBound !== '1') {
+            elements.chatSelect.dataset.aiChatSelectBound = '1';
+            elements.chatSelect.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                menu.classList.toggle('hidden');
+                if (!menu.classList.contains('hidden')) {
+                    const pr = menu.parentElement.getBoundingClientRect();
+                    menu.style.left = '0';
+                    menu.style.right = 'auto';
+                    const mr = menu.getBoundingClientRect();
+                    const excess = mr.right - window.innerWidth + 10;
+                    if (excess > 0) {
+                        menu.style.left = Math.max(8 - pr.left, -excess) + 'px';
+                    }
+                }
+            });
+        }
+        if (wrap && wrap.dataset.aiChatOutsideBound !== '1') {
+            wrap.dataset.aiChatOutsideBound = '1';
+            document.addEventListener('click', (e) => {
+                if (!wrap.contains(e.target)) menu?.classList.add('hidden');
+            });
+        }
+        if (elements.newChatBtn && elements.newChatBtn.dataset.aiNewChatBound !== '1') {
+            elements.newChatBtn.dataset.aiNewChatBound = '1';
+            elements.newChatBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                createAiChat();
+            });
+        }
+    }
+
+    function ensureChatSessionControls() {
+        if (!elements.modal) return;
+        if (elements.chatSelect) {
+            bindChatSessionControls();
+            return;
+        }
+        const host = elements.modal.querySelector('.modal-header') || elements.modal.querySelector('.ai-controls') || elements.modal.querySelector('.ai-modal-content');
+        if (!host) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'ai-chat-session-controls';
+        const dropdown = document.createElement('div');
+        dropdown.className = 'ai-chat-dropdown';
+        const current = document.createElement('button');
+        current.id = 'ai-chat-select';
+        current.type = 'button';
+        current.className = 'ai-chat-current';
+        current.innerHTML = '<span class="ai-chat-current-title">New chat</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>';
+        const menu = document.createElement('div');
+        menu.id = 'ai-chat-menu';
+        menu.className = 'ai-chat-menu hidden';
+        dropdown.append(current, menu);
+        const newBtn = document.createElement('button');
+        newBtn.id = 'btn-ai-new-chat';
+        newBtn.type = 'button';
+        newBtn.className = 'icon-btn ai-chat-icon-btn';
+        newBtn.title = tr('aiNewChat', 'New chat');
+        newBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>';
+        wrap.append(dropdown, newBtn);
+        const actions = host.querySelector('.modal-actions');
+        if (actions) host.insertBefore(wrap, actions);
+        else host.insertBefore(wrap, host.firstChild);
+        elements.chatSelect = current;
+        elements.newChatBtn = newBtn;
+        bindChatSessionControls();
+    }
+
+    function renderAiChatSessions() {
+        if (!elements.chatSelect) return;
+        const titleEl = elements.chatSelect.querySelector('.ai-chat-current-title');
+        const menu = document.getElementById('ai-chat-menu');
+        if (!menu) return;
+        menu.replaceChildren();
+        const active = aiState.chatSessions.find((chat) => String(chat.id) === String(aiState.activeChatId)) || aiState.chatSessions[0] || null;
+        if (titleEl) titleEl.textContent = active?.title || 'New chat';
+        aiState.chatSessions.forEach((chat) => {
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'ai-chat-menu-item' + (String(chat.id) === String(aiState.activeChatId) ? ' active' : '');
+            row.dataset.chatId = String(chat.id || '');
+            const date = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleDateString() : '';
+            row.innerHTML = `<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="${escapeHtml(tr('aiDeleteChat', 'Delete chat'))}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d92d20" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>`;
+            row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
+            row.querySelector('.ai-chat-menu-date').textContent = date;
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.ai-chat-menu-delete')) {
+                    e.stopPropagation();
+                    deleteAiChat(chat.id);
+                    return;
+                }
+                menu.classList.add('hidden');
+                switchAiChat(chat.id);
+            });
+            menu.appendChild(row);
+        });
+    }
+
+    async function loadAiChatSessions() {
+        try {
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'ai_chat_sessions' })
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error(data.error || 'Failed to load chats');
+            const activeBeforeLoad = aiState.activeChatId;
+            aiState.chatSessions = Array.isArray(data.items) ? data.items : [];
+            if (activeBeforeLoad && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
+                aiState.chatSessions.unshift({ id: activeBeforeLoad, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
+            }
+            if (!aiState.activeChatId || !aiState.chatSessions.some((c) => String(c.id) === String(aiState.activeChatId))) {
+                aiState.activeChatId = String(aiState.chatSessions[0]?.id || '');
+                localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+            }
+            renderAiChatSessions();
+        } catch (e) {}
+    }
+
+    async function switchAiChat(chatId) {
+        if (!chatId || chatId === aiState.activeChatId) return;
+        aiState.activeChatId = chatId;
+        localStorage.setItem('cloud_ai_active_chat_id', chatId);
+        resetChatPagination();
+        await loadChatHistoryPage(false);
+    }
+
+    async function createAiChat() {
+        const previousActiveChatId = aiState.activeChatId;
+        const tempChatId = 'tmp_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 7);
+        aiState.activeChatId = tempChatId;
+        localStorage.setItem('cloud_ai_active_chat_id', tempChatId);
+        resetChatPagination();
+        aiState.selectedMentionFiles = [];
+        aiState.mentionedFileRoots = {};
+        aiState.mentionPlacements = [];
+        removeAllExternalAttachments();
+        if (elements.input) elements.input.value = '';
+        renderMentionedAttachments();
+        aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== tempChatId);
+        aiState.chatSessions.unshift({ id: tempChatId, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
+        renderAiChatSessions();
+        let data = {};
+        try {
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'ai_chat_create' })
+            });
+            data = await res.json().catch(() => ({}));
+        } catch (e) {}
+        if (!data.success) {
+            aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== tempChatId);
+            aiState.activeChatId = previousActiveChatId;
+            localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+            renderAiChatSessions();
+            flashStatus(tr('aiChatCreateFailed', 'Could not create chat'));
+            return;
+        }
+        aiState.activeChatId = String(data.chat_id || '');
+        localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+        const chatId = aiState.activeChatId;
+        const tempChat = aiState.chatSessions.find((chat) => String(chat.id) === tempChatId);
+        if (tempChat && chatId) {
+            tempChat.id = chatId;
+            tempChat.updated_at = Math.floor(Date.now() / 1000);
+        } else if (chatId && !aiState.chatSessions.some((chat) => String(chat.id) === chatId)) {
+            aiState.chatSessions.unshift({ id: chatId, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
+        }
+        renderAiChatSessions();
+        await loadAiChatSessions();
+    }
+
+    async function deleteAiChat(chatId) {
+        if (!chatId) return;
+        const deletedActive = String(chatId) === String(aiState.activeChatId);
+        await fetch(AI_CONFIG.apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({ action: 'ai_chat_delete', chat_id: chatId })
+        });
+        aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== String(chatId));
+        if (!deletedActive) {
+            renderAiChatSessions();
+            await loadAiChatSessions();
+            return;
+        }
+        aiState.activeChatId = String(aiState.chatSessions[0]?.id || '');
+        localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+        resetChatPagination();
+        renderAiChatSessions();
+        await loadAiChatSessions();
+        if (aiState.activeChatId) await loadChatHistoryPage(false);
     }
 
     async function loadChatHistoryPage(prepend) {
@@ -6014,6 +6390,7 @@
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
                     action: 'ai_chat_load',
+                    chat_id: aiState.activeChatId || '',
                     offset: String(offset),
                     limit: String(limit)
                 })
@@ -6025,7 +6402,7 @@
             }
 
             const items = Array.isArray(data.items) ? data.items : [];
-            if (!prepend && offset === 0 && items.length === 0) {
+            if (!prepend && offset === 0 && items.length === 0 && !aiState.activeChatId) {
                 const fallback = await loadFallbackChatHistory();
                 if (fallback.length > 0) {
                     aiState.chatHistory = fallback;
@@ -6172,18 +6549,11 @@
     }
 
     async function clearChatHistory() {
-        const confirmed = await showConfirmDialog(
-            tr('clearHistoryConfirmTitle', 'Clear History'),
-            tr('clearHistoryConfirm', 'Are you sure you want to clear the chat history?')
-        );
-        
-        if (!confirmed) return;
-        
         try {
             const response = await fetch(AI_CONFIG.apiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({ action: 'ai_chat_clear' })
+                body: new URLSearchParams({ action: 'ai_chat_clear', chat_id: aiState.activeChatId || '' })
             });
             
             const data = await response.json();
@@ -6192,10 +6562,11 @@
                 aiState.chatHistory = [];
                 aiState.processedMessageIds.clear();
                 localStorage.removeItem(LOCAL_HISTORY_KEY);
-                if (elements.chat) elements.chat.innerHTML = '';
+                clearChatMessages();
                 elements.settingsModal?.classList.add('hidden');
                 flashStatus(window.i18n?.historyCleared || 'History cleared');
                 resetChatPagination();
+                await loadAiChatSessions();
                 requestAnimationFrame(() => {
                     try {
                         elements.chat?.scrollIntoView({ block: 'nearest' });
@@ -6315,7 +6686,7 @@
         msgEl.id = messageId;
         const header = document.createElement('div');
         header.className = 'message-header';
-        header.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2" ry="2" fill="none" /><path d="M8 2v20M16 2v20M2 8h20M2 16h20" fill="none" /></svg><span class="message-role">ai · agent</span>`;
+        header.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg><span class="message-role">${tr('aiModeAgent', 'Agent')}</span>`;
         msgEl.appendChild(header);
         const outer = document.createElement('div');
         outer.className = 'message-content';
@@ -6369,7 +6740,7 @@
 
     function renderChatHistory() {
         if (!elements.chat) return;
-        elements.chat.innerHTML = '';
+        clearChatMessages();
         aiState.chatHistory.forEach((message) => {
             if (message.role === 'user') {
                 addMessageToUI('user', message.content, false, message.id, false);
@@ -6384,27 +6755,6 @@
         if (!msgEl || msgEl.querySelector('.message-footer')) return;
         const footer = document.createElement('div');
         footer.className = 'message-footer';
-        const statsDiv = document.createElement('div');
-        statsDiv.className = 'message-stats';
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'stat-item';
-        timeDiv.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" fill="none" /><polyline points="12 6 12 12 16 14" fill="none" /></svg>${getCurrentTime()}`;
-        statsDiv.appendChild(timeDiv);
-        if (stats) {
-            const tokensDiv = document.createElement('div');
-            tokensDiv.className = 'stat-item';
-            tokensDiv.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 7V4h16v3M4 20h16v-3" fill="none" /></svg>${formatTokens(stats.tokens)} t`;
-            const speedDiv = document.createElement('div');
-            speedDiv.className = 'stat-item';
-            speedDiv.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="none" /></svg>${calculateSpeed(stats.tokens, stats.time)}`;
-            const genTimeDiv = document.createElement('div');
-            genTimeDiv.className = 'stat-item';
-            genTimeDiv.innerHTML = `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" fill="none" /><polyline points="12 6 12 12 16 14" fill="none" /></svg>${formatTime(stats.time)}`;
-            statsDiv.appendChild(tokensDiv);
-            statsDiv.appendChild(speedDiv);
-            statsDiv.appendChild(genTimeDiv);
-        }
-        footer.appendChild(statsDiv);
         const actions = document.createElement('div');
         actions.className = 'message-actions';
         actions.appendChild(createCopyButton(copyText || '', true));
@@ -6696,7 +7046,7 @@
 
     function createThinkBlock(content, isLive = false) {
         const thinkDiv = document.createElement('div');
-        thinkDiv.className = 'think-block collapsed';
+        thinkDiv.className = 'think-block';
         
         const header = document.createElement('div');
         header.className = 'think-header';
@@ -6720,11 +7070,7 @@
         
         const headerRight = document.createElement('div');
         headerRight.className = 'think-header-right';
-        headerRight.innerHTML = `
-            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <polyline points="6 9 12 15 18 9" fill="none" />
-            </svg>
-        `;
+        headerRight.textContent = '+';
         
         header.appendChild(headerLeft);
         header.appendChild(headerRight);
@@ -6737,13 +7083,7 @@
         thinkDiv.appendChild(contentDiv);
         
         header.addEventListener('click', () => {
-            if (thinkDiv.classList.contains('collapsed')) {
-                thinkDiv.classList.remove('collapsed');
-                thinkDiv.classList.add('expanded');
-            } else {
-                thinkDiv.classList.remove('expanded');
-                thinkDiv.classList.add('collapsed');
-            }
+            thinkDiv.classList.toggle('open');
         });
         
         return thinkDiv;
@@ -6757,6 +7097,39 @@
     }
 
     // FIXED: Proper content rendering without nested message-content wrappers
+    function createMathAccordionBlock(mathContent) {
+        const item = document.createElement('div');
+        item.className = 'math-display-block';
+
+        const header = document.createElement('div');
+        header.className = 'math-display-block-header';
+
+        const title = document.createElement('span');
+        title.textContent = tr('aiMathBlock', 'Thought');
+        header.appendChild(title);
+
+        const icon = document.createElement('span');
+        icon.className = 'math-display-block-icon';
+        icon.textContent = '+';
+        header.appendChild(icon);
+
+        const body = document.createElement('div');
+        body.className = 'math-display-block-body';
+        body.textContent = mathContent;
+
+        item.appendChild(header);
+        item.appendChild(body);
+
+        header.addEventListener('click', () => {
+            document.querySelectorAll('.math-display-block').forEach(el => {
+                if (el !== item) el.classList.remove('open');
+            });
+            item.classList.toggle('open');
+        });
+
+        return item;
+    }
+
     function formatResponseInner(content, liveThinkBlocks = null) {
         const container = document.createElement('div');
         container.className = 'message-content-inner';
@@ -6770,7 +7143,7 @@
             if (part.type === 'think') {
                 const existingThink = liveThinkBlocks?.get(part.content);
                 if (existingThink) {
-                    container.appendChild(existingThink.cloneNode(true));
+                    container.appendChild(createThinkBlock(existingThink.querySelector('.think-content')?.textContent || part.content));
                 } else {
                     container.appendChild(createThinkBlock(part.content));
                 }
@@ -6781,10 +7154,7 @@
                 
                 for (const segment of segments) {
                     if (/^\$\$[\s\S]*\$\$$/.test(segment.trim()) || /^\\\[[\s\S]*\\\]$/.test(segment.trim())) {
-                        const mathDiv = document.createElement('div');
-                        mathDiv.className = 'math-display-block';
-                        mathDiv.style.cssText = 'text-align:center;margin:1em 0;overflow-x:auto;';
-                        mathDiv.textContent = segment.trim();
+                        const mathDiv = createMathAccordionBlock(segment.trim());
                         container.appendChild(mathDiv);
                     } else if (segment.startsWith('```') && segment.endsWith('```')) {
                         // Code block
@@ -6897,10 +7267,7 @@
 
                             // Normal line -> markdown -> block
                             if (looksLikeBareMath(line)) {
-                                const mathDiv = document.createElement('div');
-                                mathDiv.className = 'math-display-block';
-                                mathDiv.style.cssText = 'text-align:center;margin:1em 0;overflow-x:auto;';
-                                mathDiv.textContent = formatBareMathLine(line);
+                                const mathDiv = createMathAccordionBlock(formatBareMathLine(line));
                                 container.appendChild(mathDiv);
                                 i++;
                                 continue;
@@ -6935,29 +7302,18 @@
         messageDiv.className = `message ${role === 'user' ? 'user-message' : 'ai-message'}`;
         messageDiv.id = id;
         
-        const header = document.createElement('div');
-        header.className = 'message-header';
-        
-        if (role === 'user') {
+        if (role !== 'user') {
+            const header = document.createElement('div');
+            header.className = 'message-header';
+            const roleLabel = aiState.chatMode === 'agent'
+                ? tr('aiModeAgent', 'Agent')
+                : tr('aiModeChat', 'Chat');
             header.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="8" r="4" fill="none" />
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" fill="none" />
-                </svg>
-                <span class="message-role">${escapeHtml(getUserLabel())}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg>
+                <span class="message-role">${roleLabel}</span>
             `;
-        } else {
-            const modelName = getCurrentModelDisplayName();
-            header.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="2" width="20" height="20" rx="2" ry="2" fill="none" />
-                    <path d="M8 2v20M16 2v20M2 8h20M2 16h20" fill="none" />
-                </svg>
-                <span class="message-role">ai · ${modelName}</span>
-            `;
+            messageDiv.appendChild(header);
         }
-        
-        messageDiv.appendChild(header);
         
         if (role === 'user') {
             const contentDiv = document.createElement('div');
@@ -6966,13 +7322,9 @@
             messageDiv.appendChild(contentDiv);
             const footer = document.createElement('div');
             footer.className = 'message-footer';
-            const statsDiv = document.createElement('div');
-            statsDiv.className = 'message-stats';
-            statsDiv.innerHTML = `<div class="stat-item"><svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10" fill="none" /><polyline points="12 6 12 12 16 14" fill="none" /></svg>${getCurrentTime()}</div>`;
             const actions = document.createElement('div');
             actions.className = 'message-actions';
             actions.appendChild(createCopyButton(content, true));
-            footer.appendChild(statsDiv);
             footer.appendChild(actions);
             messageDiv.appendChild(footer);
         } else {
@@ -7020,58 +7372,6 @@
         
         const footer = document.createElement('div');
         footer.className = 'message-footer';
-        
-        const statsDiv = document.createElement('div');
-        statsDiv.className = 'message-stats';
-        
-        const timeDiv = document.createElement('div');
-        timeDiv.className = 'stat-item';
-        timeDiv.innerHTML = `
-            <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" fill="none" />
-                <polyline points="12 6 12 12 16 14" fill="none" />
-            </svg>
-            ${getCurrentTime()}
-        `;
-        statsDiv.appendChild(timeDiv);
-        
-        if (stats) {
-            const tokensDiv = document.createElement('div');
-            tokensDiv.className = 'stat-item';
-            tokensDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path d="M4 7V4h16v3M4 20h16v-3" fill="none" />
-                    <path d="M4 4v16M20 4v16" fill="none" />
-                    <path d="M8 4v16M12 4v16M16 4v16" fill="none" />
-                </svg>
-                ${formatTokens(stats.tokens)} t
-            `;
-            
-            const speedDiv = document.createElement('div');
-            speedDiv.className = 'stat-item';
-            speedDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" fill="none" />
-                </svg>
-                ${calculateSpeed(stats.tokens, stats.time)}
-            `;
-            
-            const genTimeDiv = document.createElement('div');
-            genTimeDiv.className = 'stat-item';
-            genTimeDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" fill="none" />
-                    <polyline points="12 6 12 12 16 14" fill="none" />
-                </svg>
-                ${formatTime(stats.time)}
-            `;
-            
-            statsDiv.appendChild(tokensDiv);
-            statsDiv.appendChild(speedDiv);
-            statsDiv.appendChild(genTimeDiv);
-        }
-        
-        footer.appendChild(statsDiv);
         
         const actions = document.createElement('div');
         actions.className = 'message-actions';
@@ -7190,6 +7490,7 @@
             const name = String(p?.name || '').trim();
             const idx = Number(p?.index);
             if (!name || !Number.isFinite(idx) || idx < 0 || idx > out.length) continue;
+            if (new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=\\s|$)`).test(out)) continue;
             out = out.slice(0, idx) + '@' + name + out.slice(idx);
         }
         return out;
@@ -7210,12 +7511,19 @@
                 tokens: Number.isFinite(tokens) ? String(tokens) : '',
                 speed: Number.isFinite(speed) ? String(speed) : ''
             };
+            if (aiState.activeChatId) params.chat_id = aiState.activeChatId;
             if (metaJson) params.meta_json = String(metaJson);
-            await fetch(AI_CONFIG.apiEndpoint, {
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams(params)
             });
+            const data = await res.json().catch(() => null);
+            if (data?.chat_id && !aiState.activeChatId) {
+                aiState.activeChatId = String(data.chat_id);
+                localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+            }
+            await loadAiChatSessions();
         } catch (e) {
             console.warn('Failed to append chat pair:', e);
         }
@@ -7349,6 +7657,14 @@
         const requiresContentEdit = !readOnly && detectAgentEditIntent(messageWithMentions) && !wantsExportPdf;
         return { openPathForPrompts, historyMessages, replyLanguage, wantsExportPdf, requiresContentEdit };
     }
+
+    function getToolLoopHistory(messages, currentTask) {
+        const task = String(currentTask || '').trim();
+        return (messages || [])
+            .filter((m) => m && (m.role === 'system' || m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
+            .filter((m) => !(m.role === 'user' && String(m.content || '').trim() === task));
+    }
+
     async function sendChatWithTools(messageWithMentions, contextMessages, requestModel) {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
@@ -7361,7 +7677,7 @@
         const chatResult = await sk.runAgentLoop({
             readOnly: true,
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: getRootForFileContext(),
+            root: getRootForToolRun(),
             openPath: base.openPathForPrompts,
             userRole,
             userTask: messageWithMentions,
@@ -7391,7 +7707,7 @@
             onToolEnd: (stepId, name, _detail, result) => {
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
-                upsertAgentPlanStep(stepId, { status: isErr ? 'error' : 'done', result: isErr && result?.error ? String(result.error) : summary });
+                upsertAgentPlanStep(stepId, { status: isErr ? 'error' : 'done', result: isErr && result?.error ? String(result.error) : summary, rawResult: result });
             },
             createCompletion: async ({ messages, tools, tool_choice, forceAnswerOnly }) => {
                 const payload = {
@@ -7400,7 +7716,7 @@
                     max_tokens: 8192,
                     temperature: 0.3
                 };
-                if (!forceAnswerOnly && tools && tools.length) {
+                if (tools && tools.length) {
                     payload.tools = tools;
                     payload.tool_choice = tool_choice || 'auto';
                 }
@@ -7426,7 +7742,7 @@
         const sk = window.AIAgentSkeleton;
         const agentResult = await sk.runAgentLoop({
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: getRootForFileContext(),
+            root: getRootForToolRun(),
             openPath: base.openPathForPrompts,
             userRole,
             userTask: messageWithMentions,
@@ -7467,7 +7783,7 @@
                 } else if (isErr && result?.error) {
                     planResult = String(result.error);
                 }
-                upsertAgentPlanStep(stepId, { status: isErr ? 'error' : 'done', result: planResult });
+                upsertAgentPlanStep(stepId, { status: isErr ? 'error' : 'done', result: planResult, rawResult: result });
                 if ((name === 'export_markdown_pdf' || name === 'export_latex_pdf') && !isErr && result?.pdf_path) {
                     void highlightNewFilesInTree([result.pdf_path], { openLastPdf: true });
                 }
@@ -7524,7 +7840,7 @@
                     max_tokens: 8192,
                     temperature: 0.2
                 };
-                if (!forceAnswerOnly && tools && tools.length) {
+                if (tools && tools.length) {
                     payload.tools = tools;
                     payload.tool_choice = tool_choice || 'auto';
                 }
@@ -7584,8 +7900,9 @@
                 ? message
                 : rebuildMessageWithMentions(message, aiState.mentionPlacements || []);
         const attachmentsForRequest = Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments;
+        const mentionedFilesForRequest = Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : [];
 
-        addMessageToUI('user', userFacingMessage, false);
+        if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false);
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
             syncMentionedAttachmentsFromInput('');
@@ -7612,14 +7929,16 @@
             if (isExtractableDocumentPath(openDocPath) && !(fileData?.content || '').trim()) {
                 flashStatus(tr('aiDocumentExtractEmpty', 'Could not extract text from the open document. Try read_file in chat/agent mode.'));
             }
-            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName);
+            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest);
             
             const messages = [];
             const role = elements.roleSelect?.value || AI_CONFIG.defaultRole;
             
             const isAgentMode = aiState.chatMode === 'agent' && isAgentEditorSupported();
-            const useAgentTools = isAgentMode && window.AIAgentSkeleton?.runAgentLoop;
-            const useChatTools = !isAgentMode && !!window.AIAgentSkeleton?.runAgentLoop;
+            const editIntent = detectAgentEditIntent(userFacingMessage);
+            const shouldUseAgentForMentionEdit = !isAgentMode && editIntent && mentionedFilesForRequest.length > 0 && isAgentEditorSupported();
+            const useAgentTools = (isAgentMode || shouldUseAgentForMentionEdit) && window.AIAgentSkeleton?.runAgentLoop;
+            const useChatTools = !useAgentTools && !!window.AIAgentSkeleton?.runAgentLoop;
             const useFileToolContext = useAgentTools || useChatTools;
             completionNotify.mode = useAgentTools ? 'agent' : 'chat';
             if (isAgentMode && !useAgentTools) {
@@ -7672,30 +7991,37 @@
                 }
             }
 
-            let agentUserContent = messageWithMentions;
+            const mentionTargetHint = mentionedFilesForRequest.length > 0
+                ? `\n\n[Контекст @file]\nПользователь прикрепил @file: ${mentionedFilesForRequest.map((p) => {
+                    const root = aiState.mentionedFileRoots?.[normalizeMentionedFilePath(p)] || getRootForToolRun();
+                    return `${p}${root ? ` (root: ${root})` : ''}`;
+                }).join(', ')}.\nЕсли пользователь пишет "этот файл", "в этот файл", "this file" или не указывает другой путь, целевой файл: ${mentionedFilesForRequest[0]}.\nДля записи используй write_file/search_replace/create_file именно с этим path.`
+                : '';
+            const userContentWithMentions = messageWithMentions + mentionTargetHint;
+            let agentUserContent = userContentWithMentions;
             if (useAgentTools && detectAgentExportPdfIntent(userFacingMessage)) {
                 const openName = String(fileData?.name || aiState.currentFileName || '');
                 const isLatex = /\.tex$/i.test(openName);
                 agentUserContent = isLatex
-                    ? `[${tr('aiExportLatexPdf', 'Export LaTeX to PDF on server')}]\n\n${messageWithMentions}`
-                    : `[${tr('aiExportMarkdownPdf', 'Export Markdown to PDF on server')}]\n\n${messageWithMentions}`;
-            } else if (useAgentTools && detectAgentEditIntent(userFacingMessage)) {
-                agentUserContent = `[Задача: изменить содержимое файла по запросу. Сначала write_file / search_replace / apply_editor_patch, затем compile_and_check при необходимости.]\n\n${messageWithMentions}`;
+                    ? `[${tr('aiExportLatexPdf', 'Export LaTeX to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`
+                    : `[${tr('aiExportMarkdownPdf', 'Export Markdown to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`;
+            } else if (useAgentTools && editIntent) {
+                agentUserContent = `[Задача: изменить содержимое файла по запросу. Сначала write_file / search_replace / apply_editor_patch, затем compile_and_check при необходимости.]\n\n${messageWithMentions}${mentionTargetHint}`;
             }
-            messages.push({ role: 'user', content: agentUserContent });
+            messages.push({ role: 'user', content: useAgentTools || useChatTools ? agentUserContent : userContentWithMentions });
 
             if (useAgentTools) {
                 const requestModel = resolveModelForRequest();
                 const agentMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const mentionPaths = extractMentionedFileNames(messageWithMentions);
-                (aiState.selectedMentionFiles || []).forEach((p) => mentionPaths.push(p));
+                mentionedFilesForRequest.forEach((p) => mentionPaths.push(p));
                 if (fileData?.name) mentionPaths.push(fileData.name);
                 removeTypingIndicator();
                 addMessageToUI('assistant', '', false, agentMessageId, false);
                 resetAgentRun(agentMessageId, mentionPaths, 'agent');
                 applyToolRunRoleToMessage(agentMessageId);
                 try {
-                    const agentResult = await sendAgentWithTools(messageWithMentions, messages.slice(0, -1), requestModel);
+                    const agentResult = await sendAgentWithTools(agentUserContent, getToolLoopHistory(messages, agentUserContent), requestModel);
                     const agentText = String(agentResult?.content || '').trim();
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, agentResult?.usage, agentText, messageWithMentions);
@@ -7787,14 +8113,14 @@
                 const requestModel = resolveModelForRequest();
                 const chatMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const mentionPaths = extractMentionedFileNames(messageWithMentions);
-                (aiState.selectedMentionFiles || []).forEach((p) => mentionPaths.push(p));
+                mentionedFilesForRequest.forEach((p) => mentionPaths.push(p));
                 if (fileData?.name) mentionPaths.push(fileData.name);
                 removeTypingIndicator();
                 addMessageToUI('assistant', '', false, chatMessageId, false);
                 resetAgentRun(chatMessageId, mentionPaths, 'chat');
                 applyToolRunRoleToMessage(chatMessageId);
                 try {
-                    const chatResult = await sendChatWithTools(messageWithMentions, messages.slice(0, -1), requestModel);
+                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel);
                     let chatText = String(chatResult?.content || '').trim();
                     if (!chatText && aiState.agentPlanSteps.some((s) => s.status === 'done')) {
                         chatText = tr('aiChatAnswerFailed', 'The model did not produce a text answer after reading the file. Try again or narrow your request.');
@@ -7891,11 +8217,8 @@
             const modelName = getCurrentModelDisplayName();
             streamModelName = modelName;
             header.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <rect x="2" y="2" width="20" height="20" rx="2" ry="2" fill="none" />
-                    <path d="M8 2v20M16 2v20M2 8h20M2 16h20" fill="none" />
-                </svg>
-                <span class="message-role">ai · ${modelName}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/></svg>
+                <span class="message-role">${modelName}</span>
             `;
             messageDiv.appendChild(header);
             
@@ -8044,55 +8367,6 @@
             if (!messageDiv.dataset.agentPatchId) {
             const footer = document.createElement('div');
             footer.className = 'message-footer';
-            
-            const statsDiv = document.createElement('div');
-            statsDiv.className = 'message-stats';
-            
-            const timeDiv = document.createElement('div');
-            timeDiv.className = 'stat-item';
-            timeDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" fill="none" />
-                    <polyline points="12 6 12 12 16 14" fill="none" />
-                </svg>
-                ${getCurrentTime()}
-            `;
-            statsDiv.appendChild(timeDiv);
-            
-            const tokensDiv = document.createElement('div');
-            tokensDiv.className = 'stat-item';
-            tokensDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path d="M4 7V4h16v3M4 20h16v-3" fill="none" />
-                    <path d="M4 4v16M20 4v16" fill="none" />
-                    <path d="M8 4v16M12 4v16M16 4v16" fill="none" />
-                </svg>
-                ${formatTokens(tokenCount)} t
-            `;
-            
-            const speedDiv = document.createElement('div');
-            speedDiv.className = 'stat-item';
-            speedDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" fill="none" />
-                </svg>
-                ${calculateSpeed(tokenCount, timeSeconds)}
-            `;
-            
-            const genTimeDiv = document.createElement('div');
-            genTimeDiv.className = 'stat-item';
-            genTimeDiv.innerHTML = `
-                <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" fill="none" />
-                    <polyline points="12 6 12 12 16 14" fill="none" />
-                </svg>
-                ${formatTime(timeSeconds)}
-            `;
-            
-            statsDiv.appendChild(tokensDiv);
-            statsDiv.appendChild(speedDiv);
-            statsDiv.appendChild(genTimeDiv);
-            footer.appendChild(statsDiv);
             
             const actions = document.createElement('div');
             actions.className = 'message-actions';
@@ -8280,12 +8554,17 @@
         
         messageElement.remove();
         
-        aiState.chatHistory = aiState.chatHistory.filter(msg => msg.id !== messageId);
+        aiState.chatHistory = aiState.chatHistory.filter(msg => msg.id !== messageId && msg.id !== `${messageId}_u`);
         aiState.processedMessageIds.delete(messageId);
         saveChatHistory();
+        if (elements.input) elements.input.value = '';
         
-        elements.input.value = userMessage;
-        await sendAIMessage();
+        await sendAIMessage({
+            messageOverride: userMessage,
+            userFacingMessage: userMessage,
+            skipUserInputReset: true,
+            skipUserMessageUI: true
+        });
     }
 
     async function loadCurrentFileContent() {
@@ -8620,6 +8899,130 @@
                 if (el.textContent === text) el.textContent = '';
             }, 5000);
         }
+    }
+
+    function initDotField(container) {
+        if (!container || container.dataset.dotField === '1') return;
+        container.dataset.dotField = '1';
+
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0';
+        canvas.className = 'dot-field-canvas';
+        container.prepend(canvas);
+
+        const ctx = canvas.getContext('2d');
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        let dots = [];
+        let w = 0, h = 0;
+        const mouse = { x: -9999, y: -9999, prevX: -9999, prevY: -9999, speed: 0 };
+        let raf = null;
+
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            w = rect.width;
+            h = rect.height;
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            buildDots();
+        }
+
+        function buildDots() {
+            const step = 22;
+            const cols = Math.floor(w / step);
+            const rows = Math.floor(h / step);
+            const padX = (w % step) / 2;
+            const padY = (h % step) / 2;
+            const arr = new Array(rows * cols);
+            let idx = 0;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const ax = padX + c * step + step / 2;
+                    const ay = padY + r * step + step / 2;
+                    arr[idx++] = { ax, ay, sx: ax, sy: ay };
+                }
+            }
+            dots = arr;
+        }
+
+        function onMouseMove(e) {
+            const rect = canvas.getBoundingClientRect();
+            mouse.x = e.clientX - rect.left;
+            mouse.y = e.clientY - rect.top;
+        }
+
+        function onMouseLeave() {
+            mouse.x = -9999;
+            mouse.y = -9999;
+            mouse.speed = 0;
+        }
+
+        function getFgColor() {
+            return getComputedStyle(container).color;
+        }
+
+        let fgColor = getFgColor();
+        const colorObserver = new MutationObserver(() => { fgColor = getFgColor(); });
+        colorObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+
+        let tick = 0;
+        function animate() {
+            tick++;
+            const cr = 200;
+            const crSq = cr * cr;
+            const eng = Math.min(mouse.speed / 3, 1);
+
+            ctx.clearRect(0, 0, w, h);
+            ctx.beginPath();
+
+            const isDark = document.body.dataset.theme === 'dark';
+            const baseAlpha = isDark ? 0.25 : 0.2;
+            const activeAlpha = isDark ? 0.45 : 0.4;
+
+            for (const d of dots) {
+                const dx = mouse.x - d.ax;
+                const dy = mouse.y - d.ay;
+                const distSq = dx * dx + dy * dy;
+
+                if (distSq < crSq && eng > 0.01) {
+                    const dist = Math.sqrt(distSq);
+                    const t = 1 - dist / cr;
+                    const push = t * t * 30 * eng;
+                    const angle = Math.atan2(dy, dx);
+                    d.sx += (d.ax - Math.cos(angle) * push - d.sx) * 0.12;
+                    d.sy += (d.ay - Math.sin(angle) * push - d.sy) * 0.12;
+                    ctx.globalAlpha = activeAlpha;
+                } else {
+                    d.sx += (d.ax - d.sx) * 0.06;
+                    ctx.globalAlpha = baseAlpha;
+                }
+
+                ctx.moveTo(d.sx + 0.8, d.sy);
+                ctx.arc(d.sx, d.sy, 0.8, 0, Math.PI * 2);
+            }
+
+            ctx.fillStyle = fgColor;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+
+            const dx = mouse.x - mouse.prevX;
+            const dy = mouse.y - mouse.prevY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            mouse.speed += (dist - mouse.speed) * 0.3;
+            if (mouse.speed < 0.001) mouse.speed = 0;
+            mouse.prevX = mouse.x;
+            mouse.prevY = mouse.y;
+
+            raf = requestAnimationFrame(animate);
+        }
+
+        resize();
+        window.addEventListener('resize', resize);
+        container.addEventListener('mousemove', onMouseMove, { passive: true });
+        container.addEventListener('mouseleave', onMouseLeave, { passive: true });
+        raf = requestAnimationFrame(animate);
     }
 
     // Export for global use

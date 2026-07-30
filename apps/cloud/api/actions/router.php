@@ -44,8 +44,8 @@ if ($action === 'get_encryption_notice_status') {
     if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
     ensure_cloud_encryption_consents_table();
     $stmt = $db->prepare("SELECT status, consented_at FROM cloud_encryption_consents WHERE email = :e LIMIT 1");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     json_out([
         'ok' => true,
         'status' => (string)($row['status'] ?? ''),
@@ -66,8 +66,8 @@ if ($action === 'set_encryption_notice_status') {
         ON CONFLICT(email) DO UPDATE SET
             status = 'accepted',
             updated_at = excluded.updated_at");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $now, SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $now, PDO::PARAM_INT);
     $stmt->execute();
     json_out(['ok' => true, 'status' => 'accepted']);
 }
@@ -92,8 +92,8 @@ if ($action === 'get_state') {
             try {
                 ensureCloudUserSettingsSchema($db_s);
                 $sq = $db_s->prepare('SELECT quota_mb, session_limit_mb, hide_lang_switcher, sync_local_path, sync_interval_sec, sync_mode, sync_enabled, last_sync_at FROM cloud_user_settings WHERE email = :e');
-                $sq->bindValue(':e', $email, SQLITE3_TEXT);
-                $rq = $sq->execute()->fetchArray(SQLITE3_ASSOC);
+                $sq->bindValue(':e', $email, PDO::PARAM_STR);
+                $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($rq) {
                     $user_quota    = max(1, (int)$rq['quota_mb']);
                     $session_limit = max(0, (int)$rq['session_limit_mb']);
@@ -414,11 +414,11 @@ if ($action === 'share_file') {
             $cols = [];
             $columnsResult = null;
             try {
-                $columnsResult = $db->query("PRAGMA table_info(shared_files)");
+                $columnsResult = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='shared_files'");
             } catch (Exception $e) {
                 $columnsResult = null;
             }
-            while ($columnsResult && ($column = $columnsResult->fetchArray(SQLITE3_ASSOC))) {
+            while ($columnsResult && ($column = $columnsResult->fetch(PDO::FETCH_ASSOC))) {
                 $cols[] = (string)($column['name'] ?? '');
             }
             $safeExec = static function(string $sql) use ($db): void {
@@ -468,23 +468,23 @@ if ($action === 'share_file') {
 
         // Проверяем, есть ли уже активная ссылка для этого файла/папки от этого пользователя
         $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE file_path = :file_path AND user_email = :user_email');
-        $stmt->bindValue(':file_path', $normalizedPath, SQLITE3_TEXT);
-        $stmt->bindValue(':user_email', $userEmail, SQLITE3_TEXT);
+        $stmt->bindValue(':file_path', $normalizedPath, PDO::PARAM_STR);
+        $stmt->bindValue(':user_email', $userEmail, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $existing = $result->fetchArray(SQLITE3_ASSOC);
+        $existing = $result->fetch(PDO::FETCH_ASSOC);
 
         if ($existing && isset($existing['share_id'])) {
             $upd = $db->prepare('UPDATE shared_files SET is_folder = :is_folder, expires = :expires, expires_option = :expires_option, password_hash = :password_hash, view_only = :view_only, disable_download = :disable_download, disable_copy = :disable_copy, max_views = :max_views WHERE share_id = :share_id');
-            $upd->bindValue(':is_folder', $isFolder, SQLITE3_INTEGER);
-            if ($expires === null) $upd->bindValue(':expires', null, SQLITE3_NULL);
-            else $upd->bindValue(':expires', $expires, SQLITE3_INTEGER);
-            $upd->bindValue(':expires_option', $expiresOption, SQLITE3_TEXT);
-            $upd->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-            $upd->bindValue(':view_only', $viewOnly, SQLITE3_INTEGER);
-            $upd->bindValue(':disable_download', $disableDownload, SQLITE3_INTEGER);
-            $upd->bindValue(':disable_copy', $disableCopy, SQLITE3_INTEGER);
-            $upd->bindValue(':max_views', $maxViews, SQLITE3_INTEGER);
-            $upd->bindValue(':share_id', $existing['share_id'], SQLITE3_TEXT);
+            $upd->bindValue(':is_folder', $isFolder, PDO::PARAM_INT);
+            if ($expires === null) $upd->bindValue(':expires', null, PDO::PARAM_NULL);
+            else $upd->bindValue(':expires', $expires, PDO::PARAM_INT);
+            $upd->bindValue(':expires_option', $expiresOption, PDO::PARAM_STR);
+            $upd->bindValue(':password_hash', $passwordHash, PDO::PARAM_STR);
+            $upd->bindValue(':view_only', $viewOnly, PDO::PARAM_INT);
+            $upd->bindValue(':disable_download', $disableDownload, PDO::PARAM_INT);
+            $upd->bindValue(':disable_copy', $disableCopy, PDO::PARAM_INT);
+            $upd->bindValue(':max_views', $maxViews, PDO::PARAM_INT);
+            $upd->bindValue(':share_id', $existing['share_id'], PDO::PARAM_STR);
             $upd->execute();
             json_out(['key' => $existing['share_id'], 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
             return;
@@ -494,9 +494,9 @@ if ($action === 'share_file') {
         do {
             $shareId = bin2hex(random_bytes(12));
             $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE share_id = :share_id');
-            $stmt->bindValue(':share_id', $shareId, SQLITE3_TEXT);
+            $stmt->bindValue(':share_id', $shareId, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $exists = $result->fetchArray(SQLITE3_ASSOC);
+            $exists = $result->fetch(PDO::FETCH_ASSOC);
         } while ($exists);
 
         // Создаем новую запись
@@ -507,19 +507,19 @@ if ($action === 'share_file') {
             VALUES (:share_id, :file_name, :file_path, :is_folder, :user_email, ' . $createdAtExpr . ', :expires, :expires_option, :password_hash, :view_only, :disable_download, :disable_copy, :max_views, 0)
         ');
 
-        $stmt->bindValue(':share_id', $shareId, SQLITE3_TEXT);
-        $stmt->bindValue(':file_name', $fileName, SQLITE3_TEXT);
-        $stmt->bindValue(':file_path', $normalizedPath, SQLITE3_TEXT);
-        $stmt->bindValue(':is_folder', $isFolder, SQLITE3_INTEGER);
-        $stmt->bindValue(':user_email', $userEmail, SQLITE3_TEXT);
-        if ($expires === null) $stmt->bindValue(':expires', null, SQLITE3_NULL);
-        else $stmt->bindValue(':expires', $expires, SQLITE3_INTEGER);
-        $stmt->bindValue(':expires_option', $expiresOption, SQLITE3_TEXT);
-        $stmt->bindValue(':password_hash', $passwordHash, SQLITE3_TEXT);
-        $stmt->bindValue(':view_only', $viewOnly, SQLITE3_INTEGER);
-        $stmt->bindValue(':disable_download', $disableDownload, SQLITE3_INTEGER);
-        $stmt->bindValue(':disable_copy', $disableCopy, SQLITE3_INTEGER);
-        $stmt->bindValue(':max_views', $maxViews, SQLITE3_INTEGER);
+        $stmt->bindValue(':share_id', $shareId, PDO::PARAM_STR);
+        $stmt->bindValue(':file_name', $fileName, PDO::PARAM_STR);
+        $stmt->bindValue(':file_path', $normalizedPath, PDO::PARAM_STR);
+        $stmt->bindValue(':is_folder', $isFolder, PDO::PARAM_INT);
+        $stmt->bindValue(':user_email', $userEmail, PDO::PARAM_STR);
+        if ($expires === null) $stmt->bindValue(':expires', null, PDO::PARAM_NULL);
+        else $stmt->bindValue(':expires', $expires, PDO::PARAM_INT);
+        $stmt->bindValue(':expires_option', $expiresOption, PDO::PARAM_STR);
+        $stmt->bindValue(':password_hash', $passwordHash, PDO::PARAM_STR);
+        $stmt->bindValue(':view_only', $viewOnly, PDO::PARAM_INT);
+        $stmt->bindValue(':disable_download', $disableDownload, PDO::PARAM_INT);
+        $stmt->bindValue(':disable_copy', $disableCopy, PDO::PARAM_INT);
+        $stmt->bindValue(':max_views', $maxViews, PDO::PARAM_INT);
 
         if ($stmt->execute()) {
             json_out(['key' => $shareId, 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
@@ -541,14 +541,14 @@ if ($action === 'set_quota') {
     if (!$db) json_out(['error' => 'db unavailable'], 500);
     try {
         ensureCloudUserSettingsSchema($db);
-        // Надёжный upsert: сначала INSERT OR IGNORE, потом UPDATE
-        $ins = $db->prepare("INSERT OR IGNORE INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, :q, 0, 0, strftime('%s','now'))");
-        $ins->bindValue(':e', $email, SQLITE3_TEXT);
-        $ins->bindValue(':q', $quota_mb, SQLITE3_INTEGER);
+        // Надёжный upsert: сначала INSERT, потом UPDATE
+        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, :q, 0, 0, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
+        $ins->bindValue(':e', $email, PDO::PARAM_STR);
+        $ins->bindValue(':q', $quota_mb, PDO::PARAM_INT);
         $ins->execute();
-        $upd = $db->prepare("UPDATE cloud_user_settings SET quota_mb = :q, updated_at = strftime('%s','now') WHERE email = :e");
-        $upd->bindValue(':e', $email, SQLITE3_TEXT);
-        $upd->bindValue(':q', $quota_mb, SQLITE3_INTEGER);
+        $upd = $db->prepare("UPDATE cloud_user_settings SET quota_mb = :q, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+        $upd->bindValue(':e', $email, PDO::PARAM_STR);
+        $upd->bindValue(':q', $quota_mb, PDO::PARAM_INT);
         $upd->execute();
         json_out(['ok' => true, 'quota_mb' => $quota_mb]);
     } catch (Exception $e) {
@@ -564,13 +564,13 @@ if ($action === 'set_session_limit') {
     if (!$db) json_out(['error' => 'db unavailable'], 500);
     try {
         ensureCloudUserSettingsSchema($db);
-        $ins = $db->prepare("INSERT OR IGNORE INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, 500, :l, 0, strftime('%s','now'))");
-        $ins->bindValue(':e', $email, SQLITE3_TEXT);
-        $ins->bindValue(':l', $limit_mb, SQLITE3_INTEGER);
+        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, 500, :l, 0, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
+        $ins->bindValue(':e', $email, PDO::PARAM_STR);
+        $ins->bindValue(':l', $limit_mb, PDO::PARAM_INT);
         $ins->execute();
-        $upd = $db->prepare("UPDATE cloud_user_settings SET session_limit_mb = :l, updated_at = strftime('%s','now') WHERE email = :e");
-        $upd->bindValue(':e', $email, SQLITE3_TEXT);
-        $upd->bindValue(':l', $limit_mb, SQLITE3_INTEGER);
+        $upd = $db->prepare("UPDATE cloud_user_settings SET session_limit_mb = :l, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+        $upd->bindValue(':e', $email, PDO::PARAM_STR);
+        $upd->bindValue(':l', $limit_mb, PDO::PARAM_INT);
         $upd->execute();
         json_out(['ok' => true, 'session_limit_mb' => $limit_mb]);
     } catch (Exception $e) {
@@ -586,13 +586,13 @@ if ($action === 'set_hide_lang_switcher') {
     if (!$db) json_out(['error' => 'db unavailable'], 500);
     try {
         ensureCloudUserSettingsSchema($db);
-        $ins = $db->prepare("INSERT OR IGNORE INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, 500, 0, :h, strftime('%s','now'))");
-        $ins->bindValue(':e', $email, SQLITE3_TEXT);
-        $ins->bindValue(':h', $hide, SQLITE3_INTEGER);
+        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, 500, 0, :h, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
+        $ins->bindValue(':e', $email, PDO::PARAM_STR);
+        $ins->bindValue(':h', $hide, PDO::PARAM_INT);
         $ins->execute();
-        $upd = $db->prepare("UPDATE cloud_user_settings SET hide_lang_switcher = :h, updated_at = strftime('%s','now') WHERE email = :e");
-        $upd->bindValue(':e', $email, SQLITE3_TEXT);
-        $upd->bindValue(':h', $hide, SQLITE3_INTEGER);
+        $upd = $db->prepare("UPDATE cloud_user_settings SET hide_lang_switcher = :h, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+        $upd->bindValue(':e', $email, PDO::PARAM_STR);
+        $upd->bindValue(':h', $hide, PDO::PARAM_INT);
         $upd->execute();
         json_out(['ok' => true, 'hide_lang_switcher' => $hide]);
     } catch (Exception $e) {
@@ -610,11 +610,11 @@ if ($action === 'get_sync_log') {
     ensureCloudSyncLogsSchema($db);
     cloud_sync_logs_migrate_legacy($db, $email, $user);
     $stmt = $db->prepare("SELECT ts, level, root_key AS root, action, path, message FROM cloud_sync_logs WHERE email = :e ORDER BY ts DESC, id DESC LIMIT :lim");
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':lim', $limit, SQLITE3_INTEGER);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
     $res = $stmt->execute();
     $items = [];
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) $items[] = $row;
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) $items[] = $row;
     json_out(['ok' => true, 'items' => $items]);
 }
 
@@ -1511,9 +1511,9 @@ if ($action === 'get_user_role') {
         $session_id = session_id();
         if ($session_id) {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-            $stmt->bindValue(':session_id', $session_id, SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $session_id, PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row) {
                 $email = $row['email'];
             }
@@ -1829,8 +1829,8 @@ if ($action === 'upload') {
         if ($db_uq) {
             try {
                 $sq = $db_uq->prepare('SELECT quota_mb, session_limit_mb FROM cloud_user_settings WHERE email = :e');
-                $sq->bindValue(':e', $upload_email, SQLITE3_TEXT);
-                $rq = $sq->execute()->fetchArray(SQLITE3_ASSOC);
+                $sq->bindValue(':e', $upload_email, PDO::PARAM_STR);
+                $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($rq) {
                     $quotaBytes        = max(1, (int)$rq['quota_mb']) * 1024 * 1024;
                     $sessionLimitBytes = max(0, (int)$rq['session_limit_mb']) * 1024 * 1024;
@@ -2378,12 +2378,12 @@ function cloud_archive_notify_job(string $jobId, array $payload, string $severit
         $db = getDB();
         ensureNotificationsSchema($db);
         $stmt = $db->prepare("INSERT INTO app_notifications(user_email,app_id,severity,title,message,event_type,context_json,is_read,created_at) VALUES(:u,'cloud',:s,:t,:m,'worker_finished',:c,0,:n)");
-        $stmt->bindValue(':u', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':s', $severity, SQLITE3_TEXT);
-        $stmt->bindValue(':t', $title, SQLITE3_TEXT);
-        $stmt->bindValue(':m', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':c', json_encode(['job_id' => $jobId, 'root' => (string)($payload['root'] ?? ''), 'type' => (string)($payload['type'] ?? '')], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-        $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+        $stmt->bindValue(':u', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':s', $severity, PDO::PARAM_STR);
+        $stmt->bindValue(':t', $title, PDO::PARAM_STR);
+        $stmt->bindValue(':m', $message, PDO::PARAM_STR);
+        $stmt->bindValue(':c', json_encode(['job_id' => $jobId, 'root' => (string)($payload['root'] ?? ''), 'type' => (string)($payload['type'] ?? '')], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+        $stmt->bindValue(':n', time(), PDO::PARAM_INT);
         $stmt->execute();
     } catch (Throwable $e) {}
 }
@@ -4132,8 +4132,8 @@ if ($action === 'debug_session') {
     $db_row = null;
     if ($db && $cookie_sid) {
         $stmt = $db->prepare('SELECT session_id, email FROM active_sessions WHERE session_id = :sid');
-        $stmt->bindValue(':sid', $cookie_sid, SQLITE3_TEXT);
-        $db_row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':sid', $cookie_sid, PDO::PARAM_STR);
+        $db_row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     }
 
     json_out([
@@ -4157,8 +4157,8 @@ if ($action === 'get_file_tree') {
     try {
         ensure_file_tree_table($db);
         $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if ($row && $row['tree_valid'] == 1 && !empty($row['tree_json'])) {
             $items = json_decode($row['tree_json'], true) ?? [];
@@ -4169,8 +4169,8 @@ if ($action === 'get_file_tree') {
             rebuild_file_tree($email, $user);
             // Re-read
             $stmt2 = $db->prepare("SELECT tree_json FROM cloud_folder_state WHERE email = :e");
-            $stmt2->bindValue(':e', $email, SQLITE3_TEXT);
-            $row2 = $stmt2->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt2->bindValue(':e', $email, PDO::PARAM_STR);
+            $row2 = $stmt2->execute()->fetch(PDO::FETCH_ASSOC);
             $items = $row2 ? (json_decode($row2['tree_json'], true) ?? []) : [];
             $items = cloud_dedupe_tree_items($items);
             json_out(['ok' => true, 'items' => $items, 'from_cache' => false]);
@@ -4203,8 +4203,8 @@ if ($action === 'get_storage_usage') {
             FROM cloud_storage_usage_stats
             WHERE email = :e
         ");
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if ($row && !empty($row['stats_json'])) {
             $folders = json_decode($row['stats_json'], true) ?? [];
@@ -4247,6 +4247,7 @@ if (!function_exists('cloud_ai_ensure_chat_tables')) {
         $db->exec("CREATE TABLE IF NOT EXISTS cloud_ai_assistant_chats (
             id BIGSERIAL PRIMARY KEY,
             email TEXT NOT NULL,
+            chat_id TEXT NOT NULL DEFAULT '',
             question TEXT NOT NULL,
             answer TEXT NOT NULL,
             model TEXT NOT NULL DEFAULT '',
@@ -4265,9 +4266,11 @@ if (!function_exists('cloud_ai_ensure_chat_tables')) {
             auto_confirm_agent_edits INTEGER NOT NULL DEFAULT 0
         )");
         try {
+            $db->exec("ALTER TABLE cloud_ai_assistant_chats ADD COLUMN IF NOT EXISTS chat_id TEXT NOT NULL DEFAULT ''");
             $db->exec("ALTER TABLE cloud_ai_assistant_chats ADD COLUMN IF NOT EXISTS meta_json TEXT NOT NULL DEFAULT ''");
         } catch (Throwable $e) {
         }
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_ai_assistant_chats_email_chat_created ON cloud_ai_assistant_chats(email, chat_id, created_at DESC)");
     }
 }
 
@@ -4278,17 +4281,18 @@ if ($action === 'ai_chat_append') {
     if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
     cloud_ai_ensure_chat_tables($db);
     $stmt = $db->prepare("INSERT INTO cloud_ai_assistant_chats
-        (email, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
-        VALUES (:email, :question, :answer, :model, :file_name, :time_seconds, :tokens, :speed, :meta_json, extract(epoch from now())::bigint)");
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':question', (string)($_POST['question'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':answer', (string)($_POST['answer'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':model', (string)($_POST['model'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':file_name', (string)($_POST['file_name'] ?? ''), SQLITE3_TEXT);
-    $stmt->bindValue(':time_seconds', is_numeric($_POST['time_seconds'] ?? null) ? (float)$_POST['time_seconds'] : null, SQLITE3_FLOAT);
-    $stmt->bindValue(':tokens', is_numeric($_POST['tokens'] ?? null) ? (int)$_POST['tokens'] : null, SQLITE3_INTEGER);
-    $stmt->bindValue(':speed', is_numeric($_POST['speed'] ?? null) ? (float)$_POST['speed'] : null, SQLITE3_FLOAT);
-    $stmt->bindValue(':meta_json', (string)($_POST['meta_json'] ?? ''), SQLITE3_TEXT);
+        (email, chat_id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
+        VALUES (:email, :chat_id, :question, :answer, :model, :file_name, :time_seconds, :tokens, :speed, :meta_json, extract(epoch from now())::bigint)");
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':chat_id', (string)($_POST['chat_id'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':question', (string)($_POST['question'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':answer', (string)($_POST['answer'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':model', (string)($_POST['model'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':file_name', (string)($_POST['file_name'] ?? ''), PDO::PARAM_STR);
+    $stmt->bindValue(':time_seconds', is_numeric($_POST['time_seconds'] ?? null) ? (float)$_POST['time_seconds'] : null, PDO::PARAM_STR);
+    $stmt->bindValue(':tokens', is_numeric($_POST['tokens'] ?? null) ? (int)$_POST['tokens'] : null, PDO::PARAM_INT);
+    $stmt->bindValue(':speed', is_numeric($_POST['speed'] ?? null) ? (float)$_POST['speed'] : null, PDO::PARAM_STR);
+    $stmt->bindValue(':meta_json', (string)($_POST['meta_json'] ?? ''), PDO::PARAM_STR);
     $ok = $stmt->execute();
     json_out(['success' => (bool)$ok, 'id' => method_exists($db, 'lastInsertRowID') ? $db->lastInsertRowID() : null]);
 }
@@ -4306,12 +4310,12 @@ if ($action === 'ai_chat_load') {
         WHERE email = :email
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset");
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':limit', $limit + 1, SQLITE3_INTEGER);
-    $stmt->bindValue(':offset', $offset, SQLITE3_INTEGER);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':limit', $limit + 1, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $res = $stmt->execute();
     $items = [];
-    while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
         $items[] = $row;
     }
     $hasMore = count($items) > $limit;
@@ -4326,7 +4330,7 @@ if ($action === 'ai_chat_clear') {
     if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
     cloud_ai_ensure_chat_tables($db);
     $stmt = $db->prepare("DELETE FROM cloud_ai_assistant_chats WHERE email = :email");
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
     $stmt->execute();
     json_out(['success' => true]);
 }
@@ -4338,8 +4342,8 @@ if ($action === 'ai_user_settings_get') {
     if (!$db) json_out(['success' => false, 'error' => 'db unavailable'], 500);
     cloud_ai_ensure_chat_tables($db);
     $stmt = $db->prepare("SELECT settings_json FROM cloud_ai_assistant_user_settings WHERE email = :email LIMIT 1");
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $settings = $row ? (json_decode((string)$row['settings_json'], true) ?: []) : [];
     json_out(['success' => true, 'settings' => $settings]);
 }
@@ -4361,8 +4365,8 @@ if ($action === 'ai_user_settings_set') {
     $stmt = $db->prepare("INSERT INTO cloud_ai_assistant_user_settings (email, settings_json, updated_at)
         VALUES (:email, :settings_json, extract(epoch from now())::bigint)
         ON CONFLICT(email) DO UPDATE SET settings_json = excluded.settings_json, updated_at = excluded.updated_at");
-    $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':settings_json', $json, SQLITE3_TEXT);
+    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':settings_json', $json, PDO::PARAM_STR);
     $stmt->execute();
     json_out(['success' => true, 'settings' => $settings]);
 }
@@ -4379,25 +4383,25 @@ if ($action === 'get_folder_state') {
         
         // ВАЖНО: Проверяем, есть ли запись для пользователя
         $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row['cnt'] == 0) {
             // Создаем запись для пользователя, если её нет
             $insert = $db->prepare("
                 INSERT INTO cloud_folder_state (email, folder_json, updated_at)
-                VALUES (:e, '[]', strftime('%s','now'))
+                VALUES (:e, '[]', extract(epoch from now())::bigint)
             ");
-            $insert->bindValue(':e', $email, SQLITE3_TEXT);
+            $insert->bindValue(':e', $email, PDO::PARAM_STR);
             $insert->execute();
             json_out(['paths' => []]);
             exit;
         }
         
         $stmt = $db->prepare('SELECT folder_json FROM cloud_folder_state WHERE email = :e');
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         $paths = $row ? (json_decode($row['folder_json'], true) ?? []) : [];
         json_out(['paths' => $paths]);
     } catch (Exception $e) {
@@ -4425,28 +4429,28 @@ if ($action === 'set_folder_state') {
         ensure_file_tree_table($db);
         // Сначала убеждаемся, что запись существует
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $check->bindValue(':e', $email, SQLITE3_TEXT);
+        $check->bindValue(':e', $email, PDO::PARAM_STR);
         $result = $check->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row['cnt'] == 0) {
             // Создаем запись, если её нет
             $insert = $db->prepare("
                 INSERT INTO cloud_folder_state (email, folder_json, updated_at)
-                VALUES (:e, :j, strftime('%s','now'))
+                VALUES (:e, :j, extract(epoch from now())::bigint)
             ");
-            $insert->bindValue(':e', $email, SQLITE3_TEXT);
-            $insert->bindValue(':j', $json, SQLITE3_TEXT);
+            $insert->bindValue(':e', $email, PDO::PARAM_STR);
+            $insert->bindValue(':j', $json, PDO::PARAM_STR);
             $insert->execute();
         } else {
             // Обновляем существующую
             $update = $db->prepare("
                 UPDATE cloud_folder_state 
-                SET folder_json = :j, updated_at = strftime('%s','now')
+                SET folder_json = :j, updated_at = extract(epoch from now())::bigint
                 WHERE email = :e
             ");
-            $update->bindValue(':e', $email, SQLITE3_TEXT);
-            $update->bindValue(':j', $json, SQLITE3_TEXT);
+            $update->bindValue(':e', $email, PDO::PARAM_STR);
+            $update->bindValue(':j', $json, PDO::PARAM_STR);
             $update->execute();
         }
         
@@ -4472,8 +4476,8 @@ if ($action === 'patch_file_tree') {
         ensure_file_tree_table($db);
 
         $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
-        $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         // If cache is missing/invalid, build it once from disk,
         // then apply patch ops (add/remove/rename) without full UI refresh.
@@ -4482,8 +4486,8 @@ if ($action === 'patch_file_tree') {
             if ($user) {
                 rebuild_file_tree($email, $user);
                 $stmtReload = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
-                $stmtReload->bindValue(':e', $email, SQLITE3_TEXT);
-                $row = $stmtReload->execute()->fetchArray(SQLITE3_ASSOC);
+                $stmtReload->bindValue(':e', $email, PDO::PARAM_STR);
+                $row = $stmtReload->execute()->fetch(PDO::FETCH_ASSOC);
             }
         }
 
@@ -4529,15 +4533,15 @@ if ($action === 'patch_file_tree') {
         $json = json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $check->bindValue(':e', $email, SQLITE3_TEXT);
-        $cnt = $check->execute()->fetchArray(SQLITE3_ASSOC)['cnt'] ?? 0;
+        $check->bindValue(':e', $email, PDO::PARAM_STR);
+        $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
         if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_valid, updated_at) VALUES (:e, '[]', :j, 1, strftime('%s','now'))");
+            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_valid, updated_at) VALUES (:e, '[]', :j, 1, extract(epoch from now())::bigint)");
         } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = strftime('%s','now') WHERE email = :e");
+            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
         }
-        $s->bindValue(':e', $email, SQLITE3_TEXT);
-        $s->bindValue(':j', $json, SQLITE3_TEXT);
+        $s->bindValue(':e', $email, PDO::PARAM_STR);
+        $s->bindValue(':j', $json, PDO::PARAM_STR);
         $s->execute();
 
         json_out(['ok' => true, 'count' => count($items)]);

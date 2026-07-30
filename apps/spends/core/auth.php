@@ -7,8 +7,8 @@ function getCurrentUserFromActiveSessions() {
         if (!$sid) continue;
         try {
             $st = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :s');
-            $st->bindValue(':s', $sid, SQLITE3_TEXT);
-            $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+            $st->bindValue(':s', $sid, PDO::PARAM_STR);
+            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
             if ($r && isset($r['email'])) return $r['email'];
         } catch (Exception $e) {}
     }
@@ -26,8 +26,8 @@ function getUserRoleByEmail($email) {
     if (!$db || !$email) return 0;
     try {
         $st = $db->prepare('SELECT role FROM users WHERE email = :e');
-        $st->bindValue(':e', $email, SQLITE3_TEXT);
-        $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+        $st->bindValue(':e', $email, PDO::PARAM_STR);
+        $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
         if ($r && isset($r['role'])) return (int)$r['role'];
     } catch (Exception $e) {}
     return 0;
@@ -42,8 +42,8 @@ function isUserRoot() {
         if (!$sid) continue;
         try {
             $st = $db->prepare($sql);
-            $st->bindValue(':s', $sid, SQLITE3_TEXT);
-            $r = $st->execute()->fetchArray(SQLITE3_ASSOC);
+            $st->bindValue(':s', $sid, PDO::PARAM_STR);
+            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
             if ($r && isset($r['role'])) return $r['role'] === 2;
         } catch (Exception $e) {}
     }
@@ -51,18 +51,16 @@ function isUserRoot() {
 }
 
 define('APPS_DATA_DIR', __DIR__ . '/../users/');
+define('SPENDS_RUNTIME_DIR_MODE', 02775);
 function logError($message) { error_log("[ExpenseApp] $message"); }
 function checkDirectory($dir) {
     if (!file_exists($dir)) {
-        if (!mkdir($dir, 0755, true)) { logError("Failed to create directory $dir"); exit(json_encode(['status'=>'error','message'=>'Failed to create directory'])); }
+        if (!mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true)) { logError("Failed to create directory $dir"); exit(json_encode(['status'=>'error','message'=>'Failed to create directory'])); }
     }
+    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     if (!is_writable($dir)) { logError("Directory $dir is not writable"); exit(json_encode(['status'=>'error','message'=>'Directory is not writable'])); }
 }
 
-$utilsDir   = __DIR__ . '/../utils';
-$resultsDir = __DIR__ . '/../utils/results';
-checkDirectory($utilsDir);
-checkDirectory($resultsDir);
-if (!file_exists(APPS_DATA_DIR)) mkdir(APPS_DATA_DIR, 0755, true);
+checkDirectory(APPS_DATA_DIR);
 $backupBaseDir = __DIR__ . '/../backups';
 checkDirectory($backupBaseDir);

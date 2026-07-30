@@ -68,7 +68,9 @@ if($needsAuth){
     }
     $showLogin=false;
 }
+$newDeviceLoginNotificationDelayMs=null;
 if($path==='/main' && !$needsAuth && PHP_SESSION_ACTIVE===session_status()){
+    $newDeviceLoginNotificationDelayMs=consumeTrustedDevicePromptDelayMs();
     session_write_close();
 }
 

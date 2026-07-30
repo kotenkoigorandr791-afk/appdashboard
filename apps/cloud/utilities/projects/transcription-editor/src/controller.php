@@ -24,9 +24,9 @@ function get_transcription_editor_access_role(): int {
         require_once dirname(CLOUD_APP_ROOT, 2) . '/lib/app_db.php';
         $db = app_main_db();
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :email LIMIT 1');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result ? $result->fetchArray(SQLITE3_ASSOC) : false;
+        $row = $result ? $result->fetch(PDO::FETCH_ASSOC) : false;
         return $row && isset($row['role']) ? (int)$row['role'] : 0;
     } catch (Throwable $e) {
         return 0;

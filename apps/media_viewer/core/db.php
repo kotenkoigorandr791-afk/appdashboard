@@ -18,7 +18,7 @@ function initGalleryTables(AppDatabase $db): void {
     try {
         $db->exec('
             CREATE TABLE IF NOT EXISTS gallery_download_notification (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 session_id TEXT NOT NULL,
                 dismissed INTEGER NOT NULL DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -69,7 +69,7 @@ function getGalleryAlbums(): array {
             ORDER BY a.created_at ASC, a.id ASC
         ');
         $albums = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $albums[] = [
                 'id' => $row['id'],
                 'name' => $row['name'],
@@ -93,7 +93,7 @@ function getGalleryHiddenAlbums(): array {
     try {
         $result = $db->query('SELECT album_id FROM gallery_hidden_albums WHERE hidden = 1');
         $hidden = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $hidden[$row['album_id']] = true;
         }
         return $hidden;
@@ -114,7 +114,7 @@ function getGalleryStats(): array {
             LEFT JOIN gallery_album_stats s ON s.album_id = a.id
         ');
         $stats = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $stats[$row['album_id']] = (int) $row['views'];
         }
         return $stats;
@@ -133,12 +133,12 @@ function addGalleryAlbum(array $album): bool {
             INSERT INTO gallery_albums (id, name, url, preview, min_role, created_at)
             VALUES (:id, :name, :url, :preview, :min_role, :created_at)
         ');
-        $stmt->bindValue(':id', $album['id'], SQLITE3_TEXT);
-        $stmt->bindValue(':name', $album['name'], SQLITE3_TEXT);
-        $stmt->bindValue(':url', $album['url'], SQLITE3_TEXT);
-        $stmt->bindValue(':preview', $album['preview'] ?? '', SQLITE3_TEXT);
-        $stmt->bindValue(':min_role', (int) ($album['min_role'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':created_at', $album['created'] ?? date('Y-m-d H:i:s'), SQLITE3_TEXT);
+        $stmt->bindValue(':id', $album['id'], PDO::PARAM_STR);
+        $stmt->bindValue(':name', $album['name'], PDO::PARAM_STR);
+        $stmt->bindValue(':url', $album['url'], PDO::PARAM_STR);
+        $stmt->bindValue(':preview', $album['preview'] ?? '', PDO::PARAM_STR);
+        $stmt->bindValue(':min_role', (int) ($album['min_role'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':created_at', $album['created'] ?? date('Y-m-d H:i:s'), PDO::PARAM_STR);
         $stmt->execute();
         return true;
     } catch (Exception $e) {
@@ -153,8 +153,8 @@ function getGalleryAlbumById(string $albumId): ?array {
 
     try {
         $stmt = $db->prepare('SELECT id, name, url, preview, min_role, created_at FROM gallery_albums WHERE id = :id');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
         return [
             'id' => $row['id'],
@@ -184,12 +184,12 @@ function updateGalleryAlbum(array $album): bool {
                 created_at = :created_at
             WHERE id = :id
         ');
-        $stmt->bindValue(':id', $album['id'], SQLITE3_TEXT);
-        $stmt->bindValue(':name', $album['name'], SQLITE3_TEXT);
-        $stmt->bindValue(':url', $album['url'], SQLITE3_TEXT);
-        $stmt->bindValue(':preview', $album['preview'] ?? '', SQLITE3_TEXT);
-        $stmt->bindValue(':min_role', (int) ($album['min_role'] ?? 0), SQLITE3_INTEGER);
-        $stmt->bindValue(':created_at', $album['created'] ?? date('Y-m-d H:i:s'), SQLITE3_TEXT);
+        $stmt->bindValue(':id', $album['id'], PDO::PARAM_STR);
+        $stmt->bindValue(':name', $album['name'], PDO::PARAM_STR);
+        $stmt->bindValue(':url', $album['url'], PDO::PARAM_STR);
+        $stmt->bindValue(':preview', $album['preview'] ?? '', PDO::PARAM_STR);
+        $stmt->bindValue(':min_role', (int) ($album['min_role'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':created_at', $album['created'] ?? date('Y-m-d H:i:s'), PDO::PARAM_STR);
         $stmt->execute();
         return $db->changes() > 0;
     } catch (Exception $e) {
@@ -208,13 +208,13 @@ function deleteGalleryAlbum(string $albumId): ?array {
     try {
         $db->exec('BEGIN');
         $stmt = $db->prepare('DELETE FROM gallery_album_stats WHERE album_id = :id');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
         $stmt->execute();
         $stmt = $db->prepare('DELETE FROM gallery_hidden_albums WHERE album_id = :id');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
         $stmt->execute();
         $stmt = $db->prepare('DELETE FROM gallery_albums WHERE id = :id');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
         $stmt->execute();
         $db->exec('COMMIT');
         return $album;
@@ -231,8 +231,8 @@ function toggleGalleryAlbumHidden(string $albumId): void {
 
     try {
         $stmt = $db->prepare('SELECT album_id FROM gallery_hidden_albums WHERE album_id = :id AND hidden = 1');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if ($row) {
             $stmt = $db->prepare('DELETE FROM gallery_hidden_albums WHERE album_id = :id');
@@ -243,7 +243,7 @@ function toggleGalleryAlbumHidden(string $albumId): void {
                 ON CONFLICT(album_id) DO UPDATE SET hidden = 1, updated_at = CURRENT_TIMESTAMP
             ');
         }
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
         $stmt->execute();
     } catch (Exception $e) {
         error_log("Failed to toggle hidden gallery album: " . $e->getMessage());
@@ -260,12 +260,12 @@ function incrementGalleryAlbumViews(string $albumId): int {
             VALUES (:id, 1, CURRENT_TIMESTAMP)
             ON CONFLICT(album_id) DO UPDATE SET views = views + 1, updated_at = CURRENT_TIMESTAMP
         ');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
         $stmt->execute();
 
         $stmt = $db->prepare('SELECT views FROM gallery_album_stats WHERE album_id = :id');
-        $stmt->bindValue(':id', $albumId, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $albumId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row ? (int) $row['views'] : 0;
     } catch (Exception $e) {
         error_log("Failed to increment gallery album views: " . $e->getMessage());
@@ -291,8 +291,8 @@ function isNotificationDismissed(string $sessionId): bool {
     if (!$db || !$sessionId) return false;
     try {
         $stmt = $db->prepare('SELECT dismissed FROM gallery_download_notification WHERE session_id = :sid ORDER BY id DESC LIMIT 1');
-        $stmt->bindValue(':sid', $sessionId, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':sid', $sessionId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         return $row && (int)$row['dismissed'] === 1;
     } catch (Exception $e) {
         error_log("Failed to check notification dismissal: " . $e->getMessage());
@@ -305,7 +305,7 @@ function dismissNotification(string $sessionId): void {
     if (!$db || !$sessionId) return;
     try {
         $stmt = $db->prepare('INSERT INTO gallery_download_notification (session_id, dismissed) VALUES (:sid, 1)');
-        $stmt->bindValue(':sid', $sessionId, SQLITE3_TEXT);
+        $stmt->bindValue(':sid', $sessionId, PDO::PARAM_STR);
         $stmt->execute();
     } catch (Exception $e) {
         error_log("Failed to dismiss notification: " . $e->getMessage());

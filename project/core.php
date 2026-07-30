@@ -194,8 +194,8 @@ function ensureClientAuthTokensSchema(AppDatabase $db): void {
         device_id TEXT NOT NULL DEFAULT '',
         device_name TEXT NOT NULL DEFAULT '',
         platform TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-        last_used_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        last_used_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at INTEGER NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0
     )");
@@ -204,27 +204,27 @@ function ensureClientAuthTokensSchema(AppDatabase $db): void {
 function createClientAuthToken(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform): array {
     ensureClientAuthTokensSchema($db);
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
-    $purge->bindValue(':t', time(), SQLITE3_INTEGER);
+    $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
     if ($deviceId !== '') {
         $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND device_id = :d');
-        $del->bindValue(':e', $email, SQLITE3_TEXT);
-        $del->bindValue(':d', $deviceId, SQLITE3_TEXT);
+        $del->bindValue(':e', $email, PDO::PARAM_STR);
+        $del->bindValue(':d', $deviceId, PDO::PARAM_STR);
         $del->execute();
     }
     $rawToken = bin2hex(random_bytes(32));
     $tokenHash = hash('sha256', $rawToken);
     $now = time();
     $expiresAt = $now + (180 * 24 * 3600);
-    $stmt = $db->prepare("INSERT OR REPLACE INTO client_auth_tokens(token_hash,email,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:d,:n,:p,:c,:u,:x,0)");
-    $stmt->bindValue(':h', $tokenHash, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':d', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':n', $deviceName, SQLITE3_TEXT);
-    $stmt->bindValue(':p', $platform, SQLITE3_TEXT);
-    $stmt->bindValue(':c', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':u', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':x', $expiresAt, SQLITE3_INTEGER);
+    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:d,:n,:p,:c,:u,:x,0)");
+    $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
+    $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
+    $stmt->bindValue(':c', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':u', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);
     $stmt->execute();
     return ['token' => $rawToken, 'expires_at' => $expiresAt];
 }
@@ -240,7 +240,7 @@ function ensureClientBrowserAuthSchema(AppDatabase $db): void {
         status TEXT NOT NULL DEFAULT 'pending',
         email TEXT NOT NULL DEFAULT '',
         issued_token TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         approved_at INTEGER,
         expires_at INTEGER NOT NULL,
         claimed_at INTEGER
@@ -250,8 +250,8 @@ function ensureClientBrowserAuthSchema(AppDatabase $db): void {
 function purgeClientBrowserAuthRequests(AppDatabase $db): void {
     ensureClientBrowserAuthSchema($db);
     $stmt = $db->prepare("DELETE FROM client_auth_browser_requests WHERE expires_at < :now OR (status = 'claimed' AND claimed_at IS NOT NULL AND claimed_at < :old)");
-    $stmt->bindValue(':now', time(), SQLITE3_INTEGER);
-    $stmt->bindValue(':old', time() - 86400, SQLITE3_INTEGER);
+    $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+    $stmt->bindValue(':old', time() - 86400, PDO::PARAM_INT);
     $stmt->execute();
 }
 function normalizeClientAuthCallbackUrl(string $url): string {
@@ -274,14 +274,14 @@ function createClientBrowserAuthRequest(AppDatabase $db, string $deviceId, strin
     $browserToken = bin2hex(random_bytes(32));
     $expiresAt = time() + 900;
     $stmt = $db->prepare("INSERT INTO client_auth_browser_requests(request_id,poll_token_hash,browser_token_hash,callback_url,device_id,device_name,platform,status,expires_at) VALUES(:r,:p,:b,:c,:d,:n,:pl,'pending',:x)");
-    $stmt->bindValue(':r', $requestId, SQLITE3_TEXT);
-    $stmt->bindValue(':p', hash('sha256', $pollToken), SQLITE3_TEXT);
-    $stmt->bindValue(':b', hash('sha256', $browserToken), SQLITE3_TEXT);
-    $stmt->bindValue(':c', $callbackUrl, SQLITE3_TEXT);
-    $stmt->bindValue(':d', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':n', $deviceName, SQLITE3_TEXT);
-    $stmt->bindValue(':pl', $platform, SQLITE3_TEXT);
-    $stmt->bindValue(':x', $expiresAt, SQLITE3_INTEGER);
+    $stmt->bindValue(':r', $requestId, PDO::PARAM_STR);
+    $stmt->bindValue(':p', hash('sha256', $pollToken), PDO::PARAM_STR);
+    $stmt->bindValue(':b', hash('sha256', $browserToken), PDO::PARAM_STR);
+    $stmt->bindValue(':c', $callbackUrl, PDO::PARAM_STR);
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
+    $stmt->bindValue(':pl', $platform, PDO::PARAM_STR);
+    $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);
     $stmt->execute();
     return [
         'request_id' => $requestId,
@@ -293,8 +293,8 @@ function createClientBrowserAuthRequest(AppDatabase $db, string $deviceId, strin
 function getClientBrowserAuthRequest(AppDatabase $db, string $requestId): ?array {
     ensureClientBrowserAuthSchema($db);
     $stmt = $db->prepare("SELECT * FROM client_auth_browser_requests WHERE request_id = :r LIMIT 1");
-    $stmt->bindValue(':r', $requestId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':r', $requestId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 function clientBrowserAuthMatches(string $plain, string $hash): bool {
@@ -338,6 +338,31 @@ function loginUserSession(string $email, array $users): bool {
         ap_write_pref_cookies($users[$email]);
     }
     return true;
+}
+function scheduleTrustedDevicePromptIfNeeded(string $email): void {
+    $fp = getDeviceFingerprint();
+    $isTrusted = isTrustedDevice($email, $fp);
+    if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
+        rememberTrustedDeviceBrowserAccount($email);
+        setTrustedDeviceHintCookie($email, $fp);
+    }
+    if (!$isTrusted) {
+        $_SESSION['new_device_login'] = true;
+        $_SESSION['new_device_login_at'] = time() + random_int(30, 180);
+    } else {
+        unset($_SESSION['new_device_login'], $_SESSION['new_device_login_at']);
+    }
+}
+function consumeTrustedDevicePromptDelayMs(): ?int {
+    if (empty($_SESSION['new_device_login']) || !isset($_SESSION['user']['email'])) return null;
+    $email = (string)$_SESSION['user']['email'];
+    if (isTrustedDevice($email, getDeviceFingerprint())) {
+        unset($_SESSION['new_device_login'], $_SESSION['new_device_login_at']);
+        return null;
+    }
+    $showAt = (int)($_SESSION['new_device_login_at'] ?? 0);
+    unset($_SESSION['new_device_login'], $_SESSION['new_device_login_at']);
+    return max(0, $showAt - time()) * 1000;
 }
 
 $trustedDeviceRestoreNotice = null;
@@ -487,21 +512,21 @@ function apCreateNotification(AppDatabase $db, string $userEmail, string $appId,
     ensureNotificationsSchema($db);
     $severity = in_array($severity, ['info','success','warning','error','critical'], true) ? $severity : 'info';
     $stmt = $db->prepare("INSERT INTO app_notifications(user_email, app_id, severity, title, message, event_type, context_json, is_read, created_at) VALUES(:u,:a,:s,:t,:m,:e,:c,0,:n)");
-    $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
-    $stmt->bindValue(':s', $severity, SQLITE3_TEXT);
-    $stmt->bindValue(':t', $title, SQLITE3_TEXT);
-    $stmt->bindValue(':m', $message, SQLITE3_TEXT);
-    $stmt->bindValue(':e', $eventType, SQLITE3_TEXT);
-    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
+    $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
+    $stmt->bindValue(':s', $severity, PDO::PARAM_STR);
+    $stmt->bindValue(':t', $title, PDO::PARAM_STR);
+    $stmt->bindValue(':m', $message, PDO::PARAM_STR);
+    $stmt->bindValue(':e', $eventType, PDO::PARAM_STR);
+    $stmt->bindValue(':c', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+    $stmt->bindValue(':n', time(), PDO::PARAM_INT);
     $stmt->execute();
     if (in_array($severity, ['warning','error','critical'], true)) {
         $telegramEnabled = 1;
         if ($userEmail !== '') {
             $set = $db->prepare("SELECT telegram_enabled FROM app_notification_settings WHERE email = :u");
-            $set->bindValue(':u', $userEmail, SQLITE3_TEXT);
-            $setRow = $set->execute()->fetchArray(SQLITE3_ASSOC);
+            $set->bindValue(':u', $userEmail, PDO::PARAM_STR);
+            $setRow = $set->execute()->fetch(PDO::FETCH_ASSOC);
             $telegramEnabled = (int)($setRow['telegram_enabled'] ?? 1);
         }
         if ($telegramEnabled) {
@@ -611,8 +636,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $deviceId = trim((string)($input['device_id'] ?? ''));
         if ($token === '') json_out(['ok' => false, 'error' => 'missing_token'], 400);
         $stmt = $db->prepare("SELECT * FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 LIMIT 1");
-        $stmt->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row) json_out(['ok' => false, 'error' => 'invalid_token'], 401);
         if ((int)$row['expires_at'] < time()) json_out(['ok' => false, 'error' => 'token_expired'], 401);
         if ($deviceId !== '' && (string)$row['device_id'] !== '' && $deviceId !== (string)$row['device_id']) json_out(['ok' => false, 'error' => 'device_mismatch'], 403);
@@ -620,8 +645,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $email = (string)($row['email'] ?? '');
         if (!loginUserSession($email, $users)) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
         $upd = $db->prepare("UPDATE client_auth_tokens SET last_used_at = :u WHERE token_hash = :h");
-        $upd->bindValue(':u', time(), SQLITE3_INTEGER);
-        $upd->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
+        $upd->bindValue(':u', time(), PDO::PARAM_INT);
+        $upd->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
         $upd->execute();
         json_out(['ok' => true, 'redirect' => '/main', 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '']]);
     }
@@ -702,8 +727,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $token = (string)($row['issued_token'] ?? '');
         if ($token === '') json_out(['ok' => false, 'error' => 'token_missing'], 409);
         $upd = $db->prepare("UPDATE client_auth_browser_requests SET status = 'claimed', claimed_at = :t, issued_token = '' WHERE request_id = :r");
-        $upd->bindValue(':t', time(), SQLITE3_INTEGER);
-        $upd->bindValue(':r', $requestId, SQLITE3_TEXT);
+        $upd->bindValue(':t', time(), PDO::PARAM_INT);
+        $upd->bindValue(':r', $requestId, PDO::PARAM_STR);
         $upd->execute();
         json_out([
             'ok' => true,
@@ -731,10 +756,10 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         if (!isset($users[$email])) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
         $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), (string)($row['platform'] ?? ''));
         $upd = $db->prepare("UPDATE client_auth_browser_requests SET status = 'approved', email = :e, issued_token = :t, approved_at = :a WHERE request_id = :r");
-        $upd->bindValue(':e', $email, SQLITE3_TEXT);
-        $upd->bindValue(':t', $tokenData['token'], SQLITE3_TEXT);
-        $upd->bindValue(':a', time(), SQLITE3_INTEGER);
-        $upd->bindValue(':r', $requestId, SQLITE3_TEXT);
+        $upd->bindValue(':e', $email, PDO::PARAM_STR);
+        $upd->bindValue(':t', $tokenData['token'], PDO::PARAM_STR);
+        $upd->bindValue(':a', time(), PDO::PARAM_INT);
+        $upd->bindValue(':r', $requestId, PDO::PARAM_STR);
         $upd->execute();
         $redirectUrl = '';
         $callbackUrl = trim((string)($row['callback_url'] ?? ''));
@@ -748,7 +773,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $token = trim((string)($input['token'] ?? ''));
         if ($token !== '') {
             $stmt = $db->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h");
-            $stmt->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
+            $stmt->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
             $stmt->execute();
         }
         json_out(['ok' => true]);
@@ -859,11 +884,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
     if ($action === 'list') {
         $limit = max(1, min(100, (int)($_GET['limit'] ?? $input['limit'] ?? 30)));
         $stmt = $db->prepare("SELECT id,user_email,app_id,severity,title,message,event_type,is_read,created_at FROM app_notifications WHERE user_email = '' OR user_email = :u ORDER BY created_at DESC, id DESC LIMIT :l");
-        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':l', $userRole >= 2 ? $limit : max($limit * 20, 500), SQLITE3_INTEGER);
+        $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':l', $userRole >= 2 ? $limit : max($limit * 20, 500), PDO::PARAM_INT);
         $res = $stmt->execute();
         $items = [];
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             if (!apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) continue;
             $items[] = [
                 'id' => (int)$row['id'],
@@ -878,10 +903,10 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
             if (count($items) >= $limit) break;
         }
         $cnt = $db->prepare("SELECT id,user_email,app_id,event_type FROM app_notifications WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
-        $cnt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+        $cnt->bindValue(':u', $userEmail, PDO::PARAM_STR);
         $cntRes = $cnt->execute();
         $unread = 0;
-        while ($row = $cntRes->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $cntRes->fetch(PDO::FETCH_ASSOC)) {
             if (apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) $unread++;
         }
         json_out(['ok' => true, 'items' => $items, 'unread' => $unread]);
@@ -890,29 +915,29 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
         $id = (int)($input['id'] ?? $_POST['id'] ?? 0);
         if ($id > 0) {
             $check = $db->prepare("SELECT id,user_email,app_id,event_type FROM app_notifications WHERE id = :id AND (user_email = '' OR user_email = :u) LIMIT 1");
-            $check->bindValue(':id', $id, SQLITE3_INTEGER);
-            $check->bindValue(':u', $userEmail, SQLITE3_TEXT);
-            $row = $check->execute()->fetchArray(SQLITE3_ASSOC);
+            $check->bindValue(':id', $id, PDO::PARAM_INT);
+            $check->bindValue(':u', $userEmail, PDO::PARAM_STR);
+            $row = $check->execute()->fetch(PDO::FETCH_ASSOC);
             if (!$row || !apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) {
                 json_out(['ok' => true]);
             }
             $stmt = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE id = :id");
-            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
-            $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->bindValue(':t', time(), PDO::PARAM_INT);
             $stmt->execute();
         } else {
             $stmt = $db->prepare("SELECT id,user_email,app_id,event_type FROM app_notifications WHERE (user_email = '' OR user_email = :u) AND is_read = 0");
-            $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
             $res = $stmt->execute();
             $ids = [];
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 if (apNotificationVisibleTo($row, $userEmail, $userRole, $appAccessLevels)) $ids[] = (int)$row['id'];
             }
             if ($ids) {
                 $upd = $db->prepare("UPDATE app_notifications SET is_read = 1, read_at = :t WHERE id = :id");
                 foreach ($ids as $visibleId) {
-                    $upd->bindValue(':id', $visibleId, SQLITE3_INTEGER);
-                    $upd->bindValue(':t', time(), SQLITE3_INTEGER);
+                    $upd->bindValue(':id', $visibleId, PDO::PARAM_INT);
+                    $upd->bindValue(':t', time(), PDO::PARAM_INT);
                     $upd->execute();
                 }
             }
@@ -921,18 +946,18 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
     }
     if ($action === 'settings') {
         $stmt = $db->prepare("SELECT browser_enabled, telegram_enabled FROM app_notification_settings WHERE email = :u");
-        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         json_out(['ok' => true, 'settings' => ['browser_enabled' => (int)($row['browser_enabled'] ?? 0), 'telegram_enabled' => (int)($row['telegram_enabled'] ?? 1)]]);
     }
     if ($action === 'save_settings') {
         $browser = !empty($input['browser_enabled']) ? 1 : 0;
         $telegram = array_key_exists('telegram_enabled', $input) ? (!empty($input['telegram_enabled']) ? 1 : 0) : 1;
         $stmt = $db->prepare("INSERT INTO app_notification_settings(email,browser_enabled,telegram_enabled,updated_at) VALUES(:u,:b,:g,:t) ON CONFLICT(email) DO UPDATE SET browser_enabled = excluded.browser_enabled, telegram_enabled = excluded.telegram_enabled, updated_at = excluded.updated_at");
-        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':b', $browser, SQLITE3_INTEGER);
-        $stmt->bindValue(':g', $telegram, SQLITE3_INTEGER);
-        $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+        $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':b', $browser, PDO::PARAM_INT);
+        $stmt->bindValue(':g', $telegram, PDO::PARAM_INT);
+        $stmt->bindValue(':t', time(), PDO::PARAM_INT);
         $stmt->execute();
         json_out(['ok' => true]);
     }
@@ -941,13 +966,13 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
         $metric = trim((string)($input['metric'] ?? ''));
         if ($metric === '') json_out(['ok' => false, 'error' => 'missing_metric'], 400);
         $stmt = $db->prepare("INSERT INTO app_metrics(app_id, metric, value, unit, user_email, context_json, created_at) VALUES(:a,:m,:v,:unit,:u,:c,:t)");
-        $stmt->bindValue(':a', $appId, SQLITE3_TEXT);
-        $stmt->bindValue(':m', $metric, SQLITE3_TEXT);
-        $stmt->bindValue(':v', (float)($input['value'] ?? 0), SQLITE3_FLOAT);
-        $stmt->bindValue(':unit', trim((string)($input['unit'] ?? '')), SQLITE3_TEXT);
-        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':c', json_encode(is_array($input['context'] ?? null) ? $input['context'] : [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), SQLITE3_TEXT);
-        $stmt->bindValue(':t', time(), SQLITE3_INTEGER);
+        $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
+        $stmt->bindValue(':m', $metric, PDO::PARAM_STR);
+        $stmt->bindValue(':v', (float)($input['value'] ?? 0), PDO::PARAM_STR);
+        $stmt->bindValue(':unit', trim((string)($input['unit'] ?? '')), PDO::PARAM_STR);
+        $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':c', json_encode(is_array($input['context'] ?? null) ? $input['context'] : [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+        $stmt->bindValue(':t', time(), PDO::PARAM_INT);
         $stmt->execute();
         json_out(['ok' => true]);
     }
@@ -984,14 +1009,14 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     if ($action === 'get_unread_count') {
         if ($isAdmin) {
             $stmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE is_read = 0 AND sender_email != :me');
-            $stmt->bindValue(':me', $userEmail, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':me', $userEmail, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             json_out(['ok' => true, 'count' => (int)($row['c'] ?? 0)]);
         }
         $stmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE user_email = :u AND is_read = 0 AND sender_email != :u2');
-        $stmt->bindValue(':u', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':u2', $userEmail, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':u2', $userEmail, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         json_out(['ok' => true, 'count' => (int)($row['c'] ?? 0)]);
     }
 
@@ -1019,10 +1044,10 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if ((int)($_GET['full'] ?? 0) === 1) {
             $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
                 FROM support_chat WHERE user_email = :email ORDER BY created_at ASC LIMIT 500');
-            $stmt->bindValue(':email', $chatUserEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
             $result = $stmt->execute();
             $messages = [];
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $messages[] = $mapRow($row);
             }
             json_out(['ok' => true, 'messages' => $messages, 'mode' => 'full', 'has_more_older' => false, 'min_id' => null, 'max_id' => null]);
@@ -1032,11 +1057,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if ($sinceId > 0) {
             $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
                 FROM support_chat WHERE user_email = :email AND id > :sid ORDER BY created_at ASC LIMIT 100');
-            $stmt->bindValue(':email', $chatUserEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':sid', $sinceId, SQLITE3_INTEGER);
+            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':sid', $sinceId, PDO::PARAM_INT);
             $result = $stmt->execute();
             $messages = [];
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $messages[] = $mapRow($row);
             }
             json_out(['ok' => true, 'messages' => $messages, 'mode' => 'delta']);
@@ -1048,12 +1073,12 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if ($beforeId > 0) {
             $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
                 FROM support_chat WHERE user_email = :email AND id < :bid ORDER BY created_at DESC LIMIT :lim');
-            $stmt->bindValue(':email', $chatUserEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':bid', $beforeId, SQLITE3_INTEGER);
-            $stmt->bindValue(':lim', $chunk, SQLITE3_INTEGER);
+            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':bid', $beforeId, PDO::PARAM_INT);
+            $stmt->bindValue(':lim', $chunk, PDO::PARAM_INT);
             $result = $stmt->execute();
             $rows = [];
-            while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $rows[] = $mapRow($row);
             }
             $messages = array_reverse($rows);
@@ -1064,9 +1089,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             $hasMore = false;
             if ($minId !== null) {
                 $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE user_email = :e AND id < :mid');
-                $cstmt->bindValue(':e', $chatUserEmail, SQLITE3_TEXT);
-                $cstmt->bindValue(':mid', $minId, SQLITE3_INTEGER);
-                $crow = $cstmt->execute()->fetchArray(SQLITE3_ASSOC);
+                $cstmt->bindValue(':e', $chatUserEmail, PDO::PARAM_STR);
+                $cstmt->bindValue(':mid', $minId, PDO::PARAM_INT);
+                $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
                 $hasMore = $crow && (int)$crow['c'] > 0;
             }
             json_out(['ok' => true, 'messages' => $messages, 'mode' => 'older', 'has_more_older' => $hasMore, 'min_id' => $minId]);
@@ -1074,11 +1099,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
             FROM support_chat WHERE user_email = :email ORDER BY created_at DESC LIMIT :lim');
-        $stmt->bindValue(':email', $chatUserEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':lim', $chunk, SQLITE3_INTEGER);
+        $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':lim', $chunk, PDO::PARAM_INT);
         $result = $stmt->execute();
         $rows = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $rows[] = $mapRow($row);
         }
         $messages = array_reverse($rows);
@@ -1091,9 +1116,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         $hasMore = false;
         if ($minId !== null) {
             $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE user_email = :e AND id < :mid');
-            $cstmt->bindValue(':e', $chatUserEmail, SQLITE3_TEXT);
-            $cstmt->bindValue(':mid', $minId, SQLITE3_INTEGER);
-            $crow = $cstmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $cstmt->bindValue(':e', $chatUserEmail, PDO::PARAM_STR);
+            $cstmt->bindValue(':mid', $minId, PDO::PARAM_INT);
+            $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
             $hasMore = $crow && (int)$crow['c'] > 0;
         }
         json_out(['ok' => true, 'messages' => $messages, 'mode' => 'initial', 'has_more_older' => $hasMore, 'min_id' => $minId, 'max_id' => $maxId]);
@@ -1119,20 +1144,20 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         $stmt = $db->prepare("INSERT INTO support_chat (user_email, sender_email, message, media_path, media_type, created_at)
                               VALUES (:user_email, :sender_email, :message, :media_path, :media_type, :created_at)");
-        $stmt->bindValue(':user_email', $chatUserEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':sender_email', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':message', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':media_path', $mediaPath, $mediaPath ? SQLITE3_TEXT : SQLITE3_NULL);
-        $stmt->bindValue(':media_type', $mediaType, $mediaType ? SQLITE3_TEXT : SQLITE3_NULL);
-        $stmt->bindValue(':created_at', time(), SQLITE3_INTEGER);
+        $stmt->bindValue(':user_email', $chatUserEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':sender_email', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':message', $message, PDO::PARAM_STR);
+        $stmt->bindValue(':media_path', $mediaPath, $mediaPath ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':media_type', $mediaType, $mediaType ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':created_at', time(), PDO::PARAM_INT);
         $stmt->execute();
 
         $messageId = $db->lastInsertRowID();
 
         if (!$isAdmin) {
             $checkStmt = $db->prepare('SELECT COUNT(*) AS cnt FROM support_chat WHERE user_email = :email AND sender_email = :email');
-            $checkStmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
-            $checkResult = $checkStmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $checkStmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
+            $checkResult = $checkStmt->execute()->fetch(PDO::FETCH_ASSOC);
 
             if ($checkResult && (int)$checkResult['cnt'] <= 1) {
                 $preview = trim($message);
@@ -1165,8 +1190,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         // Check if user has permission to delete
         $stmt = $db->prepare("SELECT sender_email FROM support_chat WHERE id = :id LIMIT 1");
-        $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) json_out(['ok' => false, 'error' => 'message_not_found'], 404);
         if (!$isAdmin && $row['sender_email'] !== $userEmail) {
@@ -1175,7 +1200,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         // Mark as deleted
         $stmt = $db->prepare("UPDATE support_chat SET is_deleted = 1 WHERE id = :id");
-        $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
+        $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
         $stmt->execute();
 
         json_out(['ok' => true]);
@@ -1190,8 +1215,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         // Check if user has permission to edit
         $stmt = $db->prepare('SELECT sender_email, media_path, media_type FROM support_chat WHERE id = :id LIMIT 1');
-        $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) json_out(['ok' => false, 'error' => 'message_not_found'], 404);
         if ($row['sender_email'] !== $userEmail) {
@@ -1225,11 +1250,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         // Update message
         $stmt = $db->prepare('UPDATE support_chat SET message = :msg, is_edited = 1, edited_at = :edited, media_path = :mp, media_type = :mt WHERE id = :id');
-        $stmt->bindValue(':msg', $newMessage, SQLITE3_TEXT);
-        $stmt->bindValue(':edited', time(), SQLITE3_INTEGER);
-        $stmt->bindValue(':mp', $mediaPath, $mediaPath ? SQLITE3_TEXT : SQLITE3_NULL);
-        $stmt->bindValue(':mt', $bindType, $bindType ? SQLITE3_TEXT : SQLITE3_NULL);
-        $stmt->bindValue(':id', $messageId, SQLITE3_INTEGER);
+        $stmt->bindValue(':msg', $newMessage, PDO::PARAM_STR);
+        $stmt->bindValue(':edited', time(), PDO::PARAM_INT);
+        $stmt->bindValue(':mp', $mediaPath, $mediaPath ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':mt', $bindType, $bindType ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
         $stmt->execute();
 
         json_out(['ok' => true]);
@@ -1245,8 +1270,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
                               WHERE user_email = :user_email
                               AND sender_email != :current_user
                               AND is_read = 0");
-        $stmt->bindValue(':user_email', $chatUserEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':current_user', $userEmail, SQLITE3_TEXT);
+        $stmt->bindValue(':user_email', $chatUserEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':current_user', $userEmail, PDO::PARAM_STR);
         $stmt->execute();
 
         json_out(['ok' => true]);
@@ -1270,10 +1295,10 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         // Check if user has access to this file (file must be in a message they can see)
         $fileName = basename($filePath);
         $stmt = $db->prepare('SELECT COUNT(*) as cnt FROM support_chat WHERE media_path = :path AND (user_email = :email OR sender_email = :email2)');
-        $stmt->bindValue(':path', $filePath, SQLITE3_TEXT);
-        $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
-        $stmt->bindValue(':email2', $userEmail, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':path', $filePath, PDO::PARAM_STR);
+        $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':email2', $userEmail, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if (!$isAdmin && (!$row || (int)$row['cnt'] === 0)) {
             json_out(['ok' => false, 'error' => 'access_denied'], 403);
@@ -1302,7 +1327,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if (!$stmt) json_out(['ok' => false, 'error' => 'db_query_failed'], 500);
 
         $chats = [];
-        while ($row = $stmt->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $chats[] = [
                 'user_email' => $row['user_email'],
                 'user_name' => (string)($row['user_name'] ?? ''),
@@ -1325,7 +1350,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         // Delete all messages for this user
         $stmt = $db->prepare("DELETE FROM support_chat WHERE user_email = :email");
-        $stmt->bindValue(':email', $chatUserEmail, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
         $stmt->execute();
 
         json_out(['ok' => true]);
@@ -1339,8 +1364,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if ($email === '') json_out(['ok' => false, 'error' => 'missing_email'], 400);
 
         $stmt = $db->prepare("SELECT role FROM users WHERE email = :email LIMIT 1");
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if ($row) {
             $role = (int)$row['role'];
@@ -1363,11 +1388,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             };
             $term = '%' . $esc($q) . '%';
             $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE role < 2 AND (email LIKE :t ESCAPE '\\' OR COALESCE(name, '') LIKE :t ESCAPE '\\') ORDER BY lower(email) LIMIT 40");
-            $stmt->bindValue(':t', $term, SQLITE3_TEXT);
+            $stmt->bindValue(':t', $term, PDO::PARAM_STR);
             $result = $stmt->execute();
         }
         $users = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $users[] = [
                 'email' => $row['email'],
                 'name' => $row['name'] ?? '',
@@ -2079,6 +2104,7 @@ function completeEmailVerification(string $email): bool {
     $_SESSION['auth_time'] = time();
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    scheduleTrustedDevicePromptIfNeeded($email);
     notifyTelegramEmailVerified($email, $name);
     return true;
 }
@@ -2118,7 +2144,7 @@ function loadAuthorizedChats(){
         ensureTelegramBotSchema($db);
         $res = $db->query("SELECT chat_id FROM tg_bot_sessions");
         $ids = [];
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $id = trim((string)($row['chat_id'] ?? ''));
             if ($id !== '') $ids[] = $id;
         }
@@ -2134,7 +2160,7 @@ function loadAuthorizedTelegramSessions(): array {
         ensureTelegramBotSchema($db);
         $res = $db->query("SELECT s.chat_id,s.email,s.authorized_at,s.telegram_user_id,u.name,u.role FROM tg_bot_sessions s LEFT JOIN users u ON u.email=s.email ORDER BY s.authorized_at DESC");
         $rows = [];
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $rows[] = $row;
         }
         return $rows;
@@ -2148,7 +2174,7 @@ function loadAuthorizedAdminChats(): array {
         ensureTelegramBotSchema($db);
         $res = $db->query("SELECT s.chat_id FROM tg_bot_sessions s INNER JOIN users u ON u.email=s.email WHERE u.role >= 2");
         $ids = [];
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $id = trim((string)($row['chat_id'] ?? ''));
             if ($id !== '') $ids[] = $id;
         }
@@ -2161,16 +2187,16 @@ function createTelegramLinkToken(string $email, string $createdBy): string {
     $db = getDB();
     ensureTelegramBotSchema($db);
     $purge = $db->prepare("DELETE FROM tg_bot_link_tokens WHERE expires_at < :n OR email = :e");
-    $purge->bindValue(':n', time(), SQLITE3_INTEGER);
-    $purge->bindValue(':e', $email, SQLITE3_TEXT);
+    $purge->bindValue(':n', time(), PDO::PARAM_INT);
+    $purge->bindValue(':e', $email, PDO::PARAM_STR);
     $purge->execute();
     $token = strtoupper(bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4)));
     $stmt = $db->prepare("INSERT INTO tg_bot_link_tokens(token_hash,email,created_by,created_at,expires_at) VALUES(:h,:e,:c,:n,:x)");
-    $stmt->bindValue(':h', hash('sha256', $token), SQLITE3_TEXT);
-    $stmt->bindValue(':e', $email, SQLITE3_TEXT);
-    $stmt->bindValue(':c', $createdBy, SQLITE3_TEXT);
-    $stmt->bindValue(':n', time(), SQLITE3_INTEGER);
-    $stmt->bindValue(':x', time() + 900, SQLITE3_INTEGER);
+    $stmt->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':c', $createdBy, PDO::PARAM_STR);
+    $stmt->bindValue(':n', time(), PDO::PARAM_INT);
+    $stmt->bindValue(':x', time() + 900, PDO::PARAM_INT);
     $stmt->execute();
     return $token;
 }
@@ -2693,9 +2719,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         return $photo;
     }
     function newsTableColumns(AppDatabase $db, string $table): array {
-        $res = $db->query("PRAGMA table_info($table)");
+        $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . str_replace("'", "''", $table) . "'");
         $cols = [];
-        while ($res && ($row = $res->fetchArray(SQLITE3_ASSOC))) {
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
             if (isset($row['name'])) $cols[] = (string)$row['name'];
         }
         return $cols;
@@ -2734,14 +2760,14 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         foreach ($items as $item) {
             if (!is_array($item) || trim((string)($item['title'] ?? '')) === '') continue;
             $stmt = $db->prepare("INSERT INTO app_news (id, title, body, photo, published, created_at, updated_at, author) VALUES (:id, :title, :body, :photo, :published, :created_at, :updated_at, :author)");
-            $stmt->bindValue(':id', trim((string)($item['id'] ?? '')) ?: bin2hex(random_bytes(8)), SQLITE3_TEXT);
-            $stmt->bindValue(':title', trim((string)$item['title']), SQLITE3_TEXT);
-            $stmt->bindValue(':body', (string)($item['body'] ?? ''), SQLITE3_TEXT);
-            $stmt->bindValue(':photo', trim((string)($item['photo'] ?? '')), SQLITE3_TEXT);
-            $stmt->bindValue(':published', !empty($item['published']) ? 1 : 0, SQLITE3_INTEGER);
-            $stmt->bindValue(':created_at', (int)($item['created_at'] ?? time()), SQLITE3_INTEGER);
-            $stmt->bindValue(':updated_at', isset($item['updated_at']) ? (int)$item['updated_at'] : null, isset($item['updated_at']) ? SQLITE3_INTEGER : SQLITE3_NULL);
-            $stmt->bindValue(':author', (string)($item['author'] ?? ''), SQLITE3_TEXT);
+            $stmt->bindValue(':id', trim((string)($item['id'] ?? '')) ?: bin2hex(random_bytes(8)), PDO::PARAM_STR);
+            $stmt->bindValue(':title', trim((string)$item['title']), PDO::PARAM_STR);
+            $stmt->bindValue(':body', (string)($item['body'] ?? ''), PDO::PARAM_STR);
+            $stmt->bindValue(':photo', trim((string)($item['photo'] ?? '')), PDO::PARAM_STR);
+            $stmt->bindValue(':published', !empty($item['published']) ? 1 : 0, PDO::PARAM_INT);
+            $stmt->bindValue(':created_at', (int)($item['created_at'] ?? time()), PDO::PARAM_INT);
+            $stmt->bindValue(':updated_at', isset($item['updated_at']) ? (int)$item['updated_at'] : null, isset($item['updated_at']) ? PDO::PARAM_INT : PDO::PARAM_NULL);
+            $stmt->bindValue(':author', (string)($item['author'] ?? ''), PDO::PARAM_STR);
             $stmt->execute();
         }
     }
@@ -2751,7 +2777,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         $sql .= " ORDER BY created_at DESC";
         $res = $db->query($sql);
         $items = [];
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $row['published'] = newsBool($row['published'] ?? 0);
             $row['created_at'] = (int)($row['created_at'] ?? 0);
             $row['updated_at'] = isset($row['updated_at']) ? (int)$row['updated_at'] : null;
@@ -2760,12 +2786,32 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         }
         return $items;
     }
+    function newsValidateWritingToken(string $token): bool {
+        $token = trim($token);
+        if ($token === '') return false;
+        $tokenFile = APP_ROOT . '/data/news_writing_token.json';
+        if (!is_file($tokenFile)) return false;
+        $tokenData = json_decode((string)file_get_contents($tokenFile), true) ?: [];
+        $storedToken = (string)($tokenData['token'] ?? '');
+        if ($storedToken === '' || !hash_equals($storedToken, $token)) return false;
+        $now = time();
+        $createdAt = (int)($tokenData['created_at'] ?? 0);
+        $lastUsedAt = (int)($tokenData['last_used_at'] ?? 0);
+        if (($now - $createdAt) >= 3600 && ($now - $lastUsedAt) >= 300) return false;
+        $tokenData['last_used_at'] = $now;
+        file_put_contents($tokenFile, json_encode($tokenData, JSON_PRETTY_PRINT), LOCK_EX);
+        return true;
+    }
     newsEnsureDb($db, $newsFile);
 
     // Support action from query string, POST, or JSON body
 $rawInput = (string)file_get_contents('php://input');
 $jsonInput = $rawInput !== '' ? json_decode($rawInput, true) : null;
 $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) ? ($jsonInput['action'] ?? '') : ''));
+    $authHeader = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    $bearerToken = preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m) ? trim($m[1]) : '';
+    $apiToken = $bearerToken ?: trim((string)($_SERVER['HTTP_X_API_TOKEN'] ?? (is_array($jsonInput) ? ($jsonInput['api_token'] ?? $jsonInput['token'] ?? '') : '')));
+    $newsTokenAuth = newsValidateWritingToken($apiToken);
     header('Content-Type: application/json; charset=utf-8');
 
     if ($action === 'list') {
@@ -2795,9 +2841,10 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
     }
 
     if ($action === 'ai_generate') {
-        if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        apSecRequireSameOrigin();
-        $input = json_decode((string)file_get_contents('php://input'), true);
+        $input = is_array($jsonInput) ? $jsonInput : json_decode((string)file_get_contents('php://input'), true);
+        if (!is_array($input)) $input = [];
+        if (!$canEdit && !$newsTokenAuth) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
+        if (!$newsTokenAuth) apSecRequireSameOrigin();
         $prompt = trim((string)($input['prompt'] ?? ''));
         if ($prompt === '') { echo json_encode(['ok' => false, 'error' => 'prompt_required']); exit; }
         try {
@@ -2879,9 +2926,9 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
     }
 
     if ($action === 'save') {
-        if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        apSecRequireSameOrigin();
-        $input = json_decode((string)file_get_contents('php://input'), true);
+        if (!$canEdit && !$newsTokenAuth) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
+        if (!$newsTokenAuth) apSecRequireSameOrigin();
+        $input = is_array($jsonInput) ? $jsonInput : json_decode((string)file_get_contents('php://input'), true);
         if (!is_array($input)) $input = $_POST;
         $id = trim((string)($input['id'] ?? ''));
         $title = trim((string)($input['title'] ?? ''));
@@ -2893,22 +2940,22 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         if ($id === '') {
             $id = bin2hex(random_bytes(8));
             $stmt = $db->prepare("INSERT INTO app_news (id, title, body, photo, published, created_at, author) VALUES (:id, :title, :body, :photo, :published, :created_at, :author)");
-            $stmt->bindValue(':id', $id, SQLITE3_TEXT);
-            $stmt->bindValue(':title', $title, SQLITE3_TEXT);
-            $stmt->bindValue(':body', $body, SQLITE3_TEXT);
-            $stmt->bindValue(':photo', $photo, SQLITE3_TEXT);
-            $stmt->bindValue(':published', $published ? 1 : 0, SQLITE3_INTEGER);
-            $stmt->bindValue(':created_at', $now, SQLITE3_INTEGER);
-            $stmt->bindValue(':author', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $id, PDO::PARAM_STR);
+            $stmt->bindValue(':title', $title, PDO::PARAM_STR);
+            $stmt->bindValue(':body', $body, PDO::PARAM_STR);
+            $stmt->bindValue(':photo', $photo, PDO::PARAM_STR);
+            $stmt->bindValue(':published', $published ? 1 : 0, PDO::PARAM_INT);
+            $stmt->bindValue(':created_at', $now, PDO::PARAM_INT);
+            $stmt->bindValue(':author', $userEmail !== '' ? $userEmail : 'external-ai', PDO::PARAM_STR);
             $stmt->execute();
         } else {
             $stmt = $db->prepare("UPDATE app_news SET title = :title, body = :body, photo = :photo, published = :published, updated_at = :updated_at WHERE id = :id");
-            $stmt->bindValue(':id', $id, SQLITE3_TEXT);
-            $stmt->bindValue(':title', $title, SQLITE3_TEXT);
-            $stmt->bindValue(':body', $body, SQLITE3_TEXT);
-            $stmt->bindValue(':photo', $photo, SQLITE3_TEXT);
-            $stmt->bindValue(':published', $published ? 1 : 0, SQLITE3_INTEGER);
-            $stmt->bindValue(':updated_at', $now, SQLITE3_INTEGER);
+            $stmt->bindValue(':id', $id, PDO::PARAM_STR);
+            $stmt->bindValue(':title', $title, PDO::PARAM_STR);
+            $stmt->bindValue(':body', $body, PDO::PARAM_STR);
+            $stmt->bindValue(':photo', $photo, PDO::PARAM_STR);
+            $stmt->bindValue(':published', $published ? 1 : 0, PDO::PARAM_INT);
+            $stmt->bindValue(':updated_at', $now, PDO::PARAM_INT);
             $stmt->execute();
         }
         echo json_encode(['ok' => true, 'id' => $id]);
@@ -2921,7 +2968,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         $input = json_decode((string)file_get_contents('php://input'), true);
         $id = trim((string)($input['id'] ?? ''));
         $stmt = $db->prepare("DELETE FROM app_news WHERE id = :id");
-        $stmt->bindValue(':id', $id, SQLITE3_TEXT);
+        $stmt->bindValue(':id', $id, PDO::PARAM_STR);
         $stmt->execute();
         echo json_encode(['ok' => true]);
         exit;
@@ -2998,7 +3045,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
             $scheme = 'https';
         }
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $apiUrl = $scheme . '://' . $host . '/main?api=news&action=ai_generate';
+        $apiUrl = $scheme . '://' . $host . '/main?api=news&action=save';
         
         $tokenExpiresIn = max(0, 3600 - ($now - $createdAt));
         $graceExpiresIn = max(0, 300 - ($now - $lastUsedAt));
@@ -3052,10 +3099,31 @@ git show <commit-hash> --stat
 ```
 Focus on user-facing changes only. Ignore internal refactoring, dependency updates, or configuration changes that don't affect the user experience.
 
-## Output Format
-Respond with valid JSON only:
+## Publish the Article
+After you write the article, publish it by sending the finished title and Markdown body to the API.
+
+Use this curl request shape:
+```bash
+curl -sS -X POST '{$apiUrl}' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer {$token}' \
+  --data-binary @- <<'JSON'
+{
+  "title": "Your News Title Here",
+  "body": "Your markdown article body here...",
+  "published": true
+}
+JSON
+```
+
+The request body must be valid JSON:
 ```json
-{"title": "Your News Title Here", "body": "Your markdown article body here..."}
+{"title": "Your News Title Here", "body": "Your markdown article body here...", "published": true}
+```
+
+The API response is JSON. A successful response looks like:
+```json
+{"ok": true, "id": "article_id"}
 ```
 
 ## API Access

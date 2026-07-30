@@ -32,6 +32,7 @@ async function loadAiModels() {
             });
         });
     } catch (error) {
+        if (error && error.name === 'AbortError') return;
         console.error('Failed to load AI models:', error);
     }
 }
@@ -204,7 +205,11 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 #npo-body{display:flex;flex:1;min-height:0;overflow:hidden;}
 /* Sidebar – news list */
 #npo-sidebar{width:320px;flex-shrink:0;border-right:1px solid var(--border-color);display:flex;flex-direction:column;overflow:hidden;background:color-mix(in srgb,var(--modal-bg) 88%,var(--primary-color) 12%);}
-#npo-sidebar-header{padding:14px 16px 10px;border-bottom:1px solid var(--border-color);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.55;}
+#npo-sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;}
+#npo-sidebar-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.55;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#npo-refresh-list-btn{width:30px;height:30px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,border-color .15s,transform .15s;}
+#npo-refresh-list-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
+#npo-refresh-list-btn.loading{transform:rotate(90deg);opacity:.65;}
 #npo-list{flex:1;overflow-y:auto;padding:10px 12px;}
 .npo-list-item{display:flex;gap:10px;padding:10px 8px;border-radius:10px;cursor:pointer;transition:background .15s,border-color .15s;align-items:flex-start;margin-bottom:6px;border:1px solid color-mix(in srgb,var(--border-color) 72%,transparent);}
 .npo-list-item:nth-child(3n+1){background:color-mix(in srgb,var(--group-block-bg) 82%,var(--primary-color) 18%);}
@@ -357,7 +362,12 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
   </div>
   <div id="npo-body">
     <div id="npo-sidebar">
-      <div id="npo-sidebar-header"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'Articles'); ?></div>
+      <div id="npo-sidebar-header">
+        <div id="npo-sidebar-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'Articles'); ?></div>
+        <button id="npo-refresh-list-btn" type="button" title="<?php echo my_htmlspecialchars($translations['refresh'] ?? 'Refresh'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['refresh'] ?? 'Refresh'); ?>">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+        </button>
+      </div>
       <div id="npo-list"></div>
     </div>
     <div id="npo-main">
@@ -571,11 +581,13 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
   const settingsBtn = document.getElementById('npo-settings-btn');
   const settingsPopover = document.getElementById('npo-settings-popover');
   const systemPromptEl = document.getElementById('npo-system-prompt');
+  const refreshListBtn = document.getElementById('npo-refresh-list-btn');
 
   let newsItems = [];
   let newsLayout = {};
   let selectedId = null;
   let uploadingPhoto = false;
+  let refreshTimer = null;
   if (systemPromptEl) {
     const savedPrompt = localStorage.getItem('news_ai_system_prompt');
     if (savedPrompt) systemPromptEl.value = savedPrompt;
@@ -588,14 +600,27 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
       overlay.classList.add('active');
       if (window.location.hash !== '#news-workflow') history.pushState(null, '', '#news-workflow');
       loadNews();
+      startAutoRefresh();
     }
   }
   function closeNewsPortal() {
     overlay.classList.remove('active');
+    stopAutoRefresh();
     if (window.location.hash === '#news-workflow') history.pushState(null, '', window.location.pathname + window.location.search);
+  }
+  function startAutoRefresh() {
+    stopAutoRefresh();
+    refreshTimer = setInterval(() => {
+      if (overlay.classList.contains('active')) loadNews();
+    }, 20000);
+  }
+  function stopAutoRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = null;
   }
 
   document.getElementById('npo-back').addEventListener('click', closeNewsPortal);
+  refreshListBtn?.addEventListener('click', () => loadNews());
   settingsBtn?.addEventListener('click', e => {
     e.stopPropagation();
     settingsPopover?.classList.toggle('open');
@@ -622,6 +647,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
 
   // ── Load news ──────────────────────────────────────────────────────────────
   function loadNews() {
+    refreshListBtn?.classList.add('loading');
     fetch('/main?api=news&action=list')
       .then(r => r.json())
       .then(data => {
@@ -633,7 +659,8 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
           const item = newsItems.find(n => n.id === selectedId);
           if (item) openEditor(item); else closeEditor();
         }
-      });
+      })
+      .finally(() => refreshListBtn?.classList.remove('loading'));
   }
 
   function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -1208,11 +1235,34 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
   (function() {
     const monacoContainer = document.getElementById('npo-body-monaco');
     if (!monacoContainer) return;
-    const monacoScript = document.createElement('script');
-    monacoScript.src = '/project/assets/monaco-0.45.0/vs/loader.js';
-    monacoScript.onload = () => {
-      require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
-      require(['vs/editor/editor.main'], () => {
+    const loadMonaco = window.apLoadMonaco || function(){
+      if (window.monaco) return Promise.resolve(window.monaco);
+      if (window.__apMonacoPromise) return window.__apMonacoPromise;
+      window.__apMonacoPromise = new Promise((resolve, reject) => {
+        const loadEditor = () => {
+          try {
+            require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
+            require(['vs/editor/editor.main'], () => resolve(window.monaco), reject);
+          } catch (e) {
+            reject(e);
+          }
+        };
+        if (typeof require === 'function') {
+          loadEditor();
+          return;
+        }
+        const existing = document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
+        const script = existing || document.createElement('script');
+        script.addEventListener('load', loadEditor, { once: true });
+        script.addEventListener('error', reject, { once: true });
+        if (!existing) {
+          script.src = '/project/assets/monaco-0.45.0/vs/loader.js';
+          document.head.appendChild(script);
+        }
+      });
+      return window.__apMonacoPromise;
+    };
+    loadMonaco().then(() => {
         const isDark = !document.body.classList.contains('theme-light');
         bodyMonaco = monaco.editor.create(monacoContainer, {
           value: bodyTextarea ? bodyTextarea.value : '',
@@ -1245,9 +1295,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
           monaco.editor.setTheme(dark ? 'vs-dark' : 'vs');
         });
         observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-      });
-    };
-    document.body.appendChild(monacoScript);
+    }).catch(error => console.error('Failed to load Monaco:', error));
   })();
 
   window.openNewsPortal = openNewsPortal;

@@ -114,9 +114,9 @@ function cloud_onlyoffice_user_photo_raw(?string $email): string {
     try {
         $db = getDB();
         $stmt = $db->prepare('SELECT photo FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['photo'])) return (string)$row['photo'];
     } catch (Throwable $e) {
     }

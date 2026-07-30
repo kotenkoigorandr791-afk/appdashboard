@@ -5,7 +5,7 @@
         <div class="toolbar-edge toolbar-edge--left">
         <button onclick="toggleLeftPanel()" data-key="settings_btn"><i class="fas fa-bars"></i></button>
         </div>
-        <div class="toolbar-tools">
+        <div class="toolbar-tools" role="toolbar">
         <button id="tool-point" onclick="setTool('point')" data-key="point"><i class="fas fa-circle-dot"></i> <span>Point</span></button>
         <button id="tool-line" onclick="setTool('line')" data-key="line"><i class="fas fa-slash"></i> <span>Line</span></button>
         <button id="tool-circle" onclick="setTool('circle')" data-key="circle"><i class="fas fa-circle"></i> <span>Circle</span></button>
@@ -319,4 +319,3 @@
             </ul>
         </div>
     </div>
-

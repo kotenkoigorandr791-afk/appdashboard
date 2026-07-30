@@ -97,7 +97,7 @@ function recipes_ai_search_products_all_ranked($db, string $query, int $limit = 
     $rows = [];
     try {
         $res = $db->query("SELECT id, name_en, name_uk, name_ru, name_be, category, image, image_preview FROM " . RECIPES_DB_TABLE_PREFIX . "products");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $names = [
                 'en' => (string)$row['name_en'],
                 'uk' => (string)$row['name_uk'],

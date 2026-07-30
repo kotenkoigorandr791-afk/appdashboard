@@ -432,8 +432,8 @@ final class BankStatementImport
             $chk = $udb->prepare('SELECT 1 FROM expenses WHERE date=:d AND store=:s AND ABS(ROUND(amount,2)-:a)<0.02 LIMIT 1');
             $chk->bindValue(':d', $t['date']);
             $chk->bindValue(':s', $st);
-            $chk->bindValue(':a', $t['amount'], SQLITE3_FLOAT);
-            if ($chk->execute()->fetchArray()) {
+            $chk->bindValue(':a', $t['amount'], PDO::PARAM_STR);
+            if ($chk->execute()->fetch()) {
                 $t['duplicate'] = true;
                 $dup++;
             }
@@ -447,7 +447,7 @@ final class BankStatementImport
         $st->bindValue(':d', $date);
         $r = $st->execute();
         $list = [];
-        while ($row = $r->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $r->fetch(PDO::FETCH_ASSOC)) {
             $list[] = self::normalizeStoreKey((string) $row['store']) . '|' . number_format((float) $row['a'], 2, '.', '');
         }
         sort($list);
@@ -483,7 +483,7 @@ final class BankStatementImport
         $tx = $built['transactions'];
         $byDateDb = [];
         $stAll = $udb->query("SELECT DISTINCT date FROM expenses WHERE ABS(amount)>0.0001");
-        while ($row = $stAll->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $stAll->fetch(PDO::FETCH_ASSOC)) {
             $byDateDb[(string) $row['date']] = true;
         }
         $dup = self::markDuplicates($udb, $tx);
@@ -553,15 +553,15 @@ final class BankStatementImport
         }
         $chk = $udb->prepare('SELECT id FROM stores WHERE name=:n LIMIT 1');
         $chk->bindValue(':n', $name);
-        if ($chk->execute()->fetchArray()) {
+        if ($chk->execute()->fetch()) {
             return;
         }
-        $maxOrd = (int) $udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetchArray(SQLITE3_NUM)[0];
+        $maxOrd = (int) $udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
         $id = 's_' . bin2hex(random_bytes(8));
-        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o)');
+        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO NOTHING');
         $st->bindValue(':id', $id);
         $st->bindValue(':n', $name);
-        $st->bindValue(':o', $maxOrd, SQLITE3_INTEGER);
+        $st->bindValue(':o', $maxOrd, PDO::PARAM_INT);
         $st->execute();
     }
     public static function apply(AppDatabase $udb, array $tx, array $excludeGroupKeys, array $storeMap, string $conflictMode, array $conflictDates): array
@@ -625,16 +625,16 @@ final class BankStatementImport
                     }
                     self::ensureStore($udb, $store);
                     if (isset($replaceDays[$d])) {
-                        $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL)");
+                        $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO NOTHING");
                         $ins->bindValue(':d', $d);
                         $ins->bindValue(':s', $store);
-                        $ins->bindValue(':a', $amt, SQLITE3_FLOAT);
+                        $ins->bindValue(':a', $amt, PDO::PARAM_STR);
                         $ins->execute();
                     } else {
-                        $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='manual',ocr_raw_store=NULL");
+                        $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO NOTHING ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='manual',ocr_raw_store=NULL");
                         $ins->bindValue(':d', $d);
                         $ins->bindValue(':s', $store);
-                        $ins->bindValue(':a', $amt, SQLITE3_FLOAT);
+                        $ins->bindValue(':a', $amt, PDO::PARAM_STR);
                         $ins->execute();
                     }
                 }
@@ -651,14 +651,14 @@ final class BankStatementImport
                     $deli = $udb->prepare('DELETE FROM incomes WHERE date=:d');
                     $deli->bindValue(':d', $d);
                     $deli->execute();
-                    $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a)');
+                    $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO NOTHING');
                     $ins->bindValue(':d', $d);
-                    $ins->bindValue(':a', $sum, SQLITE3_FLOAT);
+                    $ins->bindValue(':a', $sum, PDO::PARAM_STR);
                     $ins->execute();
                 } else {
-                    $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO UPDATE SET amount=ROUND(amount+excluded.amount,2)');
+                    $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO NOTHING ON CONFLICT(date) DO UPDATE SET amount=ROUND(amount+excluded.amount,2)');
                     $ins->bindValue(':d', $d);
-                    $ins->bindValue(':a', $sum, SQLITE3_FLOAT);
+                    $ins->bindValue(':a', $sum, PDO::PARAM_STR);
                     $ins->execute();
                 }
             }

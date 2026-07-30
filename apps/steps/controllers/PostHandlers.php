@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit(json_encode(['status' => 'error', 'message' => $translations['invalid_goal_steps'] ?? 'Invalid goal steps']));
 
         try {
-            $userDb->exec('BEGIN TRANSACTION');
+            $userDb->exec('BEGIN');
             saveUserSetting($userDb, 'goal_steps',    (string)(int)($goalSteps * 1000));
             saveUserSetting($userDb, 'height',        (string)(filter_var($_POST['height'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 170));
             saveUserSetting($userDb, 'weight',        (string)(filter_var($_POST['weight'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 70));
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         for ($attempt = 0; $attempt < 8; $attempt++) {
             try {
                 $imported = [];
-                $userDb->exec('BEGIN IMMEDIATE TRANSACTION');
+                $userDb->exec('BEGIN');
                 foreach ($rows as $r) {
                     if (!is_array($r)) {
                         continue;

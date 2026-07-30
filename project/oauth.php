@@ -43,7 +43,7 @@ function ensureOAuthProviderSchema(AppDatabase $db): void {
         client_secret_hash TEXT NOT NULL,
         name TEXT NOT NULL DEFAULT '',
         redirect_uris TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS oauth_auth_codes (
         code_hash TEXT PRIMARY KEY,
@@ -55,7 +55,7 @@ function ensureOAuthProviderSchema(AppDatabase $db): void {
         code_challenge TEXT NOT NULL DEFAULT '',
         code_challenge_method TEXT NOT NULL DEFAULT '',
         auth_time INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at INTEGER NOT NULL
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
@@ -63,7 +63,7 @@ function ensureOAuthProviderSchema(AppDatabase $db): void {
         client_id TEXT NOT NULL,
         email TEXT NOT NULL,
         scope TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at INTEGER NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0
     )");
@@ -153,7 +153,7 @@ function oauth_find_client(AppDatabase $db, string $clientId): ?array {
     if ($clientId === '') return null;
     $stmt = $db->prepare("SELECT * FROM oauth_clients WHERE client_id = :c LIMIT 1");
     $stmt->bindValue(':c', $clientId);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
@@ -166,7 +166,7 @@ function oauth_redirect_uri_allowed(array $client, string $redirectUri): bool {
 function oauth_upsert_client(string $clientId, string $clientSecret, string $name, array $redirectUris): void {
     $db = getDB();
     ensureOAuthProviderSchema($db);
-    $stmt = $db->prepare("INSERT OR REPLACE INTO oauth_clients(client_id,client_secret_hash,name,redirect_uris) VALUES(:c,:h,:n,:r)");
+    $stmt = $db->prepare("INSERT INTO oauth_clients(client_id,client_secret_hash,name,redirect_uris) VALUES(:c,:h,:n,:r)");
     $stmt->bindValue(':c', $clientId);
     $stmt->bindValue(':h', password_hash($clientSecret, PASSWORD_DEFAULT));
     $stmt->bindValue(':n', $name);
@@ -187,9 +187,9 @@ function oauth_create_auth_code(AppDatabase $db, string $clientId, string $email
     $stmt->bindValue(':n', $nonce);
     $stmt->bindValue(':cc', $codeChallenge);
     $stmt->bindValue(':cm', $codeChallengeMethod);
-    $stmt->bindValue(':at', $authTime, SQLITE3_INTEGER);
-    $stmt->bindValue(':now', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':x', $now + 120, SQLITE3_INTEGER);
+    $stmt->bindValue(':at', $authTime, PDO::PARAM_INT);
+    $stmt->bindValue(':now', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':x', $now + 120, PDO::PARAM_INT);
     $stmt->execute();
     return $raw;
 }
@@ -199,7 +199,7 @@ function oauth_consume_auth_code(AppDatabase $db, string $code, string $clientId
     $hash = hash('sha256', $code);
     $stmt = $db->prepare("SELECT * FROM oauth_auth_codes WHERE code_hash = :h LIMIT 1");
     $stmt->bindValue(':h', $hash);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $del = $db->prepare("DELETE FROM oauth_auth_codes WHERE code_hash = :h");
     $del->bindValue(':h', $hash);
     $del->execute();
@@ -226,8 +226,8 @@ function oauth_create_refresh_token(string $clientId, string $email, string $sco
     $stmt->bindValue(':c', $clientId);
     $stmt->bindValue(':e', $email);
     $stmt->bindValue(':s', $scope);
-    $stmt->bindValue(':n', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':x', $now + 60 * 60 * 24 * 30, SQLITE3_INTEGER);
+    $stmt->bindValue(':n', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':x', $now + 60 * 60 * 24 * 30, PDO::PARAM_INT);
     $stmt->execute();
     return $raw;
 }
@@ -237,7 +237,7 @@ function oauth_consume_refresh_token(AppDatabase $db, string $token, string $cli
     $hash = hash('sha256', $token);
     $stmt = $db->prepare("SELECT * FROM oauth_refresh_tokens WHERE token_hash = :h LIMIT 1");
     $stmt->bindValue(':h', $hash);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $del = $db->prepare("DELETE FROM oauth_refresh_tokens WHERE token_hash = :h");
     $del->bindValue(':h', $hash);
     $del->execute();
@@ -558,7 +558,7 @@ function oauth_ensure_bridge_schema(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS oauth_bridge_tokens (
         token_hash TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+        created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at INTEGER NOT NULL
     )");
 }
@@ -572,8 +572,8 @@ function oauth_create_bridge_token(string $sessionId): string {
     $stmt = $db->prepare("INSERT INTO oauth_bridge_tokens(token_hash,session_id,created_at,expires_at) VALUES(:h,:s,:n,:x)");
     $stmt->bindValue(':h', $hash);
     $stmt->bindValue(':s', $sessionId);
-    $stmt->bindValue(':n', $now, SQLITE3_INTEGER);
-    $stmt->bindValue(':x', $now + 120, SQLITE3_INTEGER);
+    $stmt->bindValue(':n', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':x', $now + 120, PDO::PARAM_INT);
     $stmt->execute();
     return $raw;
 }
@@ -585,7 +585,7 @@ function oauth_consume_bridge_token(string $raw): ?string {
     $hash = hash('sha256', $raw);
     $stmt = $db->prepare("SELECT session_id, expires_at FROM oauth_bridge_tokens WHERE token_hash = :h LIMIT 1");
     $stmt->bindValue(':h', $hash);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     $del = $db->prepare("DELETE FROM oauth_bridge_tokens WHERE token_hash = :h");
     $del->bindValue(':h', $hash);
     $del->execute();

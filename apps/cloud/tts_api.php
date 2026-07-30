@@ -117,11 +117,11 @@ function invalidate_file_tree($email) {
             email TEXT PRIMARY KEY,
             tree_json TEXT NOT NULL DEFAULT '',
             tree_valid INTEGER NOT NULL DEFAULT 0,
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )");
 
-        $stmt = $db->prepare("UPDATE cloud_folder_state SET tree_valid = 0, tree_json = '', updated_at = strftime('%s','now') WHERE email = ?");
-        $stmt->bindValue(1, $email, SQLITE3_TEXT);
+        $stmt = $db->prepare("UPDATE cloud_folder_state SET tree_valid = 0, tree_json = '', updated_at = extract(epoch from now())::bigint WHERE email = ?");
+        $stmt->bindValue(1, $email, PDO::PARAM_STR);
         $stmt->execute();
     } catch (Exception $e) {
         cloud_safe_error_log("invalidate_file_tree failed: " . $e->getMessage());
@@ -135,7 +135,7 @@ function tts_safe_message(string $message): string {
 
 function tts_python_preflight(string $pythonPath): array {
     $libPath = realpath(__DIR__ . '/../../lib') ?: (__DIR__ . '/../../lib');
-    $code = "import sys\nsys.path.insert(0, sys.argv[1])\nimport gtts\nimport psycopg2\nimport pg_sqlite_compat\n";
+    $code = "import sys\nsys.path.insert(0, sys.argv[1])\nimport gtts\nimport psycopg2\n";
     $output = [];
     $rc = 0;
     exec(escapeshellarg($pythonPath) . ' -c ' . escapeshellarg($code) . ' ' . escapeshellarg($libPath) . ' 2>&1', $output, $rc);
@@ -159,8 +159,8 @@ function ensure_tts_tables() {
             message TEXT NOT NULL DEFAULT '',
             audio_url TEXT NOT NULL DEFAULT '',
             error_text TEXT NOT NULL DEFAULT '',
-            started_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+            started_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )");
 
         $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_tts_jobs_status ON cloud_tts_jobs(status, updated_at DESC)");
@@ -190,9 +190,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         $stmt = $db->prepare("SELECT * FROM cloud_tts_jobs WHERE progress_id = ? LIMIT 1");
-        $stmt->bindValue(1, $progressId, SQLITE3_TEXT);
+        $stmt->bindValue(1, $progressId, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) {
             echo json_encode(['progress' => 0, 'message' => '', 'status' => 'not_found']);
@@ -235,9 +235,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         $stmt = $db->prepare("SELECT audio_url FROM cloud_tts_jobs WHERE progress_id = ? AND status = 'completed' LIMIT 1");
-        $stmt->bindValue(1, $progressId, SQLITE3_TEXT);
+        $stmt->bindValue(1, $progressId, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
 
         if (!$row || !$row['audio_url']) {
             http_response_code(404);
@@ -275,9 +275,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         }
 
         $stmt = $db->prepare("SELECT audio_url FROM cloud_tts_jobs WHERE progress_id = ? LIMIT 1");
-        $stmt->bindValue(1, $progressId, SQLITE3_TEXT);
+        $stmt->bindValue(1, $progressId, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
 
         if ($row && $row['audio_url']) {
             $audioFilename = basename($row['audio_url']);
@@ -302,7 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
             // Delete database record
             $deleteStmt = $db->prepare("DELETE FROM cloud_tts_jobs WHERE progress_id = ?");
-            $deleteStmt->bindValue(1, $progressId, SQLITE3_TEXT);
+            $deleteStmt->bindValue(1, $progressId, PDO::PARAM_STR);
             $deleteStmt->execute();
         }
 
@@ -375,11 +375,11 @@ if ($action === 'generate_tts') {
     }
 
     $stmt = $db->prepare("INSERT INTO cloud_tts_jobs (progress_id, user_name, text_path, language, speed, status, percentage, message) VALUES (?, ?, ?, ?, ?, 'processing', 0, 'Starting...')");
-    $stmt->bindValue(1, $progressId, SQLITE3_TEXT);
-    $stmt->bindValue(2, $user, SQLITE3_TEXT);
-    $stmt->bindValue(3, $textPath, SQLITE3_TEXT);
-    $stmt->bindValue(4, $language, SQLITE3_TEXT);
-    $stmt->bindValue(5, $speed, SQLITE3_FLOAT);
+    $stmt->bindValue(1, $progressId, PDO::PARAM_STR);
+    $stmt->bindValue(2, $user, PDO::PARAM_STR);
+    $stmt->bindValue(3, $textPath, PDO::PARAM_STR);
+    $stmt->bindValue(4, $language, PDO::PARAM_STR);
+    $stmt->bindValue(5, $speed, PDO::PARAM_STR);
 
     if (!$stmt->execute()) {
         echo json_encode(['success' => false, 'error' => 'Failed to create job record']);
@@ -436,9 +436,9 @@ if ($action === 'save_audio_to_server') {
 
     // Get audio URL from database
     $stmt = $db->prepare("SELECT audio_url FROM cloud_tts_jobs WHERE progress_id = ? AND status = 'completed' LIMIT 1");
-    $stmt->bindValue(1, $progressId, SQLITE3_TEXT);
+    $stmt->bindValue(1, $progressId, PDO::PARAM_STR);
     $result = $stmt->execute();
-    $row = $result->fetchArray(SQLITE3_ASSOC);
+    $row = $result->fetch(PDO::FETCH_ASSOC);
 
     if (!$row || !$row['audio_url']) {
         echo json_encode(['success' => false, 'error' => 'Audio file not found in database']);

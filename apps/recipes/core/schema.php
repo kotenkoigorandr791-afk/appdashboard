@@ -2,9 +2,9 @@
 function recipes_ensure_products_image_preview_column($db) {
     if (!$db) return;
     try {
-        $columns = $db->query("PRAGMA table_info(" . RECIPES_DB_TABLE_PREFIX . "products)");
+        $columns = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . RECIPES_DB_TABLE_PREFIX . "products'");
         $has_image_preview = false;
-        while ($col = $columns->fetchArray(SQLITE3_ASSOC)) {
+        while ($col = $columns->fetch(PDO::FETCH_ASSOC)) {
             if ($col['name'] === 'image_preview') $has_image_preview = true;
         }
         if (!$has_image_preview) {
@@ -18,8 +18,8 @@ function recipes_ensure_products_image_preview_column($db) {
 function recipes_ensure_steps_table($db) {
     if (!$db) return;
     try {
-        $legacy_table_exists = $db->querySingle("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='recipe_steps'") > 0;
-        $new_table_exists = $db->querySingle("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='" . RECIPES_STEPS_TABLE . "'") > 0;
+        $legacy_table_exists = $db->querySingle("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='recipe_steps'") > 0;
+        $new_table_exists = $db->querySingle("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='" . RECIPES_STEPS_TABLE . "'") > 0;
 
         if ($legacy_table_exists && !$new_table_exists) {
             $db->exec("ALTER TABLE recipe_steps RENAME TO " . RECIPES_STEPS_TABLE);
@@ -29,7 +29,7 @@ function recipes_ensure_steps_table($db) {
 
         $db->exec("
             CREATE TABLE IF NOT EXISTS " . RECIPES_STEPS_TABLE . " (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id BIGSERIAL PRIMARY KEY,
                 recipe_id TEXT NOT NULL,
                 step_order INTEGER NOT NULL,
                 step_type TEXT NOT NULL CHECK(step_type IN ('product', 'instruction')),
@@ -55,17 +55,17 @@ function migrateJSONToSQLite() {
     if (!$db) return false;
     
     // Check if migration already completed
-    $tables = $db->query("SELECT name FROM sqlite_master WHERE type='table' AND name LIKE '" . RECIPES_DB_TABLE_PREFIX . "%'");
+    $tables = $db->query("SELECT table_name AS name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE '" . RECIPES_DB_TABLE_PREFIX . "%'");
     $table_count = 0;
-    while ($row = $tables->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $tables->fetch(PDO::FETCH_ASSOC)) {
         $table_count++;
     }
     
     if ($table_count > 0) {
         // Check if category column exists, add if not
-        $columns = $db->query("PRAGMA table_info(" . RECIPES_DB_TABLE_PREFIX . "products)");
+        $columns = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . RECIPES_DB_TABLE_PREFIX . "products'");
         $has_category = false;
-        while ($col = $columns->fetchArray(SQLITE3_ASSOC)) {
+        while ($col = $columns->fetch(PDO::FETCH_ASSOC)) {
             if ($col['name'] === 'category') $has_category = true;
         }
         if (!$has_category) {
@@ -129,19 +129,19 @@ function migrateJSONToSQLite() {
         $product_data = json_decode(file_get_contents($file), true);
         if ($product_data && isset($product_data['id'])) {
             $stmt = $db->prepare("
-                INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "products 
+                INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "products 
                 (id, name_en, name_uk, name_ru, name_be, category, image, image_preview)
                 VALUES (:id, :name_en, :name_uk, :name_ru, :name_be, :category, :image, :image_preview)
             ");
-            $stmt->bindValue(':id', $product_data['id'], SQLITE3_TEXT);
-            $stmt->bindValue(':name_en', $product_data['name']['en'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':name_uk', $product_data['name']['uk'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':name_ru', $product_data['name']['ru'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':name_be', $product_data['name']['be'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':category', $product_data['category'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':image', $product_data['image'] ?? null, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $product_data['id'], PDO::PARAM_STR);
+            $stmt->bindValue(':name_en', $product_data['name']['en'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':name_uk', $product_data['name']['uk'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':name_ru', $product_data['name']['ru'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':name_be', $product_data['name']['be'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':category', $product_data['category'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':image', $product_data['image'] ?? null, PDO::PARAM_STR);
             $ip = $product_data['image_preview'] ?? null;
-            $stmt->bindValue(':image_preview', $ip, $ip === null || $ip === '' ? SQLITE3_NULL : SQLITE3_TEXT);
+            $stmt->bindValue(':image_preview', $ip, $ip === null || $ip === '' ? PDO::PARAM_NULL : PDO::PARAM_STR);
             $stmt->execute();
         }
     }
@@ -152,16 +152,16 @@ function migrateJSONToSQLite() {
         $recipe_data = json_decode(file_get_contents($file), true);
         if ($recipe_data && isset($recipe_data['id'])) {
             $stmt = $db->prepare("
-                INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "data 
+                INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "data 
                 (id, title_en, title_uk, title_ru, title_be, image)
                 VALUES (:id, :title_en, :title_uk, :title_ru, :title_be, :image)
             ");
-            $stmt->bindValue(':id', $recipe_data['id'], SQLITE3_TEXT);
-            $stmt->bindValue(':title_en', $recipe_data['title']['en'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':title_uk', $recipe_data['title']['uk'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':title_ru', $recipe_data['title']['ru'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':title_be', $recipe_data['title']['be'] ?? '', SQLITE3_TEXT);
-            $stmt->bindValue(':image', $recipe_data['image'] ?? null, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $recipe_data['id'], PDO::PARAM_STR);
+            $stmt->bindValue(':title_en', $recipe_data['title']['en'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':title_uk', $recipe_data['title']['uk'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':title_ru', $recipe_data['title']['ru'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':title_be', $recipe_data['title']['be'] ?? '', PDO::PARAM_STR);
+            $stmt->bindValue(':image', $recipe_data['image'] ?? null, PDO::PARAM_STR);
             $stmt->execute();
             
             // Migrate steps
@@ -198,14 +198,14 @@ function migrateJSONToSQLite() {
                         $timer_minutes = $step['timer']['minutes'] ?? null;
                     }
                     
-                    $stmt->bindValue(':recipe_id', $recipe_data['id'], SQLITE3_TEXT);
-                    $stmt->bindValue(':step_order', $step_index, SQLITE3_INTEGER);
-                    $stmt->bindValue(':step_type', $step['type'], SQLITE3_TEXT);
-                    $stmt->bindValue(':content', $content, SQLITE3_TEXT);
-                    $stmt->bindValue(':quantity_value', $quantity_value, $quantity_value === null ? SQLITE3_NULL : SQLITE3_FLOAT);
-                    $stmt->bindValue(':quantity_unit', $quantity_unit, $quantity_unit === null ? SQLITE3_NULL : SQLITE3_TEXT);
-                    $stmt->bindValue(':timer_hours', $timer_hours, $timer_hours === null ? SQLITE3_NULL : SQLITE3_INTEGER);
-                    $stmt->bindValue(':timer_minutes', $timer_minutes, $timer_minutes === null ? SQLITE3_NULL : SQLITE3_INTEGER);
+                    $stmt->bindValue(':recipe_id', $recipe_data['id'], PDO::PARAM_STR);
+                    $stmt->bindValue(':step_order', $step_index, PDO::PARAM_INT);
+                    $stmt->bindValue(':step_type', $step['type'], PDO::PARAM_STR);
+                    $stmt->bindValue(':content', $content, PDO::PARAM_STR);
+                    $stmt->bindValue(':quantity_value', $quantity_value, $quantity_value === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmt->bindValue(':quantity_unit', $quantity_unit, $quantity_unit === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmt->bindValue(':timer_hours', $timer_hours, $timer_hours === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+                    $stmt->bindValue(':timer_minutes', $timer_minutes, $timer_minutes === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
                     $stmt->execute();
                 }
             }
@@ -217,11 +217,11 @@ function migrateJSONToSQLite() {
         $config = json_decode(file_get_contents('config.json'), true);
         foreach ($config as $key => $value) {
             $stmt = $db->prepare("
-                INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value)
+                INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value)
                 VALUES (:key, :value)
             ");
-            $stmt->bindValue(':key', $key, SQLITE3_TEXT);
-            $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, SQLITE3_TEXT);
+            $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+            $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
             $stmt->execute();
         }
     }
@@ -231,11 +231,11 @@ function migrateJSONToSQLite() {
         $state = json_decode(file_get_contents('recipe_state.json'), true);
         foreach ($state as $key => $value) {
             $stmt = $db->prepare("
-                INSERT OR REPLACE INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value)
+                INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value)
                 VALUES (:key, :value)
             ");
-            $stmt->bindValue(':key', $key, SQLITE3_TEXT);
-            $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, SQLITE3_TEXT);
+            $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+            $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
             $stmt->execute();
         }
     }

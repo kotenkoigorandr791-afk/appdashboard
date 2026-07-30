@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/ai_code_security.php';
+require_once __DIR__ . '/cloud_sandbox.php';
 
 function cloud_ai_syntax_temp_dir(): string
 {
@@ -27,34 +28,11 @@ function cloud_ai_syntax_cleanup(string $dir): void
 
 function cloud_ai_syntax_run(string $cmd, string $cwd, int $timeout = 25): array
 {
-    $descriptorspec = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-    $full = 'bash -c ' . escapeshellarg('cd ' . escapeshellarg($cwd) . ' && ' . $cmd . ' 2>&1');
-    $proc = proc_open($full, $descriptorspec, $pipes, $cwd, null);
-    if (!is_resource($proc)) {
-        return ['success' => false, 'output' => '', 'error' => 'Failed to run syntax check'];
+    try {
+        return cloud_sandbox_exec($cwd, $cmd, null, $timeout, true);
+    } catch (Throwable $e) {
+        return ['success' => false, 'output' => '', 'error' => $e->getMessage(), 'exitCode' => -1];
     }
-    fclose($pipes[0]);
-    stream_set_blocking($pipes[1], false);
-    $out = '';
-    $start = microtime(true);
-    while (true) {
-        $out .= (string)stream_get_contents($pipes[1]);
-        $st = proc_get_status($proc);
-        if (!$st['running']) {
-            break;
-        }
-        if (microtime(true) - $start > $timeout) {
-            proc_terminate($proc);
-            fclose($pipes[1]);
-            proc_close($proc);
-            return ['success' => false, 'output' => $out, 'error' => 'Syntax check timed out'];
-        }
-        usleep(40000);
-    }
-    $out .= (string)stream_get_contents($pipes[1]);
-    fclose($pipes[1]);
-    $code = proc_close($proc);
-    return ['success' => $code === 0, 'output' => trim($out), 'error' => $code === 0 ? '' : trim($out)];
 }
 
 function cloud_ai_syntax_check_python(string $content, string $baseName): array
@@ -63,7 +41,7 @@ function cloud_ai_syntax_check_python(string $content, string $baseName): array
     $file = $dir . DIRECTORY_SEPARATOR . $baseName . '.py';
     file_put_contents($file, $content);
     $py = is_executable('/usr/bin/python3') ? '/usr/bin/python3' : 'python3';
-    $res = cloud_ai_syntax_run(escapeshellarg($py) . ' -m py_compile ' . escapeshellarg($file), $dir);
+    $res = cloud_ai_syntax_run(escapeshellarg($py) . ' -m py_compile ' . escapeshellarg(basename($file)), $dir);
     cloud_ai_syntax_cleanup($dir);
     return [
         'ok' => true,
@@ -81,7 +59,7 @@ function cloud_ai_syntax_check_c(string $content, string $baseName, bool $isCpp)
     $file = $dir . DIRECTORY_SEPARATOR . $baseName . '.' . $ext;
     file_put_contents($file, $content);
     $compiler = $isCpp ? (is_executable('/usr/bin/g++') ? '/usr/bin/g++' : 'g++') : (is_executable('/usr/bin/gcc') ? '/usr/bin/gcc' : 'gcc');
-    $cmd = escapeshellarg($compiler) . ' -fsyntax-only -x ' . ($isCpp ? 'c++' : 'c') . ' ' . escapeshellarg($file);
+    $cmd = escapeshellarg($compiler) . ' -fsyntax-only -x ' . ($isCpp ? 'c++' : 'c') . ' ' . escapeshellarg(basename($file));
     $res = cloud_ai_syntax_run($cmd, $dir);
     cloud_ai_syntax_cleanup($dir);
     return [

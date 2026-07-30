@@ -5,9 +5,9 @@ function mvFindEmailBySession(AppDatabase $db, string $sessionId): ?string {
     if ($sessionId === '') return null;
     try {
         $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', $sessionId, SQLITE3_TEXT);
+        $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['email'])) {
             return $row['email'];
         }
@@ -37,9 +37,9 @@ function getUserRoleByEmail($email): int {
     if (!$db || !$email) return 0;
     try {
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) {
             return (int)$row['role'];
         }
@@ -56,17 +56,17 @@ function isUserRoot(): bool {
     try {
         $sql = "SELECT u.role FROM active_sessions s JOIN users u ON s.email = u.email WHERE s.session_id = :session_id";
         $stmt = $db->prepare($sql);
-        $stmt->bindValue(':session_id', $sessionId, SQLITE3_TEXT);
+        $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['role'])) {
             return (int)$row['role'] === 2;
         }
         if (isset($_COOKIE['PHPSESSID'])) {
             $stmt = $db->prepare($sql);
-            $stmt->bindValue(':session_id', $_COOKIE['PHPSESSID'], SQLITE3_TEXT);
+            $stmt->bindValue(':session_id', $_COOKIE['PHPSESSID'], PDO::PARAM_STR);
             $result = $stmt->execute();
-            $row = $result->fetchArray(SQLITE3_ASSOC);
+            $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['role'])) {
                 return (int)$row['role'] === 2;
             }
@@ -87,9 +87,9 @@ function getCurrentUserPhoto(): string {
     if (!$email) return '';
     try {
         $stmt = $db->prepare('SELECT photo FROM users WHERE email = :email');
-        $stmt->bindValue(':email', $email, SQLITE3_TEXT);
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
-        $row = $result->fetchArray(SQLITE3_ASSOC);
+        $row = $result->fetch(PDO::FETCH_ASSOC);
         if ($row && isset($row['photo']) && $row['photo'] !== 'default_avatar.png' && $row['photo'] !== '') {
             $photo = $row['photo'];
             // Local file path — serve through proxy

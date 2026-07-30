@@ -71,27 +71,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     cleanupExpiredUserSessions($otpEmail);
                     addUserToActiveSessions($otpEmail,session_id(),$_SESSION['user']);
                     
-                    // Check if this is a new device
-                    $loginFp = getDeviceFingerprint();
-                    $isTrusted = isTrustedDevice($otpEmail, $loginFp);
-                    if ($isTrusted && getTrustedDeviceCookieForEmail($otpEmail) !== '') {
-                        rememberTrustedDeviceBrowserAccount($otpEmail);
-                        setTrustedDeviceHintCookie($otpEmail, $loginFp);
-                    }
-                    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-                    $det = detectDeviceAndBrowser($ua);
-                    $db = getDB();
-                    $devCheckStmt = $db->prepare("SELECT COUNT(*) as cnt FROM active_sessions WHERE email = :e AND device = :dev AND browser = :br AND session_id != :sid");
-                    $devCheckStmt->bindValue(':e', $otpEmail, SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':dev', $det['device'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':br', $det['browser'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':sid', session_id(), SQLITE3_TEXT);
-                    $devResult = $devCheckStmt->execute()->fetchArray(SQLITE3_ASSOC);
-                    $hasOtherSession = $devResult && $devResult['cnt'] > 0;
-                    if(!$isTrusted && !$hasOtherSession){
-                        $_SESSION['new_device_login'] = true;
-                    }
-                    
+                    scheduleTrustedDevicePromptIfNeeded($otpEmail);
                     header('Location: ' . takePostLoginRedirect('/main'));
                     exit;
                 }else{
@@ -140,26 +120,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     cleanupExpiredUserSessions($email);
                     addUserToActiveSessions($email,session_id(),$_SESSION['user']);
                     
-                    $loginFp = getDeviceFingerprint();
-                    $isTrusted = isTrustedDevice($email, $loginFp);
-                    if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
-                        rememberTrustedDeviceBrowserAccount($email);
-                        setTrustedDeviceHintCookie($email, $loginFp);
-                    }
-                    $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-                    $det = detectDeviceAndBrowser($ua);
-                    $db = getDB();
-                    $devCheckStmt = $db->prepare("SELECT COUNT(*) as cnt FROM active_sessions WHERE email = :e AND device = :dev AND browser = :br AND session_id != :sid");
-                    $devCheckStmt->bindValue(':e', $email, SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':dev', $det['device'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':br', $det['browser'], SQLITE3_TEXT);
-                    $devCheckStmt->bindValue(':sid', session_id(), SQLITE3_TEXT);
-                    $devResult = $devCheckStmt->execute()->fetchArray(SQLITE3_ASSOC);
-                    $hasOtherSession = $devResult && $devResult['cnt'] > 0;
-                    if(!$isTrusted && !$hasOtherSession){
-                        $_SESSION['new_device_login'] = true;
-                    }
-                    
+                    scheduleTrustedDevicePromptIfNeeded($email);
                     header('Location: ' . takePostLoginRedirect('/main'));
                     exit;
                 }
@@ -230,6 +191,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 setLastActiveUser($email);
                 cleanupExpiredUserSessions($email);
                 addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                scheduleTrustedDevicePromptIfNeeded($email);
                 header('Location: '.takePostLoginRedirect('/main'));
                 exit;
             }elseif(isset($users[$email])){
@@ -693,19 +655,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         
         // Ensure table exists
         $db->exec("CREATE TABLE IF NOT EXISTS quick_commands (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            id          BIGSERIAL PRIMARY KEY,
             email       TEXT NOT NULL,
             name        TEXT NOT NULL DEFAULT '',
             command     TEXT NOT NULL DEFAULT '',
             directory   TEXT NOT NULL DEFAULT '',
-            created_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at  INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+            created_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+            updated_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_quick_commands_email ON quick_commands(email)");
         $qcCols = [];
-        $qcRes = $db->query("PRAGMA table_info(quick_commands)");
-        while($qcRes && ($qcRow = $qcRes->fetchArray(SQLITE3_ASSOC))){
+        $qcRes = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='quick_commands'");
+        while($qcRes && ($qcRow = $qcRes->fetch(PDO::FETCH_ASSOC))){
             if(isset($qcRow['name'])) $qcCols[] = (string)$qcRow['name'];
         }
         $qcEnsureColumn = static function(string $column, string $definition) use ($db, &$qcCols): void {
@@ -721,10 +683,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         
         if($action === 'list'){
             $stmt = $db->prepare("SELECT id, name, command, directory, created_at, updated_at FROM quick_commands WHERE email = :email ORDER BY name ASC");
-            $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
             $result = $stmt->execute();
             $commands = [];
-            while($row = $result->fetchArray(SQLITE3_ASSOC)){
+            while($row = $result->fetch(PDO::FETCH_ASSOC)){
                 $commands[] = $row;
             }
             header('Content-Type: application/json');
@@ -744,10 +706,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
             
             $stmt = $db->prepare("INSERT INTO quick_commands (email, name, command, directory) VALUES (:email, :name, :command, :directory)");
-            $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-            $stmt->bindValue(':command', $command, SQLITE3_TEXT);
-            $stmt->bindValue(':directory', $directory, SQLITE3_TEXT);
+            $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+            $stmt->bindValue(':command', $command, PDO::PARAM_STR);
+            $stmt->bindValue(':directory', $directory, PDO::PARAM_STR);
             $stmt->execute();
             $id = $db->lastInsertRowID();
             
@@ -768,12 +730,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 exit;
             }
             
-            $stmt = $db->prepare("UPDATE quick_commands SET name = :name, command = :command, directory = :directory, updated_at = strftime('%s','now') WHERE id = :id AND email = :email");
-            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
-            $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-            $stmt->bindValue(':command', $command, SQLITE3_TEXT);
-            $stmt->bindValue(':directory', $directory, SQLITE3_TEXT);
+            $stmt = $db->prepare("UPDATE quick_commands SET name = :name, command = :command, directory = :directory, updated_at = extract(epoch from now())::bigint WHERE id = :id AND email = :email");
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+            $stmt->bindValue(':command', $command, PDO::PARAM_STR);
+            $stmt->bindValue(':directory', $directory, PDO::PARAM_STR);
             $stmt->execute();
             
             header('Content-Type: application/json');
@@ -791,8 +753,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             }
             
             $stmt = $db->prepare("DELETE FROM quick_commands WHERE id = :id AND email = :email");
-            $stmt->bindValue(':id', $id, SQLITE3_INTEGER);
-            $stmt->bindValue(':email', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $id, PDO::PARAM_INT);
+            $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
             $stmt->execute();
             
             header('Content-Type: application/json');
@@ -2007,7 +1969,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $_apDb = getDB();
         $_apYearsResult = $_apDb->query("SELECT DISTINCT substr(stat_date, 1, 4) as year FROM visit_stats ORDER BY year DESC");
         $_apAvailableYears = [];
-        while($_apRow = $_apYearsResult->fetchArray(SQLITE3_ASSOC)){
+        while($_apRow = $_apYearsResult->fetch(PDO::FETCH_ASSOC)){
             $_apAvailableYears[] = $_apRow['year'];
         }
         // Load stats data - only for requested year to avoid overloading

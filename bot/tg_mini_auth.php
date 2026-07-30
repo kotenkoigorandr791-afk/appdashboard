@@ -1,12 +1,12 @@
 <?php
-require_once __DIR__ . '/db.php';
+require_once dirname(__DIR__) . '/db.php';
 function tgMiniCookieSecure(): bool {
     return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443') || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
 }
 function tgMiniRememberSecret(): string {
     $token = trim(getConfig('tg_bot_token', ''));
     if ($token !== '') return hash('sha256', $token, true);
-    return hash('sha256', __DIR__, true);
+    return hash('sha256', dirname(__DIR__), true);
 }
 function tgMiniRememberBuild(string $email, int $ttl = 2592000): string {
     $exp = time() + max(60, $ttl);

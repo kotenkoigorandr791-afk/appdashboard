@@ -14,8 +14,8 @@ function getCurrentUserEmail(): string {
     foreach ($ids as $sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 return (string)$row['email'];
             }
@@ -64,10 +64,10 @@ function app_tft_migrate_sqlite_file(string $userDir, AppDatabase $db): void {
         foreach (['config', 'canvas'] as $table) {
             $res = @$sqlite->query("SELECT key, value FROM \"$table\"");
             if (!$res) continue;
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 $st = $db->prepare("INSERT INTO \"$table\" (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value");
-                $st->bindValue(':k', (string)$row['key'], SQLITE3_TEXT);
-                $st->bindValue(':v', (string)$row['value'], SQLITE3_TEXT);
+                $st->bindValue(':k', (string)$row['key'], PDO::PARAM_STR);
+                $st->bindValue(':v', (string)$row['value'], PDO::PARAM_STR);
                 $st->execute();
             }
         }

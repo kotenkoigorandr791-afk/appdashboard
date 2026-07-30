@@ -1504,14 +1504,6 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         <div class="modal-header">
             <h3 data-i18n="aiAssistant">AI Assistant</h3>
             <div class="modal-actions">
-                <button id="btn-clear-ai-history" class="icon-btn" data-i18n-title="clearHistory">
-                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        <line x1="10" y1="11" x2="10" y2="17"></line>
-                        <line x1="14" y1="11" x2="14" y2="17"></line>
-                    </svg>
-                </button>
                 <button id="btn-close-ai" class="icon-btn" data-i18n-title="close">
                     <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
                         <line x1="18" y1="6" x2="6" y2="18"></line>

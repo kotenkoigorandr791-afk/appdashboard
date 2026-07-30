@@ -29,7 +29,7 @@ function sh_init_tables(AppDatabase $db): void {
         user_email TEXT PRIMARY KEY,
         server_domain TEXT NOT NULL DEFAULT 'serverkherson.xyz',
         ap_domain TEXT NOT NULL DEFAULT 'serverkherson.xyz',
-        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_devices (
@@ -50,60 +50,60 @@ function sh_init_tables(AppDatabase $db): void {
         params TEXT NOT NULL DEFAULT '[]',
         files TEXT NOT NULL DEFAULT '[]',
         displayed_params TEXT NOT NULL DEFAULT '[]',
-        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
-        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
+        updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_token_index (
         token TEXT PRIMARY KEY,
         user_email TEXT NOT NULL,
         device_id TEXT NOT NULL,
-        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_groups (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         user_email TEXT NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_group_members (
         group_id TEXT NOT NULL,
         member_email TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'guest' CHECK(role IN ('admin','guest')),
-        added_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+        added_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
         PRIMARY KEY (group_id, member_email)
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_monitor_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         user_email TEXT NOT NULL,
         device_id TEXT,
         event_type TEXT NOT NULL,
         event_data TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_params_history (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         device_id TEXT NOT NULL,
         param_id TEXT NOT NULL,
         param_label TEXT NOT NULL,
         param_value TEXT NOT NULL,
-        recorded_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        recorded_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_floor_plans (
         user_email TEXT PRIMARY KEY,
         elements_json TEXT NOT NULL DEFAULT '[]',
-        updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_ws_tokens (
         token TEXT PRIMARY KEY,
         user_email TEXT NOT NULL,
         device_id TEXT NOT NULL,
         expires_at INTEGER NOT NULL,
-        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_queue (
         id TEXT PRIMARY KEY,
@@ -120,14 +120,14 @@ function sh_init_tables(AppDatabase $db): void {
         updated_at REAL NOT NULL
     )");
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_errors (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        id BIGSERIAL PRIMARY KEY,
         user_email TEXT NOT NULL DEFAULT '',
         device_id TEXT NOT NULL DEFAULT '',
         device_name TEXT NOT NULL DEFAULT '',
         source TEXT NOT NULL DEFAULT '',
         message TEXT NOT NULL,
         context_json TEXT NOT NULL DEFAULT '{}',
-        created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
     sh_ensure_column($db, 'smarthome_devices', 'displayed_controls', "TEXT NOT NULL DEFAULT '[]'");
     sh_ensure_column($db, 'smarthome_devices', 'category', "TEXT NOT NULL DEFAULT ''");
@@ -139,8 +139,8 @@ function sh_init_tables(AppDatabase $db): void {
 }
 
 function sh_ensure_column(AppDatabase $db, string $table, string $column, string $def): void {
-    $res = $db->query('PRAGMA table_info(' . $table . ')');
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . AppDatabase::escapeString($table) . "'");
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         if (($row['name'] ?? '') === $column) return;
     }
     $db->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $def);
@@ -163,8 +163,8 @@ function sh_user_email(): string {
     try {
         $db = sh_db();
         $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-        $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-        $r = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+        $r = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($r && !empty($r['email'])) return (string)$r['email'];
     } catch (Throwable $e) { error_log('sh user lookup: '.$e->getMessage()); }
     return 'guest@local';
@@ -178,8 +178,8 @@ function sh_user_service_role(): int {
     try {
         $db = sh_db();
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :em LIMIT 1');
-        $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-        $r = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+        $r = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         $cached = $r ? (int)($r['role'] ?? 0) : 0;
     } catch (Throwable $e) { $cached = 0; }
     return $cached;
@@ -196,23 +196,23 @@ function sh_settings_defaults(): array {
 
 function sh_load_user_settings(AppDatabase $db, string $userEmail): array {
     $stmt = $db->prepare('SELECT server_domain, ap_domain, home_scope, home_group_id, home_view FROM smarthome_settings WHERE user_email = :em');
-    $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return array_merge(sh_settings_defaults(), is_array($row) ? $row : []);
 }
 
 function sh_group_row(AppDatabase $db, string $gid): ?array {
     $stmt = $db->prepare('SELECT * FROM smarthome_groups WHERE id = :id LIMIT 1');
-    $stmt->bindValue(':id', $gid, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':id', $gid, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ?: null;
 }
 
 function sh_group_member_role(AppDatabase $db, string $gid, string $userEmail): ?string {
     $stmt = $db->prepare('SELECT role FROM smarthome_group_members WHERE group_id = :gid AND member_email = :em LIMIT 1');
-    $stmt->bindValue(':gid', $gid, SQLITE3_TEXT);
-    $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':gid', $gid, PDO::PARAM_STR);
+    $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     return $row ? (string)($row['role'] ?? '') : null;
 }
 
@@ -238,9 +238,9 @@ function sh_user_in_group(AppDatabase $db, string $gid, string $userEmail): bool
 function sh_user_is_member_of_owner(AppDatabase $db, string $userEmail, string $ownerEmail): bool {
     if ($userEmail === $ownerEmail) return true;
     $stmt = $db->prepare('SELECT 1 FROM smarthome_groups g INNER JOIN smarthome_group_members gm ON gm.group_id = g.id WHERE g.user_email = :owner AND gm.member_email = :em LIMIT 1');
-    $stmt->bindValue(':owner', $ownerEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-    return (bool)$stmt->execute()->fetchArray();
+    $stmt->bindValue(':owner', $ownerEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    return (bool)$stmt->execute()->fetch();
 }
 
 function sh_device_can_configure(AppDatabase $db, string $deviceId, string $userEmail): bool {
@@ -279,14 +279,14 @@ function sh_fetch_scoped_devices(AppDatabase $db, string $userEmail, array $ctx)
     if (($ctx['scope'] ?? 'own') === 'group' && !empty($ctx['group_id'])) {
         $owner = (string)($ctx['floor_owner'] ?? '');
         $r = $db->prepare('SELECT * FROM smarthome_devices WHERE group_id = :gid OR user_email = :owner ORDER BY room, name');
-        $r->bindValue(':gid', $ctx['group_id'], SQLITE3_TEXT);
-        $r->bindValue(':owner', $owner, SQLITE3_TEXT);
+        $r->bindValue(':gid', $ctx['group_id'], PDO::PARAM_STR);
+        $r->bindValue(':owner', $owner, PDO::PARAM_STR);
     } else {
         $r = $db->prepare("SELECT * FROM smarthome_devices WHERE user_email = :em AND (group_id IS NULL OR group_id = '') ORDER BY room, name");
-        $r->bindValue(':em', $userEmail, SQLITE3_TEXT);
+        $r->bindValue(':em', $userEmail, PDO::PARAM_STR);
     }
     $res = $r->execute();
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $id = (string)($row['id'] ?? '');
         if ($id === '' || isset($seen[$id])) continue;
         $seen[$id] = true;
@@ -298,24 +298,24 @@ function sh_fetch_scoped_devices(AppDatabase $db, string $userEmail, array $ctx)
 function sh_fetch_my_devices(AppDatabase $db, string $userEmail): array {
     $devices = [];
     $r = $db->prepare('SELECT * FROM smarthome_devices WHERE user_email = :em ORDER BY room, name');
-    $r->bindValue(':em', $userEmail, SQLITE3_TEXT);
+    $r->bindValue(':em', $userEmail, PDO::PARAM_STR);
     $res = $r->execute();
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) $devices[] = sh_device_row_decode($row);
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) $devices[] = sh_device_row_decode($row);
     return $devices;
 }
 
 function sh_fetch_floor_plan(AppDatabase $db, string $ownerEmail): array {
     $fpStmt = $db->prepare('SELECT elements_json FROM smarthome_floor_plans WHERE user_email = :em');
-    $fpStmt->bindValue(':em', $ownerEmail, SQLITE3_TEXT);
-    $fpRow = $fpStmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $fpStmt->bindValue(':em', $ownerEmail, PDO::PARAM_STR);
+    $fpRow = $fpStmt->execute()->fetch(PDO::FETCH_ASSOC);
     if ($fpRow) return json_decode($fpRow['elements_json'] ?: '[]', true) ?: [];
     return [];
 }
 
 function sh_device_row_for_user(AppDatabase $db, string $deviceId, string $userEmail): ?array {
     $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id LIMIT 1');
-    $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     if (($row['user_email'] ?? '') === $userEmail) return $row;
     $gid = trim((string)($row['group_id'] ?? ''));
@@ -360,10 +360,10 @@ function sh_store_dashboard_ws_token(string $userEmail, string $deviceId): array
     $db = sh_db();
     $exp = time() + 300;
     $stmt = $db->prepare('INSERT INTO smarthome_ws_tokens (token, user_email, device_id, expires_at) VALUES (:tok, :em, :did, :exp)');
-    $stmt->bindValue(':tok', $token, SQLITE3_TEXT);
-    $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':did', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':exp', $exp, SQLITE3_INTEGER);
+    $stmt->bindValue(':tok', $token, PDO::PARAM_STR);
+    $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':exp', $exp, PDO::PARAM_INT);
     $stmt->execute();
     $db->exec("DELETE FROM smarthome_ws_tokens WHERE expires_at < " . time());
     return [
@@ -377,13 +377,13 @@ function sh_enqueue_control_request(string $userEmail, string $deviceId, string 
     $requestId = sh_token(12);
     $now = microtime(true);
     $stmt = $db->prepare('INSERT INTO smarthome_control_queue (id, user_email, device_id, control_id, value_json, created_at, expires_at) VALUES (:id, :em, :did, :cid, :val, :ca, :exp)');
-    $stmt->bindValue(':id', $requestId, SQLITE3_TEXT);
-    $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-    $stmt->bindValue(':did', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':cid', $controlId, SQLITE3_TEXT);
-    $stmt->bindValue(':val', json_encode($value, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-    $stmt->bindValue(':ca', $now, SQLITE3_FLOAT);
-    $stmt->bindValue(':exp', $now + 120.0, SQLITE3_FLOAT);
+    $stmt->bindValue(':id', $requestId, PDO::PARAM_STR);
+    $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':cid', $controlId, PDO::PARAM_STR);
+    $stmt->bindValue(':val', json_encode($value, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+    $stmt->bindValue(':ca', $now, PDO::PARAM_STR);
+    $stmt->bindValue(':exp', $now + 120.0, PDO::PARAM_STR);
     $stmt->execute();
     $db->exec('DELETE FROM smarthome_control_queue WHERE expires_at < ' . $now);
     return $requestId;
@@ -394,11 +394,11 @@ function sh_wait_for_control_result(string $requestId, float $timeoutSeconds = 7
     $deadline = microtime(true) + $timeoutSeconds;
     while (microtime(true) < $deadline) {
         $stmt = $db->prepare('SELECT result_json FROM smarthome_control_results WHERE id = :id');
-        $stmt->bindValue(':id', $requestId, SQLITE3_TEXT);
-        $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+        $stmt->bindValue(':id', $requestId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row) {
             $del = $db->prepare('DELETE FROM smarthome_control_results WHERE id = :id');
-            $del->bindValue(':id', $requestId, SQLITE3_TEXT);
+            $del->bindValue(':id', $requestId, PDO::PARAM_STR);
             $del->execute();
             return json_decode($row['result_json'] ?: '{}', true) ?: [];
         }
@@ -538,10 +538,10 @@ function sh_pending_control_ids_for_device(AppDatabase $db, string $deviceId): a
     $ids = [];
     $now = microtime(true);
     $stmt = $db->prepare('SELECT control_id FROM smarthome_control_queue WHERE device_id = :did AND expires_at > :now');
-    $stmt->bindValue(':did', $deviceId, SQLITE3_TEXT);
-    $stmt->bindValue(':now', $now, SQLITE3_FLOAT);
+    $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+    $stmt->bindValue(':now', $now, PDO::PARAM_STR);
     $res = $stmt->execute();
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $ids[] = (string)($row['control_id'] ?? '');
     }
     return $ids;
@@ -549,7 +549,7 @@ function sh_pending_control_ids_for_device(AppDatabase $db, string $deviceId): a
 
 function sh_clear_control_queue_for_device(AppDatabase $db, string $deviceId): void {
     $stmt = $db->prepare('DELETE FROM smarthome_control_queue WHERE device_id = :did');
-    $stmt->bindValue(':did', $deviceId, SQLITE3_TEXT);
+    $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
     $stmt->execute();
 }
 
@@ -949,11 +949,11 @@ function sh_migrate_json_runtime_data(AppDatabase $db): void {
         $tokens = json_decode((string)file_get_contents($wsFile), true) ?: [];
         foreach ($tokens as $tok => $meta) {
             if (!is_array($meta)) continue;
-            $ins = $db->prepare('INSERT OR IGNORE INTO smarthome_ws_tokens (token, user_email, device_id, expires_at) VALUES (:tok, :em, :did, :exp)');
-            $ins->bindValue(':tok', (string)$tok, SQLITE3_TEXT);
-            $ins->bindValue(':em', (string)($meta['user_email'] ?? ''), SQLITE3_TEXT);
-            $ins->bindValue(':did', (string)($meta['device_id'] ?? ''), SQLITE3_TEXT);
-            $ins->bindValue(':exp', (int)($meta['expires_at'] ?? 0), SQLITE3_INTEGER);
+            $ins = $db->prepare('INSERT INTO smarthome_ws_tokens (token, user_email, device_id, expires_at) VALUES (:tok, :em, :did, :exp)');
+            $ins->bindValue(':tok', (string)$tok, PDO::PARAM_STR);
+            $ins->bindValue(':em', (string)($meta['user_email'] ?? ''), PDO::PARAM_STR);
+            $ins->bindValue(':did', (string)($meta['device_id'] ?? ''), PDO::PARAM_STR);
+            $ins->bindValue(':exp', (int)($meta['expires_at'] ?? 0), PDO::PARAM_INT);
             $ins->execute();
         }
         @unlink($wsFile);
@@ -965,23 +965,23 @@ function sh_migrate_json_runtime_data(AppDatabase $db): void {
         if ($kind === 'queue') {
             foreach ($data as $id => $item) {
                 if (!is_array($item)) continue;
-                $ins = $db->prepare('INSERT OR IGNORE INTO smarthome_control_queue (id, user_email, device_id, control_id, value_json, created_at, expires_at) VALUES (:id, :em, :did, :cid, :val, :ca, :exp)');
-                $ins->bindValue(':id', (string)$id, SQLITE3_TEXT);
-                $ins->bindValue(':em', (string)($item['user_email'] ?? ''), SQLITE3_TEXT);
-                $ins->bindValue(':did', (string)($item['device_id'] ?? ''), SQLITE3_TEXT);
-                $ins->bindValue(':cid', (string)($item['control_id'] ?? ''), SQLITE3_TEXT);
-                $ins->bindValue(':val', json_encode($item['value'] ?? null, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $ins->bindValue(':ca', (float)($item['created_at'] ?? microtime(true)), SQLITE3_FLOAT);
-                $ins->bindValue(':exp', (float)($item['expires_at'] ?? microtime(true)), SQLITE3_FLOAT);
+                $ins = $db->prepare('INSERT INTO smarthome_control_queue (id, user_email, device_id, control_id, value_json, created_at, expires_at) VALUES (:id, :em, :did, :cid, :val, :ca, :exp)');
+                $ins->bindValue(':id', (string)$id, PDO::PARAM_STR);
+                $ins->bindValue(':em', (string)($item['user_email'] ?? ''), PDO::PARAM_STR);
+                $ins->bindValue(':did', (string)($item['device_id'] ?? ''), PDO::PARAM_STR);
+                $ins->bindValue(':cid', (string)($item['control_id'] ?? ''), PDO::PARAM_STR);
+                $ins->bindValue(':val', json_encode($item['value'] ?? null, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $ins->bindValue(':ca', (float)($item['created_at'] ?? microtime(true)), PDO::PARAM_STR);
+                $ins->bindValue(':exp', (float)($item['expires_at'] ?? microtime(true)), PDO::PARAM_STR);
                 $ins->execute();
             }
         } else {
             foreach ($data as $id => $item) {
                 if (!is_array($item)) continue;
-                $ins = $db->prepare('INSERT OR IGNORE INTO smarthome_control_results (id, result_json, updated_at) VALUES (:id, :rj, :ua)');
-                $ins->bindValue(':id', (string)$id, SQLITE3_TEXT);
-                $ins->bindValue(':rj', json_encode($item, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $ins->bindValue(':ua', (float)($item['updated_at'] ?? microtime(true)), SQLITE3_FLOAT);
+                $ins = $db->prepare('INSERT INTO smarthome_control_results (id, result_json, updated_at) VALUES (:id, :rj, :ua)');
+                $ins->bindValue(':id', (string)$id, PDO::PARAM_STR);
+                $ins->bindValue(':rj', json_encode($item, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $ins->bindValue(':ua', (float)($item['updated_at'] ?? microtime(true)), PDO::PARAM_STR);
                 $ins->execute();
             }
         }
@@ -991,8 +991,8 @@ function sh_migrate_json_runtime_data(AppDatabase $db): void {
 
 function sh_update_device_control(AppDatabase $db, string $deviceId, string $controlId, $value): ?array {
     $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id LIMIT 1');
-    $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-    $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+    $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) {
         return null;
     }
@@ -1009,9 +1009,9 @@ function sh_update_device_control(AppDatabase $db, string $deviceId, string $con
     if (!$matched) {
         return false;
     }
-    $upd = $db->prepare("UPDATE smarthome_devices SET controls=:ctrls, updated_at=datetime('now','localtime') WHERE id=:id");
-    $upd->bindValue(':ctrls', json_encode($controls, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-    $upd->bindValue(':id', $deviceId, SQLITE3_TEXT);
+    $upd = $db->prepare("UPDATE smarthome_devices SET controls=:ctrls, updated_at=CURRENT_TIMESTAMP WHERE id=:id");
+    $upd->bindValue(':ctrls', json_encode($controls, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+    $upd->bindValue(':id', $deviceId, PDO::PARAM_STR);
     $upd->execute();
 
     $row['controls'] = $controls;
@@ -1520,12 +1520,12 @@ if ($action !== '') {
             $floorPlan = sh_fetch_floor_plan($db, $homeCtx['floor_owner']);
             $groups = [];
             $gr = $db->prepare('SELECT g.*, gm.role as member_role FROM smarthome_groups g LEFT JOIN smarthome_group_members gm ON gm.group_id = g.id AND gm.member_email = :em WHERE g.user_email = :em2 OR gm.member_email = :em3 ORDER BY g.name');
-            $gr->bindValue(':em', $userEmail, SQLITE3_TEXT);
-            $gr->bindValue(':em2', $userEmail, SQLITE3_TEXT);
-            $gr->bindValue(':em3', $userEmail, SQLITE3_TEXT);
+            $gr->bindValue(':em', $userEmail, PDO::PARAM_STR);
+            $gr->bindValue(':em2', $userEmail, PDO::PARAM_STR);
+            $gr->bindValue(':em3', $userEmail, PDO::PARAM_STR);
             $gres = $gr->execute();
             $seen = [];
-            while ($grow = $gres->fetchArray(SQLITE3_ASSOC)) {
+            while ($grow = $gres->fetch(PDO::FETCH_ASSOC)) {
                 if (!isset($seen[$grow['id']])) {
                     $seen[$grow['id']] = true;
                     $grow['member_role'] = $grow['member_role'] ?? ($grow['user_email'] === $userEmail ? 'admin' : null);
@@ -1559,9 +1559,9 @@ if ($action !== '') {
             }
             $elements = $payload['elements'] ?? [];
             $owner = $homeCtx['floor_owner'];
-            $stmt = $db->prepare("INSERT OR REPLACE INTO smarthome_floor_plans (user_email, elements_json, updated_at) VALUES (:em, :el, datetime('now','localtime'))");
-            $stmt->bindValue(':em', $owner, SQLITE3_TEXT);
-            $stmt->bindValue(':el', json_encode($elements, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+            $stmt = $db->prepare("INSERT INTO smarthome_floor_plans (user_email, elements_json, updated_at) VALUES (:em, :el, CURRENT_TIMESTAMP)");
+            $stmt->bindValue(':em', $owner, PDO::PARAM_STR);
+            $stmt->bindValue(':el', json_encode($elements, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
             $stmt->execute();
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -1574,8 +1574,8 @@ if ($action !== '') {
             }
             $displayed = $payload['displayed_controls'] ?? [];
             $upd = $db->prepare('UPDATE smarthome_devices SET displayed_controls=:dc WHERE id=:id');
-            $upd->bindValue(':dc', json_encode($displayed, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $upd->bindValue(':id', $deviceId, SQLITE3_TEXT);
+            $upd->bindValue(':dc', json_encode($displayed, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $upd->bindValue(':id', $deviceId, PDO::PARAM_STR);
             $upd->execute();
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -1600,13 +1600,13 @@ if ($action !== '') {
                 $homeGroupId = '';
             }
             $homeView = (($payload['home_view'] ?? $cur['home_view'] ?? 'tiles') === 'map') ? 'map' : 'tiles';
-            $stmt = $db->prepare('INSERT OR REPLACE INTO smarthome_settings (user_email, server_domain, ap_domain, home_scope, home_group_id, home_view, updated_at) VALUES (:em, :sd, :ad, :hs, :hg, :hv, datetime(\'now\',\'localtime\'))');
-            $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':sd', $sd, SQLITE3_TEXT);
-            $stmt->bindValue(':ad', $ad, SQLITE3_TEXT);
-            $stmt->bindValue(':hs', $homeScope, SQLITE3_TEXT);
-            $stmt->bindValue(':hg', $homeGroupId, SQLITE3_TEXT);
-            $stmt->bindValue(':hv', $homeView, SQLITE3_TEXT);
+            $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain, home_scope, home_group_id, home_view, updated_at) VALUES (:em, :sd, :ad, :hs, :hg, :hv, datetime(\'now\',\'localtime\'))');
+            $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':sd', $sd, PDO::PARAM_STR);
+            $stmt->bindValue(':ad', $ad, PDO::PARAM_STR);
+            $stmt->bindValue(':hs', $homeScope, PDO::PARAM_STR);
+            $stmt->bindValue(':hg', $homeGroupId, PDO::PARAM_STR);
+            $stmt->bindValue(':hv', $homeView, PDO::PARAM_STR);
             $stmt->execute();
             $saved = sh_load_user_settings($db, $userEmail);
             echo json_encode(['ok'=>true, 'settings'=>$saved, 'can_edit_endpoints'=>sh_can_edit_endpoints()], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -1622,8 +1622,8 @@ if ($action !== '') {
                     exit;
                 }
                 $ti = $db->prepare('SELECT * FROM smarthome_token_index WHERE token = :tok');
-                $ti->bindValue(':tok', $token, SQLITE3_TEXT);
-                $tiRow = $ti->execute()->fetchArray(SQLITE3_ASSOC);
+                $ti->bindValue(':tok', $token, PDO::PARAM_STR);
+                $tiRow = $ti->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($tiRow) {
                     if (($tiRow['user_email'] ?? '') !== $userEmail) {
                         echo json_encode(['ok'=>false,'error'=>'Token already registered'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -1650,38 +1650,38 @@ if ($action !== '') {
                 $mqtt = sh_auto_mqtt($name, $slug);
                 $category = trim((string)($payload['category'] ?? ''));
                 $stmt = $db->prepare("INSERT INTO smarthome_devices (id, user_email, name, type, room, status, local_url, server_domain, ap_domain, mqtt_topic, device_token, notes, icon, category, controls, params, files, displayed_params, created_at, updated_at) VALUES (:id, :em, :name, :type, :room, 'unknown', :local, :sd, :ad, :mqtt, :token, :notes, :icon, :cat, :ctrls, :params, :files, '[]', :now, :now)");
-                $stmt->bindValue(':id', $slug, SQLITE3_TEXT);
-                $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-                $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-                $stmt->bindValue(':type', $type, SQLITE3_TEXT);
-                $stmt->bindValue(':room', $room, SQLITE3_TEXT);
-                $stmt->bindValue(':local', '', SQLITE3_TEXT);
-                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', SQLITE3_TEXT);
-                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', SQLITE3_TEXT);
-                $stmt->bindValue(':mqtt', $mqtt, SQLITE3_TEXT);
-                $stmt->bindValue(':token', $token, SQLITE3_TEXT);
-                $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':icon', $tpl['icon'], SQLITE3_TEXT);
-                $stmt->bindValue(':cat', $category, SQLITE3_TEXT);
-                $stmt->bindValue(':ctrls', json_encode($tpl['controls'], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $stmt->bindValue(':params', json_encode($tpl['params'], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $stmt->bindValue(':files', json_encode($tpl['files'], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $stmt->bindValue(':now', $now, SQLITE3_TEXT);
+                $stmt->bindValue(':id', $slug, PDO::PARAM_STR);
+                $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+                $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+                $stmt->bindValue(':type', $type, PDO::PARAM_STR);
+                $stmt->bindValue(':room', $room, PDO::PARAM_STR);
+                $stmt->bindValue(':local', '', PDO::PARAM_STR);
+                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':mqtt', $mqtt, PDO::PARAM_STR);
+                $stmt->bindValue(':token', $token, PDO::PARAM_STR);
+                $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':icon', $tpl['icon'], PDO::PARAM_STR);
+                $stmt->bindValue(':cat', $category, PDO::PARAM_STR);
+                $stmt->bindValue(':ctrls', json_encode($tpl['controls'], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':params', json_encode($tpl['params'], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':files', json_encode($tpl['files'], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':now', $now, PDO::PARAM_STR);
                 $stmt->execute();
                 $gidNew = trim((string)($payload['group_id'] ?? ''));
                 if ($gidNew !== '' && sh_user_can_assign_group($db, $gidNew, $userEmail)) {
                     $gu = $db->prepare('UPDATE smarthome_devices SET group_id=:gid WHERE id=:id AND user_email=:em');
-                    $gu->bindValue(':gid', $gidNew, SQLITE3_TEXT);
-                    $gu->bindValue(':id', $slug, SQLITE3_TEXT);
-                    $gu->bindValue(':em', $userEmail, SQLITE3_TEXT);
+                    $gu->bindValue(':gid', $gidNew, PDO::PARAM_STR);
+                    $gu->bindValue(':id', $slug, PDO::PARAM_STR);
+                    $gu->bindValue(':em', $userEmail, PDO::PARAM_STR);
                     $gu->execute();
                 }
                 // Add token index
-                $ti = $db->prepare('INSERT OR REPLACE INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, :now)');
-                $ti->bindValue(':tok', $token, SQLITE3_TEXT);
-                $ti->bindValue(':em', $userEmail, SQLITE3_TEXT);
-                $ti->bindValue(':did', $slug, SQLITE3_TEXT);
-                $ti->bindValue(':now', $now, SQLITE3_TEXT);
+                $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, :now)');
+                $ti->bindValue(':tok', $token, PDO::PARAM_STR);
+                $ti->bindValue(':em', $userEmail, PDO::PARAM_STR);
+                $ti->bindValue(':did', $slug, PDO::PARAM_STR);
+                $ti->bindValue(':now', $now, PDO::PARAM_STR);
                 $ti->execute();
                 // Log
                 sh_monitor_log($userEmail, $slug, 'device_created', ['name'=>$name, 'type'=>$type]);
@@ -1690,20 +1690,20 @@ if ($action !== '') {
                     echo json_encode(['ok'=>false,'error'=>'No permission'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
                     exit;
                 }
-                $stmt = $db->prepare("UPDATE smarthome_devices SET name=:name, room=:room, local_url=:local, server_domain=:sd, ap_domain=:ad, mqtt_topic=:mqtt, device_token=:token, notes=:notes, icon=:icon, icon_locked=1, category=:cat, status=:status, updated_at=datetime('now','localtime') WHERE id=:id AND user_email=:em");
-                $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-                $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-                $stmt->bindValue(':name', trim((string)($payload['name'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':room', trim((string)($payload['room'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':local', trim((string)($payload['local_url'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', SQLITE3_TEXT);
-                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', SQLITE3_TEXT);
-                $stmt->bindValue(':mqtt', trim((string)($payload['mqtt_topic'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':token', trim((string)($payload['device_token'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':icon', trim((string)($payload['icon'] ?? 'smart-device')), SQLITE3_TEXT);
-                $stmt->bindValue(':cat', trim((string)($payload['category'] ?? '')), SQLITE3_TEXT);
-                $stmt->bindValue(':status', trim((string)($payload['status'] ?? 'unknown')), SQLITE3_TEXT);
+                $stmt = $db->prepare("UPDATE smarthome_devices SET name=:name, room=:room, local_url=:local, server_domain=:sd, ap_domain=:ad, mqtt_topic=:mqtt, device_token=:token, notes=:notes, icon=:icon, icon_locked=1, category=:cat, status=:status, updated_at=CURRENT_TIMESTAMP WHERE id=:id AND user_email=:em");
+                $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+                $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+                $stmt->bindValue(':name', trim((string)($payload['name'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':room', trim((string)($payload['room'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':local', trim((string)($payload['local_url'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':mqtt', trim((string)($payload['mqtt_topic'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':token', trim((string)($payload['device_token'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':icon', trim((string)($payload['icon'] ?? 'smart-device')), PDO::PARAM_STR);
+                $stmt->bindValue(':cat', trim((string)($payload['category'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':status', trim((string)($payload['status'] ?? 'unknown')), PDO::PARAM_STR);
                 $stmt->execute();
                 if (array_key_exists('group_id', $payload)) {
                     $gidSet = trim((string)($payload['group_id'] ?? ''));
@@ -1712,17 +1712,17 @@ if ($action !== '') {
                         exit;
                     }
                     $gu = $db->prepare('UPDATE smarthome_devices SET group_id=:gid WHERE id=:id AND user_email=:em');
-                    $gu->bindValue(':gid', $gidSet, SQLITE3_TEXT);
-                    $gu->bindValue(':id', $deviceId, SQLITE3_TEXT);
-                    $gu->bindValue(':em', $userEmail, SQLITE3_TEXT);
+                    $gu->bindValue(':gid', $gidSet, PDO::PARAM_STR);
+                    $gu->bindValue(':id', $deviceId, PDO::PARAM_STR);
+                    $gu->bindValue(':em', $userEmail, PDO::PARAM_STR);
                     $gu->execute();
                 }
                 // Update token index if token changed
                 if (!empty($payload['device_token'])) {
-                    $ti = $db->prepare('INSERT OR REPLACE INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, datetime(\'now\',\'localtime\'))');
-                    $ti->bindValue(':tok', trim((string)$payload['device_token']), SQLITE3_TEXT);
-                    $ti->bindValue(':em', $userEmail, SQLITE3_TEXT);
-                    $ti->bindValue(':did', $deviceId, SQLITE3_TEXT);
+                    $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, datetime(\'now\',\'localtime\'))');
+                    $ti->bindValue(':tok', trim((string)$payload['device_token']), PDO::PARAM_STR);
+                    $ti->bindValue(':em', $userEmail, PDO::PARAM_STR);
+                    $ti->bindValue(':did', $deviceId, PDO::PARAM_STR);
                     $ti->execute();
                 }
             }
@@ -1743,8 +1743,8 @@ if ($action !== '') {
             if (!$devRow) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Device not found']); exit; }
             $ownerEmail = (string)($devRow['user_email'] ?? $userEmail);
             $stmt = $db->prepare('SELECT controls, status FROM smarthome_devices WHERE id = :id');
-            $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if (!$row) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Device not found']); exit; }
             $controls = sh_json_field($row['controls'] ?? '[]');
             $controlType = null;
@@ -1806,8 +1806,8 @@ if ($action !== '') {
             }
             $displayed = $payload['displayed_params'] ?? [];
             $upd = $db->prepare('UPDATE smarthome_devices SET displayed_params=:dp WHERE id=:id');
-            $upd->bindValue(':dp', json_encode($displayed, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-            $upd->bindValue(':id', $deviceId, SQLITE3_TEXT);
+            $upd->bindValue(':dp', json_encode($displayed, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $upd->bindValue(':id', $deviceId, PDO::PARAM_STR);
             $upd->execute();
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -1815,13 +1815,13 @@ if ($action !== '') {
 
         if ($action === 'delete_device') {
             $deviceId = trim((string)($payload['device_id'] ?? ''));
-            $db->exec('BEGIN IMMEDIATE');
+            $db->exec('BEGIN');
             $st1 = $db->prepare('DELETE FROM smarthome_token_index WHERE device_id=:id');
-            $st1->bindValue(':id', $deviceId, SQLITE3_TEXT);
+            $st1->bindValue(':id', $deviceId, PDO::PARAM_STR);
             $st1->execute();
             $st2 = $db->prepare('DELETE FROM smarthome_devices WHERE id=:id AND user_email=:em');
-            $st2->bindValue(':id', $deviceId, SQLITE3_TEXT);
-            $st2->bindValue(':em', $userEmail, SQLITE3_TEXT);
+            $st2->bindValue(':id', $deviceId, PDO::PARAM_STR);
+            $st2->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $st2->execute();
             $db->exec('COMMIT');
             sh_monitor_log($userEmail, $deviceId, 'device_deleted', []);
@@ -1839,23 +1839,23 @@ if ($action !== '') {
             $token = trim((string)($payload['device_token'] ?? ''));
             if ($token === '') { http_response_code(400); echo json_encode(['ok'=>false,'error'=>'Missing token']); exit; }
             $ti = $db->prepare('SELECT * FROM smarthome_token_index WHERE token = :tok');
-            $ti->bindValue(':tok', $token, SQLITE3_TEXT);
-            $tiRow = $ti->execute()->fetchArray(SQLITE3_ASSOC);
+            $ti->bindValue(':tok', $token, PDO::PARAM_STR);
+            $tiRow = $ti->execute()->fetch(PDO::FETCH_ASSOC);
             if (!$tiRow) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Unknown token']); exit; }
             $devStmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id');
-            $devStmt->bindValue(':id', $tiRow['device_id'], SQLITE3_TEXT);
-            $device = $devStmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $devStmt->bindValue(':id', $tiRow['device_id'], PDO::PARAM_STR);
+            $device = $devStmt->execute()->fetch(PDO::FETCH_ASSOC);
             if (!$device) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Device not found']); exit; }
             $decodedDevice = sh_device_row_decode($device);
             if (!empty($payload['definition']) && is_array($payload['definition'])) {
                 $decodedDevice = sh_apply_device_definition($decodedDevice, $payload['definition']);
-                $defUpd = $db->prepare("UPDATE smarthome_devices SET type=:type, icon=:icon, controls=:ctrls, params=:params, files=:files, updated_at=datetime('now','localtime') WHERE id=:id");
-                $defUpd->bindValue(':type', (string)($decodedDevice['type'] ?? ($device['type'] ?? 'generic_sensor')), SQLITE3_TEXT);
-                $defUpd->bindValue(':icon', (string)($decodedDevice['icon'] ?? ($device['icon'] ?? 'smart-device')), SQLITE3_TEXT);
-                $defUpd->bindValue(':ctrls', json_encode($decodedDevice['controls'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $defUpd->bindValue(':params', json_encode($decodedDevice['params'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $defUpd->bindValue(':files', json_encode($decodedDevice['files'] ?? [], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $defUpd->bindValue(':id', $device['id'], SQLITE3_TEXT);
+                $defUpd = $db->prepare("UPDATE smarthome_devices SET type=:type, icon=:icon, controls=:ctrls, params=:params, files=:files, updated_at=CURRENT_TIMESTAMP WHERE id=:id");
+                $defUpd->bindValue(':type', (string)($decodedDevice['type'] ?? ($device['type'] ?? 'generic_sensor')), PDO::PARAM_STR);
+                $defUpd->bindValue(':icon', (string)($decodedDevice['icon'] ?? ($device['icon'] ?? 'smart-device')), PDO::PARAM_STR);
+                $defUpd->bindValue(':ctrls', json_encode($decodedDevice['controls'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $defUpd->bindValue(':params', json_encode($decodedDevice['params'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $defUpd->bindValue(':files', json_encode($decodedDevice['files'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $defUpd->bindValue(':id', $device['id'], PDO::PARAM_STR);
                 $defUpd->execute();
                 $device['type'] = $decodedDevice['type'] ?? ($device['type'] ?? 'generic_sensor');
                 $device['icon'] = $decodedDevice['icon'] ?? ($device['icon'] ?? 'smart-device');
@@ -1864,10 +1864,10 @@ if ($action !== '') {
                 $device['files'] = json_encode($decodedDevice['files'] ?? [], JSON_UNESCAPED_UNICODE);
             }
             // Update
-            $upd = $db->prepare("UPDATE smarthome_devices SET status='online', updated_at=datetime('now','localtime'), local_url=COALESCE(NULLIF(:local,''), local_url), name=COALESCE(NULLIF(:name,''), name) WHERE id=:id");
-            $upd->bindValue(':local', trim((string)($payload['local_url'] ?? '')), SQLITE3_TEXT);
-            $upd->bindValue(':name', trim((string)($payload['name'] ?? '')), SQLITE3_TEXT);
-            $upd->bindValue(':id', $device['id'], SQLITE3_TEXT);
+            $upd = $db->prepare("UPDATE smarthome_devices SET status='online', updated_at=CURRENT_TIMESTAMP, local_url=COALESCE(NULLIF(:local,''), local_url), name=COALESCE(NULLIF(:name,''), name) WHERE id=:id");
+            $upd->bindValue(':local', trim((string)($payload['local_url'] ?? '')), PDO::PARAM_STR);
+            $upd->bindValue(':name', trim((string)($payload['name'] ?? '')), PDO::PARAM_STR);
+            $upd->bindValue(':id', $device['id'], PDO::PARAM_STR);
             $upd->execute();
             // Update params from telemetry
             if (!empty($payload['telemetry']) && is_array($payload['telemetry'])) {
@@ -1879,8 +1879,8 @@ if ($action !== '') {
                 }
                 unset($p);
                 $pupd = $db->prepare("UPDATE smarthome_devices SET params=:params WHERE id=:id");
-                $pupd->bindValue(':params', json_encode($params, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $pupd->bindValue(':id', $device['id'], SQLITE3_TEXT);
+                $pupd->bindValue(':params', json_encode($params, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $pupd->bindValue(':id', $device['id'], PDO::PARAM_STR);
                 $pupd->execute();
             }
             $deviceId = (string)$device['id'];
@@ -1898,8 +1898,8 @@ if ($action !== '') {
                 unset($c);
                 if ($changed) {
                     $cupd = $db->prepare('UPDATE smarthome_devices SET controls=:ctrls, updated_at=datetime(\'now\',\'localtime\') WHERE id=:id');
-                    $cupd->bindValue(':ctrls', json_encode($controls, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                    $cupd->bindValue(':id', $deviceId, SQLITE3_TEXT);
+                    $cupd->bindValue(':ctrls', json_encode($controls, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                    $cupd->bindValue(':id', $deviceId, PDO::PARAM_STR);
                     $cupd->execute();
                 }
             }
@@ -1907,8 +1907,8 @@ if ($action !== '') {
             sh_trigger_ws_dispatch();
             sh_record_device_events($db, (string)$tiRow['user_email'], $deviceId, (string)($device['name'] ?? ''), $payload);
             $devStmt2 = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id');
-            $devStmt2->bindValue(':id', $deviceId, SQLITE3_TEXT);
-            $updatedDevice = $devStmt2->execute()->fetchArray(SQLITE3_ASSOC);
+            $devStmt2->bindValue(':id', $deviceId, PDO::PARAM_STR);
+            $updatedDevice = $devStmt2->execute()->fetch(PDO::FETCH_ASSOC);
             $respControls = sh_controls_to_map(sh_json_field($updatedDevice['controls'] ?? '[]'));
             echo json_encode([
                 'ok'=>true,
@@ -1935,15 +1935,15 @@ if ($action !== '') {
             if ($name === '') { echo json_encode(['ok'=>false,'error'=>'Name required']); exit; }
             $id = sh_slug($name . '-' . substr(bin2hex(random_bytes(4)), 0, 6));
             $stmt = $db->prepare('INSERT INTO smarthome_groups (id, name, user_email) VALUES (:id, :name, :em)');
-            $stmt->bindValue(':id', $id, SQLITE3_TEXT);
-            $stmt->bindValue(':name', $name, SQLITE3_TEXT);
-            $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $id, PDO::PARAM_STR);
+            $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+            $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $stmt->execute();
             // Add creator as admin
             $stmt2 = $db->prepare('INSERT INTO smarthome_group_members (group_id, member_email, role) VALUES (:gid, :em, :role)');
-            $stmt2->bindValue(':gid', $id, SQLITE3_TEXT);
-            $stmt2->bindValue(':em', $userEmail, SQLITE3_TEXT);
-            $stmt2->bindValue(':role', 'admin', SQLITE3_TEXT);
+            $stmt2->bindValue(':gid', $id, PDO::PARAM_STR);
+            $stmt2->bindValue(':em', $userEmail, PDO::PARAM_STR);
+            $stmt2->bindValue(':role', 'admin', PDO::PARAM_STR);
             $stmt2->execute();
             sh_monitor_log($userEmail, null, 'group_created', ['name'=>$name, 'group_id'=>$id]);
             echo json_encode(['ok'=>true, 'group'=>['id'=>$id, 'name'=>$name, 'user_email'=>$userEmail]], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -1953,8 +1953,8 @@ if ($action !== '') {
         if ($action === 'delete_group') {
             $gid = trim((string)($payload['group_id'] ?? ''));
             $stmt = $db->prepare('DELETE FROM smarthome_groups WHERE id=:id AND user_email=:em');
-            $stmt->bindValue(':id', $gid, SQLITE3_TEXT);
-            $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':id', $gid, PDO::PARAM_STR);
+            $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $stmt->execute();
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -1972,15 +1972,15 @@ if ($action !== '') {
             $members = [];
             $ownerName = '';
             $onStmt = $db->prepare('SELECT name FROM users WHERE email = :em LIMIT 1');
-            $onStmt->bindValue(':em', $ownerEmail, SQLITE3_TEXT);
-            $onRow = $onStmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $onStmt->bindValue(':em', $ownerEmail, PDO::PARAM_STR);
+            $onRow = $onStmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($onRow) $ownerName = (string)($onRow['name'] ?? '');
             $members[] = ['member_email'=>$ownerEmail, 'member_name'=>$ownerName, 'role'=>'owner', 'is_owner'=>true, 'added_at'=>''];
             $stmt = $db->prepare('SELECT gm.*, u.name as member_name FROM smarthome_group_members gm LEFT JOIN users u ON u.email = gm.member_email WHERE gm.group_id = :gid AND gm.member_email != :owner ORDER BY gm.added_at');
-            $stmt->bindValue(':gid', $gid, SQLITE3_TEXT);
-            $stmt->bindValue(':owner', $ownerEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':gid', $gid, PDO::PARAM_STR);
+            $stmt->bindValue(':owner', $ownerEmail, PDO::PARAM_STR);
             $res = $stmt->execute();
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 $row['is_owner'] = false;
                 $members[] = $row;
             }
@@ -1998,17 +1998,17 @@ if ($action !== '') {
             $grow = $acc['group'];
             if (($grow['user_email'] ?? '') === $memberEmail) { echo json_encode(['ok'=>false,'error'=>'Already a member']); exit; }
             $userCheck = $db->prepare('SELECT email FROM users WHERE email = :em');
-            $userCheck->bindValue(':em', $memberEmail, SQLITE3_TEXT);
-            if (!$userCheck->execute()->fetchArray()) { echo json_encode(['ok'=>false,'error'=>'User not found']); exit; }
+            $userCheck->bindValue(':em', $memberEmail, PDO::PARAM_STR);
+            if (!$userCheck->execute()->fetch()) { echo json_encode(['ok'=>false,'error'=>'User not found']); exit; }
             // Check already member
             $mcheck = $db->prepare('SELECT * FROM smarthome_group_members WHERE group_id=:gid AND member_email=:em');
-            $mcheck->bindValue(':gid', $gid, SQLITE3_TEXT);
-            $mcheck->bindValue(':em', $memberEmail, SQLITE3_TEXT);
-            if ($mcheck->execute()->fetchArray()) { echo json_encode(['ok'=>false,'error'=>'Already a member']); exit; }
+            $mcheck->bindValue(':gid', $gid, PDO::PARAM_STR);
+            $mcheck->bindValue(':em', $memberEmail, PDO::PARAM_STR);
+            if ($mcheck->execute()->fetch()) { echo json_encode(['ok'=>false,'error'=>'Already a member']); exit; }
             $stmt = $db->prepare('INSERT INTO smarthome_group_members (group_id, member_email, role) VALUES (:gid, :em, :role)');
-            $stmt->bindValue(':gid', $gid, SQLITE3_TEXT);
-            $stmt->bindValue(':em', $memberEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':role', $role, SQLITE3_TEXT);
+            $stmt->bindValue(':gid', $gid, PDO::PARAM_STR);
+            $stmt->bindValue(':em', $memberEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':role', $role, PDO::PARAM_STR);
             $stmt->execute();
             sh_monitor_log($userEmail, null, 'member_added', ['group_id'=>$gid, 'member_email'=>$memberEmail, 'role'=>$role]);
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -2023,8 +2023,8 @@ if ($action !== '') {
             $grow = $acc['group'];
             if (($grow['user_email'] ?? '') === $memberEmail) { echo json_encode(['ok'=>false,'error'=>'Cannot remove group creator']); exit; }
             $stmt = $db->prepare('DELETE FROM smarthome_group_members WHERE group_id=:gid AND member_email=:em');
-            $stmt->bindValue(':gid', $gid, SQLITE3_TEXT);
-            $stmt->bindValue(':em', $memberEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':gid', $gid, PDO::PARAM_STR);
+            $stmt->bindValue(':em', $memberEmail, PDO::PARAM_STR);
             $stmt->execute();
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -2039,9 +2039,9 @@ if ($action !== '') {
             $grow = $acc['group'];
             if (($grow['user_email'] ?? '') === $memberEmail) { echo json_encode(['ok'=>false,'error'=>'Cannot change creator role']); exit; }
             $stmt = $db->prepare('UPDATE smarthome_group_members SET role=:role WHERE group_id=:gid AND member_email=:em');
-            $stmt->bindValue(':role', $role, SQLITE3_TEXT);
-            $stmt->bindValue(':gid', $gid, SQLITE3_TEXT);
-            $stmt->bindValue(':em', $memberEmail, SQLITE3_TEXT);
+            $stmt->bindValue(':role', $role, PDO::PARAM_STR);
+            $stmt->bindValue(':gid', $gid, PDO::PARAM_STR);
+            $stmt->bindValue(':em', $memberEmail, PDO::PARAM_STR);
             $stmt->execute();
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -2052,19 +2052,19 @@ if ($action !== '') {
             $period = (int)($payload['period'] ?? 24); // hours
             $devices = [];
             $r = $db->prepare('SELECT * FROM smarthome_devices WHERE user_email = :em');
-            $r->bindValue(':em', $userEmail, SQLITE3_TEXT);
+            $r->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $res = $r->execute();
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 $row['params'] = json_decode($row['params'] ?: '[]', true) ?: [];
                 $devices[] = $row;
             }
             // Get recent events
             $events = [];
-            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at >= datetime('now', '-' || :period || ' hours') ORDER BY created_at DESC LIMIT 200");
-            $estmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-            $estmt->bindValue(':period', $period, SQLITE3_TEXT);
+            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 200");
+            $estmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+            $estmt->bindValue(':period', $period, PDO::PARAM_STR);
             $eres = $estmt->execute();
-            while ($erow = $eres->fetchArray(SQLITE3_ASSOC)) {
+            while ($erow = $eres->fetch(PDO::FETCH_ASSOC)) {
                 $edata = json_decode($erow['event_data'] ?? '{}', true) ?: [];
                 $erow['device_name'] = (string)($edata['device_name'] ?? '');
                 $erow['event_label'] = sh_event_label((string)($erow['event_type'] ?? ''), $edata);
@@ -2073,11 +2073,11 @@ if ($action !== '') {
             // Get param history for devices
             $paramHistory = [];
             foreach ($devices as $d) {
-                $ph = $db->prepare("SELECT * FROM smarthome_params_history WHERE device_id = :did AND recorded_at >= datetime('now', '-' || :period || ' hours') ORDER BY recorded_at DESC LIMIT 100");
-                $ph->bindValue(':did', $d['id'], SQLITE3_TEXT);
-                $ph->bindValue(':period', $period, SQLITE3_TEXT);
+                $ph = $db->prepare("SELECT * FROM smarthome_params_history WHERE device_id = :did AND recorded_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY recorded_at DESC LIMIT 100");
+                $ph->bindValue(':did', $d['id'], PDO::PARAM_STR);
+                $ph->bindValue(':period', $period, PDO::PARAM_STR);
                 $phres = $ph->execute();
-                while ($phrow = $phres->fetchArray(SQLITE3_ASSOC)) $paramHistory[] = $phrow;
+                while ($phrow = $phres->fetch(PDO::FETCH_ASSOC)) $paramHistory[] = $phrow;
             }
             echo json_encode(['ok'=>true, 'devices'=>$devices, 'events'=>$events, 'paramHistory'=>$paramHistory], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -2088,11 +2088,11 @@ if ($action !== '') {
             if ($period < 1) $period = 168;
             if ($period > 720) $period = 720;
             $errors = [];
-            $stmt = $db->prepare("SELECT * FROM smarthome_errors WHERE user_email = :em AND created_at >= datetime('now', '-' || :period || ' hours', 'localtime') ORDER BY created_at DESC LIMIT 300");
-            $stmt->bindValue(':em', $userEmail, SQLITE3_TEXT);
-            $stmt->bindValue(':period', $period, SQLITE3_TEXT);
+            $stmt = $db->prepare("SELECT * FROM smarthome_errors WHERE user_email = :em AND created_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 300");
+            $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+            $stmt->bindValue(':period', $period, PDO::PARAM_STR);
             $res = $stmt->execute();
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) $errors[] = $row;
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) $errors[] = $row;
             echo json_encode(['ok'=>true, 'errors'=>$errors], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
         }
@@ -2101,10 +2101,10 @@ if ($action !== '') {
             $deviceId = trim((string)($payload['device_id'] ?? ''));
             foreach (($payload['params'] ?? []) as $p) {
                 $stmt = $db->prepare('INSERT INTO smarthome_params_history (device_id, param_id, param_label, param_value) VALUES (:did, :pid, :pl, :pv)');
-                $stmt->bindValue(':did', $deviceId, SQLITE3_TEXT);
-                $stmt->bindValue(':pid', $p['id'], SQLITE3_TEXT);
-                $stmt->bindValue(':pl', $p['label'], SQLITE3_TEXT);
-                $stmt->bindValue(':pv', $p['value'], SQLITE3_TEXT);
+                $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+                $stmt->bindValue(':pid', $p['id'], PDO::PARAM_STR);
+                $stmt->bindValue(':pl', $p['label'], PDO::PARAM_STR);
+                $stmt->bindValue(':pv', $p['value'], PDO::PARAM_STR);
                 $stmt->execute();
             }
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -2124,8 +2124,8 @@ if ($action !== '') {
 function sh_monitor_purge(): void {
     try {
         $db = sh_db();
-        $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at < datetime('now', '-30 days', 'localtime')");
-        $db->exec("DELETE FROM smarthome_errors WHERE created_at < datetime('now', '-30 days', 'localtime')");
+        $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
+        $db->exec("DELETE FROM smarthome_errors WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
     } catch (Throwable $e) {
         error_log('sh_monitor_purge: ' . $e->getMessage());
     }
@@ -2136,17 +2136,17 @@ function sh_log_error(string $email, ?string $deviceId, string $deviceName, stri
         $db = sh_db();
         if ($deviceName === '' && $deviceId) {
             $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
-            $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row) $deviceName = (string)($row['name'] ?? '');
         }
         $stmt = $db->prepare('INSERT INTO smarthome_errors (user_email, device_id, device_name, source, message, context_json) VALUES (:em, :did, :dn, :src, :msg, :ctx)');
-        $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':did', $deviceId ?? '', SQLITE3_TEXT);
-        $stmt->bindValue(':dn', $deviceName, SQLITE3_TEXT);
-        $stmt->bindValue(':src', $source, SQLITE3_TEXT);
-        $stmt->bindValue(':msg', $message, SQLITE3_TEXT);
-        $stmt->bindValue(':ctx', json_encode($context, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+        $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':did', $deviceId ?? '', PDO::PARAM_STR);
+        $stmt->bindValue(':dn', $deviceName, PDO::PARAM_STR);
+        $stmt->bindValue(':src', $source, PDO::PARAM_STR);
+        $stmt->bindValue(':msg', $message, PDO::PARAM_STR);
+        $stmt->bindValue(':ctx', json_encode($context, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
         $stmt->execute();
     } catch (Throwable $e) {
         error_log('sh_log_error: ' . $e->getMessage());
@@ -2234,16 +2234,16 @@ function sh_monitor_log(string $email, ?string $deviceId, string $eventType, arr
         if ($deviceId && empty($data['device_name'])) {
             $db = sh_db();
             $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
-            $stmt->bindValue(':id', $deviceId, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row) $data['device_name'] = (string)($row['name'] ?? '');
         }
         $db = sh_db();
         $stmt = $db->prepare('INSERT INTO smarthome_monitor_logs (user_email, device_id, event_type, event_data) VALUES (:em, :did, :et, :ed)');
-        $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-        $stmt->bindValue(':did', $deviceId ?? '', SQLITE3_TEXT);
-        $stmt->bindValue(':et', $eventType, SQLITE3_TEXT);
-        $stmt->bindValue(':ed', json_encode($data, JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
+        $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':did', $deviceId ?? '', PDO::PARAM_STR);
+        $stmt->bindValue(':et', $eventType, PDO::PARAM_STR);
+        $stmt->bindValue(':ed', json_encode($data, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
         $stmt->execute();
     } catch (Throwable $e) { error_log('sh_monitor_log: '.$e->getMessage()); }
 }
@@ -2270,10 +2270,10 @@ function sh_migrate_from_json(): void {
         // Migrate settings
         if (is_file($settingsFile)) {
             $s = json_decode((string)file_get_contents($settingsFile), true) ?: [];
-            $stmt = $db->prepare('INSERT OR IGNORE INTO smarthome_settings (user_email, server_domain, ap_domain) VALUES (:em, :sd, :ad)');
-            $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-            $stmt->bindValue(':sd', $s['server_domain'] ?? 'serverkherson.xyz', SQLITE3_TEXT);
-            $stmt->bindValue(':ad', $s['ap_domain'] ?? 'serverkherson.xyz', SQLITE3_TEXT);
+            $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain) VALUES (:em, :sd, :ad)');
+            $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+            $stmt->bindValue(':sd', $s['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+            $stmt->bindValue(':ad', $s['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
             $stmt->execute();
         }
         // Migrate devices
@@ -2283,34 +2283,34 @@ function sh_migrate_from_json(): void {
                 $id = $d['id'] ?? '';
                 if ($id === '') continue;
                 $existing = $db->prepare('SELECT id FROM smarthome_devices WHERE id = :id');
-                $existing->bindValue(':id', $id, SQLITE3_TEXT);
-                if ($existing->execute()->fetchArray()) continue;
+                $existing->bindValue(':id', $id, PDO::PARAM_STR);
+                if ($existing->execute()->fetch()) continue;
                 $stmt = $db->prepare("INSERT INTO smarthome_devices (id, user_email, name, type, room, status, local_url, server_domain, ap_domain, mqtt_topic, device_token, notes, icon, controls, params, files, displayed_params, created_at, updated_at) VALUES (:id, :em, :name, :type, :room, :status, :local, :sd, :ad, :mqtt, :tok, :notes, :icon, :ctrls, :params, :files, '[]', :ca, :ua)");
-                $stmt->bindValue(':id', $id, SQLITE3_TEXT);
-                $stmt->bindValue(':em', $email, SQLITE3_TEXT);
-                $stmt->bindValue(':name', $d['name'] ?? '', SQLITE3_TEXT);
-                $stmt->bindValue(':type', $d['type'] ?? 'generic_sensor', SQLITE3_TEXT);
-                $stmt->bindValue(':room', $d['room'] ?? 'Home', SQLITE3_TEXT);
-                $stmt->bindValue(':status', $d['status'] ?? 'unknown', SQLITE3_TEXT);
-                $stmt->bindValue(':local', $d['local_url'] ?? '', SQLITE3_TEXT);
-                $stmt->bindValue(':sd', $d['server_domain'] ?? 'serverkherson.xyz', SQLITE3_TEXT);
-                $stmt->bindValue(':ad', $d['ap_domain'] ?? 'serverkherson.xyz', SQLITE3_TEXT);
-                $stmt->bindValue(':mqtt', $d['mqtt_topic'] ?? sh_auto_mqtt($d['name']??'', $id), SQLITE3_TEXT);
-                $stmt->bindValue(':tok', $d['device_token'] ?? '', SQLITE3_TEXT);
-                $stmt->bindValue(':notes', $d['notes'] ?? '', SQLITE3_TEXT);
-                $stmt->bindValue(':icon', (sh_templates())[$d['type']??'']['icon'] ?? 'smart-device', SQLITE3_TEXT);
-                $stmt->bindValue(':ctrls', json_encode($d['controls']??[], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $stmt->bindValue(':params', json_encode($d['params']??[], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $stmt->bindValue(':files', json_encode($d['files']??[], JSON_UNESCAPED_UNICODE), SQLITE3_TEXT);
-                $stmt->bindValue(':ca', $d['created_at'] ?? gmdate('c'), SQLITE3_TEXT);
-                $stmt->bindValue(':ua', $d['updated_at'] ?? gmdate('c'), SQLITE3_TEXT);
+                $stmt->bindValue(':id', $id, PDO::PARAM_STR);
+                $stmt->bindValue(':em', $email, PDO::PARAM_STR);
+                $stmt->bindValue(':name', $d['name'] ?? '', PDO::PARAM_STR);
+                $stmt->bindValue(':type', $d['type'] ?? 'generic_sensor', PDO::PARAM_STR);
+                $stmt->bindValue(':room', $d['room'] ?? 'Home', PDO::PARAM_STR);
+                $stmt->bindValue(':status', $d['status'] ?? 'unknown', PDO::PARAM_STR);
+                $stmt->bindValue(':local', $d['local_url'] ?? '', PDO::PARAM_STR);
+                $stmt->bindValue(':sd', $d['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':ad', $d['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':mqtt', $d['mqtt_topic'] ?? sh_auto_mqtt($d['name']??'', $id), PDO::PARAM_STR);
+                $stmt->bindValue(':tok', $d['device_token'] ?? '', PDO::PARAM_STR);
+                $stmt->bindValue(':notes', $d['notes'] ?? '', PDO::PARAM_STR);
+                $stmt->bindValue(':icon', (sh_templates())[$d['type']??'']['icon'] ?? 'smart-device', PDO::PARAM_STR);
+                $stmt->bindValue(':ctrls', json_encode($d['controls']??[], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':params', json_encode($d['params']??[], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':files', json_encode($d['files']??[], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':ca', $d['created_at'] ?? gmdate('c'), PDO::PARAM_STR);
+                $stmt->bindValue(':ua', $d['updated_at'] ?? gmdate('c'), PDO::PARAM_STR);
                 $stmt->execute();
                 // Token index
                 if (!empty($d['device_token'])) {
-                    $ti = $db->prepare('INSERT OR IGNORE INTO smarthome_token_index (token, user_email, device_id) VALUES (:tok, :em, :did)');
-                    $ti->bindValue(':tok', $d['device_token'], SQLITE3_TEXT);
-                    $ti->bindValue(':em', $email, SQLITE3_TEXT);
-                    $ti->bindValue(':did', $id, SQLITE3_TEXT);
+                    $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id) VALUES (:tok, :em, :did)');
+                    $ti->bindValue(':tok', $d['device_token'], PDO::PARAM_STR);
+                    $ti->bindValue(':em', $email, PDO::PARAM_STR);
+                    $ti->bindValue(':did', $id, PDO::PARAM_STR);
                     $ti->execute();
                 }
             }

@@ -5,17 +5,17 @@
         'delete_file', 'delete_directory', 'make_directory', 'list_directory', 'stat_path',
         'search_replace', 'search_by_regex', 'replace_by_regex', 'extract_document_text',
         'verify_syntax', 'compile_and_check', 'apply_changes', 'search_in_files',
-        'web_search', 'open_url_fetch', 'download_file', 'archive_extract', 'archive_create',
-        'json_edit', 'csv_preview', 'diff_file', 'run_command',
+        'web_search', 'image_search', 'open_url_fetch', 'download_file', 'archive_extract', 'archive_create',
+        'json_edit', 'csv_preview', 'diff_file', 'run_command', 'run_script',
         'generate_speech', 'get_speech_progress', 'transcribe_audio', 'get_transcription_progress'
     ]);
     const ROOT_ONLY_SERVER = new Set(['extract_document_text']);
-    const CLIENT_TOOLS = new Set(['get_open_file', 'apply_editor_patch', 'compile_open_document', 'save_open_document', 'export_markdown_pdf', 'export_latex_pdf', 'ask_user']);
+    const CLIENT_TOOLS = new Set(['get_open_file', 'apply_editor_patch', 'compile_open_document', 'save_open_document', 'export_markdown_pdf', 'export_latex_pdf', 'delegate_subagent', 'ask_user']);
     const EDIT_TOOLS = new Set(['write_file', 'create_file', 'search_replace', 'replace_by_regex', 'json_edit', 'apply_editor_patch']);
     const COMPILE_TOOLS = new Set(['compile_and_check', 'compile_open_document']);
     const READ_SEARCH_TOOLS = new Set([
         'read_file', 'get_open_file', 'search_in_files', 'search_by_regex',
-        'list_directory', 'stat_path', 'web_search', 'open_url_fetch',
+        'list_directory', 'stat_path', 'web_search', 'image_search', 'open_url_fetch',
         'extract_document_text', 'diff_file', 'csv_preview'
     ]);
     const CHAT_CLIENT_TOOLS = new Set(['get_open_file']);
@@ -43,10 +43,10 @@
         'read_file', 'get_open_file', 'write_file', 'create_file', 'make_directory', 'copy_file',
         'rename_file', 'move_path', 'delete_file', 'delete_directory', 'search_replace',
         'search_by_regex', 'replace_by_regex', 'apply_editor_patch', 'search_in_files',
-        'web_search', 'open_url_fetch', 'download_file', 'diff_file', 'stat_path',
+        'web_search', 'image_search', 'open_url_fetch', 'download_file', 'diff_file', 'stat_path',
         'json_edit', 'csv_preview', 'archive_extract', 'archive_create',
         'export_markdown_pdf', 'export_latex_pdf', 'verify_syntax', 'compile_and_check',
-        'compile_open_document', 'run_command', 'save_open_document', 'ask_user',
+        'compile_open_document', 'run_command', 'run_script', 'delegate_subagent', 'save_open_document', 'ask_user',
         'generate_speech', 'get_speech_progress', 'transcribe_audio', 'get_transcription_progress',
         'list_directory', 'extract_document_text'
     ];
@@ -67,6 +67,7 @@
         { type: 'function', function: { name: 'apply_editor_patch', description: 'REQUIRED for edits on the open file. Stage search/replace patches in the editor.', parameters: { type: 'object', properties: { patches: { type: 'array', items: { type: 'object', properties: { s: { type: 'string' }, r: { type: 'string' } }, required: ['s', 'r'] } } }, required: ['patches'] } } },
         { type: 'function', function: { name: 'search_in_files', description: 'Search for a text query in one or more files (paths from @mentions or open file). Returns matching lines.', parameters: { type: 'object', properties: { paths: { type: 'array', items: { type: 'string' } }, query: { type: 'string' }, max_results: { type: 'integer' } }, required: ['paths', 'query'] } } },
         { type: 'function', function: { name: 'web_search', description: 'Search the web and return a short list of results with titles, links, and snippets.', parameters: { type: 'object', properties: { query: { type: 'string' }, max_results: { type: 'integer' } }, required: ['query'] } } },
+        { type: 'function', function: { name: 'image_search', description: 'Search images on the web and return thumbnails, source URLs, and image URLs that can be shown in chat.', parameters: { type: 'object', properties: { query: { type: 'string' }, max_results: { type: 'integer' } }, required: ['query'] } } },
         { type: 'function', function: { name: 'open_url_fetch', description: 'Fetch a specific URL and return text content, status, and content type.', parameters: { type: 'object', properties: { url: { type: 'string' }, max_chars: { type: 'integer' } }, required: ['url'] } } },
         { type: 'function', function: { name: 'download_file', description: 'Download a file from a URL into the workspace.', parameters: { type: 'object', properties: { url: { type: 'string' }, target_path: { type: 'string' }, overwrite: { type: 'boolean' } }, required: ['url', 'target_path'] } } },
         { type: 'function', function: { name: 'diff_file', description: 'Show a unified diff between a file and provided content, or between two files.', parameters: { type: 'object', properties: { path: { type: 'string' }, compare_path: { type: 'string' }, content: { type: 'string' }, max_chars: { type: 'integer' } }, required: ['path'] } } },
@@ -77,7 +78,9 @@
         { type: 'function', function: { name: 'archive_create', description: 'Create a ZIP archive from one or more files or folders.', parameters: { type: 'object', properties: { items: { type: 'array', items: { type: 'string' } }, archive_path: { type: 'string' } }, required: ['items', 'archive_path'] } } },
         { type: 'function', function: { name: 'verify_syntax', description: 'Local syntax check AFTER editing (py_compile, gcc -fsyntax-only, javac, or LaTeX). Also blocks unsafe code patterns. Run before compile_and_check.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional staged content' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'compile_and_check', description: 'Compile or run AFTER verify_syntax passes. Does not replace write_file/search_replace/apply_editor_patch.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional; do not use instead of an edit tool.' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'run_command', description: 'Run a whitelisted command in the workspace and return stdout/stderr.', parameters: { type: 'object', properties: { command: { type: 'array', items: { type: 'string' } }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['command'] } } },
+        { type: 'function', function: { name: 'run_command', description: 'Run a whitelisted command in a sandboxed workspace and return stdout/stderr.', parameters: { type: 'object', properties: { command: { type: 'array', items: { type: 'string' } }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['command'] } } },
+        { type: 'function', function: { name: 'run_script', description: 'Write and run a one-time sandboxed helper script in the workspace for file processing, formatting, inspection, or mechanical edits. Script is deleted after execution.', parameters: { type: 'object', properties: { language: { type: 'string', enum: ['python3', 'node', 'php', 'sh'] }, script: { type: 'string' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['language', 'script'] } } },
+        { type: 'function', function: { name: 'delegate_subagent', description: 'Delegate a focused subtask such as searching relevant code, reviewing errors, or planning a document fix. Use for parallelizable investigation and return the subtask result.', parameters: { type: 'object', properties: { task: { type: 'string' }, focus: { type: 'string' }, paths: { type: 'array', items: { type: 'string' } } }, required: ['task'] } } },
         { type: 'function', function: { name: 'compile_open_document', description: 'LaTeX/Markdown preview AFTER editing. Not a substitute for edit tools.', parameters: { type: 'object', properties: { format: { type: 'string', enum: ['markdown', 'latex', 'auto'] } } } } },
         { type: 'function', function: { name: 'save_open_document', description: 'Save the open LaTeX or Markdown document to the server.', parameters: { type: 'object', properties: {} } } },
         { type: 'function', function: { name: 'ask_user', description: 'Ask the user to choose one option when required info is missing (e.g. PDF font). Use sparingly — only when truly ambiguous.', parameters: { type: 'object', properties: { question: { type: 'string' }, options: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, label: { type: 'string' } }, required: ['id', 'label'] } } }, required: ['question', 'options'] } } },
@@ -203,6 +206,17 @@ Request: «${String(userTask || '').slice(0, 400)}»`;
     function messagesIncludeToolResults(messages) {
         return Array.isArray(messages) && messages.some((m) => m && m.role === 'tool');
     }
+    function looksLikeMissingToolsText(text) {
+        return /Tool\s+[a-z_]+\s+does\s+not\s+exists?/i.test(String(text || ''))
+            || /(?:инструмент[а-я\s]*(?:недоступн|отсутств)|недоступны\s+инструменты|tools?\s+(?:are\s+)?(?:unavailable|not\s+available))/iu.test(String(text || ''));
+    }
+    function xmlToolModePrompt(ctx) {
+        return agentTr(
+            ctx,
+            'aiXmlToolModePrompt',
+            'Function calling is not available in this provider. Use only this local tool-call format when you need a tool: <tool_call name="read_file"><arg_key>path</arg_key><arg_value>file.txt</arg_value></tool_call>. Available tools: read_file, get_open_file, list_directory, search_in_files, search_by_regex, write_file, create_file, search_replace, run_command. Do not say tools are unavailable.'
+        );
+    }
     function chatAnswerNudgeText(ctx) {
         return agentTr(
             ctx,
@@ -243,6 +257,36 @@ The user wants the file content changed. User request: «${String(userTask || ''
         if (typeof raw === 'object') return raw;
         try { return JSON.parse(String(raw)); } catch (e) { return {}; }
     }
+    function normalizeToolName(name) {
+        const raw = String(name || '').replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+        const direct = raw.toLowerCase();
+        const compact = direct.replace(/[^a-z0-9]/g, '');
+        const aliases = {
+            getopenfile: 'get_open_file',
+            listdirectory: 'list_directory',
+            runcommand: 'run_command',
+            readfile: 'read_file',
+            writefile: 'write_file',
+            createfile: 'create_file',
+            searchreplace: 'search_replace',
+            searchinfiles: 'search_in_files',
+            searchbyregex: 'search_by_regex',
+            replacebyregex: 'replace_by_regex',
+            compileandcheck: 'compile_and_check',
+            compileopendocument: 'compile_open_document',
+            saveopendocument: 'save_open_document',
+            applyeditorpatch: 'apply_editor_patch',
+            websearch: 'web_search',
+            imagesearch: 'image_search',
+            openurlfetch: 'open_url_fetch',
+            runscript: 'run_script'
+        };
+        if (aliases[compact]) return aliases[compact];
+        for (const key of Object.keys(aliases)) {
+            if (compact === key + key || compact.endsWith(key)) return aliases[key];
+        }
+        return direct;
+    }
     function parseXmlishToolCalls(text) {
         const out = [];
         const src = String(text || '');
@@ -260,7 +304,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 const key = String(a[1] || '').trim();
                 if (key) args[key] = String(a[2] || '').trim();
             }
-            out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name, args, synthetic: true });
+            out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name: normalizeToolName(name), args, synthetic: true });
         }
         return out;
     }
@@ -273,7 +317,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
         if (Array.isArray(message.tool_calls)) {
             message.tool_calls.forEach((tc) => {
                 if (!tc?.function?.name) return;
-                out.push({ id: tc.id || ('tc_' + out.length), name: tc.function.name, args: parseToolArgs(tc.function.arguments) });
+                out.push({ id: tc.id || ('tc_' + out.length), name: normalizeToolName(tc.function.name), args: parseToolArgs(tc.function.arguments) });
             });
         }
         if (out.length === 0 && typeof message.content === 'string') {
@@ -378,6 +422,24 @@ The user wants the file content changed. User request: «${String(userTask || ''
             const result = await hooks.exportLatexPdf(args.path);
             return { ok: true, ...result };
         }
+        if (name === 'delegate_subagent') {
+            if ((ctx.subagentDepth || 0) >= 2) {
+                return { ok: false, error: 'Subagent depth limit reached' };
+            }
+            const task = String(args.task || '').trim();
+            if (!task) return { ok: false, error: 'task is required' };
+            const result = await runAgentLoop({
+                ...ctx,
+                readOnly: true,
+                userTask: task,
+                historyMessages: [],
+                maxSteps: Math.min(8, ctx.maxSteps || 8),
+                subagentDepth: (ctx.subagentDepth || 0) + 1,
+                onToolStart: ctx.onToolStart,
+                onToolEnd: ctx.onToolEnd
+            });
+            return { ok: true, task, result: result.content || '', usage: result.usage || null };
+        }
         if (name === 'ask_user') {
             if (typeof hooks.askUser !== 'function') {
                 return { ok: false, error: agentTr(ctx, 'aiAgentAskUserUnavailable', 'ask_user is not available in this session') };
@@ -388,6 +450,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
         throw new Error(agentTr(ctx, 'aiAgentUnknownClientTool', 'Unknown client tool: {tool}', { tool: name }));
     }
     async function executeTool(ctx, name, args) {
+        name = normalizeToolName(name);
         if (ctx.readOnly && !isChatAllowedTool(name, ctx)) {
             throw new Error(agentTr(ctx, 'aiChatToolReadOnly', 'Tool not available in chat mode (read-only): {tool}', { tool: name }));
         }
@@ -505,15 +568,20 @@ The user wants the file content changed. User request: «${String(userTask || ''
         ctx.requiresContentEdit = !readOnly && ctx.requiresContentEdit !== false && detectEditIntent(ctx.userTask) && !ctx.wantsExportPdf;
         const tools = readOnly ? getChatToolDefinitions(ctx) : getToolDefinitions(ctx);
         let systemContent = (readOnly ? chatSystemPrompt() : agentSystemPrompt()) + replyLanguageHint(ctx.replyLanguage);
+        if (String(ctx.userTask || '').trim()) {
+            systemContent += `\n\n[CURRENT USER REQUEST]\n${String(ctx.userTask || '').trim()}\n[/CURRENT USER REQUEST]`;
+        }
         if (ctx.wantsExportPdf) systemContent += exportPdfTaskSystemHint(ctx.userTask);
         if (ctx.requiresContentEdit) systemContent += editTaskSystemHint(ctx.userTask);
         if (readOnly && detectSummarizeIntent(ctx.userTask)) {
             systemContent += '\n\n[DOCUMENT SUMMARY]\nThe user wants a summary or conspect. Read the file if needed, then write a full structured answer in the user language. Never finish without written text for the user.';
         }
-        const messages = [{ role: 'system', content: systemContent }].concat(ctx.historyMessages || []);
         const currentTask = String(ctx.userTask || '').trim();
-        const lastMessage = messages[messages.length - 1];
-        if (currentTask && !(lastMessage && lastMessage.role === 'user' && String(lastMessage.content || '').trim() === currentTask)) {
+        const historyMessages = (ctx.historyMessages || []).filter((m) => {
+            return !(m && m.role === 'user' && String(m.content || '').trim() === currentTask);
+        });
+        const messages = [{ role: 'system', content: systemContent }].concat(historyMessages);
+        if (currentTask) {
             messages.push({ role: 'user', content: currentTask });
         }
         const usageTotals = { prompt: 0, completion: 0, total: 0 };
@@ -522,6 +590,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
         let editNudges = 0;
         let answerNudges = 0;
         let forceAnswerOnly = false;
+        let xmlToolMode = false;
         let safetyRounds = 0;
         const repeatedToolFailures = new Map();
         const maxSafetyRounds = 200;
@@ -535,8 +604,8 @@ The user wants the file content changed. User request: «${String(userTask || ''
             forceAnswerOnly = false;
             const completion = await ctx.createCompletion({
                 messages,
-                tools: useForceAnswer ? [] : tools,
-                tool_choice: useForceAnswer ? 'none' : 'auto',
+                tools: xmlToolMode ? [] : tools,
+                tool_choice: (useForceAnswer || xmlToolMode) ? 'none' : 'auto',
                 forceAnswerOnly: useForceAnswer
             });
             addUsageTotals(usageTotals, completion);
@@ -546,6 +615,13 @@ The user wants the file content changed. User request: «${String(userTask || ''
             const toolCalls = collectToolCalls(msg);
             if (toolCalls.length === 0) {
                 const text = extractAssistantMessageText(msg);
+                if (!useForceAnswer && looksLikeMissingToolsText(text) && answerNudges < 4) {
+                    answerNudges++;
+                    xmlToolMode = true;
+                    messages.push({ role: 'assistant', content: text || null });
+                    messages.push({ role: 'user', content: xmlToolModePrompt(ctx) });
+                    continue;
+                }
                 if (!useForceAnswer && looksLikeToolPlanningText(text) && answerNudges < 4) {
                     answerNudges++;
                     messages.push({ role: 'assistant', content: null });
@@ -573,14 +649,14 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 }
                 return { content: text, messages, usage: { ...usageTotals } };
             }
-            messages.push({
+            const hasNativeToolCalls = !!msg.tool_calls && !xmlToolMode;
+            messages.push(hasNativeToolCalls ? {
                 role: 'assistant',
-                content: msg.tool_calls ? (msg.content || null) : (stripXmlishToolCalls(msg.content) || null),
-                tool_calls: msg.tool_calls || toolCalls.map((tc) => ({
-                    id: tc.id,
-                    type: 'function',
-                    function: { name: tc.name, arguments: JSON.stringify(tc.args || {}) }
-                }))
+                content: msg.content || null,
+                tool_calls: msg.tool_calls
+            } : {
+                role: 'assistant',
+                content: stripXmlishToolCalls(msg.content) || null
             });
             for (const tc of toolCalls) {
                 if (!tc.id) tc.id = 'call_' + Math.random().toString(36).slice(2, 14);
@@ -622,7 +698,11 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 if (slim.output && String(slim.output).length > 8000) {
                     slim.output = String(slim.output).slice(0, 8000) + '\n[... truncated ...]';
                 }
-                messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(slim) });
+                if (xmlToolMode || tc.synthetic) {
+                    messages.push({ role: 'user', content: `Tool result for ${tc.name}:\n${JSON.stringify(slim)}` });
+                } else {
+                    messages.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(slim) });
+                }
             }
         }
     }

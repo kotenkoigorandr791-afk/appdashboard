@@ -35,8 +35,8 @@ function recipes_ai_require_role(int $minRole = 1): void
     if ($db && $sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-            $stmt->bindValue(':sid', $sid, SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 $role = getUserRoleByEmail($row['email']);
             }
@@ -46,8 +46,8 @@ function recipes_ai_require_role(int $minRole = 1): void
     if ($role < $minRole && isset($_COOKIE['PHPSESSID']) && $db) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-            $stmt->bindValue(':sid', (string)$_COOKIE['PHPSESSID'], SQLITE3_TEXT);
-            $row = $stmt->execute()->fetchArray(SQLITE3_ASSOC);
+            $stmt->bindValue(':sid', (string)$_COOKIE['PHPSESSID'], PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
                 $role = getUserRoleByEmail($row['email']);
             }
@@ -151,13 +151,13 @@ function recipes_ai_search_products_sqlite($db, string $query, int $limit = 12):
                OR LOWER(name_be) LIKE :q4
             ORDER BY name_en LIMIT :lim";
         $stmt = $db->prepare($sql);
-        $stmt->bindValue(':q1', $like, SQLITE3_TEXT);
-        $stmt->bindValue(':q2', $like, SQLITE3_TEXT);
-        $stmt->bindValue(':q3', $like, SQLITE3_TEXT);
-        $stmt->bindValue(':q4', $like, SQLITE3_TEXT);
-        $stmt->bindValue(':lim', $limit, SQLITE3_INTEGER);
+        $stmt->bindValue(':q1', $like, PDO::PARAM_STR);
+        $stmt->bindValue(':q2', $like, PDO::PARAM_STR);
+        $stmt->bindValue(':q3', $like, PDO::PARAM_STR);
+        $stmt->bindValue(':q4', $like, PDO::PARAM_STR);
+        $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
         $res = $stmt->execute();
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $out[] = [
                 'id' => $row['id'],
                 'name' => [
@@ -938,14 +938,14 @@ function recipes_ai_create_product($db, string $products_dir, string $name, stri
     $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "products
         (id, name_en, name_uk, name_ru, name_be, category, image, image_preview)
         VALUES (:id, :ne, :nu, :nr, :nb, :cat, :img, :prev)");
-    $stmt->bindValue(':id', $product_id, SQLITE3_TEXT);
-    $stmt->bindValue(':ne', $names['en'], SQLITE3_TEXT);
-    $stmt->bindValue(':nu', $names['uk'], SQLITE3_TEXT);
-    $stmt->bindValue(':nr', $names['ru'], SQLITE3_TEXT);
-    $stmt->bindValue(':nb', $names['be'], SQLITE3_TEXT);
-    $stmt->bindValue(':cat', $category, SQLITE3_TEXT);
-    $stmt->bindValue(':img', $image_name, $image_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
-    $stmt->bindValue(':prev', $preview_name, $preview_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
+    $stmt->bindValue(':id', $product_id, PDO::PARAM_STR);
+    $stmt->bindValue(':ne', $names['en'], PDO::PARAM_STR);
+    $stmt->bindValue(':nu', $names['uk'], PDO::PARAM_STR);
+    $stmt->bindValue(':nr', $names['ru'], PDO::PARAM_STR);
+    $stmt->bindValue(':nb', $names['be'], PDO::PARAM_STR);
+    $stmt->bindValue(':cat', $category, PDO::PARAM_STR);
+    $stmt->bindValue(':img', $image_name, $image_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+    $stmt->bindValue(':prev', $preview_name, $preview_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
     $stmt->execute();
     $row = recipes_load_product_row($db, $product_id);
     if ($row) {
@@ -1319,16 +1319,16 @@ function recipes_ai_save_draft(array $draft, string $lang, string $recipes_dir =
     $recipe['image'] = $image_name;
     $recipe['steps'] = $translated_steps;
     try {
-        $db->exec('BEGIN TRANSACTION');
+        $db->exec('BEGIN');
         $stmt = $db->prepare('INSERT INTO ' . RECIPES_DB_TABLE_PREFIX . 'data
             (id, title_en, title_uk, title_ru, title_be, image)
             VALUES (:id, :te, :tu, :tr, :tb, :img)');
-        $stmt->bindValue(':id', $recipe_id, SQLITE3_TEXT);
-        $stmt->bindValue(':te', $recipe['title']['en'], SQLITE3_TEXT);
-        $stmt->bindValue(':tu', $recipe['title']['uk'], SQLITE3_TEXT);
-        $stmt->bindValue(':tr', $recipe['title']['ru'], SQLITE3_TEXT);
-        $stmt->bindValue(':tb', $recipe['title']['be'], SQLITE3_TEXT);
-        $stmt->bindValue(':img', $image_name, $image_name === null ? SQLITE3_NULL : SQLITE3_TEXT);
+        $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
+        $stmt->bindValue(':te', $recipe['title']['en'], PDO::PARAM_STR);
+        $stmt->bindValue(':tu', $recipe['title']['uk'], PDO::PARAM_STR);
+        $stmt->bindValue(':tr', $recipe['title']['ru'], PDO::PARAM_STR);
+        $stmt->bindValue(':tb', $recipe['title']['be'], PDO::PARAM_STR);
+        $stmt->bindValue(':img', $image_name, $image_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $stmt->execute();
         foreach ($translated_steps as $idx => $step) {
             $stmt = $db->prepare('INSERT INTO ' . RECIPES_STEPS_TABLE . ' (
@@ -1354,14 +1354,14 @@ function recipes_ai_save_draft(array $draft, string $lang, string $recipes_dir =
                     $tm = $step['timer']['minutes'] ?? null;
                 }
             }
-            $stmt->bindValue(':rid', $recipe_id, SQLITE3_TEXT);
-            $stmt->bindValue(':ord', $idx, SQLITE3_INTEGER);
-            $stmt->bindValue(':typ', $step['type'], SQLITE3_TEXT);
-            $stmt->bindValue(':cnt', $content, SQLITE3_TEXT);
-            $stmt->bindValue(':qv', $qv, $qv === null ? SQLITE3_NULL : SQLITE3_FLOAT);
-            $stmt->bindValue(':qu', $qu, $qu === null ? SQLITE3_NULL : SQLITE3_TEXT);
-            $stmt->bindValue(':th', $th, $th === null ? SQLITE3_NULL : SQLITE3_INTEGER);
-            $stmt->bindValue(':tm', $tm, $tm === null ? SQLITE3_NULL : SQLITE3_INTEGER);
+            $stmt->bindValue(':rid', $recipe_id, PDO::PARAM_STR);
+            $stmt->bindValue(':ord', $idx, PDO::PARAM_INT);
+            $stmt->bindValue(':typ', $step['type'], PDO::PARAM_STR);
+            $stmt->bindValue(':cnt', $content, PDO::PARAM_STR);
+            $stmt->bindValue(':qv', $qv, $qv === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':qu', $qu, $qu === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+            $stmt->bindValue(':th', $th, $th === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':tm', $tm, $tm === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
             $stmt->execute();
         }
         $db->exec('COMMIT');

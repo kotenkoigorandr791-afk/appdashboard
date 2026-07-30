@@ -7,7 +7,7 @@ if (isset($_GET['get_expense_meta'])) {
     $st = $udb->prepare("SELECT entry_source, ocr_raw_store FROM expenses WHERE date=:d AND store=:s LIMIT 1");
     $st->bindValue(':d', $date);
     $st->bindValue(':s', $store);
-    $row = $st->execute()->fetchArray(SQLITE3_ASSOC) ?: [];
+    $row = $st->execute()->fetch(PDO::FETCH_ASSOC) ?: [];
     $source = strtolower((string)($row['entry_source'] ?? 'manual'));
     $ocrRaw = (string)($row['ocr_raw_store'] ?? '');
     exit(json_encode(['status'=>'success','meta'=>['entry_source'=>$source,'ocr_raw_store'=>$ocrRaw]]));
@@ -15,33 +15,33 @@ if (isset($_GET['get_expense_meta'])) {
 if (isset($_GET['get_ocr_stats'])) {
     $storeFilter = trim($_GET['store'] ?? '__all__');
     $year = (int)($_GET['year'] ?? 0);
-    $yearWhere = $year > 0 ? " AND date LIKE '" . SQLite3::escapeString((string)$year) . "-%'" : '';
+    $yearWhere = $year > 0 ? " AND date LIKE '" . AppDatabase::escapeString((string)$year) . "-%'" : '';
     $stores = [];
     $sr = $udb->query("SELECT DISTINCT store FROM expenses ORDER BY store ASC");
-    while ($row = $sr->fetchArray(SQLITE3_ASSOC)) if (!empty($row['store'])) $stores[] = $row['store'];
+    while ($row = $sr->fetch(PDO::FETCH_ASSOC)) if (!empty($row['store'])) $stores[] = $row['store'];
     $daily = [];
     $monthly = [];
     if ($storeFilter === '__all__') {
         $dr = $udb->query("SELECT date,store,ROUND(SUM(amount),2) AS amount FROM expenses WHERE amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC,store ASC");
-        while ($row = $dr->fetchArray(SQLITE3_ASSOC)) $daily[] = $row;
+        while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
         $mr = $udb->query("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount),2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC,store ASC");
-        while ($row = $mr->fetchArray(SQLITE3_ASSOC)) $monthly[] = $row;
+        while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
     } else {
         $st = $udb->prepare("SELECT date,store,ROUND(SUM(amount),2) AS amount FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC");
         $st->bindValue(':s', $storeFilter);
         $dr = $st->execute();
-        while ($row = $dr->fetchArray(SQLITE3_ASSOC)) $daily[] = $row;
+        while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
         $st2 = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount),2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC");
         $st2->bindValue(':s', $storeFilter);
         $mr = $st2->execute();
-        while ($row = $mr->fetchArray(SQLITE3_ASSOC)) $monthly[] = $row;
+        while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
     }
     exit(json_encode(['status'=>'success','stores'=>$stores,'daily'=>$daily,'monthly'=>$monthly]));
 }
 if (isset($_GET['get_available_years'])) {
     $years = [];
     $res = $udb->query("SELECT DISTINCT y FROM (SELECT substr(date,1,4) AS y FROM expenses WHERE amount>0 UNION SELECT substr(date,1,4) AS y FROM incomes WHERE amount>0) ORDER BY y ASC");
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $y = (int)($row['y'] ?? 0);
         if ($y > 0) $years[] = $y;
     }
@@ -103,7 +103,7 @@ if (isset($_GET['get_expenses_page'])) {
     $where  = '1=1';
     $params = [];
     if ($startDate) {
-        $where .= " AND date >= '" . SQLite3::escapeString($startDate) . "'";
+        $where .= " AND date >= '" . AppDatabase::escapeString($startDate) . "'";
     }
     if ($search !== '') {
         $where .= " AND (date LIKE :s OR store LIKE :s2 OR CAST(amount AS TEXT) LIKE :s3)";
@@ -115,7 +115,7 @@ if (isset($_GET['get_expenses_page'])) {
     foreach ($params as $k => $v) {
         $minMaxSt->bindValue($k, $v);
     }
-    $minMax = $minMaxSt->execute()->fetchArray(SQLITE3_ASSOC);
+    $minMax = $minMaxSt->execute()->fetch(PDO::FETCH_ASSOC);
     if (empty($minMax['lo'])) {
         exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'page' => 1, 'totalPages' => 1]));
     }
@@ -138,13 +138,13 @@ if (isset($_GET['get_expenses_page'])) {
     $rows = [];
     $incomes = [];
     if (!empty($pageDays)) {
-        $inDates = implode(',', array_map(fn($d) => "'" . SQLite3::escapeString($d) . "'", $pageDays));
+        $inDates = implode(',', array_map(fn($d) => "'" . AppDatabase::escapeString($d) . "'", $pageDays));
         $dataRes = $udb->query("SELECT date, store, amount FROM expenses WHERE date IN ($inDates) ORDER BY date $sortDir, store");
-        while ($r = $dataRes->fetchArray(SQLITE3_ASSOC)) {
+        while ($r = $dataRes->fetch(PDO::FETCH_ASSOC)) {
             $rows[] = $r;
         }
         $incRes = $udb->query("SELECT date, amount FROM incomes WHERE date IN ($inDates) ORDER BY date $sortDir");
-        while ($r = $incRes->fetchArray(SQLITE3_ASSOC)) $incomes[] = $r;
+        while ($r = $incRes->fetch(PDO::FETCH_ASSOC)) $incomes[] = $r;
     }
     exit(json_encode([
         'status'     => 'success',
@@ -168,14 +168,14 @@ if (isset($_GET['year_data'])) {
     $yearExpenses = [];
     $yearIncomes = [];
     if (!empty($yearStoreNames)) {
-        $inList = implode(',', array_map(fn($s)=>"'".SQLite3::escapeString($s)."'", $yearStoreNames));
+        $inList = implode(',', array_map(fn($s)=>"'".AppDatabase::escapeString($s)."'", $yearStoreNames));
         $res = $udb->query("SELECT date, store, amount FROM expenses WHERE store IN ($inList) AND date LIKE '$year-%' ORDER BY date ASC");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $yearExpenses[$row['date']][$row['store']] = (float)$row['amount'];
         }
     }
     $resInc = $udb->query("SELECT date, amount FROM incomes WHERE date LIKE '$year-%' ORDER BY date ASC");
-    while ($row = $resInc->fetchArray(SQLITE3_ASSOC)) $yearIncomes[$row['date']] = (float)$row['amount'];
+    while ($row = $resInc->fetch(PDO::FETCH_ASSOC)) $yearIncomes[$row['date']] = (float)$row['amount'];
 
     exit(json_encode([
         'status'   => 'success',
@@ -191,18 +191,18 @@ if (isset($_POST['add_date_ajax'])) {
     if ($date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && strtotime($date)) {
         $st = $udb->prepare('SELECT COUNT(*) FROM expenses WHERE date=:d');
         $st->bindValue(':d', $date);
-        $exists = (int)$st->execute()->fetchArray(SQLITE3_NUM)[0] > 0;
+        $exists = (int)$st->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
         if ($exists) exit(json_encode(['status'=>'error','message'=>'Date already exists']));
 
         $stores = dbGetStores($udb);
         $udb->exec('BEGIN');
         foreach ($stores as $s) {
-            $ist = $udb->prepare('INSERT OR IGNORE INTO expenses (date,store,amount) VALUES (:d,:s,0)');
+            $ist = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
             $ist->bindValue(':d', $date);
             $ist->bindValue(':s', $s['name']);
             $ist->execute();
         }
-        $inc = $udb->prepare('INSERT OR IGNORE INTO incomes (date,amount) VALUES (:d,0)');
+        $inc = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
         $inc->bindValue(':d', $date);
         $inc->execute();
         $udb->exec('COMMIT');
@@ -218,7 +218,7 @@ if (isset($_POST['add_edit_store'])) {
 
     $existing = $udb->prepare('SELECT id, name FROM stores WHERE id=:id');
     $existing->bindValue(':id', $storeId);
-    $row = $existing->execute()->fetchArray(SQLITE3_ASSOC);
+    $row = $existing->execute()->fetch(PDO::FETCH_ASSOC);
 
     if ($row) {
         $oldName = $row['name'];
@@ -238,16 +238,16 @@ if (isset($_POST['add_edit_store'])) {
             if (file_exists($oldFile)) rename($oldFile, $newFile);
         }
     } else {
-        $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetchArray(SQLITE3_NUM)[0];
-        $st = $udb->prepare('INSERT OR IGNORE INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o)');
+        $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
+        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order');
         $st->bindValue(':id', $storeId);
         $st->bindValue(':n',  $storeName);
-        $st->bindValue(':o',  $maxOrd, SQLITE3_INTEGER);
+        $st->bindValue(':o',  $maxOrd, PDO::PARAM_INT);
         $st->execute();
         $dRes = $udb->query("SELECT DISTINCT date FROM expenses");
         $udb->exec('BEGIN');
-        while ($dRow = $dRes->fetchArray(SQLITE3_ASSOC)) {
-            $ist = $udb->prepare('INSERT OR IGNORE INTO expenses (date,store,amount) VALUES (:d,:s,0)');
+        while ($dRow = $dRes->fetch(PDO::FETCH_ASSOC)) {
+            $ist = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
             $ist->bindValue(':d', $dRow['date']);
             $ist->bindValue(':s', $storeName);
             $ist->execute();
@@ -266,14 +266,15 @@ if (isset($_POST['add_edit_store'])) {
             $fn   = preg_replace('/[^a-zA-Z0-9]/', '_', $storeName);
             $safe = getSafeFolderName($currentUser);
             $uDir = APPS_DATA_DIR . $safe;
-            if (!file_exists($uDir)) mkdir($uDir, 0755, true);
+            if (!file_exists($uDir)) mkdir($uDir, SPENDS_RUNTIME_DIR_MODE, true);
+            @chmod($uDir, SPENDS_RUNTIME_DIR_MODE);
             imagejpeg($newImg, "$uDir/store_$fn.jpg", 90);
             imagedestroy($image); imagedestroy($newImg);
         }
     }
     $sr = $udb->prepare('SELECT id, name, visible FROM stores WHERE id = :id');
     $sr->bindValue(':id', $storeId);
-    $stRow = $sr->execute()->fetchArray(SQLITE3_ASSOC);
+    $stRow = $sr->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$stRow) {
         exit(json_encode(['status' => 'success']));
     }
@@ -323,7 +324,7 @@ if (isset($_POST['update_expense'])) {
         $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO UPDATE SET amount=excluded.amount,entry_source='manual',ocr_raw_store=NULL");
         $st->bindValue(':d', $date);
         $st->bindValue(':s', $store);
-        $st->bindValue(':a', $amount, SQLITE3_FLOAT);
+        $st->bindValue(':a', $amount, PDO::PARAM_STR);
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
@@ -335,7 +336,7 @@ if (isset($_POST['update_income'])) {
     if ($date && $amount !== false) {
         $st = $udb->prepare("INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO UPDATE SET amount=excluded.amount");
         $st->bindValue(':d', $date);
-        $st->bindValue(':a', $amount, SQLITE3_FLOAT);
+        $st->bindValue(':a', $amount, PDO::PARAM_STR);
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
@@ -354,8 +355,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     }
     $tmpDir = $userDir . '/bank_import';
     if (!is_dir($tmpDir)) {
-        mkdir($tmpDir, 0755, true);
+        mkdir($tmpDir, SPENDS_RUNTIME_DIR_MODE, true);
     }
+    @chmod($tmpDir, SPENDS_RUNTIME_DIR_MODE);
     $token = bin2hex(random_bytes(16));
     $dest = $tmpDir . '/' . $token . '.csv';
     if (!move_uploaded_file($_FILES['bank_csv_file']['tmp_name'], $dest)) {
@@ -544,12 +546,12 @@ if (isset($_POST['backup_action'])) {
         foreach ($csvStores as $sn) {
             $chk = $udb->prepare('SELECT id FROM stores WHERE name=:n');
             $chk->bindValue(':n', $sn);
-            if (!$chk->execute()->fetchArray(SQLITE3_ASSOC)) {
-                $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetchArray(SQLITE3_NUM)[0];
-                $ist = $udb->prepare('INSERT OR IGNORE INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o)');
+            if (!$chk->execute()->fetch(PDO::FETCH_ASSOC)) {
+                $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
+                $ist = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order');
                 $ist->bindValue(':id', (string)time().rand(100,999));
                 $ist->bindValue(':n', $sn);
-                $ist->bindValue(':o', $maxOrd, SQLITE3_INTEGER);
+                $ist->bindValue(':o', $maxOrd, PDO::PARAM_INT);
                 $ist->execute();
             }
         }
@@ -565,8 +567,8 @@ if (isset($_POST['backup_action'])) {
                 $sn  = $csvStores[$i-1] ?? '';
                 $amt = is_numeric($row[$i]) ? (float)$row[$i] : 0;
                 if (!$sn) continue;
-                $st = $udb->prepare('INSERT OR REPLACE INTO expenses (date,store,amount) VALUES (:d,:s,:a)');
-                $st->bindValue(':d', $date); $st->bindValue(':s', $sn); $st->bindValue(':a', $amt, SQLITE3_FLOAT);
+                $st = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,:a) ON CONFLICT (date,store) DO UPDATE SET amount=excluded.amount');
+                $st->bindValue(':d', $date); $st->bindValue(':s', $sn); $st->bindValue(':a', $amt, PDO::PARAM_STR);
                 $st->execute();
             }
         }
@@ -630,7 +632,7 @@ $today = date('Y-m-d');
 
 // Auto-create missing dates from last entry to today
 $lastDateRes = $udb->query("SELECT MAX(date) as last_date FROM expenses");
-$lastDateRow = $lastDateRes->fetchArray(SQLITE3_ASSOC);
+$lastDateRow = $lastDateRes->fetch(PDO::FETCH_ASSOC);
 $lastDate = $lastDateRow ? $lastDateRow['last_date'] : null;
 
 if ($lastDate && $lastDate < $today) {
@@ -643,16 +645,16 @@ if ($lastDate && $lastDate < $today) {
         // Skip if date already exists
         $checkStmt = $udb->prepare('SELECT COUNT(*) as cnt FROM expenses WHERE date = :d');
         $checkStmt->bindValue(':d', $currentDate);
-        $exists = (int)$checkStmt->execute()->fetchArray(SQLITE3_NUM)[0] > 0;
+        $exists = (int)$checkStmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
         
         if (!$exists) {
             foreach ($storeNames as $sn) {
-                $st = $udb->prepare('INSERT OR IGNORE INTO expenses (date,store,amount) VALUES (:d,:s,0)');
+                $st = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
                 $st->bindValue(':d', $currentDate);
                 $st->bindValue(':s', $sn);
                 $st->execute();
             }
-            $stInc = $udb->prepare('INSERT OR IGNORE INTO incomes (date,amount) VALUES (:d,0)');
+            $stInc = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
             $stInc->bindValue(':d', $currentDate);
             $stInc->execute();
         }
@@ -664,21 +666,21 @@ if ($lastDate && $lastDate < $today) {
 
 // Ensure today exists
 foreach ($storeNames as $sn) {
-    $st = $udb->prepare('INSERT OR IGNORE INTO expenses (date,store,amount) VALUES (:d,:s,0)');
+    $st = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
     $st->bindValue(':d', $today); $st->bindValue(':s', $sn);
     $st->execute();
 }
-$udb->exec("INSERT OR IGNORE INTO incomes(date,amount) SELECT DISTINCT date,0 FROM expenses");
-$stIncToday = $udb->prepare('INSERT OR IGNORE INTO incomes (date,amount) VALUES (:d,0)');
+$udb->exec("INSERT INTO incomes(date,amount) SELECT DISTINCT date,0 FROM expenses ON CONFLICT (date) DO NOTHING");
+$stIncToday = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
 $stIncToday->bindValue(':d', $today);
 $stIncToday->execute();
 
-$startDateFilter = $tableSettings['start_date'] ? "AND date >= '" . SQLite3::escapeString($tableSettings['start_date']) . "'" : '';
+$startDateFilter = $tableSettings['start_date'] ? "AND date >= '" . AppDatabase::escapeString($tableSettings['start_date']) . "'" : '';
 $startDateForTable = trim($tableSettings['start_date'] ?? '');
 
 $rowsPerPage = $tableSettings['rows_per_page'];
 $sortDir = $tableSettings['sort_by'] === 'date_desc' ? 'DESC' : 'ASC';
-$mmTable = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses WHERE 1=1 $startDateFilter")->fetchArray(SQLITE3_ASSOC);
+$mmTable = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses WHERE 1=1 $startDateFilter")->fetch(PDO::FETCH_ASSOC);
 $firstPageRows = [];
 $totalRows = 0;
 if (!empty($mmTable['lo'])) {
@@ -697,7 +699,7 @@ if (!empty($mmTable['lo'])) {
                 $st = $udb->prepare('SELECT amount FROM expenses WHERE date=:d AND store=:s');
                 $st->bindValue(':d', $d);
                 $st->bindValue(':s', $sn);
-                $amt = $st->execute()->fetchArray(SQLITE3_NUM);
+                $amt = $st->execute()->fetch(PDO::FETCH_NUM);
                 $rowData[$sn] = $amt ? (float)$amt[0] : 0;
             }
             $firstPageRows[$d] = $rowData;
@@ -711,12 +713,11 @@ $allDates = listCalendarDaysInclusive($currentYear . '-01-01', $currentYear . '-
 $allStoresExpenses = [];
 $allIncomes = [];
 if (!empty($storeNames)) {
-    $inListAll = implode(',', array_map(fn($s) => "'" . SQLite3::escapeString($s) . "'", $storeNames));
+    $inListAll = implode(',', array_map(fn($s) => "'" . AppDatabase::escapeString($s) . "'", $storeNames));
     $aRes = $udb->query("SELECT date, store, amount FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
-    while ($row = $aRes->fetchArray(SQLITE3_ASSOC)) {
+    while ($row = $aRes->fetch(PDO::FETCH_ASSOC)) {
         $allStoresExpenses[$row['date']][$row['store']] = (float)$row['amount'];
     }
 }
 $incResAll = $udb->query("SELECT date, amount FROM incomes WHERE date LIKE '$currentYear-%' ORDER BY date ASC");
-while ($row = $incResAll->fetchArray(SQLITE3_ASSOC)) $allIncomes[$row['date']] = (float)$row['amount'];
-
+while ($row = $incResAll->fetch(PDO::FETCH_ASSOC)) $allIncomes[$row['date']] = (float)$row['amount'];

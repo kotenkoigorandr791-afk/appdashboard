@@ -49,13 +49,13 @@ $runOnce = static function () use ($lockFp): int {
                 $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
                 $now = time();
                 if ($includeSmart) {
-                    $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_smart_last', '$now')");
+                    $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_smart_last', '$now') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
                 }
                 if ($includeDrives) {
-                    $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_drives_last', '$now')");
+                    $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_drives_last', '$now') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
                 }
                 if ($includeModules) {
-                    $db->exec("INSERT OR REPLACE INTO app_meta(key, value) VALUES('performance_monitor_modules_last', '$now')");
+                    $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_modules_last', '$now') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
                 }
             }
         } catch (Exception $e) {
