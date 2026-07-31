@@ -2,5 +2,5 @@ PDF export on server:
 
 1. Markdown (.md): use export_markdown_pdf to save a PDF in the same folder (pandoc). Same as editor toolbar "Export to PDF".
 2. LaTeX (.tex) in LaTeX editor: use export_latex_pdf to compile and save PDF on the server in the same folder. Same as editor "Save PDF".
-3. When the user asks to save/export to PDF ("сохрани в pdf", "экспорт в pdf", "save as pdf"), run the correct tool for the open file type. Do not ask what to do — run the tool.
+3. When the user asks to save/export to PDF, run the correct tool for the open file type. Do not ask what to do; run the tool.
 4. Save the source file first if needed (save_open_document), then export_markdown_pdf or export_latex_pdf.

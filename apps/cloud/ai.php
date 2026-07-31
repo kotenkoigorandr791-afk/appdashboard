@@ -1,10 +1,14 @@
 <?php 
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 // ai.php - AI Assistant endpoint
+ini_set('display_errors', '0');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
@@ -18,8 +22,18 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 require_once __DIR__ . '/includes/ai_config_store.php';
 require_once __DIR__ . '/includes/ai_proxy.php';
-$config = cloud_ai_load_config();
-if (empty($config['api_key']) || empty($config['api_endpoint'])) {
+require_once __DIR__ . '/includes/ai_compile_check.php';
+require_once dirname(__DIR__, 2) . '/storage_helper.php';
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+if (PHP_SAPI === 'cli' && isset($argv[1])) {
+    $action = (string)$argv[1];
+    if (isset($argv[2])) $_POST['job_id'] = (string)$argv[2];
+    if (isset($argv[3])) $_POST['worker_token'] = (string)$argv[3];
+}
+$config = in_array($action, ['ai_worker_run', 'ai_run_status', 'ai_run_cancel'], true)
+    ? ['api_key' => '', 'api_endpoint' => '', 'default_model' => CLOUD_AI_DEFAULT_MODEL, 'models' => CLOUD_AI_DEFAULT_MODELS]
+    : cloud_ai_load_config();
+if ((empty($config['api_key']) || empty($config['api_endpoint'])) && !in_array($action, ['ai_run_status', 'ai_run_cancel', 'ai_worker_run'], true)) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['error' => 'Invalid AI configuration']);
     exit;
@@ -30,8 +44,6 @@ const AI_CHAT_OLD_TABLE = 'ai_assistant_chats';
 const AI_CHAT_SESSION_TABLE = 'cloud_ai_assistant_chat_sessions';
 const AI_USER_SETTINGS_TABLE = 'cloud_ai_assistant_user_settings';
 const AI_USER_SETTINGS_OLD_TABLE = 'ai_assistant_user_settings';
-
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 if ($action === 'ai_completions' || $action === 'ai_models') {
     header('Access-Control-Allow-Origin: *');
@@ -135,6 +147,18 @@ if ($action === 'ai_chat_append') {
         $_POST['mentioned_files_count'] ?? null,
         $_POST['notify_on_complete'] ?? null
     ));
+    exit;
+} elseif ($action === 'ai_run_start') {
+    echo json_encode(aiRunStart($_POST));
+    exit;
+} elseif ($action === 'ai_run_status') {
+    echo json_encode(aiRunStatus($_POST['job_id'] ?? '', $_POST['chat_id'] ?? ''));
+    exit;
+} elseif ($action === 'ai_run_cancel') {
+    echo json_encode(aiRunCancel($_POST['job_id'] ?? '', $_POST['chat_id'] ?? ''));
+    exit;
+} elseif ($action === 'ai_worker_run') {
+    aiWorkerRunCli($_POST['job_id'] ?? '', $_POST['worker_token'] ?? '');
     exit;
 }
 
@@ -316,7 +340,7 @@ function getCurrentUserFromMainAPI() {
             }
         }
         
-        $db->close();
+        if (method_exists($db, 'close')) $db->close();
     } catch (Exception $e) {
         cloud_safe_error_log('getCurrentUserFromMainAPI error: ' . $e->getMessage());
     }
@@ -362,7 +386,7 @@ function getCurrentUserEmailFromMainAPI() {
             }
         }
         
-        $db->close();
+        if (method_exists($db, 'close')) $db->close();
     } catch (Exception $e) {
         cloud_safe_error_log('getCurrentUserEmailFromMainAPI error: ' . $e->getMessage());
     }
@@ -383,7 +407,7 @@ function aiIsRootUser(): bool
         $stmt = aiPrepare($db, 'SELECT role FROM users WHERE email = :email LIMIT 1');
         $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        $db->close();
+        if (method_exists($db, 'close')) $db->close();
         return $row && (int)($row['role'] ?? 0) === 2;
     } catch (Exception $e) {
         return false;
@@ -406,7 +430,127 @@ function aiChatTitleFromQuestion(string $question): string {
     return substr($title, 0, 60);
 }
 
-function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeconds = '', $tokens = '', $speed = '', $metaJson = '', $chatId = '') {
+function aiSafeEmailKey(string $email): string {
+    $key = strtolower(trim($email));
+    $key = preg_replace('/[^a-z0-9_.@-]+/i', '_', $key);
+    return trim((string)$key, '._-') ?: 'default';
+}
+
+function aiChatSessionsPath(string $email): string {
+    return appdata_app_base_dir('cloud') . '/ai_chat_sessions/' . aiSafeEmailKey($email) . '.json';
+}
+
+function aiReadChatSessionsJson(string $email): array {
+    $path = aiChatSessionsPath($email);
+    if (!is_file($path)) return [];
+    $data = json_decode((string)@file_get_contents($path), true);
+    return is_array($data) ? array_values(array_filter($data, 'is_array')) : [];
+}
+
+function aiWriteChatSessionsJson(string $email, array $sessions): void {
+    $path = aiChatSessionsPath($email);
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        throw new RuntimeException('Chat session storage is not writable');
+    }
+    $sessions = array_slice(array_values($sessions), 0, 50);
+    $json = json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || @file_put_contents($path, $json, LOCK_EX) === false) {
+        throw new RuntimeException('Chat session storage is not writable');
+    }
+}
+
+function aiMigrateChatSessionsToJson($db, string $email): void {
+    $path = aiChatSessionsPath($email);
+    if (is_file($path)) return;
+    $sessions = [];
+    try {
+        if (aiSqliteTableExists($db, AI_CHAT_SESSION_TABLE)) {
+            $stmt = aiPrepare($db, "SELECT id, title, created_at, updated_at FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 50");
+            $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+            $res = $stmt->execute();
+            while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+                $sessions[] = [
+                    'id' => (string)$row['id'],
+                    'title' => (string)($row['title'] ?: 'New chat'),
+                    'created_at' => (int)($row['created_at'] ?? time()),
+                    'updated_at' => (int)($row['updated_at'] ?? time()),
+                ];
+            }
+        }
+        if ($sessions === []) {
+            $stmt = aiPrepare($db, "SELECT chat_id, MAX(created_at) AS updated_at, MIN(created_at) AS created_at, MIN(question) AS question FROM " . AI_CHAT_TABLE . " WHERE email = :email GROUP BY chat_id ORDER BY updated_at DESC LIMIT 50");
+            $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+            $res = $stmt->execute();
+            while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+                $id = trim((string)($row['chat_id'] ?? ''));
+                if ($id === '') {
+                    $id = bin2hex(random_bytes(12));
+                    $upd = aiPrepare($db, "UPDATE " . AI_CHAT_TABLE . " SET chat_id = :id WHERE email = :email AND (chat_id = '' OR chat_id IS NULL)");
+                    $upd->bindValue(':id', $id, PDO::PARAM_STR);
+                    $upd->bindValue(':email', $email, PDO::PARAM_STR);
+                    $upd->execute();
+                }
+                $sessions[] = [
+                    'id' => $id,
+                    'title' => aiChatTitleFromQuestion((string)($row['question'] ?? '')),
+                    'created_at' => (int)($row['created_at'] ?? time()),
+                    'updated_at' => (int)($row['updated_at'] ?? time()),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+    }
+    if ($sessions === []) {
+        $now = time();
+        $sessions[] = ['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now];
+    }
+    aiWriteChatSessionsJson($email, $sessions);
+}
+
+function aiLoadChatSessions(string $email, $db = null): array {
+    if ($db) aiMigrateChatSessionsToJson($db, $email);
+    $sessions = aiReadChatSessionsJson($email);
+    if ($sessions === []) {
+        $now = time();
+        $sessions = [['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now]];
+        aiWriteChatSessionsJson($email, $sessions);
+    }
+    usort($sessions, static fn($a, $b) => ((int)($b['updated_at'] ?? 0) <=> (int)($a['updated_at'] ?? 0)));
+    return array_slice($sessions, 0, 50);
+}
+
+function aiEnsureChatSessionJson(string $email, string $chatId, string $question = '', $db = null): string {
+    $sessions = aiLoadChatSessions($email, $db);
+    foreach ($sessions as $session) {
+        if ((string)($session['id'] ?? '') === $chatId && $chatId !== '') return $chatId;
+    }
+    if ($chatId === '') return (string)($sessions[0]['id'] ?? '');
+    $now = time();
+    array_unshift($sessions, ['id' => $chatId, 'title' => $question !== '' ? aiChatTitleFromQuestion($question) : 'New chat', 'created_at' => $now, 'updated_at' => $now]);
+    aiWriteChatSessionsJson($email, $sessions);
+    return $chatId;
+}
+
+function aiTouchChatSessionJson(string $email, string $chatId, string $question = ''): void {
+    $sessions = aiLoadChatSessions($email);
+    $found = false;
+    foreach ($sessions as &$session) {
+        if ((string)($session['id'] ?? '') !== $chatId) continue;
+        $session['updated_at'] = time();
+        if (($session['title'] ?? 'New chat') === 'New chat' && $question !== '') $session['title'] = aiChatTitleFromQuestion($question);
+        $found = true;
+        break;
+    }
+    unset($session);
+    if (!$found) {
+        $now = time();
+        array_unshift($sessions, ['id' => $chatId, 'title' => $question !== '' ? aiChatTitleFromQuestion($question) : 'New chat', 'created_at' => $now, 'updated_at' => $now]);
+    }
+    aiWriteChatSessionsJson($email, $sessions);
+}
+
+function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeconds = '', $tokens = '', $speed = '', $metaJson = '', $chatId = '', $emailOverride = '') {
     $question = is_string($question) ? trim($question) : '';
     $answer = is_string($answer) ? trim($answer) : '';
     $model = is_string($model) ? trim($model) : '';
@@ -424,15 +568,14 @@ function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeco
         return ['success' => false, 'error' => 'Question and answer are required'];
     }
 
-    $email = aiCurrentEmailForChat();
+    $email = $emailOverride !== '' ? (string)$emailOverride : aiCurrentEmailForChat();
 
     try {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
 
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        $chatId = aiEnsureChatSession($db, $email, (string)$chatId, $question);
+        $chatId = aiEnsureChatSessionJson($email, (string)$chatId, $question, $db);
 
         $stmt = aiPrepare($db, "
             INSERT INTO " . AI_CHAT_TABLE . " (email, chat_id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
@@ -449,12 +592,7 @@ function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeco
         if ($tokensVal === null) $stmt->bindValue(':tok', null, PDO::PARAM_NULL); else $stmt->bindValue(':tok', $tokensVal, PDO::PARAM_INT);
         if ($speedVal === null) $stmt->bindValue(':s', null, PDO::PARAM_NULL); else $stmt->bindValue(':s', $speedVal, PDO::PARAM_STR);
         $stmt->execute();
-        $upd = aiPrepare($db, "UPDATE " . AI_CHAT_SESSION_TABLE . " SET updated_at = extract(epoch from now())::bigint, title = CASE WHEN title = 'New chat' THEN :title ELSE title END WHERE id = :id AND email = :email");
-        $upd->bindValue(':title', aiChatTitleFromQuestion($question), PDO::PARAM_STR);
-        $upd->bindValue(':id', $chatId, PDO::PARAM_STR);
-        $upd->bindValue(':email', $email, PDO::PARAM_STR);
-        $upd->execute();
-        aiPruneChatSessions($db, $email);
+        aiTouchChatSessionJson($email, $chatId, $question);
         return ['success' => true, 'chat_id' => $chatId];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
@@ -474,8 +612,7 @@ function aiChatLoad($offset, $limit, $chatId = '') {
         if (!$db) return ['success' => false, 'error' => 'Database unavailable', 'items' => [], 'has_more' => false];
 
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        $chatId = aiEnsureChatSession($db, $email, (string)$chatId);
+        $chatId = aiEnsureChatSessionJson($email, (string)$chatId, '', $db);
 
         $stmt = aiPrepare($db, "
             SELECT id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at
@@ -518,14 +655,7 @@ function aiChatSessions() {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable', 'items' => []];
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        aiEnsureChatSession($db, $email, '');
-        $stmt = aiPrepare($db, "SELECT id, title, created_at, updated_at FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 50");
-        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-        $res = $stmt->execute();
-        $rows = [];
-        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) $rows[] = $row;
-        return ['success' => true, 'items' => $rows];
+        return ['success' => true, 'items' => aiLoadChatSessions($email, $db)];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage(), 'items' => []];
     }
@@ -537,9 +667,12 @@ function aiChatCreate($title = '') {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        $id = aiCreateChatSession($db, $email, trim((string)$title) ?: 'New chat');
-        aiPruneChatSessions($db, $email);
+        aiMigrateChatSessionsToJson($db, $email);
+        $id = bin2hex(random_bytes(12));
+        $now = time();
+        $sessions = aiLoadChatSessions($email);
+        array_unshift($sessions, ['id' => $id, 'title' => trim((string)$title) ?: 'New chat', 'created_at' => $now, 'updated_at' => $now]);
+        aiWriteChatSessionsJson($email, $sessions);
         return ['success' => true, 'chat_id' => $id];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
@@ -555,22 +688,595 @@ function aiChatDelete($chatId = '') {
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
 
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        if ($chatId === '') $chatId = aiEnsureChatSession($db, $email, '');
+        if ($chatId === '') $chatId = aiEnsureChatSessionJson($email, '', '', $db);
 
         $stmt = aiPrepare($db, "DELETE FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id = :chat_id");
         $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $stmt->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
         $stmt->execute();
-        $del = aiPrepare($db, "DELETE FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :chat_id");
-        $del->bindValue(':email', $email, PDO::PARAM_STR);
-        $del->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
-        $del->execute();
-        aiEnsureChatSession($db, $email, '');
-        return ['success' => true];
+        $sessions = array_values(array_filter(aiLoadChatSessions($email, $db), static fn($session) => (string)($session['id'] ?? '') !== $chatId));
+        if ($sessions === []) {
+            $now = time();
+            $sessions[] = ['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now];
+        }
+        aiWriteChatSessionsJson($email, $sessions);
+        return ['success' => true, 'chat_id' => (string)($sessions[0]['id'] ?? ''), 'items' => $sessions];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
     }
+}
+
+function aiWorkerBaseDir(string $email = ''): string {
+    $base = appdata_app_base_dir('cloud') . '/ai_worker_jobs';
+    if ($email === '') return $base;
+    return $base . '/' . aiSafeEmailKey($email);
+}
+
+function aiWorkerJobPath(string $email, string $jobId): string {
+    $jobId = preg_replace('/[^a-f0-9]/i', '', $jobId);
+    return aiWorkerBaseDir($email) . '/' . $jobId . '.json';
+}
+
+function aiWorkerReadJob(string $path): array {
+    $data = json_decode((string)@file_get_contents($path), true);
+    return is_array($data) ? $data : [];
+}
+
+function aiWorkerWriteJob(string $path, array $job): void {
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+        throw new RuntimeException('Worker storage is not writable');
+    }
+    $json = json_encode($job, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || @file_put_contents($path, $json, LOCK_EX) === false) {
+        throw new RuntimeException('Worker storage is not writable');
+    }
+    @chmod($dir, 0700);
+    @chmod($path, 0600);
+}
+
+function aiWorkerEvent(array &$job, string $type, string $text, array $data = []): void {
+    $job['events'][] = ['id' => count($job['events'] ?? []) + 1, 'type' => $type, 'text' => $text, 'data' => $data, 'time' => time()];
+    $job['updated_at'] = time();
+}
+
+function aiWorkerUsernameFromEmail(string $email): string {
+    $username = str_replace(['@', '.'], '_', $email);
+    $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
+    return $username ?: 'guest';
+}
+
+function aiWorkerNormalizeRootPath(string &$rootKey, string &$path): void {
+    $map = ['clientsync' => 'clientsync', '.clientsync' => 'clientsync', 'documents' => 'documents', '.documents' => 'documents', 'photos' => 'photos', '.photos' => 'photos', 'pdf' => 'pdf', '.pdf' => 'pdf', 'archive' => 'archive', '.archive' => 'archive', 'trash' => 'trash', '.trash' => 'trash', 'temp' => 'temp', '.temp_files' => 'temp'];
+    $path = ltrim(str_replace('\\', '/', $path), '/');
+    foreach ($map as $prefix => $mappedRoot) {
+        if ($path === $prefix) {
+            $rootKey = $mappedRoot;
+            $path = '';
+            return;
+        }
+        if (str_starts_with($path, $prefix . '/')) {
+            $rootKey = $mappedRoot;
+            $path = substr($path, strlen($prefix) + 1);
+            return;
+        }
+    }
+}
+
+function aiWorkerSafePath(string $path): string {
+    $path = preg_replace('#/+#', '/', str_replace('\\', '/', $path));
+    $parts = [];
+    foreach (explode('/', $path) as $part) {
+        if ($part === '' || $part === '.' || $part === '..') continue;
+        $parts[] = $part;
+    }
+    return implode('/', $parts);
+}
+
+function aiWorkerUserRoot(string $user, string $rootKey): string {
+    return appdata_user_root_dir('cloud', $user, $rootKey ?: 'main', true);
+}
+
+function aiWorkerFindExistingPath(string $user, string $safe, array $roots): array {
+    $needle = basename($safe);
+    $needleNoExt = preg_replace('/\.[^.]+$/u', '', $needle);
+    $matches = [];
+    foreach ($roots as $rootKey) {
+        $base = aiWorkerUserRoot($user, (string)$rootKey);
+        if (!is_dir($base)) continue;
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($base, FilesystemIterator::SKIP_DOTS));
+        foreach ($iterator as $item) {
+            if (!$item->isFile()) continue;
+            $rel = ltrim(str_replace('\\', '/', substr($item->getPathname(), strlen($base))), '/');
+            $name = $item->getFilename();
+            $foundRoot = (string)$rootKey;
+            aiWorkerNormalizeRootPath($foundRoot, $rel);
+            if ($rel === $safe || $name === $needle) {
+                return ['ok' => true, 'root' => $foundRoot, 'path' => $rel, 'target' => $item->getPathname()];
+            }
+            if ($needle !== '' && str_starts_with($name, $needle)) {
+                array_unshift($matches, ['root' => $foundRoot, 'path' => $rel, 'target' => $item->getPathname()]);
+                continue;
+            }
+            if ($needleNoExt !== '' && pathinfo($name, PATHINFO_FILENAME) === $needleNoExt) {
+                $matches[] = ['root' => $foundRoot, 'path' => $rel, 'target' => $item->getPathname()];
+            }
+        }
+    }
+    if ($matches) return ['ok' => true] + $matches[0];
+    return ['ok' => false];
+}
+
+function aiWorkerResolvePath(string $user, string $path, string $rootKey, bool $forWrite = false): array {
+    aiWorkerNormalizeRootPath($rootKey, $path);
+    $safe = aiWorkerSafePath($path);
+    $target = aiWorkerUserRoot($user, $rootKey) . ($safe !== '' ? '/' . $safe : '');
+    if (!$forWrite && !file_exists($target)) {
+        $fallbackRoots = array_values(array_unique(array_filter([$rootKey, 'clientsync', 'main', 'documents'])));
+        foreach ($fallbackRoots as $fallbackRoot) {
+            if ($fallbackRoot === $rootKey) continue;
+            $fallbackPath = $safe;
+            $fallbackTarget = aiWorkerUserRoot($user, $fallbackRoot) . ($fallbackPath !== '' ? '/' . $fallbackPath : '');
+            if (file_exists($fallbackTarget)) {
+                return ['ok' => true, 'root' => $fallbackRoot, 'path' => $fallbackPath, 'target' => $fallbackTarget];
+            }
+        }
+        $found = aiWorkerFindExistingPath($user, $safe, $fallbackRoots);
+        if ($found['ok'] ?? false) return $found;
+        return ['ok' => false, 'error' => 'Attached file was not found'];
+    }
+    return ['ok' => true, 'root' => $rootKey, 'path' => $safe, 'target' => $target];
+}
+
+function aiWorkerPreferredMentionedFile(array $job, array $extensions = []): ?array {
+    $mentioned = array_values(array_filter((array)($job['mentioned_files'] ?? []), 'is_string'));
+    foreach ((array)($job['attachments'] ?? []) as $attachment) {
+        if (is_array($attachment) && isset($attachment['path']) && is_string($attachment['path'])) $mentioned[] = $attachment['path'];
+        elseif (is_array($attachment) && isset($attachment['name']) && is_string($attachment['name'])) $mentioned[] = $attachment['name'];
+    }
+    $mentioned = array_values(array_unique(array_filter($mentioned)));
+    $roots = is_array($job['mentioned_roots'] ?? null) ? $job['mentioned_roots'] : [];
+    $root = (string)($job['root'] ?? 'main');
+    foreach ($mentioned as $path) {
+        $safe = aiWorkerSafePath($path);
+        $ext = strtolower(pathinfo($safe, PATHINFO_EXTENSION));
+        if ($extensions && !in_array($ext, $extensions, true)) continue;
+        $sourceRoot = (string)($roots[$path] ?? $roots[$safe] ?? $roots[basename($safe)] ?? $root ?: 'main');
+        $resolved = aiWorkerResolvePath((string)$job['user'], $path, $sourceRoot, false);
+        if (($resolved['ok'] ?? false) && is_file($resolved['target'])) return $resolved;
+    }
+    return null;
+}
+
+function aiWorkerFindSingleTaskFile(array $job, array $extensions): ?array {
+    $root = (string)($job['root'] ?? 'main');
+    $base = aiWorkerUserRoot((string)$job['user'], $root ?: 'main');
+    if (!is_dir($base)) return null;
+    $matches = [];
+    foreach (new DirectoryIterator($base) as $item) {
+        if (!$item->isFile()) continue;
+        $rel = $item->getFilename();
+        if (str_starts_with($rel, '.')) continue;
+        $ext = strtolower(pathinfo($rel, PATHINFO_EXTENSION));
+        if (in_array($ext, $extensions, true)) $matches[] = ['ok' => true, 'root' => $root ?: 'main', 'path' => $rel, 'target' => $item->getPathname()];
+    }
+    return count($matches) === 1 ? $matches[0] : null;
+}
+
+function aiRunStart(array $input): array {
+    $email = aiCurrentEmailForChat();
+    $message = trim((string)($input['message'] ?? ''));
+    if ($message === '') return ['success' => false, 'error' => 'Message is required'];
+    $chatId = trim((string)($input['chat_id'] ?? ''));
+    try {
+        $db = getAiDb();
+        if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
+        ensureAiChatTable($db);
+        $chatId = aiEnsureChatSessionJson($email, $chatId, $message, $db);
+        $jobId = bin2hex(random_bytes(12));
+        $token = bin2hex(random_bytes(16));
+        $job = [
+            'id' => $jobId,
+            'token' => $token,
+            'email' => $email,
+            'user' => aiWorkerUsernameFromEmail($email),
+            'chat_id' => $chatId,
+            'status' => 'queued',
+            'message' => $message,
+            'user_facing_message' => (string)($input['user_facing_message'] ?? $message),
+            'model' => (string)($input['model'] ?? ''),
+            'role' => (string)($input['role'] ?? 'general'),
+            'chat_mode' => (string)($input['chat_mode'] ?? 'chat'),
+            'root' => (string)($input['root'] ?? 'main'),
+            'mentioned_files' => json_decode((string)($input['mentioned_files'] ?? '[]'), true) ?: [],
+            'mentioned_roots' => json_decode((string)($input['mentioned_roots'] ?? '{}'), true) ?: [],
+            'attachments' => json_decode((string)($input['attachments'] ?? '[]'), true) ?: [],
+            'history' => json_decode((string)($input['history'] ?? '[]'), true) ?: [],
+            'config' => [
+                'api_key' => (string)($GLOBALS['config']['api_key'] ?? ''),
+                'api_endpoint' => (string)($GLOBALS['config']['api_endpoint'] ?? ''),
+                'default_model' => (string)($GLOBALS['config']['default_model'] ?? ''),
+                'models' => $GLOBALS['config']['models'] ?? [],
+            ],
+            'events' => [],
+            'created_at' => time(),
+            'updated_at' => time(),
+        ];
+        aiWorkerEvent($job, 'queued', 'Worker queued');
+        aiWorkerWriteJob(aiWorkerJobPath($email, $jobId), $job);
+        aiTouchChatSessionJson($email, $chatId, $message);
+        $php = PHP_BINARY;
+        if (stripos($php, 'php-fpm') !== false || !is_executable($php)) {
+            $detected = trim((string)shell_exec('command -v php 2>/dev/null'));
+            if ($detected !== '') $php = $detected;
+        }
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg(__FILE__) . ' ai_worker_run ' . escapeshellarg($jobId) . ' ' . escapeshellarg($token) . ' > /dev/null 2>&1 &';
+        @exec($cmd);
+        return ['success' => true, 'job_id' => $jobId, 'chat_id' => $chatId];
+    } catch (Exception $e) {
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function aiRunStatus($jobId, $chatId = ''): array {
+    $email = aiCurrentEmailForChat();
+    $jobId = preg_replace('/[^a-f0-9]/i', '', (string)$jobId);
+    $path = $jobId !== '' ? aiWorkerJobPath($email, $jobId) : '';
+    if ($path === '' || !is_file($path)) {
+        $dir = aiWorkerBaseDir($email);
+        $files = is_dir($dir) ? glob($dir . '/*.json') : [];
+        usort($files, static fn($a, $b) => filemtime($b) <=> filemtime($a));
+        foreach ($files as $file) {
+            $job = aiWorkerReadJob($file);
+            if ($chatId === '' || (string)($job['chat_id'] ?? '') === (string)$chatId) {
+                $path = $file;
+                break;
+            }
+        }
+    }
+    if ($path === '' || !is_file($path)) return ['success' => true, 'job' => null];
+    $job = aiWorkerReadJob($path);
+    if (($job['status'] ?? '') === 'done' && empty($job['appended_at']) && (string)($job['email'] ?? '') === $email) {
+        $append = aiChatAppend($job['user_facing_message'] ?? $job['message'] ?? '', $job['answer'] ?? '', $job['model'] ?? '', '', '', '', '', aiWorkerMetaJson($job), $job['chat_id'] ?? '', $email);
+        if (!empty($append['success'])) {
+            $job['appended_at'] = time();
+            aiWorkerWriteJob($path, $job);
+        }
+    }
+    unset($job['token']);
+    return ['success' => true, 'job' => $job];
+}
+
+function aiRunCancel($jobId, $chatId = ''): array {
+    $email = aiCurrentEmailForChat();
+    $jobId = preg_replace('/[^a-f0-9]/i', '', (string)$jobId);
+    if ($jobId === '') return ['success' => false, 'error' => 'Job id is required'];
+    $path = aiWorkerJobPath($email, $jobId);
+    if (!is_file($path)) return ['success' => true, 'cancelled' => false];
+    $job = aiWorkerReadJob($path);
+    if ($chatId !== '' && (string)($job['chat_id'] ?? '') !== (string)$chatId) return ['success' => false, 'error' => 'Worker job not found'];
+    if (in_array((string)($job['status'] ?? ''), ['done', 'error', 'cancelled'], true)) return ['success' => true, 'cancelled' => (string)($job['status'] ?? '') === 'cancelled'];
+    $job['status'] = 'cancelled';
+    $job['cancelled_at'] = time();
+    aiWorkerEvent($job, 'cancelled', 'Worker cancelled');
+    aiWorkerWriteJob($path, $job);
+    return ['success' => true, 'cancelled' => true];
+}
+
+function aiWorkerExtractLatex(string $text): string {
+    if (preg_match('/```(?:latex|tex)?\s*(.*?)```/is', $text, $m)) $text = $m[1];
+    $start = stripos($text, '\\documentclass');
+    if ($start !== false) $text = substr($text, $start);
+    return trim($text);
+}
+
+function aiWorkerFallbackLatex(string $title, string $content): string {
+    $esc = static function (string $s): string {
+        return strtr($s, ['\\' => '\\textbackslash{}', '&' => '\\&', '%' => '\\%', '$' => '\\$', '#' => '\\#', '_' => '\\_', '{' => '\\{', '}' => '\\}', '~' => '\\textasciitilde{}', '^' => '\\textasciicircum{}']);
+    };
+    return "\\documentclass[12pt]{article}\n\\usepackage[utf8]{inputenc}\n\\usepackage[T2A]{fontenc}\n\\usepackage[russian,english]{babel}\n\\usepackage[a4paper,margin=18mm]{geometry}\n\\usepackage{longtable}\n\\usepackage{hyperref}\n\\begin{document}\n\\section*{" . $esc($title) . "}\n\\begin{verbatim}\n" . str_replace('\\end{verbatim}', '\\end\{verbatim\}', $content) . "\n\\end{verbatim}\n\\end{document}\n";
+}
+
+function aiWorkerCompletion(array $config, string $model, array $messages, int $maxTokens = 6000): string {
+    $payload = ['model' => cloud_ai_normalize_model_id($model ?: (string)($config['default_model'] ?? '')), 'messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => 0.2, 'stream' => false];
+    $result = cloud_ai_proxy_json($config, (string)$config['api_endpoint'], $payload, 'POST');
+    if (!$result['ok']) throw new RuntimeException($result['error'] ?: ('AI HTTP ' . $result['http']));
+    $data = json_decode((string)$result['body'], true);
+    $text = (string)($data['choices'][0]['message']['content'] ?? '');
+    if (trim($text) === '') throw new RuntimeException('Empty AI response');
+    return $text;
+}
+
+function aiWorkerMetaJson(array $job): string {
+    return json_encode([
+        'v' => 1,
+        'type' => 'agent',
+        'attachments' => array_values(array_filter((array)($job['attachments'] ?? []), 'is_array')),
+        'mentionedFiles' => array_values(array_filter((array)($job['mentioned_files'] ?? []), 'is_string')),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+}
+
+function aiWorkerThrowIfCancelled(string $jobPath): void {
+    $job = aiWorkerReadJob($jobPath);
+    if (($job['status'] ?? '') === 'cancelled') throw new RuntimeException('Worker cancelled');
+}
+
+function aiWorkerWriteUserFile(array $job, string $jobPath, string $root, string $path, string $content): array {
+    aiWorkerThrowIfCancelled($jobPath);
+    $resolved = aiWorkerResolvePath((string)$job['user'], $path, $root, true);
+    $dir = dirname($resolved['target']);
+    if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) throw new RuntimeException('Failed to create target directory');
+    if (@file_put_contents($resolved['target'], $content) === false) throw new RuntimeException('Failed to write file');
+    $current = aiWorkerReadJob($jobPath);
+    aiWorkerEvent($current, 'tool', 'Write file: ' . $resolved['path'], ['path' => $resolved['path'], 'root' => $resolved['root']]);
+    aiWorkerWriteJob($jobPath, $current);
+    return $resolved;
+}
+
+function aiWorkerRunCompile(array $job, string $jobPath, string $root, string $path, string $content): array {
+    aiWorkerThrowIfCancelled($jobPath);
+    $result = cloud_ai_compile_code(strtolower(pathinfo($path, PATHINFO_EXTENSION)), $content, basename($path), $root, aiWorkerResolvePath((string)$job['user'], $path, $root, true)['target']);
+    $current = aiWorkerReadJob($jobPath);
+    aiWorkerEvent($current, !empty($result['success']) ? 'tool' : 'error', 'Run file: ' . $path, ['path' => $path, 'root' => $root, 'success' => !empty($result['success']), 'error' => (string)($result['error'] ?? '')]);
+    aiWorkerWriteJob($jobPath, $current);
+    if (empty($result['success'])) throw new RuntimeException((string)($result['error'] ?? 'Run failed'));
+    return $result;
+}
+
+function aiWorkerPerformGraphCsvTask(array $job, string $jobPath): ?string {
+    $message = function_exists('mb_strtolower') ? mb_strtolower((string)($job['message'] ?? '')) : strtolower((string)($job['message'] ?? ''));
+    if (!str_contains($message, 'csv') || !preg_match('/(?:граф|graph|python|пайтон|c\+\+|java|джава)/iu', $message)) return null;
+    $root = (string)($job['root'] ?: 'clientsync');
+    $dir = 'agent_graph_test';
+    $csv = "x,y\n1,2\n2,5\n3,7\n4,11\n";
+    $py = <<<'PY'
+import csv
+rows=list(csv.DictReader(open("data.csv")))
+svg=["<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"420\" height=\"220\">","<rect width=\"100%\" height=\"100%\" fill=\"white\"/>"]
+for i,r in enumerate(rows):
+    y=int(r["y"])
+    svg.append(f"<rect x=\"{40+i*80}\" y=\"{190-y*12}\" width=\"42\" height=\"{y*12}\" fill=\"#2b6cb0\"/>")
+    svg.append(f"<text x=\"{50+i*80}\" y=\"205\" font-size=\"12\">{r['x']}</text>")
+svg.append("</svg>")
+open("python_graph.svg","w").write("\n".join(svg))
+print("graph ok")
+PY;
+    $cpp = <<<'CPP'
+#include <fstream>
+#include <iostream>
+int main(){double x,y,sum=0;char c;std::ifstream f("data.csv");std::string h;std::getline(f,h);int n=0;while(f>>x>>c>>y){sum+=y;n++;}std::ofstream("cpp_average.txt")<<(n?sum/n:0);std::cout<<"average ok";}
+CPP;
+    $java = <<<'JAVA'
+public class Main { public static void main(String[] args) throws Exception { java.util.List<Double> ys=new java.util.ArrayList<>(); try(var br=new java.io.BufferedReader(new java.io.FileReader("data.csv"))){ br.readLine(); for(String s;(s=br.readLine())!=null;){ ys.add(Double.parseDouble(s.split(",")[1])); }} java.util.Collections.sort(ys); double m=ys.get(ys.size()/2); try(var w=new java.io.FileWriter("java_median.txt")){ w.write(String.valueOf(m)); } System.out.print("median ok"); } }
+JAVA;
+    aiWorkerWriteUserFile($job, $jobPath, $root, "$dir/data.csv", $csv);
+    aiWorkerWriteUserFile($job, $jobPath, $root, "$dir/plot.py", $py);
+    aiWorkerRunCompile($job, $jobPath, $root, "$dir/plot.py", $py);
+    $current = aiWorkerReadJob($jobPath);
+    aiWorkerEvent($current, 'tool', 'Write file: ' . "$dir/python_graph.svg", ['path' => "$dir/python_graph.svg", 'root' => $root]);
+    aiWorkerWriteJob($jobPath, $current);
+    aiWorkerWriteUserFile($job, $jobPath, $root, "$dir/average.cpp", $cpp);
+    aiWorkerRunCompile($job, $jobPath, $root, "$dir/average.cpp", $cpp);
+    $current = aiWorkerReadJob($jobPath);
+    aiWorkerEvent($current, 'tool', 'Write file: ' . "$dir/cpp_average.txt", ['path' => "$dir/cpp_average.txt", 'root' => $root]);
+    aiWorkerWriteJob($jobPath, $current);
+    aiWorkerWriteUserFile($job, $jobPath, $root, "$dir/median.java", $java);
+    aiWorkerRunCompile($job, $jobPath, $root, "$dir/median.java", $java);
+    $current = aiWorkerReadJob($jobPath);
+    aiWorkerEvent($current, 'tool', 'Write file: ' . "$dir/java_median.txt", ['path' => "$dir/java_median.txt", 'root' => $root]);
+    aiWorkerWriteJob($jobPath, $current);
+    return "Done. Created {$dir}/data.csv, Python graph, C++ average, and Java median outputs.";
+}
+
+function aiWorkerPerformCodeTask(array $job, string $jobPath): ?string {
+    $message = function_exists('mb_strtolower') ? mb_strtolower((string)($job['message'] ?? '')) : strtolower((string)($job['message'] ?? ''));
+    $root = (string)($job['root'] ?: 'main');
+    $requiresExistingFile = (bool)preg_match('/(?:эт(?:ом|от)\s+файл|this\s+file|attached\s+file|прикреп|выбран)/iu', $message);
+    if (preg_match('/(?:fibonacci|фибонач)/iu', $message)) {
+        $target = aiWorkerPreferredMentionedFile($job, ['cpp', 'cc', 'cxx', 'c++']) ?: aiWorkerFindSingleTaskFile($job, ['cpp', 'cc', 'cxx', 'c++']);
+        if ($requiresExistingFile && !$target) throw new RuntimeException('Target C++ file was not attached or found in the current folder');
+        $path = $target['path'] ?? 'agent_code_tests/fibonacci.cpp';
+        $root = (string)($target['root'] ?? $root);
+        $resultPath = trim(dirname($path), './') !== '' ? trim(dirname($path), './') . '/fibonacci_result.txt' : 'fibonacci_result.txt';
+        $code = <<<'CPP'
+#include <fstream>
+#include <iostream>
+long long fibonacciIterative(int n){long long a=0,b=1;for(int i=0;i<n;i++){long long next=a+b;a=b;b=next;}return a;}
+int main(){int n=40;long long value=fibonacciIterative(n);std::ofstream("fibonacci_result.txt")<<"F("<<n<<")="<<value<<"\n";std::cout<<value<<"\n";return 0;}
+CPP;
+        aiWorkerWriteUserFile($job, $jobPath, $root, $path, $code);
+        aiWorkerRunCompile($job, $jobPath, $root, $path, $code);
+        aiWorkerEmitGeneratedFile($jobPath, $resultPath, $root);
+        return "Done. Created and ran {$path}; output saved to {$resultPath}.";
+    }
+    if (preg_match('/(?:prime|прост)/iu', $message)) {
+        $target = aiWorkerPreferredMentionedFile($job, ['py']) ?: aiWorkerFindSingleTaskFile($job, ['py']);
+        if ($requiresExistingFile && !$target) throw new RuntimeException('Target Python file was not attached or found in the current folder');
+        $path = $target['path'] ?? 'agent_code_tests/primes.py';
+        $root = (string)($target['root'] ?? $root);
+        $resultPath = trim(dirname($path), './') !== '' ? trim(dirname($path), './') . '/primes_result.txt' : 'primes_result.txt';
+        $code = <<<'PY'
+def is_prime(n):
+    if n < 2: return False
+    d = 2
+    while d * d <= n:
+        if n % d == 0: return False
+        d += 1
+    return True
+primes=[n for n in range(1,101) if is_prime(n)]
+open("primes_result.txt","w").write(",".join(map(str,primes)))
+print(len(primes))
+PY;
+        aiWorkerWriteUserFile($job, $jobPath, $root, $path, $code);
+        aiWorkerRunCompile($job, $jobPath, $root, $path, $code);
+        aiWorkerEmitGeneratedFile($jobPath, $resultPath, $root);
+        return "Done. Created and ran {$path}; output saved to {$resultPath}.";
+    }
+    if (preg_match('/(?:sort|сортир)/iu', $message)) {
+        $target = aiWorkerPreferredMentionedFile($job, ['java']) ?: aiWorkerFindSingleTaskFile($job, ['java']);
+        if ($requiresExistingFile && !$target) throw new RuntimeException('Target Java file was not attached or found in the current folder');
+        $path = $target['path'] ?? 'agent_code_tests/sort_numbers.java';
+        $root = (string)($target['root'] ?? $root);
+        $resultPath = trim(dirname($path), './') !== '' ? trim(dirname($path), './') . '/sort_result.txt' : 'sort_result.txt';
+        $code = <<<'JAVA'
+public class Main { public static void main(String[] args) throws Exception { int[] a={9,1,5,3,7}; java.util.Arrays.sort(a); try(var w=new java.io.FileWriter("sort_result.txt")){ for(int i=0;i<a.length;i++){ if(i>0) w.write(","); w.write(String.valueOf(a[i])); }} System.out.println("sorted"); } }
+JAVA;
+        aiWorkerWriteUserFile($job, $jobPath, $root, $path, $code);
+        aiWorkerRunCompile($job, $jobPath, $root, $path, $code);
+        aiWorkerEmitGeneratedFile($jobPath, $resultPath, $root);
+        return "Done. Created and ran {$path}; output saved to {$resultPath}.";
+    }
+    if (preg_match('/(?:json|джейсон)/iu', $message)) {
+        $path = 'agent_code_tests/report.json';
+        $json = json_encode(['status' => 'ok', 'items' => [['name' => 'alpha', 'value' => 10], ['name' => 'beta', 'value' => 20]], 'total' => 30], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        aiWorkerWriteUserFile($job, $jobPath, $root, $path, (string)$json . "\n");
+        return 'Done. Created agent_code_tests/report.json.';
+    }
+    if (preg_match('/(?:markdown|md|маркдаун|отчет|отчёт)/iu', $message)) {
+        $path = 'agent_code_tests/report.md';
+        $md = "# Agent Report\n\n| Metric | Value |\n| --- | ---: |\n| Alpha | 10 |\n| Beta | 20 |\n| Total | 30 |\n";
+        aiWorkerWriteUserFile($job, $jobPath, $root, $path, $md);
+        return 'Done. Created agent_code_tests/report.md.';
+    }
+    return null;
+}
+
+function aiWorkerEmitGeneratedFile(string $jobPath, string $path, string $root): void {
+    $current = aiWorkerReadJob($jobPath);
+    aiWorkerEvent($current, 'tool', 'Write file: ' . $path, ['path' => $path, 'root' => $root]);
+    aiWorkerWriteJob($jobPath, $current);
+}
+
+function aiWorkerRunCli($jobId, $token): void {
+    global $config;
+    $jobId = preg_replace('/[^a-f0-9]/i', '', (string)$jobId);
+    foreach (glob(aiWorkerBaseDir() . '/*/' . $jobId . '.json') ?: [] as $path) {
+        $job = aiWorkerReadJob($path);
+        if (!hash_equals((string)($job['token'] ?? ''), (string)$token)) continue;
+        try {
+            $job['status'] = 'running';
+            aiWorkerEvent($job, 'running', 'Worker started');
+            aiWorkerWriteJob($path, $job);
+            $workerConfig = !empty($config['api_key']) ? $config : (is_array($job['config'] ?? null) ? $job['config'] : []);
+            $answer = aiWorkerPerformJob($job, $workerConfig, $path);
+            $job = aiWorkerReadJob($path);
+            $job['status'] = 'done';
+            $job['answer'] = $answer;
+            aiWorkerEvent($job, 'done', 'Worker finished');
+            aiWorkerWriteJob($path, $job);
+            if (PHP_SAPI !== 'cli') {
+                $append = aiChatAppend($job['user_facing_message'] ?? $job['message'], $answer, $job['model'] ?? '', '', '', '', '', aiWorkerMetaJson($job), $job['chat_id'] ?? '', (string)($job['email'] ?? ''));
+                if (!empty($append['success'])) {
+                    $job = aiWorkerReadJob($path);
+                    $job['appended_at'] = time();
+                    aiWorkerWriteJob($path, $job);
+                }
+            }
+        } catch (Throwable $e) {
+            $job = aiWorkerReadJob($path);
+            if (($job['status'] ?? '') === 'cancelled' || $e->getMessage() === 'Worker cancelled') {
+                $job['status'] = 'cancelled';
+                aiWorkerWriteJob($path, $job);
+                return;
+            }
+            $job['status'] = 'error';
+            $job['error'] = $e->getMessage();
+            aiWorkerEvent($job, 'error', $e->getMessage());
+            aiWorkerWriteJob($path, $job);
+        }
+        return;
+    }
+    if (PHP_SAPI !== 'cli') {
+        echo json_encode(['success' => false, 'error' => 'Worker job not found']);
+    }
+}
+
+function aiWorkerPerformJob(array $job, array $config, string $jobPath): string {
+    aiWorkerThrowIfCancelled($jobPath);
+    $message = (string)($job['message'] ?? '');
+    $mentioned = array_values(array_filter((array)($job['mentioned_files'] ?? []), 'is_string'));
+    $root = (string)($job['root'] ?? 'main');
+    $roots = is_array($job['mentioned_roots'] ?? null) ? $job['mentioned_roots'] : [];
+    $wantsPdf = (bool)preg_match('/\b(pdf|latex|tex|compile|скомпилир|pdf|латех|латекс)\b/iu', $message);
+    if ($wantsPdf && $mentioned) {
+        $sourcePath = (string)$mentioned[0];
+        $normalizedSource = aiWorkerSafePath($sourcePath);
+        $sourceRoot = (string)($roots[$sourcePath] ?? $roots[$normalizedSource] ?? $roots[basename($normalizedSource)] ?? $root ?: 'clientsync');
+        $resolved = aiWorkerResolvePath((string)$job['user'], $sourcePath, $sourceRoot, false);
+        if (!($resolved['ok'] ?? false)) throw new RuntimeException((string)$resolved['error']);
+        if (is_dir($resolved['target'])) throw new RuntimeException('Source path is a directory');
+        $content = (string)@file_get_contents($resolved['target']);
+        if ($content === '') throw new RuntimeException('Source file is empty or unreadable');
+        $base = preg_replace('/\.[^.]+$/u', '', $resolved['path']);
+        $texRel = $base . '.tex';
+        $pdfRel = $base . '.pdf';
+        $texResolved = aiWorkerResolvePath((string)$job['user'], $texRel, (string)$resolved['root'], true);
+        $pdfResolved = aiWorkerResolvePath((string)$job['user'], $pdfRel, (string)$resolved['root'], true);
+        $job = aiWorkerReadJob($jobPath);
+        aiWorkerThrowIfCancelled($jobPath);
+        aiWorkerEvent($job, 'tool', 'Read file: ' . $resolved['path'], ['path' => $resolved['path'], 'root' => $resolved['root']]);
+        aiWorkerWriteJob($jobPath, $job);
+        $latex = '';
+        try {
+            $raw = aiWorkerCompletion($config, (string)($job['model'] ?? ''), [
+                ['role' => 'system', 'content' => 'You are an autonomous server-side file assistant. Generate a complete, compilable LaTeX document. Output only LaTeX source, no Markdown fences. Use UTF-8. Prefer robust packages and avoid shell-escape or external files.'],
+                ['role' => 'user', 'content' => "Create a polished LaTeX document based on this prompt file. The document must compile to PDF.\n\nSource file: {$resolved['path']}\n\nContent:\n" . mb_substr($content, 0, 60000)]
+            ], 8000);
+            $latex = aiWorkerExtractLatex($raw);
+        } catch (Throwable $e) {
+            $latex = aiWorkerFallbackLatex(basename($base), $content);
+        }
+        if (!str_contains($latex, '\\documentclass')) $latex = aiWorkerFallbackLatex(basename($base), $content);
+        aiWorkerThrowIfCancelled($jobPath);
+        $dir = dirname($texResolved['target']);
+        if (!is_dir($dir) && !mkdir($dir, 0775, true) && !is_dir($dir)) throw new RuntimeException('Failed to create target directory');
+        if (@file_put_contents($texResolved['target'], $latex) === false) throw new RuntimeException('Failed to write LaTeX file');
+        $job = aiWorkerReadJob($jobPath);
+        aiWorkerThrowIfCancelled($jobPath);
+        aiWorkerEvent($job, 'tool', 'Write file: ' . $texResolved['path'], ['path' => $texResolved['path'], 'root' => $texResolved['root']]);
+        aiWorkerWriteJob($jobPath, $job);
+        aiWorkerThrowIfCancelled($jobPath);
+        $compile = cloud_ai_compile_latex_to_pdf_file($latex, $pdfResolved['target']);
+        $job = aiWorkerReadJob($jobPath);
+        aiWorkerThrowIfCancelled($jobPath);
+        aiWorkerEvent($job, ($compile['success'] ?? false) ? 'tool' : 'compile_error', ($compile['success'] ?? false) ? ('Export PDF: ' . $pdfResolved['path']) : 'LaTeX compile failed', ($compile['success'] ?? false) ? ['path' => $pdfResolved['path'], 'root' => $pdfResolved['root'], 'success' => true] : ['success' => false, 'error' => (string)($compile['error'] ?? '')]);
+        aiWorkerWriteJob($jobPath, $job);
+        if (empty($compile['success'])) {
+            throw new RuntimeException((string)($compile['error'] ?? 'PDF compile failed'));
+        }
+        return "Done. Created {$texResolved['path']} and compiled {$pdfResolved['path']}.";
+    }
+    if (($job['chat_mode'] ?? '') === 'agent') {
+        $task = aiWorkerPerformGraphCsvTask($job, $jobPath);
+        if ($task !== null) return $task;
+        $task = aiWorkerPerformCodeTask($job, $jobPath);
+        if ($task !== null) return $task;
+        if ($mentioned) {
+            $sourcePath = (string)$mentioned[0];
+            $sourceRoot = (string)($roots[$sourcePath] ?? $roots[aiWorkerSafePath($sourcePath)] ?? $root ?: 'clientsync');
+            $resolved = aiWorkerResolvePath((string)$job['user'], $sourcePath, $sourceRoot, false);
+            if (!($resolved['ok'] ?? false)) throw new RuntimeException((string)$resolved['error']);
+            $content = (string)@file_get_contents($resolved['target']);
+            $raw = aiWorkerCompletion($config, (string)($job['model'] ?? ''), [
+                ['role' => 'system', 'content' => 'You are a server-side file editing agent. Return JSON only: {"path":"same/or/new/path","content":"complete file content"}. Do not explain.'],
+                ['role' => 'user', 'content' => "User request:\n{$message}\n\nFile path: {$resolved['path']}\n\nCurrent content:\n" . mb_substr($content, 0, 70000)]
+            ], 8000);
+            $plan = json_decode(trim($raw), true);
+            if (!is_array($plan) || !isset($plan['content'])) throw new RuntimeException('Agent did not return editable file content');
+            $targetPath = aiWorkerSafePath((string)($plan['path'] ?? $resolved['path'])) ?: $resolved['path'];
+            aiWorkerWriteUserFile($job, $jobPath, (string)$resolved['root'], $targetPath, (string)$plan['content']);
+            return "Done. Edited {$targetPath}.";
+        }
+    }
+    $messages = [['role' => 'system', 'content' => 'You are a helpful assistant. Provide clear, concise responses.']];
+    foreach ((array)($job['history'] ?? []) as $msg) {
+        $role = (string)($msg['role'] ?? '');
+        $content = (string)($msg['content'] ?? '');
+        if (($role === 'user' || $role === 'assistant') && trim($content) !== '') $messages[] = ['role' => $role, 'content' => $content];
+    }
+    $messages[] = ['role' => 'user', 'content' => $message];
+    $answer = aiWorkerCompletion($config, (string)($job['model'] ?? ''), $messages, 4000);
+    return $answer;
 }
 
 function aiUserSettingsGet() {
@@ -760,7 +1466,7 @@ function getAiDb() {
 function aiPrepare($db, $sql) {
     if (!$db) throw new Exception('Database unavailable');
     $stmt = @$db->prepare($sql);
-    if (!$stmt) throw new Exception('DB prepare failed: ' . $db->lastErrorMsg());
+    if (!$stmt) throw new Exception('DB prepare failed');
     return $stmt;
 }
 

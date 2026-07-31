@@ -116,6 +116,9 @@
         agentNewPaths: new Set(),
         agentRunStartedAt: null,
         agentTimerInterval: null,
+        serverRunJobId: '',
+        serverRunMessageId: '',
+        serverRunStopping: false,
         /** @type {'chat'|'agent'|null} UI labels for tool-loop runs */
         toolRunMode: null,
         editorHighlights: [],
@@ -1055,19 +1058,21 @@
                 }
                 #ai-modal .modal-header {
                     position: relative !important;
+                    padding-left: calc(var(--menu-button-mobile-reserve, 50px) + 8px) !important;
                 }
                 #ai-modal .modal-header h3 {
-                    position: absolute !important;
-                    left: 50% !important;
-                    transform: translateX(-50%) !important;
-                    text-align: center !important;
-                    width: max-content !important;
+                    position: static !important;
+                    left: auto !important;
+                    transform: none !important;
+                    text-align: left !important;
+                    width: auto !important;
+                    flex: 0 0 auto;
                 }
                 #ai-modal .modal-header .modal-actions {
                     margin-left: auto !important;
                 }
                 #ai-modal .ai-chat-session-controls {
-                    padding-left: 20% !important;
+                    padding-left: 0 !important;
                 }
             }
             #ai-modal .ai-resize-handle {
@@ -1085,17 +1090,21 @@
             }
             #ai-modal .ai-chat {
                 padding-bottom: 0 !important;
+                padding-top: 10px !important;
                 max-height: none !important;
                 position: relative !important;
                 isolation: isolate !important;
             }
             #ai-modal .ai-chat .dot-field-canvas {
-                position: absolute !important;
-                inset: 0 !important;
+                position: sticky !important;
+                top: 0 !important;
+                display: block !important;
                 width: 100% !important;
                 height: 100% !important;
+                margin-bottom: -100% !important;
                 pointer-events: none !important;
                 z-index: 0 !important;
+                opacity: 1 !important;
             }
             #ai-modal .ai-chat .message,
             #ai-modal .ai-chat .typing-indicator {
@@ -2354,6 +2363,10 @@
         }
         refreshAttachI18n();
         await loadAiChatSessions();
+        if (elements.chat && !elements.chat.querySelector('.message')) {
+            await loadChatHistoryPage(false);
+            await resumeServerAiRunIfNeeded();
+        }
         
         // Make functions globally available
         window.toggleAIModal = toggleAIModal;
@@ -3072,7 +3085,7 @@
             const data = await response.json();
             const files = (data?.items || [])
                 .filter(item => item.type === 'file' && typeof item.name === 'string')
-                .map(item => item.name);
+                .map(item => normalizeMentionedFilePath(`${folderPath ? `${folderPath}/` : ''}${item.name}`));
 
             aiState.mentionFolderCache = {
                 root,
@@ -3128,10 +3141,12 @@
 
         elements.mentionSuggestions.innerHTML = '';
         list.forEach((name, index) => {
+            const displayName = name.split('/').pop() || name;
             const item = document.createElement('div');
             item.className = `mention-suggestion-item ${index === aiState.mentionSelectedIndex ? 'active' : ''}`;
             item.dataset.index = String(index);
-            item.innerHTML = `<span class="mention-suggestion-icon"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><span class="mention-suggestion-name">${escapeHtml(name)}</span>`;
+            item.title = name;
+            item.innerHTML = `<span class="mention-suggestion-icon"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><span class="mention-suggestion-name">${escapeHtml(displayName)}</span>`;
             item.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 applyMentionSuggestion(index);
@@ -3161,7 +3176,7 @@
         const suffix = value.slice(aiState.mentionRange.end);
         const insertionIndex = prefix.length;
         elements.input.value = `${prefix}${suffix}`.replace(/\s{2,}/g, ' ');
-        addMentionedFileAttachment(selected, insertionIndex);
+        addMentionedFileAttachment(selected, insertionIndex, getRootForFileContext());
 
         const newCursorPos = Math.min(insertionIndex, elements.input.value.length);
         elements.input.selectionStart = newCursorPos;
@@ -3196,25 +3211,6 @@
         return true;
     }
 
-    function insertMentionTokenIntoInput(path) {
-        if (!elements.input) return null;
-        const normalized = normalizeMentionedFilePath(path);
-        if (!normalized) return null;
-        const value = String(elements.input.value || '');
-        const at = Math.max(0, Number(elements.input.selectionStart ?? value.length));
-        const before = value.slice(0, at);
-        const after = value.slice(at);
-        const prefix = before && !/\s$/.test(before) ? ' ' : '';
-        const suffix = after && !/^\s/.test(after) ? ' ' : '';
-        const token = `${prefix}@${normalized}${suffix || ' '}`;
-        elements.input.value = before + token + after;
-        const start = before.length + prefix.length;
-        const nextPos = before.length + token.length;
-        elements.input.selectionStart = nextPos;
-        elements.input.selectionEnd = nextPos;
-        return start;
-    }
-
     function getTreeFilePathFromDragEvent(event) {
         return getTreeFilePathsFromDragEvent(event)[0] || '';
     }
@@ -3231,7 +3227,8 @@
             const many = JSON.parse(dt.getData('application/x-cloud-file-paths') || '[]');
             if (Array.isArray(many)) many.forEach(path => paths.push(path));
         } catch (_) {}
-        paths.push(dt.getData('application/x-cloud-file-path') || dt.getData('text/plain'));
+        paths.push(dt.getData('application/x-cloud-file-path'));
+        String(dt.getData('text/plain') || '').split(/\r?\n/).forEach(path => paths.push(path));
         aiTreeDragFallbackPaths.forEach(path => paths.push(path));
         return Array.from(new Set(paths.map(normalizeMentionedFilePath).filter(path => path && !path.includes('..'))));
     }
@@ -3330,8 +3327,8 @@
             clear();
             let added = 0;
             const root = getTreeFileRootFromDragEvent(event);
+            const insertionIndex = Math.max(0, Number(elements.input?.selectionStart ?? String(elements.input?.value || '').length));
             paths.forEach(path => {
-                const insertionIndex = insertMentionTokenIntoInput(path);
                 if (addMentionedFileAttachment(path, insertionIndex, root)) added++;
             });
             aiTreeDragFallbackPaths = [];
@@ -4436,6 +4433,11 @@
         return mentionRoot || getRootForFileContext();
     }
 
+    function getRootForAgentPath(path) {
+        const normalized = normalizeMentionedFilePath(path);
+        return aiState.mentionedFileRoots?.[normalized] || getRootForToolRun();
+    }
+
     function getIframeEditorContent(tabId) {
         if (!tabId) return null;
         const iframe = Array.from(document.querySelectorAll('#viewer iframe[data-tab-id]'))
@@ -4742,6 +4744,9 @@
             if (result.truncated) msg += tr('aiPlanResultMoreLines', ' · more available');
             return msg;
         }
+        if (toolName === 'extract_document_text') {
+            return tr('aiPlanResultDone', 'Done') + ` · ${result.format || 'markdown'}`;
+        }
         if (toolName === 'diff_file') {
             return result.changed
                 ? tr('aiPlanResultDone', 'Done') + ' · ' + tr('aiPlanResultDiffChanged', 'changed')
@@ -4792,6 +4797,42 @@
         if (result.persisted) return tr('aiAgentSavedShort', 'Saved');
         if (result.success === true) return tr('aiPlanResultDone', 'Done');
         return tr('aiPlanResultDone', 'Done');
+    }
+    function serverRunEventTool(event) {
+        const text = String(event?.text || '').toLowerCase();
+        if (/read file/.test(text)) return 'read_file';
+        if (/write file/.test(text)) return 'write_file';
+        if (/export pdf|fallback pdf/.test(text)) return 'export_latex_pdf';
+        if (/compiler|compile/.test(text)) return 'compile_and_check';
+        if (/queued|started|finished/.test(text)) return 'run_command';
+        return String(event?.data?.tool || event?.type || 'run_command');
+    }
+    function serverRunEventStatus(event, index, total, jobStatus) {
+        if (event?.type === 'error') return 'error';
+        if (event?.type === 'compile_error') return 'error';
+        if (index === total - 1 && jobStatus !== 'done' && jobStatus !== 'error') return 'running';
+        return 'done';
+    }
+    function serverRunEventResult(event) {
+        const data = event?.data || {};
+        if (event?.type === 'compile_error') return String(data.error || tr('aiPlanResultFailed', 'Error'));
+        if (data.path) return String(data.path);
+        if (data.error) return String(data.error);
+        return '';
+    }
+    function renderServerRunPlan(messageId, job) {
+        aiState.agentRunMessageId = messageId;
+        aiState.toolRunMode = (job?.chat_mode === 'agent') ? 'agent' : 'chat';
+        const events = Array.isArray(job?.events) ? job.events : [];
+        aiState.agentPlanSteps = events.map((event, index) => ({
+            id: `server_${index}`,
+            tool: serverRunEventTool(event),
+            label: String(event?.text || event?.type || ''),
+            status: serverRunEventStatus(event, index, events.length, job?.status || ''),
+            result: serverRunEventResult(event),
+            resources: Array.isArray(event?.data?.resources) ? event.data.resources : []
+        }));
+        renderAgentPlanInMessage();
     }
     function appendAgentResourcePreview(host, step) {
         const result = step?.rawResult || {};
@@ -5012,22 +5053,41 @@
         aiState.pendingAgentPatches[norm] = {
             before: String(beforeText ?? ''),
             after: String(afterText ?? ''),
-            tool: meta.tool || ''
+            tool: meta.tool || '',
+            root: getRootForAgentPath(path) || ''
         };
         const openName = normalizeAgentPath(aiState.currentFileName);
         if (openName && pathsMatchAgent(openName, norm)) {
             showAgentPreviewInEditor(aiState.pendingAgentPatches[norm].before, aiState.pendingAgentPatches[norm].after);
         }
+        void persistSingleStagedAgentChange(norm).catch((err) => flashStatus(err.message || 'Save failed'));
+    }
+    async function persistSingleStagedAgentChange(path) {
+        const patch = aiState.pendingAgentPatches[normalizeAgentPath(path)];
+        if (!patch) return;
+        const body = new URLSearchParams({
+            action: 'ai_agent_tool',
+            tool: 'write_file',
+            args: JSON.stringify({ path: normalizeAgentPath(path), content: patch.after, persist: true }),
+            root: patch.root || getRootForFileContext() || ''
+        });
+        const res = await fetch(AI_CONFIG.fileApiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || `Failed to save staged change: ${path}`);
     }
     async function applyAllPendingAgentChanges() {
         const entries = Object.entries(aiState.pendingAgentPatches);
-        if (entries.length > 0) {
-            const changes = entries.map(([path, patch]) => ({ path, content: patch.after }));
+        for (const [path, patch] of entries) {
             const body = new URLSearchParams({
                 action: 'ai_agent_tool',
-                tool: 'apply_changes',
-                args: JSON.stringify({ changes }),
-                root: getRootForFileContext() || ''
+                tool: 'write_file',
+                args: JSON.stringify({ path, content: patch.after, persist: true }),
+                root: patch.root || getRootForAgentPath(path) || ''
             });
             const res = await fetch(AI_CONFIG.fileApiEndpoint, {
                 method: 'POST',
@@ -5036,7 +5096,7 @@
                 body
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to apply changes');
+            if (!res.ok || !data.ok) throw new Error(data.error || `Failed to apply changes: ${path}`);
         }
         const openPatch = findStagedPatchForOpenFile();
         if (openPatch) {
@@ -5050,6 +5110,30 @@
     }
     function normalizeTreePath(path) {
         return String(path || '').replace(/^\/+/, '').trim();
+    }
+    function normalizeVisibleTreePath(path, root = '') {
+        let p = normalizeTreePath(path);
+        const prefixes = {
+            clientsync: ['clientsync/', '.clientsync/'],
+            documents: ['documents/', '.documents/'],
+            photos: ['photos/', '.photos/'],
+            pdf: ['pdf/', '.pdf/'],
+            archive: ['archive/', '.archive/'],
+            trash: ['trash/', '.trash/'],
+            temp: ['temp/', '.temp_files/']
+        }[String(root || '').trim()] || [];
+        prefixes.forEach((prefix) => {
+            if (p.startsWith(prefix)) p = p.slice(prefix.length);
+        });
+        return p;
+    }
+    function isVisibleUserTreePath(path) {
+        const p = normalizeTreePath(path);
+        if (!p || p.includes('..')) return false;
+        if (/^(?:tmp|var|run|dev|proc|sys|home|workspace)\//i.test(p)) return false;
+        if (/(?:^|\/)(?:cloud_ai_latex_|cloud_ai_pdf_)/i.test(p)) return false;
+        if (/(?:^|\/)input_[a-z0-9_.-]*\.(?:aux|log|out|toc|fls|fdb_latexmk|synctex\.gz)$/i.test(p)) return false;
+        return true;
     }
     function treeNodeExists(path) {
         const p = normalizeTreePath(path);
@@ -5073,27 +5157,42 @@
         const seen = new Set();
         for (const raw of Array.isArray(paths) ? paths : []) {
             const item = typeof raw === 'string'
-                ? { path: normalizeTreePath(raw), type: 'file' }
+                ? { path: normalizeVisibleTreePath(raw), type: 'file', root: '' }
                 : {
-                    path: normalizeTreePath(raw?.path || ''),
-                    type: raw?.type === 'dir' ? 'dir' : 'file'
+                    path: normalizeVisibleTreePath(raw?.path || '', raw?.root || ''),
+                    type: raw?.type === 'dir' ? 'dir' : 'file',
+                    root: String(raw?.root || '').trim()
                 };
-            if (!item.path || seen.has(item.path)) continue;
-            seen.add(item.path);
+            const key = `${item.root}:${item.path}`;
+            if (!isVisibleUserTreePath(item.path) || seen.has(key)) continue;
+            seen.add(key);
             items.push(item);
         }
         if (!items.length) return;
         items.forEach((item) => aiState.agentNewPaths.add(item.path));
-        const root = getRootForFileContext();
+        let root = getRootForFileContext();
+        const targetRoot = items.find((item) => item.root)?.root || root;
+        if (targetRoot && targetRoot !== root && typeof window.switchCloudRoot === 'function') {
+            await window.switchCloudRoot(targetRoot, { keepSelection: true, silent: true });
+            root = targetRoot;
+        }
         try {
             if (typeof window.insertTreeItems === 'function') {
-                await window.insertTreeItems(items.map((item) => ({
-                    name: item.path.split('/').pop(),
-                    path: item.path,
-                    type: item.type,
-                    size: item.type === 'dir' ? null : 0,
-                    mtime: Math.floor(Date.now() / 1000)
-                })), root);
+                const grouped = new Map();
+                items.forEach((item) => {
+                    const itemRoot = item.root || root;
+                    if (!grouped.has(itemRoot)) grouped.set(itemRoot, []);
+                    grouped.get(itemRoot).push(item);
+                });
+                for (const [itemRoot, group] of grouped.entries()) {
+                    await window.insertTreeItems(group.map((item) => ({
+                        name: item.path.split('/').pop(),
+                        path: item.path,
+                        type: item.type,
+                        size: item.type === 'dir' ? null : 0,
+                        mtime: Math.floor(Date.now() / 1000)
+                    })), itemRoot);
+                }
             } else if (typeof window.buildTree === 'function') {
                 await window.buildTree('');
             }
@@ -5105,9 +5204,10 @@
             await rebuildFileTree();
         }
         if (openLastPdf) {
-            const pdf = items.map((item) => item.path).filter((p) => /\.pdf$/i.test(p)).pop();
+            const pdfItem = items.filter((item) => /\.pdf$/i.test(item.path)).pop();
+            const pdf = pdfItem?.path || '';
             if (pdf && typeof openFileInTab === 'function') {
-                try { await openFileInTab(pdf, false); } catch (e) {}
+                try { await openFileInTab(pdf, false, pdfItem?.root || root); } catch (e) {}
             }
         }
     }
@@ -5771,7 +5871,7 @@
         return mentions;
     }
 
-    async function loadMentionedFilesContext(message, currentFilePath, selectedFiles = null) {
+    async function loadMentionedFilesContext(message, currentFilePath, selectedFiles = null, selectedRoots = null) {
         const seenMentions = new Set();
         const mentions = [];
         const addMention = (name, root = null) => {
@@ -5781,7 +5881,8 @@
             mentions.push({ path: normalized, root: String(root || '').trim() });
         };
         const selected = Array.isArray(selectedFiles) ? selectedFiles : (aiState.selectedMentionFiles || []);
-        selected.forEach((name) => addMention(name, aiState.mentionedFileRoots?.[normalizeMentionedFilePath(name)] || ''));
+        const roots = selectedRoots && typeof selectedRoots === 'object' ? selectedRoots : aiState.mentionedFileRoots;
+        selected.forEach((name) => addMention(name, roots?.[normalizeMentionedFilePath(name)] || ''));
         if (selected.length === 0) extractMentionedFileNames(message).forEach((name) => addMention(name));
         mentions.splice(CONTEXT_LIMITS.maxMentionedFiles);
         if (mentions.length === 0) {
@@ -5864,9 +5965,10 @@
 
         if (elements.chat && !elements.chat.querySelector('.message')) {
             resetChatPagination();
-            loadAiChatSessions().then(() => loadChatHistoryPage(false));
+            loadAiChatSessions().then(() => loadChatHistoryPage(false)).then(() => resumeServerAiRunIfNeeded());
         } else {
             scrollChatToBottom();
+            resumeServerAiRunIfNeeded();
         }
     }
 
@@ -6287,7 +6389,7 @@
             if (!data.success) throw new Error(data.error || 'Failed to load chats');
             const activeBeforeLoad = aiState.activeChatId;
             aiState.chatSessions = Array.isArray(data.items) ? data.items : [];
-            if (activeBeforeLoad && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
+            if (activeBeforeLoad && String(activeBeforeLoad).startsWith('tmp_') && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
                 aiState.chatSessions.unshift({ id: activeBeforeLoad, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
             }
             if (!aiState.activeChatId || !aiState.chatSessions.some((c) => String(c.id) === String(aiState.activeChatId))) {
@@ -6349,28 +6451,34 @@
             aiState.chatSessions.unshift({ id: chatId, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
         }
         renderAiChatSessions();
-        await loadAiChatSessions();
+        renderAiChatSessions();
     }
 
     async function deleteAiChat(chatId) {
         if (!chatId) return;
         const deletedActive = String(chatId) === String(aiState.activeChatId);
-        await fetch(AI_CONFIG.apiEndpoint, {
+        const res = await fetch(AI_CONFIG.apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ action: 'ai_chat_delete', chat_id: chatId })
         });
-        aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== String(chatId));
+        const data = await res.json().catch(() => ({}));
+        aiState.chatSessions = Array.isArray(data.items)
+            ? data.items
+            : aiState.chatSessions.filter((chat) => String(chat.id) !== String(chatId));
         if (!deletedActive) {
             renderAiChatSessions();
-            await loadAiChatSessions();
             return;
         }
-        aiState.activeChatId = String(aiState.chatSessions[0]?.id || '');
+        if (!aiState.chatSessions.length) {
+            await createAiChat();
+            return;
+        }
+        aiState.activeChatId = String(data.chat_id || aiState.chatSessions[0]?.id || '');
         localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
         resetChatPagination();
         renderAiChatSessions();
-        await loadAiChatSessions();
+        clearChatMessages();
         if (aiState.activeChatId) await loadChatHistoryPage(false);
     }
 
@@ -6396,7 +6504,13 @@
                 })
             });
 
-            const data = await response.json();
+            const raw = await response.text();
+            let data = {};
+            try {
+                data = JSON.parse(raw);
+            } catch (parseErr) {
+                throw new Error(`Invalid chat JSON response: ${raw.slice(0, 160)}`);
+            }
             if (!data.success) {
                 throw new Error(data.error || 'Failed to load chat');
             }
@@ -6426,7 +6540,8 @@
                 const q = String(it.question || '');
                 const a = String(it.answer || '');
                 const baseId = `pair_${it.id || (Date.now() + Math.random())}`;
-                newMsgs.push({ id: baseId + '_q', role: 'user', content: q, timestamp: new Date((Number(it.created_at) || 0) * 1000).toISOString() });
+                const chatMeta = parseChatMetaJson(it.meta_json);
+                newMsgs.push({ id: baseId + '_q', role: 'user', content: q, timestamp: new Date((Number(it.created_at) || 0) * 1000).toISOString(), attachments: chatMeta?.attachments || [], mentionedFiles: chatMeta?.mentionedFiles || [] });
                 const t = Number(it.time_seconds);
                 const tok = Number(it.tokens);
                 const sp = Number(it.speed);
@@ -6438,6 +6553,10 @@
                     }
                     : null;
                 const agentMeta = parseAgentMetaJson(it.meta_json);
+                if (agentMeta) {
+                    newMsgs[newMsgs.length - 1].attachments = agentMeta.attachments || newMsgs[newMsgs.length - 1].attachments || [];
+                    newMsgs[newMsgs.length - 1].mentionedFiles = agentMeta.mentionedFiles || newMsgs[newMsgs.length - 1].mentionedFiles || [];
+                }
                 const answerContent = agentMeta ? (agentMeta.answer || a) : a;
                 newMsgs.push({
                     id: baseId + '_a',
@@ -6505,7 +6624,9 @@
                 fileName: m.fileName || '',
                 stats: m.stats || null,
                 isAgent: !!m.isAgent,
-                agentMeta: m.agentMeta || null
+                agentMeta: m.agentMeta || null,
+                attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                mentionedFiles: Array.isArray(m.mentionedFiles) ? m.mentionedFiles : []
             }));
     }
 
@@ -6540,13 +6661,80 @@
                 fileName: m.fileName || '',
                 stats: m.stats || null,
                 isAgent: !!m.isAgent,
-                agentMeta: m.agentMeta || null
+                agentMeta: m.agentMeta || null,
+                attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                mentionedFiles: Array.isArray(m.mentionedFiles) ? m.mentionedFiles : []
             }));
             localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(compact));
         } catch (err) {
             console.error('Failed to save chat history:', err);
         }
     }
+
+    function serializePendingAttachments(list) {
+        return (Array.isArray(list) ? list : []).map((a) => ({
+            id: String(a?.id || ''),
+            kind: a?.kind === 'image' ? 'image' : 'text',
+            name: String(a?.name || ''),
+            content: String(a?.content || ''),
+            ocrConfidence: a?.ocrConfidence ?? null,
+            ocrLang: String(a?.ocrLang || '')
+        })).filter((a) => a.name || a.content);
+    }
+
+    function buildMessageMemory(content, attachments, mentionedFiles) {
+        const blocks = [];
+        const attached = serializePendingAttachments(attachments || []).slice(0, 4);
+        if (attached.length) {
+            blocks.push('[Files attached to this message]');
+            attached.forEach((file) => {
+                const body = String(file.content || '').slice(0, 6000);
+                blocks.push(`${file.name}${body ? `\n${body}` : ''}`);
+            });
+        }
+        const mentions = (Array.isArray(mentionedFiles) ? mentionedFiles : []).filter(Boolean);
+        if (mentions.length) blocks.push(`[Referenced file paths]\n${mentions.join('\n')}`);
+        return [String(content || ''), ...blocks].filter(Boolean).join('\n\n');
+    }
+
+    function buildRecentChatContext() {
+        return (aiState.chatHistory || [])
+            .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+            .slice(-8)
+            .map((m) => ({
+                role: m.role,
+                content: m.role === 'user' ? buildMessageMemory(m.content, m.attachments, m.mentionedFiles) : m.content
+            }));
+    }
+
+    async function ensureAiChatSessionForRequest() {
+        if (aiState.activeChatId && !String(aiState.activeChatId).startsWith('tmp_')) return aiState.activeChatId;
+        try {
+            const tempChatId = aiState.activeChatId && String(aiState.activeChatId).startsWith('tmp_') ? String(aiState.activeChatId) : '';
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'ai_chat_create' })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success || !data.chat_id) return aiState.activeChatId || '';
+            const chatId = String(data.chat_id);
+            aiState.activeChatId = chatId;
+            localStorage.setItem('cloud_ai_active_chat_id', chatId);
+            const tempChat = tempChatId ? aiState.chatSessions.find((chat) => String(chat.id) === tempChatId) : null;
+            if (tempChat) {
+                tempChat.id = chatId;
+                tempChat.updated_at = Math.floor(Date.now() / 1000);
+            } else if (!aiState.chatSessions.some((chat) => String(chat.id) === chatId)) {
+                aiState.chatSessions.unshift({ id: chatId, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
+            }
+            renderAiChatSessions();
+            return chatId;
+        } catch (e) {
+            return aiState.activeChatId || '';
+        }
+    }
+
 
     async function clearChatHistory() {
         try {
@@ -6636,7 +6824,15 @@
         const speed = time > 0 ? tokens / time : 0;
         return { tokens, time, speed };
     }
-    function buildAgentMetaJson(agentText) {
+    function buildChatMetaJson(attachments, mentionedFiles) {
+        return JSON.stringify({
+            v: 1,
+            type: 'chat',
+            attachments: serializePendingAttachments(attachments || []),
+            mentionedFiles: Array.isArray(mentionedFiles) ? mentionedFiles.slice() : []
+        });
+    }
+    function buildAgentMetaJson(agentText, attachments, mentionedFiles) {
         const patches = Object.entries(aiState.pendingAgentPatches || {}).map(([path, p]) => ({
             path,
             before: p.before,
@@ -6653,8 +6849,19 @@
                 status: s.status,
                 result: s.result
             })),
-            patches
+            patches,
+            attachments: serializePendingAttachments(attachments || []),
+            mentionedFiles: Array.isArray(mentionedFiles) ? mentionedFiles.slice() : []
         });
+    }
+    function parseChatMetaJson(raw) {
+        if (!raw) return null;
+        try {
+            const m = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            return m && m.type === 'chat' ? m : null;
+        } catch (e) {
+            return null;
+        }
     }
     function parseAgentMetaJson(raw) {
         if (!raw) return null;
@@ -7446,6 +7653,11 @@
     }
 
     function stopGeneration() {
+        if (aiState.serverRunJobId) {
+            aiState.serverRunStopping = true;
+            flashStatus(tr('aiStopping', 'Stopping assistant...'));
+            void cancelServerAiRun(aiState.serverRunJobId);
+        }
         try { aiState.abortController?.abort(); } catch (e) {}
     }
 
@@ -7484,14 +7696,29 @@
     function rebuildMessageWithMentions(cleanMessage, placements) {
         const msg = String(cleanMessage || '');
         const list = Array.isArray(placements) ? placements.slice() : [];
-        list.sort((a, b) => (Number(b?.index) || 0) - (Number(a?.index) || 0));
-        let out = msg;
-        for (const p of list) {
+        const grouped = [];
+        const byIndex = new Map();
+        list.forEach((p) => {
             const name = String(p?.name || '').trim();
-            const idx = Number(p?.index);
-            if (!name || !Number.isFinite(idx) || idx < 0 || idx > out.length) continue;
-            if (new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=\\s|$)`).test(out)) continue;
-            out = out.slice(0, idx) + '@' + name + out.slice(idx);
+            const rawIdx = Number(p?.index);
+            if (!name || !Number.isFinite(rawIdx)) return;
+            if (new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=\\s|$)`).test(msg)) return;
+            const idx = Math.max(0, Math.min(msg.length, rawIdx));
+            if (!byIndex.has(idx)) {
+                const group = { index: idx, names: [] };
+                byIndex.set(idx, group);
+                grouped.push(group);
+            }
+            byIndex.get(idx).names.push(name);
+        });
+        grouped.sort((a, b) => b.index - a.index);
+        let out = msg;
+        for (const group of grouped) {
+            const before = out.slice(0, group.index);
+            const after = out.slice(group.index);
+            const prefix = before && !/\s$/.test(before) ? ' ' : '';
+            const suffix = after && !/^\s/.test(after) ? ' ' : '';
+            out = before + prefix + group.names.map((name) => '@' + name).join(' ') + suffix + after;
         }
         return out;
     }
@@ -7529,6 +7756,160 @@
         }
     }
 
+    async function startServerAiRun(payload) {
+        const params = new URLSearchParams({
+            action: 'ai_run_start',
+            chat_id: aiState.activeChatId || '',
+            message: payload.message || '',
+            user_facing_message: payload.userFacingMessage || payload.message || '',
+            model: payload.model || '',
+            role: payload.role || '',
+            chat_mode: payload.chatMode || 'chat',
+            root: payload.root || '',
+            mentioned_files: JSON.stringify(payload.mentionedFiles || []),
+            mentioned_roots: JSON.stringify(payload.mentionedRoots || {}),
+            attachments: JSON.stringify(serializePendingAttachments(payload.attachments || [])),
+            history: JSON.stringify(buildRecentChatContext())
+        });
+        const res = await fetch(AI_CONFIG.apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body: params
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!data.success) throw new Error(data.error || 'Failed to start worker');
+        if (data.chat_id) {
+            aiState.activeChatId = String(data.chat_id);
+            localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+        }
+        await loadAiChatSessions();
+        return data;
+    }
+
+    async function cancelServerAiRun(jobId) {
+        if (!jobId) return;
+        try {
+            await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: new URLSearchParams({ action: 'ai_run_cancel', job_id: jobId, chat_id: aiState.activeChatId || '' })
+            });
+        } catch (e) {}
+    }
+
+    function renderServerRunEvents(messageId, job) {
+        const msgEl = document.getElementById(messageId);
+        const host = msgEl?.querySelector('.message-content');
+        if (!host) return;
+        const events = Array.isArray(job?.events) ? job.events : [];
+        renderServerRunPlan(messageId, job);
+        const last = events[events.length - 1];
+        const path = last?.data?.path;
+        if (path && (last.type === 'tool' || last.type === 'done')) {
+            void highlightNewFilesInTree([{ path, root: last?.data?.root || '', type: last?.data?.type || 'file' }], { openLastPdf: /\.pdf$/i.test(path) });
+        }
+    }
+
+    async function pollServerAiRun(jobId, messageId, startTime, userFacingMessage, modelName) {
+        let finalJob = null;
+        for (;;) {
+            if (aiState.abortController?.signal?.aborted) {
+                throw new DOMException('Request aborted', 'AbortError');
+            }
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: new URLSearchParams({ action: 'ai_run_status', job_id: jobId, chat_id: aiState.activeChatId || '' })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success) throw new Error(data.error || 'Failed to read worker status');
+            const job = data.job;
+            if (!job) throw new Error('Worker job not found');
+            renderServerRunEvents(messageId, job);
+            if (job.status === 'done' || job.status === 'error' || job.status === 'cancelled') {
+                finalJob = job;
+                break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+        if (finalJob.status === 'cancelled') throw new DOMException('Request aborted', 'AbortError');
+        if (finalJob.status === 'error') throw new Error(finalJob.error || 'Worker failed');
+        const answer = String(finalJob.answer || '').trim() || tr('aiEmptyResponse', 'Empty response');
+        const msgEl = document.getElementById(messageId);
+        const host = msgEl?.querySelector('.message-content');
+        if (host) {
+            const plan = host.querySelector('.ai-agent-plan');
+            if (plan) {
+                let finalAnswer = host.querySelector('.ai-agent-final-answer');
+                if (!finalAnswer) {
+                    finalAnswer = document.createElement('div');
+                    finalAnswer.className = 'ai-agent-final-answer';
+                    host.appendChild(finalAnswer);
+                }
+                finalAnswer.replaceChildren(formatResponseInner(answer));
+                renderMath(finalAnswer);
+            } else {
+                host.replaceChildren(formatResponseInner(answer));
+                renderMath(host);
+            }
+        }
+        const elapsed = (Date.now() - startTime) / 1000;
+        const stats = { time: elapsed, tokens: estimateTokens(answer), speed: elapsed > 0 ? estimateTokens(answer) / elapsed : 0 };
+        if (msgEl) appendMessageStatsFooter(msgEl, stats, answer);
+        aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: '', attachments: serializePendingAttachments(finalJob.attachments || []), mentionedFiles: Array.isArray(finalJob.mentioned_files) ? finalJob.mentioned_files.slice() : [] });
+        aiState.chatHistory.push({ id: messageId, role: 'assistant', content: answer, timestamp: new Date().toISOString(), fileName: '', stats });
+        saveChatHistory();
+        await loadAiChatSessions();
+        return finalJob;
+    }
+
+    async function resumeServerAiRunIfNeeded() {
+        if (aiState.isGenerating || !aiState.activeChatId) return;
+        const res = await fetch(AI_CONFIG.apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body: new URLSearchParams({ action: 'ai_run_status', chat_id: aiState.activeChatId })
+        });
+        const data = await res.json().catch(() => ({}));
+        const job = data?.job;
+        if (!data?.success || !job) return;
+        if (String(job.status || '') === 'done') {
+            if (!elements.chat?.querySelector('.message')) {
+                addMessageToUI('user', job.user_facing_message || job.message || '', false);
+                addMessageToUI('assistant', job.answer || tr('aiEmptyResponse', 'Empty response'), false);
+            }
+            return;
+        }
+        if (String(job.status || '') === 'error') {
+            if (!elements.chat?.querySelector('.message')) {
+                addMessageToUI('user', job.user_facing_message || job.message || '', false);
+                addMessageToUI('error', job.error || 'Worker failed', false);
+            }
+            return;
+        }
+        if (!['queued', 'running'].includes(String(job.status || ''))) return;
+        aiState.isGenerating = true;
+        setInputState(true);
+        setSendButtonGenerating(true);
+        if (!elements.chat?.querySelector('.message')) addMessageToUI('user', job.user_facing_message || job.message || '', false);
+        const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        addMessageToUI('assistant', '', false, messageId, false);
+        try {
+            await pollServerAiRun(job.id, messageId, Date.now(), job.user_facing_message || job.message || '', job.model || 'AI');
+        } catch (e) {
+            addMessageToUI('error', e.message || String(e));
+        } finally {
+            aiState.isGenerating = false;
+            setInputState(false);
+            setSendButtonGenerating(false);
+            aiState.abortController = null;
+        }
+    }
+
     async function compileOpenDocument(format) {
         const activeTab = window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId);
         const fmt = String(format || 'auto').toLowerCase();
@@ -7551,7 +7932,7 @@
             action: 'ai_agent_tool',
             tool: 'compile_and_check',
             args: JSON.stringify({ path, content }),
-            root: getRootForFileContext() || ''
+            root: getRootForAgentPath(path) || ''
         });
         const res = await fetch(AI_CONFIG.fileApiEndpoint, {
             method: 'POST',
@@ -7600,7 +7981,7 @@
                 action: 'ai_agent_tool',
                 tool: 'export_latex_pdf_file',
                 args: JSON.stringify({ path }),
-                root: getRootForFileContext() || ''
+                root: getRootForAgentPath(path) || ''
             })
         });
         const data = await res.json().catch(() => ({}));
@@ -7665,7 +8046,7 @@
             .filter((m) => !(m.role === 'user' && String(m.content || '').trim() === task));
     }
 
-    async function sendChatWithTools(messageWithMentions, contextMessages, requestModel) {
+    async function sendChatWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '') {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
         }
@@ -7677,7 +8058,7 @@
         const chatResult = await sk.runAgentLoop({
             readOnly: true,
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: getRootForToolRun(),
+            root: rootOverride || getRootForToolRun(),
             openPath: base.openPathForPrompts,
             userRole,
             userTask: messageWithMentions,
@@ -7731,7 +8112,7 @@
         });
         return { content: String(chatResult?.content || '').trim(), usage: chatResult?.usage || null };
     }
-    async function sendAgentWithTools(messageWithMentions, contextMessages, requestModel) {
+    async function sendAgentWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '') {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
         }
@@ -7742,7 +8123,7 @@
         const sk = window.AIAgentSkeleton;
         const agentResult = await sk.runAgentLoop({
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: getRootForToolRun(),
+            root: rootOverride || getRootForToolRun(),
             openPath: base.openPathForPrompts,
             userRole,
             userTask: messageWithMentions,
@@ -7890,6 +8271,7 @@
             clearEditorHighlights();
             
             await ensureDirectApiKeyLoaded();
+            await ensureAiChatSessionForRequest();
 
         aiState.abortController = new AbortController();
 
@@ -7900,13 +8282,22 @@
                 ? message
                 : rebuildMessageWithMentions(message, aiState.mentionPlacements || []);
         const attachmentsForRequest = Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments;
-        const mentionedFilesForRequest = Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : [];
+        const mentionedFilesForRequest = Array.isArray(options.mentionedFilesOverride) ? options.mentionedFilesOverride.slice() : (Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : []);
+        const mentionedRootsForRequest = options.mentionedRootsOverride && typeof options.mentionedRootsOverride === 'object'
+            ? { ...options.mentionedRootsOverride }
+            : { ...(aiState.mentionedFileRoots || {}) };
+        const toolRootForRequest = mentionedFilesForRequest
+            .map((p) => mentionedRootsForRequest[normalizeMentionedFilePath(p)] || '')
+            .find(Boolean) || getRootForToolRun();
 
         if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false);
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
-            syncMentionedAttachmentsFromInput('');
             aiState.mentionPlacements = [];
+            aiState.selectedMentionFiles = [];
+            aiState.mentionedFileRoots = {};
+            renderMentionedAttachments();
+            removeAllExternalAttachments();
         }
 
         showTypingIndicator();
@@ -7922,6 +8313,52 @@
         let streamMessageId = '';
         let streamModelName = '';
         const completionNotify = { mode: 'chat', outcome: 'success', skip: false };
+        const shouldUseServerWorker = aiState.chatMode === 'agent' && options.useServerWorker !== false;
+        if (shouldUseServerWorker) {
+            const requestModel = resolveModelForRequest();
+            const workerMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            removeTypingIndicator();
+            addMessageToUI('assistant', '', false, workerMessageId, false);
+            try {
+                const started = await startServerAiRun({
+                    message: messageWithMentions,
+                    userFacingMessage,
+                    model: requestModel,
+                    role: elements.roleSelect?.value || aiState.selectedRole || AI_CONFIG.defaultRole,
+                    chatMode: aiState.chatMode || 'chat',
+                    root: toolRootForRequest,
+                    mentionedFiles: mentionedFilesForRequest,
+                    mentionedRoots: mentionedRootsForRequest,
+                    attachments: attachmentsForRequest
+                });
+                aiState.serverRunJobId = started.job_id || '';
+                aiState.serverRunMessageId = workerMessageId;
+                aiState.serverRunStopping = false;
+                flashStatus(tr('aiAgentWorkerStarted', 'Assistant worker started'));
+                await pollServerAiRun(started.job_id, workerMessageId, startTime, userFacingMessage, requestModel);
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    completionNotify.skip = true;
+                    flashStatus(tr('aiAgentInterrupted', 'Assistant action interrupted'));
+                } else {
+                    completionNotify.outcome = 'error';
+                    addMessageToUI('error', err.message || String(err));
+                }
+                removeTypingIndicator();
+            } finally {
+                aiState.isGenerating = false;
+                aiState.currentMessageId = null;
+                aiState.abortController = null;
+                aiState.serverRunJobId = '';
+                aiState.serverRunMessageId = '';
+                aiState.serverRunStopping = false;
+                setInputState(false);
+                setSendButtonGenerating(false);
+                if (options.cleanupAttachments !== false) removeAllExternalAttachments();
+                maybeShowAiCompletionNotification(completionNotify);
+            }
+            return;
+        }
         
         try {
             const fileData = await loadCurrentFileContent();
@@ -7929,7 +8366,7 @@
             if (isExtractableDocumentPath(openDocPath) && !(fileData?.content || '').trim()) {
                 flashStatus(tr('aiDocumentExtractEmpty', 'Could not extract text from the open document. Try read_file in chat/agent mode.'));
             }
-            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest);
+            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest, mentionedRootsForRequest);
             
             const messages = [];
             const role = elements.roleSelect?.value || AI_CONFIG.defaultRole;
@@ -7980,22 +8417,18 @@
             }
 
             // Include last exchange if enabled
-            if (aiState.rememberPrevious) {
-                const recent = aiState.chatHistory
-                    .filter(m => m && (m.role === 'user' || m.role === 'assistant'))
-                    .slice(-4);
-                for (const r of recent) {
-                    if (typeof r.content === 'string' && r.content.trim()) {
-                        messages.push({ role: r.role, content: r.content });
-                    }
+            const recent = buildRecentChatContext();
+            for (const r of recent) {
+                if (typeof r.content === 'string' && r.content.trim()) {
+                    messages.push({ role: r.role, content: r.content });
                 }
             }
 
             const mentionTargetHint = mentionedFilesForRequest.length > 0
-                ? `\n\n[Контекст @file]\nПользователь прикрепил @file: ${mentionedFilesForRequest.map((p) => {
-                    const root = aiState.mentionedFileRoots?.[normalizeMentionedFilePath(p)] || getRootForToolRun();
+                ? `\n\n[@file context]\nThe user attached these @file references: ${mentionedFilesForRequest.map((p) => {
+                    const root = mentionedRootsForRequest?.[normalizeMentionedFilePath(p)] || toolRootForRequest;
                     return `${p}${root ? ` (root: ${root})` : ''}`;
-                }).join(', ')}.\nЕсли пользователь пишет "этот файл", "в этот файл", "this file" или не указывает другой путь, целевой файл: ${mentionedFilesForRequest[0]}.\nДля записи используй write_file/search_replace/create_file именно с этим path.`
+                }).join(', ')}.\nIf the user says "this file", "into this file", or does not specify another path, the target file is: ${mentionedFilesForRequest[0]}.\nFor writes, use write_file/search_replace/create_file with exactly this path.`
                 : '';
             const userContentWithMentions = messageWithMentions + mentionTargetHint;
             let agentUserContent = userContentWithMentions;
@@ -8006,7 +8439,7 @@
                     ? `[${tr('aiExportLatexPdf', 'Export LaTeX to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`
                     : `[${tr('aiExportMarkdownPdf', 'Export Markdown to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`;
             } else if (useAgentTools && editIntent) {
-                agentUserContent = `[Задача: изменить содержимое файла по запросу. Сначала write_file / search_replace / apply_editor_patch, затем compile_and_check при необходимости.]\n\n${messageWithMentions}${mentionTargetHint}`;
+                agentUserContent = `[Task: modify file content according to the user request. First call write_file / search_replace / apply_editor_patch, then compile_and_check when needed.]\n\n${messageWithMentions}${mentionTargetHint}`;
             }
             messages.push({ role: 'user', content: useAgentTools || useChatTools ? agentUserContent : userContentWithMentions });
 
@@ -8021,7 +8454,7 @@
                 resetAgentRun(agentMessageId, mentionPaths, 'agent');
                 applyToolRunRoleToMessage(agentMessageId);
                 try {
-                    const agentResult = await sendAgentWithTools(agentUserContent, getToolLoopHistory(messages, agentUserContent), requestModel);
+                    const agentResult = await sendAgentWithTools(agentUserContent, getToolLoopHistory(messages, agentUserContent), requestModel, toolRootForRequest);
                     const agentText = String(agentResult?.content || '').trim();
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, agentResult?.usage, agentText, messageWithMentions);
@@ -8060,6 +8493,22 @@
                                     result: saveErr.message || 'Save failed'
                                 });
                                 attachAgentConfirmFooter(msgEl, agentMessageId);
+                                setTimeout(async () => {
+                                    if (!Object.keys(aiState.pendingAgentPatches).length || isConfirmDialogOpen()) return;
+                                    const ok = await showConfirmDialog(
+                                        escapeHtml(tr('aiAgentConfirmTitle', 'Apply assistant changes?')),
+                                        escapeHtml(saveErr.message || tr('aiAgentConfirmMessage', 'The assistant staged file changes but could not save them automatically. Apply them now?'))
+                                    );
+                                    if (ok && Object.keys(aiState.pendingAgentPatches).length > 0) {
+                                        try {
+                                            await persistAgentWorkAfterRun();
+                                            aiState.lastAgentUndo = { messageId: agentMessageId, paths: undoSnapshot };
+                                            attachAgentUndoFooter(msgEl, agentMessageId);
+                                        } catch (e) {
+                                            flashStatus(e.message || 'Save failed');
+                                        }
+                                    }
+                                }, 0);
                             }
                         }
                         hideAgentStreamShell();
@@ -8067,11 +8516,11 @@
                     } else {
                         addMessageToUI('assistant', agentText || tr('aiEmptyResponse', 'Empty response'));
                     }
-                    const metaJson = buildAgentMetaJson(agentText);
+                    const metaJson = buildAgentMetaJson(agentText, attachmentsForRequest, mentionedFilesForRequest);
                     const agentMeta = parseAgentMetaJson(metaJson);
                     const currentFile = document.getElementById('viewer')?.dataset.path || fileData?.name || '';
                     await appendChatPairToDb(userFacingMessage, agentText, requestModel, currentFile, stats, metaJson);
-                    aiState.chatHistory.push({ id: agentMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
+                    aiState.chatHistory.push({ id: agentMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile, attachments: serializePendingAttachments(attachmentsForRequest), mentionedFiles: mentionedFilesForRequest.slice() });
                     aiState.chatHistory.push({
                         id: agentMessageId,
                         role: 'assistant',
@@ -8120,7 +8569,7 @@
                 resetAgentRun(chatMessageId, mentionPaths, 'chat');
                 applyToolRunRoleToMessage(chatMessageId);
                 try {
-                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel);
+                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel, toolRootForRequest);
                     let chatText = String(chatResult?.content || '').trim();
                     if (!chatText && aiState.agentPlanSteps.some((s) => s.status === 'done')) {
                         chatText = tr('aiChatAnswerFailed', 'The model did not produce a text answer after reading the file. Try again or narrow your request.');
@@ -8144,8 +8593,8 @@
                         addMessageToUI('assistant', chatText || tr('aiEmptyResponse', 'Empty response'));
                     }
                     const currentFile = document.getElementById('viewer')?.dataset.path || fileData?.name || '';
-                    await appendChatPairToDb(userFacingMessage, chatText, requestModel, currentFile, stats, null);
-                    aiState.chatHistory.push({ id: chatMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
+                    await appendChatPairToDb(userFacingMessage, chatText, requestModel, currentFile, stats, buildChatMetaJson(attachmentsForRequest, mentionedFilesForRequest));
+                    aiState.chatHistory.push({ id: chatMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile, attachments: serializePendingAttachments(attachmentsForRequest), mentionedFiles: mentionedFilesForRequest.slice() });
                     aiState.chatHistory.push({
                         id: chatMessageId,
                         role: 'assistant',
@@ -8399,10 +8848,10 @@
 
             const currentFile = document.getElementById('viewer')?.dataset.path;
 
-            await appendChatPairToDb(userFacingMessage, fullResponse, modelName, currentFile || '', stats);
+            await appendChatPairToDb(userFacingMessage, fullResponse, modelName, currentFile || '', stats, buildChatMetaJson(attachmentsForRequest, mentionedFilesForRequest));
 
             // Keep minimal local history for "remember previous" feature
-            aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
+            aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile, attachments: serializePendingAttachments(attachmentsForRequest), mentionedFiles: mentionedFilesForRequest.slice() });
             aiState.chatHistory.push({ id: messageId, role: 'assistant', content: fullResponse, timestamp: new Date().toISOString(), fileName: currentFile, stats: stats });
             saveChatHistory();
             
@@ -8906,7 +9355,7 @@
         container.dataset.dotField = '1';
 
         const canvas = document.createElement('canvas');
-        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0';
+        canvas.style.cssText = 'position:sticky;top:0;display:block;width:100%;height:100%;margin-bottom:-100%;pointer-events:none;z-index:0';
         canvas.className = 'dot-field-canvas';
         container.prepend(canvas);
 
@@ -8918,13 +9367,14 @@
         let raf = null;
 
         function resize() {
-            const rect = container.getBoundingClientRect();
-            w = rect.width;
-            h = rect.height;
+            w = container.clientWidth || container.getBoundingClientRect().width;
+            h = container.clientHeight || container.getBoundingClientRect().height;
             canvas.width = w * dpr;
             canvas.height = h * dpr;
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
+            canvas.style.left = '0';
+            canvas.style.top = '0';
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             buildDots();
         }

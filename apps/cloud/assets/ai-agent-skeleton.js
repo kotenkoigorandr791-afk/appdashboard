@@ -51,7 +51,7 @@
         'list_directory', 'extract_document_text'
     ];
     const BASE_TOOL_DEFINITIONS = [
-        { type: 'function', function: { name: 'read_file', description: 'Read part of a text file. Use offset_line and line_count for large files (do not read whole file at once).', parameters: { type: 'object', properties: { path: { type: 'string' }, offset_line: { type: 'integer', description: '1-based start line (default 1)' }, line_count: { type: 'integer', description: 'Lines to read (default 200, max 500)' }, max_chars: { type: 'integer', description: 'Max characters in response (default 32000)' } }, required: ['path'] } } },
+        { type: 'function', function: { name: 'read_file', description: 'Read part of a text file or extracted Markdown from PDF/Word/Excel/PowerPoint documents. Use offset_line and line_count for large files (do not read whole file at once).', parameters: { type: 'object', properties: { path: { type: 'string' }, offset_line: { type: 'integer', description: '1-based start line (default 1)' }, line_count: { type: 'integer', description: 'Lines to read (default 200, max 500)' }, max_chars: { type: 'integer', description: 'Max characters in response (default 32000)' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'get_open_file', description: 'Get open file path and content from the editor.', parameters: { type: 'object', properties: {} } } },
         { type: 'function', function: { name: 'write_file', description: 'REQUIRED for new/changed file content. Stage full file content (preview in editor, saved after agent run). Use this to add sections, paragraphs, or rewrite the file.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
         { type: 'function', function: { name: 'create_file', description: 'Create a new file. Fails if the file already exists. Use for explicit file creation requests.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional initial content' } }, required: ['path'] } } },
@@ -91,7 +91,7 @@
         { type: 'function', function: { name: 'transcribe_audio', description: 'Transcribe an audio file on the server. Does not require opening the transcription editor.', parameters: { type: 'object', properties: { audio_path: { type: 'string' }, language: { type: 'string', description: 'Language code, default pl' } }, required: ['audio_path'] } } },
         { type: 'function', function: { name: 'get_transcription_progress', description: 'Check server audio transcription progress.', parameters: { type: 'object', properties: { progress_id: { type: 'string' } }, required: ['progress_id'] } } },
         { type: 'function', function: { name: 'list_directory', description: 'List files in the current folder or a subfolder. Can return recursive results.', parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' }, max_entries: { type: 'integer' } } } } },
-        { type: 'function', function: { name: 'extract_document_text', description: 'Extract text from PDF, Excel, or presentation. Root only.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } }
+        { type: 'function', function: { name: 'extract_document_text', description: 'Extract Markdown text from PDF, Word, Excel, or presentation. Root only.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } }
     ];
     let cachedSystemPrompt = null;
     let cachedChatSystemPrompt = null;
@@ -377,7 +377,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
             throw new Error(data.error || agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool }));
         }
         if (data.staged && data.path && hooks?.onFileStaged) {
-            hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool });
+            hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool, root });
         }
         if (tool === 'compile_and_check' && payload.content != null && payload.path && hooks?.onFileStaged && hooks?.getOpenFile) {
             try {
@@ -489,7 +489,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 const res = await fetch(url.toString(), { credentials: 'same-origin' });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.ok) throw new Error(data.error || 'extract failed');
-                return { path: data.path, content: data.content };
+                return { path: data.path, content: data.content, format: data.format || 'markdown', extracted: !!data.extracted };
             }
             const data = await executeServerTool(ctx, ctx.apiBase, name, args, ctx.root, ctx.hooks);
             markEditDone(ctx, name, data);
@@ -531,9 +531,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
     }
     function repeatedCompileFailureText(ctx, errorText) {
         const err = errorText || agentTr(ctx, 'aiPlanResultFailed', 'Error');
-        if (String(ctx.replyLanguage || '').toLowerCase() === 'ru') {
-            return `Компиляция дважды завершилась одной и той же ошибкой. Я остановился, чтобы не повторять одну и ту же правку. Оставшаяся проблема: ${err}`;
-        }
         return agentTr(
             ctx,
             'aiAgentRepeatedCompileFailure',

@@ -135,30 +135,58 @@ function compileAndRun($language, $fileContent, $fileName, $input = null, $origi
     try {
         switch ($language) {
             case 'java':
+                $workingDir = $originalPath !== null ? dirname((string)$originalPath) : TEMP_DIR;
+                if (!is_dir($workingDir) && !mkdir($workingDir, 0775, true)) {
+                    return ['success' => false, 'output' => '', 'error' => 'Failed to create directory for ' . compile_safe_name((string)$originalPath)];
+                }
+                $beforeFiles = getDirectorySnapshotWithFolders($workingDir);
+                if (preg_match('/\bpublic\s+class\s+([A-Za-z_][A-Za-z0-9_]*)\b/', $fileContent, $m)) {
+                    $baseName = $m[1];
+                    $fileName = $baseName . '.java';
+                }
+                $tempFilePath = $workingDir . '/' . $fileName;
                 if (file_put_contents($tempFilePath, $fileContent) === false) {
                     return ['success' => false, 'output' => '', 'error' => 'Failed to write file to temp directory'];
                 }
                 
-                $compileResult = executeCommand('"' . JAVAC_PATH . '" "' . $fileName . '"', TEMP_DIR);
+                $compileResult = executeCommand('"' . JAVAC_PATH . '" "' . $fileName . '"', $workingDir);
                 if (!$compileResult['success']) {
+                    if ($originalPath !== null && basename((string)$originalPath) !== $fileName) @unlink($tempFilePath);
                     return $compileResult;
                 }
 
-                $runResult = executeCommand('"' . JAVA_PATH . '" "' . $baseName . '"', TEMP_DIR, $input);
+                $runResult = executeCommand('"' . JAVA_PATH . '" "' . $baseName . '"', $workingDir, $input);
+                if ($originalPath !== null) {
+                    if (basename((string)$originalPath) !== $fileName) @unlink($tempFilePath);
+                    foreach (glob($workingDir . '/' . $baseName . '*.class') ?: [] as $classFile) @unlink($classFile);
+                    $runResult['fileChanges'] = detectFileAndFolderChanges($beforeFiles, getDirectorySnapshotWithFolders($workingDir), $workingDir);
+                }
                 return $runResult;
 
             case 'c':
             case 'cpp':
+                $workingDir = $originalPath !== null ? dirname((string)$originalPath) : TEMP_DIR;
+                if (!is_dir($workingDir) && !mkdir($workingDir, 0775, true)) {
+                    return ['success' => false, 'output' => '', 'error' => 'Failed to create directory for ' . compile_safe_name((string)$originalPath)];
+                }
+                $beforeFiles = getDirectorySnapshotWithFolders($workingDir);
+                $tempFilePath = $workingDir . '/' . $fileName;
                 if (file_put_contents($tempFilePath, $fileContent) === false) {
                     return ['success' => false, 'output' => '', 'error' => 'Failed to write file to temp directory'];
                 }
                 $compiler = $language === 'c' ? GCC_PATH : GPP_PATH;
                 $standard = $language === 'c' ? '-std=c17' : '-std=c++20';
-                $compileResult = executeCommand(escapeshellarg($compiler) . ' ' . $standard . ' -O2 -pipe ' . escapeshellarg($fileName) . ' -o program', TEMP_DIR);
+                $program = '.cloud_compile_program_' . bin2hex(random_bytes(4));
+                $compileResult = executeCommand(escapeshellarg($compiler) . ' ' . $standard . ' -O2 -pipe ' . escapeshellarg($fileName) . ' -o ' . escapeshellarg($program), $workingDir);
                 if (!$compileResult['success']) {
                     return $compileResult;
                 }
-                return executeCommand('./program', TEMP_DIR, $input);
+                $runResult = executeCommand('./' . escapeshellarg($program), $workingDir, $input);
+                if ($originalPath !== null) {
+                    @unlink($workingDir . '/' . $program);
+                    $runResult['fileChanges'] = detectFileAndFolderChanges($beforeFiles, getDirectorySnapshotWithFolders($workingDir), $workingDir);
+                }
+                return $runResult;
 
             case 'py':
                 // Для Python используем путь из запроса

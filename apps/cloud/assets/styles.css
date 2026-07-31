@@ -645,8 +645,8 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 @media (max-width:768px){#settings-modal .settings-menu{width:92vw;max-width:420px;max-height:70vh}
 #ai-modal{background:rgba(0,0,0,0.7);backdrop-filter:blur(3px);display:flex;align-items:stretch;justify-content:stretch}
 #ai-modal .ai-modal-content{position:fixed!important;top:0!important;left:0!important;right:auto!important;bottom:0!important;width:100%!important;height:100dvh!important;max-width:100%!important;max-height:100dvh!important;min-width:0!important;min-height:0!important;border-radius:0;margin:0;display:flex;flex-direction:column;background:var(--bg);transform:none!important}
-#ai-modal .modal-header{flex-shrink:0;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel);min-height:56px}
-#ai-modal .modal-header h3{position:absolute!important;left:50%!important;transform:translateX(-50%)!important;text-align:center!important;width:max-content!important}
+#ai-modal .modal-header{flex-shrink:0;padding:12px 16px;padding-left:calc(var(--menu-button-mobile-reserve, 50px) + 8px);border-bottom:1px solid var(--border);background:var(--panel);min-height:56px}
+#ai-modal .modal-header h3{position:static!important;left:auto!important;transform:none!important;text-align:left!important;width:auto!important;flex:0 0 auto}
 #ai-modal .modal-header .modal-actions{margin-left:auto!important}
 #ai-modal .ai-controls{flex-shrink:0;padding:8px 16px;border-bottom:1px solid var(--border);background:var(--panel);min-height:60px}
 #ai-modal .ai-modal-body{flex:1 1 0%;display:flex;flex-direction:column;overflow:hidden;padding:0;min-height:0;height:0}
