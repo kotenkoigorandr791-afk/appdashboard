@@ -246,14 +246,22 @@ function cloud_ai_compile_code(string $language, string $fileContent, string $fi
     if (!defined('CLOUD_COMPILE_AS_LIB')) {
         define('CLOUD_COMPILE_AS_LIB', true);
     }
-    require_once __DIR__ . '/../compile.php';
+    try {
+        require_once __DIR__ . '/../compile.php';
+    } catch (Throwable $e) {
+        return ['ok' => false, 'success' => false, 'error' => 'Compiler module failed to load: ' . $e->getMessage(), 'output' => ''];
+    }
     $lang = strtolower($language);
     $supported = ['java', 'c', 'cpp', 'py', 'm'];
     if (!in_array($lang, $supported, true)) {
         return ['ok' => false, 'success' => false, 'error' => "Unsupported language: $language", 'output' => ''];
     }
-    $resolved = $resolvedPath ?: resolve_cloud_compile_path($filePath, $rootKey);
-    $result = compileAndRun($lang, $fileContent, basename($filePath), null, $resolved);
+    try {
+        $resolved = $resolvedPath ?: resolve_cloud_compile_path($filePath, $rootKey);
+        $result = compileAndRun($lang, $fileContent, basename($filePath), null, $resolved);
+    } catch (Throwable $e) {
+        return ['ok' => false, 'success' => false, 'error' => 'Compilation failed: ' . $e->getMessage(), 'output' => ''];
+    }
     $out = trim((string)($result['output'] ?? ''));
     $err = trim((string)($result['error'] ?? ''));
     $combined = trim($out . ($err !== '' ? "\n" . $err : ''));

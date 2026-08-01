@@ -77,8 +77,8 @@
         { type: 'function', function: { name: 'archive_create', description: 'Create a ZIP archive from one or more files or folders.', parameters: { type: 'object', properties: { items: { type: 'array', items: { type: 'string' } }, archive_path: { type: 'string' } }, required: ['items', 'archive_path'] } } },
         { type: 'function', function: { name: 'verify_syntax', description: 'Local syntax check AFTER editing (py_compile, gcc -fsyntax-only, javac, or LaTeX). Also blocks unsafe code patterns. Run before compile_and_check.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional staged content' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'compile_and_check', description: 'Compile or run AFTER verify_syntax passes. Does not replace write_file/search_replace/apply_editor_patch.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional; do not use instead of an edit tool.' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'run_command', description: 'Run a whitelisted command in a sandboxed workspace and return stdout/stderr.', parameters: { type: 'object', properties: { command: { type: 'array', items: { type: 'string' } }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['command'] } } },
-        { type: 'function', function: { name: 'run_script', description: 'Write and run a one-time sandboxed helper script in the workspace for file processing, formatting, inspection, or mechanical edits. Script is deleted after execution.', parameters: { type: 'object', properties: { language: { type: 'string', enum: ['python3', 'node', 'php', 'sh'] }, script: { type: 'string' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['language', 'script'] } } },
+        { type: 'function', function: { name: 'run_command', description: 'Run a whitelisted argv command in the sandboxed workspace. Prefer compile_and_check for .py/.c/.cpp/.java and run_script for custom helpers. command MUST be an argv array like ["python3","main.py"], not a shell string. Allowed binaries include python3, node, php, gcc, g++, make, git, ls, cat, rg, and similar.', parameters: { type: 'object', properties: { command: { type: 'array', items: { type: 'string' }, description: 'Argv array, e.g. ["g++","-O2","a.cpp","-o","a.out"]' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['command'] } } },
+        { type: 'function', function: { name: 'run_script', description: 'Write and run a one-time sandboxed helper script in the workspace for file processing, formatting, inspection, or mechanical edits. Script is deleted after execution. Prefer this over ad-hoc shell when compiling/running helper logic.', parameters: { type: 'object', properties: { language: { type: 'string', enum: ['python3', 'node', 'php', 'sh'] }, script: { type: 'string' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['language', 'script'] } } },
         { type: 'function', function: { name: 'delegate_subagent', description: 'Delegate a focused subtask such as searching relevant code, reviewing errors, or planning a document fix. Use for parallelizable investigation and return the subtask result.', parameters: { type: 'object', properties: { task: { type: 'string' }, focus: { type: 'string' }, paths: { type: 'array', items: { type: 'string' } } }, required: ['task'] } } },
         { type: 'function', function: { name: 'compile_open_document', description: 'LaTeX/Markdown preview AFTER editing. Not a substitute for edit tools.', parameters: { type: 'object', properties: { format: { type: 'string', enum: ['markdown', 'latex', 'auto'] } } } } },
         { type: 'function', function: { name: 'save_open_document', description: 'Save the open LaTeX or Markdown document to the server.', parameters: { type: 'object', properties: {} } } },
@@ -350,8 +350,55 @@
         }
         return out;
     }
+    function normalizeCommandArgv(raw) {
+        if (Array.isArray(raw)) {
+            return raw.map((p) => String(p ?? '').trim()).filter(Boolean);
+        }
+        if (typeof raw !== 'string') return [];
+        const text = raw.trim();
+        if (!text) return [];
+        const parts = [];
+        const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^']*)'|(\S+)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            if (m[1] != null && m[1] !== undefined && m[0].startsWith('"')) parts.push(m[1].replace(/\\(["\\])/g, '$1'));
+            else if (m[2] != null && m[0].startsWith("'")) parts.push(m[2]);
+            else if (m[3]) parts.push(m[3]);
+        }
+        return parts.filter(Boolean);
+    }
+    function normalizeRunCommandArgs(payload) {
+        const out = { ...(payload || {}) };
+        let command = out.command ?? out.cmd ?? out.argv ?? null;
+        if (command == null && typeof out.path === 'string' && /\.(py|js|php|sh)$/i.test(out.path)) {
+            const ext = out.path.split('.').pop().toLowerCase();
+            const bin = ext === 'py' ? 'python3' : (ext === 'js' ? 'node' : (ext === 'php' ? 'php' : 'sh'));
+            command = [bin, out.path];
+        }
+        out.command = normalizeCommandArgv(command);
+        if (out.command[0]) {
+            out.command[0] = String(out.command[0]).replace(/^\.\//, '').split('/').pop().toLowerCase();
+        }
+        delete out.cmd;
+        delete out.argv;
+        return out;
+    }
     async function executeServerTool(ctx, apiBase, tool, args, root, hooks) {
-        const payload = normalizeToolPathArgs(args || {}, ctx);
+        let payload = normalizeToolPathArgs(args || {}, ctx);
+        if (tool === 'run_command') {
+            payload = normalizeRunCommandArgs(payload);
+            if (!payload.command.length) {
+                throw new Error(agentTr(ctx, 'aiAgentCommandRequired', 'command is required (array of argv, e.g. ["python3","file.py"])'));
+            }
+        }
+        if (tool === 'run_script') {
+            if (!payload.language && payload.lang) payload.language = payload.lang;
+            if (!payload.script && typeof payload.code === 'string') payload.script = payload.code;
+            if (!payload.script && typeof payload.content === 'string') payload.script = payload.content;
+            if (!String(payload.language || '').trim() || !String(payload.script || '').trim()) {
+                throw new Error(agentTr(ctx, 'aiAgentScriptRequired', 'run_script requires language and script'));
+            }
+        }
         if (['write_file', 'create_file', 'read_file', 'search_replace', 'replace_by_regex', 'verify_syntax', 'compile_and_check'].includes(tool)) {
             if (!payload.path) {
                 throw new Error(agentTr(ctx, 'aiAgentPathRequired', 'path is required'));
@@ -386,7 +433,11 @@
         const res = await fetch(apiBase, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'same-origin', body });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) {
-            throw new Error(data.error || `${agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool })} (HTTP ${res.status})`);
+            let msg = data.error || `${agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool })} (HTTP ${res.status})`;
+            if (Array.isArray(data.allowed) && data.allowed.length) {
+                msg += ` Allowed: ${data.allowed.slice(0, 24).join(', ')}…`;
+            }
+            throw new Error(msg);
         }
         if (data.staged && data.path && hooks?.onFileStaged) {
             hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool, root: data.root || callRoot });

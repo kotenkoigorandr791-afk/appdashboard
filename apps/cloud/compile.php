@@ -23,8 +23,7 @@ if (!defined('CLOUD_COMPILE_AS_LIB')) {
 header('Content-Type: application/json; charset=utf-8');
 }
 
-// Проверяем, не был ли уже отправлен вывод
-if (headers_sent()) {
+if (!defined('CLOUD_COMPILE_AS_LIB') && headers_sent()) {
     die(json_encode(['success' => false, 'error' => 'Headers already sent']));
 }
 
@@ -46,17 +45,17 @@ if (!$sessRow || ($sessRow['email'] ?? '') !== $_SESSION['user']['email']) {
 }
 
 // Конфигурация - абсолютные пути к компиляторам
-define('GCC_PATH', 'gcc');
-define('GPP_PATH', 'g++');
-define('JAVAC_PATH', 'javac');
-define('JAVA_PATH', 'java');
-define('PYTHON_PATH', 'python3');
-define('RUNMAT_PATH', '/usr/local/bin/runmat');
+if (!defined('GCC_PATH')) define('GCC_PATH', 'gcc');
+if (!defined('GPP_PATH')) define('GPP_PATH', 'g++');
+if (!defined('JAVAC_PATH')) define('JAVAC_PATH', 'javac');
+if (!defined('JAVA_PATH')) define('JAVA_PATH', 'java');
+if (!defined('PYTHON_PATH')) define('PYTHON_PATH', 'python3');
+if (!defined('RUNMAT_PATH')) define('RUNMAT_PATH', '/usr/local/bin/runmat');
 
-const MAX_EXECUTION_TIME = 30;
-const MATLAB_EXECUTION_TIME = 120;
-const TEMP_DIR = __DIR__ . '/temp';
-const STORAGE_DIR = __DIR__ . '/storage';
+if (!defined('MAX_EXECUTION_TIME')) define('MAX_EXECUTION_TIME', 30);
+if (!defined('MATLAB_EXECUTION_TIME')) define('MATLAB_EXECUTION_TIME', 120);
+if (!defined('TEMP_DIR')) define('TEMP_DIR', __DIR__ . '/temp');
+if (!defined('STORAGE_DIR')) define('STORAGE_DIR', __DIR__ . '/storage');
 
 // Создаем временную папку если не существует
 if (!is_dir(TEMP_DIR)) {
@@ -165,27 +164,46 @@ function compileAndRun($language, $fileContent, $fileName, $input = null, $origi
 
             case 'c':
             case 'cpp':
-                $workingDir = $originalPath !== null ? dirname((string)$originalPath) : TEMP_DIR;
-                if (!is_dir($workingDir) && !mkdir($workingDir, 0775, true)) {
-                    return ['success' => false, 'output' => '', 'error' => 'Failed to create directory for ' . compile_safe_name((string)$originalPath)];
+                $sourceDir = TEMP_DIR . '/c_' . bin2hex(random_bytes(4));
+                if (!mkdir($sourceDir, 0775, true) && !is_dir($sourceDir)) {
+                    return ['success' => false, 'output' => '', 'error' => 'Failed to create compile temp directory'];
                 }
-                $beforeFiles = getDirectorySnapshotWithFolders($workingDir);
-                $tempFilePath = $workingDir . '/' . $fileName;
+                $userDir = $originalPath !== null ? dirname((string)$originalPath) : null;
+                $tempRoot = realpath(TEMP_DIR) ?: TEMP_DIR;
+                $trackUser = false;
+                if ($userDir && is_dir($userDir)) {
+                    $userReal = realpath($userDir) ?: $userDir;
+                    $trackUser = $userReal !== $tempRoot && !str_starts_with($userReal, rtrim($tempRoot, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
+                }
+                $beforeFiles = $trackUser ? getDirectorySnapshotWithFolders($userDir) : [];
+                $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', basename((string)$fileName)) ?: ($language === 'c' ? 'main.c' : 'main.cpp');
+                if (!preg_match('/\.(c|cpp|cc|cxx)$/i', $safeName)) {
+                    $safeName .= $language === 'c' ? '.c' : '.cpp';
+                }
+                $tempFilePath = $sourceDir . '/' . $safeName;
                 if (file_put_contents($tempFilePath, $fileContent) === false) {
                     return ['success' => false, 'output' => '', 'error' => 'Failed to write file to temp directory'];
                 }
+                if ($trackUser) {
+                    @file_put_contents((string)$originalPath, $fileContent);
+                }
                 $compiler = $language === 'c' ? GCC_PATH : GPP_PATH;
                 $standard = $language === 'c' ? '-std=c17' : '-std=c++20';
-                $program = '.cloud_compile_program_' . bin2hex(random_bytes(4));
-                $compileResult = executeCommand(escapeshellarg($compiler) . ' ' . $standard . ' -O2 -pipe ' . escapeshellarg($fileName) . ' -o ' . escapeshellarg($program), $workingDir);
+                $program = 'program_' . bin2hex(random_bytes(4));
+                $compileResult = executeCommand(
+                    escapeshellarg($compiler) . ' ' . $standard . ' -O2 -pipe ' . escapeshellarg($safeName) . ' -o ' . escapeshellarg($program),
+                    $sourceDir
+                );
                 if (!$compileResult['success']) {
+                    cleanupTempDir($sourceDir);
                     return $compileResult;
                 }
-                $runResult = executeCommand('./' . escapeshellarg($program), $workingDir, $input);
-                if ($originalPath !== null) {
-                    @unlink($workingDir . '/' . $program);
-                    $runResult['fileChanges'] = detectFileAndFolderChanges($beforeFiles, getDirectorySnapshotWithFolders($workingDir), $workingDir);
+                $runResult = executeCommand(escapeshellarg('./' . $program), $sourceDir, $input);
+                if ($trackUser) {
+                    $changes = detectFileAndFolderChanges($beforeFiles, getDirectorySnapshotWithFolders($userDir), $userDir);
+                    if (!empty($changes)) $runResult['fileChanges'] = $changes;
                 }
+                cleanupTempDir($sourceDir);
                 return $runResult;
 
             case 'py':
@@ -363,12 +381,22 @@ function detectFileAndFolderChanges($before, $after, $dir) {
 
 function cleanupTempDir($dir) {
     if (!is_dir($dir)) return;
-    
-    $files = glob($dir . '/*');
-    foreach ($files as $file) {
-        if (is_file($file)) {
-            unlink($file);
+    $items = @scandir($dir);
+    if (!is_array($items)) return;
+    foreach ($items as $name) {
+        if ($name === '.' || $name === '..') continue;
+        $path = $dir . DIRECTORY_SEPARATOR . $name;
+        if (is_dir($path)) {
+            cleanupTempDir($path);
+            @rmdir($path);
+        } elseif (is_file($path) || is_link($path)) {
+            @unlink($path);
         }
+    }
+    $base = realpath(TEMP_DIR) ?: TEMP_DIR;
+    $full = realpath($dir) ?: $dir;
+    if ($full !== $base && str_starts_with($full, rtrim($base, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+        @rmdir($dir);
     }
 }
 function resolve_cloud_compile_path(string $filePath, string $root = 'main'): string {

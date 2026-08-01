@@ -5,3 +5,5 @@ Code compilation rules (Python, C, C++, Java, MATLAB):
 3. If verify_syntax reports blocked_security, remove all dangerous constructs from the file before any compile.
 4. If verify_syntax or compile_and_check returns errors, fix the file and repeat until success or you need user input.
 5. Never ignore compiler or interpreter errors. Quote the relevant error lines when explaining fixes.
+6. Do not reinvent compilation with ad-hoc `run_command`/`run_script` (g++/javac shell) when `compile_and_check` supports the file type — it already sandboxes compile+run.
+7. If you must use `run_command`, pass argv as an array: ["g++","-O2","file.cpp","-o","program"], never a single shell string.
