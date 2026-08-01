@@ -13,6 +13,46 @@ if (!class_exists('Sabre\\DAV\\FS\\Directory')) {
 require_once __DIR__ . '/api.php';
 use Sabre\DAV;
 use Sabre\DAV\FS;
+@ini_set('max_execution_time', '0');
+@ini_set('max_input_time', '-1');
+set_time_limit(0);
+function cloud_webdav_write_chunk($out, string $data): void {
+    $length = strlen($data);
+    $offset = 0;
+    while ($offset < $length) {
+        $written = fwrite($out, substr($data, $offset));
+        if ($written === false || $written === 0) throw new DAV\Exception\ServiceUnavailable('Unable to write upload stream');
+        $offset += $written;
+    }
+}
+function cloud_webdav_write_file(string $path, $data): void {
+    $dir = dirname($path);
+    $tmp = tempnam($dir, '.webdav-upload-');
+    if ($tmp === false) throw new DAV\Exception\ServiceUnavailable('Unable to create temporary upload file');
+    $out = fopen($tmp, 'wb');
+    if ($out === false) {
+        @unlink($tmp);
+        throw new DAV\Exception\ServiceUnavailable('Unable to open temporary upload file');
+    }
+    try {
+        if (is_resource($data)) {
+            while (!feof($data)) {
+                $chunk = fread($data, 8388608);
+                if ($chunk === false) throw new DAV\Exception\ServiceUnavailable('Unable to read upload stream');
+                if ($chunk !== '') cloud_webdav_write_chunk($out, $chunk);
+            }
+        } elseif ($data !== null && $data !== '') {
+            cloud_webdav_write_chunk($out, (string)$data);
+        }
+        if (!fclose($out)) throw new DAV\Exception\ServiceUnavailable('Unable to close uploaded file');
+        if (!rename($tmp, $path)) throw new DAV\Exception\ServiceUnavailable('Unable to move uploaded file');
+        clearstatcache(true, $path);
+    } catch (Throwable $e) {
+        if (is_resource($out)) fclose($out);
+        @unlink($tmp);
+        throw $e;
+    }
+}
 final class CloudWebDavDirectory extends FS\Directory {
     private string $email;
     private string $rootPath;
@@ -22,16 +62,15 @@ final class CloudWebDavDirectory extends FS\Directory {
         $this->rootPath = rtrim(str_replace('\\', '/', $rootPath), '/');
     }
     public function createFile($name, $data = null) {
-        $etag = parent::createFile($name, $data);
+        cloud_webdav_write_file($this->path . '/' . $name, $data);
         $this->changed();
-        return $etag;
     }
     public function createDirectory($name) {
         parent::createDirectory($name);
         $this->changed();
     }
     public function getChild($name) {
-        if ($this->isHiddenRootEntry((string)$name)) throw new DAV\Exception\NotFound('File with name ' . $name . ' could not be located');
+        if ($this->isHiddenEntry((string)$name)) throw new DAV\Exception\NotFound('File with name ' . $name . ' could not be located');
         $path = $this->path . '/' . $name;
         if (!file_exists($path)) throw new DAV\Exception\NotFound('File with name ' . $path . ' could not be located');
         return is_dir($path)
@@ -42,13 +81,13 @@ final class CloudWebDavDirectory extends FS\Directory {
         $nodes = [];
         $iterator = new FilesystemIterator($this->path, FilesystemIterator::CURRENT_AS_SELF | FilesystemIterator::SKIP_DOTS);
         foreach ($iterator as $entry) {
-            if ($this->isHiddenRootEntry($entry->getFilename())) continue;
+            if ($this->isHiddenEntry($entry->getFilename())) continue;
             $nodes[] = $this->getChild($entry->getFilename());
         }
         return $nodes;
     }
     public function childExists($name) {
-        return !$this->isHiddenRootEntry((string)$name) && parent::childExists($name);
+        return !$this->isHiddenEntry((string)$name) && parent::childExists($name);
     }
     public function getQuotaInfo() {
         try {
@@ -73,6 +112,9 @@ final class CloudWebDavDirectory extends FS\Directory {
     private function isHiddenRootEntry(string $name): bool {
         return rtrim(str_replace('\\', '/', $this->path), '/') === $this->rootPath && in_array($name, ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'], true);
     }
+    private function isHiddenEntry(string $name): bool {
+        return str_starts_with($name, '.webdav-upload-') || $this->isHiddenRootEntry($name);
+    }
     private function changed(): void {
         invalidate_file_tree($this->email);
     }
@@ -84,7 +126,7 @@ final class CloudWebDavFile extends FS\File {
         $this->email = $email;
     }
     public function put($data) {
-        parent::put($data);
+        cloud_webdav_write_file($this->path, $data);
         invalidate_file_tree($this->email);
     }
     public function delete() {
