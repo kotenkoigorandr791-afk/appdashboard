@@ -12,7 +12,6 @@
     const ROOT_ONLY_SERVER = new Set(['extract_document_text']);
     const CLIENT_TOOLS = new Set(['get_open_file', 'apply_editor_patch', 'compile_open_document', 'save_open_document', 'export_markdown_pdf', 'export_latex_pdf', 'delegate_subagent', 'ask_user']);
     const EDIT_TOOLS = new Set(['write_file', 'create_file', 'search_replace', 'replace_by_regex', 'json_edit', 'apply_editor_patch']);
-    const COMPILE_TOOLS = new Set(['compile_and_check', 'compile_open_document']);
     const READ_SEARCH_TOOLS = new Set([
         'read_file', 'get_open_file', 'search_in_files', 'search_by_regex',
         'list_directory', 'stat_path', 'web_search', 'image_search', 'open_url_fetch',
@@ -172,22 +171,6 @@
         };
         return list.sort((a, b) => rank(a.function.name) - rank(b.function.name));
     }
-    function detectExportPdfIntent(text) {
-        const s = String(text || '');
-        return /(?:pdf|пдф)|export\s+(?:to\s+)?pdf|save\s+(?:as\s+)?pdf|сохран(?:ить|и)[^\n]{0,40}(?:pdf|пдф)|экспорт[^\n]{0,20}(?:pdf|пдф)/iu.test(s);
-    }
-    function exportPdfTaskSystemHint(userTask) {
-        return `\n\n[PDF EXPORT ON SERVER]
-User wants PDF saved on the server.
-- For .md files: save_open_document if needed, then export_markdown_pdf.
-- For .tex files: call export_latex_pdf with path when the file is mentioned/attached or closed; it saves the PDF next to the source file.
-Do not ask for clarification.
-Request: «${String(userTask || '').slice(0, 400)}»`;
-    }
-    function detectSummarizeIntent(text) {
-        const s = String(text || '');
-        return /(?:конспект|кратк(?:ое|ий|о)|резюме|summary|summarize|outline|пересказ|обзор|brief|thesis|саммари)/iu.test(s);
-    }
     function extractAssistantMessageText(msg) {
         if (!msg || typeof msg !== 'object') return '';
         const c = msg.content;
@@ -223,24 +206,6 @@ Request: «${String(userTask || '').slice(0, 400)}»`;
             'aiChatAnswerNudge',
             'You used tools but returned no visible answer. Write a complete response for the user now (summary, analysis, or explanation). Use the file text already retrieved. Do not call more tools unless one short read is absolutely required.'
         );
-    }
-    function detectEditIntent(text) {
-        const s = String(text || '');
-        if (!s.trim()) return false;
-        const patterns = [
-            /(?:^|\s)(сделай|сделать|добавь|добавить|измени|изменить|исправь|исправить|напиши|написать|вставь|вставить|убери|удали|удалить|перепиши|обнови|замени|поправь|дополни|опиши|описать|создай|создать|сгенерируй|сгенерировать|реализуй|реализовать|запиши|записать|сохрани|сохранить)(?:\s|$)/iu,
-            /чтобы\s+(?:тут|здесь|было|был|написано|содержал)/iu,
-            /(?:^|\s)(add|change|edit|fix|write|insert|remove|delete|update|replace|modify|implement|rewrite|create|generate)(?:\s|$)/i,
-            /(?:make|let)\s+(?:it|this|the\s+file)/i
-        ];
-        return patterns.some((re) => re.test(s));
-    }
-    function editTaskSystemHint(userTask) {
-        return `\n\n[CONTENT EDIT REQUIRED — mandatory workflow]
-The user wants the file content changed. User request: «${String(userTask || '').slice(0, 500)}»
-1) Use write_file, create_file, search_replace, replace_by_regex, json_edit, or apply_editor_patch to apply the requested text.
-2) compile_and_check is BLOCKED until step 1 succeeds.
-3) Do not finish with only compilation — that does not fulfill the request.`;
     }
     function markEditDone(ctx, name, result) {
         if (!EDIT_TOOLS.has(name) || !result || result.error) return;
@@ -344,8 +309,54 @@ The user wants the file content changed. User request: «${String(userTask || ''
             return null;
         }
     }
+    const ROOT_PATH_ARGS = ['path', 'source_path', 'target_path', 'old_path', 'new_path', 'archive_path', 'audio_path'];
+    function resolveToolRoot(ctx, payload, root) {
+        if (typeof ctx?.rootForPath !== 'function') return root;
+        const key = ROOT_PATH_ARGS.find((k) => typeof payload?.[k] === 'string' && payload[k].trim() !== '')
+            || (Array.isArray(payload?.paths) && typeof payload.paths[0] === 'string' ? 'paths' : '');
+        if (!key) return root;
+        const path = key === 'paths' ? payload.paths[0] : payload[key];
+        try {
+            return ctx.rootForPath(path) || root;
+        } catch (e) {
+            return root;
+        }
+    }
+    function normalizeToolPathArgs(payload, ctx) {
+        const out = { ...(payload || {}) };
+        const aliasKeys = ['file', 'filename', 'file_path', 'filepath', 'target', 'target_file'];
+        if (typeof out.path !== 'string' || !String(out.path).trim()) {
+            for (const key of aliasKeys) {
+                if (typeof out[key] === 'string' && out[key].trim()) {
+                    out.path = out[key].trim();
+                    break;
+                }
+            }
+        }
+        if ((typeof out.path !== 'string' || !String(out.path).trim()) && ctx) {
+            const fallback = String(ctx.defaultPath || ctx.openPath || '').trim();
+            if (fallback) out.path = fallback;
+        }
+        if (typeof out.path === 'string') {
+            out.path = out.path.replace(/\\/g, '/').replace(/^\/+/, '').trim();
+        }
+        for (const key of ['source_path', 'target_path', 'old_path', 'new_path', 'archive_path', 'audio_path']) {
+            if (typeof out[key] === 'string') {
+                out[key] = out[key].replace(/\\/g, '/').replace(/^\/+/, '').trim();
+            }
+        }
+        if (Array.isArray(out.paths)) {
+            out.paths = out.paths.map((p) => String(p || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()).filter(Boolean);
+        }
+        return out;
+    }
     async function executeServerTool(ctx, apiBase, tool, args, root, hooks) {
-        const payload = { ...(args || {}) };
+        const payload = normalizeToolPathArgs(args || {}, ctx);
+        if (['write_file', 'create_file', 'read_file', 'search_replace', 'replace_by_regex', 'verify_syntax', 'compile_and_check'].includes(tool)) {
+            if (!payload.path) {
+                throw new Error(agentTr(ctx, 'aiAgentPathRequired', 'path is required'));
+            }
+        }
         if (tool === 'search_in_files') {
             if ((!payload.paths || !payload.paths.length) && payload.path) {
                 payload.paths = [payload.path];
@@ -370,14 +381,15 @@ The user wants the file content changed. User request: «${String(userTask || ''
             const staged = hooks.getStagedContent(payload.path);
             if (staged != null) payload.content = staged;
         }
-        const body = new URLSearchParams({ action: 'ai_agent_tool', tool, args: JSON.stringify(payload), root: root || '' });
+        const callRoot = resolveToolRoot(ctx, payload, root);
+        const body = new URLSearchParams({ action: 'ai_agent_tool', tool, args: JSON.stringify(payload), root: callRoot || '' });
         const res = await fetch(apiBase, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'same-origin', body });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) {
-            throw new Error(data.error || agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool }));
+            throw new Error(data.error || `${agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool })} (HTTP ${res.status})`);
         }
         if (data.staged && data.path && hooks?.onFileStaged) {
-            hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool, root });
+            hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool, root: data.root || callRoot });
         }
         if (tool === 'compile_and_check' && payload.content != null && payload.path && hooks?.onFileStaged && hooks?.getOpenFile) {
             try {
@@ -388,7 +400,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
                     const before = hooks.getStagedContent?.(payload.path) ?? open.content ?? '';
                     const after = String(payload.content);
                     if (after !== before) {
-                        hooks.onFileStaged(payload.path, before, after, { tool: 'compile_and_check' });
+                        hooks.onFileStaged(payload.path, before, after, { tool: 'compile_and_check', root: callRoot });
                     }
                 }
             } catch (e) {}
@@ -454,12 +466,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         if (ctx.readOnly && !isChatAllowedTool(name, ctx)) {
             throw new Error(agentTr(ctx, 'aiChatToolReadOnly', 'Tool not available in chat mode (read-only): {tool}', { tool: name }));
         }
-        if (ctx.requiresContentEdit && !ctx.hasFileEdit && COMPILE_TOOLS.has(name)) {
-            return {
-                ok: false,
-                error: agentTr(ctx, 'aiAgentEditBlockedCompile', 'Blocked: user asked to change file content. Call a file-edit tool first (write_file, create_file, search_replace, replace_by_regex, json_edit, or apply_editor_patch), then compile.')
-            };
-        }
         if (ALL_SERVER_TOOLS.has(name)) {
             if (name === 'delete_file' || name === 'delete_directory') {
                 if (typeof ctx.hooks?.askUser !== 'function') {
@@ -510,16 +516,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         totals.total += Number(u.total_tokens) || (Number(u.prompt_tokens) || 0) + (Number(u.completion_tokens) || 0);
         return totals;
     }
-    function replyLanguageHint(lang) {
-        const code = String(lang || '').toLowerCase();
-        if (code === 'ru') {
-            return '\n\n[MANDATORY] The user writes in Russian. Every chat reply MUST be in Russian. Do not switch to English.';
-        }
-        if (code === 'en') {
-            return '\n\n[MANDATORY] The user writes in English. Every chat reply MUST be in English unless they switch language.';
-        }
-        return '';
-    }
     function buildStepLimitPrompt(ctx) {
         return {
             question: agentTr(ctx, 'aiAgentStepLimitQuestion', 'The assistant reached the edit step limit for this pass. Continue or interrupt?'),
@@ -561,17 +557,10 @@ The user wants the file content changed. User request: «${String(userTask || ''
         const readOnly = !!ctx.readOnly;
         await loadAgentPrompts(ctx.apiBase, ctx.openPath, readOnly ? 'chat' : 'agent');
         ctx.hasFileEdit = false;
-        ctx.wantsExportPdf = !readOnly && ctx.wantsExportPdf !== false && detectExportPdfIntent(ctx.userTask);
-        ctx.requiresContentEdit = !readOnly && ctx.requiresContentEdit !== false && detectEditIntent(ctx.userTask) && !ctx.wantsExportPdf;
         const tools = readOnly ? getChatToolDefinitions(ctx) : getToolDefinitions(ctx);
-        let systemContent = (readOnly ? chatSystemPrompt() : agentSystemPrompt()) + replyLanguageHint(ctx.replyLanguage);
+        let systemContent = readOnly ? chatSystemPrompt() : agentSystemPrompt();
         if (String(ctx.userTask || '').trim()) {
             systemContent += `\n\n[CURRENT USER REQUEST]\n${String(ctx.userTask || '').trim()}\n[/CURRENT USER REQUEST]`;
-        }
-        if (ctx.wantsExportPdf) systemContent += exportPdfTaskSystemHint(ctx.userTask);
-        if (ctx.requiresContentEdit) systemContent += editTaskSystemHint(ctx.userTask);
-        if (readOnly && detectSummarizeIntent(ctx.userTask)) {
-            systemContent += '\n\n[DOCUMENT SUMMARY]\nThe user wants a summary or conspect. Read the file if needed, then write a full structured answer in the user language. Never finish without written text for the user.';
         }
         const currentTask = String(ctx.userTask || '').trim();
         const historyMessages = (ctx.historyMessages || []).filter((m) => {
@@ -584,7 +573,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         const usageTotals = { prompt: 0, completion: 0, total: 0 };
         ctx.editStepsUsed = 0;
         ctx.maxEditStepsBudget = ctx.maxEditSteps ?? ctx.maxSteps ?? 14;
-        let editNudges = 0;
         let answerNudges = 0;
         let forceAnswerOnly = false;
         let xmlToolMode = false;
@@ -625,15 +613,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
                     messages.push({
                         role: 'user',
                         content: 'Do not narrate internal steps. If you need a file or compiler result, call the tool now. If the task is complete, give only a short final answer to the user in their language.'
-                    });
-                    continue;
-                }
-                if (ctx.requiresContentEdit && !ctx.hasFileEdit && editNudges < 4) {
-                    editNudges++;
-                    messages.push({ role: 'assistant', content: msg.content || null });
-                    messages.push({
-                        role: 'user',
-                        content: agentTr(ctx, 'aiAgentEditNudge', 'You have not edited the file yet. The user requested content changes. Call a file-edit tool now (write_file, create_file, search_replace, replace_by_regex, json_edit, or apply_editor_patch), then compile if needed.')
                     });
                     continue;
                 }
@@ -720,9 +699,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         toolLabelFor,
         READ_SEARCH_TOOLS,
         isChatAllowedTool,
-        detectEditIntent,
-        detectExportPdfIntent,
-        EDIT_TOOLS,
-        COMPILE_TOOLS
+        EDIT_TOOLS
     };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -111,6 +111,8 @@
         lastAgentUndo: null,
         agentPlanSteps: [],
         agentRunMessageId: null,
+        /** @type {'success'|'error'|'stopped'|null} outcome of the finished tool-loop run */
+        agentRunOutcome: null,
         agentUserRole: null,
         agentMentionPaths: [],
         agentNewPaths: new Set(),
@@ -176,6 +178,14 @@
         const div = document.createElement('div');
         div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
+    }
+
+    function logAiError(context, err) {
+        if (err instanceof Error) {
+            console.error(`[AI] ${context}: ${err.message}`, err.stack || '');
+        } else {
+            console.error(`[AI] ${context}:`, err);
+        }
     }
 
     function isAiTabHiddenForNotify() {
@@ -1184,6 +1194,21 @@
                 overflow-x: auto;
             }
 
+            /* Markdown lists in responses */
+            .message-content ul.ai-list,
+            .message-content ol.ai-list {
+                margin: 6px 0;
+                padding-left: 22px;
+            }
+            .message-content ul.ai-list { list-style: disc; }
+            .message-content ol.ai-list { list-style: decimal; }
+            .message-content .ai-list li {
+                margin: 2px 0;
+                line-height: 1.55;
+                overflow-wrap: anywhere;
+            }
+            .message-content .ai-list .ai-list { margin: 2px 0; }
+
             /* Remember toggle (icon only) */
             .ai-remember-wrap {
                 display: inline-flex;
@@ -1405,7 +1430,18 @@
                 animation: ai-agent-pulse 1.2s ease-in-out infinite !important;
             }
             .ai-agent-plan.running .ai-agent-plan-pulse { display: inline-block !important; }
-            .ai-agent-plan.done .ai-agent-plan-pulse { display: none !important; }
+            .ai-agent-plan.done .ai-agent-plan-pulse {
+                display: none !important;
+                animation: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+            }
+            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse,
+            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse,
+            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { display: inline-block !important; }
+            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse { background: #6fbf3f !important; }
+            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse { background: #d14a4a !important; }
+            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { background: color-mix(in srgb, var(--fg) 35%, transparent) !important; }
             .ai-agent-plan.ai-agent-plan-empty { display: none !important; }
             .ai-agent-stream-shell {
                 display: none !important;
@@ -2124,9 +2160,29 @@
                 font-size: 13px;
                 line-height: 1.7;
                 color: color-mix(in srgb,var(--fg) 45%,transparent);
-                white-space: pre-wrap;
+                white-space: normal;
+                font-style: normal;
                 font-family: inherit;
                 transition: max-height 0.35s ease,padding 0.35s ease;
+            }
+
+            .think-content .message-content-inner > *:first-child {
+                margin-top: 0;
+            }
+
+            .think-content p {
+                margin: 0 0 8px;
+            }
+
+            .think-content ul,
+            .think-content ol {
+                margin: 0 0 8px;
+                padding-left: 18px;
+            }
+
+            .think-content pre,
+            .think-content .code-block {
+                margin: 8px 0;
             }
 
             .think-block.open .think-content {
@@ -2923,9 +2979,9 @@
                             return;
                         }
                         if (typeof window.saveFile === 'function') {
-                            try { await window.saveFile(); } catch (e) {}
+                            try { await window.saveFile(); } catch (e) { logAiError('Agent apply: saveFile', e); }
                         } else {
-                            try { await sendIframeMonacoAiAction('save'); } catch (e) {}
+                            try { await sendIframeMonacoAiAction('save'); } catch (e) { logAiError('Agent apply: iframe save', e); }
                         }
                         clearEditorHighlights();
                         aiState.lastAppliedAgentPatch = { beforeText, afterText: applied.text, id: patchId };
@@ -2934,6 +2990,7 @@
                     removeAgentActionFooter(msg);
                     flashStatus(tr('aiAgentChangesApplied', 'Agent changes applied'));
                 } catch (err) {
+                    logAiError('Agent patch apply', err);
                     flashStatus(err.message || tr('aiAgentApplyFailed', 'Apply failed'));
                 }
                 return;
@@ -2947,6 +3004,7 @@
                     undoLastBtn.closest('.ai-agent-undo-last-footer')?.remove();
                     flashStatus(tr('aiAgentReverted', 'Changes reverted'));
                 } catch (err) {
+                    logAiError('Agent revert', err);
                     flashStatus(err.message || tr('aiAgentRevertFailed', 'Revert failed'));
                 }
                 return;
@@ -3260,7 +3318,7 @@
         try {
             const many = JSON.parse(dt.getData('application/x-cloud-file-paths') || '[]');
             if (Array.isArray(many)) many.forEach(path => paths.push(path));
-        } catch (_) {}
+        } catch (_) { logAiError('Parse drag JSON', _); }
         paths.push(dt.getData('application/x-cloud-file-path'));
         String(dt.getData('text/plain') || '').split(/\r?\n/).forEach(path => paths.push(path));
         aiTreeDragFallbackPaths.forEach(path => paths.push(path));
@@ -3325,6 +3383,7 @@
                     skippedInvalid = true;
                 }
             } catch (err) {
+                logAiError('Attach text file read', err);
                 skippedInvalid = true;
             }
         }
@@ -3554,7 +3613,7 @@
         if (att.objectUrl) {
             try {
                 URL.revokeObjectURL(att.objectUrl);
-            } catch (e) {}
+            } catch (e) { logAiError('Revoke attachment object URL', e); }
         }
         if (aiState.ocrModalAttachmentId === id) {
             const ocrModal = document.getElementById('ai-ocr-edit-modal');
@@ -3582,7 +3641,7 @@
             if (att.objectUrl) {
                 try {
                     URL.revokeObjectURL(att.objectUrl);
-                } catch (e) {}
+                } catch (e) { logAiError('Revoke attachment object URL', e); }
             }
         }
         aiState.externalAttachments = [];
@@ -4369,6 +4428,7 @@
                 });
                 added++;
             } catch (err) {
+                logAiError('Attach text file read', err);
                 flashStatus(err?.message || tr('aiAttachReadError', 'Could not read file'));
             }
         }
@@ -4472,6 +4532,15 @@
         return aiState.mentionedFileRoots?.[normalized] || getRootForToolRun();
     }
 
+    function resolveRootForToolPath(path, pathRoots, fallbackRoot) {
+        const normalized = normalizeMentionedFilePath(path);
+        if (!normalized) return fallbackRoot;
+        const known = pathRoots?.[normalized];
+        if (known) return known;
+        const match = Object.keys(pathRoots || {}).find((p) => pathsMatchAgent(p, normalized));
+        return (match && pathRoots[match]) || fallbackRoot;
+    }
+
     function getIframeEditorContent(tabId) {
         if (!tabId) return null;
         const iframe = Array.from(document.querySelectorAll('#viewer iframe[data-tab-id]'))
@@ -4504,16 +4573,18 @@
     function parseAgentPatch(rawText) {
         const text = normalizeAgentPatchText(rawText);
         const ops = [];
-        try {
-            const parsed = JSON.parse(text);
-            const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.ops) ? parsed.ops : []);
-            for (const item of list) {
-                const search = normalizePatchChunk(typeof item?.s === 'string' ? item.s : (typeof item?.search === 'string' ? item.search : ''));
-                const replace = normalizePatchChunk(typeof item?.r === 'string' ? item.r : (typeof item?.replace === 'string' ? item.replace : ''));
-                if (search) ops.push({ search, replace });
-            }
-            if (ops.length > 0) return ops;
-        } catch (e) {}
+        if (/^[[{]/.test(text)) {
+            try {
+                const parsed = JSON.parse(text);
+                const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.ops) ? parsed.ops : []);
+                for (const item of list) {
+                    const search = normalizePatchChunk(typeof item?.s === 'string' ? item.s : (typeof item?.search === 'string' ? item.search : ''));
+                    const replace = normalizePatchChunk(typeof item?.r === 'string' ? item.r : (typeof item?.replace === 'string' ? item.replace : ''));
+                    if (search) ops.push({ search, replace });
+                }
+                if (ops.length > 0) return ops;
+            } catch (e) { /* not a JSON patch payload */ }
+        }
         const looseJsonOps = parseLooseJsonPatchOps(text);
         if (looseJsonOps.length > 0) return looseJsonOps;
         const cursorRegex = /<{7}\s*SEARCH\s*\n([\s\S]*?)\n={7}\n([\s\S]*?)\n>{7}\s*REPLACE/g;
@@ -4578,7 +4649,7 @@
                 aiState.agentUserRole = Number(await getUserRole()) || 0;
                 return aiState.agentUserRole;
             }
-        } catch (e) {}
+        } catch (e) { logAiError('Resolve user role', e); }
         aiState.agentUserRole = 0;
         return 0;
     }
@@ -4653,6 +4724,22 @@
             : tr('aiAgentWorking', 'Agent is working…');
     }
     function getToolRunPlanDoneLabel() {
+        const outcome = aiState.agentRunOutcome;
+        if (outcome === 'success') {
+            return isChatToolRunMode()
+                ? tr('aiChatPlanSuccess', 'Chat: request completed')
+                : tr('aiAgentPlanSuccess', 'Agent finished successfully');
+        }
+        if (outcome === 'error') {
+            return isChatToolRunMode()
+                ? tr('aiChatPlanFailed', 'Chat: request failed')
+                : tr('aiAgentPlanFailed', 'Agent finished with an error');
+        }
+        if (outcome === 'stopped') {
+            return isChatToolRunMode()
+                ? tr('aiChatPlanStopped', 'Chat: request stopped')
+                : tr('aiAgentPlanStopped', 'Agent run stopped');
+        }
         return isChatToolRunMode()
             ? tr('aiChatPlanDone', 'Chat steps')
             : tr('aiAgentPlanDone', 'Agent plan');
@@ -4955,6 +5042,7 @@
         stopAgentRunTimer();
         cleanupAgentAskUser();
         aiState.agentPlanSteps = [];
+        aiState.agentRunOutcome = null;
         aiState.agentNewPaths = new Set();
         aiState.pendingAgentPatch = null;
         aiState.pendingAgentPatches = {};
@@ -4966,6 +5054,18 @@
         aiState.agentMentionPaths = Array.isArray(mentionPaths) ? mentionPaths.map(normalizeAgentPath).filter(Boolean) : [];
         const msgEl = getAgentPlanMessageEl();
         ensureAgentPlanContainer(msgEl);
+        renderAgentPlanInMessage();
+    }
+    function finishAgentRun(outcome) {
+        aiState.agentRunOutcome = outcome;
+        aiState.agentPlanSteps.forEach((step) => {
+            if (step.status === 'running') {
+                step.status = outcome === 'success' ? 'done' : 'error';
+                if (!step.result && outcome !== 'success') step.result = tr('aiAgentInterrupted', 'Assistant action interrupted');
+            }
+        });
+        stopAgentRunTimer();
+        hideAgentStreamShell();
         renderAgentPlanInMessage();
     }
     function upsertAgentPlanStep(stepId, patch) {
@@ -5049,6 +5149,10 @@
         plan.classList.toggle('running', running);
         plan.classList.toggle('done', !running && hasSteps);
         plan.classList.toggle('ai-agent-plan-empty', !hasSteps && !running);
+        const outcome = running ? null : aiState.agentRunOutcome;
+        plan.classList.toggle('outcome-success', outcome === 'success');
+        plan.classList.toggle('outcome-error', outcome === 'error');
+        plan.classList.toggle('outcome-stopped', outcome === 'stopped');
         const headText = plan.querySelector('.ai-agent-plan-head-text');
         if (headText) {
             headText.textContent = running ? getToolRunWorkingLabel() : getToolRunPlanDoneLabel();
@@ -5088,7 +5192,7 @@
             before: String(beforeText ?? ''),
             after: String(afterText ?? ''),
             tool: meta.tool || '',
-            root: getRootForAgentPath(path) || ''
+            root: meta.root || getRootForAgentPath(norm) || ''
         };
         const openName = normalizeAgentPath(aiState.currentFileName);
         if (openName && pathsMatchAgent(openName, norm)) {
@@ -5113,6 +5217,7 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || `Failed to save staged change: ${path}`);
+        void highlightNewFilesInTree([{ path: data.path || normalizeAgentPath(path), type: 'file', root: data.root || patch.root || '' }]);
     }
     async function applyAllPendingAgentChanges() {
         const entries = Object.entries(aiState.pendingAgentPatches);
@@ -5183,7 +5288,7 @@
                 credentials: 'same-origin',
                 body: new URLSearchParams({ action: 'invalidate_file_tree' })
             });
-        } catch (e) {}
+        } catch (e) { logAiError('Invalidate file tree', e); }
         if (typeof window.buildTree === 'function') await window.buildTree('');
     }
     async function highlightNewFilesInTree(paths = [], { openLastPdf = false } = {}) {
@@ -5241,7 +5346,7 @@
             const pdfItem = items.filter((item) => /\.pdf$/i.test(item.path)).pop();
             const pdf = pdfItem?.path || '';
             if (pdf && typeof openFileInTab === 'function') {
-                try { await openFileInTab(pdf, false, pdfItem?.root || root); } catch (e) {}
+                try { await openFileInTab(pdf, false, pdfItem?.root || root); } catch (e) { logAiError('Open last PDF in tab', e); }
             }
         }
     }
@@ -5256,7 +5361,7 @@
                 op: 'add',
                 item: { name: path.split('/').pop(), path, type: 'file', size: 0, mtime: Math.floor(Date.now() / 1000) }
             }));
-            try { await window.patchTreeCache(ops); } catch (e) {}
+            try { await window.patchTreeCache(ops); } catch (e) { logAiError('Patch tree cache', e); }
             removes.forEach((path) => {
                 if (typeof window.treeNodeRemove === 'function') window.treeNodeRemove(path);
             });
@@ -5304,7 +5409,7 @@
             }
         }
         if (typeof window.saveFile === 'function') {
-            try { return await window.saveFile(); } catch (e) {}
+            try { return await window.saveFile(); } catch (e) { logAiError('Save active editor', e); }
         }
         if (content !== '') {
             try {
@@ -5772,7 +5877,7 @@
                             if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
                         });
                     }
-                } catch (e) {}
+                } catch (e) { logAiError('Parse agent stream chunk', e); }
             }
             if (streamError) break;
         }
@@ -5937,12 +6042,23 @@
         let usedChars = 0;
         const root = getRootForFileContext();
 
+        const resolvedPaths = [];
         for (const mention of mentions) {
             const fileName = mention.path;
-            const candidatePath = fileName.includes('/') ? fileName : (currentDir ? `${currentDir}/${fileName}` : fileName);
-            const fileData = await fetchFileContentFromApi(candidatePath, mention.root || root);
+            const candidatePath = normalizeMentionedFilePath(
+                fileName.includes('/') ? fileName : (currentDir ? `${currentDir}/${fileName}` : fileName)
+            );
+            const fileRoot = mention.root || root;
+            const fileData = await fetchFileContentFromApi(candidatePath, fileRoot);
+            const resolvedName = normalizeMentionedFilePath(fileData?.name || candidatePath);
+            resolvedPaths.push({ path: resolvedName, root: fileRoot });
+            if (fileRoot) {
+                if (!aiState.mentionedFileRoots) aiState.mentionedFileRoots = {};
+                aiState.mentionedFileRoots[resolvedName] = fileRoot;
+                if (resolvedName !== fileName) aiState.mentionedFileRoots[fileName] = fileRoot;
+            }
 
-            if (!fileData?.content) {
+            if (!fileData || typeof fileData.content !== 'string') {
                 skipped.push({ name: fileName, reason: 'not_found_or_binary' });
                 continue;
             }
@@ -5954,10 +6070,10 @@
             }
 
             usedChars = nextSize;
-            files.push(fileData);
+            files.push({ ...fileData, name: resolvedName });
         }
 
-        return { files, skipped };
+        return { files, skipped, resolvedPaths };
     }
 
     function toggleAIModal() {
@@ -6437,7 +6553,7 @@
                 localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
             }
             renderAiChatSessions();
-        } catch (e) {}
+        } catch (e) { logAiError('Load AI chat sessions', e); }
     }
 
     async function switchAiChat(chatId) {
@@ -6471,7 +6587,7 @@
                 body: new URLSearchParams({ action: 'ai_chat_create' })
             });
             data = await res.json().catch(() => ({}));
-        } catch (e) {}
+        } catch (e) { logAiError('Create AI chat', e); }
         if (!data.success) {
             aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== tempChatId);
             aiState.activeChatId = previousActiveChatId;
@@ -6649,6 +6765,7 @@
             const serverHistory = Array.isArray(data?.history) ? normalizeHistoryMessages(data.history) : [];
             return serverHistory.length > 0 ? serverHistory : local;
         } catch (e) {
+            logAiError('Load fallback chat history', e);
             return local;
         }
     }
@@ -6674,6 +6791,7 @@
         try {
             return normalizeHistoryMessages(JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY) || '[]'));
         } catch (e) {
+            logAiError('Load local chat history', e);
             return [];
         }
     }
@@ -6838,24 +6956,6 @@
 
     function estimateTokens(text) {
         return Math.round((text?.length || 0) / 3.5);
-    }
-    function detectUserChatLanguage(text) {
-        const s = String(text || '');
-        if (/[а-яёА-ЯЁіЇєЄґҐ]/.test(s)) return 'ru';
-        if (/[а-яё]/i.test(s)) return 'ru';
-        return 'en';
-    }
-    function detectAgentEditIntent(text) {
-        if (window.AIAgentSkeleton?.detectEditIntent) {
-            return window.AIAgentSkeleton.detectEditIntent(text);
-        }
-        return /(?:сделай|добав|измени|напиши|чтобы\s+(?:тут|было))/iu.test(String(text || ''));
-    }
-    function detectAgentExportPdfIntent(text) {
-        if (window.AIAgentSkeleton?.detectExportPdfIntent) {
-            return window.AIAgentSkeleton.detectExportPdfIntent(text);
-        }
-        return /(?:pdf|пдф)|сохран[^\n]{0,30}(?:pdf|пдф)/iu.test(String(text || ''));
     }
     function buildAgentStats(elapsedSec, usage, answerText, promptText) {
         const apiTotal = Number(usage?.total) || (Number(usage?.prompt) || 0) + (Number(usage?.completion) || 0);
@@ -7140,100 +7240,6 @@
         else { _mathQueue.push(element); if (_mathQueue.length === 1) _pollKatex(); }
     }
 
-    function hasExplicitMathDelimiters(text) {
-        return /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/.test(String(text ?? ''));
-    }
-
-    function isPatchOrJsonPayloadLine(text) {
-        const v = String(text ?? '').trim();
-        if (!v) return false;
-        if (/^\s*[\[{]/.test(v) && /"s"\s*:/.test(v) && /"r"\s*:/.test(v)) return true;
-        if (/^\s*\[\s*\{/.test(v) && /"search"\s*:/.test(v) && /"replace"\s*:/.test(v)) return true;
-        if (/SEARCH:\s*/.test(v) || /REPLACE:\s*/.test(v)) return true;
-        if (/^<{7}\s*SEARCH/.test(v) || /^={7}$/.test(v) || /^>{7}\s*REPLACE/.test(v)) return true;
-        return false;
-    }
-
-    function looksLikeBareMath(text) {
-        const value = String(text ?? '').trim();
-        if (!value || hasExplicitMathDelimiters(value)) return false;
-        if (isPatchOrJsonPayloadLine(value)) return false;
-        if (value.length < 4 || value.length > 500) return false;
-
-        const mathSignals = [
-            /[A-Za-z]\s*(?:\[[^\]]+\]|\([^)]+\))?\s*=/,
-            /[∑∫√∞π≤≥≠≈±×÷]/,
-            /\\(?:sum|int|sqrt|frac|pi|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega)\b/,
-            /\^[({]?[A-Za-z0-9+\-*/\\\s]+[)}]?/,
-            /_[({]?[A-Za-z0-9+\-*/\\\s]+[)}]?/
-        ];
-        const operatorCount = (value.match(/[=+\-*/^_]/g) || []).length;
-        const bracketCount = (value.match(/[\[\](){}]/g) || []).length;
-
-        return mathSignals.some((re) => re.test(value)) && (operatorCount + bracketCount >= 2);
-    }
-
-    function normalizeBareMathExpression(text) {
-        let expr = String(text ?? '').trim();
-        let prefixText = '';
-
-        const formulaStart = expr.search(/[A-Za-z]\s*(?:\[[^\]]+\]|\([^)]+\))?\s*=/);
-        if (formulaStart > 0) {
-            const prefix = expr.slice(0, formulaStart).trim();
-            if (prefix && /[^A-Za-z0-9\s()[\]{}=+\-*/^_.,:;]/.test(prefix)) {
-                prefixText = `\\text{${prefix.replace(/[\\{}]/g, '\\$&')} } `;
-                expr = expr.slice(formulaStart).trim();
-            }
-        }
-
-        const rangeMatch = expr.match(/^(.*?)\s+(для|for)\s+([A-Za-z])\s*=\s*([^\s]+)\s+(до|to)\s+(.+)$/i);
-        let range = null;
-        if (rangeMatch) {
-            expr = rangeMatch[1].trim();
-            range = {
-                word: rangeMatch[2].toLowerCase() === 'for' ? 'for' : 'для',
-                variable: rangeMatch[3],
-                from: rangeMatch[4],
-                to: rangeMatch[6].trim()
-            };
-        }
-
-        expr = expr
-            .replace(/\\\*/g, '\\cdot ')
-            .replace(/\\\s+/g, ' ')
-            .replace(/∑/g, '\\sum')
-            .replace(/∫/g, '\\int')
-            .replace(/√/g, '\\sqrt')
-            .replace(/π/g, '\\pi')
-            .replace(/∞/g, '\\infty')
-            .replace(/≤/g, '\\le')
-            .replace(/≥/g, '\\ge')
-            .replace(/≠/g, '\\ne')
-            .replace(/≈/g, '\\approx')
-            .replace(/±/g, '\\pm')
-            .replace(/×/g, '\\times')
-            .replace(/÷/g, '\\div')
-            .replace(/\be\^\(([^()]*)\)/g, 'e^{$1}')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (range) {
-            const sumBody = expr.match(/^(.*?)\\sum\s*\[([\s\S]+)\]$/);
-            if (sumBody) {
-                expr = `${sumBody[1]}\\sum_{${range.variable}=${range.from}}^{${range.to}} \\left[${sumBody[2]}\\right]`;
-            } else {
-                expr = `${expr}\\quad \\text{${range.word} } ${range.variable}=${range.from}\\ldots ${range.to}`;
-            }
-        }
-
-        return `${prefixText}${expr}`;
-    }
-
-    function formatBareMathLine(line) {
-        const expr = normalizeBareMathExpression(line);
-        return `\\[${expr}\\]`;
-    }
-
     function formatInlineMarkdownSafe(text) {
         // text is expected to be HTML-escaped already
         text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -7291,6 +7297,46 @@
         return { headers, rows, nextIndex: i };
     }
 
+    function parseListItemLine(line) {
+        const m = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(String(line ?? ''));
+        if (!m) return null;
+        return { indent: m[1].replace(/\t/g, '  ').length, ordered: !/^[-*+]$/.test(m[2]), text: m[3] };
+    }
+
+    function parseListBlock(lines, startIndex) {
+        const first = parseListItemLine(lines[startIndex]);
+        if (!first) return null;
+        const items = [];
+        let i = startIndex;
+        while (i < lines.length) {
+            const item = parseListItemLine(lines[i]);
+            if (!item) break;
+            items.push(item);
+            i++;
+        }
+        const build = (start, indent) => {
+            const list = document.createElement(items[start].ordered ? 'ol' : 'ul');
+            list.className = 'ai-list';
+            let idx = start;
+            while (idx < items.length && items[idx].indent >= indent) {
+                if (items[idx].indent > indent) {
+                    const nested = build(idx, items[idx].indent);
+                    (list.lastElementChild || list).appendChild(nested.list);
+                    idx = nested.nextIndex;
+                    continue;
+                }
+                if (items[idx].ordered !== items[start].ordered) break;
+                const li = document.createElement('li');
+                li.innerHTML = formatInlineMarkdownSafe(escapeHtml(items[idx].text));
+                list.appendChild(li);
+                idx++;
+            }
+            return { list, nextIndex: idx };
+        };
+        const built = build(0, items[0].indent);
+        return { list: built.list, nextIndex: startIndex + built.nextIndex };
+    }
+
     function createThinkBlock(content, isLive = false) {
         const thinkDiv = document.createElement('div');
         thinkDiv.className = 'think-block';
@@ -7324,7 +7370,7 @@
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'think-content';
-        contentDiv.textContent = content;
+        renderThinkContent(contentDiv, content, isLive);
         
         thinkDiv.appendChild(header);
         thinkDiv.appendChild(contentDiv);
@@ -7336,44 +7382,25 @@
         return thinkDiv;
     }
 
+    function renderThinkContent(contentDiv, content, isLive = false) {
+        const text = String(content ?? '');
+        contentDiv.dataset.raw = text;
+        contentDiv.replaceChildren(formatResponseInner(text.replace(/<\/?think>/g, '')));
+        if (!isLive) renderMath(contentDiv);
+    }
+
     function updateThinkBlockLive(thinkDiv, content) {
         const contentDiv = thinkDiv.querySelector('.think-content');
         if (contentDiv) {
-            contentDiv.textContent = content;
+            renderThinkContent(contentDiv, content, true);
         }
     }
 
     // FIXED: Proper content rendering without nested message-content wrappers
-    function createMathAccordionBlock(mathContent) {
+    function createMathDisplayBlock(mathContent) {
         const item = document.createElement('div');
-        item.className = 'math-display-block';
-
-        const header = document.createElement('div');
-        header.className = 'math-display-block-header';
-
-        const title = document.createElement('span');
-        title.textContent = tr('aiMathBlock', 'Thought');
-        header.appendChild(title);
-
-        const icon = document.createElement('span');
-        icon.className = 'math-display-block-icon';
-        icon.textContent = '+';
-        header.appendChild(icon);
-
-        const body = document.createElement('div');
-        body.className = 'math-display-block-body';
-        body.textContent = mathContent;
-
-        item.appendChild(header);
-        item.appendChild(body);
-
-        header.addEventListener('click', () => {
-            document.querySelectorAll('.math-display-block').forEach(el => {
-                if (el !== item) el.classList.remove('open');
-            });
-            item.classList.toggle('open');
-        });
-
+        item.className = 'math-display';
+        item.textContent = mathContent;
         return item;
     }
 
@@ -7389,11 +7416,8 @@
         for (const part of parts) {
             if (part.type === 'think') {
                 const existingThink = liveThinkBlocks?.get(part.content);
-                if (existingThink) {
-                    container.appendChild(createThinkBlock(existingThink.querySelector('.think-content')?.textContent || part.content));
-                } else {
-                    container.appendChild(createThinkBlock(part.content));
-                }
+                const thinkText = existingThink?.querySelector('.think-content')?.dataset.raw || part.content;
+                container.appendChild(createThinkBlock(thinkText));
             } else {
                 // Process the text part
                 const text = part.content;
@@ -7401,8 +7425,7 @@
                 
                 for (const segment of segments) {
                     if (/^\$\$[\s\S]*\$\$$/.test(segment.trim()) || /^\\\[[\s\S]*\\\]$/.test(segment.trim())) {
-                        const mathDiv = createMathAccordionBlock(segment.trim());
-                        container.appendChild(mathDiv);
+                        container.appendChild(createMathDisplayBlock(segment.trim()));
                     } else if (segment.startsWith('```') && segment.endsWith('```')) {
                         // Code block
                         const firstLineEnd = segment.indexOf('\n');
@@ -7512,14 +7535,15 @@
                                 continue;
                             }
 
-                            // Normal line -> markdown -> block
-                            if (looksLikeBareMath(line)) {
-                                const mathDiv = createMathAccordionBlock(formatBareMathLine(line));
-                                container.appendChild(mathDiv);
-                                i++;
+                            // List block
+                            const list = parseListBlock(rawLines, i);
+                            if (list) {
+                                container.appendChild(list.list);
+                                i = list.nextIndex;
                                 continue;
                             }
 
+                            // Normal line -> markdown -> block
                             const formattedLine = formatMarkdown(line);
                             if (formattedLine.startsWith('<h')) {
                                 const temp = document.createElement('div');
@@ -7730,7 +7754,7 @@
                 aiState.userDisplayName = email.split('@')[0] || 'user';
                 refreshUserMessageLabels();
             }
-        } catch (e) {}
+        } catch (e) { logAiError('Fetch user display name', e); }
     }
 
     function rebuildMessageWithMentions(cleanMessage, placements) {
@@ -7836,7 +7860,7 @@
                 credentials: 'same-origin',
                 body: new URLSearchParams({ action: 'ai_run_cancel', job_id: jobId, chat_id: aiState.activeChatId || '' })
             });
-        } catch (e) {}
+        } catch (e) { logAiError('Cancel server AI run', e); }
     }
 
     function renderServerRunEvents(messageId, job) {
@@ -7876,7 +7900,13 @@
             await new Promise((resolve) => setTimeout(resolve, 1200));
         }
         if (finalJob.status === 'cancelled') throw new DOMException('Request aborted', 'AbortError');
-        if (finalJob.status === 'error') throw new Error(finalJob.error || 'Worker failed');
+        if (finalJob.status === 'error') {
+            logAiError('Server AI run error', finalJob.error || 'Worker failed');
+            throw new Error(finalJob.error || 'Worker failed');
+        }
+        (finalJob.events || [])
+            .filter((e) => e?.type === 'error' || e?.type === 'compile_error' || e?.data?.error)
+            .forEach((e) => logAiError(`Server tool ${serverRunEventTool(e)} failed`, e?.data?.error || e?.error || e?.text || String(e)));
         const answer = String(finalJob.answer || '').trim() || tr('aiEmptyResponse', 'Empty response');
         const msgEl = document.getElementById(messageId);
         const host = msgEl?.querySelector('.message-content');
@@ -7925,6 +7955,7 @@
             return;
         }
         if (String(job.status || '') === 'error') {
+            logAiError('Server AI run error', job.error || 'Worker failed');
             if (!elements.chat?.querySelector('.message')) {
                 addMessageToUI('user', job.user_facing_message || job.message || '', false);
                 addMessageToUI('error', job.error || 'Worker failed', false);
@@ -7964,7 +7995,7 @@
                 iframe.contentWindow.document.getElementById('refreshPreviewBtn')?.click();
                 return { message: 'Markdown preview refreshed' };
             }
-        } catch (e) {}
+        } catch (e) { logAiError('Compile open document', e); }
         return { message: 'No compile target for open document' };
     }
     async function agentCompileCheck(path, content) {
@@ -8070,13 +8101,35 @@
         notifyEditorCompileStatus(true, fallback?.message || 'OK');
         return { success: true, message: fallback?.message || 'OK' };
     }
-    function buildAssistantToolLoopBase(messageWithMentions, contextMessages, readOnly) {
-        const openPathForPrompts = '';
+    function buildAssistantToolLoopBase(messageWithMentions, contextMessages, openPath = '') {
+        const openPathForPrompts = normalizeMentionedFilePath(openPath || aiState.currentFileName || getActiveFilePath() || '');
         const historyMessages = (contextMessages || []).filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string');
-        const replyLanguage = detectUserChatLanguage(messageWithMentions);
-        const wantsExportPdf = !readOnly && detectAgentExportPdfIntent(messageWithMentions);
-        const requiresContentEdit = !readOnly && detectAgentEditIntent(messageWithMentions) && !wantsExportPdf;
-        return { openPathForPrompts, historyMessages, replyLanguage, wantsExportPdf, requiresContentEdit };
+        return { openPathForPrompts, historyMessages };
+    }
+
+    function buildWorkspaceContextHint(mentionedFiles, mentionedRoots, toolRoot, openPath, attachments) {
+        const lines = [];
+        const mentions = (mentionedFiles || []).map((p) => normalizeMentionedFilePath(p)).filter(Boolean);
+        const activeRoot = String(toolRoot || 'main');
+        if (mentions.length) {
+            const list = mentions.map((p) => {
+                const root = mentionedRoots?.[p] || activeRoot;
+                return `${p} (root: ${root})`;
+            }).join(', ');
+            lines.push(`Workspace files attached with @ (use these paths verbatim in tool calls): ${list}.`);
+        }
+        const openNorm = normalizeMentionedFilePath(openPath);
+        if (openNorm) lines.push(`File open in the editor: ${openNorm} (root: ${activeRoot}).`);
+        const attachmentNames = (attachments || []).map((a) => a?.name).filter(Boolean);
+        if (attachmentNames.length) {
+            lines.push(`Uploaded attachments pasted into this conversation as text (they are NOT workspace paths, do not read or write them): ${attachmentNames.join(', ')}.`);
+        }
+        const folderSource = mentions[0] || openNorm || '';
+        const folder = folderSource.includes('/') ? folderSource.slice(0, folderSource.lastIndexOf('/')) : '';
+        lines.push(`Active root for tool calls: ${activeRoot}. Paths are relative to that root, without a leading slash.`);
+        lines.push(`Folder for new files unless the user names another: ${folder || '.' } (i.e. ${folder ? folder + '/<name>' : '<name>'}).`);
+        lines.push('Decide yourself which of these files the request is about and where new files belong; use exact paths in tool calls.');
+        return `\n\n[workspace context]\n${lines.join('\n')}`;
     }
 
     function getToolLoopHistory(messages, currentTask) {
@@ -8086,25 +8139,25 @@
             .filter((m) => !(m.role === 'user' && String(m.content || '').trim() === task));
     }
 
-    async function sendChatWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '') {
+    async function sendChatWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '', pathRoots = null, openPath = '') {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
         }
         if (window.AIAgentSkeleton.clearAgentPromptCache) window.AIAgentSkeleton.clearAgentPromptCache();
-        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, true);
+        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, openPath);
         await window.AIAgentSkeleton.loadAgentPrompts(AI_CONFIG.fileApiEndpoint, base.openPathForPrompts, 'chat');
         const userRole = await resolveAgentUserRole();
         const sk = window.AIAgentSkeleton;
+        const runRoot = rootOverride || getRootForToolRun();
         const chatResult = await sk.runAgentLoop({
             readOnly: true,
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: rootOverride || getRootForToolRun(),
+            root: runRoot,
+            rootForPath: (p) => resolveRootForToolPath(p, pathRoots, runRoot),
             openPath: base.openPathForPrompts,
+            defaultPath: base.openPathForPrompts || (Array.isArray(aiState.agentMentionPaths) ? aiState.agentMentionPaths[0] : '') || '',
             userRole,
             userTask: messageWithMentions,
-            requiresContentEdit: false,
-            wantsExportPdf: false,
-            replyLanguage: base.replyLanguage,
             historyMessages: base.historyMessages,
             maxEditSteps: 16,
             tr: (key, fallback, params) => tr(key, fallback, params),
@@ -8128,6 +8181,7 @@
             onToolEnd: (stepId, name, _detail, result) => {
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
+                if (isErr) logAiError(`Tool ${name} failed`, result?.error || result?.output || result);
                 upsertAgentPlanStep(stepId, { status: isErr ? 'error' : 'done', result: isErr && result?.error ? String(result.error) : summary, rawResult: result });
             },
             createCompletion: async ({ messages, tools, tool_choice, forceAnswerOnly }) => {
@@ -8152,24 +8206,24 @@
         });
         return { content: String(chatResult?.content || '').trim(), usage: chatResult?.usage || null };
     }
-    async function sendAgentWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '') {
+    async function sendAgentWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '', pathRoots = null, openPath = '') {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
         }
         if (window.AIAgentSkeleton.clearAgentPromptCache) window.AIAgentSkeleton.clearAgentPromptCache();
-        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, false);
+        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, openPath);
         await window.AIAgentSkeleton.loadAgentPrompts(AI_CONFIG.fileApiEndpoint, base.openPathForPrompts, 'agent');
         const userRole = await resolveAgentUserRole();
         const sk = window.AIAgentSkeleton;
+        const runRoot = rootOverride || getRootForToolRun();
         const agentResult = await sk.runAgentLoop({
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: rootOverride || getRootForToolRun(),
+            root: runRoot,
+            rootForPath: (p) => resolveRootForToolPath(p, pathRoots, runRoot),
             openPath: base.openPathForPrompts,
+            defaultPath: base.openPathForPrompts || (Array.isArray(aiState.agentMentionPaths) ? aiState.agentMentionPaths[0] : '') || '',
             userRole,
             userTask: messageWithMentions,
-            requiresContentEdit: base.requiresContentEdit,
-            wantsExportPdf: base.wantsExportPdf,
-            replyLanguage: base.replyLanguage,
             historyMessages: base.historyMessages,
             maxEditSteps: 14,
             tr: (key, fallback, params) => tr(key, fallback, params),
@@ -8198,6 +8252,7 @@
             onToolEnd: (stepId, name, detail, result) => {
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
+                if (isErr) logAiError(`Tool ${name} failed`, result?.error || result?.output || result);
                 let planResult = summary;
                 if ((name === 'compile_and_check' || name === 'verify_syntax') && isErr) {
                     planResult = String(result?.error || result?.output || summary).trim();
@@ -8209,10 +8264,10 @@
                     void highlightNewFilesInTree([result.pdf_path], { openLastPdf: true });
                 }
                 if ((name === 'write_file' || name === 'search_replace' || name === 'create_file' || name === 'copy_file' || name === 'download_file' || name === 'archive_create') && result?.path && result?.persisted) {
-                    void highlightNewFilesInTree([result.path]);
+                    void highlightNewFilesInTree([{ path: result.path, type: 'file', root: result.root || '' }]);
                 }
                 if (name === 'make_directory' && !isErr && result?.path) {
-                    void highlightNewFilesInTree([{ path: result.path, type: 'dir' }]);
+                    void highlightNewFilesInTree([{ path: result.path, type: 'dir', root: result.root || '' }]);
                 }
                 if (name === 'rename_file' && !isErr && result?.path) {
                     void syncTreeForMoveOrDelete([result.path], [result.old_path || '']);
@@ -8353,7 +8408,7 @@
         let streamMessageId = '';
         let streamModelName = '';
         const completionNotify = { mode: 'chat', outcome: 'success', skip: false };
-        const shouldUseServerWorker = aiState.chatMode === 'agent' && options.useServerWorker !== false;
+        const shouldUseServerWorker = aiState.chatMode === 'agent' && !window.AIAgentSkeleton?.runAgentLoop && options.useServerWorker !== false;
         if (shouldUseServerWorker) {
             const requestModel = resolveModelForRequest();
             const workerMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -8407,23 +8462,31 @@
                 flashStatus(tr('aiDocumentExtractEmpty', 'Could not extract text from the open document. Try read_file in chat/agent mode.'));
             }
             const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest, mentionedRootsForRequest);
-            
+            if (Array.isArray(mentionedContext.resolvedPaths) && mentionedContext.resolvedPaths.length) {
+                mentionedFilesForRequest.length = 0;
+                mentionedContext.resolvedPaths.forEach((item) => {
+                    const p = normalizeMentionedFilePath(item.path);
+                    if (!p) return;
+                    mentionedFilesForRequest.push(p);
+                    if (item.root) mentionedRootsForRequest[p] = item.root;
+                });
+            }
+            const resolvedToolRoot = mentionedFilesForRequest
+                .map((p) => mentionedRootsForRequest[normalizeMentionedFilePath(p)] || '')
+                .find(Boolean) || toolRootForRequest;
+
             const messages = [];
             const role = elements.roleSelect?.value || AI_CONFIG.defaultRole;
-            
+
             const isAgentMode = aiState.chatMode === 'agent' && isAgentEditorSupported();
-            const editIntent = detectAgentEditIntent(userFacingMessage);
-            const shouldUseAgentForMentionEdit = !isAgentMode && editIntent && mentionedFilesForRequest.length > 0 && isAgentEditorSupported();
-            const useAgentTools = (isAgentMode || shouldUseAgentForMentionEdit) && window.AIAgentSkeleton?.runAgentLoop;
+            const useAgentTools = isAgentMode && !!window.AIAgentSkeleton?.runAgentLoop;
             const useChatTools = !useAgentTools && !!window.AIAgentSkeleton?.runAgentLoop;
             const useFileToolContext = useAgentTools || useChatTools;
+            const openDocForTools = normalizeMentionedFilePath(
+                mentionedFilesForRequest[0] || fileData?.name || aiState.currentFileName || openDocPath || ''
+            );
             completionNotify.mode = useAgentTools ? 'agent' : 'chat';
-            if (isAgentMode && !useAgentTools) {
-                messages.push({
-                    role: 'system',
-                    content: 'Return only minified JSON array of edits: [{"s":"exact old text","r":"new text"}]. No markdown, no comments, no extra keys.'
-                });
-            } else if (!isAgentMode && role !== 'general') {
+            if (!isAgentMode && role !== 'general') {
                 messages.push({
                     role: 'system',
                     content: roleConfigs[role]?.system || roleConfigs.general.system
@@ -8464,24 +8527,9 @@
                 }
             }
 
-            const mentionTargetHint = mentionedFilesForRequest.length > 0
-                ? `\n\n[@file context]\nThe user attached these @file references: ${mentionedFilesForRequest.map((p) => {
-                    const root = mentionedRootsForRequest?.[normalizeMentionedFilePath(p)] || toolRootForRequest;
-                    return `${p}${root ? ` (root: ${root})` : ''}`;
-                }).join(', ')}.\nIf the user says "this file", "into this file", or does not specify another path, the target file is: ${mentionedFilesForRequest[0]}.\nFor writes, use write_file/search_replace/create_file with exactly this path.`
-                : '';
-            const userContentWithMentions = messageWithMentions + mentionTargetHint;
-            let agentUserContent = userContentWithMentions;
-            if (useAgentTools && detectAgentExportPdfIntent(userFacingMessage)) {
-                const openName = String(fileData?.name || aiState.currentFileName || '');
-                const isLatex = /\.tex$/i.test(openName);
-                agentUserContent = isLatex
-                    ? `[${tr('aiExportLatexPdf', 'Export LaTeX to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`
-                    : `[${tr('aiExportMarkdownPdf', 'Export Markdown to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`;
-            } else if (useAgentTools && editIntent) {
-                agentUserContent = `[Task: modify file content according to the user request. First call write_file / search_replace / apply_editor_patch, then compile_and_check when needed.]\n\n${messageWithMentions}${mentionTargetHint}`;
-            }
-            messages.push({ role: 'user', content: useAgentTools || useChatTools ? agentUserContent : userContentWithMentions });
+            const workspaceHint = buildWorkspaceContextHint(mentionedFilesForRequest, mentionedRootsForRequest, resolvedToolRoot, openDocForTools, attachmentsForRequest);
+            const userContentWithMentions = messageWithMentions + (useFileToolContext ? workspaceHint : '');
+            messages.push({ role: 'user', content: userContentWithMentions });
 
             if (useAgentTools) {
                 const requestModel = resolveModelForRequest();
@@ -8493,8 +8541,9 @@
                 addMessageToUI('assistant', '', false, agentMessageId, false);
                 resetAgentRun(agentMessageId, mentionPaths, 'agent');
                 applyToolRunRoleToMessage(agentMessageId);
+                let runOutcome = 'success';
                 try {
-                    const agentResult = await sendAgentWithTools(agentUserContent, getToolLoopHistory(messages, agentUserContent), requestModel, toolRootForRequest);
+                    const agentResult = await sendAgentWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel, resolvedToolRoot, mentionedRootsForRequest, openDocForTools);
                     const agentText = String(agentResult?.content || '').trim();
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, agentResult?.usage, agentText, messageWithMentions);
@@ -8577,21 +8626,23 @@
                     removeTypingIndicator();
                     discardAgentPreviewState();
                     if (agentErr?.code === 'agent_interrupted_by_user') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                         flashStatus(tr('aiAgentInterrupted', 'Assistant action interrupted'));
                     } else if (agentErr.name === 'AbortError') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                     } else {
+                        runOutcome = 'error';
                         completionNotify.outcome = 'error';
                         addMessageToUI('error', agentErr.message || String(agentErr));
                     }
                 } finally {
-                    stopAgentRunTimer();
                     cleanupAgentAskUser();
                     aiState.isGenerating = false;
                     setInputState(false);
                     setSendButtonGenerating(false);
-                    renderAgentPlanInMessage();
+                    finishAgentRun(runOutcome);
                     aiState.abortController = null;
                     maybeShowAiCompletionNotification(completionNotify);
                 }
@@ -8608,8 +8659,9 @@
                 addMessageToUI('assistant', '', false, chatMessageId, false);
                 resetAgentRun(chatMessageId, mentionPaths, 'chat');
                 applyToolRunRoleToMessage(chatMessageId);
+                let runOutcome = 'success';
                 try {
-                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel, toolRootForRequest);
+                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel, resolvedToolRoot, mentionedRootsForRequest, openDocForTools);
                     let chatText = String(chatResult?.content || '').trim();
                     if (!chatText && aiState.agentPlanSteps.some((s) => s.status === 'done')) {
                         chatText = tr('aiChatAnswerFailed', 'The model did not produce a text answer after reading the file. Try again or narrow your request.');
@@ -8648,21 +8700,23 @@
                     hideAgentStreamShell();
                     removeTypingIndicator();
                     if (chatErr?.code === 'agent_interrupted_by_user') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                         flashStatus(tr('aiAgentInterrupted', 'Assistant action interrupted'));
                     } else if (chatErr.name === 'AbortError') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                     } else {
+                        runOutcome = 'error';
                         completionNotify.outcome = 'error';
                         addMessageToUI('error', chatErr.message || String(chatErr));
                     }
                 } finally {
-                    stopAgentRunTimer();
                     cleanupAgentAskUser();
                     aiState.isGenerating = false;
                     setInputState(false);
                     setSendButtonGenerating(false);
-                    renderAgentPlanInMessage();
+                    finishAgentRun(runOutcome);
                     aiState.abortController = null;
                     maybeShowAiCompletionNotification(completionNotify);
                 }
@@ -8914,7 +8968,7 @@
                             speed: elapsed > 0 ? (partialTokens / elapsed) : 0
                         };
                         await appendChatPairToDb(userFacingMessage, lastFullResponse, streamModelName || 'AI', currentFile, partialStats);
-                    } catch (e) {}
+                    } catch (e) { logAiError('Persist partial response', e); }
 
                     // Add a minimal footer if missing
                     const msgEl = streamMessageId ? document.getElementById(streamMessageId) : null;

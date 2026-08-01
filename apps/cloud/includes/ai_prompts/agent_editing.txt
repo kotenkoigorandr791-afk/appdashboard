@@ -1,4 +1,4 @@
-When the user asks to add, change, rewrite, or write specific content (for example: "make it so that...", "add...", "write about...", "fix", "add section about..."):
+Whenever the request means that file content must be produced or changed (in any language and any wording):
 
 1. Your plan MUST include an edit step: write_file, search_replace, or apply_editor_patch. Never a plan that is only compile_and_check or save.
 2. Read the file with read_file only if you need the exact text to replace.

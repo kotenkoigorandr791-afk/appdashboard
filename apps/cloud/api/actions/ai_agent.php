@@ -994,12 +994,13 @@ if ($action === 'ai_agent_tool') {
                 json_out(['ok' => false, 'error' => 'Write failed'], 500);
             }
             cloud_ai_sync_file_tree_after_write($resolved);
-            json_out(['ok' => true, 'path' => $resolved['path'], 'bytes' => strlen($content), 'persisted' => true, 'tree_indexed' => true]);
+            json_out(['ok' => true, 'path' => $resolved['path'], 'root' => $resolved['root'], 'bytes' => strlen($content), 'persisted' => true, 'tree_indexed' => true]);
         }
         json_out([
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => $before,
             'after' => $content,
             'bytes' => strlen($content),
@@ -1030,6 +1031,7 @@ if ($action === 'ai_agent_tool') {
         json_out([
             'ok' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'bytes' => strlen($content),
             'persisted' => true,
             'created' => true,
@@ -1050,7 +1052,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Directory create failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($resolved);
-        json_out(['ok' => true, 'path' => $resolved['path'], 'persisted' => true, 'created' => true, 'type' => 'dir']);
+        json_out(['ok' => true, 'path' => $resolved['path'], 'root' => $resolved['root'], 'persisted' => true, 'created' => true, 'type' => 'dir']);
     }
 
     if ($tool === 'copy_file') {
@@ -1078,7 +1080,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Copy failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($target);
-        json_out(['ok' => true, 'path' => $target['path'], 'source_path' => $source['path'], 'persisted' => true, 'copied' => true]);
+        json_out(['ok' => true, 'path' => $target['path'], 'root' => $target['root'], 'source_path' => $source['path'], 'persisted' => true, 'copied' => true]);
     }
 
     if ($tool === 'rename_file') {
@@ -1106,7 +1108,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Rename failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($newResolved);
-        json_out(['ok' => true, 'path' => $newResolved['path'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'renamed' => true]);
+        json_out(['ok' => true, 'path' => $newResolved['path'], 'root' => $newResolved['root'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'renamed' => true]);
     }
 
     if ($tool === 'move_path') {
@@ -1134,7 +1136,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Move failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($newResolved);
-        json_out(['ok' => true, 'path' => $newResolved['path'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'moved' => true]);
+        json_out(['ok' => true, 'path' => $newResolved['path'], 'root' => $newResolved['root'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'moved' => true]);
     }
 
     if ($tool === 'delete_file') {
@@ -1299,7 +1301,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Write failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($resolved);
-        json_out(['ok' => true, 'path' => $resolved['path'], 'bytes' => strlen((string)$fetched['body']), 'persisted' => true, 'downloaded' => true]);
+        json_out(['ok' => true, 'path' => $resolved['path'], 'root' => $resolved['root'], 'bytes' => strlen((string)$fetched['body']), 'persisted' => true, 'downloaded' => true]);
     }
 
     if ($tool === 'run_script') {
@@ -1366,6 +1368,7 @@ if ($action === 'ai_agent_tool') {
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => $content,
             'after' => $updated,
             'replacements' => (int)($replaced['replacements'] ?? 0),
@@ -1434,6 +1437,7 @@ if ($action === 'ai_agent_tool') {
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => $content,
             'after' => $updated,
             'replacements' => (int)$count,
@@ -1518,6 +1522,7 @@ if ($action === 'ai_agent_tool') {
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => (string)$read['content'],
             'after' => $updated . "\n",
         ]);
@@ -1655,7 +1660,7 @@ if ($action === 'ai_agent_tool') {
         }
         $zip->close();
         cloud_ai_sync_file_tree_after_write($archiveResolved);
-        json_out(['ok' => true, 'path' => $archiveResolved['path'], 'archive_path' => $archiveResolved['path'], 'files_added' => $added, 'persisted' => true]);
+        json_out(['ok' => true, 'path' => $archiveResolved['path'], 'root' => $archiveResolved['root'], 'archive_path' => $archiveResolved['path'], 'files_added' => $added, 'persisted' => true]);
     }
 
     if ($tool === 'generate_speech') {
