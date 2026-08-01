@@ -78,6 +78,8 @@
     "aiChatAnswerFailed": "Model nie udzielił odpowiedzi tekstowej po przeczytaniu pliku. Spróbuj ponownie lub zawęź żądanie.",
     "aiExpand": "rozwinąć",
     "aiCollapse": "upaść",
+    "aiShowMore": "Pokaż więcej",
+    "aiShowLess": "Pokaż mniej",
     "aiUndoLastAgent": "Cofnij zmiany",
     "aiAgentReverted": "Zmiany cofnięte",
     "aiAgentChangesApplied": "Zastosowano zmiany agenta",

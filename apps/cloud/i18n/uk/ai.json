@@ -76,6 +76,8 @@
     "aiChatPlanStopped": "Чат: запит зупинено",
     "aiExpand": "розгорнути",
     "aiCollapse": "згорнути",
+    "aiShowMore": "Показати ще",
+    "aiShowLess": "Згорнути",
     "aiUndoLastAgent": "Скасувати зміни",
     "aiAgentReverted": "Зміни скасовано",
     "aiAgentChangesApplied": "Зміни агента застосовано",

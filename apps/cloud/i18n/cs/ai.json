@@ -78,6 +78,8 @@
     "aiChatAnswerFailed": "Model po přečtení souboru nevytvořil textovou odpověď. Zkuste to znovu nebo zúžte svůj požadavek.",
     "aiExpand": "rozšířit",
     "aiCollapse": "kolaps",
+    "aiShowMore": "Zobrazit více",
+    "aiShowLess": "Zobrazit méně",
     "aiUndoLastAgent": "Vrátit změny zpět",
     "aiAgentReverted": "Změny byly vráceny",
     "aiAgentChangesApplied": "Byly použity změny agenta",

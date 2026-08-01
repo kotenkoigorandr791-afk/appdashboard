@@ -389,6 +389,8 @@
   "tabs": "Tabs",
   "closeOthers": "Close Others",
   "closeAll": "Close All",
+  "closeCurrent": "Close Current Tab",
+  "closeOtherTabs": "Close All Other Tabs",
   "showInTree": "Show in Tree",
   "closeOtherModifiedTabs": "Some tabs have unsaved changes. Close them anyway?",
   "otherTabsClosed": "Other tabs closed",

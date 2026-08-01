@@ -12,6 +12,13 @@
                 <button id="excel-button" title="<?php echo htmlspecialchars($translations['excel_view'] ?? 'Excel View'); ?>">
                     <i class="fas fa-table"></i>
                 </button>
+                <?php if (!empty($stepsData)): ?>
+                <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <path d="M4 19V5h2v14H4zm5 0v-8h2v8H9zm5 0V8h2v11h-2zm5 0v-5h2v5h-2z"/>
+                    </svg>
+                </button>
+                <?php endif; ?>
                 <button id="settings-button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
                     <i class="fas fa-cog"></i>
                 </button>
@@ -102,7 +109,27 @@
         </div>
         <div id="worker-progress-widget"></div>
         </div>
-        
+        <div id="stats-modal" style="display:none;">
+            <div class="stats-content">
+                <button class="modal-close">×</button>
+                <h2><i class="fas fa-chart-pie"></i> <?php echo htmlspecialchars($translations['statistics_title'] ?? 'Statistics'); ?></h2>
+                <div class="stats-grid">
+                    <section class="stats-card">
+                        <h3><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
+                        <div class="stats-chart-wrap">
+                            <canvas id="stats-years-chart"></canvas>
+                        </div>
+                    </section>
+                    <section class="stats-card">
+                        <h3 id="stats-monthly-title"><?php echo htmlspecialchars($translations['statistics_monthly_intensity'] ?? 'Monthly Step Intensity'); ?></h3>
+                        <div class="stats-chart-wrap">
+                            <canvas id="stats-months-chart"></canvas>
+                        </div>
+                    </section>
+                </div>
+                <p id="stats-empty" style="display:none;"><?php echo htmlspecialchars($translations['statistics_no_data'] ?? 'No step data'); ?></p>
+            </div>
+        </div>
         <!-- Info Modal -->
         <div id="info-modal" style="display:none;">
             <div class="info-content">
@@ -267,11 +294,14 @@
                         <div class="video-inline-scroll">
                             <div class="va-grid">
                                 <div class="va-steps" id="zl-steps">
-                                    <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
-                                    <span class="va-step-line"></span>
-                                    <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
-                                    <span class="va-step-line"></span>
-                                    <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
+                                    <div class="va-progress"><div class="va-progress-fill"></div></div>
+                                    <div class="va-steps-row">
+                                        <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
+                                        <span class="va-step-line"></span>
+                                        <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
+                                        <span class="va-step-line"></span>
+                                        <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
+                                    </div>
                                 </div>
                                 <section class="va-segment" data-step-section="1">
                                     <div class="va-segment-h"><i class="fas fa-file-zipper"></i> <?php echo htmlspecialchars($translations['zeep_zip_section'] ?? 'ZIP archive'); ?></div>
@@ -310,10 +340,13 @@
                                     <p id="zl-meta"></p>
                                     <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="zl-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
-                                <section class="va-segment takeout-guide-segment is-collapsed" id="zeep-guide-segment" data-step-section="1">
+                                <section class="va-segment takeout-guide-segment" id="zeep-guide-segment" data-step-section="1">
                                     <div class="takeout-guide-head">
                                         <span><i class="fas fa-map-signs"></i> <?php echo htmlspecialchars($translations['zeep_guide_title'] ?? 'How to export Zeep Life data'); ?></span>
-                                        <button type="button" class="takeout-guide-toggle" id="zeep-guide-toggle" aria-expanded="false" title="<?php echo htmlspecialchars($translations['show'] ?? 'Show'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                        <div class="takeout-guide-actions">
+                                            <button type="button" class="takeout-guide-expand" id="zeep-guide-expand" aria-label="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>" title="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>"><i class="fas fa-expand"></i></button>
+                                            <button type="button" class="takeout-guide-toggle" id="zeep-guide-toggle" aria-expanded="true" title="<?php echo htmlspecialchars($translations['hide'] ?? 'Hide'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                        </div>
                                     </div>
                                     <div class="takeout-guide-body">
                                         <iframe
@@ -337,11 +370,14 @@
                         <div class="video-inline-scroll">
                             <div class="va-grid">
                                 <div class="va-steps" id="ft-steps">
-                                    <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
-                                    <span class="va-step-line"></span>
-                                    <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
-                                    <span class="va-step-line"></span>
-                                    <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
+                                    <div class="va-progress"><div class="va-progress-fill"></div></div>
+                                    <div class="va-steps-row">
+                                        <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
+                                        <span class="va-step-line"></span>
+                                        <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
+                                        <span class="va-step-line"></span>
+                                        <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
+                                    </div>
                                 </div>
                                 <section class="va-segment" data-step-section="1">
                                     <div class="va-segment-h"><i class="fas fa-file-zipper"></i> <?php echo htmlspecialchars($translations['takeout_zip_section'] ?? 'ZIP archive'); ?></div>
@@ -379,10 +415,13 @@
                                     <p id="ft-meta"></p>
                                     <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
-                                <section class="va-segment takeout-guide-segment is-collapsed" id="takeout-guide-segment">
+                                <section class="va-segment takeout-guide-segment" id="takeout-guide-segment">
                                     <div class="takeout-guide-head">
                                         <span><i class="fas fa-map-signs"></i> <?php echo htmlspecialchars($translations['takeout_guide_title'] ?? 'How to create a Google Takeout archive'); ?></span>
-                                        <button type="button" class="takeout-guide-toggle" id="takeout-guide-toggle" aria-expanded="false" title="<?php echo htmlspecialchars($translations['show'] ?? 'Show'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                        <div class="takeout-guide-actions">
+                                            <button type="button" class="takeout-guide-expand" id="takeout-guide-expand" aria-label="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>" title="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>"><i class="fas fa-expand"></i></button>
+                                            <button type="button" class="takeout-guide-toggle" id="takeout-guide-toggle" aria-expanded="true" title="<?php echo htmlspecialchars($translations['hide'] ?? 'Hide'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                        </div>
                                     </div>
                                     <div class="takeout-guide-body">
                                         <iframe
@@ -396,6 +435,15 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div id="guide-expand-modal" style="display:none;">
+            <div class="guide-expand-content">
+                <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                <h2 class="guide-expand-title"><i class="fas fa-map-signs"></i> <span id="guide-expand-title-text"></span></h2>
+                <div class="guide-expand-frame-wrap">
+                    <iframe id="guide-expand-frame" loading="lazy"></iframe>
                 </div>
             </div>
         </div>

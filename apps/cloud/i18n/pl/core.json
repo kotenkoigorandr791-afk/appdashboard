@@ -389,6 +389,8 @@
   "tabs": "Zakładki",
   "closeOthers": "Zamknij Inne",
   "closeAll": "Zamknij wszystko",
+  "closeCurrent": "Zamknij tylko bieżącą",
+  "closeOtherTabs": "Zamknij wszystkie inne karty",
   "showInTree": "Pokaż w drzewie",
   "closeOtherModifiedTabs": "Niektóre karty zawierają niezapisane zmiany. Zamknąć je mimo to?",
   "otherTabsClosed": "Inne karty zamknięte",

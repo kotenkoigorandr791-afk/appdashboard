@@ -78,6 +78,8 @@
     "aiChatAnswerFailed": "The model did not produce a text answer after reading the file. Try again or narrow your request.",
     "aiExpand": "expand",
     "aiCollapse": "collapse",
+    "aiShowMore": "Show more",
+    "aiShowLess": "Show less",
     "aiUndoLastAgent": "Undo changes",
     "aiAgentReverted": "Changes reverted",
     "aiAgentChangesApplied": "Agent changes applied",

@@ -78,6 +78,8 @@
     "aiChatAnswerFailed": "Модель не сформировала текст ответа после чтения файла. Попробуйте снова или уменьшите объём запроса.",
     "aiExpand": "развернуть",
     "aiCollapse": "свернуть",
+    "aiShowMore": "Показать ещё",
+    "aiShowLess": "Свернуть",
     "aiUndoLastAgent": "Отменить изменения",
     "aiAgentReverted": "Изменения отменены",
     "aiAgentChangesApplied": "Изменения агента применены",

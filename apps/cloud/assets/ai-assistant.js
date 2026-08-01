@@ -1393,6 +1393,50 @@
                 font-size: 11px !important;
                 text-transform: uppercase !important;
                 letter-spacing: .04em !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 8px !important;
+            }
+            .ai-agent-patch-title-label {
+                min-width: 0 !important;
+            }
+            .ai-agent-patch-toggle {
+                border: 1px solid var(--border) !important;
+                background: transparent !important;
+                color: var(--muted) !important;
+                border-radius: 6px !important;
+                padding: 2px 8px !important;
+                font-family: inherit !important;
+                font-size: 11px !important;
+                line-height: 1.4 !important;
+                text-transform: none !important;
+                letter-spacing: 0 !important;
+                cursor: pointer !important;
+                flex: 0 0 auto !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                transition: color .15s ease, border-color .15s ease !important;
+            }
+            .ai-agent-patch-toggle:hover {
+                color: var(--fg) !important;
+                border-color: var(--accent) !important;
+            }
+            .ai-agent-patch-toggle-icon {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: transform .15s ease !important;
+            }
+            .ai-agent-patch-toggle-icon svg {
+                display: block !important;
+            }
+            .ai-agent-patch-preview:not(.collapsed) .ai-agent-patch-toggle-icon {
+                transform: rotate(180deg) !important;
+            }
+            .ai-agent-patch-row.ai-agent-patch-row-hidden {
+                display: none !important;
             }
             .ai-agent-patch-row {
                 display: grid !important;
@@ -1470,7 +1514,7 @@
             .ai-agent-plan-steps { padding: 6px 0 !important; }
             .ai-agent-plan-step {
                 display: grid !important;
-                grid-template-columns: 22px 1fr auto !important;
+                grid-template-columns: 22px minmax(0, 3fr) minmax(0, 2fr) !important;
                 gap: 8px !important;
                 align-items: start !important;
                 padding: 7px 12px !important;
@@ -2077,6 +2121,12 @@
                 font-size: 13px !important;
             }
 
+            .mention-suggestion-icon .app-file-icon,
+            .mention-suggestion-icon .app-file-icon img {
+                width: 14px !important;
+                height: 14px !important;
+            }
+
             .mention-suggestion-name {
                 white-space: nowrap !important;
                 overflow: hidden !important;
@@ -2227,7 +2277,42 @@
             .ai-chat .action-button span {
                 white-space: nowrap;
             }
-            
+
+            /* Chat scroll navigation rail */
+            .ai-chat-scrollbar {
+                position: absolute !important;
+                top: 0 !important;
+                width: 10px !important;
+                border-radius: 6px !important;
+                background: transparent !important;
+                z-index: 5 !important;
+                opacity: .3 !important;
+                transition: opacity .15s ease !important;
+            }
+            .ai-chat-scrollbar:hover {
+                opacity: 1 !important;
+                background: color-mix(in srgb, var(--muted) 14%, transparent) !important;
+            }
+            .ai-chat-scroll-marker {
+                position: absolute !important;
+                left: 2px !important;
+                right: 2px !important;
+                height: 3px !important;
+                min-height: 3px !important;
+                border-radius: 3px !important;
+                background: var(--accent) !important;
+                opacity: .55 !important;
+                cursor: pointer !important;
+                transition: opacity .12s ease, height .12s ease !important;
+            }
+            .ai-chat-scroll-marker:hover {
+                opacity: 1 !important;
+            }
+            .ai-chat-scroll-marker.active {
+                opacity: 1 !important;
+                height: 5px !important;
+            }
+
             /* Live think indicator */
             .think-live-indicator {
                 display: inline-flex;
@@ -2444,6 +2529,7 @@
         attachEventListeners();
         applySavedSettings();
         initCustomModelDropdown();
+        initChatScrollbar();
         try {
             await loadModelsFromApi();
         } catch (e) {
@@ -3238,7 +3324,7 @@
             item.className = `mention-suggestion-item ${index === aiState.mentionSelectedIndex ? 'active' : ''}`;
             item.dataset.index = String(index);
             item.title = name;
-            item.innerHTML = `<span class="mention-suggestion-icon"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><span class="mention-suggestion-name">${escapeHtml(displayName)}</span>`;
+            item.innerHTML = `<span class="mention-suggestion-icon">${getAttachmentFileIconMarkup(name)}</span><span class="mention-suggestion-name">${escapeHtml(displayName)}</span>`;
             item.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 applyMentionSuggestion(index);
@@ -5103,7 +5189,6 @@
         const resultText = String(step.result || '');
         row.appendChild(icon);
         if (isLongPlanResult(resultText)) {
-            row.style.gridTemplateColumns = '22px minmax(0, 1fr)';
             icon.style.gridRow = '1 / span 2';
             row.appendChild(label);
             const wrap = document.createElement('div');
@@ -5126,7 +5211,6 @@
             row.appendChild(wrap);
             appendAgentResourcePreview(row, step);
         } else {
-            row.style.gridTemplateColumns = '22px minmax(0, 1fr) auto';
             row.appendChild(label);
             const result = document.createElement('span');
             result.className = 'ai-agent-plan-result';
@@ -5561,24 +5645,62 @@
         wrapper.className = 'ai-agent-patch-preview';
         const title = document.createElement('div');
         title.className = 'ai-agent-patch-title';
-        title.textContent = afterText != null ? tr('aiPatchPreview', 'Agent patch preview') : tr('aiPatch', 'Agent patch');
+        const titleLabel = document.createElement('span');
+        titleLabel.className = 'ai-agent-patch-title-label';
+        titleLabel.textContent = afterText != null ? tr('aiPatchPreview', 'Agent patch preview') : tr('aiPatch', 'Agent patch');
+        title.appendChild(titleLabel);
         wrapper.appendChild(title);
 
+        const body = document.createElement('div');
+        body.className = 'ai-agent-patch-body';
+
         if (afterText != null) {
-            sliceDiffOpsWithContext(buildLineDiff(beforeText, afterText), 2).forEach((d) => appendAgentPatchRow(wrapper, d.t, d.v));
-            return wrapper;
+            sliceDiffOpsWithContext(buildLineDiff(beforeText, afterText), 2).forEach((d) => appendAgentPatchRow(body, d.t, d.v));
+        } else {
+            (ops || []).forEach((op, index) => {
+                if (index > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'ai-agent-patch-title';
+                    sep.textContent = `Change ${index + 1}`;
+                    body.appendChild(sep);
+                }
+                sliceDiffOpsWithContext(buildLineDiff(op.search || '', op.replace || ''), 2).forEach((d) => appendAgentPatchRow(body, d.t, d.v));
+            });
         }
 
-        (ops || []).forEach((op, index) => {
-            if (index > 0) {
-                const sep = document.createElement('div');
-                sep.className = 'ai-agent-patch-title';
-                sep.textContent = `Change ${index + 1}`;
-                wrapper.appendChild(sep);
-            }
-            sliceDiffOpsWithContext(buildLineDiff(op.search || '', op.replace || ''), 2).forEach((d) => appendAgentPatchRow(wrapper, d.t, d.v));
-        });
+        wrapper.appendChild(body);
+        setupAgentPatchCollapse(wrapper, title, body);
         return wrapper;
+    }
+
+    function setupAgentPatchCollapse(wrapper, title, body) {
+        const PATCH_COLLAPSED_ROW_LIMIT = 10;
+        const rows = Array.from(body.querySelectorAll('.ai-agent-patch-row'));
+        if (rows.length <= PATCH_COLLAPSED_ROW_LIMIT) return;
+
+        const hiddenRows = rows.slice(PATCH_COLLAPSED_ROW_LIMIT);
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'ai-agent-patch-toggle';
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'ai-agent-patch-toggle-icon';
+        toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+        const toggleLabel = document.createElement('span');
+        toggleLabel.className = 'ai-agent-patch-toggle-label';
+        toggle.appendChild(toggleIcon);
+        toggle.appendChild(toggleLabel);
+
+        function setCollapsed(collapsed) {
+            wrapper.classList.toggle('collapsed', collapsed);
+            hiddenRows.forEach((row) => row.classList.toggle('ai-agent-patch-row-hidden', collapsed));
+            toggleLabel.textContent = collapsed
+                ? `${tr('aiShowMore', 'Show more')} (${hiddenRows.length})`
+                : tr('aiShowLess', 'Show less');
+        }
+
+        toggle.addEventListener('click', () => setCollapsed(!wrapper.classList.contains('collapsed')));
+        title.appendChild(toggle);
+        setCollapsed(true);
     }
 
     function appendAgentPatchRow(parent, type, text) {
@@ -6127,6 +6249,7 @@
             scrollChatToBottom();
             resumeServerAiRunIfNeeded();
         }
+        scheduleChatScrollbarRebuild();
     }
 
     function closeAIModal() {
@@ -6385,6 +6508,111 @@
         if (elements.chat) {
             elements.chat.scrollTop = elements.chat.scrollHeight;
         }
+    }
+
+    const chatScrollbarState = { bar: null, markers: [], mutObserver: null, resizeObserver: null };
+    let chatScrollbarRebuildTimer = null;
+
+    function initChatScrollbar() {
+        const body = elements.modal?.querySelector('.ai-modal-body');
+        const chat = elements.chat;
+        if (!body || !chat || chatScrollbarState.bar) return;
+
+        const bar = document.createElement('div');
+        bar.className = 'ai-chat-scrollbar';
+        body.appendChild(bar);
+        chatScrollbarState.bar = bar;
+
+        if (typeof ResizeObserver === 'function') {
+            chatScrollbarState.resizeObserver = new ResizeObserver(() => scheduleChatScrollbarRebuild());
+            chatScrollbarState.resizeObserver.observe(body);
+            chatScrollbarState.resizeObserver.observe(chat);
+        }
+        window.addEventListener('resize', scheduleChatScrollbarRebuild);
+        chat.addEventListener('scroll', updateActiveChatScrollMarker, { passive: true });
+        chatScrollbarState.mutObserver = new MutationObserver(scheduleChatScrollbarRebuild);
+        chatScrollbarState.mutObserver.observe(chat, { childList: true, subtree: true, characterData: true });
+
+        rebuildChatScrollbar();
+    }
+
+    function scheduleChatScrollbarRebuild() {
+        if (chatScrollbarRebuildTimer) return;
+        chatScrollbarRebuildTimer = setTimeout(() => {
+            chatScrollbarRebuildTimer = null;
+            rebuildChatScrollbar();
+        }, 200);
+    }
+
+    function rebuildChatScrollbar() {
+        const chat = elements.chat;
+        const bar = chatScrollbarState.bar;
+        if (!chat || !bar) return;
+        positionChatScrollbar();
+        const hasOverflow = chat.scrollHeight > chat.clientHeight + 4;
+        bar.style.display = hasOverflow ? '' : 'none';
+        bar.replaceChildren();
+        chatScrollbarState.markers = [];
+        if (!hasOverflow) return;
+
+        const chatRect = chat.getBoundingClientRect();
+        chat.querySelectorAll('.message.user-message').forEach((msg) => {
+            const rect = msg.getBoundingClientRect();
+            const contentTop = (rect.top - chatRect.top) + chat.scrollTop + rect.height / 2;
+            const pct = chat.scrollHeight > 0 ? contentTop / chat.scrollHeight : 0;
+            const marker = document.createElement('div');
+            marker.className = 'ai-chat-scroll-marker';
+            marker.style.top = `${Math.max(0, Math.min(100, pct * 100))}%`;
+            const preview = String(msg.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+            marker.title = preview || tr('aiUserMessage', 'User message');
+            marker.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                scrollChatToMessage(msg);
+            });
+            bar.appendChild(marker);
+            chatScrollbarState.markers.push({ marker, msg });
+        });
+        updateActiveChatScrollMarker();
+    }
+
+    function positionChatScrollbar() {
+        const chat = elements.chat;
+        const bar = chatScrollbarState.bar;
+        if (!chat || !bar) return;
+        const body = elements.modal?.querySelector('.ai-modal-body');
+        if (!body) return;
+        const bodyRect = body.getBoundingClientRect();
+        const chatRect = chat.getBoundingClientRect();
+        const scrollbarWidth = Math.max(0, chat.offsetWidth - chat.clientWidth);
+        bar.style.top = `${chatRect.top - bodyRect.top}px`;
+        bar.style.height = `${chat.clientHeight}px`;
+        bar.style.right = `${scrollbarWidth > 0 ? scrollbarWidth + 4 : 2}px`;
+    }
+
+    function scrollChatToMessage(msg) {
+        const chat = elements.chat;
+        if (!chat || !msg) return;
+        const chatRect = chat.getBoundingClientRect();
+        const rect = msg.getBoundingClientRect();
+        const contentTop = (rect.top - chatRect.top) + chat.scrollTop;
+        chat.scrollTop = Math.max(0, contentTop - 12);
+    }
+
+    function updateActiveChatScrollMarker() {
+        const chat = elements.chat;
+        const markers = chatScrollbarState.markers || [];
+        if (!chat || markers.length === 0) return;
+        const chatRect = chat.getBoundingClientRect();
+        const threshold = chat.scrollTop + chatRect.height * 0.35;
+        let activeIdx = -1;
+        for (let i = 0; i < markers.length; i++) {
+            const rect = markers[i].msg.getBoundingClientRect();
+            const contentTop = (rect.top - chatRect.top) + chat.scrollTop;
+            if (contentTop <= threshold) activeIdx = i;
+            else break;
+        }
+        markers.forEach((m, i) => m.marker.classList.toggle('active', i === activeIdx));
     }
 
     // JS-based sticky code headers — works regardless of parent overflow settings

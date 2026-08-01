@@ -912,17 +912,32 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
     if (path) options.push({ label: t(window.i18n, 'share'), icon: 'share', action: () => shareItem(path, type) });
     if (path) options.push({ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) });
     if (opts.tabId != null) {
-        options.push({ label: t(window.i18n, 'close'), icon: 'close', action: () => closeTab(opts.tabId) });
-        options.push({
-            label: t(window.i18n, 'closeOthers'),
-            icon: 'close-others',
-            action: () => {
-                tabsState.tabs = tabsState.tabs.filter((entry) => entry.id === opts.tabId);
-                tabsState.activeTabId = opts.tabId;
-                renderTabs();
-                saveTabsState();
-            }
-        });
+        if (tabsState.tabs.length <= 1) {
+            options.push({ label: t(window.i18n, 'close'), icon: 'close', action: () => closeTab(opts.tabId) });
+        } else {
+            options.push({
+                type: 'group',
+                label: t(window.i18n, 'close'),
+                icon: 'close',
+                items: [
+                    {
+                        label: t(window.i18n, 'closeCurrent'),
+                        icon: 'close',
+                        action: () => closeTab(opts.tabId)
+                    },
+                    {
+                        label: t(window.i18n, 'closeOtherTabs'),
+                        icon: 'close-others',
+                        action: () => {
+                            tabsState.tabs = tabsState.tabs.filter((entry) => entry.id === opts.tabId);
+                            tabsState.activeTabId = opts.tabId;
+                            renderTabs();
+                            saveTabsState();
+                        }
+                    }
+                ]
+            });
+        }
     }
     if (path) {
         options.push({

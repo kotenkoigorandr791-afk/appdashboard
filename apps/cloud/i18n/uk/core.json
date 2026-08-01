@@ -389,6 +389,8 @@
   "tabs": "Вкладки",
   "closeOthers": "Закрити інші",
   "closeAll": "Закрити всі",
+  "closeCurrent": "Закрити тільки поточну",
+  "closeOtherTabs": "Закрити всі інші вкладки",
   "showInTree": "Показати в дереві",
   "closeOtherModifiedTabs": "У деяких вкладках є незбережені зміни. Все одно закрити їх?",
   "otherTabsClosed": "Інші вкладки закрито",
