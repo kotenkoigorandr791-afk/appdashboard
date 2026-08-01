@@ -241,8 +241,8 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
-<script defer src="assets/ai-agent-skeleton.js?v=10"></script>
-<script defer src="assets/ai-assistant.js?v=31"></script>
+<script defer src="assets/ai-agent-skeleton.js?v=12"></script>
+<script defer src="assets/ai-assistant.js?v=33"></script>
 <script defer src="assets/monaco-editor.js?v=8"></script>
 
 

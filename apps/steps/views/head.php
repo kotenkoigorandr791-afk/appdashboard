@@ -45,7 +45,7 @@
         .calendar-selector-box select,
         .calendar-header select,
         .goal-summary,
-        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content,
+        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content,
         .settings-tab-bar,
         .settings-tab.active,
         .add-tab-bar,
@@ -237,8 +237,8 @@
         }
         #add-steps-modal #add-panel-video #zeep-guide-frame {
             width: 100%;
-            height: min(62vh, 660px);
-            min-height: 320px;
+            height: min(66.6vh, 1100px);
+            min-height: 360px;
             border: 0;
             display: block;
             background: var(--modal-bg);
@@ -252,13 +252,32 @@
         #add-steps-modal #add-panel-video .takeout-guide-toggle i {
             transition: transform 0.2s ease;
         }
-        .va-steps { display: flex; align-items: center; justify-content: center; gap: 0; margin: 0 0 14px; user-select: none; width: min(100%, 860px); }
-        .va-step-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--border-color); background: var(--modal-bg); color: var(--text-color); font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s ease; }
-        .va-step-dot.is-active { border-color: var(--primary-color); background: var(--primary-color); color: #fff; }
-        .va-step-dot.is-done { border-color: var(--primary-color); color: var(--primary-color); background: rgba(0,123,255,0.08); }
+        .va-steps { display: flex; flex-direction: column; align-items: center; gap: 12px; margin: 0 0 14px; user-select: none; width: min(100%, 860px); }
+        .va-steps-row { display: flex; align-items: center; justify-content: center; gap: 0; width: 100%; }
+        .va-progress { width: 100%; height: 5px; background: var(--border-color); border-radius: 5px; overflow: hidden; opacity: 0.85; }
+        .va-progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #22c55e, var(--primary-color)); border-radius: 5px; transition: width 0.45s ease; }
+        .va-step-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--border-color); background: var(--modal-bg); color: var(--text-color); font-weight: 700; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; }
+        .va-step-dot.is-active { border-color: var(--primary-color); background: var(--primary-color); color: #fff; box-shadow: 0 0 0 4px rgba(59,130,246,0.2); }
+        .va-step-dot.is-done { border-color: #22c55e; background: #22c55e; color: #fff; box-shadow: 0 0 0 4px rgba(34,197,94,0.18); }
         .va-step-dot[disabled] { opacity: 0.45; cursor: not-allowed; }
-        .va-step-line { width: min(140px, 16vw); height: 2px; background: var(--border-color); margin: 0 10px; }
-        .va-step-line.is-done { background: var(--primary-color); }
+        .va-step-line { width: min(140px, 16vw); height: 2px; background: var(--border-color); margin: 0 10px; transition: background 0.35s ease, box-shadow 0.35s ease; }
+        .va-step-line.is-done { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,0.45); }
+        .va-segment.va-section-in-up { animation: vaSectionInUp 0.35s ease both; }
+        .va-segment.va-section-in-next { animation: vaSectionInNext 0.38s cubic-bezier(.22,.68,.36,1) both; }
+        .va-segment.va-section-in-prev { animation: vaSectionInPrev 0.38s cubic-bezier(.22,.68,.36,1) both; }
+        @keyframes vaSectionInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes vaSectionInNext { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes vaSectionInPrev { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: translateX(0); } }
+        .takeout-guide-actions { display: flex; align-items: center; gap: 6px; margin-left: auto; flex-shrink: 0; }
+        .takeout-guide-expand { border: 0; background: transparent; color: var(--text-color); cursor: pointer; font-size: 13px; line-height: 1; padding: 3px 5px; opacity: 0.75; border-radius: 6px; transition: all 0.2s ease; }
+        .takeout-guide-expand:hover { opacity: 1; color: var(--primary-color); background: rgba(127,127,127,0.12); }
+        #guide-expand-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: none; justify-content: center; align-items: center; z-index: 10035; overflow: hidden; box-sizing: border-box; }
+        #guide-expand-modal .guide-expand-content { background: var(--modal-bg); width: min(90vw, 1400px); height: 90vh; max-width: 100%; max-height: 94vh; border-radius: 12px; position: relative; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; box-shadow: 0 24px 60px rgba(0,0,0,0.5); min-width: 0; }
+        #guide-expand-modal .guide-expand-title { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; margin: 0 0 12px; color: var(--text-color); padding-right: 40px; }
+        #guide-expand-modal .guide-expand-title i { color: var(--primary-color); }
+        #guide-expand-modal .guide-expand-frame-wrap { flex: 1; min-height: 0; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        #guide-expand-modal #guide-expand-frame { width: 100%; height: 100%; border: 0; display: block; background: var(--modal-bg); }
+        #guide-expand-modal .modal-close { top: 12px; right: 12px; }
         #add-steps-modal #add-panel-video .va-head h2 { margin: 0 0 6px; font-size: 1.3rem; font-weight: 600; }
         #add-steps-modal #add-panel-video .va-sub { margin: 0; font-size: 14px; opacity: 0.9; line-height: 1.45; }
         #add-steps-modal #add-panel-video .va-form-box, #add-steps-modal #add-panel-video .va-grid, #add-steps-modal #add-panel-video .video-inline-scroll { min-width: 0; }
@@ -456,7 +475,7 @@
         .goal-icon { width: 20px; height: 20px; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); cursor: pointer; }
         .goal-summary { margin-top: 20px; padding: 10px; background: var(--group-block-bg); border-radius: 8px; border: 1px solid var(--border-color); }
         
-        #info-button, #settings-button, #add-steps-button, #excel-button { 
+        #info-button, #settings-button, #add-steps-button, #excel-button, #stats-button {
             position: static; 
             background: none; 
             border: none; 
@@ -471,8 +490,17 @@
             border-radius: 50%;
             transition: background-color 0.2s;
         }
-        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #excel-button:hover { 
+        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #excel-button:hover, #stats-button:hover, #stats-button.active {
             background: rgba(0, 123, 255, 0.1); 
+        }
+        #stats-button svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
         #user-button {
             position: static;
@@ -494,7 +522,7 @@
         }
         
         /* Модальные окна для мобильных */
-        #info-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #alert-modal { 
+        #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #alert-modal {
             position: fixed; 
             top: 0; 
             left: 0; 
@@ -541,7 +569,7 @@
             z-index: 10001;
         }
         
-        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content { 
+        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content {
             background: var(--modal-bg); 
             padding: 20px; 
             border-radius: 8px; 
@@ -558,6 +586,38 @@
         #info-modal .info-content {
             overflow-y: auto;
             overflow-x: hidden;
+        }
+        #stats-modal .stats-content {
+            width: min(94vw, 1080px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+        .stats-card {
+            min-width: 0;
+            padding: 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--group-block-bg);
+            box-sizing: border-box;
+        }
+        .stats-card h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+            color: var(--primary-color);
+        }
+        .stats-chart-wrap {
+            position: relative;
+            width: 100%;
+            height: 360px;
+        }
+        #stats-empty {
+            margin: 16px 0 0;
+            text-align: center;
         }
         #settings-modal .settings-content {
             overflow: hidden;
@@ -836,7 +896,7 @@
         }
         #add-panel-takeout #takeout-guide-frame {
             width: 100%;
-            height: min(40vh, 400px);
+            height: min(66.6vh, 1100px);
             border: 0;
             display: block;
             background: var(--modal-bg);
@@ -849,13 +909,6 @@
         }
         #add-panel-takeout .takeout-guide-toggle i {
             transition: transform 0.2s ease;
-        }
-        #add-panel-takeout #takeout-guide-frame {
-            width: 100%;
-            height: min(62vh, 660px);
-            border: 0;
-            display: block;
-            background: var(--modal-bg);
         }
         #add-panel-video .takeout-guide-segment {
             width: 100%;
@@ -890,7 +943,8 @@
         }
         #add-panel-video #zeep-guide-frame {
             width: 100%;
-            height: min(62vh, 660px);
+            height: min(66.6vh, 1100px);
+            min-height: 360px;
             border: 0;
             display: block;
             background: var(--modal-bg);
@@ -1510,10 +1564,14 @@
                 display: none;
             }
             
-            #info-button, #settings-button, #add-steps-button, #excel-button { 
+            #info-button, #settings-button, #add-steps-button, #excel-button, #stats-button {
                 font-size: 20px;
                 width: 35px;
                 height: 35px;
+            }
+            #stats-button svg {
+                width: 20px;
+                height: 20px;
             }
             
             .app-topbar-actions {
@@ -1539,7 +1597,7 @@
             .calendar-table { font-size: 12px; }
             .calendar-table th, .calendar-table td { padding: 5px; height: 30px; }
             
-            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content { 
+            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content {
                 width: 95% !important; 
                 max-width: 95% !important; 
                 padding: 15px; 
@@ -1615,6 +1673,12 @@
             }
             #info-modal .info-content {
                 overflow-y: auto;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .stats-chart-wrap {
+                height: 300px;
             }
             #settings-modal .settings-content {
                 width: 95% !important;

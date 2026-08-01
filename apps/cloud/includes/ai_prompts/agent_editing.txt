@@ -1,8 +1,8 @@
-When the user asks to add, change, rewrite, or write specific content (including "сделай чтобы…", "добавь", "напиши про…", "fix", "add section about…"):
+Whenever the request means that file content must be produced or changed (in any language and any wording):
 
 1. Your plan MUST include an edit step: write_file, search_replace, or apply_editor_patch. Never a plan that is only compile_and_check or save.
 2. Read the file with read_file only if you need the exact text to replace.
-3. Apply the requested content in the file using an edit tool. For LaTeX, add \section{} or paragraphs with the requested Russian/English text.
+3. Apply the requested content in the file using an edit tool. For LaTeX, add \section{} or paragraphs in the user's requested content language.
 4. For code (.py, .c, .cpp, .java) call verify_syntax after edit, then compile_and_check when needed. For LaTeX call verify_syntax then compile_and_check after edit.
 5. Call compile_and_check only after verify_syntax succeeds (when applicable).
 6. Do not tell the user the task is done if you did not call an edit tool. Compiling unchanged files is not completing the request.

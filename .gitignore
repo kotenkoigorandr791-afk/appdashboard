@@ -19,7 +19,6 @@ dist/
 apps/recipes/.pydeps/
 graphify-out/
 **/graphify-out/
-project/graphify-out/
 /backups/
 /data/.ssh/
 /data/ssh_ws_tokens/
@@ -72,4 +71,3 @@ Thumbs.db
 **/agents.md
 **/CLAUDE.md
 **/backups_codex/
-graphify-out/

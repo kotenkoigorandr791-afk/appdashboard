@@ -1,10 +1,14 @@
 <?php 
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 // ai.php - AI Assistant endpoint
+ini_set('display_errors', '0');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header('Pragma: no-cache');
+header('Expires: 0');
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
     header('Access-Control-Allow-Headers: Content-Type');
@@ -18,8 +22,17 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 
 require_once __DIR__ . '/includes/ai_config_store.php';
 require_once __DIR__ . '/includes/ai_proxy.php';
-$config = cloud_ai_load_config();
-if (empty($config['api_key']) || empty($config['api_endpoint'])) {
+require_once dirname(__DIR__, 2) . '/storage_helper.php';
+$action = $_POST['action'] ?? $_GET['action'] ?? '';
+if (PHP_SAPI === 'cli' && isset($argv[1])) {
+    $action = (string)$argv[1];
+    if (isset($argv[2])) $_POST['job_id'] = (string)$argv[2];
+    if (isset($argv[3])) $_POST['worker_token'] = (string)$argv[3];
+}
+$config = in_array($action, ['ai_worker_run', 'ai_run_status', 'ai_run_cancel'], true)
+    ? ['api_key' => '', 'api_endpoint' => '', 'default_model' => CLOUD_AI_DEFAULT_MODEL, 'models' => CLOUD_AI_DEFAULT_MODELS]
+    : cloud_ai_load_config();
+if ((empty($config['api_key']) || empty($config['api_endpoint'])) && !in_array($action, ['ai_run_status', 'ai_run_cancel', 'ai_worker_run'], true)) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['error' => 'Invalid AI configuration']);
     exit;
@@ -30,8 +43,6 @@ const AI_CHAT_OLD_TABLE = 'ai_assistant_chats';
 const AI_CHAT_SESSION_TABLE = 'cloud_ai_assistant_chat_sessions';
 const AI_USER_SETTINGS_TABLE = 'cloud_ai_assistant_user_settings';
 const AI_USER_SETTINGS_OLD_TABLE = 'ai_assistant_user_settings';
-
-$action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 if ($action === 'ai_completions' || $action === 'ai_models') {
     header('Access-Control-Allow-Origin: *');
@@ -135,6 +146,18 @@ if ($action === 'ai_chat_append') {
         $_POST['mentioned_files_count'] ?? null,
         $_POST['notify_on_complete'] ?? null
     ));
+    exit;
+} elseif ($action === 'ai_run_start') {
+    echo json_encode(aiRunStart($_POST));
+    exit;
+} elseif ($action === 'ai_run_status') {
+    echo json_encode(aiRunStatus($_POST['job_id'] ?? '', $_POST['chat_id'] ?? ''));
+    exit;
+} elseif ($action === 'ai_run_cancel') {
+    echo json_encode(aiRunCancel($_POST['job_id'] ?? '', $_POST['chat_id'] ?? ''));
+    exit;
+} elseif ($action === 'ai_worker_run') {
+    aiWorkerRunCli($_POST['job_id'] ?? '', $_POST['worker_token'] ?? '');
     exit;
 }
 
@@ -248,7 +271,8 @@ function sendToAI($config, $model, $messages) {
             'Content-Type: application/json',
             'Authorization: Bearer ' . $config['api_key']
         ],
-        CURLOPT_TIMEOUT => 180
+        CURLOPT_TIMEOUT => CLOUD_AI_BLOCKING_TIMEOUT_SECONDS,
+        CURLOPT_CONNECTTIMEOUT => 30
     ]);
 
     $response = curl_exec($ch);
@@ -316,7 +340,7 @@ function getCurrentUserFromMainAPI() {
             }
         }
         
-        $db->close();
+        if (method_exists($db, 'close')) $db->close();
     } catch (Exception $e) {
         cloud_safe_error_log('getCurrentUserFromMainAPI error: ' . $e->getMessage());
     }
@@ -362,7 +386,7 @@ function getCurrentUserEmailFromMainAPI() {
             }
         }
         
-        $db->close();
+        if (method_exists($db, 'close')) $db->close();
     } catch (Exception $e) {
         cloud_safe_error_log('getCurrentUserEmailFromMainAPI error: ' . $e->getMessage());
     }
@@ -383,7 +407,7 @@ function aiIsRootUser(): bool
         $stmt = aiPrepare($db, 'SELECT role FROM users WHERE email = :email LIMIT 1');
         $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        $db->close();
+        if (method_exists($db, 'close')) $db->close();
         return $row && (int)($row['role'] ?? 0) === 2;
     } catch (Exception $e) {
         return false;
@@ -406,7 +430,127 @@ function aiChatTitleFromQuestion(string $question): string {
     return substr($title, 0, 60);
 }
 
-function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeconds = '', $tokens = '', $speed = '', $metaJson = '', $chatId = '') {
+function aiSafeEmailKey(string $email): string {
+    $key = strtolower(trim($email));
+    $key = preg_replace('/[^a-z0-9_.@-]+/i', '_', $key);
+    return trim((string)$key, '._-') ?: 'default';
+}
+
+function aiChatSessionsPath(string $email): string {
+    return appdata_app_base_dir('cloud') . '/ai_chat_sessions/' . aiSafeEmailKey($email) . '.json';
+}
+
+function aiReadChatSessionsJson(string $email): array {
+    $path = aiChatSessionsPath($email);
+    if (!is_file($path)) return [];
+    $data = json_decode((string)@file_get_contents($path), true);
+    return is_array($data) ? array_values(array_filter($data, 'is_array')) : [];
+}
+
+function aiWriteChatSessionsJson(string $email, array $sessions): void {
+    $path = aiChatSessionsPath($email);
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        throw new RuntimeException('Chat session storage is not writable');
+    }
+    $sessions = array_slice(array_values($sessions), 0, 50);
+    $json = json_encode($sessions, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || @file_put_contents($path, $json, LOCK_EX) === false) {
+        throw new RuntimeException('Chat session storage is not writable');
+    }
+}
+
+function aiMigrateChatSessionsToJson($db, string $email): void {
+    $path = aiChatSessionsPath($email);
+    if (is_file($path)) return;
+    $sessions = [];
+    try {
+        if (aiSqliteTableExists($db, AI_CHAT_SESSION_TABLE)) {
+            $stmt = aiPrepare($db, "SELECT id, title, created_at, updated_at FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 50");
+            $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+            $res = $stmt->execute();
+            while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+                $sessions[] = [
+                    'id' => (string)$row['id'],
+                    'title' => (string)($row['title'] ?: 'New chat'),
+                    'created_at' => (int)($row['created_at'] ?? time()),
+                    'updated_at' => (int)($row['updated_at'] ?? time()),
+                ];
+            }
+        }
+        if ($sessions === []) {
+            $stmt = aiPrepare($db, "SELECT chat_id, MAX(created_at) AS updated_at, MIN(created_at) AS created_at, MIN(question) AS question FROM " . AI_CHAT_TABLE . " WHERE email = :email GROUP BY chat_id ORDER BY updated_at DESC LIMIT 50");
+            $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+            $res = $stmt->execute();
+            while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+                $id = trim((string)($row['chat_id'] ?? ''));
+                if ($id === '') {
+                    $id = bin2hex(random_bytes(12));
+                    $upd = aiPrepare($db, "UPDATE " . AI_CHAT_TABLE . " SET chat_id = :id WHERE email = :email AND (chat_id = '' OR chat_id IS NULL)");
+                    $upd->bindValue(':id', $id, PDO::PARAM_STR);
+                    $upd->bindValue(':email', $email, PDO::PARAM_STR);
+                    $upd->execute();
+                }
+                $sessions[] = [
+                    'id' => $id,
+                    'title' => aiChatTitleFromQuestion((string)($row['question'] ?? '')),
+                    'created_at' => (int)($row['created_at'] ?? time()),
+                    'updated_at' => (int)($row['updated_at'] ?? time()),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+    }
+    if ($sessions === []) {
+        $now = time();
+        $sessions[] = ['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now];
+    }
+    aiWriteChatSessionsJson($email, $sessions);
+}
+
+function aiLoadChatSessions(string $email, $db = null): array {
+    if ($db) aiMigrateChatSessionsToJson($db, $email);
+    $sessions = aiReadChatSessionsJson($email);
+    if ($sessions === []) {
+        $now = time();
+        $sessions = [['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now]];
+        aiWriteChatSessionsJson($email, $sessions);
+    }
+    usort($sessions, static fn($a, $b) => ((int)($b['updated_at'] ?? 0) <=> (int)($a['updated_at'] ?? 0)));
+    return array_slice($sessions, 0, 50);
+}
+
+function aiEnsureChatSessionJson(string $email, string $chatId, string $question = '', $db = null): string {
+    $sessions = aiLoadChatSessions($email, $db);
+    foreach ($sessions as $session) {
+        if ((string)($session['id'] ?? '') === $chatId && $chatId !== '') return $chatId;
+    }
+    if ($chatId === '') return (string)($sessions[0]['id'] ?? '');
+    $now = time();
+    array_unshift($sessions, ['id' => $chatId, 'title' => $question !== '' ? aiChatTitleFromQuestion($question) : 'New chat', 'created_at' => $now, 'updated_at' => $now]);
+    aiWriteChatSessionsJson($email, $sessions);
+    return $chatId;
+}
+
+function aiTouchChatSessionJson(string $email, string $chatId, string $question = ''): void {
+    $sessions = aiLoadChatSessions($email);
+    $found = false;
+    foreach ($sessions as &$session) {
+        if ((string)($session['id'] ?? '') !== $chatId) continue;
+        $session['updated_at'] = time();
+        if (($session['title'] ?? 'New chat') === 'New chat' && $question !== '') $session['title'] = aiChatTitleFromQuestion($question);
+        $found = true;
+        break;
+    }
+    unset($session);
+    if (!$found) {
+        $now = time();
+        array_unshift($sessions, ['id' => $chatId, 'title' => $question !== '' ? aiChatTitleFromQuestion($question) : 'New chat', 'created_at' => $now, 'updated_at' => $now]);
+    }
+    aiWriteChatSessionsJson($email, $sessions);
+}
+
+function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeconds = '', $tokens = '', $speed = '', $metaJson = '', $chatId = '', $emailOverride = '') {
     $question = is_string($question) ? trim($question) : '';
     $answer = is_string($answer) ? trim($answer) : '';
     $model = is_string($model) ? trim($model) : '';
@@ -424,15 +568,14 @@ function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeco
         return ['success' => false, 'error' => 'Question and answer are required'];
     }
 
-    $email = aiCurrentEmailForChat();
+    $email = $emailOverride !== '' ? (string)$emailOverride : aiCurrentEmailForChat();
 
     try {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
 
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        $chatId = aiEnsureChatSession($db, $email, (string)$chatId, $question);
+        $chatId = aiEnsureChatSessionJson($email, (string)$chatId, $question, $db);
 
         $stmt = aiPrepare($db, "
             INSERT INTO " . AI_CHAT_TABLE . " (email, chat_id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at)
@@ -449,12 +592,7 @@ function aiChatAppend($question, $answer, $model = '', $fileName = '', $timeSeco
         if ($tokensVal === null) $stmt->bindValue(':tok', null, PDO::PARAM_NULL); else $stmt->bindValue(':tok', $tokensVal, PDO::PARAM_INT);
         if ($speedVal === null) $stmt->bindValue(':s', null, PDO::PARAM_NULL); else $stmt->bindValue(':s', $speedVal, PDO::PARAM_STR);
         $stmt->execute();
-        $upd = aiPrepare($db, "UPDATE " . AI_CHAT_SESSION_TABLE . " SET updated_at = extract(epoch from now())::bigint, title = CASE WHEN title = 'New chat' THEN :title ELSE title END WHERE id = :id AND email = :email");
-        $upd->bindValue(':title', aiChatTitleFromQuestion($question), PDO::PARAM_STR);
-        $upd->bindValue(':id', $chatId, PDO::PARAM_STR);
-        $upd->bindValue(':email', $email, PDO::PARAM_STR);
-        $upd->execute();
-        aiPruneChatSessions($db, $email);
+        aiTouchChatSessionJson($email, $chatId, $question);
         return ['success' => true, 'chat_id' => $chatId];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
@@ -474,8 +612,7 @@ function aiChatLoad($offset, $limit, $chatId = '') {
         if (!$db) return ['success' => false, 'error' => 'Database unavailable', 'items' => [], 'has_more' => false];
 
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        $chatId = aiEnsureChatSession($db, $email, (string)$chatId);
+        $chatId = aiEnsureChatSessionJson($email, (string)$chatId, '', $db);
 
         $stmt = aiPrepare($db, "
             SELECT id, question, answer, model, file_name, time_seconds, tokens, speed, meta_json, created_at
@@ -518,14 +655,7 @@ function aiChatSessions() {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable', 'items' => []];
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        aiEnsureChatSession($db, $email, '');
-        $stmt = aiPrepare($db, "SELECT id, title, created_at, updated_at FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 50");
-        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-        $res = $stmt->execute();
-        $rows = [];
-        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) $rows[] = $row;
-        return ['success' => true, 'items' => $rows];
+        return ['success' => true, 'items' => aiLoadChatSessions($email, $db)];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage(), 'items' => []];
     }
@@ -537,9 +667,12 @@ function aiChatCreate($title = '') {
         $db = getAiDb();
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        $id = aiCreateChatSession($db, $email, trim((string)$title) ?: 'New chat');
-        aiPruneChatSessions($db, $email);
+        aiMigrateChatSessionsToJson($db, $email);
+        $id = bin2hex(random_bytes(12));
+        $now = time();
+        $sessions = aiLoadChatSessions($email);
+        array_unshift($sessions, ['id' => $id, 'title' => trim((string)$title) ?: 'New chat', 'created_at' => $now, 'updated_at' => $now]);
+        aiWriteChatSessionsJson($email, $sessions);
         return ['success' => true, 'chat_id' => $id];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
@@ -555,22 +688,244 @@ function aiChatDelete($chatId = '') {
         if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
 
         ensureAiChatTable($db);
-        ensureAiChatSessionTable($db);
-        if ($chatId === '') $chatId = aiEnsureChatSession($db, $email, '');
+        if ($chatId === '') $chatId = aiEnsureChatSessionJson($email, '', '', $db);
 
         $stmt = aiPrepare($db, "DELETE FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id = :chat_id");
         $stmt->bindValue(':email', $email, PDO::PARAM_STR);
         $stmt->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
         $stmt->execute();
-        $del = aiPrepare($db, "DELETE FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :chat_id");
-        $del->bindValue(':email', $email, PDO::PARAM_STR);
-        $del->bindValue(':chat_id', $chatId, PDO::PARAM_STR);
-        $del->execute();
-        aiEnsureChatSession($db, $email, '');
-        return ['success' => true];
+        $sessions = array_values(array_filter(aiLoadChatSessions($email, $db), static fn($session) => (string)($session['id'] ?? '') !== $chatId));
+        if ($sessions === []) {
+            $now = time();
+            $sessions[] = ['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now];
+        }
+        aiWriteChatSessionsJson($email, $sessions);
+        return ['success' => true, 'chat_id' => (string)($sessions[0]['id'] ?? ''), 'items' => $sessions];
     } catch (Exception $e) {
         return ['success' => false, 'error' => $e->getMessage()];
     }
+}
+
+function aiWorkerBaseDir(string $email = ''): string {
+    $base = appdata_app_base_dir('cloud') . '/ai_worker_jobs';
+    if ($email === '') return $base;
+    return $base . '/' . aiSafeEmailKey($email);
+}
+
+function aiWorkerJobPath(string $email, string $jobId): string {
+    $jobId = preg_replace('/[^a-f0-9]/i', '', $jobId);
+    return aiWorkerBaseDir($email) . '/' . $jobId . '.json';
+}
+
+function aiWorkerReadJob(string $path): array {
+    $data = json_decode((string)@file_get_contents($path), true);
+    return is_array($data) ? $data : [];
+}
+
+function aiWorkerWriteJob(string $path, array $job): void {
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+        throw new RuntimeException('Worker storage is not writable');
+    }
+    $json = json_encode($job, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false || @file_put_contents($path, $json, LOCK_EX) === false) {
+        throw new RuntimeException('Worker storage is not writable');
+    }
+    @chmod($dir, 0700);
+    @chmod($path, 0600);
+}
+
+function aiWorkerEvent(array &$job, string $type, string $text, array $data = []): void {
+    $job['events'][] = ['id' => count($job['events'] ?? []) + 1, 'type' => $type, 'text' => $text, 'data' => $data, 'time' => time()];
+    $job['updated_at'] = time();
+}
+
+function aiWorkerUsernameFromEmail(string $email): string {
+    $username = str_replace(['@', '.'], '_', $email);
+    $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
+    return $username ?: 'guest';
+}
+
+function aiRunStart(array $input): array {
+    $email = aiCurrentEmailForChat();
+    $message = trim((string)($input['message'] ?? ''));
+    if ($message === '') return ['success' => false, 'error' => 'Message is required'];
+    $chatId = trim((string)($input['chat_id'] ?? ''));
+    try {
+        $db = getAiDb();
+        if (!$db) return ['success' => false, 'error' => 'Database unavailable'];
+        ensureAiChatTable($db);
+        $chatId = aiEnsureChatSessionJson($email, $chatId, $message, $db);
+        $jobId = bin2hex(random_bytes(12));
+        $token = bin2hex(random_bytes(16));
+        $job = [
+            'id' => $jobId,
+            'token' => $token,
+            'email' => $email,
+            'user' => aiWorkerUsernameFromEmail($email),
+            'chat_id' => $chatId,
+            'status' => 'queued',
+            'message' => $message,
+            'user_facing_message' => (string)($input['user_facing_message'] ?? $message),
+            'model' => (string)($input['model'] ?? ''),
+            'role' => (string)($input['role'] ?? 'general'),
+            'chat_mode' => (string)($input['chat_mode'] ?? 'chat'),
+            'root' => (string)($input['root'] ?? 'main'),
+            'mentioned_files' => json_decode((string)($input['mentioned_files'] ?? '[]'), true) ?: [],
+            'mentioned_roots' => json_decode((string)($input['mentioned_roots'] ?? '{}'), true) ?: [],
+            'attachments' => json_decode((string)($input['attachments'] ?? '[]'), true) ?: [],
+            'history' => json_decode((string)($input['history'] ?? '[]'), true) ?: [],
+            'config' => [
+                'api_key' => (string)($GLOBALS['config']['api_key'] ?? ''),
+                'api_endpoint' => (string)($GLOBALS['config']['api_endpoint'] ?? ''),
+                'default_model' => (string)($GLOBALS['config']['default_model'] ?? ''),
+                'models' => $GLOBALS['config']['models'] ?? [],
+            ],
+            'events' => [],
+            'created_at' => time(),
+            'updated_at' => time(),
+        ];
+        aiWorkerEvent($job, 'queued', 'Worker queued');
+        aiWorkerWriteJob(aiWorkerJobPath($email, $jobId), $job);
+        aiTouchChatSessionJson($email, $chatId, $message);
+        $php = PHP_BINARY;
+        if (stripos($php, 'php-fpm') !== false || !is_executable($php)) {
+            $detected = trim((string)shell_exec('command -v php 2>/dev/null'));
+            if ($detected !== '') $php = $detected;
+        }
+        $cmd = escapeshellarg($php) . ' ' . escapeshellarg(__FILE__) . ' ai_worker_run ' . escapeshellarg($jobId) . ' ' . escapeshellarg($token) . ' > /dev/null 2>&1 &';
+        @exec($cmd);
+        return ['success' => true, 'job_id' => $jobId, 'chat_id' => $chatId];
+    } catch (Exception $e) {
+        return ['success' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function aiRunStatus($jobId, $chatId = ''): array {
+    $email = aiCurrentEmailForChat();
+    $jobId = preg_replace('/[^a-f0-9]/i', '', (string)$jobId);
+    $path = $jobId !== '' ? aiWorkerJobPath($email, $jobId) : '';
+    if ($path === '' || !is_file($path)) {
+        $dir = aiWorkerBaseDir($email);
+        $files = is_dir($dir) ? glob($dir . '/*.json') : [];
+        usort($files, static fn($a, $b) => filemtime($b) <=> filemtime($a));
+        foreach ($files as $file) {
+            $job = aiWorkerReadJob($file);
+            if ($chatId === '' || (string)($job['chat_id'] ?? '') === (string)$chatId) {
+                $path = $file;
+                break;
+            }
+        }
+    }
+    if ($path === '' || !is_file($path)) return ['success' => true, 'job' => null];
+    $job = aiWorkerReadJob($path);
+    if (($job['status'] ?? '') === 'done' && empty($job['appended_at']) && (string)($job['email'] ?? '') === $email) {
+        $append = aiChatAppend($job['user_facing_message'] ?? $job['message'] ?? '', $job['answer'] ?? '', $job['model'] ?? '', '', '', '', '', aiWorkerMetaJson($job), $job['chat_id'] ?? '', $email);
+        if (!empty($append['success'])) {
+            $job['appended_at'] = time();
+            aiWorkerWriteJob($path, $job);
+        }
+    }
+    unset($job['token']);
+    return ['success' => true, 'job' => $job];
+}
+
+function aiRunCancel($jobId, $chatId = ''): array {
+    $email = aiCurrentEmailForChat();
+    $jobId = preg_replace('/[^a-f0-9]/i', '', (string)$jobId);
+    if ($jobId === '') return ['success' => false, 'error' => 'Job id is required'];
+    $path = aiWorkerJobPath($email, $jobId);
+    if (!is_file($path)) return ['success' => true, 'cancelled' => false];
+    $job = aiWorkerReadJob($path);
+    if ($chatId !== '' && (string)($job['chat_id'] ?? '') !== (string)$chatId) return ['success' => false, 'error' => 'Worker job not found'];
+    if (in_array((string)($job['status'] ?? ''), ['done', 'error', 'cancelled'], true)) return ['success' => true, 'cancelled' => (string)($job['status'] ?? '') === 'cancelled'];
+    $job['status'] = 'cancelled';
+    $job['cancelled_at'] = time();
+    aiWorkerEvent($job, 'cancelled', 'Worker cancelled');
+    aiWorkerWriteJob($path, $job);
+    return ['success' => true, 'cancelled' => true];
+}
+
+function aiWorkerCompletion(array $config, string $model, array $messages, int $maxTokens = 6000): string {
+    $payload = ['model' => cloud_ai_normalize_model_id($model ?: (string)($config['default_model'] ?? '')), 'messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => 0.2, 'stream' => false];
+    $result = cloud_ai_proxy_json($config, (string)$config['api_endpoint'], $payload, 'POST', PHP_SAPI === 'cli' ? 600 : null);
+    if (!$result['ok']) throw new RuntimeException($result['error'] ?: ('AI HTTP ' . $result['http']));
+    $data = json_decode((string)$result['body'], true);
+    $text = (string)($data['choices'][0]['message']['content'] ?? '');
+    if (trim($text) === '') throw new RuntimeException('Empty AI response');
+    return $text;
+}
+
+function aiWorkerMetaJson(array $job): string {
+    return json_encode([
+        'v' => 1,
+        'type' => 'agent',
+        'attachments' => array_values(array_filter((array)($job['attachments'] ?? []), 'is_array')),
+        'mentionedFiles' => array_values(array_filter((array)($job['mentioned_files'] ?? []), 'is_string')),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '';
+}
+
+function aiWorkerThrowIfCancelled(string $jobPath): void {
+    $job = aiWorkerReadJob($jobPath);
+    if (($job['status'] ?? '') === 'cancelled') throw new RuntimeException('Worker cancelled');
+}
+
+function aiWorkerRunCli($jobId, $token): void {
+    global $config;
+    $jobId = preg_replace('/[^a-f0-9]/i', '', (string)$jobId);
+    foreach (glob(aiWorkerBaseDir() . '/*/' . $jobId . '.json') ?: [] as $path) {
+        $job = aiWorkerReadJob($path);
+        if (!hash_equals((string)($job['token'] ?? ''), (string)$token)) continue;
+        try {
+            $job['status'] = 'running';
+            aiWorkerEvent($job, 'running', 'Worker started');
+            aiWorkerWriteJob($path, $job);
+            $workerConfig = !empty($config['api_key']) ? $config : (is_array($job['config'] ?? null) ? $job['config'] : []);
+            $answer = aiWorkerPerformJob($job, $workerConfig, $path);
+            $job = aiWorkerReadJob($path);
+            $job['status'] = 'done';
+            $job['answer'] = $answer;
+            aiWorkerEvent($job, 'done', 'Worker finished');
+            aiWorkerWriteJob($path, $job);
+            if (PHP_SAPI !== 'cli') {
+                $append = aiChatAppend($job['user_facing_message'] ?? $job['message'], $answer, $job['model'] ?? '', '', '', '', '', aiWorkerMetaJson($job), $job['chat_id'] ?? '', (string)($job['email'] ?? ''));
+                if (!empty($append['success'])) {
+                    $job = aiWorkerReadJob($path);
+                    $job['appended_at'] = time();
+                    aiWorkerWriteJob($path, $job);
+                }
+            }
+        } catch (Throwable $e) {
+            $job = aiWorkerReadJob($path);
+            if (($job['status'] ?? '') === 'cancelled' || $e->getMessage() === 'Worker cancelled') {
+                $job['status'] = 'cancelled';
+                aiWorkerWriteJob($path, $job);
+                return;
+            }
+            $job['status'] = 'error';
+            $job['error'] = $e->getMessage();
+            aiWorkerEvent($job, 'error', $e->getMessage());
+            aiWorkerWriteJob($path, $job);
+        }
+        return;
+    }
+    if (PHP_SAPI !== 'cli') {
+        echo json_encode(['success' => false, 'error' => 'Worker job not found']);
+    }
+}
+
+function aiWorkerPerformJob(array $job, array $config, string $jobPath): string {
+    aiWorkerThrowIfCancelled($jobPath);
+    $message = (string)($job['message'] ?? '');
+    $messages = [['role' => 'system', 'content' => 'You are a helpful assistant. Provide clear, concise responses. Reply in the same language as the user message.']];
+    foreach ((array)($job['history'] ?? []) as $msg) {
+        $role = (string)($msg['role'] ?? '');
+        $content = (string)($msg['content'] ?? '');
+        if (($role === 'user' || $role === 'assistant') && trim($content) !== '') $messages[] = ['role' => $role, 'content' => $content];
+    }
+    $messages[] = ['role' => 'user', 'content' => $message];
+    $answer = aiWorkerCompletion($config, (string)($job['model'] ?? ''), $messages, 4000);
+    return $answer;
 }
 
 function aiUserSettingsGet() {
@@ -760,7 +1115,7 @@ function getAiDb() {
 function aiPrepare($db, $sql) {
     if (!$db) throw new Exception('Database unavailable');
     $stmt = @$db->prepare($sql);
-    if (!$stmt) throw new Exception('DB prepare failed: ' . $db->lastErrorMsg());
+    if (!$stmt) throw new Exception('DB prepare failed');
     return $stmt;
 }
 

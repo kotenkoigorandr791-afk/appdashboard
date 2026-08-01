@@ -17,6 +17,59 @@ function cloud_ai_truncate_extracted_text(string $text, int $maxChars): string
     }
     return $text;
 }
+function cloud_ai_markdown_escape_cell(string $text): string
+{
+    return str_replace(["\r", "\n", '|'], [' ', ' ', '\|'], trim($text));
+}
+function cloud_ai_markdown_table(array $rows): string
+{
+    if ($rows === []) {
+        return '';
+    }
+    $width = 0;
+    foreach ($rows as $row) {
+        $width = max($width, count($row));
+    }
+    if ($width === 0) {
+        return '';
+    }
+    $normalized = [];
+    foreach ($rows as $row) {
+        $line = [];
+        for ($i = 0; $i < $width; $i++) {
+            $line[] = cloud_ai_markdown_escape_cell((string)($row[$i] ?? ''));
+        }
+        $normalized[] = $line;
+    }
+    $header = array_shift($normalized);
+    if (!array_filter($header, static fn(string $v): bool => $v !== '')) {
+        $header = array_map(static fn(int $i): string => 'Column ' . ($i + 1), range(0, $width - 1));
+    }
+    $out = ['| ' . implode(' | ', $header) . ' |', '| ' . implode(' | ', array_fill(0, $width, '---')) . ' |'];
+    foreach ($normalized as $row) {
+        $out[] = '| ' . implode(' | ', $row) . ' |';
+    }
+    return implode("\n", $out);
+}
+function cloud_ai_unzip_entry(string $filePath, string $entry): ?string
+{
+    $cmd = 'unzip -p ' . escapeshellarg($filePath) . ' ' . escapeshellarg($entry) . ' 2>/dev/null';
+    $out = shell_exec($cmd);
+    return is_string($out) && $out !== '' ? $out : null;
+}
+function cloud_ai_unzip_list(string $filePath): array
+{
+    $cmd = 'unzip -Z1 ' . escapeshellarg($filePath) . ' 2>/dev/null';
+    $out = shell_exec($cmd);
+    if (!is_string($out) || trim($out) === '') {
+        return [];
+    }
+    return array_values(array_filter(array_map('trim', explode("\n", $out)), static fn(string $s): bool => $s !== ''));
+}
+function cloud_ai_xml_text_decode(string $text): string
+{
+    return html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_XML1, 'UTF-8');
+}
 
 function cloud_ai_cell_scalar_value(mixed $value): string
 {
@@ -271,17 +324,18 @@ function cloud_ai_extract_spreadsheet_text(string $filePath, int $maxChars = 120
                     $coord = Coordinate::stringFromColumnIndex($colIndex) . $rowIndex;
                     $cell = $sheet->getCell($coord);
                     $val = cloud_ai_cell_scalar_value($cell->getCalculatedValue());
-                    if ($val !== '') {
-                        $cells[] = $val;
-                    }
+                    $cells[] = $val;
                 }
-                if ($cells !== []) {
-                    $rows[] = implode("\t", $cells);
+                while ($cells !== [] && end($cells) === '') {
+                    array_pop($cells);
+                }
+                if (array_filter($cells, static fn(string $v): bool => $v !== '')) {
+                    $rows[] = $cells;
                 }
             }
             if ($rows !== []) {
                 $label = $title !== '' ? $title : 'Sheet';
-                $chunks[] = '--- Sheet: ' . $label . " ---\n" . implode("\n", $rows);
+                $chunks[] = '## Sheet: ' . $label . "\n\n" . cloud_ai_markdown_table($rows);
             }
         }
         $text = trim(implode("\n\n", $chunks));
@@ -290,13 +344,149 @@ function cloud_ai_extract_spreadsheet_text(string $filePath, int $maxChars = 120
         }
         return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
     } catch (Throwable $e) {
+        if (strtolower(pathinfo($filePath, PATHINFO_EXTENSION)) === 'xlsx') {
+            $fallback = cloud_ai_extract_xlsx_xml_text($filePath, $maxChars);
+            if ($fallback['ok'] ?? false) {
+                return $fallback;
+            }
+        }
         return ['ok' => false, 'error' => 'Spreadsheet parse error: ' . $e->getMessage()];
     }
+}
+function cloud_ai_extract_xlsx_shared_strings(string $filePath): array
+{
+    $xml = cloud_ai_unzip_entry($filePath, 'xl/sharedStrings.xml');
+    if ($xml === null) {
+        return [];
+    }
+    $strings = [];
+    if (!preg_match_all('#<si\b[^>]*>(.*?)</si>#is', $xml, $items)) {
+        return [];
+    }
+    foreach ($items[1] as $si) {
+        $parts = [];
+        if (preg_match_all('#<t\b[^>]*>(.*?)</t>#is', $si, $texts)) {
+            foreach ($texts[1] as $t) {
+                $parts[] = cloud_ai_xml_text_decode($t);
+            }
+        }
+        $strings[] = implode('', $parts);
+    }
+    return $strings;
+}
+function cloud_ai_extract_xlsx_xml_text(string $filePath, int $maxChars = 120000): array
+{
+    $entries = array_values(array_filter(cloud_ai_unzip_list($filePath), static fn(string $s): bool => preg_match('#^xl/worksheets/sheet\d+\.xml$#i', $s) === 1));
+    if ($entries === []) {
+        return ['ok' => false, 'error' => 'No worksheets found in XLSX'];
+    }
+    sort($entries, SORT_NATURAL);
+    $shared = cloud_ai_extract_xlsx_shared_strings($filePath);
+    $chunks = [];
+    foreach ($entries as $index => $entry) {
+        $xml = cloud_ai_unzip_entry($filePath, $entry);
+        if ($xml === null) {
+            continue;
+        }
+        $rows = [];
+        if (!preg_match_all('#<row\b[^>]*>(.*?)</row>#is', $xml, $rowMatches)) {
+            continue;
+        }
+        foreach ($rowMatches[1] as $rowXml) {
+            $row = [];
+            if (!preg_match_all('#<c\b([^>]*)>(.*?)</c>#is', $rowXml, $cellMatches, PREG_SET_ORDER)) {
+                continue;
+            }
+            foreach ($cellMatches as $cellMatch) {
+                $attrs = $cellMatch[1] ?? '';
+                $cellXml = $cellMatch[2] ?? '';
+                $type = preg_match('#\bt="([^"]+)"#i', $attrs, $tm) ? $tm[1] : '';
+                $value = preg_match('#<v\b[^>]*>(.*?)</v>#is', $cellXml, $vm) ? cloud_ai_xml_text_decode($vm[1]) : '';
+                if ($type === 's' && isset($shared[(int)$value])) {
+                    $value = $shared[(int)$value];
+                }
+                $row[] = trim($value);
+            }
+            if (array_filter($row, static fn(string $v): bool => $v !== '')) {
+                $rows[] = $row;
+            }
+            if (count($rows) >= 5000) {
+                break;
+            }
+        }
+        $table = cloud_ai_markdown_table($rows);
+        if ($table !== '') {
+            $chunks[] = '## Sheet: Sheet ' . ($index + 1) . "\n\n" . $table;
+        }
+    }
+    $text = trim(implode("\n\n", $chunks));
+    if ($text === '') {
+        return ['ok' => false, 'error' => 'No data found in XLSX'];
+    }
+    return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
+}
+function cloud_ai_extract_docx_text(string $filePath, int $maxChars = 120000): array
+{
+    $xml = cloud_ai_unzip_entry($filePath, 'word/document.xml');
+    if (!is_string($xml) || $xml === '') {
+        return ['ok' => false, 'error' => 'DOCX document.xml not found'];
+    }
+    $chunks = [];
+    $xmlWithoutTables = preg_replace('#<w:tbl\b[^>]*>.*?</w:tbl>#is', '', $xml) ?? $xml;
+    if (preg_match_all('#<w:p\b[^>]*>(.*?)</w:p>#is', $xmlWithoutTables, $paragraphs)) {
+        foreach ($paragraphs[1] as $paragraph) {
+            $parts = [];
+            if (preg_match_all('#<w:t\b[^>]*>(.*?)</w:t>#is', $paragraph, $texts)) {
+                foreach ($texts[1] as $text) {
+                    $parts[] = cloud_ai_xml_text_decode($text);
+                }
+            }
+            $line = trim(implode('', $parts));
+            if ($line !== '') {
+                $chunks[] = $line;
+            }
+        }
+    }
+    if (preg_match_all('#<w:tbl\b[^>]*>(.*?)</w:tbl>#is', $xml, $tables)) {
+        foreach ($tables[1] as $tableXml) {
+        $rows = [];
+            if (!preg_match_all('#<w:tr\b[^>]*>(.*?)</w:tr>#is', $tableXml, $trMatches)) {
+                continue;
+            }
+            foreach ($trMatches[1] as $tr) {
+            $row = [];
+                if (!preg_match_all('#<w:tc\b[^>]*>(.*?)</w:tc>#is', $tr, $tcMatches)) {
+                    continue;
+                }
+                foreach ($tcMatches[1] as $tc) {
+                    $parts = [];
+                    if (preg_match_all('#<w:t\b[^>]*>(.*?)</w:t>#is', $tc, $texts)) {
+                        foreach ($texts[1] as $text) {
+                            $parts[] = cloud_ai_xml_text_decode($text);
+                        }
+                    }
+                    $row[] = trim(implode(' ', $parts));
+                }
+                if (array_filter($row, static fn(string $v): bool => $v !== '')) {
+                    $rows[] = $row;
+                }
+            }
+        $table = cloud_ai_markdown_table($rows);
+        if ($table !== '') {
+            $chunks[] = $table;
+        }
+        }
+    }
+    $text = trim(implode("\n\n", $chunks));
+    if ($text === '') {
+        return ['ok' => false, 'error' => 'No text found in DOCX'];
+    }
+    return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
 }
 
 function cloud_ai_is_extractable_document_ext(string $ext): bool
 {
-    return in_array($ext, ['pdf', 'ppt', 'pptx', 'xls', 'xlsx', 'ods'], true);
+    return in_array($ext, ['pdf', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'ods'], true);
 }
 
 function cloud_ai_extract_document_text(string $filePath, int $maxChars = 120000): array
@@ -304,6 +494,9 @@ function cloud_ai_extract_document_text(string $filePath, int $maxChars = 120000
     $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
     if ($ext === 'pdf') {
         return cloud_ai_extract_pdf_text($filePath, $maxChars);
+    }
+    if ($ext === 'docx') {
+        return cloud_ai_extract_docx_text($filePath, $maxChars);
     }
     if (in_array($ext, ['ppt', 'pptx'], true)) {
         return cloud_ai_extract_presentation_text($filePath, $maxChars);

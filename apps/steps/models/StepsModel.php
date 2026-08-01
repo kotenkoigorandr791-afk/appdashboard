@@ -242,3 +242,52 @@ function steps_delete_tree(string $dir): bool {
     return @rmdir($dir);
 }
 
+// Получение распределения шагов по годам (для графика)
+function getYearlyStepDistribution(AppDatabase $db): array {
+    $result = [];
+    try {
+        $query = 'SELECT strftime("%Y", date) as year, SUM(steps) as total_steps FROM steps GROUP BY year ORDER BY year ASC';
+        $stmt = $db->prepare($query);
+        $executionResult = $stmt->execute();
+        
+        while ($row = $executionResult->fetch(PDO::FETCH_ASSOC)) {
+            $result[] = [
+                'year' => $row['year'],
+                'steps' => (int)$row['total_steps']
+            ];
+        }
+    } catch (Exception $e) {
+        error_log("getYearlyStepDistribution failed: " . $e->getMessage());
+    }
+    return $result;
+}
+
+// Получение интенсивности шагов по месяцам текущего года (для графика)
+function getMonthlyStepIntensityCurrentYear(AppDatabase $db): array {
+    $currentYear = getCurrentYear();
+    $result = array_fill(0, 12, ['month' => 0, 'steps' => 0]);
+    
+    // Инициализируем массив с названиями месяцев
+    for ($i = 0; $i < 12; $i++) {
+        $result[$i]['month'] = $i + 1;
+    }
+    
+    try {
+        $query = 'SELECT strftime("%m", date) as month, SUM(steps) as total_steps FROM steps WHERE strftime("%Y", date) = :year GROUP BY month ORDER BY month ASC';
+        $stmt = $db->prepare($query);
+        $stmt->bindValue(':year', $currentYear, PDO::PARAM_STR);
+        $executionResult = $stmt->execute();
+        
+        while ($row = $executionResult->fetch(PDO::FETCH_ASSOC)) {
+            $monthIndex = (int)$row['month'] - 1;
+            if ($monthIndex >= 0 && $monthIndex < 12) {
+                $result[$monthIndex]['steps'] = (int)$row['total_steps'];
+            }
+        }
+    } catch (Exception $e) {
+        error_log("getMonthlyStepIntensityCurrentYear failed: " . $e->getMessage());
+    }
+    
+    return $result;
+}
+

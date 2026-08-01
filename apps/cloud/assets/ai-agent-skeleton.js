@@ -12,7 +12,6 @@
     const ROOT_ONLY_SERVER = new Set(['extract_document_text']);
     const CLIENT_TOOLS = new Set(['get_open_file', 'apply_editor_patch', 'compile_open_document', 'save_open_document', 'export_markdown_pdf', 'export_latex_pdf', 'delegate_subagent', 'ask_user']);
     const EDIT_TOOLS = new Set(['write_file', 'create_file', 'search_replace', 'replace_by_regex', 'json_edit', 'apply_editor_patch']);
-    const COMPILE_TOOLS = new Set(['compile_and_check', 'compile_open_document']);
     const READ_SEARCH_TOOLS = new Set([
         'read_file', 'get_open_file', 'search_in_files', 'search_by_regex',
         'list_directory', 'stat_path', 'web_search', 'image_search', 'open_url_fetch',
@@ -51,7 +50,7 @@
         'list_directory', 'extract_document_text'
     ];
     const BASE_TOOL_DEFINITIONS = [
-        { type: 'function', function: { name: 'read_file', description: 'Read part of a text file. Use offset_line and line_count for large files (do not read whole file at once).', parameters: { type: 'object', properties: { path: { type: 'string' }, offset_line: { type: 'integer', description: '1-based start line (default 1)' }, line_count: { type: 'integer', description: 'Lines to read (default 200, max 500)' }, max_chars: { type: 'integer', description: 'Max characters in response (default 32000)' } }, required: ['path'] } } },
+        { type: 'function', function: { name: 'read_file', description: 'Read part of a text file or extracted Markdown from PDF/Word/Excel/PowerPoint documents. Use offset_line and line_count for large files (do not read whole file at once).', parameters: { type: 'object', properties: { path: { type: 'string' }, offset_line: { type: 'integer', description: '1-based start line (default 1)' }, line_count: { type: 'integer', description: 'Lines to read (default 200, max 500)' }, max_chars: { type: 'integer', description: 'Max characters in response (default 32000)' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'get_open_file', description: 'Get open file path and content from the editor.', parameters: { type: 'object', properties: {} } } },
         { type: 'function', function: { name: 'write_file', description: 'REQUIRED for new/changed file content. Stage full file content (preview in editor, saved after agent run). Use this to add sections, paragraphs, or rewrite the file.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
         { type: 'function', function: { name: 'create_file', description: 'Create a new file. Fails if the file already exists. Use for explicit file creation requests.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional initial content' } }, required: ['path'] } } },
@@ -78,8 +77,8 @@
         { type: 'function', function: { name: 'archive_create', description: 'Create a ZIP archive from one or more files or folders.', parameters: { type: 'object', properties: { items: { type: 'array', items: { type: 'string' } }, archive_path: { type: 'string' } }, required: ['items', 'archive_path'] } } },
         { type: 'function', function: { name: 'verify_syntax', description: 'Local syntax check AFTER editing (py_compile, gcc -fsyntax-only, javac, or LaTeX). Also blocks unsafe code patterns. Run before compile_and_check.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional staged content' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'compile_and_check', description: 'Compile or run AFTER verify_syntax passes. Does not replace write_file/search_replace/apply_editor_patch.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional; do not use instead of an edit tool.' } }, required: ['path'] } } },
-        { type: 'function', function: { name: 'run_command', description: 'Run a whitelisted command in a sandboxed workspace and return stdout/stderr.', parameters: { type: 'object', properties: { command: { type: 'array', items: { type: 'string' } }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['command'] } } },
-        { type: 'function', function: { name: 'run_script', description: 'Write and run a one-time sandboxed helper script in the workspace for file processing, formatting, inspection, or mechanical edits. Script is deleted after execution.', parameters: { type: 'object', properties: { language: { type: 'string', enum: ['python3', 'node', 'php', 'sh'] }, script: { type: 'string' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['language', 'script'] } } },
+        { type: 'function', function: { name: 'run_command', description: 'Run a whitelisted argv command in the sandboxed workspace. Prefer compile_and_check for .py/.c/.cpp/.java and run_script for custom helpers. command MUST be an argv array like ["python3","main.py"], not a shell string. Allowed binaries include python3, node, php, gcc, g++, make, git, ls, cat, rg, and similar.', parameters: { type: 'object', properties: { command: { type: 'array', items: { type: 'string' }, description: 'Argv array, e.g. ["g++","-O2","a.cpp","-o","a.out"]' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['command'] } } },
+        { type: 'function', function: { name: 'run_script', description: 'Write and run a one-time sandboxed helper script in the workspace for file processing, formatting, inspection, or mechanical edits. Script is deleted after execution. Prefer this over ad-hoc shell when compiling/running helper logic.', parameters: { type: 'object', properties: { language: { type: 'string', enum: ['python3', 'node', 'php', 'sh'] }, script: { type: 'string' }, cwd: { type: 'string' }, timeout_seconds: { type: 'integer' } }, required: ['language', 'script'] } } },
         { type: 'function', function: { name: 'delegate_subagent', description: 'Delegate a focused subtask such as searching relevant code, reviewing errors, or planning a document fix. Use for parallelizable investigation and return the subtask result.', parameters: { type: 'object', properties: { task: { type: 'string' }, focus: { type: 'string' }, paths: { type: 'array', items: { type: 'string' } } }, required: ['task'] } } },
         { type: 'function', function: { name: 'compile_open_document', description: 'LaTeX/Markdown preview AFTER editing. Not a substitute for edit tools.', parameters: { type: 'object', properties: { format: { type: 'string', enum: ['markdown', 'latex', 'auto'] } } } } },
         { type: 'function', function: { name: 'save_open_document', description: 'Save the open LaTeX or Markdown document to the server.', parameters: { type: 'object', properties: {} } } },
@@ -91,7 +90,7 @@
         { type: 'function', function: { name: 'transcribe_audio', description: 'Transcribe an audio file on the server. Does not require opening the transcription editor.', parameters: { type: 'object', properties: { audio_path: { type: 'string' }, language: { type: 'string', description: 'Language code, default pl' } }, required: ['audio_path'] } } },
         { type: 'function', function: { name: 'get_transcription_progress', description: 'Check server audio transcription progress.', parameters: { type: 'object', properties: { progress_id: { type: 'string' } }, required: ['progress_id'] } } },
         { type: 'function', function: { name: 'list_directory', description: 'List files in the current folder or a subfolder. Can return recursive results.', parameters: { type: 'object', properties: { path: { type: 'string' }, recursive: { type: 'boolean' }, max_entries: { type: 'integer' } } } } },
-        { type: 'function', function: { name: 'extract_document_text', description: 'Extract text from PDF, Excel, or presentation. Root only.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } }
+        { type: 'function', function: { name: 'extract_document_text', description: 'Extract Markdown text from PDF, Word, Excel, or presentation. Root only.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } }
     ];
     let cachedSystemPrompt = null;
     let cachedChatSystemPrompt = null;
@@ -172,22 +171,6 @@
         };
         return list.sort((a, b) => rank(a.function.name) - rank(b.function.name));
     }
-    function detectExportPdfIntent(text) {
-        const s = String(text || '');
-        return /(?:pdf|пдф)|export\s+(?:to\s+)?pdf|save\s+(?:as\s+)?pdf|сохран(?:ить|и)[^\n]{0,40}(?:pdf|пдф)|экспорт[^\n]{0,20}(?:pdf|пдф)/iu.test(s);
-    }
-    function exportPdfTaskSystemHint(userTask) {
-        return `\n\n[PDF EXPORT ON SERVER]
-User wants PDF saved on the server.
-- For .md files: save_open_document if needed, then export_markdown_pdf.
-- For .tex files: call export_latex_pdf with path when the file is mentioned/attached or closed; it saves the PDF next to the source file.
-Do not ask for clarification.
-Request: «${String(userTask || '').slice(0, 400)}»`;
-    }
-    function detectSummarizeIntent(text) {
-        const s = String(text || '');
-        return /(?:конспект|кратк(?:ое|ий|о)|резюме|summary|summarize|outline|пересказ|обзор|brief|thesis|саммари)/iu.test(s);
-    }
     function extractAssistantMessageText(msg) {
         if (!msg || typeof msg !== 'object') return '';
         const c = msg.content;
@@ -223,24 +206,6 @@ Request: «${String(userTask || '').slice(0, 400)}»`;
             'aiChatAnswerNudge',
             'You used tools but returned no visible answer. Write a complete response for the user now (summary, analysis, or explanation). Use the file text already retrieved. Do not call more tools unless one short read is absolutely required.'
         );
-    }
-    function detectEditIntent(text) {
-        const s = String(text || '');
-        if (!s.trim()) return false;
-        const patterns = [
-            /(?:^|\s)(сделай|сделать|добавь|добавить|измени|изменить|исправь|исправить|напиши|написать|вставь|вставить|убери|удали|удалить|перепиши|обнови|замени|поправь|дополни|опиши|описать)(?:\s|$)/iu,
-            /чтобы\s+(?:тут|здесь|было|был|написано|содержал)/iu,
-            /(?:^|\s)(add|change|edit|fix|write|insert|remove|delete|update|replace|modify|implement|rewrite)(?:\s|$)/i,
-            /(?:make|let)\s+(?:it|this|the\s+file)/i
-        ];
-        return patterns.some((re) => re.test(s));
-    }
-    function editTaskSystemHint(userTask) {
-        return `\n\n[CONTENT EDIT REQUIRED — mandatory workflow]
-The user wants the file content changed. User request: «${String(userTask || '').slice(0, 500)}»
-1) Use write_file, create_file, search_replace, replace_by_regex, json_edit, or apply_editor_patch to apply the requested text.
-2) compile_and_check is BLOCKED until step 1 succeeds.
-3) Do not finish with only compilation — that does not fulfill the request.`;
     }
     function markEditDone(ctx, name, result) {
         if (!EDIT_TOOLS.has(name) || !result || result.error) return;
@@ -344,8 +309,101 @@ The user wants the file content changed. User request: «${String(userTask || ''
             return null;
         }
     }
+    const ROOT_PATH_ARGS = ['path', 'source_path', 'target_path', 'old_path', 'new_path', 'archive_path', 'audio_path'];
+    function resolveToolRoot(ctx, payload, root) {
+        if (typeof ctx?.rootForPath !== 'function') return root;
+        const key = ROOT_PATH_ARGS.find((k) => typeof payload?.[k] === 'string' && payload[k].trim() !== '')
+            || (Array.isArray(payload?.paths) && typeof payload.paths[0] === 'string' ? 'paths' : '');
+        if (!key) return root;
+        const path = key === 'paths' ? payload.paths[0] : payload[key];
+        try {
+            return ctx.rootForPath(path) || root;
+        } catch (e) {
+            return root;
+        }
+    }
+    function normalizeToolPathArgs(payload, ctx) {
+        const out = { ...(payload || {}) };
+        const aliasKeys = ['file', 'filename', 'file_path', 'filepath', 'target', 'target_file'];
+        if (typeof out.path !== 'string' || !String(out.path).trim()) {
+            for (const key of aliasKeys) {
+                if (typeof out[key] === 'string' && out[key].trim()) {
+                    out.path = out[key].trim();
+                    break;
+                }
+            }
+        }
+        if ((typeof out.path !== 'string' || !String(out.path).trim()) && ctx) {
+            const fallback = String(ctx.defaultPath || ctx.openPath || '').trim();
+            if (fallback) out.path = fallback;
+        }
+        if (typeof out.path === 'string') {
+            out.path = out.path.replace(/\\/g, '/').replace(/^\/+/, '').trim();
+        }
+        for (const key of ['source_path', 'target_path', 'old_path', 'new_path', 'archive_path', 'audio_path']) {
+            if (typeof out[key] === 'string') {
+                out[key] = out[key].replace(/\\/g, '/').replace(/^\/+/, '').trim();
+            }
+        }
+        if (Array.isArray(out.paths)) {
+            out.paths = out.paths.map((p) => String(p || '').replace(/\\/g, '/').replace(/^\/+/, '').trim()).filter(Boolean);
+        }
+        return out;
+    }
+    function normalizeCommandArgv(raw) {
+        if (Array.isArray(raw)) {
+            return raw.map((p) => String(p ?? '').trim()).filter(Boolean);
+        }
+        if (typeof raw !== 'string') return [];
+        const text = raw.trim();
+        if (!text) return [];
+        const parts = [];
+        const re = /"([^"\\]*(?:\\.[^"\\]*)*)"|'([^']*)'|(\S+)/g;
+        let m;
+        while ((m = re.exec(text)) !== null) {
+            if (m[1] != null && m[1] !== undefined && m[0].startsWith('"')) parts.push(m[1].replace(/\\(["\\])/g, '$1'));
+            else if (m[2] != null && m[0].startsWith("'")) parts.push(m[2]);
+            else if (m[3]) parts.push(m[3]);
+        }
+        return parts.filter(Boolean);
+    }
+    function normalizeRunCommandArgs(payload) {
+        const out = { ...(payload || {}) };
+        let command = out.command ?? out.cmd ?? out.argv ?? null;
+        if (command == null && typeof out.path === 'string' && /\.(py|js|php|sh)$/i.test(out.path)) {
+            const ext = out.path.split('.').pop().toLowerCase();
+            const bin = ext === 'py' ? 'python3' : (ext === 'js' ? 'node' : (ext === 'php' ? 'php' : 'sh'));
+            command = [bin, out.path];
+        }
+        out.command = normalizeCommandArgv(command);
+        if (out.command[0]) {
+            out.command[0] = String(out.command[0]).replace(/^\.\//, '').split('/').pop().toLowerCase();
+        }
+        delete out.cmd;
+        delete out.argv;
+        return out;
+    }
     async function executeServerTool(ctx, apiBase, tool, args, root, hooks) {
-        const payload = { ...(args || {}) };
+        let payload = normalizeToolPathArgs(args || {}, ctx);
+        if (tool === 'run_command') {
+            payload = normalizeRunCommandArgs(payload);
+            if (!payload.command.length) {
+                throw new Error(agentTr(ctx, 'aiAgentCommandRequired', 'command is required (array of argv, e.g. ["python3","file.py"])'));
+            }
+        }
+        if (tool === 'run_script') {
+            if (!payload.language && payload.lang) payload.language = payload.lang;
+            if (!payload.script && typeof payload.code === 'string') payload.script = payload.code;
+            if (!payload.script && typeof payload.content === 'string') payload.script = payload.content;
+            if (!String(payload.language || '').trim() || !String(payload.script || '').trim()) {
+                throw new Error(agentTr(ctx, 'aiAgentScriptRequired', 'run_script requires language and script'));
+            }
+        }
+        if (['write_file', 'create_file', 'read_file', 'search_replace', 'replace_by_regex', 'verify_syntax', 'compile_and_check'].includes(tool)) {
+            if (!payload.path) {
+                throw new Error(agentTr(ctx, 'aiAgentPathRequired', 'path is required'));
+            }
+        }
         if (tool === 'search_in_files') {
             if ((!payload.paths || !payload.paths.length) && payload.path) {
                 payload.paths = [payload.path];
@@ -370,14 +428,19 @@ The user wants the file content changed. User request: «${String(userTask || ''
             const staged = hooks.getStagedContent(payload.path);
             if (staged != null) payload.content = staged;
         }
-        const body = new URLSearchParams({ action: 'ai_agent_tool', tool, args: JSON.stringify(payload), root: root || '' });
+        const callRoot = resolveToolRoot(ctx, payload, root);
+        const body = new URLSearchParams({ action: 'ai_agent_tool', tool, args: JSON.stringify(payload), root: callRoot || '' });
         const res = await fetch(apiBase, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, credentials: 'same-origin', body });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) {
-            throw new Error(data.error || agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool }));
+            let msg = data.error || `${agentTr(ctx, 'aiAgentToolFailed', 'Tool {tool} failed', { tool })} (HTTP ${res.status})`;
+            if (Array.isArray(data.allowed) && data.allowed.length) {
+                msg += ` Allowed: ${data.allowed.slice(0, 24).join(', ')}…`;
+            }
+            throw new Error(msg);
         }
         if (data.staged && data.path && hooks?.onFileStaged) {
-            hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool });
+            hooks.onFileStaged(data.path, data.before ?? '', data.after ?? '', { tool, root: data.root || callRoot });
         }
         if (tool === 'compile_and_check' && payload.content != null && payload.path && hooks?.onFileStaged && hooks?.getOpenFile) {
             try {
@@ -388,7 +451,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
                     const before = hooks.getStagedContent?.(payload.path) ?? open.content ?? '';
                     const after = String(payload.content);
                     if (after !== before) {
-                        hooks.onFileStaged(payload.path, before, after, { tool: 'compile_and_check' });
+                        hooks.onFileStaged(payload.path, before, after, { tool: 'compile_and_check', root: callRoot });
                     }
                 }
             } catch (e) {}
@@ -454,12 +517,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         if (ctx.readOnly && !isChatAllowedTool(name, ctx)) {
             throw new Error(agentTr(ctx, 'aiChatToolReadOnly', 'Tool not available in chat mode (read-only): {tool}', { tool: name }));
         }
-        if (ctx.requiresContentEdit && !ctx.hasFileEdit && COMPILE_TOOLS.has(name)) {
-            return {
-                ok: false,
-                error: agentTr(ctx, 'aiAgentEditBlockedCompile', 'Blocked: user asked to change file content. Call a file-edit tool first (write_file, create_file, search_replace, replace_by_regex, json_edit, or apply_editor_patch), then compile.')
-            };
-        }
         if (ALL_SERVER_TOOLS.has(name)) {
             if (name === 'delete_file' || name === 'delete_directory') {
                 if (typeof ctx.hooks?.askUser !== 'function') {
@@ -489,7 +546,7 @@ The user wants the file content changed. User request: «${String(userTask || ''
                 const res = await fetch(url.toString(), { credentials: 'same-origin' });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok || !data.ok) throw new Error(data.error || 'extract failed');
-                return { path: data.path, content: data.content };
+                return { path: data.path, content: data.content, format: data.format || 'markdown', extracted: !!data.extracted };
             }
             const data = await executeServerTool(ctx, ctx.apiBase, name, args, ctx.root, ctx.hooks);
             markEditDone(ctx, name, data);
@@ -510,16 +567,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         totals.total += Number(u.total_tokens) || (Number(u.prompt_tokens) || 0) + (Number(u.completion_tokens) || 0);
         return totals;
     }
-    function replyLanguageHint(lang) {
-        const code = String(lang || '').toLowerCase();
-        if (code === 'ru') {
-            return '\n\n[MANDATORY] The user writes in Russian. Every chat reply MUST be in Russian. Do not switch to English.';
-        }
-        if (code === 'en') {
-            return '\n\n[MANDATORY] The user writes in English. Every chat reply MUST be in English unless they switch language.';
-        }
-        return '';
-    }
     function buildStepLimitPrompt(ctx) {
         return {
             question: agentTr(ctx, 'aiAgentStepLimitQuestion', 'The assistant reached the edit step limit for this pass. Continue or interrupt?'),
@@ -531,9 +578,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
     }
     function repeatedCompileFailureText(ctx, errorText) {
         const err = errorText || agentTr(ctx, 'aiPlanResultFailed', 'Error');
-        if (String(ctx.replyLanguage || '').toLowerCase() === 'ru') {
-            return `Компиляция дважды завершилась одной и той же ошибкой. Я остановился, чтобы не повторять одну и ту же правку. Оставшаяся проблема: ${err}`;
-        }
         return agentTr(
             ctx,
             'aiAgentRepeatedCompileFailure',
@@ -564,17 +608,10 @@ The user wants the file content changed. User request: «${String(userTask || ''
         const readOnly = !!ctx.readOnly;
         await loadAgentPrompts(ctx.apiBase, ctx.openPath, readOnly ? 'chat' : 'agent');
         ctx.hasFileEdit = false;
-        ctx.wantsExportPdf = !readOnly && ctx.wantsExportPdf !== false && detectExportPdfIntent(ctx.userTask);
-        ctx.requiresContentEdit = !readOnly && ctx.requiresContentEdit !== false && detectEditIntent(ctx.userTask) && !ctx.wantsExportPdf;
         const tools = readOnly ? getChatToolDefinitions(ctx) : getToolDefinitions(ctx);
-        let systemContent = (readOnly ? chatSystemPrompt() : agentSystemPrompt()) + replyLanguageHint(ctx.replyLanguage);
+        let systemContent = readOnly ? chatSystemPrompt() : agentSystemPrompt();
         if (String(ctx.userTask || '').trim()) {
             systemContent += `\n\n[CURRENT USER REQUEST]\n${String(ctx.userTask || '').trim()}\n[/CURRENT USER REQUEST]`;
-        }
-        if (ctx.wantsExportPdf) systemContent += exportPdfTaskSystemHint(ctx.userTask);
-        if (ctx.requiresContentEdit) systemContent += editTaskSystemHint(ctx.userTask);
-        if (readOnly && detectSummarizeIntent(ctx.userTask)) {
-            systemContent += '\n\n[DOCUMENT SUMMARY]\nThe user wants a summary or conspect. Read the file if needed, then write a full structured answer in the user language. Never finish without written text for the user.';
         }
         const currentTask = String(ctx.userTask || '').trim();
         const historyMessages = (ctx.historyMessages || []).filter((m) => {
@@ -587,7 +624,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         const usageTotals = { prompt: 0, completion: 0, total: 0 };
         ctx.editStepsUsed = 0;
         ctx.maxEditStepsBudget = ctx.maxEditSteps ?? ctx.maxSteps ?? 14;
-        let editNudges = 0;
         let answerNudges = 0;
         let forceAnswerOnly = false;
         let xmlToolMode = false;
@@ -628,15 +664,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
                     messages.push({
                         role: 'user',
                         content: 'Do not narrate internal steps. If you need a file or compiler result, call the tool now. If the task is complete, give only a short final answer to the user in their language.'
-                    });
-                    continue;
-                }
-                if (ctx.requiresContentEdit && !ctx.hasFileEdit && editNudges < 4) {
-                    editNudges++;
-                    messages.push({ role: 'assistant', content: msg.content || null });
-                    messages.push({
-                        role: 'user',
-                        content: agentTr(ctx, 'aiAgentEditNudge', 'You have not edited the file yet. The user requested content changes. Call a file-edit tool now (write_file, create_file, search_replace, replace_by_regex, json_edit, or apply_editor_patch), then compile if needed.')
                     });
                     continue;
                 }
@@ -723,9 +750,6 @@ The user wants the file content changed. User request: «${String(userTask || ''
         toolLabelFor,
         READ_SEARCH_TOOLS,
         isChatAllowedTool,
-        detectEditIntent,
-        detectExportPdfIntent,
-        EDIT_TOOLS,
-        COMPILE_TOOLS
+        EDIT_TOOLS
     };
 })(typeof window !== 'undefined' ? window : globalThis);

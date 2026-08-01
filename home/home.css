@@ -1,31 +1,36 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html {
-  background: linear-gradient(135deg, #07111e, #0c2035, #0e2a40);
-  scrollbar-color: rgba(20,42,58,0.9) rgba(5,12,20,0.95);
-  scrollbar-width: thin;
+  background-color: #07111e;
+  background-image: linear-gradient(135deg, #07111e, #0c2035, #0e2a40);
+  color-scheme: dark;
+  scrollbar-color: rgba(20,42,58,0.9) #07111e;
 }
 html:has(body.light-theme) {
-  background: linear-gradient(135deg, #edf4fb, #d5eaf5, #c2dff0);
-  scrollbar-color: rgba(0,0,0,0.22) rgba(0,0,0,0.04);
+  background-color: #edf4fb;
+  background-image: linear-gradient(135deg, #edf4fb, #d5eaf5, #c2dff0);
+  color-scheme: light;
+  scrollbar-color: rgba(0,0,0,0.22) #edf4fb;
 }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: rgba(5,12,20,0.95); border-radius: 10px; }
+::-webkit-scrollbar-track { background: #07111e; }
 ::-webkit-scrollbar-thumb { background: rgba(20,42,58,0.9); border-radius: 10px; transition: background 0.2s; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(36,62,82,0.98); }
-body.light-theme ::-webkit-scrollbar-track { background: rgba(0,0,0,0.04); }
+::-webkit-scrollbar-corner { background: #07111e; }
+body.light-theme ::-webkit-scrollbar-track { background: #edf4fb; }
 body.light-theme ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.22); }
 body.light-theme ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.38); }
+body.light-theme ::-webkit-scrollbar-corner { background: #edf4fb; }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  background: linear-gradient(135deg, #07111e, #0c2035, #0e2a40);
+  background: #07111e linear-gradient(135deg, #07111e, #0c2035, #0e2a40);
   color: #deeeff;
   min-height: 100vh;
   transition: background 0.25s, color 0.2s;
 }
 body.light-theme {
-  background: linear-gradient(135deg, #edf4fb, #d5eaf5, #c2dff0);
+  background: #edf4fb linear-gradient(135deg, #edf4fb, #d5eaf5, #c2dff0);
   color: #1a2b38;
 }
 
@@ -633,7 +638,7 @@ body.light-theme .loading-overlay {
 /* ── Responsive ── */
 @media (max-width: 600px) {
   .site-header { flex-direction: column; align-items: stretch; padding: 12px 8px; height: auto; min-height: 66px; }
-  .header-left { justify-content: flex-start; width: 100%; position: relative; gap: 0; min-height: 42px; }
+  .header-left { justify-content: flex-start; width: 100%; position: relative; gap: 0; min-height: 42px; overflow: hidden; }
   .header-left .nav-open-btn { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); flex-shrink: 0; z-index: 2; margin: 0; }
   .header-right { justify-content: center; }
   .header-sep { display: block; height: 0; border: 0; border-top: 1px dashed rgba(255,255,255,0.12); width: 100%; margin: 2px 0; }
@@ -646,6 +651,7 @@ body.light-theme .loading-overlay {
   #calendarPopover { order: 4; }
   .site-header.brand-hidden { flex-direction: row; height: 50px; min-height: auto; padding: 0 8px; align-items: center; }
   .site-header.brand-hidden .header-left { width: auto; min-height: auto; }
+  .site-header.brand-hidden .header-left .nav-open-btn { position: static; transform: none; }
   .site-header.brand-hidden .header-left .brand { display: none !important; }
   .site-header.brand-hidden .header-sep { display: none; }
   .site-header.brand-hidden .header-right { justify-content: flex-end; flex-wrap: nowrap; flex: 1; gap: 8px; }
@@ -660,7 +666,7 @@ body.light-theme .loading-overlay {
 .news-layout-toggle-btn { padding: 8px 20px; border-radius: 20px; border: 1px solid var(--primary-color,#38bdf8); background: transparent; color: var(--primary-color,#38bdf8); font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s, color .2s; }
 .news-layout-toggle-btn:hover, .news-layout-toggle-btn.active { background: var(--primary-color,#38bdf8); color: #fff; }
 /* Normal grid (non-edit) */
-.news-canvas { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.news-canvas { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 20px; }
 .news-canvas.layout-mode { position: relative; min-height: 500px; display: block; }
 /* News card */
 .news-card { position: relative; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.11); border-radius: 16px; overflow: hidden; cursor: pointer; transition: box-shadow .2s, transform .15s; }

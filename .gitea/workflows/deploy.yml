@@ -1,12 +1,10 @@
 name: Deploy AppDashboard
 on:
-  push:
+  pull_request:
     branches:
       - main
-      - develop
 jobs:
   deploy-main:
-    if: gitea.ref == 'refs/heads/main'
     runs-on: appdashboard-deploy
     steps:
       - name: Deploy main
@@ -18,40 +16,6 @@ jobs:
             git checkout main
           fi
           git reset --hard origin/main
-          if [ -n "$(git status --porcelain)" ]; then
-            git status --short
-            echo "Working tree is dirty; commit or stash server changes before deploy."
-            exit 1
-          fi
-          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
-          git archive --format=tar HEAD | docker exec -i appdashboard tar -C /var/www/AppDashboard -xf -
-          docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
-          docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
-          docker exec appdashboard /var/www/AppDashboard/bot/.venv/bin/pip install -q -r /var/www/AppDashboard/bot/requirements.txt
-          docker exec appdashboard /var/www/AppDashboard/bot/.venv/bin/python3 -m py_compile /var/www/AppDashboard/bot/bot.py
-          docker exec appdashboard php -l /var/www/AppDashboard/bot/bot_service.php
-          docker exec appdashboard php -l /var/www/AppDashboard/bot/tg_mini_auth.php
-          docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/apps/cloud
-          docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
-          sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh
-          sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
-          docker exec appdashboard nginx -t
-          docker restart appdashboard
-  deploy-develop:
-    if: gitea.ref == 'refs/heads/develop'
-    runs-on: appdashboard-dev-deploy
-    steps:
-      - name: Deploy develop
-        run: |
-          set -euo pipefail
-          cd /opt/docker/appdashboard/code
-          git fetch origin develop
-          if git show-ref --verify --quiet refs/heads/develop; then
-            git checkout develop
-          else
-            git checkout -b develop --track origin/develop
-          fi
-          git merge --ff-only origin/develop
           if [ -n "$(git status --porcelain)" ]; then
             git status --short
             echo "Working tree is dirty; commit or stash server changes before deploy."

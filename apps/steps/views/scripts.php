@@ -9,6 +9,7 @@
               
         const chartTypeStorageKey = () => 'stepsChartType_' + String(currentUser || 'u').replace(/[^a-z0-9_\-]/gi, '_');
         let currentView = 'year', currentDataType = 'steps', currentDate = new Date(), chart = null;
+        let yearlyDistributionChart = null, monthlyIntensityChart = null;
         let currentChartType = 'bar';
         try { const _ct = localStorage.getItem(chartTypeStorageKey()); if (_ct === 'bar' || _ct === 'line') currentChartType = _ct; } catch (e) {}
         let selectedCells = new Set();
@@ -242,6 +243,9 @@
                     const vn = document.getElementById('video-recognition-notification');
                     if (vn) vn.style.display = 'none';
                 }
+                if (modalId === 'stats-modal') {
+                    setTimeout(renderStatisticsModal, 0);
+                }
                 modal.addEventListener('click', function(e) {
                     if (e.target === modal) {
                         closeModal(modalId);
@@ -251,7 +255,7 @@
         }
         
         function refreshBodyModalLock() {
-            const ids = ['info-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','excel-modal','excel-hotkeys-modal','backups-modal','alert-modal','video-crop-modal'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','excel-modal','excel-hotkeys-modal','backups-modal','alert-modal','video-crop-modal','guide-expand-modal'];
             const any = ids.some(id => { const m = document.getElementById(id); return m && window.getComputedStyle(m).display === 'flex'; });
             if (any) document.body.classList.add('modal-open');
             else document.body.classList.remove('modal-open');
@@ -272,6 +276,15 @@
                     } catch (eCu) {}
                     if (typeof destroyVideoConfirmChart === 'function') destroyVideoConfirmChart();
                     if (typeof closeVideoGapsModal === 'function') closeVideoGapsModal();
+                }
+                if (modalId === 'guide-expand-modal') {
+                    const gf = document.getElementById('guide-expand-frame');
+                    if (gf) gf.src = 'about:blank';
+                }
+                if (modalId === 'stats-modal') {
+                    destroyStatisticsCharts();
+                    const statsButton = document.getElementById('stats-button');
+                    if (statsButton) statsButton.classList.remove('active');
                 }
                 refreshBodyModalLock();
             }
@@ -361,7 +374,8 @@
         }
 
         function renderChart(view, selectedDate, dataType, chartType, lang = currentLocale) {
-            if (chart) chart.destroy();
+            if (chart) { chart.destroy(); chart = null; }
+
             const chartData = prepareChartData(view, selectedDate, dataType, lang);
             if (!chartData.data.length) return;
             
@@ -576,6 +590,107 @@
             if (goalNotifRevealDone) el.style.display = 'block';
         }
         
+        function destroyStatisticsCharts() {
+            if (yearlyDistributionChart) { yearlyDistributionChart.destroy(); yearlyDistributionChart = null; }
+            if (monthlyIntensityChart) { monthlyIntensityChart.destroy(); monthlyIntensityChart = null; }
+        }
+        function renderStatisticsModal(lang = currentLocale) {
+            destroyStatisticsCharts();
+            const empty = document.getElementById('stats-empty');
+            const grid = document.querySelector('#stats-modal .stats-grid');
+            if (!stepsData.length) {
+                if (empty) empty.style.display = 'block';
+                if (grid) grid.style.display = 'none';
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            if (grid) grid.style.display = 'grid';
+            const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
+            const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
+            const chartTextColor = isDarkTheme ? '#fff' : '#000';
+            const palette = ['#007bff', '#28a745', '#ffc107', '#dc3545', '#6610f2', '#20c997', '#fd7e14', '#6f42c1', '#17a2b8', '#e83e8c', '#6c757d', '#198754'];
+            const yearlyTotals = new Map();
+            stepsData.forEach(entry => {
+                const d = localDateFromYMD(entry.date);
+                if (!isNaN(d.getTime())) yearlyTotals.set(d.getFullYear(), (yearlyTotals.get(d.getFullYear()) || 0) + (Number(entry.steps) || 0));
+            });
+            const yearlyLabels = Array.from(yearlyTotals.keys()).sort((a, b) => a - b);
+            const yearlyData = yearlyLabels.map(year => yearlyTotals.get(year));
+            const totalAllYears = yearlyData.reduce((sum, value) => sum + value, 0);
+            yearlyDistributionChart = new Chart(document.getElementById('stats-years-chart').getContext('2d'), {
+                type: 'pie',
+                data: {
+                    labels: yearlyLabels,
+                    datasets: [{
+                        label: translations.statistics_pie_chart_label || 'Yearly Step Share',
+                        data: yearlyData,
+                        backgroundColor: yearlyLabels.map((_, i) => palette[i % palette.length]),
+                        borderColor: isDarkTheme ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: chartTextColor } },
+                        tooltip: {
+                            callbacks: {
+                                label: context => {
+                                    const value = Number(context.raw) || 0;
+                                    const pct = totalAllYears ? (value / totalAllYears * 100).toFixed(1) : '0.0';
+                                    return `${context.label}: ${formatNumber(value)} ${translations.steps || 'steps'} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            const year = new Date().getFullYear();
+            const monthly = Array.from({ length: 12 }, () => 0);
+            stepsData.forEach(entry => {
+                const d = localDateFromYMD(entry.date);
+                if (!isNaN(d.getTime()) && d.getFullYear() === year) monthly[d.getMonth()] += Number(entry.steps) || 0;
+            });
+            const monthlyTitle = document.getElementById('stats-monthly-title');
+            if (monthlyTitle) monthlyTitle.textContent = (translations.statistics_monthly_intensity || 'Monthly Step Intensity') + ' ' + year;
+            monthlyIntensityChart = new Chart(document.getElementById('stats-months-chart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: Array.from({ length: 12 }, (_, i) => new Date(year, i, 1).toLocaleDateString(lang, { month: 'short' })),
+                    datasets: [{
+                        label: translations.statistics_bar_chart_label || 'Monthly Step Intensity',
+                        data: monthly,
+                        backgroundColor: createBarGradient(document.getElementById('stats-months-chart'), 0.7),
+                        borderColor: 'rgba(0,123,255,1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: chartGridColor },
+                            border: { color: chartGridColor },
+                            ticks: { color: chartTextColor, callback: v => formatNumber(v) },
+                            title: { display: true, text: translations.steps || 'Steps', color: chartTextColor }
+                        },
+                        x: {
+                            grid: { color: chartGridColor },
+                            border: { color: chartGridColor },
+                            ticks: { color: chartTextColor }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: context => `${translations.steps || 'Steps'}: ${formatNumber(Math.round(context.raw))}` } }
+                    }
+                }
+            });
+        }
+
         // Функции для календаря
         function updateCalendar(lang = currentLocale) {
             const yearSelector = document.getElementById('year-selector');
@@ -1744,19 +1859,33 @@
             const lines = root.querySelectorAll('.va-step-line');
             dots.forEach((dot, idx) => {
                 const step = idx + 1;
+                const done = step < currentStep;
                 dot.classList.toggle('is-active', step === currentStep);
-                dot.classList.toggle('is-done', step < currentStep);
+                dot.classList.toggle('is-done', done);
+                dot.textContent = done ? '✓' : (idx + 1);
                 dot.disabled = !!locked || step > maxReached;
             });
             lines.forEach((line, idx) => { line.classList.toggle('is-done', idx + 1 < currentStep); });
+            const fill = root.querySelector('.va-progress-fill');
+            if (fill) fill.style.width = ((currentStep - 1) / Math.max(1, dots.length - 1)) * 100 + '%';
         }
         function setWizardSections(panelId, currentStep, locked) {
             const panel = document.getElementById(panelId);
             if (!panel) return;
+            const prev = panel._wizardPrevStep != null ? panel._wizardPrevStep : currentStep;
+            panel._wizardPrevStep = currentStep;
+            const dir = currentStep > prev ? 'next' : (currentStep < prev ? 'prev' : 'up');
             panel.querySelectorAll('[data-step-section]').forEach((section) => {
                 const step = parseInt(section.getAttribute('data-step-section') || '0', 10);
                 const active = step === currentStep;
-                section.style.display = active ? '' : 'none';
+                if (active) {
+                    section.style.display = '';
+                    section.classList.remove('va-section-in-up', 'va-section-in-next', 'va-section-in-prev');
+                    void section.offsetWidth;
+                    section.classList.add('va-section-in-' + dir);
+                } else {
+                    section.style.display = 'none';
+                }
                 section.classList.toggle('is-locked', !!locked);
                 section.querySelectorAll('input,select,button,textarea').forEach((el) => {
                     if (el.dataset && el.dataset.wizardKeepEnabled === '1') return;
@@ -2566,6 +2695,13 @@
                     syncCalendarSelectors();
                 });
             });
+            const statsButton = document.getElementById('stats-button');
+            if (statsButton) {
+                statsButton.addEventListener('click', () => {
+                    statsButton.classList.add('active');
+                    openModal('stats-modal');
+                });
+            }
             
             // Обработчики для типа данных
             document.querySelectorAll('.data-type-btn').forEach(btn => {
@@ -2957,6 +3093,22 @@
                     zeepGuideToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                 });
             }
+            function openGuideExpand(which) {
+                const src = document.getElementById(which === 'zeep' ? 'zeep-guide-frame' : 'takeout-guide-frame');
+                const frame = document.getElementById('guide-expand-frame');
+                const title = document.getElementById('guide-expand-title-text');
+                if (frame && src) { frame.src = src.src; frame.title = src.title || ''; }
+                if (title) {
+                    title.textContent = which === 'zeep'
+                        ? (translations.zeep_guide_title || 'How to export Zeep Life data')
+                        : (translations.takeout_guide_title || 'How to create a Google Takeout archive');
+                }
+                openModal('guide-expand-modal');
+            }
+            const zeepGuideExpand = document.getElementById('zeep-guide-expand');
+            if (zeepGuideExpand) zeepGuideExpand.addEventListener('click', () => openGuideExpand('zeep'));
+            const takeoutGuideExpand = document.getElementById('takeout-guide-expand');
+            if (takeoutGuideExpand) takeoutGuideExpand.addEventListener('click', () => openGuideExpand('takeout'));
             [['video-confirm-phone-guide-segment','video-confirm-phone-guide-toggle']].forEach(function(pair) {
                 const seg = document.getElementById(pair[0]);
                 const btn = document.getElementById(pair[1]);

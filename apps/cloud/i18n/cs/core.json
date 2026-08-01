@@ -389,6 +389,8 @@
   "tabs": "Karty",
   "closeOthers": "Zavřít Ostatní",
   "closeAll": "Zavřít vše",
+  "closeCurrent": "Zavřít pouze aktuální",
+  "closeOtherTabs": "Zavřít všechny ostatní karty",
   "showInTree": "Zobrazit ve stromu",
   "closeOtherModifiedTabs": "Některé karty obsahují neuložené změny. Přesto je zavřít?",
   "otherTabsClosed": "Ostatní karty jsou zavřené",

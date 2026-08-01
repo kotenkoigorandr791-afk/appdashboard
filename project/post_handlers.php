@@ -2188,7 +2188,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if (isset($result['error'])) {
             echo json_encode(['success'=>false,'error'=>$result['error']], JSON_UNESCAPED_UNICODE);
         } else {
-            echo json_encode(['success'=>true,'message'=>$translations['ai_config_saved']??'AI configuration saved','config'=>$result['config'] ?? cloud_ai_load_config()], JSON_UNESCAPED_UNICODE);
+            $savedConfig = cloud_ai_load_config();
+            echo json_encode(['success'=>true,'message'=>$translations['ai_config_saved']??'AI configuration saved','config'=>$savedConfig,'has_key'=>trim((string)($savedConfig['api_key'] ?? '')) !== ''], JSON_UNESCAPED_UNICODE);
         }
         exit;
     }

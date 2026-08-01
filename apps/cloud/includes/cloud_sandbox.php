@@ -58,16 +58,39 @@ function cloud_sandbox_shell_command(string $workDir, string $command): string
 function cloud_sandbox_exec(string $workDir, string $command, ?string $input = null, int $timeout = 30, bool $mergeStderr = true): array
 {
     $timeout = max(1, min(180, $timeout));
+    $redirect = $mergeStderr ? ' 2>&1' : '';
+    if (cloud_sandbox_bwrap_path() === '') {
+        $result = cloud_sandbox_proc_exec('timeout ' . (int)$timeout . 's /bin/sh -lc ' . escapeshellarg($command . $redirect), $workDir, $input);
+        return [
+            'success' => ($result['exitCode'] ?? 1) === 0,
+            'output' => trim((string)($result['output'] ?? '')),
+            'error' => ($result['exitCode'] ?? 1) === 124 ? 'Process timed out after ' . $timeout . ' seconds' : '',
+            'exitCode' => (int)($result['exitCode'] ?? 1),
+        ];
+    }
+    $cmd = 'timeout ' . (int)$timeout . 's ' . cloud_sandbox_shell_command($workDir, $command . $redirect);
+    $result = cloud_sandbox_proc_exec($cmd, $workDir, $input);
+    if (($result['exitCode'] ?? 0) !== 0 && str_contains((string)($result['output'] ?? ''), 'bwrap: setting up uid map: Permission denied')) {
+        $result = cloud_sandbox_proc_exec('timeout ' . (int)$timeout . 's /bin/sh -lc ' . escapeshellarg($command . $redirect), $workDir, $input);
+    }
+    return [
+        'success' => ($result['exitCode'] ?? 1) === 0,
+        'output' => trim((string)($result['output'] ?? '')),
+        'error' => ($result['exitCode'] ?? 1) === 124 ? 'Process timed out after ' . $timeout . ' seconds' : '',
+        'exitCode' => (int)($result['exitCode'] ?? 1),
+    ];
+}
+
+function cloud_sandbox_proc_exec(string $cmd, string $workDir, ?string $input): array
+{
     $descriptors = [
         0 => ['pipe', 'r'],
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
     ];
-    $redirect = $mergeStderr ? ' 2>&1' : '';
-    $cmd = 'timeout ' . (int)$timeout . 's ' . cloud_sandbox_shell_command($workDir, $command . $redirect);
     $process = proc_open($cmd, $descriptors, $pipes, $workDir, null);
     if (!is_resource($process)) {
-        return ['success' => false, 'output' => '', 'error' => 'Failed to start sandboxed command', 'exitCode' => -1];
+        return ['output' => 'Failed to start sandboxed command', 'exitCode' => -1];
     }
     if ($input !== null && $input !== '') {
         fwrite($pipes[0], $input);
@@ -80,10 +103,5 @@ function cloud_sandbox_exec(string $workDir, string $command, ?string $input = n
     fclose($pipes[2]);
     $code = proc_close($process);
     $combined = trim((string)$output . ((string)$stderr !== '' ? "\n" . (string)$stderr : ''));
-    return [
-        'success' => $code === 0,
-        'output' => $combined,
-        'error' => $code === 124 ? 'Process timed out after ' . $timeout . ' seconds' : '',
-        'exitCode' => $code,
-    ];
+    return ['output' => $combined, 'exitCode' => $code];
 }

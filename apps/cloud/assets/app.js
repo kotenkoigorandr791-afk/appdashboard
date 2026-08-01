@@ -3530,8 +3530,11 @@ function renderTabs() {
                     e.preventDefault();
                     return;
                 }
+                const root = typeof getResolvedTabRoot === 'function' ? getResolvedTabRoot(currentTab) : (currentTab?.root || getCurrentCloudRoot());
                 e.dataTransfer.setData('application/x-cloud-file-path', path);
+                e.dataTransfer.setData('application/x-cloud-file-paths', JSON.stringify([path]));
                 e.dataTransfer.setData('application/x-cloud-file-type', 'file');
+                e.dataTransfer.setData('application/x-cloud-source-root', root || 'main');
                 e.dataTransfer.setData('text/plain', path);
                 e.dataTransfer.effectAllowed = 'copy';
             });
@@ -6771,7 +6774,15 @@ async function buildTree(path) {
         // If cache returned something (even an empty array), render from it
         if (items !== null) {
             const hiddenRoots = ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'];
-            const visibleItems = dedupeTreeItemsByPath(items).filter((item) => {
+            let mergedItems = items;
+            try {
+                const freshRoot = await api('list', { path: '' }, 'GET');
+                if (Array.isArray(freshRoot?.items) && freshRoot.items.length) {
+                    const known = new Set(mergedItems.map((item) => item.path));
+                    mergedItems = mergedItems.concat(freshRoot.items.filter((item) => item?.path && !known.has(item.path)));
+                }
+            } catch (_) {}
+            const visibleItems = dedupeTreeItemsByPath(mergedItems).filter((item) => {
                 if (hiddenRoots.some((root) => item.path === root || item.path.startsWith(root + '/'))) {
                     return false;
                 }

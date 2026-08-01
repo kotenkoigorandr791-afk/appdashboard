@@ -11,7 +11,15 @@ require_once __DIR__ . '/ai_tools_speech.php';
 
 const CLOUD_AI_FETCH_MAX_BYTES = 20971520;
 const CLOUD_AI_FETCH_MAX_CHARS = 120000;
-const CLOUD_AI_COMMAND_ALLOWLIST = ['php', 'node', 'npm', 'npx', 'python', 'python3', 'pytest', 'composer', 'git', 'rg', 'ls', 'cat', 'head', 'tail', 'wc', 'sed', 'sh'];
+const CLOUD_AI_BINARY_READ_MAX_BYTES = 262144;
+const CLOUD_AI_COMMAND_ALLOWLIST = [
+    'php', 'node', 'npm', 'npx', 'python', 'python3', 'pytest', 'composer', 'git',
+    'rg', 'grep', 'find', 'ls', 'cat', 'head', 'tail', 'wc', 'sed', 'awk', 'cut', 'tr', 'sort', 'uniq', 'diff',
+    'sh', 'bash', 'true', 'false', 'test', 'echo', 'printf', 'mkdir', 'cp', 'mv', 'touch', 'chmod',
+    'gcc', 'g++', 'cc', 'c++', 'clang', 'clang++', 'make', 'cmake', 'javac', 'java', 'rustc', 'go',
+    'dotnet', 'lua', 'perl', 'ruby', 'which', 'basename', 'dirname', 'realpath', 'pwd', 'env', 'base64',
+    'md5sum', 'sha256sum', 'stat', 'tee', 'xargs', 'timeout',
+];
 const CLOUD_AI_TEXT_EXTENSIONS = [
     'txt','md','markdown','json','jsonl','csv','tsv','xml','html','htm','css','scss','sass','less',
     'js','mjs','cjs','ts','tsx','jsx','vue','php','py','rb','go','java','kt','kts','swift','rs',
@@ -21,6 +29,39 @@ const CLOUD_AI_TEXT_EXTENSIONS = [
     'r','dart','scala','sc','clj','cljs','ex','exs','erl','hrl','fs','fsi','fsx','vb','vbs',
     'asm','s','pas','pp','proto','graphql','gql','lock','gitignore','gitattributes','editorconfig'
 ];
+
+function cloud_ai_normalize_root_path(string &$rootKey, string &$path): void
+{
+    $map = [
+        'clientsync' => 'clientsync',
+        '.clientsync' => 'clientsync',
+        'documents' => 'documents',
+        '.documents' => 'documents',
+        'photos' => 'photos',
+        '.photos' => 'photos',
+        'pdf' => 'pdf',
+        '.pdf' => 'pdf',
+        'archive' => 'archive',
+        '.archive' => 'archive',
+        'trash' => 'trash',
+        '.trash' => 'trash',
+        'temp' => 'temp',
+        '.temp_files' => 'temp',
+    ];
+    $path = ltrim(str_replace('\\', '/', $path), '/');
+    foreach ($map as $prefix => $mappedRoot) {
+        if ($path === $prefix) {
+            $rootKey = $mappedRoot;
+            $path = '';
+            return;
+        }
+        if (str_starts_with($path, $prefix . '/')) {
+            $rootKey = $mappedRoot;
+            $path = substr($path, strlen($prefix) + 1);
+            return;
+        }
+    }
+}
 
 function cloud_ai_release_session_lock(): void
 {
@@ -58,10 +99,22 @@ function cloud_ai_resolve_user_file(string $path, ?string $rootKey = null): arra
         return ['ok' => false, 'error' => 'not authenticated', 'code' => 401];
     }
     $rootKey = $rootKey ?: get_requested_root_key();
+    cloud_ai_normalize_root_path($rootKey, $path);
     $base = user_root($user, $rootKey);
     $safePath = safe_path($path);
     $target = $base . '/' . $safePath;
     if (!file_exists($target)) {
+        foreach (['main', 'documents', 'clientsync'] as $fallbackRoot) {
+            if ($fallbackRoot === $rootKey) {
+                continue;
+            }
+            $fallbackPath = $safePath;
+            cloud_ai_normalize_root_path($fallbackRoot, $fallbackPath);
+            $fallbackTarget = user_root($user, $fallbackRoot) . '/' . $fallbackPath;
+            if (file_exists($fallbackTarget)) {
+                return ['ok' => true, 'user' => $user, 'root' => $fallbackRoot, 'path' => $fallbackPath, 'target' => $fallbackTarget];
+            }
+        }
         return ['ok' => false, 'error' => 'File not found', 'code' => 404];
     }
     return ['ok' => true, 'user' => $user, 'root' => $rootKey, 'path' => $safePath, 'target' => $target];
@@ -74,9 +127,23 @@ function cloud_ai_resolve_user_path_for_write(string $path, ?string $rootKey = n
         return ['ok' => false, 'error' => 'not authenticated', 'code' => 401];
     }
     $rootKey = $rootKey ?: get_requested_root_key();
+    cloud_ai_normalize_root_path($rootKey, $path);
     $base = user_root($user, $rootKey);
     $safePath = safe_path($path);
     $target = $base . '/' . $safePath;
+    if (!file_exists($target)) {
+        foreach (['main', 'documents', 'clientsync'] as $fallbackRoot) {
+            if ($fallbackRoot === $rootKey) {
+                continue;
+            }
+            $fallbackPath = $safePath;
+            cloud_ai_normalize_root_path($fallbackRoot, $fallbackPath);
+            $fallbackTarget = user_root($user, $fallbackRoot) . '/' . $fallbackPath;
+            if (file_exists($fallbackTarget)) {
+                return ['ok' => true, 'user' => $user, 'root' => $fallbackRoot, 'path' => $fallbackPath, 'target' => $fallbackTarget, 'exists' => true];
+            }
+        }
+    }
     return ['ok' => true, 'user' => $user, 'root' => $rootKey, 'path' => $safePath, 'target' => $target, 'exists' => file_exists($target)];
 }
 
@@ -331,15 +398,63 @@ function cloud_ai_workspace_root(string $user, string $rootKey, string $cwd = ''
     return $safeCwd === '' ? $base : $base . '/' . $safeCwd;
 }
 
-function cloud_ai_run_command(array $command, string $user, string $rootKey, string $cwd = '', int $timeout = 20): array
+function cloud_ai_normalize_command_argv($command): array
 {
+    if (is_string($command)) {
+        $command = trim($command);
+        if ($command === '') {
+            return [];
+        }
+        if (preg_match_all('/"([^"\\\\]*(?:\\\\.[^"\\\\]*)*)"|\'([^\']*)\'|(\S+)/', $command, $m, PREG_SET_ORDER)) {
+            $parts = [];
+            foreach ($m as $row) {
+                $parts[] = $row[1] !== '' ? stripcslashes($row[1]) : ($row[2] !== '' ? $row[2] : $row[3]);
+            }
+            return array_values(array_filter($parts, static fn($p) => $p !== ''));
+        }
+        return preg_split('/\s+/', $command) ?: [];
+    }
+    if (!is_array($command)) {
+        return [];
+    }
+    $parts = [];
+    foreach ($command as $part) {
+        if (is_array($part)) {
+            continue;
+        }
+        $s = trim((string)$part);
+        if ($s !== '') {
+            $parts[] = $s;
+        }
+    }
+    return $parts;
+}
+
+function cloud_ai_command_binary_name(string $binary): string
+{
+    $binary = trim($binary);
+    $binary = preg_replace('#^./+#', '', $binary) ?? $binary;
+    if (str_contains($binary, '/')) {
+        $binary = basename($binary);
+    }
+    return strtolower($binary);
+}
+
+function cloud_ai_run_command(array|string $command, string $user, string $rootKey, string $cwd = '', int $timeout = 20): array
+{
+    $command = cloud_ai_normalize_command_argv($command);
     if ($command === []) {
-        return ['ok' => false, 'error' => 'command is required'];
+        return ['ok' => false, 'error' => 'command is required', 'allowed' => CLOUD_AI_COMMAND_ALLOWLIST];
     }
-    $binary = (string)($command[0] ?? '');
-    if (!in_array($binary, CLOUD_AI_COMMAND_ALLOWLIST, true)) {
-        return ['ok' => false, 'error' => 'Command is not in allowlist'];
+    $binary = cloud_ai_command_binary_name((string)($command[0] ?? ''));
+    if ($binary === '' || !in_array($binary, CLOUD_AI_COMMAND_ALLOWLIST, true)) {
+        return [
+            'ok' => false,
+            'error' => 'Command is not in allowlist: ' . ($binary !== '' ? $binary : '(empty)') . '. Use compile_and_check/run_script, or an allowed binary.',
+            'allowed' => CLOUD_AI_COMMAND_ALLOWLIST,
+        ];
     }
+    $command[0] = $binary;
     $cwdPath = cloud_ai_workspace_root($user, $rootKey, $cwd);
     if (!is_dir($cwdPath)) {
         return ['ok' => false, 'error' => 'cwd not found'];
@@ -362,22 +477,34 @@ function cloud_ai_run_command(array $command, string $user, string $rootKey, str
 function cloud_ai_run_script(string $language, string $script, string $user, string $rootKey, string $cwd = '', int $timeout = 20): array
 {
     $language = strtolower(trim($language));
-    $extMap = ['python' => 'py', 'python3' => 'py', 'node' => 'js', 'javascript' => 'js', 'php' => 'php', 'sh' => 'sh', 'bash' => 'sh'];
-    $cmdMap = ['python' => 'python3', 'python3' => 'python3', 'node' => 'node', 'javascript' => 'node', 'php' => 'php', 'sh' => 'sh', 'bash' => 'sh'];
+    $extMap = ['python' => 'py', 'python3' => 'py', 'py' => 'py', 'node' => 'js', 'javascript' => 'js', 'js' => 'js', 'php' => 'php', 'sh' => 'sh', 'bash' => 'sh', 'shell' => 'sh'];
+    $cmdMap = ['python' => 'python3', 'python3' => 'python3', 'py' => 'python3', 'node' => 'node', 'javascript' => 'node', 'js' => 'node', 'php' => 'php', 'sh' => 'sh', 'bash' => 'sh', 'shell' => 'sh'];
     if (!isset($cmdMap[$language])) {
         return ['ok' => false, 'error' => 'Unsupported script language'];
     }
+    if (trim($script) === '') {
+        return ['ok' => false, 'error' => 'script is required'];
+    }
     $cwdPath = cloud_ai_workspace_root($user, $rootKey, $cwd);
     if (!is_dir($cwdPath)) {
-        return ['ok' => false, 'error' => 'cwd not found'];
+        if ($cwd !== '' && @mkdir($cwdPath, 0775, true)) {
+            // created
+        }
+        if (!is_dir($cwdPath)) {
+            return ['ok' => false, 'error' => 'cwd not found'];
+        }
     }
-    $scriptName = '.ai_tmp_' . bin2hex(random_bytes(6)) . '.' . $extMap[$language];
+    if (!is_writable($cwdPath)) {
+        return ['ok' => false, 'error' => 'cwd is not writable'];
+    }
+    $scriptName = 'ai_tmp_' . bin2hex(random_bytes(6)) . '.' . $extMap[$language];
     $scriptPath = $cwdPath . '/' . $scriptName;
     if (file_put_contents($scriptPath, $script) === false) {
         return ['ok' => false, 'error' => 'Failed to write script'];
     }
+    @chmod($scriptPath, 0664);
     try {
-        $result = cloud_sandbox_exec($cwdPath, escapeshellarg($cmdMap[$language]) . ' ' . escapeshellarg($scriptName), null, $timeout, true);
+        $result = cloud_sandbox_exec($cwdPath, escapeshellarg($cmdMap[$language]) . ' ' . escapeshellarg($scriptName), null, max(1, min(60, $timeout)), true);
     } catch (Throwable $e) {
         @unlink($scriptPath);
         return ['ok' => false, 'error' => $e->getMessage()];
@@ -387,7 +514,32 @@ function cloud_ai_run_script(string $language, string $script, string $user, str
     if (strlen($output) > 32000) {
         $output = substr($output, 0, 32000) . "\n[... output truncated ...]";
     }
-    return ['ok' => true, 'language' => $language, 'cwd' => $cwd, 'exit_code' => (int)($result['exitCode'] ?? 1), 'output' => $output, 'success' => !empty($result['success'])];
+    $code = (int)($result['exitCode'] ?? 1);
+    return [
+        'ok' => true,
+        'language' => $language,
+        'cwd' => $cwd,
+        'exit_code' => $code,
+        'output' => $output,
+        'error' => $code === 0 ? '' : ($output !== '' ? $output : 'Script failed'),
+        'success' => $code === 0,
+    ];
+}
+
+function cloud_ai_binary_content_payload(string $bytes, string $mime, ?int $fullSize = null): array
+{
+    $size = $fullSize ?? strlen($bytes);
+    $chunk = substr($bytes, 0, CLOUD_AI_BINARY_READ_MAX_BYTES);
+    return [
+        'ok' => true,
+        'content' => "Binary file\nMIME: {$mime}\nSize: {$size} bytes\nBase64 first " . strlen($chunk) . " bytes:\n" . base64_encode($chunk),
+        'binary' => true,
+        'extracted' => true,
+        'mime' => $mime,
+        'size' => $size,
+        'encoding' => 'base64',
+        'truncated' => $size > strlen($chunk),
+    ];
 }
 
 function cloud_ai_read_target_content(string $target, string $user, string $rootKey): array
@@ -411,9 +563,9 @@ function cloud_ai_read_target_content(string $target, string $user, string $root
             $extracted = cloud_ai_extract_document_text($tmpPath);
             @unlink($tmpPath);
             if (!($extracted['ok'] ?? false)) {
-                return $extracted;
+                return cloud_ai_binary_content_payload($raw, $mime);
             }
-            return ['ok' => true, 'content' => $extracted['content'], 'binary' => true, 'extracted' => true];
+            return ['ok' => true, 'content' => $extracted['content'], 'binary' => false, 'extracted' => true, 'format' => 'markdown'];
         }
         return ['ok' => true, 'content' => $raw, 'binary' => false];
     }
@@ -422,15 +574,31 @@ function cloud_ai_read_target_content(string $target, string $user, string $root
     if (cloud_ai_is_extractable_document_ext($ext)) {
         $extracted = cloud_ai_extract_document_text($target);
         if ($extracted['ok'] ?? false) {
-            $extracted['binary'] = true;
+            $extracted['binary'] = false;
             $extracted['extracted'] = true;
+            $extracted['format'] = 'markdown';
+            return $extracted;
         }
-        return $extracted;
+        $mime = mime_content_type($target) ?: 'application/octet-stream';
+        $fh = @fopen($target, 'rb');
+        if (!$fh) {
+            return $extracted;
+        }
+        $chunk = (string)stream_get_contents($fh, CLOUD_AI_BINARY_READ_MAX_BYTES);
+        fclose($fh);
+        return cloud_ai_binary_content_payload($chunk, $mime, @filesize($target) ?: strlen($chunk));
     }
 
     $mime = mime_content_type($target) ?: 'application/octet-stream';
     if (!cloud_ai_path_looks_text($target, $mime)) {
-        return ['ok' => false, 'error' => 'Binary file cannot be read as text'];
+        $fh = @fopen($target, 'rb');
+        if (!$fh) {
+            return ['ok' => false, 'error' => 'File is not readable'];
+        }
+        $chunk = (string)stream_get_contents($fh, CLOUD_AI_BINARY_READ_MAX_BYTES);
+        fclose($fh);
+        $size = @filesize($target) ?: strlen($chunk);
+        return cloud_ai_binary_content_payload($chunk, $mime, $size);
     }
     $content = (string)file_get_contents($target);
     return ['ok' => true, 'content' => $content, 'binary' => false];
@@ -803,6 +971,7 @@ if ($action === 'ai_extract_upload') {
         'name' => $name,
         'content' => $extracted['content'],
         'extracted' => true,
+        'format' => 'markdown',
     ]);
 }
 
@@ -823,6 +992,7 @@ if ($action === 'ai_extract_text') {
         'path' => $resolved['path'],
         'content' => $read['content'],
         'extracted' => !empty($read['extracted']),
+        'format' => !empty($read['extracted']) ? 'markdown' : 'text',
     ]);
 }
 
@@ -900,12 +1070,13 @@ if ($action === 'ai_agent_tool') {
                 json_out(['ok' => false, 'error' => 'Write failed'], 500);
             }
             cloud_ai_sync_file_tree_after_write($resolved);
-            json_out(['ok' => true, 'path' => $resolved['path'], 'bytes' => strlen($content), 'persisted' => true, 'tree_indexed' => true]);
+            json_out(['ok' => true, 'path' => $resolved['path'], 'root' => $resolved['root'], 'bytes' => strlen($content), 'persisted' => true, 'tree_indexed' => true]);
         }
         json_out([
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => $before,
             'after' => $content,
             'bytes' => strlen($content),
@@ -936,6 +1107,7 @@ if ($action === 'ai_agent_tool') {
         json_out([
             'ok' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'bytes' => strlen($content),
             'persisted' => true,
             'created' => true,
@@ -956,7 +1128,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Directory create failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($resolved);
-        json_out(['ok' => true, 'path' => $resolved['path'], 'persisted' => true, 'created' => true, 'type' => 'dir']);
+        json_out(['ok' => true, 'path' => $resolved['path'], 'root' => $resolved['root'], 'persisted' => true, 'created' => true, 'type' => 'dir']);
     }
 
     if ($tool === 'copy_file') {
@@ -984,7 +1156,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Copy failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($target);
-        json_out(['ok' => true, 'path' => $target['path'], 'source_path' => $source['path'], 'persisted' => true, 'copied' => true]);
+        json_out(['ok' => true, 'path' => $target['path'], 'root' => $target['root'], 'source_path' => $source['path'], 'persisted' => true, 'copied' => true]);
     }
 
     if ($tool === 'rename_file') {
@@ -1012,7 +1184,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Rename failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($newResolved);
-        json_out(['ok' => true, 'path' => $newResolved['path'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'renamed' => true]);
+        json_out(['ok' => true, 'path' => $newResolved['path'], 'root' => $newResolved['root'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'renamed' => true]);
     }
 
     if ($tool === 'move_path') {
@@ -1040,7 +1212,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Move failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($newResolved);
-        json_out(['ok' => true, 'path' => $newResolved['path'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'moved' => true]);
+        json_out(['ok' => true, 'path' => $newResolved['path'], 'root' => $newResolved['root'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'moved' => true]);
     }
 
     if ($tool === 'delete_file') {
@@ -1205,7 +1377,7 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'Write failed'], 500);
         }
         cloud_ai_sync_file_tree_after_write($resolved);
-        json_out(['ok' => true, 'path' => $resolved['path'], 'bytes' => strlen((string)$fetched['body']), 'persisted' => true, 'downloaded' => true]);
+        json_out(['ok' => true, 'path' => $resolved['path'], 'root' => $resolved['root'], 'bytes' => strlen((string)$fetched['body']), 'persisted' => true, 'downloaded' => true]);
     }
 
     if ($tool === 'run_script') {
@@ -1272,6 +1444,7 @@ if ($action === 'ai_agent_tool') {
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => $content,
             'after' => $updated,
             'replacements' => (int)($replaced['replacements'] ?? 0),
@@ -1340,6 +1513,7 @@ if ($action === 'ai_agent_tool') {
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => $content,
             'after' => $updated,
             'replacements' => (int)$count,
@@ -1424,6 +1598,7 @@ if ($action === 'ai_agent_tool') {
             'ok' => true,
             'staged' => true,
             'path' => $resolved['path'],
+            'root' => $resolved['root'],
             'before' => (string)$read['content'],
             'after' => $updated . "\n",
         ]);
@@ -1561,7 +1736,7 @@ if ($action === 'ai_agent_tool') {
         }
         $zip->close();
         cloud_ai_sync_file_tree_after_write($archiveResolved);
-        json_out(['ok' => true, 'path' => $archiveResolved['path'], 'archive_path' => $archiveResolved['path'], 'files_added' => $added, 'persisted' => true]);
+        json_out(['ok' => true, 'path' => $archiveResolved['path'], 'root' => $archiveResolved['root'], 'archive_path' => $archiveResolved['path'], 'files_added' => $added, 'persisted' => true]);
     }
 
     if ($tool === 'generate_speech') {
@@ -1655,10 +1830,7 @@ if ($action === 'ai_agent_tool') {
     }
 
     if ($tool === 'run_command') {
-        $command = $args['command'] ?? [];
-        if (!is_array($command)) {
-            json_out(['ok' => false, 'error' => 'command must be an array'], 400);
-        }
+        $command = $args['command'] ?? ($args['cmd'] ?? ($args['argv'] ?? []));
         $cwd = (string)($args['cwd'] ?? '');
         $timeout = (int)($args['timeout_seconds'] ?? 20);
         $user = get_current_user_from_sessions();
@@ -1666,9 +1838,10 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'not authenticated'], 401);
         }
         $rk = $rootKey !== '' ? $rootKey : get_requested_root_key();
-        $result = cloud_ai_run_command($command, $user, $rk, $cwd, $timeout);
+        $argv = cloud_ai_normalize_command_argv($command);
+        $result = cloud_ai_run_command($argv, $user, $rk, $cwd, $timeout);
         if (!($result['ok'] ?? false)) {
-            json_out(['ok' => false, 'error' => $result['error'] ?? 'Command failed'], 400);
+            json_out(['ok' => false, 'error' => $result['error'] ?? 'Command failed', 'allowed' => $result['allowed'] ?? null], 400);
         }
         json_out($result);
     }
@@ -1680,7 +1853,14 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'path is required'], 400);
         }
         $rk = $rootKey !== '' ? $rootKey : get_requested_root_key();
-        $result = cloud_ai_compile_check($path, $content, $rk);
+        try {
+            $result = cloud_ai_compile_check($path, $content, $rk);
+        } catch (Throwable $e) {
+            json_out(['ok' => false, 'error' => 'compile_and_check failed: ' . $e->getMessage()], 400);
+        }
+        if (!is_array($result)) {
+            json_out(['ok' => false, 'error' => 'compile_and_check returned invalid result'], 400);
+        }
         if (isset($result['error']) && !isset($result['success'])) {
             json_out(['ok' => false, 'error' => $result['error']], 400);
         }

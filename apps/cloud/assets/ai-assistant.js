@@ -111,11 +111,16 @@
         lastAgentUndo: null,
         agentPlanSteps: [],
         agentRunMessageId: null,
+        /** @type {'success'|'error'|'stopped'|null} outcome of the finished tool-loop run */
+        agentRunOutcome: null,
         agentUserRole: null,
         agentMentionPaths: [],
         agentNewPaths: new Set(),
         agentRunStartedAt: null,
         agentTimerInterval: null,
+        serverRunJobId: '',
+        serverRunMessageId: '',
+        serverRunStopping: false,
         /** @type {'chat'|'agent'|null} UI labels for tool-loop runs */
         toolRunMode: null,
         editorHighlights: [],
@@ -173,6 +178,14 @@
         const div = document.createElement('div');
         div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
+    }
+
+    function logAiError(context, err) {
+        if (err instanceof Error) {
+            console.error(`[AI] ${context}: ${err.message}`, err.stack || '');
+        } else {
+            console.error(`[AI] ${context}:`, err);
+        }
     }
 
     function isAiTabHiddenForNotify() {
@@ -465,14 +478,47 @@
         if (!config.configured) throw new Error('AI API key is not configured');
         AI_CONFIG.directApi.configured = true;
     }
-    async function fetchAiCompletions(payload, signal) {
-        return fetch(getAiProxyUrl('ai_completions'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(payload),
-            signal
-        });
+    const AI_RETRYABLE_HTTP_STATUSES = new Set([408, 500, 502, 503, 504, 520, 521, 522, 523, 524]);
+    const AI_COMPLETIONS_MAX_ATTEMPTS = 3;
+    function gatewayErrorMessage(status) {
+        if (status === 524 || status === 504 || status === 408) {
+            return tr('aiGatewayTimeout', 'The model did not answer in time (gateway timeout {status}). Please try again or pick a faster model.', { status });
+        }
+        return tr('aiGatewayError', 'The AI gateway is temporarily unavailable (HTTP {status}). Please try again.', { status });
+    }
+    function waitBeforeRetry(attempt) {
+        return new Promise((resolve) => setTimeout(resolve, 800 * Math.pow(2, attempt)));
+    }
+    async function fetchAiCompletions(payload, signal, attempt = 0) {
+        let response;
+        try {
+            response = await fetch(getAiProxyUrl('ai_completions'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+                signal
+            });
+        } catch (err) {
+            if (err?.name === 'AbortError' || signal?.aborted || attempt >= AI_COMPLETIONS_MAX_ATTEMPTS - 1) throw err;
+            await waitBeforeRetry(attempt);
+            return fetchAiCompletions(payload, signal, attempt + 1);
+        }
+        if (response.ok) return response;
+        if (AI_RETRYABLE_HTTP_STATUSES.has(response.status) && attempt < AI_COMPLETIONS_MAX_ATTEMPTS - 1 && !signal?.aborted) {
+            try { await response.body?.cancel?.(); } catch (e) {}
+            await waitBeforeRetry(attempt);
+            return fetchAiCompletions(payload, signal, attempt + 1);
+        }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('json')) {
+            try { await response.body?.cancel?.(); } catch (e) {}
+            return new Response(JSON.stringify({ error: { message: gatewayErrorMessage(response.status) } }), {
+                status: response.status,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+        return response;
     }
     function formatModelLabel(modelId) {
         const id = String(modelId || '');
@@ -1055,19 +1101,21 @@
                 }
                 #ai-modal .modal-header {
                     position: relative !important;
+                    padding-left: calc(var(--menu-button-mobile-reserve, 50px) + 8px) !important;
                 }
                 #ai-modal .modal-header h3 {
-                    position: absolute !important;
-                    left: 50% !important;
-                    transform: translateX(-50%) !important;
-                    text-align: center !important;
-                    width: max-content !important;
+                    position: static !important;
+                    left: auto !important;
+                    transform: none !important;
+                    text-align: left !important;
+                    width: auto !important;
+                    flex: 0 0 auto;
                 }
                 #ai-modal .modal-header .modal-actions {
                     margin-left: auto !important;
                 }
                 #ai-modal .ai-chat-session-controls {
-                    padding-left: 20% !important;
+                    padding-left: 0 !important;
                 }
             }
             #ai-modal .ai-resize-handle {
@@ -1085,17 +1133,22 @@
             }
             #ai-modal .ai-chat {
                 padding-bottom: 0 !important;
+                padding-top: 10px !important;
                 max-height: none !important;
                 position: relative !important;
                 isolation: isolate !important;
+                background: transparent !important;
             }
-            #ai-modal .ai-chat .dot-field-canvas {
+            #ai-modal .ai-modal-body {
+                position: relative !important;
+            }
+            #ai-modal .ai-modal-body > .dot-field-canvas {
                 position: absolute !important;
-                inset: 0 !important;
-                width: 100% !important;
-                height: 100% !important;
+                display: block !important;
+                margin: 0 !important;
                 pointer-events: none !important;
                 z-index: 0 !important;
+                opacity: 1 !important;
             }
             #ai-modal .ai-chat .message,
             #ai-modal .ai-chat .typing-indicator {
@@ -1140,6 +1193,21 @@
                 max-width: 100%;
                 overflow-x: auto;
             }
+
+            /* Markdown lists in responses */
+            .message-content ul.ai-list,
+            .message-content ol.ai-list {
+                margin: 6px 0;
+                padding-left: 22px;
+            }
+            .message-content ul.ai-list { list-style: disc; }
+            .message-content ol.ai-list { list-style: decimal; }
+            .message-content .ai-list li {
+                margin: 2px 0;
+                line-height: 1.55;
+                overflow-wrap: anywhere;
+            }
+            .message-content .ai-list .ai-list { margin: 2px 0; }
 
             /* Remember toggle (icon only) */
             .ai-remember-wrap {
@@ -1325,6 +1393,50 @@
                 font-size: 11px !important;
                 text-transform: uppercase !important;
                 letter-spacing: .04em !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: space-between !important;
+                gap: 8px !important;
+            }
+            .ai-agent-patch-title-label {
+                min-width: 0 !important;
+            }
+            .ai-agent-patch-toggle {
+                border: 1px solid var(--border) !important;
+                background: transparent !important;
+                color: var(--muted) !important;
+                border-radius: 6px !important;
+                padding: 2px 8px !important;
+                font-family: inherit !important;
+                font-size: 11px !important;
+                line-height: 1.4 !important;
+                text-transform: none !important;
+                letter-spacing: 0 !important;
+                cursor: pointer !important;
+                flex: 0 0 auto !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                gap: 4px !important;
+                transition: color .15s ease, border-color .15s ease !important;
+            }
+            .ai-agent-patch-toggle:hover {
+                color: var(--fg) !important;
+                border-color: var(--accent) !important;
+            }
+            .ai-agent-patch-toggle-icon {
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: transform .15s ease !important;
+            }
+            .ai-agent-patch-toggle-icon svg {
+                display: block !important;
+            }
+            .ai-agent-patch-preview:not(.collapsed) .ai-agent-patch-toggle-icon {
+                transform: rotate(180deg) !important;
+            }
+            .ai-agent-patch-row.ai-agent-patch-row-hidden {
+                display: none !important;
             }
             .ai-agent-patch-row {
                 display: grid !important;
@@ -1362,7 +1474,18 @@
                 animation: ai-agent-pulse 1.2s ease-in-out infinite !important;
             }
             .ai-agent-plan.running .ai-agent-plan-pulse { display: inline-block !important; }
-            .ai-agent-plan.done .ai-agent-plan-pulse { display: none !important; }
+            .ai-agent-plan.done .ai-agent-plan-pulse {
+                display: none !important;
+                animation: none !important;
+                opacity: 1 !important;
+                transform: none !important;
+            }
+            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse,
+            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse,
+            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { display: inline-block !important; }
+            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse { background: #6fbf3f !important; }
+            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse { background: #d14a4a !important; }
+            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { background: color-mix(in srgb, var(--fg) 35%, transparent) !important; }
             .ai-agent-plan.ai-agent-plan-empty { display: none !important; }
             .ai-agent-stream-shell {
                 display: none !important;
@@ -1391,7 +1514,7 @@
             .ai-agent-plan-steps { padding: 6px 0 !important; }
             .ai-agent-plan-step {
                 display: grid !important;
-                grid-template-columns: 22px 1fr auto !important;
+                grid-template-columns: 22px minmax(0, 3fr) minmax(0, 2fr) !important;
                 gap: 8px !important;
                 align-items: start !important;
                 padding: 7px 12px !important;
@@ -1998,6 +2121,12 @@
                 font-size: 13px !important;
             }
 
+            .mention-suggestion-icon .app-file-icon,
+            .mention-suggestion-icon .app-file-icon img {
+                width: 14px !important;
+                height: 14px !important;
+            }
+
             .mention-suggestion-name {
                 white-space: nowrap !important;
                 overflow: hidden !important;
@@ -2081,9 +2210,29 @@
                 font-size: 13px;
                 line-height: 1.7;
                 color: color-mix(in srgb,var(--fg) 45%,transparent);
-                white-space: pre-wrap;
+                white-space: normal;
+                font-style: normal;
                 font-family: inherit;
                 transition: max-height 0.35s ease,padding 0.35s ease;
+            }
+
+            .think-content .message-content-inner > *:first-child {
+                margin-top: 0;
+            }
+
+            .think-content p {
+                margin: 0 0 8px;
+            }
+
+            .think-content ul,
+            .think-content ol {
+                margin: 0 0 8px;
+                padding-left: 18px;
+            }
+
+            .think-content pre,
+            .think-content .code-block {
+                margin: 8px 0;
             }
 
             .think-block.open .think-content {
@@ -2128,7 +2277,42 @@
             .ai-chat .action-button span {
                 white-space: nowrap;
             }
-            
+
+            /* Chat scroll navigation rail */
+            .ai-chat-scrollbar {
+                position: absolute !important;
+                top: 0 !important;
+                width: 10px !important;
+                border-radius: 6px !important;
+                background: transparent !important;
+                z-index: 5 !important;
+                opacity: .3 !important;
+                transition: opacity .15s ease !important;
+            }
+            .ai-chat-scrollbar:hover {
+                opacity: 1 !important;
+                background: color-mix(in srgb, var(--muted) 14%, transparent) !important;
+            }
+            .ai-chat-scroll-marker {
+                position: absolute !important;
+                left: 2px !important;
+                right: 2px !important;
+                height: 3px !important;
+                min-height: 3px !important;
+                border-radius: 3px !important;
+                background: var(--accent) !important;
+                opacity: .55 !important;
+                cursor: pointer !important;
+                transition: opacity .12s ease, height .12s ease !important;
+            }
+            .ai-chat-scroll-marker:hover {
+                opacity: 1 !important;
+            }
+            .ai-chat-scroll-marker.active {
+                opacity: 1 !important;
+                height: 5px !important;
+            }
+
             /* Live think indicator */
             .think-live-indicator {
                 display: inline-flex;
@@ -2345,6 +2529,7 @@
         attachEventListeners();
         applySavedSettings();
         initCustomModelDropdown();
+        initChatScrollbar();
         try {
             await loadModelsFromApi();
         } catch (e) {
@@ -2354,6 +2539,10 @@
         }
         refreshAttachI18n();
         await loadAiChatSessions();
+        if (elements.chat && !elements.chat.querySelector('.message')) {
+            await loadChatHistoryPage(false);
+            await resumeServerAiRunIfNeeded();
+        }
         
         // Make functions globally available
         window.toggleAIModal = toggleAIModal;
@@ -2876,9 +3065,9 @@
                             return;
                         }
                         if (typeof window.saveFile === 'function') {
-                            try { await window.saveFile(); } catch (e) {}
+                            try { await window.saveFile(); } catch (e) { logAiError('Agent apply: saveFile', e); }
                         } else {
-                            try { await sendIframeMonacoAiAction('save'); } catch (e) {}
+                            try { await sendIframeMonacoAiAction('save'); } catch (e) { logAiError('Agent apply: iframe save', e); }
                         }
                         clearEditorHighlights();
                         aiState.lastAppliedAgentPatch = { beforeText, afterText: applied.text, id: patchId };
@@ -2887,6 +3076,7 @@
                     removeAgentActionFooter(msg);
                     flashStatus(tr('aiAgentChangesApplied', 'Agent changes applied'));
                 } catch (err) {
+                    logAiError('Agent patch apply', err);
                     flashStatus(err.message || tr('aiAgentApplyFailed', 'Apply failed'));
                 }
                 return;
@@ -2900,6 +3090,7 @@
                     undoLastBtn.closest('.ai-agent-undo-last-footer')?.remove();
                     flashStatus(tr('aiAgentReverted', 'Changes reverted'));
                 } catch (err) {
+                    logAiError('Agent revert', err);
                     flashStatus(err.message || tr('aiAgentRevertFailed', 'Revert failed'));
                 }
                 return;
@@ -3072,7 +3263,7 @@
             const data = await response.json();
             const files = (data?.items || [])
                 .filter(item => item.type === 'file' && typeof item.name === 'string')
-                .map(item => item.name);
+                .map(item => normalizeMentionedFilePath(`${folderPath ? `${folderPath}/` : ''}${item.name}`));
 
             aiState.mentionFolderCache = {
                 root,
@@ -3128,10 +3319,12 @@
 
         elements.mentionSuggestions.innerHTML = '';
         list.forEach((name, index) => {
+            const displayName = name.split('/').pop() || name;
             const item = document.createElement('div');
             item.className = `mention-suggestion-item ${index === aiState.mentionSelectedIndex ? 'active' : ''}`;
             item.dataset.index = String(index);
-            item.innerHTML = `<span class="mention-suggestion-icon"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></span><span class="mention-suggestion-name">${escapeHtml(name)}</span>`;
+            item.title = name;
+            item.innerHTML = `<span class="mention-suggestion-icon">${getAttachmentFileIconMarkup(name)}</span><span class="mention-suggestion-name">${escapeHtml(displayName)}</span>`;
             item.addEventListener('mousedown', (e) => {
                 e.preventDefault();
                 applyMentionSuggestion(index);
@@ -3161,7 +3354,7 @@
         const suffix = value.slice(aiState.mentionRange.end);
         const insertionIndex = prefix.length;
         elements.input.value = `${prefix}${suffix}`.replace(/\s{2,}/g, ' ');
-        addMentionedFileAttachment(selected, insertionIndex);
+        addMentionedFileAttachment(selected, insertionIndex, getRootForFileContext());
 
         const newCursorPos = Math.min(insertionIndex, elements.input.value.length);
         elements.input.selectionStart = newCursorPos;
@@ -3196,25 +3389,6 @@
         return true;
     }
 
-    function insertMentionTokenIntoInput(path) {
-        if (!elements.input) return null;
-        const normalized = normalizeMentionedFilePath(path);
-        if (!normalized) return null;
-        const value = String(elements.input.value || '');
-        const at = Math.max(0, Number(elements.input.selectionStart ?? value.length));
-        const before = value.slice(0, at);
-        const after = value.slice(at);
-        const prefix = before && !/\s$/.test(before) ? ' ' : '';
-        const suffix = after && !/^\s/.test(after) ? ' ' : '';
-        const token = `${prefix}@${normalized}${suffix || ' '}`;
-        elements.input.value = before + token + after;
-        const start = before.length + prefix.length;
-        const nextPos = before.length + token.length;
-        elements.input.selectionStart = nextPos;
-        elements.input.selectionEnd = nextPos;
-        return start;
-    }
-
     function getTreeFilePathFromDragEvent(event) {
         return getTreeFilePathsFromDragEvent(event)[0] || '';
     }
@@ -3230,8 +3404,9 @@
         try {
             const many = JSON.parse(dt.getData('application/x-cloud-file-paths') || '[]');
             if (Array.isArray(many)) many.forEach(path => paths.push(path));
-        } catch (_) {}
-        paths.push(dt.getData('application/x-cloud-file-path') || dt.getData('text/plain'));
+        } catch (_) { logAiError('Parse drag JSON', _); }
+        paths.push(dt.getData('application/x-cloud-file-path'));
+        String(dt.getData('text/plain') || '').split(/\r?\n/).forEach(path => paths.push(path));
         aiTreeDragFallbackPaths.forEach(path => paths.push(path));
         return Array.from(new Set(paths.map(normalizeMentionedFilePath).filter(path => path && !path.includes('..'))));
     }
@@ -3294,6 +3469,7 @@
                     skippedInvalid = true;
                 }
             } catch (err) {
+                logAiError('Attach text file read', err);
                 skippedInvalid = true;
             }
         }
@@ -3330,8 +3506,8 @@
             clear();
             let added = 0;
             const root = getTreeFileRootFromDragEvent(event);
+            const insertionIndex = Math.max(0, Number(elements.input?.selectionStart ?? String(elements.input?.value || '').length));
             paths.forEach(path => {
-                const insertionIndex = insertMentionTokenIntoInput(path);
                 if (addMentionedFileAttachment(path, insertionIndex, root)) added++;
             });
             aiTreeDragFallbackPaths = [];
@@ -3523,7 +3699,7 @@
         if (att.objectUrl) {
             try {
                 URL.revokeObjectURL(att.objectUrl);
-            } catch (e) {}
+            } catch (e) { logAiError('Revoke attachment object URL', e); }
         }
         if (aiState.ocrModalAttachmentId === id) {
             const ocrModal = document.getElementById('ai-ocr-edit-modal');
@@ -3551,7 +3727,7 @@
             if (att.objectUrl) {
                 try {
                     URL.revokeObjectURL(att.objectUrl);
-                } catch (e) {}
+                } catch (e) { logAiError('Revoke attachment object URL', e); }
             }
         }
         aiState.externalAttachments = [];
@@ -4338,6 +4514,7 @@
                 });
                 added++;
             } catch (err) {
+                logAiError('Attach text file read', err);
                 flashStatus(err?.message || tr('aiAttachReadError', 'Could not read file'));
             }
         }
@@ -4436,6 +4613,20 @@
         return mentionRoot || getRootForFileContext();
     }
 
+    function getRootForAgentPath(path) {
+        const normalized = normalizeMentionedFilePath(path);
+        return aiState.mentionedFileRoots?.[normalized] || getRootForToolRun();
+    }
+
+    function resolveRootForToolPath(path, pathRoots, fallbackRoot) {
+        const normalized = normalizeMentionedFilePath(path);
+        if (!normalized) return fallbackRoot;
+        const known = pathRoots?.[normalized];
+        if (known) return known;
+        const match = Object.keys(pathRoots || {}).find((p) => pathsMatchAgent(p, normalized));
+        return (match && pathRoots[match]) || fallbackRoot;
+    }
+
     function getIframeEditorContent(tabId) {
         if (!tabId) return null;
         const iframe = Array.from(document.querySelectorAll('#viewer iframe[data-tab-id]'))
@@ -4468,16 +4659,18 @@
     function parseAgentPatch(rawText) {
         const text = normalizeAgentPatchText(rawText);
         const ops = [];
-        try {
-            const parsed = JSON.parse(text);
-            const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.ops) ? parsed.ops : []);
-            for (const item of list) {
-                const search = normalizePatchChunk(typeof item?.s === 'string' ? item.s : (typeof item?.search === 'string' ? item.search : ''));
-                const replace = normalizePatchChunk(typeof item?.r === 'string' ? item.r : (typeof item?.replace === 'string' ? item.replace : ''));
-                if (search) ops.push({ search, replace });
-            }
-            if (ops.length > 0) return ops;
-        } catch (e) {}
+        if (/^[[{]/.test(text)) {
+            try {
+                const parsed = JSON.parse(text);
+                const list = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.ops) ? parsed.ops : []);
+                for (const item of list) {
+                    const search = normalizePatchChunk(typeof item?.s === 'string' ? item.s : (typeof item?.search === 'string' ? item.search : ''));
+                    const replace = normalizePatchChunk(typeof item?.r === 'string' ? item.r : (typeof item?.replace === 'string' ? item.replace : ''));
+                    if (search) ops.push({ search, replace });
+                }
+                if (ops.length > 0) return ops;
+            } catch (e) { /* not a JSON patch payload */ }
+        }
         const looseJsonOps = parseLooseJsonPatchOps(text);
         if (looseJsonOps.length > 0) return looseJsonOps;
         const cursorRegex = /<{7}\s*SEARCH\s*\n([\s\S]*?)\n={7}\n([\s\S]*?)\n>{7}\s*REPLACE/g;
@@ -4542,7 +4735,7 @@
                 aiState.agentUserRole = Number(await getUserRole()) || 0;
                 return aiState.agentUserRole;
             }
-        } catch (e) {}
+        } catch (e) { logAiError('Resolve user role', e); }
         aiState.agentUserRole = 0;
         return 0;
     }
@@ -4617,6 +4810,22 @@
             : tr('aiAgentWorking', 'Agent is working…');
     }
     function getToolRunPlanDoneLabel() {
+        const outcome = aiState.agentRunOutcome;
+        if (outcome === 'success') {
+            return isChatToolRunMode()
+                ? tr('aiChatPlanSuccess', 'Chat: request completed')
+                : tr('aiAgentPlanSuccess', 'Agent finished successfully');
+        }
+        if (outcome === 'error') {
+            return isChatToolRunMode()
+                ? tr('aiChatPlanFailed', 'Chat: request failed')
+                : tr('aiAgentPlanFailed', 'Agent finished with an error');
+        }
+        if (outcome === 'stopped') {
+            return isChatToolRunMode()
+                ? tr('aiChatPlanStopped', 'Chat: request stopped')
+                : tr('aiAgentPlanStopped', 'Agent run stopped');
+        }
         return isChatToolRunMode()
             ? tr('aiChatPlanDone', 'Chat steps')
             : tr('aiAgentPlanDone', 'Agent plan');
@@ -4742,6 +4951,9 @@
             if (result.truncated) msg += tr('aiPlanResultMoreLines', ' · more available');
             return msg;
         }
+        if (toolName === 'extract_document_text') {
+            return tr('aiPlanResultDone', 'Done') + ` · ${result.format || 'markdown'}`;
+        }
         if (toolName === 'diff_file') {
             return result.changed
                 ? tr('aiPlanResultDone', 'Done') + ' · ' + tr('aiPlanResultDiffChanged', 'changed')
@@ -4792,6 +5004,42 @@
         if (result.persisted) return tr('aiAgentSavedShort', 'Saved');
         if (result.success === true) return tr('aiPlanResultDone', 'Done');
         return tr('aiPlanResultDone', 'Done');
+    }
+    function serverRunEventTool(event) {
+        const text = String(event?.text || '').toLowerCase();
+        if (/read file/.test(text)) return 'read_file';
+        if (/write file/.test(text)) return 'write_file';
+        if (/export pdf|fallback pdf/.test(text)) return 'export_latex_pdf';
+        if (/compiler|compile/.test(text)) return 'compile_and_check';
+        if (/queued|started|finished/.test(text)) return 'run_command';
+        return String(event?.data?.tool || event?.type || 'run_command');
+    }
+    function serverRunEventStatus(event, index, total, jobStatus) {
+        if (event?.type === 'error') return 'error';
+        if (event?.type === 'compile_error') return 'error';
+        if (index === total - 1 && jobStatus !== 'done' && jobStatus !== 'error') return 'running';
+        return 'done';
+    }
+    function serverRunEventResult(event) {
+        const data = event?.data || {};
+        if (event?.type === 'compile_error') return String(data.error || tr('aiPlanResultFailed', 'Error'));
+        if (data.path) return String(data.path);
+        if (data.error) return String(data.error);
+        return '';
+    }
+    function renderServerRunPlan(messageId, job) {
+        aiState.agentRunMessageId = messageId;
+        aiState.toolRunMode = (job?.chat_mode === 'agent') ? 'agent' : 'chat';
+        const events = Array.isArray(job?.events) ? job.events : [];
+        aiState.agentPlanSteps = events.map((event, index) => ({
+            id: `server_${index}`,
+            tool: serverRunEventTool(event),
+            label: String(event?.text || event?.type || ''),
+            status: serverRunEventStatus(event, index, events.length, job?.status || ''),
+            result: serverRunEventResult(event),
+            resources: Array.isArray(event?.data?.resources) ? event.data.resources : []
+        }));
+        renderAgentPlanInMessage();
     }
     function appendAgentResourcePreview(host, step) {
         const result = step?.rawResult || {};
@@ -4880,6 +5128,7 @@
         stopAgentRunTimer();
         cleanupAgentAskUser();
         aiState.agentPlanSteps = [];
+        aiState.agentRunOutcome = null;
         aiState.agentNewPaths = new Set();
         aiState.pendingAgentPatch = null;
         aiState.pendingAgentPatches = {};
@@ -4891,6 +5140,18 @@
         aiState.agentMentionPaths = Array.isArray(mentionPaths) ? mentionPaths.map(normalizeAgentPath).filter(Boolean) : [];
         const msgEl = getAgentPlanMessageEl();
         ensureAgentPlanContainer(msgEl);
+        renderAgentPlanInMessage();
+    }
+    function finishAgentRun(outcome) {
+        aiState.agentRunOutcome = outcome;
+        aiState.agentPlanSteps.forEach((step) => {
+            if (step.status === 'running') {
+                step.status = outcome === 'success' ? 'done' : 'error';
+                if (!step.result && outcome !== 'success') step.result = tr('aiAgentInterrupted', 'Assistant action interrupted');
+            }
+        });
+        stopAgentRunTimer();
+        hideAgentStreamShell();
         renderAgentPlanInMessage();
     }
     function upsertAgentPlanStep(stepId, patch) {
@@ -4928,7 +5189,6 @@
         const resultText = String(step.result || '');
         row.appendChild(icon);
         if (isLongPlanResult(resultText)) {
-            row.style.gridTemplateColumns = '22px minmax(0, 1fr)';
             icon.style.gridRow = '1 / span 2';
             row.appendChild(label);
             const wrap = document.createElement('div');
@@ -4951,7 +5211,6 @@
             row.appendChild(wrap);
             appendAgentResourcePreview(row, step);
         } else {
-            row.style.gridTemplateColumns = '22px minmax(0, 1fr) auto';
             row.appendChild(label);
             const result = document.createElement('span');
             result.className = 'ai-agent-plan-result';
@@ -4974,6 +5233,10 @@
         plan.classList.toggle('running', running);
         plan.classList.toggle('done', !running && hasSteps);
         plan.classList.toggle('ai-agent-plan-empty', !hasSteps && !running);
+        const outcome = running ? null : aiState.agentRunOutcome;
+        plan.classList.toggle('outcome-success', outcome === 'success');
+        plan.classList.toggle('outcome-error', outcome === 'error');
+        plan.classList.toggle('outcome-stopped', outcome === 'stopped');
         const headText = plan.querySelector('.ai-agent-plan-head-text');
         if (headText) {
             headText.textContent = running ? getToolRunWorkingLabel() : getToolRunPlanDoneLabel();
@@ -5012,22 +5275,42 @@
         aiState.pendingAgentPatches[norm] = {
             before: String(beforeText ?? ''),
             after: String(afterText ?? ''),
-            tool: meta.tool || ''
+            tool: meta.tool || '',
+            root: meta.root || getRootForAgentPath(norm) || ''
         };
         const openName = normalizeAgentPath(aiState.currentFileName);
         if (openName && pathsMatchAgent(openName, norm)) {
             showAgentPreviewInEditor(aiState.pendingAgentPatches[norm].before, aiState.pendingAgentPatches[norm].after);
         }
+        void persistSingleStagedAgentChange(norm).catch((err) => flashStatus(err.message || 'Save failed'));
+    }
+    async function persistSingleStagedAgentChange(path) {
+        const patch = aiState.pendingAgentPatches[normalizeAgentPath(path)];
+        if (!patch) return;
+        const body = new URLSearchParams({
+            action: 'ai_agent_tool',
+            tool: 'write_file',
+            args: JSON.stringify({ path: normalizeAgentPath(path), content: patch.after, persist: true }),
+            root: patch.root || getRootForFileContext() || ''
+        });
+        const res = await fetch(AI_CONFIG.fileApiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || `Failed to save staged change: ${path}`);
+        void highlightNewFilesInTree([{ path: data.path || normalizeAgentPath(path), type: 'file', root: data.root || patch.root || '' }]);
     }
     async function applyAllPendingAgentChanges() {
         const entries = Object.entries(aiState.pendingAgentPatches);
-        if (entries.length > 0) {
-            const changes = entries.map(([path, patch]) => ({ path, content: patch.after }));
+        for (const [path, patch] of entries) {
             const body = new URLSearchParams({
                 action: 'ai_agent_tool',
-                tool: 'apply_changes',
-                args: JSON.stringify({ changes }),
-                root: getRootForFileContext() || ''
+                tool: 'write_file',
+                args: JSON.stringify({ path, content: patch.after, persist: true }),
+                root: patch.root || getRootForAgentPath(path) || ''
             });
             const res = await fetch(AI_CONFIG.fileApiEndpoint, {
                 method: 'POST',
@@ -5036,7 +5319,7 @@
                 body
             });
             const data = await res.json().catch(() => ({}));
-            if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to apply changes');
+            if (!res.ok || !data.ok) throw new Error(data.error || `Failed to apply changes: ${path}`);
         }
         const openPatch = findStagedPatchForOpenFile();
         if (openPatch) {
@@ -5050,6 +5333,30 @@
     }
     function normalizeTreePath(path) {
         return String(path || '').replace(/^\/+/, '').trim();
+    }
+    function normalizeVisibleTreePath(path, root = '') {
+        let p = normalizeTreePath(path);
+        const prefixes = {
+            clientsync: ['clientsync/', '.clientsync/'],
+            documents: ['documents/', '.documents/'],
+            photos: ['photos/', '.photos/'],
+            pdf: ['pdf/', '.pdf/'],
+            archive: ['archive/', '.archive/'],
+            trash: ['trash/', '.trash/'],
+            temp: ['temp/', '.temp_files/']
+        }[String(root || '').trim()] || [];
+        prefixes.forEach((prefix) => {
+            if (p.startsWith(prefix)) p = p.slice(prefix.length);
+        });
+        return p;
+    }
+    function isVisibleUserTreePath(path) {
+        const p = normalizeTreePath(path);
+        if (!p || p.includes('..')) return false;
+        if (/^(?:tmp|var|run|dev|proc|sys|home|workspace)\//i.test(p)) return false;
+        if (/(?:^|\/)(?:cloud_ai_latex_|cloud_ai_pdf_)/i.test(p)) return false;
+        if (/(?:^|\/)input_[a-z0-9_.-]*\.(?:aux|log|out|toc|fls|fdb_latexmk|synctex\.gz)$/i.test(p)) return false;
+        return true;
     }
     function treeNodeExists(path) {
         const p = normalizeTreePath(path);
@@ -5065,7 +5372,7 @@
                 credentials: 'same-origin',
                 body: new URLSearchParams({ action: 'invalidate_file_tree' })
             });
-        } catch (e) {}
+        } catch (e) { logAiError('Invalidate file tree', e); }
         if (typeof window.buildTree === 'function') await window.buildTree('');
     }
     async function highlightNewFilesInTree(paths = [], { openLastPdf = false } = {}) {
@@ -5073,27 +5380,42 @@
         const seen = new Set();
         for (const raw of Array.isArray(paths) ? paths : []) {
             const item = typeof raw === 'string'
-                ? { path: normalizeTreePath(raw), type: 'file' }
+                ? { path: normalizeVisibleTreePath(raw), type: 'file', root: '' }
                 : {
-                    path: normalizeTreePath(raw?.path || ''),
-                    type: raw?.type === 'dir' ? 'dir' : 'file'
+                    path: normalizeVisibleTreePath(raw?.path || '', raw?.root || ''),
+                    type: raw?.type === 'dir' ? 'dir' : 'file',
+                    root: String(raw?.root || '').trim()
                 };
-            if (!item.path || seen.has(item.path)) continue;
-            seen.add(item.path);
+            const key = `${item.root}:${item.path}`;
+            if (!isVisibleUserTreePath(item.path) || seen.has(key)) continue;
+            seen.add(key);
             items.push(item);
         }
         if (!items.length) return;
         items.forEach((item) => aiState.agentNewPaths.add(item.path));
-        const root = getRootForFileContext();
+        let root = getRootForFileContext();
+        const targetRoot = items.find((item) => item.root)?.root || root;
+        if (targetRoot && targetRoot !== root && typeof window.switchCloudRoot === 'function') {
+            await window.switchCloudRoot(targetRoot, { keepSelection: true, silent: true });
+            root = targetRoot;
+        }
         try {
             if (typeof window.insertTreeItems === 'function') {
-                await window.insertTreeItems(items.map((item) => ({
-                    name: item.path.split('/').pop(),
-                    path: item.path,
-                    type: item.type,
-                    size: item.type === 'dir' ? null : 0,
-                    mtime: Math.floor(Date.now() / 1000)
-                })), root);
+                const grouped = new Map();
+                items.forEach((item) => {
+                    const itemRoot = item.root || root;
+                    if (!grouped.has(itemRoot)) grouped.set(itemRoot, []);
+                    grouped.get(itemRoot).push(item);
+                });
+                for (const [itemRoot, group] of grouped.entries()) {
+                    await window.insertTreeItems(group.map((item) => ({
+                        name: item.path.split('/').pop(),
+                        path: item.path,
+                        type: item.type,
+                        size: item.type === 'dir' ? null : 0,
+                        mtime: Math.floor(Date.now() / 1000)
+                    })), itemRoot);
+                }
             } else if (typeof window.buildTree === 'function') {
                 await window.buildTree('');
             }
@@ -5105,9 +5427,10 @@
             await rebuildFileTree();
         }
         if (openLastPdf) {
-            const pdf = items.map((item) => item.path).filter((p) => /\.pdf$/i.test(p)).pop();
+            const pdfItem = items.filter((item) => /\.pdf$/i.test(item.path)).pop();
+            const pdf = pdfItem?.path || '';
             if (pdf && typeof openFileInTab === 'function') {
-                try { await openFileInTab(pdf, false); } catch (e) {}
+                try { await openFileInTab(pdf, false, pdfItem?.root || root); } catch (e) { logAiError('Open last PDF in tab', e); }
             }
         }
     }
@@ -5122,7 +5445,7 @@
                 op: 'add',
                 item: { name: path.split('/').pop(), path, type: 'file', size: 0, mtime: Math.floor(Date.now() / 1000) }
             }));
-            try { await window.patchTreeCache(ops); } catch (e) {}
+            try { await window.patchTreeCache(ops); } catch (e) { logAiError('Patch tree cache', e); }
             removes.forEach((path) => {
                 if (typeof window.treeNodeRemove === 'function') window.treeNodeRemove(path);
             });
@@ -5170,7 +5493,7 @@
             }
         }
         if (typeof window.saveFile === 'function') {
-            try { return await window.saveFile(); } catch (e) {}
+            try { return await window.saveFile(); } catch (e) { logAiError('Save active editor', e); }
         }
         if (content !== '') {
             try {
@@ -5322,24 +5645,62 @@
         wrapper.className = 'ai-agent-patch-preview';
         const title = document.createElement('div');
         title.className = 'ai-agent-patch-title';
-        title.textContent = afterText != null ? tr('aiPatchPreview', 'Agent patch preview') : tr('aiPatch', 'Agent patch');
+        const titleLabel = document.createElement('span');
+        titleLabel.className = 'ai-agent-patch-title-label';
+        titleLabel.textContent = afterText != null ? tr('aiPatchPreview', 'Agent patch preview') : tr('aiPatch', 'Agent patch');
+        title.appendChild(titleLabel);
         wrapper.appendChild(title);
 
+        const body = document.createElement('div');
+        body.className = 'ai-agent-patch-body';
+
         if (afterText != null) {
-            sliceDiffOpsWithContext(buildLineDiff(beforeText, afterText), 2).forEach((d) => appendAgentPatchRow(wrapper, d.t, d.v));
-            return wrapper;
+            sliceDiffOpsWithContext(buildLineDiff(beforeText, afterText), 2).forEach((d) => appendAgentPatchRow(body, d.t, d.v));
+        } else {
+            (ops || []).forEach((op, index) => {
+                if (index > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'ai-agent-patch-title';
+                    sep.textContent = `Change ${index + 1}`;
+                    body.appendChild(sep);
+                }
+                sliceDiffOpsWithContext(buildLineDiff(op.search || '', op.replace || ''), 2).forEach((d) => appendAgentPatchRow(body, d.t, d.v));
+            });
         }
 
-        (ops || []).forEach((op, index) => {
-            if (index > 0) {
-                const sep = document.createElement('div');
-                sep.className = 'ai-agent-patch-title';
-                sep.textContent = `Change ${index + 1}`;
-                wrapper.appendChild(sep);
-            }
-            sliceDiffOpsWithContext(buildLineDiff(op.search || '', op.replace || ''), 2).forEach((d) => appendAgentPatchRow(wrapper, d.t, d.v));
-        });
+        wrapper.appendChild(body);
+        setupAgentPatchCollapse(wrapper, title, body);
         return wrapper;
+    }
+
+    function setupAgentPatchCollapse(wrapper, title, body) {
+        const PATCH_COLLAPSED_ROW_LIMIT = 10;
+        const rows = Array.from(body.querySelectorAll('.ai-agent-patch-row'));
+        if (rows.length <= PATCH_COLLAPSED_ROW_LIMIT) return;
+
+        const hiddenRows = rows.slice(PATCH_COLLAPSED_ROW_LIMIT);
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'ai-agent-patch-toggle';
+        const toggleIcon = document.createElement('span');
+        toggleIcon.className = 'ai-agent-patch-toggle-icon';
+        toggleIcon.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+        const toggleLabel = document.createElement('span');
+        toggleLabel.className = 'ai-agent-patch-toggle-label';
+        toggle.appendChild(toggleIcon);
+        toggle.appendChild(toggleLabel);
+
+        function setCollapsed(collapsed) {
+            wrapper.classList.toggle('collapsed', collapsed);
+            hiddenRows.forEach((row) => row.classList.toggle('ai-agent-patch-row-hidden', collapsed));
+            toggleLabel.textContent = collapsed
+                ? `${tr('aiShowMore', 'Show more')} (${hiddenRows.length})`
+                : tr('aiShowLess', 'Show less');
+        }
+
+        toggle.addEventListener('click', () => setCollapsed(!wrapper.classList.contains('collapsed')));
+        title.appendChild(toggle);
+        setCollapsed(true);
     }
 
     function appendAgentPatchRow(parent, type, text) {
@@ -5597,6 +5958,7 @@
         const toolCalls = {};
         let finishReason = null;
         let usage = null;
+        let streamError = null;
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -5609,6 +5971,10 @@
                 if (data === '[DONE]') continue;
                 try {
                     const parsed = JSON.parse(data);
+                    if (parsed.error) {
+                        streamError = new Error(parsed.error.message || String(parsed.error));
+                        break;
+                    }
                     if (parsed.usage) usage = parsed.usage;
                     const choice = parsed.choices?.[0];
                     if (choice?.finish_reason) finishReason = choice.finish_reason;
@@ -5633,9 +5999,11 @@
                             if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
                         });
                     }
-                } catch (e) {}
+                } catch (e) { logAiError('Parse agent stream chunk', e); }
             }
+            if (streamError) break;
         }
+        if (streamError && !content) throw streamError;
         const trimmed = String(content || '').trim();
         const message = { role: 'assistant', content: trimmed || null };
         const tcArr = Object.keys(toolCalls).sort((a, b) => Number(a) - Number(b)).map((k) => toolCalls[k]).filter((tc) => tc.function?.name);
@@ -5771,7 +6139,7 @@
         return mentions;
     }
 
-    async function loadMentionedFilesContext(message, currentFilePath, selectedFiles = null) {
+    async function loadMentionedFilesContext(message, currentFilePath, selectedFiles = null, selectedRoots = null) {
         const seenMentions = new Set();
         const mentions = [];
         const addMention = (name, root = null) => {
@@ -5781,7 +6149,8 @@
             mentions.push({ path: normalized, root: String(root || '').trim() });
         };
         const selected = Array.isArray(selectedFiles) ? selectedFiles : (aiState.selectedMentionFiles || []);
-        selected.forEach((name) => addMention(name, aiState.mentionedFileRoots?.[normalizeMentionedFilePath(name)] || ''));
+        const roots = selectedRoots && typeof selectedRoots === 'object' ? selectedRoots : aiState.mentionedFileRoots;
+        selected.forEach((name) => addMention(name, roots?.[normalizeMentionedFilePath(name)] || ''));
         if (selected.length === 0) extractMentionedFileNames(message).forEach((name) => addMention(name));
         mentions.splice(CONTEXT_LIMITS.maxMentionedFiles);
         if (mentions.length === 0) {
@@ -5795,12 +6164,23 @@
         let usedChars = 0;
         const root = getRootForFileContext();
 
+        const resolvedPaths = [];
         for (const mention of mentions) {
             const fileName = mention.path;
-            const candidatePath = fileName.includes('/') ? fileName : (currentDir ? `${currentDir}/${fileName}` : fileName);
-            const fileData = await fetchFileContentFromApi(candidatePath, mention.root || root);
+            const candidatePath = normalizeMentionedFilePath(
+                fileName.includes('/') ? fileName : (currentDir ? `${currentDir}/${fileName}` : fileName)
+            );
+            const fileRoot = mention.root || root;
+            const fileData = await fetchFileContentFromApi(candidatePath, fileRoot);
+            const resolvedName = normalizeMentionedFilePath(fileData?.name || candidatePath);
+            resolvedPaths.push({ path: resolvedName, root: fileRoot });
+            if (fileRoot) {
+                if (!aiState.mentionedFileRoots) aiState.mentionedFileRoots = {};
+                aiState.mentionedFileRoots[resolvedName] = fileRoot;
+                if (resolvedName !== fileName) aiState.mentionedFileRoots[fileName] = fileRoot;
+            }
 
-            if (!fileData?.content) {
+            if (!fileData || typeof fileData.content !== 'string') {
                 skipped.push({ name: fileName, reason: 'not_found_or_binary' });
                 continue;
             }
@@ -5812,10 +6192,10 @@
             }
 
             usedChars = nextSize;
-            files.push(fileData);
+            files.push({ ...fileData, name: resolvedName });
         }
 
-        return { files, skipped };
+        return { files, skipped, resolvedPaths };
     }
 
     function toggleAIModal() {
@@ -5864,10 +6244,12 @@
 
         if (elements.chat && !elements.chat.querySelector('.message')) {
             resetChatPagination();
-            loadAiChatSessions().then(() => loadChatHistoryPage(false));
+            loadAiChatSessions().then(() => loadChatHistoryPage(false)).then(() => resumeServerAiRunIfNeeded());
         } else {
             scrollChatToBottom();
+            resumeServerAiRunIfNeeded();
         }
+        scheduleChatScrollbarRebuild();
     }
 
     function closeAIModal() {
@@ -6128,6 +6510,111 @@
         }
     }
 
+    const chatScrollbarState = { bar: null, markers: [], mutObserver: null, resizeObserver: null };
+    let chatScrollbarRebuildTimer = null;
+
+    function initChatScrollbar() {
+        const body = elements.modal?.querySelector('.ai-modal-body');
+        const chat = elements.chat;
+        if (!body || !chat || chatScrollbarState.bar) return;
+
+        const bar = document.createElement('div');
+        bar.className = 'ai-chat-scrollbar';
+        body.appendChild(bar);
+        chatScrollbarState.bar = bar;
+
+        if (typeof ResizeObserver === 'function') {
+            chatScrollbarState.resizeObserver = new ResizeObserver(() => scheduleChatScrollbarRebuild());
+            chatScrollbarState.resizeObserver.observe(body);
+            chatScrollbarState.resizeObserver.observe(chat);
+        }
+        window.addEventListener('resize', scheduleChatScrollbarRebuild);
+        chat.addEventListener('scroll', updateActiveChatScrollMarker, { passive: true });
+        chatScrollbarState.mutObserver = new MutationObserver(scheduleChatScrollbarRebuild);
+        chatScrollbarState.mutObserver.observe(chat, { childList: true, subtree: true, characterData: true });
+
+        rebuildChatScrollbar();
+    }
+
+    function scheduleChatScrollbarRebuild() {
+        if (chatScrollbarRebuildTimer) return;
+        chatScrollbarRebuildTimer = setTimeout(() => {
+            chatScrollbarRebuildTimer = null;
+            rebuildChatScrollbar();
+        }, 200);
+    }
+
+    function rebuildChatScrollbar() {
+        const chat = elements.chat;
+        const bar = chatScrollbarState.bar;
+        if (!chat || !bar) return;
+        positionChatScrollbar();
+        const hasOverflow = chat.scrollHeight > chat.clientHeight + 4;
+        bar.style.display = hasOverflow ? '' : 'none';
+        bar.replaceChildren();
+        chatScrollbarState.markers = [];
+        if (!hasOverflow) return;
+
+        const chatRect = chat.getBoundingClientRect();
+        chat.querySelectorAll('.message.user-message').forEach((msg) => {
+            const rect = msg.getBoundingClientRect();
+            const contentTop = (rect.top - chatRect.top) + chat.scrollTop + rect.height / 2;
+            const pct = chat.scrollHeight > 0 ? contentTop / chat.scrollHeight : 0;
+            const marker = document.createElement('div');
+            marker.className = 'ai-chat-scroll-marker';
+            marker.style.top = `${Math.max(0, Math.min(100, pct * 100))}%`;
+            const preview = String(msg.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+            marker.title = preview || tr('aiUserMessage', 'User message');
+            marker.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                scrollChatToMessage(msg);
+            });
+            bar.appendChild(marker);
+            chatScrollbarState.markers.push({ marker, msg });
+        });
+        updateActiveChatScrollMarker();
+    }
+
+    function positionChatScrollbar() {
+        const chat = elements.chat;
+        const bar = chatScrollbarState.bar;
+        if (!chat || !bar) return;
+        const body = elements.modal?.querySelector('.ai-modal-body');
+        if (!body) return;
+        const bodyRect = body.getBoundingClientRect();
+        const chatRect = chat.getBoundingClientRect();
+        const scrollbarWidth = Math.max(0, chat.offsetWidth - chat.clientWidth);
+        bar.style.top = `${chatRect.top - bodyRect.top}px`;
+        bar.style.height = `${chat.clientHeight}px`;
+        bar.style.right = `${scrollbarWidth > 0 ? scrollbarWidth + 4 : 2}px`;
+    }
+
+    function scrollChatToMessage(msg) {
+        const chat = elements.chat;
+        if (!chat || !msg) return;
+        const chatRect = chat.getBoundingClientRect();
+        const rect = msg.getBoundingClientRect();
+        const contentTop = (rect.top - chatRect.top) + chat.scrollTop;
+        chat.scrollTop = Math.max(0, contentTop - 12);
+    }
+
+    function updateActiveChatScrollMarker() {
+        const chat = elements.chat;
+        const markers = chatScrollbarState.markers || [];
+        if (!chat || markers.length === 0) return;
+        const chatRect = chat.getBoundingClientRect();
+        const threshold = chat.scrollTop + chatRect.height * 0.35;
+        let activeIdx = -1;
+        for (let i = 0; i < markers.length; i++) {
+            const rect = markers[i].msg.getBoundingClientRect();
+            const contentTop = (rect.top - chatRect.top) + chat.scrollTop;
+            if (contentTop <= threshold) activeIdx = i;
+            else break;
+        }
+        markers.forEach((m, i) => m.marker.classList.toggle('active', i === activeIdx));
+    }
+
     // JS-based sticky code headers — works regardless of parent overflow settings
     function setupStickyCodeHeaders() {
         if (!elements.chat || elements.chat.dataset.stickyCodeHeadersBound === '1') return;
@@ -6166,10 +6653,9 @@
 
     function clearChatMessages() {
         if (!elements.chat) return;
-        Array.from(elements.chat.children).forEach((node) => {
-            if (!node.classList?.contains('dot-field-canvas')) node.remove();
-        });
-        if (!elements.chat.querySelector('.dot-field-canvas')) delete elements.chat.dataset.dotField;
+        elements.chat.replaceChildren();
+        const host = elements.chat.parentElement;
+        if (!host?.querySelector(':scope > .dot-field-canvas')) delete elements.chat.dataset.dotField;
         initDotField(elements.chat);
     }
 
@@ -6287,7 +6773,7 @@
             if (!data.success) throw new Error(data.error || 'Failed to load chats');
             const activeBeforeLoad = aiState.activeChatId;
             aiState.chatSessions = Array.isArray(data.items) ? data.items : [];
-            if (activeBeforeLoad && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
+            if (activeBeforeLoad && String(activeBeforeLoad).startsWith('tmp_') && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
                 aiState.chatSessions.unshift({ id: activeBeforeLoad, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
             }
             if (!aiState.activeChatId || !aiState.chatSessions.some((c) => String(c.id) === String(aiState.activeChatId))) {
@@ -6295,7 +6781,7 @@
                 localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
             }
             renderAiChatSessions();
-        } catch (e) {}
+        } catch (e) { logAiError('Load AI chat sessions', e); }
     }
 
     async function switchAiChat(chatId) {
@@ -6329,7 +6815,7 @@
                 body: new URLSearchParams({ action: 'ai_chat_create' })
             });
             data = await res.json().catch(() => ({}));
-        } catch (e) {}
+        } catch (e) { logAiError('Create AI chat', e); }
         if (!data.success) {
             aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== tempChatId);
             aiState.activeChatId = previousActiveChatId;
@@ -6349,28 +6835,34 @@
             aiState.chatSessions.unshift({ id: chatId, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
         }
         renderAiChatSessions();
-        await loadAiChatSessions();
+        renderAiChatSessions();
     }
 
     async function deleteAiChat(chatId) {
         if (!chatId) return;
         const deletedActive = String(chatId) === String(aiState.activeChatId);
-        await fetch(AI_CONFIG.apiEndpoint, {
+        const res = await fetch(AI_CONFIG.apiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ action: 'ai_chat_delete', chat_id: chatId })
         });
-        aiState.chatSessions = aiState.chatSessions.filter((chat) => String(chat.id) !== String(chatId));
+        const data = await res.json().catch(() => ({}));
+        aiState.chatSessions = Array.isArray(data.items)
+            ? data.items
+            : aiState.chatSessions.filter((chat) => String(chat.id) !== String(chatId));
         if (!deletedActive) {
             renderAiChatSessions();
-            await loadAiChatSessions();
             return;
         }
-        aiState.activeChatId = String(aiState.chatSessions[0]?.id || '');
+        if (!aiState.chatSessions.length) {
+            await createAiChat();
+            return;
+        }
+        aiState.activeChatId = String(data.chat_id || aiState.chatSessions[0]?.id || '');
         localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
         resetChatPagination();
         renderAiChatSessions();
-        await loadAiChatSessions();
+        clearChatMessages();
         if (aiState.activeChatId) await loadChatHistoryPage(false);
     }
 
@@ -6396,7 +6888,13 @@
                 })
             });
 
-            const data = await response.json();
+            const raw = await response.text();
+            let data = {};
+            try {
+                data = JSON.parse(raw);
+            } catch (parseErr) {
+                throw new Error(`Invalid chat JSON response: ${raw.slice(0, 160)}`);
+            }
             if (!data.success) {
                 throw new Error(data.error || 'Failed to load chat');
             }
@@ -6426,7 +6924,8 @@
                 const q = String(it.question || '');
                 const a = String(it.answer || '');
                 const baseId = `pair_${it.id || (Date.now() + Math.random())}`;
-                newMsgs.push({ id: baseId + '_q', role: 'user', content: q, timestamp: new Date((Number(it.created_at) || 0) * 1000).toISOString() });
+                const chatMeta = parseChatMetaJson(it.meta_json);
+                newMsgs.push({ id: baseId + '_q', role: 'user', content: q, timestamp: new Date((Number(it.created_at) || 0) * 1000).toISOString(), attachments: chatMeta?.attachments || [], mentionedFiles: chatMeta?.mentionedFiles || [] });
                 const t = Number(it.time_seconds);
                 const tok = Number(it.tokens);
                 const sp = Number(it.speed);
@@ -6438,6 +6937,10 @@
                     }
                     : null;
                 const agentMeta = parseAgentMetaJson(it.meta_json);
+                if (agentMeta) {
+                    newMsgs[newMsgs.length - 1].attachments = agentMeta.attachments || newMsgs[newMsgs.length - 1].attachments || [];
+                    newMsgs[newMsgs.length - 1].mentionedFiles = agentMeta.mentionedFiles || newMsgs[newMsgs.length - 1].mentionedFiles || [];
+                }
                 const answerContent = agentMeta ? (agentMeta.answer || a) : a;
                 newMsgs.push({
                     id: baseId + '_a',
@@ -6490,6 +6993,7 @@
             const serverHistory = Array.isArray(data?.history) ? normalizeHistoryMessages(data.history) : [];
             return serverHistory.length > 0 ? serverHistory : local;
         } catch (e) {
+            logAiError('Load fallback chat history', e);
             return local;
         }
     }
@@ -6505,7 +7009,9 @@
                 fileName: m.fileName || '',
                 stats: m.stats || null,
                 isAgent: !!m.isAgent,
-                agentMeta: m.agentMeta || null
+                agentMeta: m.agentMeta || null,
+                attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                mentionedFiles: Array.isArray(m.mentionedFiles) ? m.mentionedFiles : []
             }));
     }
 
@@ -6513,6 +7019,7 @@
         try {
             return normalizeHistoryMessages(JSON.parse(localStorage.getItem(LOCAL_HISTORY_KEY) || '[]'));
         } catch (e) {
+            logAiError('Load local chat history', e);
             return [];
         }
     }
@@ -6540,13 +7047,80 @@
                 fileName: m.fileName || '',
                 stats: m.stats || null,
                 isAgent: !!m.isAgent,
-                agentMeta: m.agentMeta || null
+                agentMeta: m.agentMeta || null,
+                attachments: Array.isArray(m.attachments) ? m.attachments : [],
+                mentionedFiles: Array.isArray(m.mentionedFiles) ? m.mentionedFiles : []
             }));
             localStorage.setItem(LOCAL_HISTORY_KEY, JSON.stringify(compact));
         } catch (err) {
             console.error('Failed to save chat history:', err);
         }
     }
+
+    function serializePendingAttachments(list) {
+        return (Array.isArray(list) ? list : []).map((a) => ({
+            id: String(a?.id || ''),
+            kind: a?.kind === 'image' ? 'image' : 'text',
+            name: String(a?.name || ''),
+            content: String(a?.content || ''),
+            ocrConfidence: a?.ocrConfidence ?? null,
+            ocrLang: String(a?.ocrLang || '')
+        })).filter((a) => a.name || a.content);
+    }
+
+    function buildMessageMemory(content, attachments, mentionedFiles) {
+        const blocks = [];
+        const attached = serializePendingAttachments(attachments || []).slice(0, 4);
+        if (attached.length) {
+            blocks.push('[Files attached to this message]');
+            attached.forEach((file) => {
+                const body = String(file.content || '').slice(0, 6000);
+                blocks.push(`${file.name}${body ? `\n${body}` : ''}`);
+            });
+        }
+        const mentions = (Array.isArray(mentionedFiles) ? mentionedFiles : []).filter(Boolean);
+        if (mentions.length) blocks.push(`[Referenced file paths]\n${mentions.join('\n')}`);
+        return [String(content || ''), ...blocks].filter(Boolean).join('\n\n');
+    }
+
+    function buildRecentChatContext() {
+        return (aiState.chatHistory || [])
+            .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+            .slice(-8)
+            .map((m) => ({
+                role: m.role,
+                content: m.role === 'user' ? buildMessageMemory(m.content, m.attachments, m.mentionedFiles) : m.content
+            }));
+    }
+
+    async function ensureAiChatSessionForRequest() {
+        if (aiState.activeChatId && !String(aiState.activeChatId).startsWith('tmp_')) return aiState.activeChatId;
+        try {
+            const tempChatId = aiState.activeChatId && String(aiState.activeChatId).startsWith('tmp_') ? String(aiState.activeChatId) : '';
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ action: 'ai_chat_create' })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success || !data.chat_id) return aiState.activeChatId || '';
+            const chatId = String(data.chat_id);
+            aiState.activeChatId = chatId;
+            localStorage.setItem('cloud_ai_active_chat_id', chatId);
+            const tempChat = tempChatId ? aiState.chatSessions.find((chat) => String(chat.id) === tempChatId) : null;
+            if (tempChat) {
+                tempChat.id = chatId;
+                tempChat.updated_at = Math.floor(Date.now() / 1000);
+            } else if (!aiState.chatSessions.some((chat) => String(chat.id) === chatId)) {
+                aiState.chatSessions.unshift({ id: chatId, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
+            }
+            renderAiChatSessions();
+            return chatId;
+        } catch (e) {
+            return aiState.activeChatId || '';
+        }
+    }
+
 
     async function clearChatHistory() {
         try {
@@ -6611,24 +7185,6 @@
     function estimateTokens(text) {
         return Math.round((text?.length || 0) / 3.5);
     }
-    function detectUserChatLanguage(text) {
-        const s = String(text || '');
-        if (/[а-яёА-ЯЁіЇєЄґҐ]/.test(s)) return 'ru';
-        if (/[а-яё]/i.test(s)) return 'ru';
-        return 'en';
-    }
-    function detectAgentEditIntent(text) {
-        if (window.AIAgentSkeleton?.detectEditIntent) {
-            return window.AIAgentSkeleton.detectEditIntent(text);
-        }
-        return /(?:сделай|добав|измени|напиши|чтобы\s+(?:тут|было))/iu.test(String(text || ''));
-    }
-    function detectAgentExportPdfIntent(text) {
-        if (window.AIAgentSkeleton?.detectExportPdfIntent) {
-            return window.AIAgentSkeleton.detectExportPdfIntent(text);
-        }
-        return /(?:pdf|пдф)|сохран[^\n]{0,30}(?:pdf|пдф)/iu.test(String(text || ''));
-    }
     function buildAgentStats(elapsedSec, usage, answerText, promptText) {
         const apiTotal = Number(usage?.total) || (Number(usage?.prompt) || 0) + (Number(usage?.completion) || 0);
         const tokens = apiTotal > 0 ? apiTotal : estimateTokens(String(promptText || '') + String(answerText || ''));
@@ -6636,7 +7192,15 @@
         const speed = time > 0 ? tokens / time : 0;
         return { tokens, time, speed };
     }
-    function buildAgentMetaJson(agentText) {
+    function buildChatMetaJson(attachments, mentionedFiles) {
+        return JSON.stringify({
+            v: 1,
+            type: 'chat',
+            attachments: serializePendingAttachments(attachments || []),
+            mentionedFiles: Array.isArray(mentionedFiles) ? mentionedFiles.slice() : []
+        });
+    }
+    function buildAgentMetaJson(agentText, attachments, mentionedFiles) {
         const patches = Object.entries(aiState.pendingAgentPatches || {}).map(([path, p]) => ({
             path,
             before: p.before,
@@ -6653,8 +7217,19 @@
                 status: s.status,
                 result: s.result
             })),
-            patches
+            patches,
+            attachments: serializePendingAttachments(attachments || []),
+            mentionedFiles: Array.isArray(mentionedFiles) ? mentionedFiles.slice() : []
         });
+    }
+    function parseChatMetaJson(raw) {
+        if (!raw) return null;
+        try {
+            const m = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            return m && m.type === 'chat' ? m : null;
+        } catch (e) {
+            return null;
+        }
     }
     function parseAgentMetaJson(raw) {
         if (!raw) return null;
@@ -6893,100 +7468,6 @@
         else { _mathQueue.push(element); if (_mathQueue.length === 1) _pollKatex(); }
     }
 
-    function hasExplicitMathDelimiters(text) {
-        return /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/.test(String(text ?? ''));
-    }
-
-    function isPatchOrJsonPayloadLine(text) {
-        const v = String(text ?? '').trim();
-        if (!v) return false;
-        if (/^\s*[\[{]/.test(v) && /"s"\s*:/.test(v) && /"r"\s*:/.test(v)) return true;
-        if (/^\s*\[\s*\{/.test(v) && /"search"\s*:/.test(v) && /"replace"\s*:/.test(v)) return true;
-        if (/SEARCH:\s*/.test(v) || /REPLACE:\s*/.test(v)) return true;
-        if (/^<{7}\s*SEARCH/.test(v) || /^={7}$/.test(v) || /^>{7}\s*REPLACE/.test(v)) return true;
-        return false;
-    }
-
-    function looksLikeBareMath(text) {
-        const value = String(text ?? '').trim();
-        if (!value || hasExplicitMathDelimiters(value)) return false;
-        if (isPatchOrJsonPayloadLine(value)) return false;
-        if (value.length < 4 || value.length > 500) return false;
-
-        const mathSignals = [
-            /[A-Za-z]\s*(?:\[[^\]]+\]|\([^)]+\))?\s*=/,
-            /[∑∫√∞π≤≥≠≈±×÷]/,
-            /\\(?:sum|int|sqrt|frac|pi|alpha|beta|gamma|delta|theta|lambda|mu|sigma|omega)\b/,
-            /\^[({]?[A-Za-z0-9+\-*/\\\s]+[)}]?/,
-            /_[({]?[A-Za-z0-9+\-*/\\\s]+[)}]?/
-        ];
-        const operatorCount = (value.match(/[=+\-*/^_]/g) || []).length;
-        const bracketCount = (value.match(/[\[\](){}]/g) || []).length;
-
-        return mathSignals.some((re) => re.test(value)) && (operatorCount + bracketCount >= 2);
-    }
-
-    function normalizeBareMathExpression(text) {
-        let expr = String(text ?? '').trim();
-        let prefixText = '';
-
-        const formulaStart = expr.search(/[A-Za-z]\s*(?:\[[^\]]+\]|\([^)]+\))?\s*=/);
-        if (formulaStart > 0) {
-            const prefix = expr.slice(0, formulaStart).trim();
-            if (prefix && /[^A-Za-z0-9\s()[\]{}=+\-*/^_.,:;]/.test(prefix)) {
-                prefixText = `\\text{${prefix.replace(/[\\{}]/g, '\\$&')} } `;
-                expr = expr.slice(formulaStart).trim();
-            }
-        }
-
-        const rangeMatch = expr.match(/^(.*?)\s+(для|for)\s+([A-Za-z])\s*=\s*([^\s]+)\s+(до|to)\s+(.+)$/i);
-        let range = null;
-        if (rangeMatch) {
-            expr = rangeMatch[1].trim();
-            range = {
-                word: rangeMatch[2].toLowerCase() === 'for' ? 'for' : 'для',
-                variable: rangeMatch[3],
-                from: rangeMatch[4],
-                to: rangeMatch[6].trim()
-            };
-        }
-
-        expr = expr
-            .replace(/\\\*/g, '\\cdot ')
-            .replace(/\\\s+/g, ' ')
-            .replace(/∑/g, '\\sum')
-            .replace(/∫/g, '\\int')
-            .replace(/√/g, '\\sqrt')
-            .replace(/π/g, '\\pi')
-            .replace(/∞/g, '\\infty')
-            .replace(/≤/g, '\\le')
-            .replace(/≥/g, '\\ge')
-            .replace(/≠/g, '\\ne')
-            .replace(/≈/g, '\\approx')
-            .replace(/±/g, '\\pm')
-            .replace(/×/g, '\\times')
-            .replace(/÷/g, '\\div')
-            .replace(/\be\^\(([^()]*)\)/g, 'e^{$1}')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        if (range) {
-            const sumBody = expr.match(/^(.*?)\\sum\s*\[([\s\S]+)\]$/);
-            if (sumBody) {
-                expr = `${sumBody[1]}\\sum_{${range.variable}=${range.from}}^{${range.to}} \\left[${sumBody[2]}\\right]`;
-            } else {
-                expr = `${expr}\\quad \\text{${range.word} } ${range.variable}=${range.from}\\ldots ${range.to}`;
-            }
-        }
-
-        return `${prefixText}${expr}`;
-    }
-
-    function formatBareMathLine(line) {
-        const expr = normalizeBareMathExpression(line);
-        return `\\[${expr}\\]`;
-    }
-
     function formatInlineMarkdownSafe(text) {
         // text is expected to be HTML-escaped already
         text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -7044,6 +7525,46 @@
         return { headers, rows, nextIndex: i };
     }
 
+    function parseListItemLine(line) {
+        const m = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/.exec(String(line ?? ''));
+        if (!m) return null;
+        return { indent: m[1].replace(/\t/g, '  ').length, ordered: !/^[-*+]$/.test(m[2]), text: m[3] };
+    }
+
+    function parseListBlock(lines, startIndex) {
+        const first = parseListItemLine(lines[startIndex]);
+        if (!first) return null;
+        const items = [];
+        let i = startIndex;
+        while (i < lines.length) {
+            const item = parseListItemLine(lines[i]);
+            if (!item) break;
+            items.push(item);
+            i++;
+        }
+        const build = (start, indent) => {
+            const list = document.createElement(items[start].ordered ? 'ol' : 'ul');
+            list.className = 'ai-list';
+            let idx = start;
+            while (idx < items.length && items[idx].indent >= indent) {
+                if (items[idx].indent > indent) {
+                    const nested = build(idx, items[idx].indent);
+                    (list.lastElementChild || list).appendChild(nested.list);
+                    idx = nested.nextIndex;
+                    continue;
+                }
+                if (items[idx].ordered !== items[start].ordered) break;
+                const li = document.createElement('li');
+                li.innerHTML = formatInlineMarkdownSafe(escapeHtml(items[idx].text));
+                list.appendChild(li);
+                idx++;
+            }
+            return { list, nextIndex: idx };
+        };
+        const built = build(0, items[0].indent);
+        return { list: built.list, nextIndex: startIndex + built.nextIndex };
+    }
+
     function createThinkBlock(content, isLive = false) {
         const thinkDiv = document.createElement('div');
         thinkDiv.className = 'think-block';
@@ -7077,7 +7598,7 @@
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'think-content';
-        contentDiv.textContent = content;
+        renderThinkContent(contentDiv, content, isLive);
         
         thinkDiv.appendChild(header);
         thinkDiv.appendChild(contentDiv);
@@ -7089,44 +7610,25 @@
         return thinkDiv;
     }
 
+    function renderThinkContent(contentDiv, content, isLive = false) {
+        const text = String(content ?? '');
+        contentDiv.dataset.raw = text;
+        contentDiv.replaceChildren(formatResponseInner(text.replace(/<\/?think>/g, '')));
+        if (!isLive) renderMath(contentDiv);
+    }
+
     function updateThinkBlockLive(thinkDiv, content) {
         const contentDiv = thinkDiv.querySelector('.think-content');
         if (contentDiv) {
-            contentDiv.textContent = content;
+            renderThinkContent(contentDiv, content, true);
         }
     }
 
     // FIXED: Proper content rendering without nested message-content wrappers
-    function createMathAccordionBlock(mathContent) {
+    function createMathDisplayBlock(mathContent) {
         const item = document.createElement('div');
-        item.className = 'math-display-block';
-
-        const header = document.createElement('div');
-        header.className = 'math-display-block-header';
-
-        const title = document.createElement('span');
-        title.textContent = tr('aiMathBlock', 'Thought');
-        header.appendChild(title);
-
-        const icon = document.createElement('span');
-        icon.className = 'math-display-block-icon';
-        icon.textContent = '+';
-        header.appendChild(icon);
-
-        const body = document.createElement('div');
-        body.className = 'math-display-block-body';
-        body.textContent = mathContent;
-
-        item.appendChild(header);
-        item.appendChild(body);
-
-        header.addEventListener('click', () => {
-            document.querySelectorAll('.math-display-block').forEach(el => {
-                if (el !== item) el.classList.remove('open');
-            });
-            item.classList.toggle('open');
-        });
-
+        item.className = 'math-display';
+        item.textContent = mathContent;
         return item;
     }
 
@@ -7142,11 +7644,8 @@
         for (const part of parts) {
             if (part.type === 'think') {
                 const existingThink = liveThinkBlocks?.get(part.content);
-                if (existingThink) {
-                    container.appendChild(createThinkBlock(existingThink.querySelector('.think-content')?.textContent || part.content));
-                } else {
-                    container.appendChild(createThinkBlock(part.content));
-                }
+                const thinkText = existingThink?.querySelector('.think-content')?.dataset.raw || part.content;
+                container.appendChild(createThinkBlock(thinkText));
             } else {
                 // Process the text part
                 const text = part.content;
@@ -7154,8 +7653,7 @@
                 
                 for (const segment of segments) {
                     if (/^\$\$[\s\S]*\$\$$/.test(segment.trim()) || /^\\\[[\s\S]*\\\]$/.test(segment.trim())) {
-                        const mathDiv = createMathAccordionBlock(segment.trim());
-                        container.appendChild(mathDiv);
+                        container.appendChild(createMathDisplayBlock(segment.trim()));
                     } else if (segment.startsWith('```') && segment.endsWith('```')) {
                         // Code block
                         const firstLineEnd = segment.indexOf('\n');
@@ -7265,14 +7763,15 @@
                                 continue;
                             }
 
-                            // Normal line -> markdown -> block
-                            if (looksLikeBareMath(line)) {
-                                const mathDiv = createMathAccordionBlock(formatBareMathLine(line));
-                                container.appendChild(mathDiv);
-                                i++;
+                            // List block
+                            const list = parseListBlock(rawLines, i);
+                            if (list) {
+                                container.appendChild(list.list);
+                                i = list.nextIndex;
                                 continue;
                             }
 
+                            // Normal line -> markdown -> block
                             const formattedLine = formatMarkdown(line);
                             if (formattedLine.startsWith('<h')) {
                                 const temp = document.createElement('div');
@@ -7446,6 +7945,11 @@
     }
 
     function stopGeneration() {
+        if (aiState.serverRunJobId) {
+            aiState.serverRunStopping = true;
+            flashStatus(tr('aiStopping', 'Stopping assistant...'));
+            void cancelServerAiRun(aiState.serverRunJobId);
+        }
         try { aiState.abortController?.abort(); } catch (e) {}
     }
 
@@ -7478,20 +7982,35 @@
                 aiState.userDisplayName = email.split('@')[0] || 'user';
                 refreshUserMessageLabels();
             }
-        } catch (e) {}
+        } catch (e) { logAiError('Fetch user display name', e); }
     }
 
     function rebuildMessageWithMentions(cleanMessage, placements) {
         const msg = String(cleanMessage || '');
         const list = Array.isArray(placements) ? placements.slice() : [];
-        list.sort((a, b) => (Number(b?.index) || 0) - (Number(a?.index) || 0));
-        let out = msg;
-        for (const p of list) {
+        const grouped = [];
+        const byIndex = new Map();
+        list.forEach((p) => {
             const name = String(p?.name || '').trim();
-            const idx = Number(p?.index);
-            if (!name || !Number.isFinite(idx) || idx < 0 || idx > out.length) continue;
-            if (new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=\\s|$)`).test(out)) continue;
-            out = out.slice(0, idx) + '@' + name + out.slice(idx);
+            const rawIdx = Number(p?.index);
+            if (!name || !Number.isFinite(rawIdx)) return;
+            if (new RegExp(`(^|\\s)@${escapeRegExp(name)}(?=\\s|$)`).test(msg)) return;
+            const idx = Math.max(0, Math.min(msg.length, rawIdx));
+            if (!byIndex.has(idx)) {
+                const group = { index: idx, names: [] };
+                byIndex.set(idx, group);
+                grouped.push(group);
+            }
+            byIndex.get(idx).names.push(name);
+        });
+        grouped.sort((a, b) => b.index - a.index);
+        let out = msg;
+        for (const group of grouped) {
+            const before = out.slice(0, group.index);
+            const after = out.slice(group.index);
+            const prefix = before && !/\s$/.test(before) ? ' ' : '';
+            const suffix = after && !/^\s/.test(after) ? ' ' : '';
+            out = before + prefix + group.names.map((name) => '@' + name).join(' ') + suffix + after;
         }
         return out;
     }
@@ -7529,6 +8048,167 @@
         }
     }
 
+    async function startServerAiRun(payload) {
+        const params = new URLSearchParams({
+            action: 'ai_run_start',
+            chat_id: aiState.activeChatId || '',
+            message: payload.message || '',
+            user_facing_message: payload.userFacingMessage || payload.message || '',
+            model: payload.model || '',
+            role: payload.role || '',
+            chat_mode: payload.chatMode || 'chat',
+            root: payload.root || '',
+            mentioned_files: JSON.stringify(payload.mentionedFiles || []),
+            mentioned_roots: JSON.stringify(payload.mentionedRoots || {}),
+            attachments: JSON.stringify(serializePendingAttachments(payload.attachments || [])),
+            history: JSON.stringify(buildRecentChatContext())
+        });
+        const res = await fetch(AI_CONFIG.apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body: params
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!data.success) throw new Error(data.error || 'Failed to start worker');
+        if (data.chat_id) {
+            aiState.activeChatId = String(data.chat_id);
+            localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
+        }
+        await loadAiChatSessions();
+        return data;
+    }
+
+    async function cancelServerAiRun(jobId) {
+        if (!jobId) return;
+        try {
+            await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: new URLSearchParams({ action: 'ai_run_cancel', job_id: jobId, chat_id: aiState.activeChatId || '' })
+            });
+        } catch (e) { logAiError('Cancel server AI run', e); }
+    }
+
+    function renderServerRunEvents(messageId, job) {
+        const msgEl = document.getElementById(messageId);
+        const host = msgEl?.querySelector('.message-content');
+        if (!host) return;
+        const events = Array.isArray(job?.events) ? job.events : [];
+        renderServerRunPlan(messageId, job);
+        const last = events[events.length - 1];
+        const path = last?.data?.path;
+        if (path && (last.type === 'tool' || last.type === 'done')) {
+            void highlightNewFilesInTree([{ path, root: last?.data?.root || '', type: last?.data?.type || 'file' }], { openLastPdf: /\.pdf$/i.test(path) });
+        }
+    }
+
+    async function pollServerAiRun(jobId, messageId, startTime, userFacingMessage, modelName) {
+        let finalJob = null;
+        for (;;) {
+            if (aiState.abortController?.signal?.aborted) {
+                throw new DOMException('Request aborted', 'AbortError');
+            }
+            const res = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                credentials: 'same-origin',
+                body: new URLSearchParams({ action: 'ai_run_status', job_id: jobId, chat_id: aiState.activeChatId || '' })
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!data.success) throw new Error(data.error || 'Failed to read worker status');
+            const job = data.job;
+            if (!job) throw new Error('Worker job not found');
+            renderServerRunEvents(messageId, job);
+            if (job.status === 'done' || job.status === 'error' || job.status === 'cancelled') {
+                finalJob = job;
+                break;
+            }
+            await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+        if (finalJob.status === 'cancelled') throw new DOMException('Request aborted', 'AbortError');
+        if (finalJob.status === 'error') {
+            logAiError('Server AI run error', finalJob.error || 'Worker failed');
+            throw new Error(finalJob.error || 'Worker failed');
+        }
+        (finalJob.events || [])
+            .filter((e) => e?.type === 'error' || e?.type === 'compile_error' || e?.data?.error)
+            .forEach((e) => logAiError(`Server tool ${serverRunEventTool(e)} failed`, e?.data?.error || e?.error || e?.text || String(e)));
+        const answer = String(finalJob.answer || '').trim() || tr('aiEmptyResponse', 'Empty response');
+        const msgEl = document.getElementById(messageId);
+        const host = msgEl?.querySelector('.message-content');
+        if (host) {
+            const plan = host.querySelector('.ai-agent-plan');
+            if (plan) {
+                let finalAnswer = host.querySelector('.ai-agent-final-answer');
+                if (!finalAnswer) {
+                    finalAnswer = document.createElement('div');
+                    finalAnswer.className = 'ai-agent-final-answer';
+                    host.appendChild(finalAnswer);
+                }
+                finalAnswer.replaceChildren(formatResponseInner(answer));
+                renderMath(finalAnswer);
+            } else {
+                host.replaceChildren(formatResponseInner(answer));
+                renderMath(host);
+            }
+        }
+        const elapsed = (Date.now() - startTime) / 1000;
+        const stats = { time: elapsed, tokens: estimateTokens(answer), speed: elapsed > 0 ? estimateTokens(answer) / elapsed : 0 };
+        if (msgEl) appendMessageStatsFooter(msgEl, stats, answer);
+        aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: '', attachments: serializePendingAttachments(finalJob.attachments || []), mentionedFiles: Array.isArray(finalJob.mentioned_files) ? finalJob.mentioned_files.slice() : [] });
+        aiState.chatHistory.push({ id: messageId, role: 'assistant', content: answer, timestamp: new Date().toISOString(), fileName: '', stats });
+        saveChatHistory();
+        await loadAiChatSessions();
+        return finalJob;
+    }
+
+    async function resumeServerAiRunIfNeeded() {
+        if (aiState.isGenerating || !aiState.activeChatId) return;
+        const res = await fetch(AI_CONFIG.apiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            body: new URLSearchParams({ action: 'ai_run_status', chat_id: aiState.activeChatId })
+        });
+        const data = await res.json().catch(() => ({}));
+        const job = data?.job;
+        if (!data?.success || !job) return;
+        if (String(job.status || '') === 'done') {
+            if (!elements.chat?.querySelector('.message')) {
+                addMessageToUI('user', job.user_facing_message || job.message || '', false);
+                addMessageToUI('assistant', job.answer || tr('aiEmptyResponse', 'Empty response'), false);
+            }
+            return;
+        }
+        if (String(job.status || '') === 'error') {
+            logAiError('Server AI run error', job.error || 'Worker failed');
+            if (!elements.chat?.querySelector('.message')) {
+                addMessageToUI('user', job.user_facing_message || job.message || '', false);
+                addMessageToUI('error', job.error || 'Worker failed', false);
+            }
+            return;
+        }
+        if (!['queued', 'running'].includes(String(job.status || ''))) return;
+        aiState.isGenerating = true;
+        setInputState(true);
+        setSendButtonGenerating(true);
+        if (!elements.chat?.querySelector('.message')) addMessageToUI('user', job.user_facing_message || job.message || '', false);
+        const messageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+        addMessageToUI('assistant', '', false, messageId, false);
+        try {
+            await pollServerAiRun(job.id, messageId, Date.now(), job.user_facing_message || job.message || '', job.model || 'AI');
+        } catch (e) {
+            addMessageToUI('error', e.message || String(e));
+        } finally {
+            aiState.isGenerating = false;
+            setInputState(false);
+            setSendButtonGenerating(false);
+            aiState.abortController = null;
+        }
+    }
+
     async function compileOpenDocument(format) {
         const activeTab = window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId);
         const fmt = String(format || 'auto').toLowerCase();
@@ -7543,7 +8223,7 @@
                 iframe.contentWindow.document.getElementById('refreshPreviewBtn')?.click();
                 return { message: 'Markdown preview refreshed' };
             }
-        } catch (e) {}
+        } catch (e) { logAiError('Compile open document', e); }
         return { message: 'No compile target for open document' };
     }
     async function agentCompileCheck(path, content) {
@@ -7551,7 +8231,7 @@
             action: 'ai_agent_tool',
             tool: 'compile_and_check',
             args: JSON.stringify({ path, content }),
-            root: getRootForFileContext() || ''
+            root: getRootForAgentPath(path) || ''
         });
         const res = await fetch(AI_CONFIG.fileApiEndpoint, {
             method: 'POST',
@@ -7600,7 +8280,7 @@
                 action: 'ai_agent_tool',
                 tool: 'export_latex_pdf_file',
                 args: JSON.stringify({ path }),
-                root: getRootForFileContext() || ''
+                root: getRootForAgentPath(path) || ''
             })
         });
         const data = await res.json().catch(() => ({}));
@@ -7649,13 +8329,35 @@
         notifyEditorCompileStatus(true, fallback?.message || 'OK');
         return { success: true, message: fallback?.message || 'OK' };
     }
-    function buildAssistantToolLoopBase(messageWithMentions, contextMessages, readOnly) {
-        const openPathForPrompts = '';
+    function buildAssistantToolLoopBase(messageWithMentions, contextMessages, openPath = '') {
+        const openPathForPrompts = normalizeMentionedFilePath(openPath || aiState.currentFileName || getActiveFilePath() || '');
         const historyMessages = (contextMessages || []).filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string');
-        const replyLanguage = detectUserChatLanguage(messageWithMentions);
-        const wantsExportPdf = !readOnly && detectAgentExportPdfIntent(messageWithMentions);
-        const requiresContentEdit = !readOnly && detectAgentEditIntent(messageWithMentions) && !wantsExportPdf;
-        return { openPathForPrompts, historyMessages, replyLanguage, wantsExportPdf, requiresContentEdit };
+        return { openPathForPrompts, historyMessages };
+    }
+
+    function buildWorkspaceContextHint(mentionedFiles, mentionedRoots, toolRoot, openPath, attachments) {
+        const lines = [];
+        const mentions = (mentionedFiles || []).map((p) => normalizeMentionedFilePath(p)).filter(Boolean);
+        const activeRoot = String(toolRoot || 'main');
+        if (mentions.length) {
+            const list = mentions.map((p) => {
+                const root = mentionedRoots?.[p] || activeRoot;
+                return `${p} (root: ${root})`;
+            }).join(', ');
+            lines.push(`Workspace files attached with @ (use these paths verbatim in tool calls): ${list}.`);
+        }
+        const openNorm = normalizeMentionedFilePath(openPath);
+        if (openNorm) lines.push(`File open in the editor: ${openNorm} (root: ${activeRoot}).`);
+        const attachmentNames = (attachments || []).map((a) => a?.name).filter(Boolean);
+        if (attachmentNames.length) {
+            lines.push(`Uploaded attachments pasted into this conversation as text (they are NOT workspace paths, do not read or write them): ${attachmentNames.join(', ')}.`);
+        }
+        const folderSource = mentions[0] || openNorm || '';
+        const folder = folderSource.includes('/') ? folderSource.slice(0, folderSource.lastIndexOf('/')) : '';
+        lines.push(`Active root for tool calls: ${activeRoot}. Paths are relative to that root, without a leading slash.`);
+        lines.push(`Folder for new files unless the user names another: ${folder || '.' } (i.e. ${folder ? folder + '/<name>' : '<name>'}).`);
+        lines.push('Decide yourself which of these files the request is about and where new files belong; use exact paths in tool calls.');
+        return `\n\n[workspace context]\n${lines.join('\n')}`;
     }
 
     function getToolLoopHistory(messages, currentTask) {
@@ -7665,25 +8367,25 @@
             .filter((m) => !(m.role === 'user' && String(m.content || '').trim() === task));
     }
 
-    async function sendChatWithTools(messageWithMentions, contextMessages, requestModel) {
+    async function sendChatWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '', pathRoots = null, openPath = '') {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
         }
         if (window.AIAgentSkeleton.clearAgentPromptCache) window.AIAgentSkeleton.clearAgentPromptCache();
-        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, true);
+        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, openPath);
         await window.AIAgentSkeleton.loadAgentPrompts(AI_CONFIG.fileApiEndpoint, base.openPathForPrompts, 'chat');
         const userRole = await resolveAgentUserRole();
         const sk = window.AIAgentSkeleton;
+        const runRoot = rootOverride || getRootForToolRun();
         const chatResult = await sk.runAgentLoop({
             readOnly: true,
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: getRootForToolRun(),
+            root: runRoot,
+            rootForPath: (p) => resolveRootForToolPath(p, pathRoots, runRoot),
             openPath: base.openPathForPrompts,
+            defaultPath: base.openPathForPrompts || (Array.isArray(aiState.agentMentionPaths) ? aiState.agentMentionPaths[0] : '') || '',
             userRole,
             userTask: messageWithMentions,
-            requiresContentEdit: false,
-            wantsExportPdf: false,
-            replyLanguage: base.replyLanguage,
             historyMessages: base.historyMessages,
             maxEditSteps: 16,
             tr: (key, fallback, params) => tr(key, fallback, params),
@@ -7707,6 +8409,7 @@
             onToolEnd: (stepId, name, _detail, result) => {
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
+                if (isErr) logAiError(`Tool ${name} failed`, result?.error || result?.output || result);
                 upsertAgentPlanStep(stepId, { status: isErr ? 'error' : 'done', result: isErr && result?.error ? String(result.error) : summary, rawResult: result });
             },
             createCompletion: async ({ messages, tools, tool_choice, forceAnswerOnly }) => {
@@ -7731,24 +8434,24 @@
         });
         return { content: String(chatResult?.content || '').trim(), usage: chatResult?.usage || null };
     }
-    async function sendAgentWithTools(messageWithMentions, contextMessages, requestModel) {
+    async function sendAgentWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '', pathRoots = null, openPath = '') {
         if (!window.AIAgentSkeleton?.runAgentLoop) {
             throw new Error('Agent tools module is not loaded');
         }
         if (window.AIAgentSkeleton.clearAgentPromptCache) window.AIAgentSkeleton.clearAgentPromptCache();
-        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, false);
+        const base = buildAssistantToolLoopBase(messageWithMentions, contextMessages, openPath);
         await window.AIAgentSkeleton.loadAgentPrompts(AI_CONFIG.fileApiEndpoint, base.openPathForPrompts, 'agent');
         const userRole = await resolveAgentUserRole();
         const sk = window.AIAgentSkeleton;
+        const runRoot = rootOverride || getRootForToolRun();
         const agentResult = await sk.runAgentLoop({
             apiBase: AI_CONFIG.fileApiEndpoint,
-            root: getRootForToolRun(),
+            root: runRoot,
+            rootForPath: (p) => resolveRootForToolPath(p, pathRoots, runRoot),
             openPath: base.openPathForPrompts,
+            defaultPath: base.openPathForPrompts || (Array.isArray(aiState.agentMentionPaths) ? aiState.agentMentionPaths[0] : '') || '',
             userRole,
             userTask: messageWithMentions,
-            requiresContentEdit: base.requiresContentEdit,
-            wantsExportPdf: base.wantsExportPdf,
-            replyLanguage: base.replyLanguage,
             historyMessages: base.historyMessages,
             maxEditSteps: 14,
             tr: (key, fallback, params) => tr(key, fallback, params),
@@ -7777,6 +8480,7 @@
             onToolEnd: (stepId, name, detail, result) => {
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
+                if (isErr) logAiError(`Tool ${name} failed`, result?.error || result?.output || result);
                 let planResult = summary;
                 if ((name === 'compile_and_check' || name === 'verify_syntax') && isErr) {
                     planResult = String(result?.error || result?.output || summary).trim();
@@ -7788,10 +8492,10 @@
                     void highlightNewFilesInTree([result.pdf_path], { openLastPdf: true });
                 }
                 if ((name === 'write_file' || name === 'search_replace' || name === 'create_file' || name === 'copy_file' || name === 'download_file' || name === 'archive_create') && result?.path && result?.persisted) {
-                    void highlightNewFilesInTree([result.path]);
+                    void highlightNewFilesInTree([{ path: result.path, type: 'file', root: result.root || '' }]);
                 }
                 if (name === 'make_directory' && !isErr && result?.path) {
-                    void highlightNewFilesInTree([{ path: result.path, type: 'dir' }]);
+                    void highlightNewFilesInTree([{ path: result.path, type: 'dir', root: result.root || '' }]);
                 }
                 if (name === 'rename_file' && !isErr && result?.path) {
                     void syncTreeForMoveOrDelete([result.path], [result.old_path || '']);
@@ -7890,6 +8594,7 @@
             clearEditorHighlights();
             
             await ensureDirectApiKeyLoaded();
+            await ensureAiChatSessionForRequest();
 
         aiState.abortController = new AbortController();
 
@@ -7900,13 +8605,22 @@
                 ? message
                 : rebuildMessageWithMentions(message, aiState.mentionPlacements || []);
         const attachmentsForRequest = Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments;
-        const mentionedFilesForRequest = Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : [];
+        const mentionedFilesForRequest = Array.isArray(options.mentionedFilesOverride) ? options.mentionedFilesOverride.slice() : (Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : []);
+        const mentionedRootsForRequest = options.mentionedRootsOverride && typeof options.mentionedRootsOverride === 'object'
+            ? { ...options.mentionedRootsOverride }
+            : { ...(aiState.mentionedFileRoots || {}) };
+        const toolRootForRequest = mentionedFilesForRequest
+            .map((p) => mentionedRootsForRequest[normalizeMentionedFilePath(p)] || '')
+            .find(Boolean) || getRootForToolRun();
 
         if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false);
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
-            syncMentionedAttachmentsFromInput('');
             aiState.mentionPlacements = [];
+            aiState.selectedMentionFiles = [];
+            aiState.mentionedFileRoots = {};
+            renderMentionedAttachments();
+            removeAllExternalAttachments();
         }
 
         showTypingIndicator();
@@ -7922,6 +8636,52 @@
         let streamMessageId = '';
         let streamModelName = '';
         const completionNotify = { mode: 'chat', outcome: 'success', skip: false };
+        const shouldUseServerWorker = aiState.chatMode === 'agent' && !window.AIAgentSkeleton?.runAgentLoop && options.useServerWorker !== false;
+        if (shouldUseServerWorker) {
+            const requestModel = resolveModelForRequest();
+            const workerMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+            removeTypingIndicator();
+            addMessageToUI('assistant', '', false, workerMessageId, false);
+            try {
+                const started = await startServerAiRun({
+                    message: messageWithMentions,
+                    userFacingMessage,
+                    model: requestModel,
+                    role: elements.roleSelect?.value || aiState.selectedRole || AI_CONFIG.defaultRole,
+                    chatMode: aiState.chatMode || 'chat',
+                    root: toolRootForRequest,
+                    mentionedFiles: mentionedFilesForRequest,
+                    mentionedRoots: mentionedRootsForRequest,
+                    attachments: attachmentsForRequest
+                });
+                aiState.serverRunJobId = started.job_id || '';
+                aiState.serverRunMessageId = workerMessageId;
+                aiState.serverRunStopping = false;
+                flashStatus(tr('aiAgentWorkerStarted', 'Assistant worker started'));
+                await pollServerAiRun(started.job_id, workerMessageId, startTime, userFacingMessage, requestModel);
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    completionNotify.skip = true;
+                    flashStatus(tr('aiAgentInterrupted', 'Assistant action interrupted'));
+                } else {
+                    completionNotify.outcome = 'error';
+                    addMessageToUI('error', err.message || String(err));
+                }
+                removeTypingIndicator();
+            } finally {
+                aiState.isGenerating = false;
+                aiState.currentMessageId = null;
+                aiState.abortController = null;
+                aiState.serverRunJobId = '';
+                aiState.serverRunMessageId = '';
+                aiState.serverRunStopping = false;
+                setInputState(false);
+                setSendButtonGenerating(false);
+                if (options.cleanupAttachments !== false) removeAllExternalAttachments();
+                maybeShowAiCompletionNotification(completionNotify);
+            }
+            return;
+        }
         
         try {
             const fileData = await loadCurrentFileContent();
@@ -7929,24 +8689,32 @@
             if (isExtractableDocumentPath(openDocPath) && !(fileData?.content || '').trim()) {
                 flashStatus(tr('aiDocumentExtractEmpty', 'Could not extract text from the open document. Try read_file in chat/agent mode.'));
             }
-            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest);
-            
+            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest, mentionedRootsForRequest);
+            if (Array.isArray(mentionedContext.resolvedPaths) && mentionedContext.resolvedPaths.length) {
+                mentionedFilesForRequest.length = 0;
+                mentionedContext.resolvedPaths.forEach((item) => {
+                    const p = normalizeMentionedFilePath(item.path);
+                    if (!p) return;
+                    mentionedFilesForRequest.push(p);
+                    if (item.root) mentionedRootsForRequest[p] = item.root;
+                });
+            }
+            const resolvedToolRoot = mentionedFilesForRequest
+                .map((p) => mentionedRootsForRequest[normalizeMentionedFilePath(p)] || '')
+                .find(Boolean) || toolRootForRequest;
+
             const messages = [];
             const role = elements.roleSelect?.value || AI_CONFIG.defaultRole;
-            
+
             const isAgentMode = aiState.chatMode === 'agent' && isAgentEditorSupported();
-            const editIntent = detectAgentEditIntent(userFacingMessage);
-            const shouldUseAgentForMentionEdit = !isAgentMode && editIntent && mentionedFilesForRequest.length > 0 && isAgentEditorSupported();
-            const useAgentTools = (isAgentMode || shouldUseAgentForMentionEdit) && window.AIAgentSkeleton?.runAgentLoop;
+            const useAgentTools = isAgentMode && !!window.AIAgentSkeleton?.runAgentLoop;
             const useChatTools = !useAgentTools && !!window.AIAgentSkeleton?.runAgentLoop;
             const useFileToolContext = useAgentTools || useChatTools;
+            const openDocForTools = normalizeMentionedFilePath(
+                mentionedFilesForRequest[0] || fileData?.name || aiState.currentFileName || openDocPath || ''
+            );
             completionNotify.mode = useAgentTools ? 'agent' : 'chat';
-            if (isAgentMode && !useAgentTools) {
-                messages.push({
-                    role: 'system',
-                    content: 'Return only minified JSON array of edits: [{"s":"exact old text","r":"new text"}]. No markdown, no comments, no extra keys.'
-                });
-            } else if (!isAgentMode && role !== 'general') {
+            if (!isAgentMode && role !== 'general') {
                 messages.push({
                     role: 'system',
                     content: roleConfigs[role]?.system || roleConfigs.general.system
@@ -7980,35 +8748,16 @@
             }
 
             // Include last exchange if enabled
-            if (aiState.rememberPrevious) {
-                const recent = aiState.chatHistory
-                    .filter(m => m && (m.role === 'user' || m.role === 'assistant'))
-                    .slice(-4);
-                for (const r of recent) {
-                    if (typeof r.content === 'string' && r.content.trim()) {
-                        messages.push({ role: r.role, content: r.content });
-                    }
+            const recent = buildRecentChatContext();
+            for (const r of recent) {
+                if (typeof r.content === 'string' && r.content.trim()) {
+                    messages.push({ role: r.role, content: r.content });
                 }
             }
 
-            const mentionTargetHint = mentionedFilesForRequest.length > 0
-                ? `\n\n[Контекст @file]\nПользователь прикрепил @file: ${mentionedFilesForRequest.map((p) => {
-                    const root = aiState.mentionedFileRoots?.[normalizeMentionedFilePath(p)] || getRootForToolRun();
-                    return `${p}${root ? ` (root: ${root})` : ''}`;
-                }).join(', ')}.\nЕсли пользователь пишет "этот файл", "в этот файл", "this file" или не указывает другой путь, целевой файл: ${mentionedFilesForRequest[0]}.\nДля записи используй write_file/search_replace/create_file именно с этим path.`
-                : '';
-            const userContentWithMentions = messageWithMentions + mentionTargetHint;
-            let agentUserContent = userContentWithMentions;
-            if (useAgentTools && detectAgentExportPdfIntent(userFacingMessage)) {
-                const openName = String(fileData?.name || aiState.currentFileName || '');
-                const isLatex = /\.tex$/i.test(openName);
-                agentUserContent = isLatex
-                    ? `[${tr('aiExportLatexPdf', 'Export LaTeX to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`
-                    : `[${tr('aiExportMarkdownPdf', 'Export Markdown to PDF on server')}]\n\n${messageWithMentions}${mentionTargetHint}`;
-            } else if (useAgentTools && editIntent) {
-                agentUserContent = `[Задача: изменить содержимое файла по запросу. Сначала write_file / search_replace / apply_editor_patch, затем compile_and_check при необходимости.]\n\n${messageWithMentions}${mentionTargetHint}`;
-            }
-            messages.push({ role: 'user', content: useAgentTools || useChatTools ? agentUserContent : userContentWithMentions });
+            const workspaceHint = buildWorkspaceContextHint(mentionedFilesForRequest, mentionedRootsForRequest, resolvedToolRoot, openDocForTools, attachmentsForRequest);
+            const userContentWithMentions = messageWithMentions + (useFileToolContext ? workspaceHint : '');
+            messages.push({ role: 'user', content: userContentWithMentions });
 
             if (useAgentTools) {
                 const requestModel = resolveModelForRequest();
@@ -8020,8 +8769,9 @@
                 addMessageToUI('assistant', '', false, agentMessageId, false);
                 resetAgentRun(agentMessageId, mentionPaths, 'agent');
                 applyToolRunRoleToMessage(agentMessageId);
+                let runOutcome = 'success';
                 try {
-                    const agentResult = await sendAgentWithTools(agentUserContent, getToolLoopHistory(messages, agentUserContent), requestModel);
+                    const agentResult = await sendAgentWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel, resolvedToolRoot, mentionedRootsForRequest, openDocForTools);
                     const agentText = String(agentResult?.content || '').trim();
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, agentResult?.usage, agentText, messageWithMentions);
@@ -8060,6 +8810,22 @@
                                     result: saveErr.message || 'Save failed'
                                 });
                                 attachAgentConfirmFooter(msgEl, agentMessageId);
+                                setTimeout(async () => {
+                                    if (!Object.keys(aiState.pendingAgentPatches).length || isConfirmDialogOpen()) return;
+                                    const ok = await showConfirmDialog(
+                                        escapeHtml(tr('aiAgentConfirmTitle', 'Apply assistant changes?')),
+                                        escapeHtml(saveErr.message || tr('aiAgentConfirmMessage', 'The assistant staged file changes but could not save them automatically. Apply them now?'))
+                                    );
+                                    if (ok && Object.keys(aiState.pendingAgentPatches).length > 0) {
+                                        try {
+                                            await persistAgentWorkAfterRun();
+                                            aiState.lastAgentUndo = { messageId: agentMessageId, paths: undoSnapshot };
+                                            attachAgentUndoFooter(msgEl, agentMessageId);
+                                        } catch (e) {
+                                            flashStatus(e.message || 'Save failed');
+                                        }
+                                    }
+                                }, 0);
                             }
                         }
                         hideAgentStreamShell();
@@ -8067,11 +8833,11 @@
                     } else {
                         addMessageToUI('assistant', agentText || tr('aiEmptyResponse', 'Empty response'));
                     }
-                    const metaJson = buildAgentMetaJson(agentText);
+                    const metaJson = buildAgentMetaJson(agentText, attachmentsForRequest, mentionedFilesForRequest);
                     const agentMeta = parseAgentMetaJson(metaJson);
                     const currentFile = document.getElementById('viewer')?.dataset.path || fileData?.name || '';
                     await appendChatPairToDb(userFacingMessage, agentText, requestModel, currentFile, stats, metaJson);
-                    aiState.chatHistory.push({ id: agentMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
+                    aiState.chatHistory.push({ id: agentMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile, attachments: serializePendingAttachments(attachmentsForRequest), mentionedFiles: mentionedFilesForRequest.slice() });
                     aiState.chatHistory.push({
                         id: agentMessageId,
                         role: 'assistant',
@@ -8088,21 +8854,23 @@
                     removeTypingIndicator();
                     discardAgentPreviewState();
                     if (agentErr?.code === 'agent_interrupted_by_user') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                         flashStatus(tr('aiAgentInterrupted', 'Assistant action interrupted'));
                     } else if (agentErr.name === 'AbortError') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                     } else {
+                        runOutcome = 'error';
                         completionNotify.outcome = 'error';
                         addMessageToUI('error', agentErr.message || String(agentErr));
                     }
                 } finally {
-                    stopAgentRunTimer();
                     cleanupAgentAskUser();
                     aiState.isGenerating = false;
                     setInputState(false);
                     setSendButtonGenerating(false);
-                    renderAgentPlanInMessage();
+                    finishAgentRun(runOutcome);
                     aiState.abortController = null;
                     maybeShowAiCompletionNotification(completionNotify);
                 }
@@ -8119,8 +8887,9 @@
                 addMessageToUI('assistant', '', false, chatMessageId, false);
                 resetAgentRun(chatMessageId, mentionPaths, 'chat');
                 applyToolRunRoleToMessage(chatMessageId);
+                let runOutcome = 'success';
                 try {
-                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel);
+                    const chatResult = await sendChatWithTools(userContentWithMentions, getToolLoopHistory(messages, userContentWithMentions), requestModel, resolvedToolRoot, mentionedRootsForRequest, openDocForTools);
                     let chatText = String(chatResult?.content || '').trim();
                     if (!chatText && aiState.agentPlanSteps.some((s) => s.status === 'done')) {
                         chatText = tr('aiChatAnswerFailed', 'The model did not produce a text answer after reading the file. Try again or narrow your request.');
@@ -8144,8 +8913,8 @@
                         addMessageToUI('assistant', chatText || tr('aiEmptyResponse', 'Empty response'));
                     }
                     const currentFile = document.getElementById('viewer')?.dataset.path || fileData?.name || '';
-                    await appendChatPairToDb(userFacingMessage, chatText, requestModel, currentFile, stats, null);
-                    aiState.chatHistory.push({ id: chatMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
+                    await appendChatPairToDb(userFacingMessage, chatText, requestModel, currentFile, stats, buildChatMetaJson(attachmentsForRequest, mentionedFilesForRequest));
+                    aiState.chatHistory.push({ id: chatMessageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile, attachments: serializePendingAttachments(attachmentsForRequest), mentionedFiles: mentionedFilesForRequest.slice() });
                     aiState.chatHistory.push({
                         id: chatMessageId,
                         role: 'assistant',
@@ -8159,21 +8928,23 @@
                     hideAgentStreamShell();
                     removeTypingIndicator();
                     if (chatErr?.code === 'agent_interrupted_by_user') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                         flashStatus(tr('aiAgentInterrupted', 'Assistant action interrupted'));
                     } else if (chatErr.name === 'AbortError') {
+                        runOutcome = 'stopped';
                         completionNotify.skip = true;
                     } else {
+                        runOutcome = 'error';
                         completionNotify.outcome = 'error';
                         addMessageToUI('error', chatErr.message || String(chatErr));
                     }
                 } finally {
-                    stopAgentRunTimer();
                     cleanupAgentAskUser();
                     aiState.isGenerating = false;
                     setInputState(false);
                     setSendButtonGenerating(false);
-                    renderAgentPlanInMessage();
+                    finishAgentRun(runOutcome);
                     aiState.abortController = null;
                     maybeShowAiCompletionNotification(completionNotify);
                 }
@@ -8399,10 +9170,10 @@
 
             const currentFile = document.getElementById('viewer')?.dataset.path;
 
-            await appendChatPairToDb(userFacingMessage, fullResponse, modelName, currentFile || '', stats);
+            await appendChatPairToDb(userFacingMessage, fullResponse, modelName, currentFile || '', stats, buildChatMetaJson(attachmentsForRequest, mentionedFilesForRequest));
 
             // Keep minimal local history for "remember previous" feature
-            aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile });
+            aiState.chatHistory.push({ id: messageId + '_u', role: 'user', content: userFacingMessage, timestamp: new Date().toISOString(), fileName: currentFile, attachments: serializePendingAttachments(attachmentsForRequest), mentionedFiles: mentionedFilesForRequest.slice() });
             aiState.chatHistory.push({ id: messageId, role: 'assistant', content: fullResponse, timestamp: new Date().toISOString(), fileName: currentFile, stats: stats });
             saveChatHistory();
             
@@ -8425,7 +9196,7 @@
                             speed: elapsed > 0 ? (partialTokens / elapsed) : 0
                         };
                         await appendChatPairToDb(userFacingMessage, lastFullResponse, streamModelName || 'AI', currentFile, partialStats);
-                    } catch (e) {}
+                    } catch (e) { logAiError('Persist partial response', e); }
 
                     // Add a minimal footer if missing
                     const msgEl = streamMessageId ? document.getElementById(streamMessageId) : null;
@@ -8903,12 +9674,13 @@
 
     function initDotField(container) {
         if (!container || container.dataset.dotField === '1') return;
+        const host = container.parentElement || container;
+        if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
         container.dataset.dotField = '1';
 
         const canvas = document.createElement('canvas');
-        canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0';
         canvas.className = 'dot-field-canvas';
-        container.prepend(canvas);
+        host.prepend(canvas);
 
         const ctx = canvas.getContext('2d');
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -8918,13 +9690,17 @@
         let raf = null;
 
         function resize() {
+            const hostRect = host.getBoundingClientRect();
             const rect = container.getBoundingClientRect();
-            w = rect.width;
-            h = rect.height;
-            canvas.width = w * dpr;
-            canvas.height = h * dpr;
+            w = container.clientWidth || rect.width;
+            h = container.clientHeight || rect.height;
+            if (w <= 0 || h <= 0) return;
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
+            canvas.style.left = Math.round(rect.left - hostRect.left) + 'px';
+            canvas.style.top = Math.round(rect.top - hostRect.top) + 'px';
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             buildDots();
         }
@@ -8969,6 +9745,10 @@
 
         let tick = 0;
         function animate() {
+            if (w <= 0 || h <= 0 || !container.isConnected || !container.offsetParent) {
+                raf = requestAnimationFrame(animate);
+                return;
+            }
             tick++;
             const cr = 200;
             const crSq = cr * cr;
@@ -9020,6 +9800,11 @@
 
         resize();
         window.addEventListener('resize', resize);
+        if (typeof ResizeObserver === 'function') {
+            const observer = new ResizeObserver(() => resize());
+            observer.observe(container);
+            if (host !== container) observer.observe(host);
+        }
         container.addEventListener('mousemove', onMouseMove, { passive: true });
         container.addEventListener('mouseleave', onMouseLeave, { passive: true });
         raf = requestAnimationFrame(animate);
