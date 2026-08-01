@@ -228,9 +228,9 @@ Request: «${String(userTask || '').slice(0, 400)}»`;
         const s = String(text || '');
         if (!s.trim()) return false;
         const patterns = [
-            /(?:^|\s)(сделай|сделать|добавь|добавить|измени|изменить|исправь|исправить|напиши|написать|вставь|вставить|убери|удали|удалить|перепиши|обнови|замени|поправь|дополни|опиши|описать)(?:\s|$)/iu,
+            /(?:^|\s)(сделай|сделать|добавь|добавить|измени|изменить|исправь|исправить|напиши|написать|вставь|вставить|убери|удали|удалить|перепиши|обнови|замени|поправь|дополни|опиши|описать|создай|создать|сгенерируй|сгенерировать|реализуй|реализовать|запиши|записать|сохрани|сохранить)(?:\s|$)/iu,
             /чтобы\s+(?:тут|здесь|было|был|написано|содержал)/iu,
-            /(?:^|\s)(add|change|edit|fix|write|insert|remove|delete|update|replace|modify|implement|rewrite)(?:\s|$)/i,
+            /(?:^|\s)(add|change|edit|fix|write|insert|remove|delete|update|replace|modify|implement|rewrite|create|generate)(?:\s|$)/i,
             /(?:make|let)\s+(?:it|this|the\s+file)/i
         ];
         return patterns.some((re) => re.test(s));

@@ -7917,7 +7917,7 @@ function wireEvents(){
         fd.append('default_model',defaultEl?defaultEl.value.trim():'');
         if(hasKey)fd.append('api_key',newKey);
         fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-            setStatus(aiSt,d.success?('+ '+(d.message||T.ai_config_saved)):('x '+(d.error||T.error)),d.success?'success':'error');
+            setStatus(aiSt,d.success?('+ '+(d.message||T.ai_config_saved)+(d.has_key===false?' · API key missing':'')):('x '+(d.error||T.error)),d.success&&d.has_key!==false?'success':'error');
             if(d.success){
                 if(typeof showTempNotification!=='undefined')showTempNotification(d.message||T.ai_config_saved,'success');
                 if(d.config){

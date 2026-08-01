@@ -468,14 +468,47 @@
         if (!config.configured) throw new Error('AI API key is not configured');
         AI_CONFIG.directApi.configured = true;
     }
-    async function fetchAiCompletions(payload, signal) {
-        return fetch(getAiProxyUrl('ai_completions'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
-            credentials: 'same-origin',
-            body: JSON.stringify(payload),
-            signal
-        });
+    const AI_RETRYABLE_HTTP_STATUSES = new Set([408, 500, 502, 503, 504, 520, 521, 522, 523, 524]);
+    const AI_COMPLETIONS_MAX_ATTEMPTS = 3;
+    function gatewayErrorMessage(status) {
+        if (status === 524 || status === 504 || status === 408) {
+            return tr('aiGatewayTimeout', 'The model did not answer in time (gateway timeout {status}). Please try again or pick a faster model.', { status });
+        }
+        return tr('aiGatewayError', 'The AI gateway is temporarily unavailable (HTTP {status}). Please try again.', { status });
+    }
+    function waitBeforeRetry(attempt) {
+        return new Promise((resolve) => setTimeout(resolve, 800 * Math.pow(2, attempt)));
+    }
+    async function fetchAiCompletions(payload, signal, attempt = 0) {
+        let response;
+        try {
+            response = await fetch(getAiProxyUrl('ai_completions'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload),
+                signal
+            });
+        } catch (err) {
+            if (err?.name === 'AbortError' || signal?.aborted || attempt >= AI_COMPLETIONS_MAX_ATTEMPTS - 1) throw err;
+            await waitBeforeRetry(attempt);
+            return fetchAiCompletions(payload, signal, attempt + 1);
+        }
+        if (response.ok) return response;
+        if (AI_RETRYABLE_HTTP_STATUSES.has(response.status) && attempt < AI_COMPLETIONS_MAX_ATTEMPTS - 1 && !signal?.aborted) {
+            try { await response.body?.cancel?.(); } catch (e) {}
+            await waitBeforeRetry(attempt);
+            return fetchAiCompletions(payload, signal, attempt + 1);
+        }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.includes('json')) {
+            try { await response.body?.cancel?.(); } catch (e) {}
+            return new Response(JSON.stringify({ error: { message: gatewayErrorMessage(response.status) } }), {
+                status: response.status,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
+        }
+        return response;
     }
     function formatModelLabel(modelId) {
         const id = String(modelId || '');
@@ -1094,14 +1127,15 @@
                 max-height: none !important;
                 position: relative !important;
                 isolation: isolate !important;
+                background: transparent !important;
             }
-            #ai-modal .ai-chat .dot-field-canvas {
-                position: sticky !important;
-                top: 0 !important;
+            #ai-modal .ai-modal-body {
+                position: relative !important;
+            }
+            #ai-modal .ai-modal-body > .dot-field-canvas {
+                position: absolute !important;
                 display: block !important;
-                width: 100% !important;
-                height: 100% !important;
-                margin-bottom: -100% !important;
+                margin: 0 !important;
                 pointer-events: none !important;
                 z-index: 0 !important;
                 opacity: 1 !important;
@@ -5697,6 +5731,7 @@
         const toolCalls = {};
         let finishReason = null;
         let usage = null;
+        let streamError = null;
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
@@ -5709,6 +5744,10 @@
                 if (data === '[DONE]') continue;
                 try {
                     const parsed = JSON.parse(data);
+                    if (parsed.error) {
+                        streamError = new Error(parsed.error.message || String(parsed.error));
+                        break;
+                    }
                     if (parsed.usage) usage = parsed.usage;
                     const choice = parsed.choices?.[0];
                     if (choice?.finish_reason) finishReason = choice.finish_reason;
@@ -5735,7 +5774,9 @@
                     }
                 } catch (e) {}
             }
+            if (streamError) break;
         }
+        if (streamError && !content) throw streamError;
         const trimmed = String(content || '').trim();
         const message = { role: 'assistant', content: trimmed || null };
         const tcArr = Object.keys(toolCalls).sort((a, b) => Number(a) - Number(b)).map((k) => toolCalls[k]).filter((tc) => tc.function?.name);
@@ -6268,10 +6309,9 @@
 
     function clearChatMessages() {
         if (!elements.chat) return;
-        Array.from(elements.chat.children).forEach((node) => {
-            if (!node.classList?.contains('dot-field-canvas')) node.remove();
-        });
-        if (!elements.chat.querySelector('.dot-field-canvas')) delete elements.chat.dataset.dotField;
+        elements.chat.replaceChildren();
+        const host = elements.chat.parentElement;
+        if (!host?.querySelector(':scope > .dot-field-canvas')) delete elements.chat.dataset.dotField;
         initDotField(elements.chat);
     }
 
@@ -9352,12 +9392,13 @@
 
     function initDotField(container) {
         if (!container || container.dataset.dotField === '1') return;
+        const host = container.parentElement || container;
+        if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
         container.dataset.dotField = '1';
 
         const canvas = document.createElement('canvas');
-        canvas.style.cssText = 'position:sticky;top:0;display:block;width:100%;height:100%;margin-bottom:-100%;pointer-events:none;z-index:0';
         canvas.className = 'dot-field-canvas';
-        container.prepend(canvas);
+        host.prepend(canvas);
 
         const ctx = canvas.getContext('2d');
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -9367,14 +9408,17 @@
         let raf = null;
 
         function resize() {
-            w = container.clientWidth || container.getBoundingClientRect().width;
-            h = container.clientHeight || container.getBoundingClientRect().height;
-            canvas.width = w * dpr;
-            canvas.height = h * dpr;
+            const hostRect = host.getBoundingClientRect();
+            const rect = container.getBoundingClientRect();
+            w = container.clientWidth || rect.width;
+            h = container.clientHeight || rect.height;
+            if (w <= 0 || h <= 0) return;
+            canvas.width = Math.round(w * dpr);
+            canvas.height = Math.round(h * dpr);
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
-            canvas.style.left = '0';
-            canvas.style.top = '0';
+            canvas.style.left = Math.round(rect.left - hostRect.left) + 'px';
+            canvas.style.top = Math.round(rect.top - hostRect.top) + 'px';
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             buildDots();
         }
@@ -9419,6 +9463,10 @@
 
         let tick = 0;
         function animate() {
+            if (w <= 0 || h <= 0 || !container.isConnected || !container.offsetParent) {
+                raf = requestAnimationFrame(animate);
+                return;
+            }
             tick++;
             const cr = 200;
             const crSq = cr * cr;
@@ -9470,6 +9518,11 @@
 
         resize();
         window.addEventListener('resize', resize);
+        if (typeof ResizeObserver === 'function') {
+            const observer = new ResizeObserver(() => resize());
+            observer.observe(container);
+            if (host !== container) observer.observe(host);
+        }
         container.addEventListener('mousemove', onMouseMove, { passive: true });
         container.addEventListener('mouseleave', onMouseLeave, { passive: true });
         raf = requestAnimationFrame(animate);

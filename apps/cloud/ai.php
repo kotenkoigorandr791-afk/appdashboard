@@ -43,6 +43,7 @@ const AI_CHAT_TABLE = 'cloud_ai_assistant_chats';
 const AI_CHAT_OLD_TABLE = 'ai_assistant_chats';
 const AI_CHAT_SESSION_TABLE = 'cloud_ai_assistant_chat_sessions';
 const AI_USER_SETTINGS_TABLE = 'cloud_ai_assistant_user_settings';
+const AI_WORKER_RUNNABLE_EXTENSIONS = ['py', 'cpp', 'c', 'java', 'm'];
 const AI_USER_SETTINGS_OLD_TABLE = 'ai_assistant_user_settings';
 
 if ($action === 'ai_completions' || $action === 'ai_models') {
@@ -272,7 +273,8 @@ function sendToAI($config, $model, $messages) {
             'Content-Type: application/json',
             'Authorization: Bearer ' . $config['api_key']
         ],
-        CURLOPT_TIMEOUT => 180
+        CURLOPT_TIMEOUT => CLOUD_AI_BLOCKING_TIMEOUT_SECONDS,
+        CURLOPT_CONNECTTIMEOUT => 30
     ]);
 
     $response = curl_exec($ch);
@@ -979,7 +981,7 @@ function aiWorkerFallbackLatex(string $title, string $content): string {
 
 function aiWorkerCompletion(array $config, string $model, array $messages, int $maxTokens = 6000): string {
     $payload = ['model' => cloud_ai_normalize_model_id($model ?: (string)($config['default_model'] ?? '')), 'messages' => $messages, 'max_tokens' => $maxTokens, 'temperature' => 0.2, 'stream' => false];
-    $result = cloud_ai_proxy_json($config, (string)$config['api_endpoint'], $payload, 'POST');
+    $result = cloud_ai_proxy_json($config, (string)$config['api_endpoint'], $payload, 'POST', PHP_SAPI === 'cli' ? 600 : null);
     if (!$result['ok']) throw new RuntimeException($result['error'] ?: ('AI HTTP ' . $result['http']));
     $data = json_decode((string)$result['body'], true);
     $text = (string)($data['choices'][0]['message']['content'] ?? '');
@@ -1141,6 +1143,71 @@ JAVA;
     return null;
 }
 
+function aiWorkerWantsRunAndAnalysis(string $message): bool {
+    return (bool)preg_match('/(?:провер|запуст|выполн|результат|результ|анализ|analy[sz]|\brun\b|execute|\bcheck\b|verify|output)/iu', $message);
+}
+
+function aiWorkerListDirFiles(string $dir): array {
+    if (!is_dir($dir)) return [];
+    $files = [];
+    foreach (scandir($dir) ?: [] as $name) {
+        if ($name === '.' || $name === '..') continue;
+        if (is_file($dir . '/' . $name)) $files[$name] = (int)@filemtime($dir . '/' . $name);
+    }
+    return $files;
+}
+
+function aiWorkerRunAndAnalyze(array $job, string $jobPath, array $config, string $root, string $path, string $content, string $message): ?string {
+    $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+    if (!in_array($ext, AI_WORKER_RUNNABLE_EXTENSIONS, true)) return null;
+    if (!aiWorkerWantsRunAndAnalysis($message)) return null;
+    $resolved = aiWorkerResolvePath((string)$job['user'], $path, $root, true);
+    $dir = dirname((string)$resolved['target']);
+    $before = aiWorkerListDirFiles($dir);
+    $runError = '';
+    try {
+        $result = aiWorkerRunCompile($job, $jobPath, $root, $path, $content);
+        $output = trim((string)($result['output'] ?? ''));
+    } catch (RuntimeException $e) {
+        if ($e->getMessage() === 'Worker cancelled') throw $e;
+        $runError = $e->getMessage();
+        $output = '';
+    }
+    $produced = [];
+    foreach (aiWorkerListDirFiles($dir) as $name => $mtime) {
+        if (isset($before[$name]) && $before[$name] === $mtime) continue;
+        if ($name === basename($path)) continue;
+        $ext2 = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        if (!in_array($ext2, ['txt', 'csv', 'json', 'md', 'log', 'out', 'dat'], true)) continue;
+        $produced[$name] = mb_substr((string)@file_get_contents($dir . '/' . $name), 0, 8000);
+        $relDir = trim(dirname($path), './');
+        aiWorkerEmitGeneratedFile($jobPath, $relDir !== '' ? $relDir . '/' . $name : $name, $root);
+    }
+    $details = "Source file: {$path}\n\nProgram code:\n" . mb_substr($content, 0, 20000)
+        . "\n\nProgram output:\n" . ($output !== '' ? mb_substr($output, 0, 8000) : '(empty)');
+    if ($runError !== '') {
+        $details .= "\n\nRun failed with:\n" . mb_substr($runError, 0, 4000);
+    }
+    foreach ($produced as $name => $body) {
+        $details .= "\n\nGenerated file {$name}:\n" . $body;
+    }
+    try {
+        return aiWorkerCompletion($config, (string)($job['model'] ?? ''), [
+            ['role' => 'system', 'content' => 'You are a server-side coding agent reporting a finished run. Answer in the same language as the user request. Briefly state what was created and executed, show the produced values, and analyse them (correctness, complexity, differences between the implemented approaches). No markdown code fences unless quoting short output.'],
+            ['role' => 'user', 'content' => "User request:\n{$message}\n\n{$details}"]
+        ], 2000);
+    } catch (Throwable $e) {
+        $summary = $runError !== ''
+            ? "Created {$path}, but the run failed: " . mb_substr($runError, 0, 2000)
+            : "Done. Created and ran {$path}.";
+        if ($output !== '') $summary .= "\nOutput: " . mb_substr($output, 0, 2000);
+        foreach ($produced as $name => $body) {
+            $summary .= "\n{$name}: " . mb_substr($body, 0, 500);
+        }
+        return $summary;
+    }
+}
+
 function aiWorkerEmitGeneratedFile(string $jobPath, string $path, string $root): void {
     $current = aiWorkerReadJob($jobPath);
     aiWorkerEvent($current, 'tool', 'Write file: ' . $path, ['path' => $path, 'root' => $root]);
@@ -1265,6 +1332,8 @@ function aiWorkerPerformJob(array $job, array $config, string $jobPath): string 
             if (!is_array($plan) || !isset($plan['content'])) throw new RuntimeException('Agent did not return editable file content');
             $targetPath = aiWorkerSafePath((string)($plan['path'] ?? $resolved['path'])) ?: $resolved['path'];
             aiWorkerWriteUserFile($job, $jobPath, (string)$resolved['root'], $targetPath, (string)$plan['content']);
+            $analysis = aiWorkerRunAndAnalyze($job, $jobPath, $config, (string)$resolved['root'], $targetPath, (string)$plan['content'], $message);
+            if ($analysis !== null) return $analysis;
             return "Done. Edited {$targetPath}.";
         }
     }
