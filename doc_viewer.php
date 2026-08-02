@@ -238,11 +238,10 @@ if (is_dir($docsDir)) {
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-bottom: 1px solid var(--border);
-            padding: 20px 32px;
+            padding: 16px 32px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            flex-wrap: wrap;
             gap: 16px;
             box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
         }
@@ -250,7 +249,16 @@ if (is_dir($docsDir)) {
         .doc-header-left {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .doc-header-left > div {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            min-width: 0;
         }
 
         .doc-title {
@@ -261,18 +269,23 @@ if (is_dir($docsDir)) {
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            white-space: nowrap;
         }
 
         .doc-subtitle {
             font-size: 13px;
             color: var(--text-secondary);
-            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
         }
 
         .doc-header-actions {
             display: flex;
             align-items: center;
             gap: 8px;
+            flex-shrink: 0;
         }
 
         .btn {
@@ -317,35 +330,76 @@ if (is_dir($docsDir)) {
 
         .search-box {
             position: relative;
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            transition: width 0.3s ease;
+        }
+
+        .search-box.expanded {
+            width: 320px;
+        }
+
+        .search-toggle {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 44px;
+            height: 44px;
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            background: var(--bg-overlay);
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s, border-color 0.2s;
+            z-index: 2;
+        }
+
+        .search-toggle:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-lit);
+        }
+
+        .search-box.expanded .search-toggle {
+            background: transparent;
+            border-color: transparent;
+            color: var(--text-muted);
+            pointer-events: none;
         }
 
         .search-box input {
-            padding: 10px 14px 10px 40px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 44px;
+            padding: 0 14px 0 40px;
             border: 1px solid var(--border);
             border-radius: 10px;
             background: var(--bg-base);
             color: var(--text-primary);
             font-size: 14px;
-            width: 320px;
-            transition: all 0.2s;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease, border-color 0.2s, background 0.2s;
+        }
+
+        .search-box.expanded input {
+            opacity: 1;
+            pointer-events: auto;
+            background: var(--bg-raised);
         }
 
         .search-box input:focus {
             outline: none;
             border-color: var(--accent);
             box-shadow: 0 0 0 4px var(--accent-dim);
-            background: var(--bg-raised);
         }
 
         .search-box input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .search-box svg {
-            position: absolute;
-            left: 10px;
-            top: 50%;
-            transform: translateY(-50%);
             color: var(--text-muted);
         }
 
@@ -742,23 +796,24 @@ if (is_dir($docsDir)) {
 
         @media (max-width: 900px) {
             .doc-header {
-                padding: 16px;
-                flex-direction: column;
-                align-items: stretch;
+                padding: 12px 16px;
+                gap: 12px;
             }
 
             .doc-header-left {
-                flex-direction: column;
-                gap: 12px;
+                gap: 10px;
             }
 
-            .doc-header-actions {
-                flex-direction: column;
-                gap: 12px;
+            .doc-header-left > div {
+                gap: 8px;
             }
 
-            .search-box input {
-                width: 100%;
+            .doc-subtitle {
+                font-size: 12px;
+            }
+
+            .search-box.expanded {
+                width: 240px;
             }
 
             .doc-container {
@@ -868,7 +923,11 @@ if (is_dir($docsDir)) {
             }
 
             .doc-subtitle {
-                font-size: 12px;
+                display: none;
+            }
+
+            .search-box.expanded {
+                width: 200px;
             }
 
             .doc-tile-title {
@@ -909,12 +968,14 @@ if (is_dir($docsDir)) {
             </div>
         </div>
         <div class="doc-header-actions">
-            <div class="search-box">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="m21 21-4.35-4.35"/>
-                </svg>
-                <input type="text" id="searchDocs" placeholder="<?php echo htmlspecialchars(t('search_docs', 'Search documentation...')); ?>" oninput="filterDocs()">
+            <div class="search-box" id="searchBox">
+                <button type="button" class="search-toggle" aria-label="Search" onclick="toggleSearch()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                </button>
+                <input type="text" id="searchDocs" placeholder="<?php echo htmlspecialchars(t('search_docs', 'Search documentation...')); ?>" oninput="filterDocs()" onblur="collapseSearch()">
             </div>
             <button class="btn" onclick="showGridView()" id="backToGridBtn" style="display: none;">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1114,6 +1175,15 @@ if (is_dir($docsDir)) {
                     };
                 }
             });
+        }
+
+        function toggleSearch() {
+            document.getElementById('searchBox').classList.add('expanded');
+            document.getElementById('searchDocs').focus();
+        }
+
+        function collapseSearch() {
+            document.getElementById('searchBox').classList.remove('expanded');
         }
 
         function filterDocs() {
