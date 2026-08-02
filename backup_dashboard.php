@@ -489,6 +489,23 @@ if (isset($_GET['host_fs'])) {
     echo json_encode(['error' => 'Unknown host_fs action']);
     exit;
 }
+if (isset($_GET['host_ips'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $ips = [];
+    $raw = trim((string)@shell_exec('hostname -I 2>/dev/null'));
+    foreach (preg_split('/\s+/', $raw) ?: [] as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            continue;
+        }
+        if (str_starts_with($ip, '127.') || $ip === '0.0.0.0') {
+            continue;
+        }
+        $label = preg_match('/^(10\.|100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.)/', $ip) ? 'vpnNetwork' : 'localNetwork';
+        $ips[$ip] = ['ip' => $ip, 'label' => $label];
+    }
+    echo json_encode(array_values($ips), JSON_UNESCAPED_UNICODE);
+    exit;
+}
 if (isset($_GET['proxy'])) {
     header('Content-Type: application/json');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -1575,7 +1592,6 @@ body.bd-embed .wizard-modal-box {
         <button class="nav-item active" data-section="backups" onclick="showSection('backups');closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><span data-i18n="backupJobs">Backup Jobs</span></button>
         <button class="nav-item" data-section="logs" onclick="showSection('logs');closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 14v2.2l1.6 1"/><path d="M16 4h2a2 2 0 0 1 2 2v.832"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h2"/><circle cx="16" cy="16" r="6"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg><span data-i18n="logs">Logs</span></button>
         <button class="nav-item" data-section="explorer" onclick="showSection('explorer');closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span data-i18n="fileExplorer">File Explorer</span></button>
-        <button class="nav-item" onclick="openDocumentation();closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><span data-i18n="view_documentation">View Documentation</span></button>
     </div>
     <div class="sidebar-section"><div class="sidebar-label" data-i18n="serverInfo">Server</div>
         <button class="nav-item" onclick="openSystemInfoModal();closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg><span data-i18n="systemInfo">System info</span></button>
@@ -1586,7 +1602,6 @@ body.bd-embed .wizard-modal-box {
     <div class="sidebar-section" style="margin-top:auto;padding-top:12px;border-top:1px solid var(--border);"><div class="sidebar-label" data-i18n="controls">Controls</div>
         <button class="nav-item" onclick="pauseServer();closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg><span data-i18n="pauseServer">Pause Server</span></button>
         <button class="nav-item" onclick="resumeServer();closeMobileMenu()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg><span data-i18n="resumeServer">Resume Server</span></button>
-        <button class="nav-item" onclick="openDuplicatiInterface();closeMobileMenu()"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.686 15A14.5 14.5 0 0 1 12 22a14.5 14.5 0 0 1 0-20 10 10 0 1 0 9.542 13"/><path d="M2 12h8.5"/><path d="M20 6V4a2 2 0 1 0-4 0v2"/><rect width="8" height="5" x="14" y="6" rx="1"/></svg><span data-i18n="openInterface">Open Interface</span></button>
     </div>
 </nav>
 <main class="main">
@@ -1612,6 +1627,7 @@ body.bd-embed .wizard-modal-box {
 <div class="modal" id="restoreModal"><div class="modal-box" style="max-width:560px;"><div class="modal-head"><h3><span data-i18n="restoreBackup">Restore Backup</span> — <span id="restoreBackupTitle"></span></h3><button class="close-btn" onclick="closeModal('restoreModal')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="modal-form"><input type="hidden" id="restoreBackupId"><div class="field"><label data-i18n="version">Version</label><select id="restoreVersionSelect"></select><small data-i18n="restoreVersionHint">Choose the backup version to restore.</small></div><div class="field"><label data-i18n="restorePath">Restore path</label><input type="text" id="restorePathInput" placeholder="/restore/path"><small data-i18n="restorePathHint">Leave empty to restore to the original location.</small></div><label class="checkline" style="margin-top:6px;"><input type="checkbox" id="restoreOverwrite" checked><span data-i18n="overwriteExisting">Overwrite existing files</span></label><div id="restoreModalStatus" class="field-hint"></div></div><div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeModal('restoreModal')" data-i18n="cancel">Cancel</button><button type="button" class="btn btn-primary" onclick="restoreSelectedVersion()" data-i18n="restore">Restore</button></div></div></div>
 <div class="modal" id="confirmActionModal"><div class="modal-box" style="max-width:460px;"><div class="modal-head"><h3 id="confirmActionTitle">Confirm action</h3><button class="close-btn" type="button" onclick="closeConfirmActionModal(false)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="confirm-modal-body"><p id="confirmActionText"></p></div><div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closeConfirmActionModal(false)">Cancel</button><button type="button" class="btn btn-danger" id="confirmActionOkBtn">Confirm</button></div></div></div>
 <div class="modal" id="promptActionModal"><div class="modal-box" style="max-width:460px;"><div class="modal-head"><h3 id="promptActionTitle">Input required</h3><button class="close-btn" type="button" onclick="closePromptActionModal(null)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="confirm-modal-body"><p id="promptActionText"></p><input type="text" class="modal-input" id="promptActionInput" placeholder=""></div><div class="modal-footer"><button type="button" class="btn btn-ghost" onclick="closePromptActionModal(null)">Cancel</button><button type="button" class="btn btn-primary" id="promptActionOkBtn">Continue</button></div></div></div>
+<div class="modal" id="duplicatiAddressModal"><div class="modal-box" style="max-width:520px;"><div class="modal-head"><h3 data-i18n="selectDuplicatiAddress">Select Duplicati address</h3><button class="close-btn" type="button" onclick="closeModal('duplicatiAddressModal')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div id="duplicatiAddressChoices" class="modal-form" style="display:flex;flex-direction:column;gap:8px;"></div></div></div>
 <div class="modal" id="interfaceModal" style="background:var(--bg-base);"><div class="modal-box" style="max-width:98vw;max-height:98vh;width:98vw;height:98vh;padding:0;border:none;"><div class="modal-head" style="padding:10px 16px;margin:0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;"><div style="display:flex;align-items:center;gap:10px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.686 15A14.5 14.5 0 0 1 12 22a14.5 14.5 0 0 1 0-20 10 10 0 1 0 9.542 13"/><path d="M2 12h8.5"/><path d="M20 6V4a2 2 0 1 0-4 0v2"/><rect width="8" height="5" x="14" y="6" rx="1"/></svg><span style="font-size:14px;font-weight:600;" data-i18n="duplicatiInterface">Duplicati Web Interface</span></div><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm btn-ghost" onclick="retryInterfaceLoad()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg><span data-i18n="reload">Reload</span></button><button class="btn btn-sm btn-ghost" onclick="openInNewWindow()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg><span data-i18n="openInNewWindow">Open in New Window</span></button><button class="close-btn" onclick="closeInterfaceModal()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div></div><div style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;"><iframe id="interfaceFrame" name="interfaceFrame" src="" style="flex:1;width:100%;height:100%;border:none;background:var(--bg-base);" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation allow-popups-to-escape-sandbox allow-modals"></iframe></div></div></div>
 <script>
 'use strict';
@@ -1635,6 +1651,10 @@ Object.assign(TRANSLATIONS.en, { restore:'Restore', restoreBackup:'Restore Backu
 Object.assign(TRANSLATIONS.ru, { restore:'Восстановить', restoreBackup:'Восстановить бэкап', restorePath:'Путь восстановления', restoreVersionHint:'Выберите версию бэкапа для восстановления.', restorePathHint:'Оставьте пустым для восстановления в исходное место.', overwriteExisting:'Перезаписывать существующие файлы', selectVersion:'Сначала выберите версию.', restoring:'Восстановление…', restoreStarted:'Восстановление запущено' });
 Object.assign(TRANSLATIONS.uk, { restore:'Відновити', restoreBackup:'Відновити бекап', restorePath:'Шлях відновлення', restoreVersionHint:'Виберіть версію бекапу для відновлення.', restorePathHint:'Залиште порожнім для відновлення у початкове місце.', overwriteExisting:'Перезаписувати наявні файли', selectVersion:'Спочатку виберіть версію.', restoring:'Відновлення…', restoreStarted:'Відновлення запущено' });
 Object.assign(TRANSLATIONS.be, { restore:'Аднавіць', restoreBackup:'Аднавіць бэкап', restorePath:'Шлях аднаўлення', restoreVersionHint:'Выберыце версію бэкапа для аднаўлення.', restorePathHint:'Пакіньце пустым для аднаўлення ў зыходнае месца.', overwriteExisting:'Перазапісваць існыя файлы', selectVersion:'Спачатку выберыце версію.', restoring:'Аднаўленне…', restoreStarted:'Аднаўленне запушчана' });
+Object.assign(TRANSLATIONS.en, { selectDuplicatiAddress:'Select Duplicati address', vpnNetwork:'VPN network', localNetwork:'Local network', open:'Open' });
+Object.assign(TRANSLATIONS.ru, { selectDuplicatiAddress:'Выберите адрес Duplicati', vpnNetwork:'VPN-сеть', localNetwork:'Локальная сеть', open:'Открыть' });
+Object.assign(TRANSLATIONS.uk, { selectDuplicatiAddress:'Виберіть адресу Duplicati', vpnNetwork:'VPN-мережа', localNetwork:'Локальна мережа', open:'Відкрити' });
+Object.assign(TRANSLATIONS.be, { selectDuplicatiAddress:'Выберыце адрас Duplicati', vpnNetwork:'VPN-сетка', localNetwork:'Лакальная сетка', open:'Адкрыць' });
 TRANSLATIONS.pl = Object.assign({}, TRANSLATIONS.en, { refresh:'Odśwież', navigation:'Nawigacja', backupJobs:'Kopie zapasowe', logs:'Logi', controls:'Sterowanie', pauseServer:'Wstrzymaj serwer', resumeServer:'Wznów serwer', loading:'Ładowanie…', cancel:'Anuluj', save:'Zapisz', delete:'Usuń', createNewBackup:'Utwórz kopię zapasową', backupName:'Nazwa kopii', sourceFolders:'Foldery źródłowe', destinationURL:'URL miejsca docelowego', schedule:'Harmonogram', manualOnly:'Tylko ręcznie', name:'Nazwa', status:'Status', progress:'Postęp', target:'Cel', actions:'Akcje', connectToLoad:'Połącz, aby wczytać zadania', totalJobs:'Wszystkie zadania', successful:'Udane', errors:'Błędy', scheduled:'Zaplanowane', connected:'Połączono', offline:'Offline', versions:'Wersje', viewInfo:'Info', moreActions:'Więcej', verify:'Sprawdź', run:'Uruchom', stop:'Stop', edit:'Edytuj', logsShort:'Logi', serverInfo:'Serwer', systemInfo:'Informacje o systemie', changelog:'Dziennik zmian', licenses:'Licencje', cliCommands:'Polecenia CLI', idleStatus:'Bezczynny', fileExplorer:'Eksplorator plików', version:'Wersja', time:'Czas', type:'Typ', filesCount:'Pliki', size:'Rozmiar', fullBackup:'Pełna kopia', incrementalBackup:'Przyrostowa', noVersions:'Nie znaleziono wersji kopii', restore:'Przywróć', restoreBackup:'Przywróć kopię', restorePath:'Ścieżka przywracania', restoreVersionHint:'Wybierz wersję kopii do przywrócenia.', restorePathHint:'Zostaw puste, aby przywrócić do oryginalnej lokalizacji.', overwriteExisting:'Nadpisz istniejące pliki', selectVersion:'Najpierw wybierz wersję.', restoring:'Przywracanie…', restoreStarted:'Przywracanie uruchomione', dayMonday:'Poniedziałek', dayTuesday:'Wtorek', dayWednesday:'Środa', dayThursday:'Czwartek', dayFriday:'Piątek', daySaturday:'Sobota', daySunday:'Niedziela' });
 TRANSLATIONS.cs = Object.assign({}, TRANSLATIONS.en, { refresh:'Obnovit', navigation:'Navigace', backupJobs:'Zálohy', logs:'Protokoly', controls:'Ovládání', pauseServer:'Pozastavit server', resumeServer:'Obnovit server', loading:'Načítání…', cancel:'Zrušit', save:'Uložit', delete:'Smazat', createNewBackup:'Vytvořit zálohu', backupName:'Název zálohy', sourceFolders:'Zdrojové složky', destinationURL:'Cílová URL', schedule:'Plán', manualOnly:'Pouze ručně', name:'Název', status:'Stav', progress:'Průběh', target:'Cíl', actions:'Akce', connectToLoad:'Připojte se pro načtení úloh', totalJobs:'Celkem úloh', successful:'Úspěšné', errors:'Chyby', scheduled:'Naplánované', connected:'Připojeno', offline:'Offline', versions:'Verze', viewInfo:'Info', moreActions:'Více', verify:'Ověřit', run:'Spustit', stop:'Stop', edit:'Upravit', logsShort:'Protokoly', serverInfo:'Server', systemInfo:'Informace o systému', changelog:'Seznam změn', licenses:'Licence', cliCommands:'CLI příkazy', idleStatus:'Nečinné', fileExplorer:'Průzkumník souborů', version:'Verze', time:'Čas', type:'Typ', filesCount:'Soubory', size:'Velikost', fullBackup:'Plná záloha', incrementalBackup:'Přírůstková', noVersions:'Nebyly nalezeny žádné verze zálohy', restore:'Obnovit', restoreBackup:'Obnovit zálohu', restorePath:'Cesta obnovení', restoreVersionHint:'Vyberte verzi zálohy pro obnovení.', restorePathHint:'Nechte prázdné pro obnovení do původního umístění.', overwriteExisting:'Přepsat existující soubory', selectVersion:'Nejprve vyberte verzi.', restoring:'Obnovování…', restoreStarted:'Obnovení spuštěno', dayMonday:'Pondělí', dayTuesday:'Úterý', dayWednesday:'Středa', dayThursday:'Čtvrtek', dayFriday:'Pátek', daySaturday:'Sobota', daySunday:'Neděle' });
 const BACKUP_PHASE_I18N = {
@@ -3831,19 +3851,62 @@ function buildFsTreeItem(node, depth, selectedSet, syncCallback, isMultiSelect, 
     item.appendChild(row); item.appendChild(childBox);
     return item;
 }
-function getDuplicatiUrl() {
-    let baseUrl = currentHost.replace(/\/+$/, '');
+let duplicatiInterfaceBaseUrl = '';
+function getDuplicatiUrl(base = '') {
+    let baseUrl = (base || duplicatiInterfaceBaseUrl || currentHost).replace(/\/+$/, '');
     if (!baseUrl.includes('/ngclient/')) {
         baseUrl = baseUrl + '/ngclient/index.html';
     }
     return baseUrl;
 }
-function openDuplicatiInterface() {
-    if (!currentHost) { toast('Set Backup host and token in the main Admin Panel settings.', 'error'); return; }
-    const url = getDuplicatiUrl();
-    const interfaceFrame = document.getElementById('interfaceFrame');
-    interfaceFrame.src = url;
+function buildDuplicatiBaseUrlForIp(ip) {
+    const src = new URL(currentHost);
+    src.hostname = ip;
+    return src.origin;
+}
+function currentHostIsLoopback() {
+    try {
+        const h = new URL(currentHost).hostname.toLowerCase();
+        return h === 'localhost' || h === '127.0.0.1' || h === '::1';
+    } catch (_) {
+        return false;
+    }
+}
+function openDuplicatiInterfaceWithBase(baseUrl) {
+    duplicatiInterfaceBaseUrl = baseUrl;
+    document.getElementById('interfaceFrame').src = getDuplicatiUrl(baseUrl);
     showModal('interfaceModal');
+}
+async function loadDuplicatiAddressChoices() {
+    try {
+        const res = await fetch('?host_ips=1', { credentials: 'same-origin' });
+        const data = await res.json();
+        return Array.isArray(data) ? data.filter(x => x && x.ip && !/^127\./.test(String(x.ip))) : [];
+    } catch (_) {
+        return [];
+    }
+}
+async function openDuplicatiInterface() {
+    if (!currentHost) { toast('Set Backup host and token in the main Admin Panel settings.', 'error'); return; }
+    const choices = await loadDuplicatiAddressChoices();
+    if (choices.length >= 2) {
+        const box = document.getElementById('duplicatiAddressChoices');
+        box.innerHTML = choices.map(item => {
+            const base = buildDuplicatiBaseUrlForIp(item.ip);
+            return `<button type="button" class="btn btn-ghost" style="justify-content:space-between;width:100%;" onclick="closeModal('duplicatiAddressModal');openDuplicatiInterfaceWithBase('${esc(base)}')"><span>${esc(t(item.label) || item.label)}</span><span style="font-family:'JetBrains Mono',monospace;">${esc(item.ip)}</span></button>`;
+        }).join('');
+        showModal('duplicatiAddressModal');
+        return;
+    }
+    if (choices.length === 1 && currentHostIsLoopback()) {
+        openDuplicatiInterfaceWithBase(buildDuplicatiBaseUrlForIp(choices[0].ip));
+        return;
+    }
+    if (currentHostIsLoopback()) {
+        toast(t('connectToBrowse'), 'error');
+        return;
+    }
+    openDuplicatiInterfaceWithBase(currentHost);
 }
 function retryInterfaceLoad() {
     if (!currentHost) { toast(t('serverHost') + ' - ' + t('connectToLoad'), 'error'); return; }
@@ -3860,6 +3923,7 @@ function openInNewWindow() {
 function closeInterfaceModal() {
     const interfaceFrame = document.getElementById('interfaceFrame');
     interfaceFrame.src = '';
+    duplicatiInterfaceBaseUrl = '';
     closeModal('interfaceModal');
 }
 function toggleMobileMenu() { const sidebar = document.getElementById('mobileSidebar'); sidebar.classList.toggle('open'); }

@@ -1,6 +1,6 @@
 <?php
 
-// Очищаем буфер вывода в самом начале
+// Clean output buffer at the very beginning
 if (!defined('CLOUD_COMPILE_AS_LIB')) {
 if (ob_get_level()) ob_clean();
 ob_start();
@@ -18,7 +18,7 @@ require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage_helper.php';
 require_once __DIR__ . '/includes/cloud_sandbox.php';
 require_once __DIR__ . '/includes/ai_code_security.php';
 smart_log_bootstrap('cloud');
-// compile.php — компиляция и выполнение кода (только для авторизованных пользователей с валидной сессией)
+// compile.php — code compilation and execution (only for authenticated users with a valid session)
 if (!defined('CLOUD_COMPILE_AS_LIB')) {
 header('Content-Type: application/json; charset=utf-8');
 }
@@ -44,7 +44,7 @@ if (!$sessRow || ($sessRow['email'] ?? '') !== $_SESSION['user']['email']) {
 }
 }
 
-// Конфигурация - абсолютные пути к компиляторам
+// Configuration — absolute paths to compilers
 if (!defined('GCC_PATH')) define('GCC_PATH', 'gcc');
 if (!defined('GPP_PATH')) define('GPP_PATH', 'g++');
 if (!defined('JAVAC_PATH')) define('JAVAC_PATH', 'javac');
@@ -57,17 +57,17 @@ if (!defined('MATLAB_EXECUTION_TIME')) define('MATLAB_EXECUTION_TIME', 120);
 if (!defined('TEMP_DIR')) define('TEMP_DIR', __DIR__ . '/temp');
 if (!defined('STORAGE_DIR')) define('STORAGE_DIR', __DIR__ . '/storage');
 
-// Создаем временную папку если не существует
+// Create temp directory if it doesn't exist
 if (!is_dir(TEMP_DIR)) {
     mkdir(TEMP_DIR, 0775, true);
 }
 
-// Создаем storage папку если не существует
+// Create storage directory if it doesn't exist
 if (!is_dir(STORAGE_DIR)) {
     mkdir(STORAGE_DIR, 0775, true);
 }
 
-// Вспомогательные функции для отслеживания изменений файлов
+// Helper functions for tracking file changes
 function getDirectorySnapshot($dir) {
     $snapshot = [];
     if (!is_dir($dir)) return $snapshot;
@@ -88,7 +88,7 @@ function detectFileChanges($before, $after, $dir) {
     $changes = [];
     $relativeBase = str_replace(STORAGE_DIR . '/', '', $dir . '/');
     
-    // Новые файлы
+    // New files
     foreach ($after as $file => $info) {
         if (!isset($before[$file])) {
             $changes[] = [
@@ -99,7 +99,7 @@ function detectFileChanges($before, $after, $dir) {
         }
     }
     
-    // Удаленные файлы
+    // Deleted files
     foreach ($before as $file => $info) {
         if (!isset($after[$file])) {
             $changes[] = [
@@ -207,63 +207,63 @@ function compileAndRun($language, $fileContent, $fileName, $input = null, $origi
                 return $runResult;
 
             case 'py':
-                // Для Python используем путь из запроса
+                // For Python, use the path from the request
                 if ($originalPath !== null) {
                     $absolutePath = (string)$originalPath;
                                     
                     $workingDir = dirname($absolutePath);
                     
-                    // Проверяем существование директории
+                    // Check if directory exists
                     if (!is_dir($workingDir)) {
-                        // Пытаемся создать директорию
+                        // Try to create the directory
                         if (!mkdir($workingDir, 0775, true)) {
                             return ['success' => false, 'output' => '', 'error' => 'Failed to create directory for ' . compile_safe_name($absolutePath)];
                         }
                     }
                     
-                    // Проверяем права на запись
+                    // Check write permissions
                     if (!is_writable($workingDir)) {
                         return ['success' => false, 'output' => '', 'error' => 'Target directory is not writable for ' . compile_safe_name($absolutePath)];
                     }
                     
-                    // Сохраняем состояние ДО выполнения (включая папки)
+                    // Save state BEFORE execution (including folders)
                     $beforeFiles = getDirectorySnapshotWithFolders($workingDir);
                     
-                    // Записываем содержимое в файл
+                    // Write content to file
                     if (file_put_contents($absolutePath, $fileContent) === false) {
                         return ['success' => false, 'output' => '', 'error' => 'Failed to write Python file: ' . compile_safe_name($absolutePath)];
                     }
                     
-                    // Проверяем, что файл создался
+                    // Verify the file was created
                     if (!file_exists($absolutePath)) {
                         return ['success' => false, 'output' => '', 'error' => 'Python file not found after write: ' . compile_safe_name($absolutePath)];
                     }
                     
-                    // Проверяем, что файл не пустой
+                    // Verify the file is not empty
                     if (filesize($absolutePath) === 0) {
                         return ['success' => false, 'output' => '', 'error' => 'Python file is empty after write: ' . compile_safe_name($absolutePath)];
                     }
                     
-                    // Запускаем Python файл
+                    // Run the Python file
                     $runResult = executeCommand(escapeshellarg(PYTHON_PATH) . ' ' . escapeshellarg(basename($absolutePath)), $workingDir, $input);
                     
-                    // Сохраняем состояние ПОСЛЕ выполнения (включая папки)
+                    // Save state AFTER execution (including folders)
                     $afterFiles = getDirectorySnapshotWithFolders($workingDir);
                     
-                    // Добавляем информацию о файлах и папках к результату
+                    // Add file and folder info to the result
                     $fileChanges = detectFileAndFolderChanges($beforeFiles, $afterFiles, $workingDir);
                     if (!empty($fileChanges)) {
                         $runResult['fileChanges'] = $fileChanges;
                     }
                     
-                    // Добавляем информацию о файле для отладки
+                    // Add file info for debugging
                     if (!empty($runResult['error'])) {
                         $runResult['error'] = "File: " . basename($absolutePath) . "\n" . $runResult['error'];
                     }
                     
                     return $runResult;
                 } else {
-                    // Если путь не указан, используем временную папку
+                    // If no path specified, use the temp directory
                     if (file_put_contents($tempFilePath, $fileContent) === false) {
                         return ['success' => false, 'output' => '', 'error' => 'Failed to write file to temp directory'];
                     }
@@ -307,7 +307,7 @@ function compileAndRun($language, $fileContent, $fileName, $input = null, $origi
     }
 }
 
-// Новая функция для получения снимка директории с учетом папок
+// New function to get a directory snapshot including subdirectories
 function getDirectorySnapshotWithFolders($dir) {
     $snapshot = [];
     if (!is_dir($dir)) return $snapshot;
@@ -339,12 +339,12 @@ function getDirectorySnapshotWithFolders($dir) {
     return $snapshot;
 }
 
-// Новая функция для обнаружения изменений файлов и папок
+// New function to detect file and folder changes
 function detectFileAndFolderChanges($before, $after, $dir) {
     $changes = [];
     $relativeBase = str_replace(STORAGE_DIR . '/', '', $dir . '/');
     
-    // Новые элементы (файлы и папки)
+    // New items (files and folders)
     foreach ($after as $item => $info) {
         if (!isset($before[$item])) {
             $type = $info['type'] ?? 'file';
@@ -360,7 +360,7 @@ function detectFileAndFolderChanges($before, $after, $dir) {
         }
     }
     
-    // Удаленные элементы
+    // Deleted items
     foreach ($before as $item => $info) {
         if (!isset($after[$item])) {
             $type = $info['type'] ?? 'file';
@@ -422,7 +422,7 @@ function compile_safe_message(string $message): string {
     return $message;
 }
 
-// Основная логика обработки запроса
+// Main request processing logic
 if (!defined('CLOUD_COMPILE_AS_LIB')) {
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'compile_run') {
@@ -450,13 +450,13 @@ try {
 
         $fileName = basename($filePath);
         
-        // Для Python проверяем существование полного пути
+        // For Python, check if the full path exists
         if ($language === 'py') {
             $fullPath = resolve_cloud_compile_path($filePath, (string)$rootKey);
             $dirPath = dirname($fullPath);
             
             if (!is_dir($dirPath)) {
-                // Пытаемся создать директорию
+                // Try to create the directory
                 if (!mkdir($dirPath, 0775, true)) {
                     throw new Exception("Cannot create directory for " . compile_safe_name($filePath));
                 }
@@ -470,7 +470,7 @@ try {
         $resolvedFilePath = resolve_cloud_compile_path($filePath, (string)$rootKey);
         $result = compileAndRun($language, $fileContent, $fileName, $programInput, $resolvedFilePath);
 
-        // Очищаем буфер и выводим JSON
+        // Clear buffer and output JSON
         ob_clean();
         
         $response = [
@@ -479,7 +479,7 @@ try {
             'error' => $result['error']
         ];
         
-        // Добавляем информацию об изменениях файлов
+        // Add file change information
         if (isset($result['fileChanges']) && !empty($result['fileChanges'])) {
             $response['fileChanges'] = $result['fileChanges'];
         }
@@ -490,7 +490,7 @@ try {
         throw new Exception('Invalid action or request method');
     }
 } catch (Exception $e) {
-    // Очищаем буфер и выводим ошибку в JSON
+    // Clear buffer and output error as JSON
     ob_clean();
     echo json_encode([
         'success' => false,
@@ -498,7 +498,7 @@ try {
     ], JSON_UNESCAPED_UNICODE);
 }
 
-// Завершаем буферизацию
+// End output buffering
 ob_end_flush();
 }
 ?>

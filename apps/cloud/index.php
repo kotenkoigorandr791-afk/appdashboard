@@ -564,26 +564,26 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
                     <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
                     <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
                   </svg>
-                  <span data-i18n="compressCode">Сжать</span>
+                  <span data-i18n="compressCode">Compress</span>
                 </div>
                 <div class="dropdown-item" onclick="formatCurrentCode()" style="display:flex;align-items:center;gap:8px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                     <line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
                     <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/>
                   </svg>
-                  <span data-i18n="formatCode">Формат</span>
+                  <span data-i18n="formatCode">Code formatting</span>
                 </div>
                 <div class="dropdown-item" onclick="removeCommentsFromCode()" style="display:flex;align-items:center;gap:8px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                     <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                   </svg>
-                  <span data-i18n="removeComments">Без коммент.</span>
+                  <span data-i18n="removeComments">No comments</span>
                 </div>
                 <div class="dropdown-item" id="code-action-compile" onclick="compileAndRun()" style="display:flex;align-items:center;gap:8px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
-                  <span data-i18n="compileRun">Компил.</span>
+                  <span data-i18n="compileRun">Compile</span>
                 </div>
             </div>
           </div>
@@ -1054,7 +1054,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
             <path d="M16 3h5v5"></path>
             <path d="M21 3l-7.5 7.5"></path>
         </svg>
-        <span data-i18n="shareCopyButton">Копировать ссылку</span>
+        <span data-i18n="shareCopyButton">Copy link</span>
         </button>
       </div>
       <div id="share-link-container" style="margin: 15px 0; word-break: break-all; background: var(--panel); padding: 12px; border-radius: 6px; font-family: monospace;">
@@ -1615,7 +1615,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
           <path d="M14 8L8 14"></path>
           <path d="M8 8L14 14"></path>
         </svg>
-        <span data-i18n="advancedSearch">Расширенный поиск</span>
+        <span data-i18n="advancedSearch">Advanced Search</span>
       </h3>
       <button class="icon-btn close-btn">&times;</button>
     </div>
@@ -1624,7 +1624,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
       <!-- Прогресс бар -->
       <div id="search-progress-container" class="search-progress-container hidden">
         <div class="progress-info">
-          <span data-i18n="searching">Поиск...</span>
+          <span data-i18n="searching">Searching...</span>
           <span id="search-progress-percent">0%</span>
         </div>
         <div class="progress-bar">
@@ -1632,7 +1632,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         </div>
         <div class="progress-details">
           <span id="search-processed-items">0</span> / <span id="search-total-items">0</span>
-          <span data-i18n="itemsProcessed">элементов обработано</span>
+          <span data-i18n="itemsProcessed">items processed</span>
         </div>
       </div>
 
@@ -1640,7 +1640,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
       <div class="search-form">
         <!-- Выбор папки с визуальным деревом -->
         <div class="form-group">
-          <label data-i18n="searchInFolder">Искать в папке:</label>
+          <label data-i18n="searchInFolder">Search in folder:</label>
           <div class="folder-selector-with-tree">
             <div class="selected-folder-display" id="selected-folder-display" style="
               padding: 8px 12px;
@@ -1672,10 +1672,10 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         </div>
 
         <div class="form-group">
-          <label data-i18n="searchByName">По имени:</label>
+          <label data-i18n="searchByName">By name:</label>
           <div class="search-mode-segmented" id="search-text-mode">
-            <button type="button" class="active" data-mode="name" data-i18n="searchByName">По имени</button>
-            <button type="button" data-mode="extension" data-i18n="searchByExtension">По расширению</button>
+            <button type="button" class="active" data-mode="name" data-i18n="searchByName">By name:</button>
+            <button type="button" data-mode="extension" data-i18n="searchByExtension">By extension:</button>
           </div>
           <div class="search-mode-panel" data-search-panel="name">
             <input type="text" id="search-name" data-i18n-placeholder="searchNamePlaceholder" placeholder="*partial* or exact name" class="search-input">
@@ -1689,24 +1689,24 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         </div>
 
         <div class="form-group">
-          <label data-i18n="searchByType">Тип файла:</label>
+          <label data-i18n="searchByType">File type:</label>
           <input type="hidden" id="search-type" value="all">
           <div class="search-type-segmented" id="search-type-mode">
-            <button type="button" class="active" data-type="all" data-i18n="allTypes">Все типы</button>
-            <button type="button" data-type="file" data-i18n="files">Файлы</button>
-            <button type="button" data-type="folder" data-i18n="folders">Папки</button>
+            <button type="button" class="active" data-type="all" data-i18n="allTypes">All types</button>
+            <button type="button" data-type="file" data-i18n="files">Files</button>
+            <button type="button" data-type="folder" data-i18n="folders">Folders</button>
           </div>
         </div>
 
         <div class="form-group">
-          <label data-i18n="searchBySize">По размеру:</label>
+          <label data-i18n="searchBySize">By size:</label>
           <div class="size-filter">
             <select id="search-size-operator" class="size-operator">
-              <option value="any" data-i18n="sizeAny">Любой</option>
-              <option value="greater" data-i18n="sizeGreater">Больше чем</option>
-              <option value="less" data-i18n="sizeLess">Меньше чем</option>
-              <option value="between" data-i18n="sizeBetween">Между</option>
-              <option value="exact" data-i18n="sizeExact">Точно</option>
+              <option value="any" data-i18n="sizeAny">Any</option>
+              <option value="greater" data-i18n="sizeGreater">Greater than</option>
+              <option value="less" data-i18n="sizeLess">Less than</option>
+              <option value="between" data-i18n="sizeBetween">Between</option>
+              <option value="exact" data-i18n="sizeExact">Exactly</option>
             </select>
             <input type="number" id="search-size-value" class="size-value" data-i18n-placeholder="sizeValuePlaceholder" placeholder="0" min="0">
             <select id="search-size-unit" class="size-unit">
@@ -1730,13 +1730,13 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         </div>
 
         <div class="form-group">
-          <label data-i18n="searchByDate">По дате изменения:</label>
+          <label data-i18n="searchByDate">By modification date:</label>
           <div class="date-filter">
             <select id="search-date-operator" class="date-operator">
-              <option value="any" data-i18n="dateAny">Любая</option>
-              <option value="after" data-i18n="dateAfter">После</option>
-              <option value="before" data-i18n="dateBefore">До</option>
-              <option value="between" data-i18n="dateBetween">Между</option>
+              <option value="any" data-i18n="dateAny">Any</option>
+              <option value="after" data-i18n="dateAfter">After</option>
+              <option value="before" data-i18n="dateBefore">Before</option>
+              <option value="between" data-i18n="dateBetween">Between</option>
             </select>
             <input type="date" id="search-date-value" class="date-value">
           </div>
@@ -1750,9 +1750,9 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
     </div>
     
     <div class="modal-footer">
-      <button id="btn-cancel-advanced-search" class="btn secondary" data-i18n="cancel">Отмена</button>
-      <button id="btn-reset-advanced-search" class="btn secondary" data-i18n="reset">Сброс</button>
-      <button id="btn-start-advanced-search" class="btn primary" data-i18n="search">Поиск</button>
+      <button id="btn-cancel-advanced-search" class="btn secondary" data-i18n="cancel">Cancel</button>
+      <button id="btn-reset-advanced-search" class="btn secondary" data-i18n="reset">Reset</button>
+      <button id="btn-start-advanced-search" class="btn primary" data-i18n="search">Search...</button>
     </div>
   </div>
 </div>

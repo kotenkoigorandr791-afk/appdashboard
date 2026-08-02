@@ -974,13 +974,9 @@ if ($stacksMap !== []) {
     });
 }
 $messageIsError = $message !== '' && (
-    strpos($message, t('error')) === 0 ||
-    strpos($message, 'Ошибка') === 0 ||
     strpos($message, 'Error') === 0 ||
-    strpos($message, 'Помилка') === 0 ||
-    strpos($message, 'Памылка') === 0 ||
-    strpos($message, 'Błąd') === 0 ||
-    strpos($message, 'Chyba') === 0
+    strpos($message, t('error')) === 0 ||
+    strpos($message, t('api_error')) === 0
 );
 $startupModals = [];
 if ($apiError) {

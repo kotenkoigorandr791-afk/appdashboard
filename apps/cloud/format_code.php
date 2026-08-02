@@ -4,7 +4,7 @@ class AdvancedCodeFormatter {
     
     private $indentSize = 4;
     
-    // Ключевые слова для каждого языка
+    // Keywords for each language
     private $keywords = [
         'php' => ['if', 'else', 'elseif', 'while', 'for', 'foreach', 'do', 'switch', 'case', 'default', 
                  'function', 'class', 'interface', 'trait', 'try', 'catch', 'finally', 'public', 'private', 
@@ -21,10 +21,10 @@ class AdvancedCodeFormatter {
                         'break', 'continue', 'where', 'select']
     ];
     
-    // HTML теги, которые должны быть в одну строку
+    // HTML tags that should be on a single line
     private $inlineTags = ['span', 'a', 'strong', 'b', 'i', 'em', 'small', 'mark', 'del', 'ins', 'sub', 'sup'];
     
-    // HTML теги, которые не требуют закрывающих тегов
+    // HTML tags that don't require closing tags
     private $voidTags = ['area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 
                         'param', 'source', 'track', 'wbr'];
     
@@ -48,32 +48,32 @@ class AdvancedCodeFormatter {
     }
     
     private function formatPHP($code) {
-        // Сначала нормализуем пробелы
+        // First normalize whitespace
         $code = $this->normalizeWhitespace($code);
         
-        // Обрабатываем специальные конструкции PHP
+        // Handle special PHP constructs
         $code = $this->processPHPStructures($code);
         
-        // Добавляем переносы строк
+        // Add line breaks
         $code = $this->addPHPLineBreaks($code);
         
-        // Применяем отступы
+        // Apply indentation
         return $this->addPHPIndentation($code);
     }
     
     private function processPHPStructures($code) {
-        // Обрабатываем функции
+        // Handle functions
         $code = preg_replace('/\bfunction\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', "function $1(", $code);
         
-        // Обрабатываем классы
+        // Handle classes
         $code = preg_replace('/\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*/', "class $1 ", $code);
         
-        // Обрабатываем условные операторы
+        // Handle conditionals
         $code = preg_replace('/\bif\s*\(/', "if(", $code);
         $code = preg_replace('/\}\s*else\s*\{/', "} else {", $code);
         $code = preg_replace('/\}\s*elseif\s*\(/', "} elseif(", $code);
         
-        // Обрабатываем циклы
+        // Handle loops
         $code = preg_replace('/\bfor\s*\(/', "for(", $code);
         $code = preg_replace('/\bwhile\s*\(/', "while(", $code);
         $code = preg_replace('/\bforeach\s*\(/', "foreach(", $code);
@@ -82,16 +82,16 @@ class AdvancedCodeFormatter {
     }
     
     private function addPHPLineBreaks($code) {
-        // Добавляем переносы после открывающих скобок
+        // Add line breaks after opening braces
         $code = str_replace('{', "{\n", $code);
         
-        // Добавляем переносы перед закрывающими скобками
+        // Add line breaks before closing braces
         $code = str_replace('}', "\n}", $code);
         
-        // Добавляем переносы после точки с запятой
+        // Add line breaks after semicolons
         $code = preg_replace('/;(?!\s*\n)/', ";\n", $code);
         
-        // Специальные случаи для else
+        // Special cases for else
         $code = preg_replace('/\n\s*}\s*else\s*\{\n/', "\n} else {\n", $code);
         $code = preg_replace('/\n\s*}\s*elseif/', "\n} elseif", $code);
         
@@ -107,16 +107,16 @@ class AdvancedCodeFormatter {
             $trimmed = trim($line);
             if($trimmed === '') continue;
             
-            // Определяем уровень отступа для текущей строки
+            // Determine indent level for the current line
             if(preg_match('/^}/', $trimmed)) {
                 $indentLevel = max(0, $indentLevel - 1);
             }
             
-            // Добавляем отступ
+            // Add indentation
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             
-            // Увеличиваем отступ для следующих строк
+            // Increase indent for subsequent lines
             if(preg_match('/\{$/', $trimmed)) {
                 $indentLevel++;
             }
@@ -126,31 +126,31 @@ class AdvancedCodeFormatter {
     }
     
     private function formatHTML($code) {
-        // Нормализуем пробелы между тегами
+        // Normalize whitespace between tags
         $code = preg_replace('/>\s+</', '><', trim($code));
         
-        // Обрабатываем специальные HTML структуры
+        // Handle special HTML structures
         $code = $this->processHTMLStructures($code);
         
-        // Добавляем переносы строк
+        // Add line breaks
         $code = $this->addHTMLLineBreaks($code);
         
-        // Применяем отступы
+        // Apply indentation
         return $this->addHTMLIndentation($code);
     }
     
     private function processHTMLStructures($code) {
-        // Обрабатываем комментарии
+        // Handle comments
         $code = preg_replace('/<!--(.*?)-->/', "<!--$1-->", $code);
         
-        // Обрабатываем DOCTYPE
+        // Handle DOCTYPE
         $code = preg_replace('/<!DOCTYPE\s+([^>]+)>/i', "<!DOCTYPE $1>", $code);
         
         return $code;
     }
     
     private function addHTMLLineBreaks($code) {
-        // Разбиваем код на токены (теги и содержимое)
+        // Tokenize code (tags and content)
         preg_match_all('/(<[^>]*>|[^<]+)/', $code, $matches);
         $tokens = $matches[0];
         
@@ -198,7 +198,7 @@ class AdvancedCodeFormatter {
     }
     
     private function addHTMLIndentation($code) {
-        // Разбиваем на токены снова для правильной обработки отступов
+        // Re-tokenize for correct indentation handling
         preg_match_all('/(<[^>]*>|[^<]+)/', $code, $matches);
         $tokens = $matches[0];
         
@@ -273,10 +273,10 @@ class AdvancedCodeFormatter {
         // Обрабатываем C структуры
         $code = $this->processCStructures($code);
         
-        // Добавляем переносы строк
+        // Add line breaks
         $code = $this->addCLineBreaks($code);
         
-        // Применяем отступы
+        // Apply indentation
         return $this->addCIndentation($code);
     }
     
@@ -285,10 +285,10 @@ class AdvancedCodeFormatter {
         $code = preg_replace('/#include\s*<([^>]+)>/', "#include <$1>", $code);
         $code = preg_replace('/#include\s*"([^"]+)"/', '#include "$1"', $code);
         
-        // Обрабатываем функции
+        // Handle functions
         $code = preg_replace('/\b(int|void|char|float|double)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', "$1 $2(", $code);
         
-        // Обрабатываем циклы и условия
+        // Handle loops и условия
         $code = preg_replace('/\bif\s*\(/', "if(", $code);
         $code = preg_replace('/\bfor\s*\(/', "for(", $code);
         $code = preg_replace('/\bwhile\s*\(/', "while(", $code);
@@ -311,7 +311,7 @@ class AdvancedCodeFormatter {
         $code = str_replace('{', "{\n", $code);
         $code = str_replace('}', "\n}", $code);
         
-        // Добавляем переносы после точки с запятой
+        // Add line breaks after semicolons
         $code = preg_replace('/;(?!\s*\n)/', ";\n", $code);
         
         // Обрабатываем return
@@ -343,7 +343,7 @@ class AdvancedCodeFormatter {
                 $indentLevel = max(0, $indentLevel - 1);
             }
             
-            // Добавляем отступ
+            // Add indentation
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             
@@ -363,10 +363,10 @@ class AdvancedCodeFormatter {
         // Обрабатываем Python структуры
         $code = $this->processPythonStructures($code);
         
-        // Добавляем переносы строк
+        // Add line breaks
         $code = $this->addPythonLineBreaks($code);
         
-        // Применяем отступы
+        // Apply indentation
         return $this->addPythonIndentation($code);
     }
     
@@ -375,10 +375,10 @@ class AdvancedCodeFormatter {
         $code = preg_replace('/\bimport\s+([a-zA-Z_][a-zA-Z0-9_.]*)/', "import $1", $code);
         $code = preg_replace('/\bfrom\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import/', "from $1 import", $code);
         
-        // Обрабатываем функции
+        // Handle functions
         $code = preg_replace('/\bdef\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', "def $1(", $code);
         
-        // Обрабатываем классы
+        // Handle classes
         $code = preg_replace('/\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:/', "class $1:", $code);
         $code = preg_replace('/\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*:/', "class $1():", $code);
         
@@ -435,7 +435,7 @@ class AdvancedCodeFormatter {
             $trimmed = trim($line);
             if($trimmed === '') continue;
             
-            // Добавляем отступ
+            // Add indentation
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             
@@ -461,10 +461,10 @@ class AdvancedCodeFormatter {
         // Обрабатываем PowerShell структуры
         $code = $this->processPowerShellStructures($code);
         
-        // Добавляем переносы строк
+        // Add line breaks
         $code = $this->addPowerShellLineBreaks($code);
         
-        // Применяем отступы
+        // Apply indentation
         return $this->addPowerShellIndentation($code);
     }
     
@@ -472,7 +472,7 @@ class AdvancedCodeFormatter {
         // Обрабатываем командлеты
         $code = preg_replace('/\b([A-Z][a-z]+-[A-Z][a-zA-Z]*)\b/', "$1", $code);
         
-        // Обрабатываем функции
+        // Handle functions
         $code = preg_replace('/\bfunction\s+([a-zA-Z_][a-zA-Z0-9_-]*)\s*\{/', "function $1 {", $code);
         
         // Обрабатываем условия и циклы
@@ -515,7 +515,7 @@ class AdvancedCodeFormatter {
                 $indentLevel = max(0, $indentLevel - 1);
             }
             
-            // Добавляем отступ
+            // Add indentation
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             

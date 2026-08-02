@@ -2426,9 +2426,9 @@ header('Content-Type: text/html; charset=UTF-8');
                                         <label for="va-lang"><?php echo htmlspecialchars($translations['video_ocr_lang'] ?? 'OCR language'); ?></label>
                                         <select id="va-lang">
                                             <option value="en" <?php echo $language === 'en' ? 'selected' : ''; ?>>English</option>
-                                            <option value="ru" <?php echo $language === 'ru' ? 'selected' : ''; ?>>╨а╤Г╤Б╤Б╨║╨╕╨╣</option>
-                                            <option value="uk" <?php echo $language === 'uk' ? 'selected' : ''; ?>>╨г╨║╤А╨░╤Ч╨╜╤Б╤М╨║╨░</option>
-                                            <option value="be" <?php echo $language === 'be' ? 'selected' : ''; ?>>╨С╨╡╨╗╨░╤А╤Г╤Б╨║╨░╤П</option>
+                                            <option value="ru" <?php echo $language === 'ru' ? 'selected' : ''; ?>>Русский</option>
+                                            <option value="uk" <?php echo $language === 'uk' ? 'selected' : ''; ?>>Українська</option>
+                                            <option value="be" <?php echo $language === 'be' ? 'selected' : ''; ?>>Беларуская</option>
                                         </select>
                                     </div>
                                     <div class="va-field">
@@ -2460,7 +2460,7 @@ header('Content-Type: text/html; charset=UTF-8');
                                     <p id="va-msg">тАФ</p>
                                     <div id="va-progress-bar"><div id="va-progress-fill"></div></div>
                                     <p id="va-meta"></p>
-                                    <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="va-stop"><?php echo htmlspecialchars($translations['stop'] ?? '╨б╤В╨╛╨┐'); ?></button></div>
+                                    <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="va-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
                             </div>
                         </div>
@@ -2494,9 +2494,9 @@ header('Content-Type: text/html; charset=UTF-8');
                                         <label for="ft-lang"><?php echo htmlspecialchars($translations['video_ocr_lang'] ?? 'OCR language'); ?></label>
                                         <select id="ft-lang">
                                             <option value="en" <?php echo $language === 'en' ? 'selected' : ''; ?>>English</option>
-                                            <option value="ru" <?php echo $language === 'ru' ? 'selected' : ''; ?>>╨а╤Г╤Б╤Б╨║╨╕╨╣</option>
-                                            <option value="uk" <?php echo $language === 'uk' ? 'selected' : ''; ?>>╨г╨║╤А╨░╤Ч╨╜╤Б╤М╨║╨░</option>
-                                            <option value="be" <?php echo $language === 'be' ? 'selected' : ''; ?>>╨С╨╡╨╗╨░╤А╤Г╤Б╨║╨░╤П</option>
+                                            <option value="ru" <?php echo $language === 'ru' ? 'selected' : ''; ?>>Русский</option>
+                                            <option value="uk" <?php echo $language === 'uk' ? 'selected' : ''; ?>>Українська</option>
+                                            <option value="be" <?php echo $language === 'be' ? 'selected' : ''; ?>>Беларуская</option>
                                         </select>
                                     </div>
                                     <div class="va-field">
@@ -2515,7 +2515,7 @@ header('Content-Type: text/html; charset=UTF-8');
                                     <p id="ft-msg">тАФ</p>
                                     <div id="ft-progress-bar"><div id="ft-progress-fill"></div></div>
                                     <p id="ft-meta"></p>
-                                    <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? '╨б╤В╨╛╨┐'); ?></button></div>
+                                    <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
                                 <section class="va-segment takeout-guide-segment is-collapsed" id="takeout-guide-segment">
                                     <div class="takeout-guide-head">
@@ -4346,7 +4346,7 @@ header('Content-Type: text/html; charset=UTF-8');
             return s;
         }
         function vaTranslateStateMessage(st) {
-            if (!st) return 'тАФ';
+            if (!st) return '—';
             const raw = st.message;
             if (raw == null || raw === '') {
                 if (st.status === 'running') return translations.video_status_preparing || 'тАж';
@@ -4437,7 +4437,7 @@ header('Content-Type: text/html; charset=UTF-8');
         function ftStopPoll() { if (fitPollTimer) { clearInterval(fitPollTimer); fitPollTimer = null; } }
         function ftSetBar(pct) { const f = document.getElementById('ft-progress-fill'); if (f) f.style.width = Math.min(100, Math.max(0, pct)) + '%'; }
         function ftTranslateStateMessage(st) {
-            if (!st) return 'тАФ';
+            if (!st) return '—';
             const raw = st.message;
             if (raw == null || raw === '') {
                 if (st.status === 'running') return translations.takeout_queued || 'тАж';
