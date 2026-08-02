@@ -533,32 +533,32 @@
             .archive-info { display: none; }
             .header-size { width: 50px; }
         }
-        /* Стили для скроллбаров в темной теме */
+        /* Scrollbar styles in the dark theme */
         [data-theme="dark"] *::-webkit-scrollbar {
             width: 10px;
             height: 10px;
         }
 
         [data-theme="dark"] *::-webkit-scrollbar-track {
-            background: #2d2d2d; /* темный фон трека */
+            background: #2d2d2d; /* dark track background */
             border-radius: 5px;
         }
 
         [data-theme="dark"] *::-webkit-scrollbar-thumb {
-            background: #555; /* темный ползунок */
+            background: #555; /* dark thumb */
             border-radius: 5px;
             border: 2px solid #2d2d2d;
         }
 
         [data-theme="dark"] *::-webkit-scrollbar-thumb:hover {
-            background: #666; /* чуть светлее при наведении */
+            background: #666; /* slightly lighter on hover */
         }
 
         [data-theme="dark"] *::-webkit-scrollbar-corner {
             background: #2d2d2d;
         }
 
-        /* Для Firefox в темной теме */
+        /* For Firefox in the dark theme */
         [data-theme="dark"] * {
             scrollbar-width: thin;
             scrollbar-color: #555 #2d2d2d;
@@ -643,7 +643,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
         <?php elseif (count($archiveChain) > 1): ?>
-            <!-- Возврат в родительский архив -->
+            <!-- Return to the parent archive -->
             <?php 
             $parentArchive = $archiveChain[count($archiveChain) - 2];
             $parentChain = array_slice($archiveChain, 0, -1);
@@ -665,7 +665,7 @@
     </div>
     
     <div class="breadcrumbs">
-        <!-- Отображаем цепочку архивов -->
+        <!-- Display the archive chain -->
         <?php foreach ($archiveChain as $index => $arch): ?>
             <?php if ($index > 0): ?>
                 <span class="breadcrumb-separator">:</span>
@@ -683,7 +683,7 @@
             <?php endif; ?>
         <?php endforeach; ?>
         
-        <!-- Отображаем внутренний путь в текущем архиве -->
+        <!-- Display the inner path in the current archive -->
         <?php foreach ($breadcrumbs as $crumb): ?>
             <span class="breadcrumb-separator">/</span>
             <a href="<?= buildUrl(['path' => $crumb['path'], 'view' => null]) ?>" class="breadcrumb-item">

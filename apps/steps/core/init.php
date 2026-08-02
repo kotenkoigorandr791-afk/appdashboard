@@ -1,5 +1,5 @@
 <?php
-// ─── Инициализация ────────────────────────────────────────────────────────────
+// Initialization
 require_once dirname(__DIR__, 3) . '/project/i18n_helpers.php';
 $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';
@@ -41,21 +41,21 @@ if (!empty($userPhotoFromDB)) {
     }
 }
 
-// Открываем пользовательскую БД
+// Open user database
 $userDb = getUserDB($userDir);
 if (!$userDb) {
     throw new RuntimeException('Steps database unavailable');
 }
 normalizeStepsDatesTable($userDb);
 
-// Загружаем настройки
+// Load settings
 $userSettings = loadUserSettings($userDb, $defaultSettings);
 
-// ─── Инициализируем шаги: только последние 12 месяцев для начального рендера ─
+// Initialize steps: only last 12 months for initial render
 $today        = (new DateTime())->format('Y-m-d');
 $yearAgo      = (new DateTime())->modify('-12 months')->format('Y-m-d');
 
-// Если БД пуста — заполняем месяцем нулей
+// If DB is empty — fill with a month of zeros
 $totalCount = (int)$userDb->querySingle('SELECT COUNT(*) FROM steps');
 if ($totalCount === 0) {
     $sd = (new DateTime())->modify('-1 month');
@@ -68,21 +68,21 @@ if ($totalCount === 0) {
     $userDb->exec('COMMIT');
 }
 
-// Убедимся, что сегодняшний день есть в базе
+// Ensure today exists in DB
 $userDb->exec("INSERT INTO steps (date, steps) VALUES ('$today', 0) ON CONFLICT (date) DO NOTHING");
 
-// Определяем самую раннюю дату
+// Determine earliest date
 [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
 $earliestDate = $earliestInDB ?? $today;
 
-// Загружаем весь доступный диапазон дат для JS
+// Load entire available date range for JS
 $jsRangeFrom = $earliestInDB ?? $today;
 $jsRangeTo = ($latestInDB && strcmp($latestInDB, $today) > 0) ? $latestInDB : $today;
 error_log("Loading steps range: from=$jsRangeFrom, to=$jsRangeTo, earliest=$earliestInDB, latest=$latestInDB, today=$today");
 $stepsDataRaw = loadStepsRange($userDb, $jsRangeFrom, $jsRangeTo);
 error_log("Loaded steps count: " . count($stepsDataRaw));
 
-// Заполняем пропуски нулями в загруженном диапазоне
+// Fill gaps with zeros in loaded range
 $cd = new DateTime($jsRangeFrom);
 $ed2 = new DateTime($jsRangeTo);
 $toInsert = [];

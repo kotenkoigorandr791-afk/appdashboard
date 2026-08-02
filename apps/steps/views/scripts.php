@@ -20,7 +20,7 @@
         
         Chart.register(ChartZoom);
         
-        // Вспомогательные функции
+        // Helper functions
         const formatNumber = num => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         const formatLocalYMD = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         const localDateFromYMD = s => { const p = String(s).split('-'); if (p.length !== 3) return new Date(NaN); const y = +p[0], m = +p[1], da = +p[2]; if (!y || !m || !da) return new Date(NaN); return new Date(y, m - 1, da); };
@@ -146,7 +146,7 @@
             dataType === 'distance' ? data.map(steps => (steps * userSettings.stride_length) / 100000) : 
             data.map(steps => steps * 0.04 * (userSettings.weight / 70));
         
-        // Функция для показа алерта
+        // Function to show alert
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('alert-modal');
@@ -201,10 +201,102 @@
             });
         }
         
-        // Обработка модальных окон
+        // Handle modal windows
         function syncChartTypeButtons() {
             document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-type') === currentChartType));
+            renderChartPreviews();
         }
+        function renderChartPreviews() {
+            const canvasBar = document.getElementById('settings-chart-preview-bar');
+            const canvasLine = document.getElementById('settings-chart-preview-line');
+            if (!canvasBar || !canvasLine) return;
+
+            if (chartPreviewBarInstance) {
+                chartPreviewBarInstance.destroy();
+                chartPreviewBarInstance = null;
+            }
+            if (chartPreviewLineInstance) {
+                chartPreviewLineInstance.destroy();
+                chartPreviewLineInstance = null;
+            }
+
+            const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
+            const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
+            const sampleData = [3200, 5800, 4100, 7200, 6500, 8900, 5300];
+            const sampleLabels = ['<?php echo htmlspecialchars($translations['day_mon'] ?? 'Mon'); ?>', '<?php echo htmlspecialchars($translations['day_tue'] ?? 'Tue'); ?>', '<?php echo htmlspecialchars($translations['day_wed'] ?? 'Wed'); ?>', '<?php echo htmlspecialchars($translations['day_thu'] ?? 'Thu'); ?>', '<?php echo htmlspecialchars($translations['day_fri'] ?? 'Fri'); ?>', '<?php echo htmlspecialchars($translations['day_sat'] ?? 'Sat'); ?>', '<?php echo htmlspecialchars($translations['day_sun'] ?? 'Sun'); ?>'];
+
+            const createPreviewGradient = (canvas) => {
+                const ctx = canvas.getContext('2d');
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                const r = 0, g = 123, b = 255;
+                const alpha = 0.5;
+                const halfWhite = `rgba(${Math.round((255 + r) / 2)},${Math.round((255 + g) / 2)},${Math.round((255 + b) / 2)},${alpha})`;
+                const full = `rgba(${r},${g},${b},${alpha})`;
+                gradient.addColorStop(0, halfWhite);
+                gradient.addColorStop(1, full);
+                return gradient;
+            };
+
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: { padding: 8 },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: true }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: chartGridColor },
+                        border: { color: chartGridColor },
+                        ticks: {
+                            color: isDarkTheme ? '#fff' : '#000',
+                            callback: (v) => formatNumber(v)
+                        }
+                    },
+                    x: {
+                        grid: { color: chartGridColor },
+                        border: { color: chartGridColor },
+                        ticks: { color: isDarkTheme ? '#fff' : '#000' }
+                    }
+                }
+            };
+
+            chartPreviewBarInstance = new Chart(canvasBar.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: sampleLabels,
+                    datasets: [{
+                        label: '<?php echo htmlspecialchars($translations['steps']); ?>',
+                        data: sampleData,
+                        backgroundColor: createPreviewGradient(canvasBar),
+                        borderColor: 'rgba(0,123,255,1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: commonOptions
+            });
+
+            chartPreviewLineInstance = new Chart(canvasLine.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: sampleLabels,
+                    datasets: [{
+                        label: '<?php echo htmlspecialchars($translations['steps']); ?>',
+                        data: sampleData,
+                        backgroundColor: 'transparent',
+                        borderColor: 'rgba(0,123,255,1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+        let chartPreviewBarInstance = null;
+        let chartPreviewLineInstance = null;
         function resetSettingsModalTabs() {
             document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.remove('active'));
@@ -290,7 +382,7 @@
             }
         }
         
-        // Функции для работы с графиком
+        // Functions for chart operations
         function prepareChartData(view, selectedDate, dataType, lang = currentLocale) {
     let labels = [], data = [], dates = [];
     
@@ -298,14 +390,14 @@
         const year = selectedDate.getFullYear();
         const yearData = {};
         
-        // Инициализируем все месяцы года
+        // Initialize all months of the year
         for (let month = 0; month < 12; month++) {
             const yearMonth = `${year}-${month + 1}`;
             yearData[yearMonth] = 0;
             yearData[`${yearMonth}_date`] = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         }
         
-        // Суммируем шаги по месяцам выбранного года
+        // Sum steps by months of selected year
         stepsData.forEach(entry => { 
             const date = localDateFromYMD(entry.date);
             if (date.getFullYear() === year) {
@@ -314,7 +406,7 @@
             }
         });
         
-        // Сортируем месяцы
+        // Sort months
         const sortedMonths = Object.keys(yearData).filter(key => !key.includes('_date')).sort((a, b) => {
             const aMonth = parseInt(a.split('-')[1]);
             const bMonth = parseInt(b.split('-')[1]);
@@ -691,7 +783,7 @@
             });
         }
 
-        // Функции для календаря
+        // Functions for calendar
         function updateCalendar(lang = currentLocale) {
             const yearSelector = document.getElementById('year-selector');
             const monthSelector = document.getElementById('month-selector');
@@ -772,7 +864,7 @@
                 <div>${translations.goal_days}: ${goalDays}</div>`;
         }
         
-        // Функции для модального окна добавления шагов
+        // Functions for add steps modal
         function applyManualDate(date, lang = currentLocale, direction = 'none') {
             document.getElementById('selected-date-input').value = date;
             setStepsInputValue((stepsData.find(entry => entry.date === date) || { steps: 0 }).steps);
@@ -893,8 +985,8 @@
             await saveSteps({ advance: false, silent: true });
         }
         
-        // Функции для Excel модального окна
-        // ── Таблица с пагинацией и SQL-фильтром ─────────────────────────────
+        // Functions for Excel modal
+        // ── Table with pagination and SQL filter ─────────────────────────────
         let tablePage = 1;
         let tableTotal = 0;
         let tablePageSize = 50;
@@ -993,10 +1085,10 @@
                 currentCol = col;
                 
                 if (e.shiftKey && startCell) {
-                    // Выделение диапазона
+                    // Range selection
                     selectCellRange(startCell, cell);
                 } else {
-                    // Одиночное выделение
+                    // Single selection
                     clearSelection();
                     toggleCellSelection(cell);
                     startCell = cell;
@@ -1015,20 +1107,20 @@
                 }
             });
             
-            // Автоматическое сохранение при потере фокуса
+            // Auto-save on focus out
             table.addEventListener('focusout', (e) => {
                 if (editingCell) {
                     finishEditing(true);
                 }
             });
             
-            // Сохранение при нажатии Tab
+            // Save on Tab press
             table.addEventListener('keydown', (e) => {
                 if (e.key === 'Tab' && editingCell) {
                     e.preventDefault();
                     finishEditing(true);
                     
-                    // Переход к следующей ячейке
+                    // Move to next cell
                     const nextCell = getCell(currentRow, currentCol + 1);
                     if (nextCell) {
                         startEditing(nextCell);
@@ -1040,7 +1132,7 @@
                 isSelecting = false;
             });
             
-            // Двойной клик для редактирования
+            // Double click to edit
             table.addEventListener('dblclick', (e) => {
                 const cell = e.target.closest('td');
                 if (!cell || cell.closest('thead')) return;
@@ -1053,7 +1145,7 @@
             });
         }
         
-        // Функция для навигации по таблице с помощью стрелок
+        // Function for table navigation with arrow keys
         function setupTableNavigation(table) {
             function getCell(row, col) {
                 return table.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
@@ -1062,30 +1154,30 @@
             function moveSelection(newRow, newCol) {
                 const rows = table.querySelectorAll('tbody tr');
                 const maxRow = rows.length - 1;
-                const maxCol = 1; // 0 - дата, 1 - шаги
+                const maxCol = 1; // 0 - date, 1 - steps
                 
-                // Ограничиваем диапазон
+                // Constrain range
                 newRow = Math.max(0, Math.min(newRow, maxRow));
                 newCol = Math.max(0, Math.min(newCol, maxCol));
                 
-                // Снимаем выделение со всех ячеек
+                // Clear selection from all cells
                 clearSelection();
                 
-                // Выделяем новую ячейку
+                // Select new cell
                 const newCell = getCell(newRow, newCol);
                 if (newCell) {
                     toggleCellSelection(newCell);
                     currentRow = newRow;
                     currentCol = newCol;
                     
-                    // Прокручиваем к ячейке если она не видна
+                    // Scroll to cell if not visible
                     newCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
             
-            // Обработка горячих клавиш
+            // Handle hotkeys
             document.addEventListener('keydown', (e) => {
-                // Если мы в режиме редактирования, не обрабатываем стрелки
+                // If in edit mode, don't handle arrows
                 if (editingCell || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
                     return;
                 }
@@ -1215,15 +1307,15 @@
         function startEditing(cell) {
             if (!cell) return;
             
-            // Проверяем, не является ли ячейка датой (колонка 0)
+            // Check if cell is a date (column 0)
             const col = parseInt(cell.getAttribute('data-col'));
             if (col === 0) {
-                // Это ячейка с датой - запрещаем редактирование
+                // This is a date cell - editing not allowed
                 showAlert(translations.date_not_editable || 'Date cannot be edited');
                 return;
             }
             
-            // Завершаем предыдущее редактирование, если есть
+            // Finish previous editing if any
             if (editingCell) {
                 finishEditing(false);
             }
@@ -1241,10 +1333,10 @@
             } else {
                 cell.setAttribute('data-original', displayVal);
             }
-            // Фокусируемся и выделяем текст
+            // Focus and select text
             cell.focus();
             
-            // Выделяем текст
+            // Select text
             const range = document.createRange();
             range.selectNodeContents(cell);
             const selection = window.getSelection();
@@ -1253,13 +1345,13 @@
         }
         
         async function updateDataFromTable() {
-            // Сохраняем только редактируемую ячейку
+            // Save only the editing cell
             if (!editingCell) return false;
             
             const row = parseInt(editingCell.getAttribute('data-row'));
             const col = parseInt(editingCell.getAttribute('data-col'));
             
-            // Получаем всю строку
+            // Get entire row
             const table = document.getElementById('excel-table');
             if (!table) return false;
             
@@ -1276,7 +1368,7 @@
             const newSteps = parseInt(parseStepsRaw(stepsCell.textContent), 10) || 0;
             const originalSteps = parseInt(parseStepsRaw(editingCell.getAttribute('data-original') || '0'), 10) || 0;
             
-            // Проверяем, изменилось ли значение
+            // Check if value changed
             if (newSteps === originalSteps) {
                 return true;
             }
@@ -1312,13 +1404,13 @@
         }
         
         function updateLocalData(date, steps, rowIndex) {
-            // Преобразуем дату из dd-mm-yy в yyyy-mm-dd для поиска в stepsData
+            // Convert date from dd-mm-yy to yyyy-mm-dd for lookup in stepsData
             const dateParts = date.split('-');
             const day = dateParts[0];
             const month = dateParts[1];
             const year = dateParts[2];
             
-            // Определяем полный год
+            // Determine full year
             const fullYear = parseInt(year) < 70 ? `20${year}` : `19${year}`;
             const searchDate = `${fullYear}-${month}-${day}`;
             let found = false;
@@ -1330,13 +1422,13 @@
                 }
             }
             
-            // Если не нашли, добавляем новую запись
+            // If not found, add new entry
             if (!found) {
                 stepsData.push({ date: searchDate, steps: steps });
                 stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
             }
             
-            // Обновляем график и календарь
+            // Update chart and calendar
             renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
             updateCalendar(currentLocale);
             updateStatsNotification();
@@ -1471,7 +1563,7 @@
             await showAlert(translations.cells_cleared || 'Cells cleared successfully');
         }
         
-        // Функция для создания нового бэкапа
+        // Function to create new backup
         async function createBackup() {
             try {
                 const response = await fetch('', {
@@ -1486,7 +1578,7 @@
                 
                 if (data.status === 'success') {
                     await showAlert(data.message || translations.backup_created || 'Backup created successfully');
-                    await loadBackups(); // Обновляем список бэкапов
+                    await loadBackups(); // Update the backup list
                 } else {
                     await showAlert(`Error: ${data.message}`);
                 }
@@ -1495,7 +1587,7 @@
             }
         }
         
-        // Поиск — SQL-фильтр через сервер, первая страница
+        // Search — SQL filter via server, first page
         async function searchInTable() {
             const val   = document.getElementById('search-steps').value.trim();
             const op    = document.getElementById('search-operator').value;
@@ -1567,7 +1659,7 @@
             
             container.innerHTML = html;
             
-            // Добавляем обработчики для кнопок
+            // Add event handlers for buttons
             container.querySelectorAll('.backup-btn.restore').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const fileName = btn.getAttribute('data-file');
@@ -1606,7 +1698,7 @@
                 if (data.status === 'success') {
                     await showAlert(translations.backup_restored || 'Backup restored successfully');
                     
-                    // Перезагружаем страницу для обновления данных
+                    // Reload page to refresh data
                     location.reload();
                 } else {
                     await showAlert(`Error: ${data.message}`);
@@ -1638,7 +1730,7 @@
                 
                 if (data.status === 'success') {
                     await showAlert(translations.backup_deleted || 'Backup deleted successfully');
-                    await loadBackups(); // Обновляем список
+                    await loadBackups(); // Update the list
                 } else {
                     await showAlert(`Error: ${data.message}`);
                 }
@@ -2671,7 +2763,7 @@
             if (n) n.style.display = 'none';
         }
 
-        // Инициализация приложения
+        // App initialization
         function initApp() {
             renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
             updateCalendar(currentLocale);
@@ -2680,12 +2772,12 @@
             workerStartRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
             
-            // Обработчики для кнопки информации
+            // Handlers for info button
             document.getElementById('info-button').addEventListener('click', () => {
                 openModal('info-modal');
             });
             
-            // Обработчики для кнопок представления
+            // Handlers for view buttons
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -2703,7 +2795,7 @@
                 });
             }
             
-            // Обработчики для типа данных
+            // Handlers for data type
             document.querySelectorAll('.data-type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.data-type-btn').forEach(b => b.classList.remove('active'));
@@ -2713,7 +2805,7 @@
                 });
             });
             
-            // Обработчики для типа графика
+            // Handlers for chart type
             document.querySelectorAll('.chart-type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
@@ -2735,7 +2827,7 @@
                 });
             });
             
-            // Навигация по графику
+            // Chart navigation
             document.getElementById('chart-nav-left').addEventListener('click', () => {
                 if (!canNavigateBackward()) return;
                 const prevYear = currentDate.getFullYear();
@@ -2774,7 +2866,7 @@
                 }
             });
             
-            // Выбор года
+            // Year selection
             document.getElementById('year-selector').addEventListener('change', () => {
                 const year = parseInt(document.getElementById('year-selector').value);
                 currentDate.setFullYear(year);
@@ -2783,7 +2875,7 @@
                 renderCalendar(new Date(year, 0, 1), currentLocale);
             });
 
-            // Выбор месяца
+            // Month selection
             document.getElementById('month-selector').addEventListener('change', () => {
                 const val = document.getElementById('month-selector').value;
                 if (val === '-') return;
@@ -2793,12 +2885,12 @@
                 renderChart('month', currentDate, currentDataType, currentChartType, currentLocale);
             });
             
-            // Кнопка настроек
+            // Settings button
             document.getElementById('settings-button').addEventListener('click', () => {
                 openModal('settings-modal');
             });
             
-            // Кнопка добавления шагов
+            // Add steps button
             document.getElementById('add-steps-button').addEventListener('click', () => { 
                 const today = formatLocalYMD(new Date());
                 applyManualDate(today, currentLocale);
@@ -2806,7 +2898,7 @@
                 setTimeout(() => document.getElementById('steps-input').focus(), 100); 
             });
             
-            // Кнопка Excel
+            // Excel button
             document.getElementById('excel-button').addEventListener('click', () => {
                 document.getElementById('search-steps').value = '';
                 document.getElementById('search-steps-to').value = '';
@@ -2817,7 +2909,7 @@
             });
             document.getElementById('excel-hotkeys-open')?.addEventListener('click', () => { openModal('excel-hotkeys-modal'); });
             
-            // Кнопка создания бэкапа
+            // Create backup button
             document.getElementById('create-backup').addEventListener('click', createBackup);
             
             document.getElementById('video-recognition-notif-open')?.addEventListener('click', function() { zlOpenZeepModal(); });
@@ -3119,31 +3211,31 @@
                     });
                 }
             });
-            // Кнопка восстановления из бекапа
+            // Restore from backup button
             document.getElementById('restore-backup').addEventListener('click', async () => {
                 await loadBackups();
                 openModal('backups-modal');
             });
             
-            // Кнопка управления бекапами
+            // Manage backups button
             document.getElementById('manage-backups').addEventListener('click', async () => {
                 await loadBackups();
                 openModal('backups-modal');
             });
             
-            // Кнопка обновления списка бекапов
+            // Refresh backups list button
             document.getElementById('refresh-backups')?.addEventListener('click', async () => {
                 await loadBackups();
             });
             
-            // Кнопка скачивания бекапа
+            // Download backup button
             document.getElementById('download-backup').addEventListener('click', downloadBackup);
             document.getElementById('import-external-backup-btn')?.addEventListener('click', importExternalBackup);
             
-            // Кнопка поиска
+            // Search button
             document.getElementById('search-btn').addEventListener('click', searchInTable);
             
-            // Очистка поиска
+            // Clear search
             document.getElementById('clear-search').addEventListener('click', () => {
                 document.getElementById('search-steps').value = '';
                 document.getElementById('search-steps-to').value = '';
@@ -3152,7 +3244,7 @@
                 renderExcelTable(1, '', '', '', '', '');
             });
             
-            // Изменение оператора поиска
+            // Search operator change
             document.getElementById('search-operator').addEventListener('change', function() {
                 const rangeInput = document.getElementById('search-steps-to');
                 if (this.value === 'range') {
@@ -3163,7 +3255,7 @@
                 }
             });
             
-            // Enter для поиска
+            // Enter for search
             document.getElementById('search-steps').addEventListener('keypress', e => { 
                 if (e.key === 'Enter') searchInTable(); 
             });
@@ -3174,7 +3266,7 @@
             document.getElementById('search-date-from').addEventListener('change', searchInTable);
             document.getElementById('search-date-to').addEventListener('change', searchInTable);
             
-            // Закрытие модальных окон
+            // Close modals
             document.querySelectorAll('.modal-close').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const modal = btn.closest('[id$="-modal"]');
@@ -3205,7 +3297,7 @@
                 });
             });
             
-            // Сохранение настроек
+            // Save settings
             document.getElementById('settings-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 try {
@@ -3223,22 +3315,22 @@
                 }
             });
             
-            // Сохранение шагов
+            // Save steps
             const stepsInpEl = document.getElementById('steps-input');
             stepsInpEl.addEventListener('focus', function() { this.value = parseStepsRaw(this.value); });
             stepsInpEl.addEventListener('blur', function() { const t = this.value.replace(/\D/g, ''); this.value = t ? formatNumber(parseInt(t, 10) || 0) : ''; autoSaveManualSteps(); });
             stepsInpEl.addEventListener('keypress', e => { if (e.key === 'Enter') saveSteps(); });
             document.getElementById('selected-date-input').addEventListener('change', function() { applyManualDate(this.value, currentLocale); });
             
-            // Прокрутка даты
+            // Date scroll
             document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);
             
-            // Предотвращение прокрутки в соседних датах
+            // Prevent scrolling in adjacent dates
             document.querySelectorAll('.adjacent-dates').forEach(container => {
                 container.addEventListener('wheel', e => e.preventDefault());
             });
             
-            // Клик по календарю
+            // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {
                 const cell = e.target.closest('td[data-date]');
                 if (cell) { 
@@ -3248,11 +3340,11 @@
                 }
             });
             
-            // Обработчики для Excel модального окна
+            // Handlers for Excel modal
             document.getElementById('delete-selected').addEventListener('click', deleteSelectedCells);
         }
         
-        // Запуск приложения
+        // App startup
         initApp();
 
     </script>

@@ -74,7 +74,7 @@
             }
         }
         
-        // Языки для переключения
+        // Languages for switching
         const languages = {
             'en': 'English',
             'uk': 'Українська',
@@ -905,7 +905,7 @@
                         }
                     }
 
-                    // Кнопки переключения языка
+                    // Language switch buttons
                     let langButtons = '<div class="language-switcher">';
                     langButtons += '<span>Язык/Language:</span>';
                     for (const [langCode, langName] of Object.entries(languages)) {
@@ -1100,13 +1100,13 @@
         }
 
         function editRecipe(recipeId) {
-            // Закрываем окно просмотра рецепта если оно открыто
+            // Close recipe view modal if open
             const recipeViewModal = document.getElementById('recipeViewModal');
             if (recipeViewModal && recipeViewModal.style.display === 'flex') {
                 backToGrid();
             }
 
-            // Очищаем steps перед редактированием
+            // Clear steps before editing
             steps = [];
 
             // Fetch full recipe from database
@@ -1449,7 +1449,7 @@
                         document.getElementById('searchProductGrid').innerHTML = newGrid.innerHTML;
                         document.querySelector('#searchRecipeModal .pagination').innerHTML = newPagination.innerHTML;
                         
-                        // Восстанавливаем выделение
+                        // Restore selection
                         const productCards = document.querySelectorAll('#searchProductGrid .product-card');
                         productCards.forEach(card => {
                             const productId = card.getAttribute('data-id');
@@ -1538,7 +1538,7 @@
                     if (newGrid && newPagination) {
                         grid.innerHTML = newGrid.innerHTML;
                         
-                        // ВОССТАНАВЛИВАЕМ ВЫДЕЛЕНИЕ ДЛЯ ВЫБРАННЫХ ПРОДУКТОВ
+                        // RESTORE SELECTION FOR SELECTED PRODUCTS
                         if (modalId === 'searchRecipeModal') {
                             const productCards = document.querySelectorAll('#searchProductGrid .product-card');
                             productCards.forEach(card => {
@@ -1547,7 +1547,7 @@
                                     card.classList.add('selected');
                                 }
                                 
-                                // Переопределяем обработчик клика
+                                // Override click handler
                                 card.onclick = () => toggleProductSelection(card);
                             });
                         }
@@ -1586,7 +1586,7 @@
         function bindSearchModalEvents() {
             const productCards = document.querySelectorAll('#searchProductGrid .product-card');
             productCards.forEach(card => {
-                // Восстанавливаем класс selected при привязке событий
+                // Restore selected class when binding events
                 const productId = card.getAttribute('data-id');
                 if (selectedSearchProducts.includes(productId)) {
                     card.classList.add('selected');
@@ -2784,8 +2784,8 @@
             }
         });
 
-       // Функции для генерации изображения
-        // Функции для генерации изображения
+       // Functions for image generation
+        // Functions for image generation
         async function generateShareImage() {
             const recipeId = currentShareRecipeId;
             if (!recipeId) {
@@ -2809,28 +2809,28 @@
                 
                 const recipe = recipeData.data;
                 
-                // Создаем временный контейнер для превью
+                // Create temporary container for preview
                 const previewContainer = document.getElementById('shareRecipePreview');
                 previewContainer.innerHTML = '';
                 
-                // Устанавливаем тему для превью
+                // Set theme for preview
                 previewContainer.className = `share-preview ${shareTheme}`;
                 
-                // Начальная ширина и высота
+                // Initial width and height
                 let containerWidth = 800;
                 let containerHeight = 600;
                 
-                // Функция для создания HTML контента
+                // Function to create HTML content
                 function createPreviewHTML(currentWidth) {
-                    // Ингредиенты
+                    // Ingredients
                     const ingredients = recipe.steps.filter(step => step.type === 'product');
                     
-                    // Шаги (только инструкции)
+                    // Steps (instructions only)
                     const instructionSteps = recipe.steps.filter(step => step.type === 'instruction');
                     
                     let html = `<div style="width: ${currentWidth}px; padding: 30px; box-sizing: border-box; background-color: ${shareTheme === 'light' ? '#ffffff' : '#333333'}; color: ${shareTheme === 'light' ? '#000000' : '#ffffff'}; border-radius: 16px;">`;
                     
-                    // Заголовок
+                    // Header
                     html += `<div style="text-align: center; margin-bottom: 25px;">`;
                     html += `<h2 style="color: var(--primary-color); margin: 0 0 15px 0; font-size: 28px;">${recipe.title[shareLang] || recipe.title.en}</h2>`;
                     
@@ -2839,10 +2839,10 @@
                     }
                     html += `</div>`;
                     
-                    // Двухколоночный макет
+                    // Two-column layout
                     html += `<div style="display: grid; grid-template-columns: 300px 1fr; gap: 25px;">`;
                     
-                    // Левая колонка - Ингредиенты
+                    // Left column - Ingredients
                     html += `<div style="background: ${shareTheme === 'light' ? 'rgba(137, 137, 137, 0.1)' : 'rgba(88, 88, 88, 0.3)'}; padding: 20px; border-radius: 12px;">`;
                     html += `<h3 style="color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; margin-top: 0; margin-bottom: 15px;">📋 ${translations.ingredients}</h3>`;
                     html += `<div style="display: flex; flex-direction: column; gap: 12px;">`;
@@ -2873,7 +2873,7 @@
                     });
                     html += `</div></div>`;
                     
-                    // Правая колонка - Шаги (вертикально)
+                    // Right column - Steps (vertical)
                     html += `<div style="background: ${shareTheme === 'light' ? 'rgba(137, 137, 137, 0.1)' : 'rgba(88, 88, 88, 0.3)'}; padding: 20px; border-radius: 12px;">`;
                     html += `<h3 style="color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; margin-top: 0; margin-bottom: 15px;">👨‍🍳 ${translations.steps}</h3>`;
                     html += `<div style="display: flex; flex-direction: column; gap: 15px;">`;
@@ -2896,14 +2896,14 @@
                         html += `</div></div></div>`;
                     });
                     
-                    html += `</div></div>`; // Закрываем правую колонку
-                    html += `</div>`; // Закрываем grid
-                    html += `</div>`; // Закрываем основной контейнер
+                    html += `</div></div>`; // Close the right column
+                    html += `</div>`; // Close the grid
+                    html += `</div>`; // Close the main container
                     
                     return html;
                 }
                 
-                // Функция для измерения высоты контента
+                // Function to measure content height
                 function measureContentHeight(html, width) {
                     const tempDiv = document.createElement('div');
                     tempDiv.style.position = 'absolute';
@@ -2917,7 +2917,7 @@
                     return height;
                 }
                 
-                // Подбираем оптимальную высоту
+                // Find optimal height
                 let optimalWidth = 800;
                 let optimalHeight;
                 let contentHTML;
@@ -2928,7 +2928,7 @@
                     contentHTML = createPreviewHTML(optimalWidth);
                     optimalHeight = measureContentHeight(contentHTML, optimalWidth);
                     
-                    // Если высота слишком большая, увеличиваем ширину
+                    // If height too large, increase width
                     if (optimalHeight > 1400 && optimalWidth < 1200) {
                         optimalWidth += 100;
                         attempt++;
@@ -2937,10 +2937,10 @@
                     }
                 }
                 
-                // Добавляем небольшой запас по высоте
+                // Add small height margin
                 optimalHeight += 60;
                 
-                // Устанавливаем финальный HTML
+                // Set final HTML
                 previewContainer.innerHTML = contentHTML;
                 previewContainer.style.width = optimalWidth + 'px';
                 previewContainer.style.maxWidth = optimalWidth + 'px';
@@ -2950,10 +2950,10 @@
                 
                 document.getElementById('sharePreviewContainer').style.display = 'block';
                 
-                // Ждем рендеринга и загрузки изображений
+                // Wait for rendering and image loading
                 await new Promise(resolve => setTimeout(resolve, 800));
                 
-                // Загружаем все изображения
+                // Load all images
                 const images = previewContainer.getElementsByTagName('img');
                 const imagePromises = Array.from(images).map(img => {
                     if (img.complete) return Promise.resolve();
@@ -2964,9 +2964,9 @@
                 });
                 await Promise.all(imagePromises);
                 
-                // Генерируем изображение с максимальным качеством
+                // Generate image with maximum quality
                 const canvas = await html2canvas(previewContainer, {
-                    scale: 3, // Максимальная четкость
+                    scale: 3, // Maximum sharpness
                     backgroundColor: shareTheme === 'light' ? '#ffffff' : '#333333',
                     allowTaint: true,
                     useCORS: true,
@@ -2976,20 +2976,20 @@
                     windowWidth: optimalWidth,
                     windowHeight: optimalHeight,
                     onclone: (clonedDoc, element) => {
-                        // Применяем стили к клонированному элементу
+                        // Apply styles to cloned element
                         element.style.width = optimalWidth + 'px';
                         element.style.height = optimalHeight + 'px';
                         element.style.overflow = 'hidden';
                     }
                 });
                 
-                // Добавляем тень
+                // Add shadow
                 previewContainer.style.boxShadow = '0 10px 30px rgba(0,0,0,0.3)';
                 previewContainer.style.borderRadius = '16px';
                 
                 currentShareImage = canvas.toDataURL('image/png');
                 
-                // Показываем превью с изображением
+                // Show preview with image
                 previewContainer.innerHTML = `<img src="${currentShareImage}" alt="Generated Recipe" style="width: 100%; max-width: ${optimalWidth}px; height: auto; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">`;
                 
                 document.getElementById('loading').style.display = 'none';
@@ -3008,7 +3008,7 @@
                 return;
             }
             
-            // Создаем временный элемент для копирования
+            // Create temporary element for copying
             const img = new Image();
             img.src = currentShareImage;
             img.onload = () => {

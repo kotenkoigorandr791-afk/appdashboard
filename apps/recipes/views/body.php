@@ -153,7 +153,7 @@
                 <button class="share-generate-btn" onclick="generateShareImage()"><?php echo $translations[$lang]['generate_image']; ?></button>
             </div>
             
-            <!-- В модальном окне shareModal, замените блок preview на этот -->
+            <!-- In the shareModal modal, replace the preview block with this one -->
             <div class="share-preview-container" id="sharePreviewContainer" style="display: none;">
                 <h3><?php echo $translations[$lang]['preview']; ?></h3>
                 <div class="share-preview-wrapper" id="sharePreviewWrapper">

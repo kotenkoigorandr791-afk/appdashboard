@@ -1,4 +1,4 @@
-    // Ожидаем загрузку PDF.js
+        // Wait for PDF.js to load
     function waitForPDFJS() {
       return new Promise((resolve) => {
         if (typeof pdfjsLib !== 'undefined') {

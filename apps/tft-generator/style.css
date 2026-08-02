@@ -968,7 +968,7 @@ body.light #footer {
         overflow-x: visible;
     }
     
-    /* Скрываем панели по умолчанию */
+    /* Hide panels by default */
     #left-panel, #right-panel {
         position: fixed !important;
         width: 280px !important;
@@ -985,12 +985,12 @@ body.light #footer {
         overflow-y: auto !important;
     }
     
-    /* Показываем панели только когда активны */
+    /* Show panels only when active */
     #left-panel.active, #right-panel.active {
         display: block !important;
     }
     
-    /* Затемнение фона при открытой панели */
+    /* Darken background when a panel is open */
     body.panel-open::after {
         content: '';
         position: fixed;
@@ -1188,7 +1188,7 @@ body.dark::-webkit-scrollbar-thumb:hover {
     }
 }
 
-/* Стилизация полосы прокрутки для всей страницы */
+/* Scrollbar styling for the whole page */
 html {
     scrollbar-width: thin;
     scrollbar-color: #666 #333;
@@ -1219,7 +1219,7 @@ html::-webkit-scrollbar-corner {
     background: #333;
 }
 
-/* Для тёмной темы */
+/* For dark theme */
 body.dark html {
     scrollbar-color: #666 #333;
 }
@@ -1237,7 +1237,7 @@ body.dark html::-webkit-scrollbar-thumb:hover {
     background-color: #888;
 }
 
-/* Для светлой темы */
+/* For light theme */
 body.light html {
     scrollbar-color: #aaa #ddd;
 }
@@ -1255,7 +1255,7 @@ body.light html::-webkit-scrollbar-thumb:hover {
     background-color: #888;
 }
 
-/* Стилизация для всех прокручиваемых элементов */
+/* Styling for all scrollable elements */
 body.dark *::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -1296,7 +1296,7 @@ body.light *::-webkit-scrollbar-thumb:hover {
     background-color: #888;
 }
 
-/* Firefox скроллбар для всех элементов */
+/* Firefox scrollbar for all elements */
 body.dark * {
     scrollbar-width: thin;
     scrollbar-color: #666 #333;

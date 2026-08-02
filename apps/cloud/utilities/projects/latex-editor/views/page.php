@@ -99,7 +99,7 @@
     .tablet-layout #mobile-footer { display: none; }
 
     
-    /* Специальный стиль для кнопки компиляции в мобильной версии */
+    /* Special style for the compile button in the mobile version */
     .mobile-layout #mobile-compile-btn {
       background: var(--accent-soft);
       font-weight: bold;
@@ -557,7 +557,7 @@
       }
     }
     
-    /* Современный дизайн модального окна перевода */
+    /* Modern design for the translation modal */
     .translation-modal-content {
       max-width: 800px;
       width: 90%;
@@ -751,7 +751,7 @@
       to { transform: rotate(360deg); }
     }
     
-    /* Мобильные стили для модального окна перевода */
+    /* Mobile styles for the translation modal */
     @media (max-width: 768px) {
       .translation-modal-content {
         width: 95%;
@@ -910,15 +910,15 @@
       margin: 0;
     }
 
-    /* Специально для кнопки сохранить (с иконкой) */
+    /* Specifically for the save button (with icon) */
     #mobile-save-btn {
       padding: 6px 8px;
     }
 
-    /* Для кнопки компиляции с индикатором состояния */
+    /* For the compile button with a status indicator */
     #mobile-compile-btn {
       position: relative;
-      padding-left: 30px; /* Оставляем место для индикатора */
+      padding-left: 30px; /* Leave room for the indicator */
     }
 
     #mobile-compile-btn .btn-status-indicator {
@@ -947,7 +947,7 @@
       color: var(--error-text);
     }
 
-    /* Контейнер футера */
+    /* Footer container */
     #mobile-footer { 
       display: none; 
       height: var(--mobile-footer-height); 
@@ -955,20 +955,20 @@
       border-top: 1px solid var(--border-color); 
       padding: 0 8px; 
       align-items: center; 
-      justify-content: center; /* Центрируем кнопки */
+      justify-content: center; /* Center the buttons */
       gap: 8px; 
       flex-wrap: nowrap; 
       overflow-x: auto; 
       -webkit-overflow-scrolling: touch;
     }
 
-    /* Скрываем скроллбар для чистого вида */
+    /* Hide scrollbar for a clean look */
     #mobile-footer::-webkit-scrollbar {
       display: none;
     }
-      /* Исправление для полноэкранного режима на мобильных */
+      /* Fix for fullscreen mode on mobile */
 .fullscreen-editor #latex-editor-container {
-  height: calc(100vh - 100px) !important; /* Вычитаем высоту тулбаров */
+  height: calc(100vh - 100px) !important; /* Subtract the toolbar height */
   flex-grow: 1 !important;
 }
 
@@ -985,7 +985,7 @@
   flex-direction: column !important;
 }
 
-/* Убираем ограничения высоты для мобильного лейаута в полноэкранном режиме */
+/* Remove height limits for the mobile layout in fullscreen mode */
 .fullscreen-editor.mobile-layout #editor-panel,
 .fullscreen-editor.mobile-layout #main,
 .fullscreen-editor.mobile-layout {
@@ -1000,7 +1000,7 @@
 .fullscreen-editor #helper-bar {
   flex-shrink: 0 !important;
 }
-    /* Адаптация для маленьких экранов */
+    /* Adaptation for small screens */
     @media (max-width: 480px) { 
       .mobile-btn { 
         font-size: 11px; 
@@ -1027,8 +1027,8 @@
       } 
     }
 
-    /* Если кнопки не помещаются и появляется скролл, 
-      центрирование сохраняется для видимой области */
+    /* If buttons do not fit and a scrollbar appears,
+      centering is preserved for the visible area */
     #mobile-footer::before,
     #mobile-footer::after {
       content: '';
@@ -1096,19 +1096,19 @@
 #monaco-editor .view-lines {
   -webkit-user-select: text !important;
   user-select: text !important;
-  touch-action: pan-y !important;  /* разрешаем вертикальный скролл */
+  touch-action: pan-y !important;  /* allow vertical scroll */
 }
 
-/* Увеличиваем область тапа для курсора */
+/* Enlarge the tap area for the cursor */
 #monaco-editor .cursor {
   min-width: 3px !important;
 }
 
-/* Убираем конфликт со scrollbar на тач */
+/* Remove the conflict with the scrollbar on touch */
 #monaco-editor .scrollbar {
   touch-action: none;
 }
-/* Для мобильных устройств в полноэкранном режиме */
+/* For mobile devices in fullscreen mode */
 @media (max-width: 768px) {
   .fullscreen-editor .dropdown-content {
     width: 95% !important;
@@ -1116,7 +1116,7 @@
   }
 }
 
-/* Стили для модального окна листинга кода */
+/* Styles for the code listing modal */
 .listing-modal-content {
   max-width: 1200px;
   width: 95%;
@@ -1264,7 +1264,7 @@
   }
 }
 
-/* Добавляем стили для кнопки листинга */
+/* Add styles for the listing button */
 #insert-listing-btn {
   background: var(--accent-soft);
   color: var(--accent-text);
@@ -1778,7 +1778,7 @@
             <div class="dropdown-item" data-value="label"><?php echo $t['label']; ?></div>
             <div class="dropdown-item" data-value="ref"><?php echo $t['ref']; ?></div>
             <div class="dropdown-item" data-value="insert_pdf"><?php echo $t['insert_pdf']; ?></div>
-            <!-- Добавляем пункт для листинга кода -->
+            <!-- Add an item for the code listing -->
             <div class="dropdown-item" data-value="listing"><?php echo $t['insert_listing']; ?></div>
           </div>
         </div>
@@ -1840,7 +1840,7 @@
       <button class="mobile-insert-btn" data-value="label"><?php echo $t['label']; ?></button>
       <button class="mobile-insert-btn" data-value="ref"><?php echo $t['ref']; ?></button>
       <button class="mobile-insert-btn" data-value="insert_pdf"><?php echo $t['insert_pdf']; ?></button>
-      <!-- Добавляем пункт для листинга кода в мобильном меню -->
+      <!-- Add an item for the code listing in the mobile menu -->
       <button class="mobile-insert-btn" data-value="listing"><?php echo $t['insert_listing']; ?></button>
     </div>
   </div>

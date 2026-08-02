@@ -1,5 +1,5 @@
 // completions.js
-// База данных подсказок для автодополнения CodeMirror в разных языках
+// Hint database for CodeMirror autocomplete in different languages
 
 window.completions = {
     matlab: {

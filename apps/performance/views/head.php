@@ -138,7 +138,7 @@
     color: var(--primary-color);
 }
 
-/* Добавьте в существующий блок <style> */
+/* Add to the existing <style> block */
 .progress-bar {
     background-color: var(--border-color);
     border-radius: 10px;

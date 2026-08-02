@@ -181,7 +181,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $steps = json_decode($_POST['steps'], true);
             $source_lang = $_POST['lang'];
 
-            // Если редактирование, загружаем существующий рецепт
+            // If editing, load existing recipe
             if ($base_action === 'edit_recipe') {
                 $existing_recipe_file = "$recipe_dir/recipe.json";
                 if (file_exists($existing_recipe_file)) {
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $recipe = [];
             }
 
-            // Обновляем id и title
+            // Update id and title
             $recipe['id'] = $recipe_id;
             
             if ($is_pretranslated && isset($_POST['translated_title'])) {
@@ -210,7 +210,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'be' => $_POST['title']
                 ];
 
-                // Перевод заголовка
+                // Title translation
                 $title_translation_success = true;
                 foreach (['en', 'uk', 'ru', 'be'] as $l) {
                     if ($l !== $source_lang) {
@@ -223,7 +223,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
 
-            // Перевод шагов
+            // Step translation
             $translated_steps = [];
             $steps_translation_success = true;
             foreach ($steps as $step) {
@@ -257,13 +257,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $recipe['steps'] = $translated_steps;
 
-            // Проверка успешности перевода
+            // Check translation success
             $translation_success = $title_translation_success && $steps_translation_success;
 
             $titles = array_map('strtolower', array_values($recipe['title']));
             $all_same_title = count(array_unique($titles)) === 1;
 
-            // Обработка изображения
+            // Image processing
             $clear_recipe_image = isset($_POST['clear_recipe_image']) && $_POST['clear_recipe_image'] === '1';
             if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
                 $image_name = recipes_image_save_optimized_upload($_FILES['image'], $recipe_dir);
@@ -280,27 +280,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($base_action === 'edit_recipe' && $clear_recipe_image) {
                 $recipe['image'] = null;
             } elseif ($base_action === 'edit_recipe' && isset($recipe['image']) && file_exists("$recipe_dir/{$recipe['image']}")) {
-                // Оставляем существующее изображение
+                // Keep existing image
             } else {
                 $recipe['image'] = null;
             }
             
-            // Сохранение рецепта в базу данных
+            // Save recipe to database
             try {
                 $db->exec("BEGIN");
                 
-                // Удаляем старые шаги при редактировании
+                // Delete old steps when editing
                 if ($base_action === 'edit_recipe') {
                     $stmt = $db->prepare("DELETE FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :recipe_id");
                     $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                     $stmt->execute();
                     
-                    // Обновляем рецепт
+                    // Update recipe
                     $stmt = $db->prepare("UPDATE " . RECIPES_DB_TABLE_PREFIX . "data 
                         SET title_en = :title_en, title_uk = :title_uk, title_ru = :title_ru, title_be = :title_be, image = :image, updated_at = CURRENT_TIMESTAMP
                         WHERE id = :id");
                 } else {
-                    // Добавляем новый рецепт
+                    // Add new recipe
                     $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "data 
                         (id, title_en, title_uk, title_ru, title_be, image)
                         VALUES (:id, :title_en, :title_uk, :title_ru, :title_be, :image)");
@@ -314,7 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bindValue(':image', $recipe['image'], PDO::PARAM_STR);
                 $stmt->execute();
                 
-                // Сохраняем шаги
+                // Save steps
                 foreach ($translated_steps as $step_index => $step) {
                     $stmt = $db->prepare("
                         INSERT INTO " . RECIPES_STEPS_TABLE . " (
@@ -379,7 +379,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $recipe_id = $_POST['recipe_id'];
             
             try {
-                // Удаляем из базы данных
+                // Delete from database
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :recipe_id");
                 $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                 $stmt->execute();
@@ -387,15 +387,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :recipe_id");
                 $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                 $stmt->execute();
-                
-                // Удаляем файлы
+
+                // Delete files
                 $recipe_dir = "$recipes_dir/$recipe_id";
                 if (is_dir($recipe_dir)) {
                     array_map('unlink', glob("$recipe_dir/*"));
                     rmdir($recipe_dir);
                 }
                 
-                // Сбрасываем состояние если это текущий рецепт
+                // Reset state if this is the current recipe
                 if ($recipe_state['current_recipe'] === $recipe_id) {
                     $recipe_state['current_recipe'] = null;
                     $recipe_state['completed_steps'] = [];
@@ -416,12 +416,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $product_id = $_POST['product_id'];
             
             try {
-                // Удаляем из базы данных
+                // Delete from database
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "products WHERE id = :product_id");
                 $stmt->bindValue(':product_id', $product_id, PDO::PARAM_STR);
                 $stmt->execute();
-                
-                // Удаляем файлы
+
+                // Delete files
                 $product_dir = "$products_dir/$product_id";
                 if (is_dir($product_dir)) {
                     array_map('unlink', glob("$product_dir/*"));

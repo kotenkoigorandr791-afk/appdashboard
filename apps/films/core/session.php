@@ -44,7 +44,7 @@ function get_current_user_from_sessions(): string {
     return 'user_' . preg_replace('/[^a-zA-Z0-9]/', '_', $ip);
 }
 
-// Возвращает роль пользователя по email из таблицы users
+// Returns user role by email from users table
 function getUserRoleByEmail(string $email): int {
     $db = getDB();
     if (!$db || !$email) {
@@ -64,7 +64,7 @@ function getUserRoleByEmail(string $email): int {
     return 0;
 }
 
-// Возвращает true если текущий пользователь имеет role = 2 (root/admin)
+// Returns true if current user has role = 2 (root/admin)
 function isUserRoot(): bool {
     $db = getDB();
     if (!$db) {
@@ -100,7 +100,7 @@ function isUserRoot(): bool {
     return false;
 }
 
-// Возвращает имя пользователя и его роль из БД — совместимость с остальным кодом приложения
+// Returns username and role from DB - compatibility with rest of app code
 function get_current_user_data(): array {
     $db = getDB();
     $default = ['username' => 'default', 'role' => 0, 'photo' => '/default_avatar.png'];

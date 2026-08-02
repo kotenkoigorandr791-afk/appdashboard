@@ -27,7 +27,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=$translations['invalid_credentials'];
         }
     }
-    // ── OTP: Generate (AJAX, авторизованный пользователь) ────────────────────
+        // ── OTP: Generate (AJAX, authenticated user) ────────────────────
     if(isset($_POST['generate_otp'])&&isset($_POST['ajax'])){
         if(!isset($_SESSION['user']['email'])){
             while(ob_get_level()>1)ob_end_clean();
@@ -44,7 +44,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         exit;
     }
 
-    // ── OTP: Verify (POST на /one-time-pin) ───────────────────────────────────
+        // ── OTP: Verify (POST to /one-time-pin) ───────────────────────────────────
     if(isset($_POST['verify_otp'])){
         $clientIp=trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]);
         $lockedSec=getIpLockoutSeconds($clientIp,'otp');
@@ -274,7 +274,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if (!$currentUserEmail) {
             $response['message'] = 'Not authenticated';
         } elseif($shareId){
-            // Проверяем, имеет ли пользователь право удалить этот файл
+                        // Check whether the user has the right to delete this file
             $file = getSharedFileById($shareId);
             if ($file && ($isAdmin || ($file['user_email'] === $currentUserEmail))) {
                 if(deleteSharedFile($shareId)){
@@ -622,7 +622,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
     }
     
-    // Формируем URL с параметрами
+        // Build the URL with parameters
     $redirectUrl = '/main';
     $params = [];
     
@@ -630,7 +630,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $params['app'] = $_POST['current_app'];
     }
     
-    // Добавляем параметры темы, языка и цвета
+        // Add theme, language and color parameters
     $params['theme'] = $newTheme;
     $params['lang'] = $newLanguage;
     $params['color'] = $newColor;
@@ -2366,7 +2366,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(isset($_POST['terminate_all_sessions'])){
     $userEmail=$_SESSION['user']['email']??'';
     if($userEmail){
-        // Удаляем все сессии, КРОМЕ текущей
+                // Delete all sessions EXCEPT the current one
         $db = getDB();
         $currentSessionId = session_id();
         $stmt = $db->prepare("DELETE FROM active_sessions WHERE email=:e AND session_id != :sid");
@@ -2374,7 +2374,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $stmt->bindValue(':sid', $currentSessionId);
         $stmt->execute();
         
-        // Обновляем текущую сессию
+                // Update the current session
         addUserToActiveSessions($userEmail, $currentSessionId, $_SESSION['user']);
         $sessionManagementSuccess=$translations['all_sessions_terminated'];
     }

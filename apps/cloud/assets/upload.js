@@ -3,7 +3,7 @@ let uploadState = {
   currentUploadController: null,
   animationFrame: null,
 
-  // Статистика
+  // Statistics
   speedHistory: [],
   speedHistoryValues: [],
   MAX_SPEED_POINTS: 60,
@@ -14,7 +14,7 @@ let uploadState = {
   uploadedBytes: 0,
   startTime: 0,
 
-  // Для сглаживания скорости
+  // For speed smoothing
   speedBuffer: [],
   SMOOTHING_FACTOR: 8
 };
@@ -22,21 +22,21 @@ let uploadState = {
 const SPEED_GRAPH_THRESHOLD_BYTES = 25 * 1024 * 1024;
 const UPLOAD_TIME_UNKNOWN = '∞';
 
-// upload.js - Добавить после существующего uploadState
+// upload.js - Add after the existing uploadState
 
-// Состояние для плавающей кнопки загрузки
+// State for the floating upload button
 let uploadFloatingState = {
   active: false,
   items: new Map(), // uploadId -> { filename, progress, speed, total, loaded, status }
   nextId: 1,
   panelVisible: false,
-  minimized: false // новое состояние для свернутого режима
+  minimized: false // new state for collapsed mode
 };
 
 let uploadFloatingUIInitialized = false;
 let uploadFloatingObserver = null;
 
-// Функция для показа плавающей кнопки загрузки
+// Function to show the floating upload button
 function showFloatingUploadButton() {
   initFloatingUploadUI();
   const btn = document.getElementById('floating-upload-btn');
@@ -47,7 +47,7 @@ function showFloatingUploadButton() {
   positionFloatingUploadButton();
 }
 
-// Функция для скрытия плавающей кнопки загрузки
+// Function to hide the floating upload button
 function hideFloatingUploadButton() {
   initFloatingUploadUI();
   const btn = document.getElementById('floating-upload-btn');
@@ -120,26 +120,26 @@ function initFloatingUploadUI() {
   uploadFloatingUIInitialized = true;
 }
 
-// Функция для сворачивания модального окна в плавающую кнопку
+// Function to collapse the modal into a floating button
 function minimizeUploadModal() {
   const modal = document.getElementById('upload-modal');
   const panel = document.getElementById('upload-progress-panel');
   const btn = document.getElementById('floating-upload-btn');
 
   if (modal && !modal.classList.contains('hidden')) {
-    // Сохраняем состояние перед сворачиванием
+    // Save state before collapsing
     uploadFloatingState.minimized = true;
 
-    // Скрываем модальное окно
+    // Hide the modal
     modal.classList.add('hidden');
 
-    // Показываем плавающую кнопку
+    // Show the floating button
     showFloatingUploadButton();
 
-    // Скрываем панель
+    // Hide the panel
     if (panel) panel.classList.add('hidden');
 
-    // Обновляем круговой прогресс
+    // Update the circular progress
     if (uploadFloatingState.items.size > 0) {
       const totalProgress = Array.from(uploadFloatingState.items.values())
         .reduce((sum, item) => sum + item.progress, 0) / uploadFloatingState.items.size;
@@ -154,7 +154,7 @@ function minimizeUploadModal() {
   }
 }
 
-// Функция для разворачивания модального окна из свернутого состояния
+// Function to expand the modal from a collapsed state
 function expandUploadModal() {
   const modal = document.getElementById('upload-modal');
   const btn = document.getElementById('floating-upload-btn');
@@ -163,15 +163,15 @@ function expandUploadModal() {
     uploadFloatingState.minimized = false;
     modal.classList.remove('hidden');
 
-    // Обновляем позицию модального окна
+    // Update the modal position
     modal.style.display = 'flex';
 
-    // Скрываем плавающую кнопку
+    // Hide the floating button
     if (btn) btn.classList.add('hidden');
   }
 }
 
-// Функция для переключения панели прогресса
+// Function to toggle the progress panel
 function toggleUploadProgressPanel() {
   const panel = document.getElementById('upload-progress-panel');
   if (panel) {
@@ -180,7 +180,7 @@ function toggleUploadProgressPanel() {
   }
 }
 
-// Обновление кругового прогресса загрузки
+// Update the upload circular progress
 function updateUploadCircularProgress(progress) {
   const circle = document.querySelector('#floating-upload-btn .circular-progress circle');
   if (circle) {
@@ -190,7 +190,7 @@ function updateUploadCircularProgress(progress) {
   }
 }
 
-// Добавление элемента загрузки в панель
+// Add an upload item to the panel
 function addUploadItem(filename, totalSize) {
   initFloatingUploadUI();
   const container = document.getElementById('upload-items-container');
@@ -244,13 +244,13 @@ function addUploadItem(filename, totalSize) {
     lastTime: Date.now()
   });
 
-  // Добавляем обработчик отмены
+  // Add a cancel handler
   item.querySelector('.cancel-upload').addEventListener('click', () => cancelUpload(uploadId));
 
   return uploadId;
 }
 
-// Обновление прогресса загрузки
+// Update upload progress
 function updateUploadProgress(uploadId, loaded, speed) {
   const item = uploadFloatingState.items.get(uploadId);
   if (!item || item.cancelled) return;
@@ -270,14 +270,14 @@ function updateUploadProgress(uploadId, loaded, speed) {
     item.lastTime = now;
   }
 
-  // Обновляем круговой прогресс
+  // Update the circular progress
   if (uploadFloatingState.items.size > 0) {
     const totalProgress = Array.from(uploadFloatingState.items.values())
       .reduce((sum, item) => sum + item.progress, 0) / uploadFloatingState.items.size;
     updateUploadCircularProgress(totalProgress);
   }
 
-  // Обновляем UI элемента
+  // Update the element UI
   const itemElement = document.getElementById(`upload-item-${uploadId}`);
   if (itemElement) {
     const fill = itemElement.querySelector('.download-progress-fill');
@@ -292,7 +292,7 @@ function updateUploadProgress(uploadId, loaded, speed) {
   }
 }
 
-// Завершение загрузки
+// Finish upload
 function completeUpload(uploadId) {
   const item = uploadFloatingState.items.get(uploadId);
   if (item) {
@@ -301,13 +301,13 @@ function completeUpload(uploadId) {
 
     updateUploadProgress(uploadId, item.totalSize, 0);
 
-    // Обновляем статус
+    // Update status
     const itemElement = document.getElementById(`upload-item-${uploadId}`);
     if (itemElement) {
       const statusEl = itemElement.querySelector('.download-status');
       if (statusEl) statusEl.textContent = window.i18n?.uploadCompletedMark || 'Completed ✓';
 
-      // Добавляем кнопку закрытия
+      // Add a close button
       const actions = itemElement.querySelector('.download-actions');
       if (actions) {
         actions.innerHTML = `
@@ -323,21 +323,21 @@ function completeUpload(uploadId) {
       }
     }
 
-    // Через 2 секунды убираем элемент
+    // Remove the element after 2 seconds
     setTimeout(() => {
       removeUploadItem(uploadId);
     }, 2000);
   }
 }
 
-// Отмена загрузки
+// Cancel upload
 function cancelUpload(uploadId) {
   const item = uploadFloatingState.items.get(uploadId);
   if (item) {
     item.cancelled = true;
     item.status = 'cancelled';
 
-    // Отменяем текущую загрузку, если она активна
+    // Cancel the current upload if active
     if (uploadState.currentUploadController && uploadState.isUploading) {
       uploadState.currentUploadController.abort();
     }
@@ -346,7 +346,7 @@ function cancelUpload(uploadId) {
   }
 }
 
-// Удаление элемента загрузки
+// Remove an upload item
 function removeUploadItem(uploadId) {
   const itemElement = document.getElementById(`upload-item-${uploadId}`);
   if (itemElement) {
@@ -355,18 +355,18 @@ function removeUploadItem(uploadId) {
 
   uploadFloatingState.items.delete(uploadId);
 
-  // Скрываем кнопку если нет активных загрузок
+  // Hide the button if there are no active uploads
   if (uploadFloatingState.items.size === 0 && !uploadFloatingState.minimized) {
     hideFloatingUploadButton();
   } else {
-    // Обновляем круговой прогресс
+    // Update the circular progress
     const totalProgress = Array.from(uploadFloatingState.items.values())
       .reduce((sum, item) => sum + item.progress, 0) / uploadFloatingState.items.size || 0;
     updateUploadCircularProgress(totalProgress);
   }
 }
 
-// Очистка устаревших сессий загрузки (вызывается при загрузке страницы)
+// Clean up stale upload sessions (called on page load)
 function cleanupOldUploadSessions() {
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
@@ -379,27 +379,27 @@ function cleanupOldUploadSessions() {
 }
 
 /**
- * Открыть диалог загрузки
- * @param {string} basePath - Путь, куда загружать файлы
+  * Open the upload dialog
+  * @param {string} basePath - Path where to upload files
  */
 function openUploadDialog(basePath) {
   showUploadModal(basePath);
 }
 
 /**
- * Показать модальное окно загрузки
- * @param {string} basePath - Путь, куда загружать файлы
+  * Show the upload modal
+  * @param {string} basePath - Path where to upload files
  */
 function showUploadModal(basePath) {
-  // Проверяем, существует ли уже модальное окно
+  // Check if the modal already exists
   let modal = document.getElementById('upload-modal');
 
   if (modal) {
-    // Если существует, удаляем и создаем заново (чтобы сбросить состояние)
+    // If it exists, remove and recreate it (to reset state)
     modal.remove();
   }
 
-  // Создаем модальное окно
+  // Create the modal
   modal = document.createElement('div');
   modal.id = 'upload-modal';
   modal.className = 'modal';
@@ -417,7 +417,7 @@ function showUploadModal(basePath) {
 }
 
 /**
- * HTML шаблон для модального окна загрузки
+  * HTML template for the upload modal
  */
 function getUploadModalHTML() {
   const i18n = window.i18n || {};
@@ -441,7 +441,7 @@ function getUploadModalHTML() {
                 </div>
             </div>
             <div class="modal-body">
-                <!-- Зона для выбора файлов -->
+                <!-- File selection zone -->
                 <div class="upload-browse-panel" id="upload-browse-panel">
                     <div class="upload-zone upload-drop-zone" id="upload-drop-zone">
                         <svg class="upload-icon" width="48" height="48" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none">
@@ -459,21 +459,21 @@ function getUploadModalHTML() {
                     </div>
                 </div>
                 
-                <!-- Прогресс загрузки -->
+                <!-- Upload progress -->
                 <div id="upload-progress" class="upload-progress hidden">
                     <div class="progress-header">
                         <span id="progress-status">${i18n.preparingUpload || 'Preparing upload...'}</span>
                         <span id="progress-percent">0%</span>
                     </div>
                     
-                    <!-- Прогресс-бар -->
+                    <!-- Progress bar -->
                     <div class="progress-bar-container">
                         <div class="progress-bar">
                             <div class="progress-fill" id="progress-fill"></div>
                         </div>
                     </div>
                     
-                    <!-- Статистика загрузки -->
+                    <!-- Upload statistics -->
                     <div class="upload-stats-grid" id="upload-stats">
                         <div class="stat-item">
                             <span class="stat-label">${i18n.uploadTotalSize || 'Total size'}</span>
@@ -509,16 +509,16 @@ function getUploadModalHTML() {
                         </div>
                     </div>
                     
-                    <!-- График скорости -->
+                    <!-- Speed chart -->
                     <div class="speed-graph-container">
                         <canvas id="speed-graph" width="500" height="100"></canvas>
                     </div>
                     
-                    <!-- Информация о текущем файле -->
+                    <!-- Current file info -->
                     <div id="current-file" class="current-file"></div>
                 </div>
                 
-                <!-- Результаты загрузки -->
+                <!-- Upload results -->
                 <div id="upload-results" class="upload-results hidden"></div>
             </div>
             
@@ -531,9 +531,9 @@ function getUploadModalHTML() {
 }
 
 /**
- * Инициализация обработчиков для модального окна загрузки
- * @param {HTMLElement} modal - Модальное окно
- * @param {string} basePath - Путь для загрузки
+  * Initialize handlers for the upload modal
+  * @param {HTMLElement} modal - The modal
+  * @param {string} basePath - Path for upload
  */
 async function initUploadHandlers(modal, basePath) {
   const uploadZone = modal.querySelector('#upload-browse-panel');
@@ -546,17 +546,17 @@ async function initUploadHandlers(modal, basePath) {
   const progressSection = modal.querySelector('#upload-progress');
   const resultsSection = modal.querySelector('#upload-results');
 
-  // После получения ссылок на элементы
+  // After getting element references
   const minimizeBtn = modal.querySelector('.minimize-btn');
 
-  // Добавьте обработчик для кнопки сворачивания
+  // Add a handler for the collapse button
   if (minimizeBtn) {
     minimizeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       minimizeUploadModal();
     });
   }
-  // ============= ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =============
+  // ============= HELPER FUNCTIONS =============
 
   function formatTimeElapsed(ms) {
     if (!Number.isFinite(ms) || ms < 0) return '0:00';
@@ -924,7 +924,7 @@ async function initUploadHandlers(modal, basePath) {
     resultsSection.appendChild(summary);
   }
 
-  // ============= ОСНОВНЫЕ ФУНКЦИИ =============
+  // ============= MAIN FUNCTIONS =============
 
   async function processDroppedItems(items, basePath) {
     const allFiles = [];
@@ -1212,10 +1212,10 @@ async function initUploadHandlers(modal, basePath) {
   }
 
   /**
-   * Показать модальное окно подтверждения
-   * @param {string} message - Сообщение для подтверждения
-   * @param {string} title - Заголовок окна (опционально)
-   * @returns {Promise<boolean>} - true если подтверждено, false если отменено
+    * Show a confirmation modal
+    * @param {string} message - Confirmation message
+    * @param {string} title - Window title (optional)
+    * @returns {Promise<boolean>} - true if confirmed, false if cancelled
    */
   function showModalConfirm(message, title) {
     return new Promise((resolve) => {
@@ -1346,10 +1346,10 @@ async function initUploadHandlers(modal, basePath) {
     uploadState.isUploading = true;
     uploadState.currentUploadController = new AbortController();
 
-    // Показываем плавающую кнопку загрузки
+    // Show the floating upload button
     showFloatingUploadButton();
 
-    // Добавляем элемент в панель прогресса
+    // Add an item to the progress panel
     const totalUploadId = addUploadItem(window.i18n?.uploadMultipleFiles || 'Multiple files', uploadState.totalBytes);
 
     uploadZone.classList.add('hidden');
@@ -1630,7 +1630,7 @@ async function initUploadHandlers(modal, basePath) {
 
     showUploadResults(resultsSection, successCount, errorCount, totalFiles, skippedCount);
 
-    // После завершения всех загрузок
+    // After all uploads complete
     if (processedCount === totalFiles) {
       const uploadId = Array.from(uploadFloatingState.items.keys())[0];
       if (uploadId) {
@@ -1638,7 +1638,7 @@ async function initUploadHandlers(modal, basePath) {
       }
     }
 
-    // Если были ошибки, показываем статус
+    // If there were errors, show the status
     if (errorCount > 0) {
       const uploadId = Array.from(uploadFloatingState.items.keys())[0];
       if (uploadId) {
@@ -1664,7 +1664,7 @@ async function initUploadHandlers(modal, basePath) {
     }
   }
 
-  // ============= ОБРАБОТЧИКИ СОБЫТИЙ =============
+  // ============= EVENT HANDLERS =============
 
   const dropZone = modal.querySelector('#upload-drop-zone');
   if (dropZone) {
@@ -1720,7 +1720,7 @@ async function initUploadHandlers(modal, basePath) {
     if (uploadState.currentUploadController && uploadState.isUploading) {
       uploadState.currentUploadController.abort();
 
-      // Отменяем в плавающей кнопке
+      // Cancel in the floating button
       const uploadId = Array.from(uploadFloatingState.items.keys())[0];
       if (uploadId) {
         cancelUpload(uploadId);
@@ -1755,10 +1755,10 @@ async function initUploadHandlers(modal, basePath) {
   modal.addEventListener('click', async (e) => {
     if (e.target === modal) {
       if (uploadState.isUploading && uploadState.currentUploadController) {
-        // Просто минимизируем окно вместо запроса подтверждения
+        // Just minimize the window instead of asking for confirmation
         minimizeUploadModal();
       } else {
-        // Если загрузка не идет, просто закрываем
+        // If there is no upload in progress, just close
         if (uploadState.animationFrame) {
           cancelAnimationFrame(uploadState.animationFrame);
         }
@@ -1769,12 +1769,12 @@ async function initUploadHandlers(modal, basePath) {
 }
 
 /**
- * Загрузить один файл
- * @param {string} filePath - Путь для сохранения
- * @param {File} file - Файл
- * @param {AbortSignal} signal - Сигнал для отмены
- * @param {boolean} overwrite - Перезаписать существующий файл
- * @param {Function} onProgress - Колбэк прогресса
+  * Upload a single file
+  * @param {string} filePath - Path for saving
+  * @param {File} file - The file
+  * @param {AbortSignal} signal - Cancellation signal
+  * @param {boolean} overwrite - Overwrite the existing file
+  * @param {Function} onProgress - Progress callback
  */
 async function uploadSingleFile(filePath, file, signal, overwrite, onProgress) {
   let uploadId = '';
@@ -1944,7 +1944,7 @@ async function uploadSingleFile(filePath, file, signal, overwrite, onProgress) {
 }
 
 /**
- * Получить цвет из URL
+  * Get the color from the URL
  */
 function getColorFromURL() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -1964,7 +1964,7 @@ function uploadFilesToPath(files, basePath = '') {
   if (typeof start === 'function') start(list, false);
 }
 
-// Экспортируем функции в глобальную область
+// Export functions to the global scope
 window.uploadModule = {
   openUploadDialog,
   showUploadModal,
@@ -1977,7 +1977,7 @@ window.uploadModule = {
   hideFloatingUploadButton
 };
 
-// Для обратной совместимости
+// For backward compatibility
 window.openUploadDialog = openUploadDialog;
 window.uploadFilesToPath = uploadFilesToPath;
 window.cleanupOldUploadSessions = cleanupOldUploadSessions;

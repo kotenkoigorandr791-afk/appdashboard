@@ -68,7 +68,7 @@ let hoverPreviewChart = null;
 let hoverPreviewEl = null;
 let hoverPreviewCanvas = null;
 let hoverPreviewRequestId = 0;
-// Последние числовые метрики для надёжного сохранения в кэш
+// Latest numeric metrics for reliable caching
 let lastKnownMetrics = {
     cpu_usage: 0,
     memory_usage: 0,
@@ -385,7 +385,7 @@ function getAutoZoomScaleConfig(type) {
     };
 }
 
-// Вспомогательная функция для парсинга размера
+// Helper function for parsing size
 function parseB(str) {
     if (!str) return 0;
     const units = { 'B': 1, 'KB': 1024, 'MB': 1048576, 'GB': 1073741824, 'TB': 1099511627776 };
@@ -398,7 +398,7 @@ function parseB(str) {
     return 0;
 }
 
-// Вспомогательная функция для парсинга скорости сети
+// Helper function for parsing network speed
 function parseNetworkSpeed(str) {
     if (!str) return 0;
     const units = { 'B/s': 1, 'KB/s': 1024, 'MB/s': 1048576, 'GB/s': 1073741824 };
@@ -616,7 +616,7 @@ function handleData(d, isFallback = false) {
     diskVal.textContent = (d.disk_usage || 0).toFixed(1) + '%';
     swapVal.textContent = (d.swap_usage || 0).toFixed(1) + '%';
     
-    // Сохраняем числовые значения для кэша
+    // Save numeric values for cache
     lastKnownMetrics.cpu_usage = d.cpu_usage || 0;
     lastKnownMetrics.memory_usage = d.memory_usage || 0;
     lastKnownMetrics.disk_usage = d.disk_usage || 0;
@@ -633,7 +633,7 @@ function handleData(d, isFallback = false) {
     drawCircle(networkChart, networkPercent);
     networkVal.textContent = formatNetworkSpeed(totalNetworkSpeed);
     
-    // Сохраняем сетевую скорость
+    // Save network speed
     lastKnownMetrics.network_speed = totalNetworkSpeed;
     
     cpuVal.style.color = isFallback ? 'var(--warning-color)' : '';
@@ -789,7 +789,7 @@ function handleData(d, isFallback = false) {
         restoreTableFilter('phpSearch', 'phpBody');
     }
     
-    // Сохраняем данные после обработки
+    // Save data after processing
     saveStoredData();
 }
 
@@ -931,8 +931,7 @@ function displaySmartData(smart) {
 
     smartGrid.innerHTML = devices.map(device => buildSmartDeviceCard(device)).join('');
 }
-// Функция для отображения последних данных из localStorage при загрузке
-// Функция для отображения последних данных из localStorage при загрузке
+// Function to display latest data from localStorage on load
 function displayLastKnownData() {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -940,39 +939,39 @@ function displayLastKnownData() {
             const data = JSON.parse(stored);
             const now = Date.now();
             
-            // Проверяем актуальность данных (не старше DATA_MAX_AGE)
+            // Check data freshness (not older than DATA_MAX_AGE)
             if (data.timestamp && (now - data.timestamp) <= DATA_MAX_AGE) {
-                // Если есть сохраненные данные, отображаем их
+                // If cached data exists, display it
                 if (data.lastMetrics) {
-                    // Обновляем CPU
+                    // Update CPU
                     if (data.lastMetrics.cpu_usage !== undefined) {
                         const cpuPercent = data.lastMetrics.cpu_usage;
                         drawCircle(cpuChart, cpuPercent);
                         cpuVal.textContent = cpuPercent.toFixed(1) + '%';
                     }
                     
-                    // Обновляем Memory
+                    // Update Memory
                     if (data.lastMetrics.memory_usage !== undefined) {
                         const memPercent = data.lastMetrics.memory_usage;
                         drawCircle(memChart, memPercent);
                         memVal.textContent = memPercent.toFixed(1) + '%';
                     }
                     
-                    // Обновляем Disk
+                    // Update Disk
                     if (data.lastMetrics.disk_usage !== undefined) {
                         const diskPercent = data.lastMetrics.disk_usage;
                         drawCircle(diskChart, diskPercent);
                         diskVal.textContent = diskPercent.toFixed(1) + '%';
                     }
                     
-                    // Обновляем Swap
+                    // Update Swap
                     if (data.lastMetrics.swap_usage !== undefined) {
                         const swapPercent = data.lastMetrics.swap_usage;
                         drawCircle(swapChart, swapPercent);
                         swapVal.textContent = swapPercent.toFixed(1) + '%';
                     }
                     
-                    // Обновляем Network
+                    // Update Network
                     if (data.lastMetrics.network_speed !== undefined) {
                         const networkSpeed = data.lastMetrics.network_speed;
                         const networkPercent = Math.min((networkSpeed / 1048576) * 10, 100);
@@ -980,12 +979,12 @@ function displayLastKnownData() {
                         networkVal.textContent = formatNetworkSpeed(networkSpeed);
                     }
                     
-                    // Обновляем Uptime
+                    // Update Uptime
                     if (data.lastMetrics.uptime) {
                         uptimeVal.textContent = data.lastMetrics.uptime;
                     }
                     
-                    // Показываем, что данные загружены из кэша
+                    // Indicate that data was loaded from cache
                     const statusEl = document.getElementById('connectionStatus');
                     const textEl = document.getElementById('statusText');
                     statusEl.style.display = 'block';
@@ -1000,7 +999,7 @@ function displayLastKnownData() {
                     }, 2000);
                 }
                 
-                // Отображаем сохраненные модули, если они есть
+                // Display saved modules if any
                 const cachedNginxModules = data.lastNginxModules || data.lastApacheModules;
                 if (cachedNginxModules && cachedNginxModules.length > 0) {
                     lastNginxModules = cachedNginxModules;
@@ -1039,7 +1038,7 @@ function displayLastKnownData() {
     }
 }
 
-// Функция для отображения сетевых данных
+// Function to display network data
 function displayNetworkData(networkData) {
     const networkGrid = document.getElementById('networkGrid');
     networkGrid.innerHTML = '';
@@ -1073,7 +1072,7 @@ function displayNetworkData(networkData) {
     }
 }
 
-// Добавьте вспомогательную функцию для экранирования HTML
+// Helper function for HTML escaping
 function escapeHtml(text) {
     if (!text) return '';
     const div = document.createElement('div');
@@ -1081,7 +1080,7 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Функция для отображения данных о дисках
+// Function to display disk data
 function displayDrivesData(drivesData) {
     const drivesGrid = document.getElementById('drivesGrid');
     drivesGrid.innerHTML = '';
@@ -1616,7 +1615,7 @@ function prepareChartData(data, type, label) {
         }
     });
     
-    // Создаем основной набор данных
+    // Create main dataset
     const datasets = [{
         label: type === 'network' ? translations.ui[lang].network_speed : translations.ui[lang].usage,
         data: numericData,
@@ -1629,21 +1628,21 @@ function prepareChartData(data, type, label) {
         pointHoverRadius: 5
     }];
     
-    // Добавляем вертикальные линии для разрывов сессий
+    // Add vertical lines for session breaks
     breakIndices.forEach(breakIndex => {
         if (breakIndex < filteredData.length) {
             datasets.push({
                 type: 'line',
-                label: '', // Пустая метка, чтобы не показывать в легенде
+                label: '', // Empty label to hide from legend
                 data: (() => {
-                    // Создаем вертикальную линию
+                    // Create vertical line
                     const breakData = [];
                     for (let i = 0; i < filteredData.length; i++) {
                         if (i === breakIndex) {
-                            // Добавляем две точки для вертикальной линии
+                            // Add two points for vertical line
                             breakData.push({ x: filteredData[i].x, y: 0 });
                             breakData.push({ x: filteredData[i].x, y: type === 'network' ? Math.max(...numericData) : 100 });
-                            breakData.push({ x: filteredData[i].x, y: null }); // Разрыв
+                            breakData.push({ x: filteredData[i].x, y: null }); // Break
                         }
                     }
                     return breakData;
@@ -1802,7 +1801,7 @@ async function openGraphModal(type) {
                             font: { size: 12 },
                             usePointStyle: true,
                             filter: function(item, chart) {
-                                // Фильтруем пустые метки (вертикальные линии)
+                                // Filter empty labels (vertical lines)
                                 return item.text !== '';
                             }
                         }
@@ -1818,7 +1817,7 @@ async function openGraphModal(type) {
                         cornerRadius: 6,
                         callbacks: {
                             label: function(context) {
-                                if (context.datasetIndex > 0) return null; // Пропускаем вертикальные линии
+                                if (context.datasetIndex > 0) return null; // Skip vertical lines
                                 if (type === 'network') {
                                     return `${context.dataset.label}: ${formatNetworkSpeed(context.parsed.y * 1024)}`;
                                 }
@@ -2005,23 +2004,23 @@ function restoreActiveMonitorSection() {
 }
 
 function refreshData() {
-    // Сбрасываем счетчик попыток
+    // Reset retry counter
     retryCount = 0;
     
-    // Удаляем кнопку ручного обновления если она есть
+    // Remove manual refresh button if present
     const manualBtn = document.getElementById('manualRetryBtn');
     if (manualBtn) {
         manualBtn.remove();
     }
     
-    // Показываем индикатор обновления
+    // Show refresh indicator
     const statusEl = document.getElementById('connectionStatus');
     const textEl = document.getElementById('statusText');
     statusEl.style.display = 'block';
     statusEl.className = 'connection-status warning';
     textEl.textContent = translations.ui[lang].refreshing || 'Refreshing...';
     
-    // Загружаем данные
+    // Load data
     loadData(true);
 }
 function handleBeforeUnload() {
@@ -2102,7 +2101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     currentSessionStart = Date.now();
     loadStoredData();
     
-    // Показываем последние известные данные из кэша
+    // Display latest known data from cache
     displayLastKnownData();
     
     drawCircle(cpuChart, 0);

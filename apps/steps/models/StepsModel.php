@@ -1,5 +1,5 @@
 <?php
-// ─── Шаги — базовые операции ─────────────────────────────────────────────────
+// === Steps — basic operations ===
 function upsertStep(AppDatabase $db, string $date, int $steps): void {
     $stmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
     $stmt->bindValue(':d', $date, PDO::PARAM_STR);
@@ -76,7 +76,7 @@ function normalizeStepsDatesTable(AppDatabase $db): void {
     }
 }
 
-// Загрузка ТОЛЬКО нужного диапазона дат (для графика/календаря)
+// Load ONLY needed date range (for chart/calendar)
 function loadStepsRange(AppDatabase $db, string $from, string $to): array {
     $steps = [];
     try {
@@ -95,7 +95,7 @@ function loadStepsRange(AppDatabase $db, string $from, string $to): array {
     return $steps;
 }
 
-// Минимальная и максимальная дата в базе
+// Min and max date in DB
 function getStepsDateBounds(AppDatabase $db): array {
     try {
         $minDate = $db->querySingle('SELECT MIN(date) FROM steps');
@@ -106,21 +106,21 @@ function getStepsDateBounds(AppDatabase $db): array {
     }
 }
 
-// Загрузка страницы таблицы с SQL-фильтром
+// Load table page with SQL filter
 function loadStepsPage(AppDatabase $db, int $page, int $pageSize, string $filterOp, ?int $filterVal, ?int $filterValTo, ?string $dateFrom, ?string $dateTo): array {
     $offset = ($page - 1) * $pageSize;
 
-    // Строим WHERE
+    // Build WHERE
     [$where, $params] = buildStepsWhere($filterOp, $filterVal, $filterValTo, $dateFrom, $dateTo);
 
     try {
-        // Общее кол-во
+        // Total count
         $countSql = "SELECT COUNT(*) FROM steps" . ($where ? " WHERE $where" : '');
         $countStmt = $db->prepare($countSql);
         foreach ($params as $k => $v) $countStmt->bindValue($k, $v[0], $v[1]);
         $total = (int)$countStmt->execute()->fetch(PDO::FETCH_NUM)[0];
 
-        // Страница
+        // Page
         $sql = "SELECT date, steps FROM steps" . ($where ? " WHERE $where" : '') . " ORDER BY date DESC LIMIT :lim OFFSET :off";
         $stmt = $db->prepare($sql);
         foreach ($params as $k => $v) $stmt->bindValue($k, $v[0], $v[1]);
@@ -176,7 +176,7 @@ function buildStepsWhere(string $op, ?int $val, ?int $valTo, ?string $dateFrom, 
     return [implode(' AND ', $parts), $params];
 }
 
-// Экспорт всех шагов в CSV (для бэкапов)
+// Export all steps to CSV (for backup)
 function exportStepsToCSV(AppDatabase $db): string {
     $out = '';
     try {
@@ -190,7 +190,7 @@ function exportStepsToCSV(AppDatabase $db): string {
     return $out;
 }
 
-// Импорт CSV-контента в базу
+// Import CSV content into DB
 function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $replace = true): array {
     $imported = [];
     $lines = explode("\n", $csvContent);
@@ -242,7 +242,7 @@ function steps_delete_tree(string $dir): bool {
     return @rmdir($dir);
 }
 
-// Получение распределения шагов по годам (для графика)
+// Get yearly step distribution (for chart)
 function getYearlyStepDistribution(AppDatabase $db): array {
     $result = [];
     try {
@@ -262,12 +262,12 @@ function getYearlyStepDistribution(AppDatabase $db): array {
     return $result;
 }
 
-// Получение интенсивности шагов по месяцам текущего года (для графика)
+// Get monthly step intensity for current year (for chart)
 function getMonthlyStepIntensityCurrentYear(AppDatabase $db): array {
     $currentYear = getCurrentYear();
     $result = array_fill(0, 12, ['month' => 0, 'steps' => 0]);
     
-    // Инициализируем массив с названиями месяцев
+    // Initialize array with month numbers
     for ($i = 0; $i < 12; $i++) {
         $result[$i]['month'] = $i + 1;
     }

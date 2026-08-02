@@ -13,9 +13,9 @@ function get_current_user_from_sessions(): string {
             $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['email'])) {
                 $email = $row['email'];
-                // Заменяем @ и . на _
+                // Replace @ and . with _
                 $username = str_replace(['@', '.'], '_', $email);
-                // Дополнительная очистка на всякий случай
+                // Additional cleanup just in case
                 $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
                 return $username ?: 'default';
             }
@@ -32,9 +32,9 @@ function get_current_user_from_sessions(): string {
             $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && isset($row['email'])) {
                 $email = $row['email'];
-                // Заменяем @ и . на _
+                // Replace @ and . with _
                 $username = str_replace(['@', '.'], '_', $email);
-                // Дополнительная очистка на всякий случай
+                // Additional cleanup just in case
                 $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
                 return $username ?: 'default';
             }
@@ -48,8 +48,8 @@ function get_current_user_from_sessions(): string {
 }
 
 /**
- * Получение роли пользователя по email из БД
- * @return int 0 = обычный пользователь, 1 = администратор, 2 = root
+  * Get the user role by email from the DB
+  * @return int 0 = regular user, 1 = admin, 2 = root
  */
 
 function getUserRoleByEmail($email): int {
@@ -72,7 +72,7 @@ function getUserRoleByEmail($email): int {
 }
 
 /**
- * Проверка, является ли текущий пользователь root (role = 2)
+  * Check whether the current user is root (role = 2)
  */
 
 function isUserRoot(): bool {
@@ -110,7 +110,7 @@ function isUserRoot(): bool {
 }
 
 /**
- * Получение email текущего пользователя из БД по сессии
+  * Get the current user email from the DB by session
  */
 
 function getCurrentUserEmail(): ?string {

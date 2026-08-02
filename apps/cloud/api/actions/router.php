@@ -77,7 +77,7 @@ if ($action === 'get_state') {
     $email = get_session_email();
     $display_email = $email ?: $current_user;
 
-    // Квота — ищем по email напрямую (без JOIN users.name, которого не существует)
+    // Quota - look up by email directly (no JOIN users.name, which does not exist)
     $user_quota    = 500;
     $session_limit = 0;
     $hide_lang_switcher = 0;
@@ -387,7 +387,7 @@ if ($action === 'share_file') {
         json_out(['error' => 'not authenticated'], 401);
     }
 
-    // Нормализуем путь
+    // Normalize the path
     $absolutePath   = realpath($fullPath);
     $normalizedPath = str_replace('\\', '/', $absolutePath);
     $isFolder = is_dir($fullPath) ? 1 : 0;
@@ -452,7 +452,7 @@ if ($action === 'share_file') {
         };
         $ensureSharedFilesColumns($db);
 
-        // Очищаем просроченные ссылки
+        // Clean up expired links
         $db->exec("DELETE FROM shared_files WHERE expires IS NOT NULL AND expires < " . time());
         [$expiresOption, $expires] = $resolveExpiry((string)($_POST['expires_option'] ?? 'never'));
         $plainPassword = trim((string)($_POST['password'] ?? ''));
@@ -466,7 +466,7 @@ if ($action === 'share_file') {
             $disableCopy = 1;
         }
 
-        // Проверяем, есть ли уже активная ссылка для этого файла/папки от этого пользователя
+        // Check if an active link already exists for this file/folder from this user
         $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE file_path = :file_path AND user_email = :user_email');
         $stmt->bindValue(':file_path', $normalizedPath, PDO::PARAM_STR);
         $stmt->bindValue(':user_email', $userEmail, PDO::PARAM_STR);
@@ -490,7 +490,7 @@ if ($action === 'share_file') {
             return;
         }
 
-        // Генерируем уникальный ID
+        // Generate a unique ID
         do {
             $shareId = bin2hex(random_bytes(12));
             $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE share_id = :share_id');
@@ -499,7 +499,7 @@ if ($action === 'share_file') {
             $exists = $result->fetch(PDO::FETCH_ASSOC);
         } while ($exists);
 
-        // Создаем новую запись
+        // Create a new record
         $fileName = basename($fullPath);
         $createdAtExpr = (function_exists('app_db_is_pgsql') && app_db_is_pgsql()) ? 'NOW()' : 'datetime("now", "localtime")';
         $stmt = $db->prepare('
@@ -541,7 +541,7 @@ if ($action === 'set_quota') {
     if (!$db) json_out(['error' => 'db unavailable'], 500);
     try {
         ensureCloudUserSettingsSchema($db);
-        // Надёжный upsert: сначала INSERT, потом UPDATE
+        // Reliable upsert: INSERT first, then UPDATE
         $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, :q, 0, 0, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
         $ins->bindValue(':e', $email, PDO::PARAM_STR);
         $ins->bindValue(':q', $quota_mb, PDO::PARAM_INT);
@@ -788,7 +788,7 @@ if ($action === 'create_file') {
     json_out(['error'=>'exists'], 409);
   }
   
-  // Создаем директорию, если ее нет
+  // Create the directory if it does not exist
   $dir = dirname($full);
   if (file_exists($dir) && !is_dir($dir)) {
     json_out(['error'=>'parent is not directory'], 409);
@@ -1504,7 +1504,7 @@ if ($action === 'get_user_role') {
     $user = get_current_user_from_sessions();
     $is_root = isUserRoot();
     
-    // Дополнительно получаем email для отладки
+    // Additionally get the email for debugging
     $db = getDB();
     $email = null;
     if ($db) {
@@ -1539,7 +1539,7 @@ if ($action === 'save_file') {
     json_out(['error'=>'path required'], 400);
   }
 
-  // Определяем rootKey из пути
+  // Determine rootKey from the path
   $rootKey = get_requested_root_key();
   cloud_group_require_write($rootKey);
   $rootMap = [
@@ -1551,11 +1551,11 @@ if ($action === 'save_file') {
       '.trash' => 'trash'
   ];
   
-  // Если путь начинается с одного из скрытых каталогов, определяем rootKey автоматически
+  // If the path starts with one of the hidden directories, determine rootKey automatically
   foreach ($rootMap as $dirName => $key) {
       if (strpos($path, $dirName . '/') === 0 || $path === $dirName) {
           $rootKey = $key;
-          // Убираем имя корневого каталога из пути
+          // Strip the root directory name from the path
           $path = substr($path, strlen($dirName) + 1);
           break;
       }
@@ -1573,7 +1573,7 @@ if ($action === 'save_file') {
     json_out(['error'=>'not found'], 404);
   }
   
-  // Убираем проверку на текстовый файл для пустых файлов
+  // Remove the text file check for empty files
   $mime = is_documents_root($rootKey) ? 'text/plain' : mime_content_type($full);
   if ($mime === 'application/x-empty') {
   } else if (!is_text_mime($mime)) {
@@ -1625,7 +1625,7 @@ if ($action === 'office_download') {
     
     $mime = mime_content_type($target) ?: 'application/octet-stream';
     
-    // Важно: очищаем вывод, чтобы не было JSON-ошибок
+    // Important: flush output to avoid JSON errors
     @ob_end_clean();
     
     header('Content-Type: ' . $mime);
@@ -1744,16 +1744,16 @@ if ($action === 'mkdir') {
 
 if ($action === 'upload') {
     cloud_group_require_write(get_requested_root_key());
-    // Проверяем, есть ли ID сессии
+    // Check if a session ID exists
     $upload_id = $_POST['upload_id'] ?? '';
     $target_path = safe_path((string)($_POST['path'] ?? ''));
     
-    // Определяем пользователя и путь
+    // Determine the user and path
     $user = null;
     $final_target_path = $target_path;
     
     if ($upload_id) {
-        // Восстанавливаем сессию загрузки
+        // Restore the upload session
         $session = get_upload_session($upload_id);
         if ($session && $session['active']) {
             $user = $session['user'];
@@ -1762,11 +1762,11 @@ if ($action === 'upload') {
         }
     }
     
-    // Если нет сессии или она не валидна, создаем новую
+    // If there is no session or it is invalid, create a new one
     if (!$user) {
         $user = get_current_user_from_sessions();
         
-        // Если это инициализация новой загрузки
+        // If this initializes a new upload
         if (isset($_POST['init_upload']) && $_POST['init_upload'] === 'true') {
             try {
                 $upload_id = create_upload_session($target_path, $user);
@@ -1778,7 +1778,7 @@ if ($action === 'upload') {
         }
     }
     
-    // Если все еще нет пользователя - ошибка
+    // If there is still no user - error
     if (!$user) {
         json_out(['error' => 'Could not determine user'], 400);
     }
@@ -1793,7 +1793,7 @@ if ($action === 'upload') {
     $mtimeFromClientRaw = (int)($_POST['mtime'] ?? 0);
     $mtimeFromClientTime = $mtimeFromClientRaw > 20000000000 ? ((float)$mtimeFromClientRaw / 1000.0) : (float)$mtimeFromClientRaw;
 
-    // Создаем целевую директорию если её нет
+    // Create the target directory if it does not exist
     if (file_exists($targetDir) && !is_dir($targetDir)) {
         json_out(['error'=>'target is not directory'], 409);
     }
@@ -1849,7 +1849,7 @@ if ($action === 'upload') {
         $remaining = $sessionLimitBytes;
     }
     
-    // Проверяем квоту с учетом уже загруженных частей
+    // Check quota considering already uploaded chunks
     $existing_size = 0;
     $dest = $targetDir . '/' . $fileName;
     $tmpPlainDest = $dest . '.plainpart';
@@ -1861,12 +1861,12 @@ if ($action === 'upload') {
         json_out(['error'=>'quota exceeded'], 413);
     }
 
-    // Поддержка дозагрузки (chunk upload)
+    // Chunk upload support
     if (isset($_POST['chunk'])) {
         $chunk = (int)$_POST['chunk'];
         $chunks = (int)$_POST['chunks'];
         
-        // Открываем или создаем файл
+        // Open or create the file
         $chunkDest = is_documents_root($rootKey) ? $tmpPlainDest : $dest;
         $out = fopen($chunkDest, $chunk == 0 ? 'wb' : 'ab');
         if ($out) {
@@ -1881,7 +1881,7 @@ if ($action === 'upload') {
             
             @unlink($file['tmp_name']);
             
-            // Если это последний чанк, удаляем сессию
+            // If this is the last chunk, delete the session
             if ($chunk == $chunks - 1 && is_documents_root($rootKey)) {
                 $plain = (string)file_get_contents($tmpPlainDest);
                 file_put_contents($dest, encrypt_documents_content($plain, $user));
@@ -1894,8 +1894,8 @@ if ($action === 'upload') {
                 @touch($dest, $mtimeFromClientTime);
             }
 
-            // Для upload не инвалидируем кеш дерева:
-            // структура будет обновлена инкрементально через patch_file_tree.
+            // For upload, do not invalidate the tree cache:
+            // the structure will be updated incrementally via patch_file_tree.
             $emailLog = get_session_email();
             if ($chunk == $chunks - 1 && $emailLog) append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
             json_out(['ok'=>true, 'name'=>$fileName, 'chunk'=>$chunk, 'completed'=>($chunk == $chunks - 1)]);
@@ -1903,7 +1903,7 @@ if ($action === 'upload') {
             json_out(['error'=>'failed to write chunk'], 500);
         }
     } else {
-        // Обычная загрузка
+        // Regular upload
         if (file_exists($dest) && !isset($_POST['overwrite'])) {
             json_out(['error'=>'file already exists'], 409);
         }
@@ -1919,13 +1919,13 @@ if ($action === 'upload') {
             @touch($dest, $mtimeFromClientTime);
         }
         
-        // Удаляем сессию после завершения
+        // Delete the session after completion
         if ($upload_id) {
             delete_upload_session($upload_id);
         }
 
-        // Для upload не инвалидируем кеш дерева:
-        // структура будет обновлена инкрементально через patch_file_tree.
+        // For upload, do not invalidate the tree cache:
+        // the structure will be updated incrementally via patch_file_tree.
         $emailLog = get_session_email();
         if ($emailLog) append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
         json_out(['ok'=>true, 'name'=>$fileName]);
@@ -1976,7 +1976,7 @@ if ($action === 'download') {
     exit;
   }
 
-  // Проверяем, является ли файл временным архивом (начинается с selected_)
+  // Check if the file is a temporary archive (starts with selected_)
   $isTempArchive = (strpos(basename($target), 'selected_') === 0 && str_ends_with(strtolower($target), '.zip'));
 
   if (is_documents_root($rootKey)) {
@@ -1998,7 +1998,7 @@ if ($action === 'download') {
   $end = $size > 0 ? ($size - 1) : 0;
   $partial = false;
 
-  // Поддержка докачки/возобновления через HTTP Range.
+  // Resume support via HTTP Range.
   if (isset($_SERVER['HTTP_RANGE']) && preg_match('/bytes=\h*(\d+)-(\d*)/i', $_SERVER['HTTP_RANGE'], $m)) {
     $start = (int)$m[1];
     $end = (isset($m[2]) && strlen($m[2]) > 0) ? (int)$m[2] : $end;
@@ -2064,7 +2064,7 @@ if ($action === 'download') {
 
     fclose($file);
     
-    // Удаляем временный архив после успешного скачивания
+    // Delete the temporary archive after a successful download
     if ($isTempArchive && file_exists($target)) {
       @unlink($target);
     }
@@ -2096,7 +2096,7 @@ if ($action === 'download_stream') {
   $size = filesize($target);
   $mime = mime_content_type($target) ?: 'application/octet-stream';
   
-  // Используем X-Sendfile если доступно (более эффективно)
+  // Use X-Sendfile if available (more efficient)
   if (function_exists('apache_get_modules') && in_array('mod_xsendfile', apache_get_modules())) {
     header('X-Sendfile: ' . $target);
     header('Content-Type: ' . $mime);
@@ -2105,18 +2105,18 @@ if ($action === 'download_stream') {
     exit;
   }
   
-  // Стандартный потоковый метод
+  // Standard streaming method
   header('Content-Type: ' . $mime);
   header('Content-Length: ' . $size);
   header('Content-Disposition: attachment; filename="' . rawurlencode($name) . '"');
   header('Content-Transfer-Encoding: binary');
   
-  // Очищаем буферы
+  // Flush buffers
   while (ob_get_level()) {
     ob_end_clean();
   }
   
-  // Используем readfile с буферизацией
+  // Use readfile with buffering
   readfile($target);
   exit;
 }
@@ -2140,12 +2140,12 @@ if ($action === 'open') {
     $mime = mime_content_type($target) ?: 'application/octet-stream';
   }
   
-  // Если файл пустой или mime type application/x-empty, считаем его текстовым
+  // If the file is empty or has mime type application/x-empty, treat it as text
   if ($mime === 'application/x-empty' || filesize($target) === 0) {
     $mime = 'text/plain';
   }
   
-  // Определяем тип файла для preview
+  // Determine the file type for preview
   $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
   $officeExts = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx'];
   $isPdf = $ext === 'pdf';
@@ -2218,8 +2218,8 @@ if ($action === 'open') {
     if (is_documents_root($rootKey)) {
       json_out(['binary'=>true, 'openUrl'=>"api.php?action=raw&path=".rawurlencode($path)."&root=".rawurlencode($rootKey), 'mime'=>$mime]);
     }
-    // Для больших файлов используем потоковое скачивание
-    if (filesize($target) > 50 * 1024 * 1024) { // Если файл больше 50MB
+    // For large files, use streaming download
+    if (filesize($target) > 50 * 1024 * 1024) { // If the file is larger than 50MB
         $downloadUrl = "api.php?action=download_stream&path=".rawurlencode($path)."&root=".rawurlencode($rootKey);
     } else {
         $downloadUrl = "api.php?action=raw&path=".rawurlencode($path)."&root=".rawurlencode($rootKey);
@@ -2245,7 +2245,7 @@ if ($action === 'get_folder_properties') {
         json_out(['error' => 'Path is not a directory'], 400);
     }
     
-    // Собираем информацию о содержимом папки
+    // Gather info about the folder contents
     $totalSize = 0;
     $fileCount = 0;
     $folderCount = 0;
@@ -2264,7 +2264,7 @@ if ($action === 'get_folder_properties') {
             $folderCount++;
         }
         
-        // Сохраняем первые 100 элементов для preview (опционально)
+        // Keep the first 100 items for preview (optional)
         if (count($items) < 100) {
             $items[] = [
                 'name' => $item->getFilename(),
@@ -2288,7 +2288,7 @@ if ($action === 'get_folder_properties') {
         'modified' => date('c', $stat['mtime']),
         'accessed' => date('c', $stat['atime']),
         'attributes' => getFileAttributes($fullPath),
-        'items_preview' => $items // опционально
+        'items_preview' => $items // optional
     ];
     
     json_out($properties);
@@ -2812,18 +2812,18 @@ if ($action === 'create_archive') {
     $rootKey = get_requested_root_key();
     $base = user_root($user, $rootKey);
     
-    // Получаем список элементов для архивации
+    // Get the list of items to archive
     $items = $_POST['items'] ?? '';
     $format = cloud_archive_normalize_format((string)($_POST['format'] ?? ''), (string)($_POST['archive_name'] ?? ''));
     $password = (string)($_POST['password'] ?? '');
     $archive_name = $_POST['archive_name'] ?? 'selected_' . date('Y-m-d_H-i-s') . '.' . cloud_archive_format_extension($format);
     
-    // Декодируем JSON, если items приходит как строка JSON
+    // Decode JSON if items arrives as a JSON string
     if (is_string($items)) {
         $items = json_decode($items, true);
     }
     
-    // Проверяем, что items это массив и не пустой
+    // Check that items is an array and not empty
     if (!is_array($items) || empty($items)) {
         json_out(['error' => 'No items selected'], 400);
     }
@@ -2857,29 +2857,29 @@ if ($action === 'create_archive') {
         'errors' => null
     ]);
     
-    // Санитайзим имя архива
+    // Sanitize the archive name
     $archive_name = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $archive_name);
     if (!str_ends_with(strtolower($archive_name), '.zip')) {
         $archive_name .= '.zip';
     }
     
-    // Путь для сохранения архива (в корне пользователя)
+    // Path to save the archive (in the user root)
     $archive_path = $base . '/' . $archive_name;
     
-    // Проверяем, не существует ли уже архив с таким именем
+    // Check if an archive with this name already exists
     if (file_exists($archive_path)) {
-        // Добавляем timestamp к имени
+        // Add a timestamp to the name
         $path_info = pathinfo($archive_name);
         $archive_name = $path_info['filename'] . '_' . time() . '.' . $path_info['extension'];
         $archive_path = $base . '/' . $archive_name;
     }
     
-    // Проверяем, доступен ли класс ZipArchive
+    // Check if the ZipArchive class is available
     if (!class_exists('ZipArchive')) {
         json_out(['error' => 'Zip extension not available'], 500);
     }
     
-    // Создаем ZIP архив
+    // Create the ZIP archive
     $zip = new ZipArchive();
     if ($zip->open($archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
         json_out(['error' => 'Failed to create archive'], 500);
@@ -2900,7 +2900,7 @@ if ($action === 'create_archive') {
         }
         
         if (is_dir($full_path)) {
-            // Добавляем папку рекурсивно
+            // Add the folder recursively
             try {
                 $directory = new RecursiveDirectoryIterator(
                     $full_path,
@@ -2916,17 +2916,17 @@ if ($action === 'create_archive') {
                     /** @var SplFileInfo $file */
                     $file_path = $file->getPathname();
                     
-                    // Получаем относительный путь от корня архивируемой папки
+                    // Get the relative path from the root of the archived folder
                     $relative_path = $item . '/' . substr($file_path, strlen($full_path) + 1);
                     $relative_path = str_replace('\\', '/', $relative_path);
                     
                     if ($file->isDir()) {
-                        // Создаем пустую директорию в архиве
+                        // Create an empty directory in the archive
                         if (!empty($relative_path)) {
                             $zip->addEmptyDir($relative_path);
                         }
                     } else {
-                        // Добавляем файл
+                        // Add the file
                         if ($zip->addFile($file_path, $relative_path)) {
                             $added_count++;
                         }
@@ -2936,7 +2936,7 @@ if ($action === 'create_archive') {
                 $errors[] = "Error adding folder $item: " . $e->getMessage();
             }
         } else {
-            // Добавляем файл
+            // Add the file
             if ($zip->addFile($full_path, $item)) {
                 $added_count++;
             } else {
@@ -2945,10 +2945,10 @@ if ($action === 'create_archive') {
         }
     }
     
-    // Закрываем архив
+    // Close the archive
     $zip->close();
     
-    // Проверяем результат
+    // Check the result
     if (file_exists($archive_path) && filesize($archive_path) > 0) {
         $emailArch = get_session_email();
         // Only invalidate cache for main root, not for hidden roots
@@ -2963,7 +2963,7 @@ if ($action === 'create_archive') {
             'errors' => empty($errors) ? null : $errors
         ]);
     } else {
-        // Удаляем пустой архив если он создался
+        // Delete the empty archive if it was created
         if (file_exists($archive_path) && filesize($archive_path) == 0) {
             @unlink($archive_path);
         }
@@ -3079,7 +3079,7 @@ if ($action === 'metadata') {
     exit;
   }
 
-  // Проверяем, что это изображение
+  // Check that this is an image
   $mime = mime_content_type($target) ?: '';
   if (!str_starts_with($mime, 'image/')) {
     header('Content-Type: application/json');
@@ -3100,14 +3100,14 @@ if ($action === 'metadata') {
       $lonRef = $exif[0]['GPSLongitudeRef'] ?? 'E';
       
       if ($lat !== null && $lon !== null) {
-        // Парсим различные форматы GPS
+        // Parse various GPS formats
         if (preg_match('/(\d+)\s+deg\s+(\d+)\s*\'\s+([\d.]+)\s*"/', $lat, $latMatch) &&
             preg_match('/(\d+)\s+deg\s+(\d+)\s*\'\s+([\d.]+)\s*"/', $lon, $lonMatch)) {
           $latDecimal = ($latMatch[1] + $latMatch[2]/60 + $latMatch[3]/3600) * ($latRef === 'S' ? -1 : 1);
           $lonDecimal = ($lonMatch[1] + $lonMatch[2]/60 + $lonMatch[3]/3600) * ($lonRef === 'W' ? -1 : 1);
           $result['gps'] = ['lat' => $latDecimal, 'lon' => $lonDecimal];
         } elseif (is_numeric($lat) && is_numeric($lon)) {
-          // Уже в десятичных градусах
+          // Already in decimal degrees
           $result['gps'] = ['lat' => (float)$lat * ($latRef === 'S' ? -1 : 1), 'lon' => (float)$lon * ($lonRef === 'W' ? -1 : 1)];
         }
       }
@@ -3134,29 +3134,29 @@ elseif ($action === 'raw_audio' || $action === 'raw_video') {
         exit;
     }
     
-    // Определяем MIME тип
+    // Determine the MIME type
     $mime = mime_content_type($target) ?: 'application/octet-stream';
     
-    // Для видео проверяем, что это видео файл (опционально)
+    // For video, check that it is a video file (optional)
     if ($action === 'raw_video' && !str_starts_with($mime, 'video/')) {
-        // Если запросили видео, но это не видео - все равно отдаем, но с правильным заголовком
-        // Можно раскомментировать проверку если нужно строго проверять
+        // If video was requested but it is not video - still serve it with the correct header
+        // You can uncomment the check if strict validation is needed
         // http_response_code(415);
         // echo 'Not a video file';
         // exit;
     }
     
-    // Получаем размер файла
+    // Get the file size
     $size = filesize($target);
     
-    // Поддержка диапазонов для перемотки
+    // Range support for seeking
     if (isset($_SERVER['HTTP_RANGE'])) {
-        // Парсим заголовок Range
+        // Parse the Range header
         if (preg_match('/bytes=\h*(\d+)-(\d*)/i', $_SERVER['HTTP_RANGE'], $matches)) {
             $start = intval($matches[1]);
             $end = isset($matches[2]) && strlen($matches[2]) ? intval($matches[2]) : $size - 1;
             
-            // Валидация
+            // Validation
             if ($start >= $size || $start > $end) {
                 http_response_code(416);
                 header('Content-Range: bytes */' . $size);
@@ -3165,7 +3165,7 @@ elseif ($action === 'raw_audio' || $action === 'raw_video') {
             
             $length = $end - $start + 1;
             
-            // Устанавливаем заголовки для частичного контента
+            // Set headers for partial content
             http_response_code(206);
             header('Content-Type: ' . $mime);
             header('Content-Length: ' . $length);
@@ -3174,7 +3174,7 @@ elseif ($action === 'raw_audio' || $action === 'raw_video') {
             header('Cache-Control: no-cache, must-revalidate');
             header('X-Content-Type-Options: nosniff');
             
-            // Открываем файл и отдаем только запрошенную часть
+            // Open the file and serve only the requested part
             $fp = fopen($target, 'rb');
             fseek($fp, $start);
             
@@ -3199,15 +3199,15 @@ elseif ($action === 'raw_audio' || $action === 'raw_video') {
             exit;
         }
     } else {
-        // Обычный запрос - отдаем весь файл
+        // Regular request - serve the whole file
         header('Content-Type: ' . $mime);
         header('Content-Length: ' . $size);
         header('Accept-Ranges: bytes');
         header('Cache-Control: public, max-age=3600');
         header('X-Content-Type-Options: nosniff');
         
-        // Для больших файлов используем потоковую передачу
-        if ($size > 10 * 1024 * 1024) { // больше 10MB
+        // For large files, use streaming
+        if ($size > 10 * 1024 * 1024) { // larger than 10MB
             $fp = fopen($target, 'rb');
             $chunkSize = 8192;
             
@@ -3218,7 +3218,7 @@ elseif ($action === 'raw_audio' || $action === 'raw_video') {
             
             fclose($fp);
         } else {
-            // Маленькие файлы отдаем целиком
+            // Serve small files in full
             readfile($target);
         }
     }
@@ -3244,7 +3244,7 @@ elseif ($action === 'audio_info') {
         'format' => pathinfo($target, PATHINFO_EXTENSION)
     ];
     
-    // Пробуем получить длительность через getID3 или другие методы
+    // Try to get the duration via getID3 or other methods
     if (function_exists('shell_exec') && is_executable('/usr/bin/ffprobe')) {
         try {
             $cmd = escapeshellcmd("/usr/bin/ffprobe -v quiet -print_format json -show_format -show_streams " . escapeshellarg($target));
@@ -3329,51 +3329,51 @@ if ($action === 'extract_archive') {
         'extracted_files_count' => $extracted_count
     ]);
     
-    // Проверяем, что это ZIP файл
+    // Check that this is a ZIP file
     $extension = strtolower(pathinfo($full_archive_path, PATHINFO_EXTENSION));
     if ($extension !== 'zip') {
         json_out(['error' => 'Not a ZIP file'], 400);
     }
     
-    // Проверяем, доступен ли класс ZipArchive
+    // Check if the ZipArchive class is available
     if (!class_exists('ZipArchive')) {
         json_out(['error' => 'Zip extension not available'], 500);
     }
     
-    // Определяем путь для извлечения
+    // Determine the extraction path
     if ($extract_to === '') {
-        // Извлекаем в ту же папку, где находится архив
+        // Extract to the same folder where the archive is located
         $extract_full_path = dirname($full_archive_path);
     } else {
         $extract_full_path = $base . '/' . $extract_to;
         
-        // Создаем папку для извлечения если не существует
+        // Create the extraction folder if it does not exist
         if (!is_dir($extract_full_path)) {
             @mkdir($extract_full_path, 0775, true);
         }
     }
     
-    // Проверяем, что папка для извлечения существует и доступна для записи
+    // Check that the extraction folder exists and is writable
     if (!is_dir($extract_full_path) || !is_writable($extract_full_path)) {
         json_out(['error' => 'Extraction directory not writable'], 500);
     }
     
-    // Создаем объект ZipArchive
+    // Create a ZipArchive object
     $zip = new ZipArchive();
     $result = $zip->open($full_archive_path);
     
     if ($result === TRUE) {
-        // Извлекаем архив
+        // Extract the archive
         if ($zip->extractTo($extract_full_path)) {
             $zip->close();
             
-            // Получаем список извлеченных файлов для информации
+            // Get the list of extracted files for info
             $extracted_files = [];
             $archive = new ZipArchive();
             if ($archive->open($full_archive_path) === TRUE) {
                 for ($i = 0; $i < $archive->numFiles; $i++) {
                     $filename = $archive->getNameIndex($i);
-                    if ($filename && !str_ends_with($filename, '/')) { // Исключаем папки
+                    if ($filename && !str_ends_with($filename, '/')) { // Exclude folders
                         $extracted_files[] = $filename;
                     }
                 }
@@ -3449,26 +3449,26 @@ if ($action === 'archive_folder') {
         'size' => filesize($archive_path)
     ]);
     
-    // Проверяем, доступен ли класс ZipArchive
+    // Check if the ZipArchive class is available
     if (!class_exists('ZipArchive')) {
         json_out(['error' => 'Zip extension not available'], 500);
     }
     
-    // Создаем имя архива
+    // Create the archive name
     $folder_name = basename($folder_path);
     $archive_name = $folder_name . '_' . date('Y-m-d_H-i-s') . '.zip';
     $archive_path = dirname($full_path) . '/' . $archive_name;
     
-    // Проверяем, не существует ли уже архив с таким именем
+    // Check if an archive with this name already exists
     if (file_exists($archive_path)) {
         json_out(['error' => 'Archive already exists'], 409);
     }
     
-    // Создаем ZIP архив
+    // Create the ZIP archive
     $zip = new ZipArchive();
     if ($zip->open($archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
         
-        // Создаем рекурсивный итератор для обхода всех файлов и папок
+        // Create a recursive iterator to traverse all files and folders
         $directory = new RecursiveDirectoryIterator(
             $full_path,
             RecursiveDirectoryIterator::SKIP_DOTS
@@ -3476,7 +3476,7 @@ if ($action === 'archive_folder') {
         
         $iterator = new RecursiveIteratorIterator(
             $directory,
-            RecursiveIteratorIterator::SELF_FIRST // Важно: сначала папки, потом файлы
+            RecursiveIteratorIterator::SELF_FIRST // Important: folders first, then files
         );
         
         $added_count = 0;
@@ -3485,30 +3485,30 @@ if ($action === 'archive_folder') {
             /** @var SplFileInfo $item */
             $item_path = $item->getPathname();
             
-            // Получаем относительный путь от корня архивируемой папки
-            // Исправлено: используем getPathname() вместо getRealPath() и правильно вычисляем относительный путь
+            // Get the relative path from the root of the archived folder
+            // Fixed: use getPathname() instead of getRealPath() and compute the relative path correctly
             $relative_path = substr($item_path, strlen($full_path) + 1);
             
-            // Нормализуем разделители путей для ZIP (всегда используем /)
+            // Normalize path separators for ZIP (always use /)
             $relative_path = str_replace('\\', '/', $relative_path);
             
             if ($item->isDir()) {
-                // Создаем пустую директорию в архиве
-                if (!empty($relative_path)) { // Не создаем пустую строку для корня
+                // Create an empty directory in the archive
+                if (!empty($relative_path)) { // Do not create an empty string for the root
                     $zip->addEmptyDir($relative_path);
                 }
             } else {
-                // Добавляем файл с относительным путем
+                // Add the file with its relative path
                 if ($zip->addFile($item_path, $relative_path)) {
                     $added_count++;
                 }
             }
         }
         
-        // Закрываем архив
+        // Close the archive
         $zip->close();
         
-        // Проверяем результат
+        // Check the result
         if (file_exists($archive_path) && filesize($archive_path) > 0) {
             $emailArch2 = get_session_email();
             // Only invalidate cache for main root, not for hidden roots
@@ -3554,14 +3554,14 @@ if ($action === 'convert_file') {
         json_out(['error' => 'source file not found'], 404);
     }
     
-    // Определяем выходной путь
+    // Determine the output path
     $source_dir = dirname($source_path);
     $source_filename = pathinfo($source_path, PATHINFO_FILENAME);
     
     if ($output_path === '') {
         $output_path = $source_dir . '/' . $source_filename . '.' . $target_format;
     } else {
-        // Если указан путь к папке, добавляем имя файла
+        // If a folder path is given, append the file name
         if (strpos($output_path, '.') === false) {
             $output_path = rtrim($output_path, '/') . '/' . $source_filename . '.' . $target_format;
         }
@@ -3570,12 +3570,12 @@ if ($action === 'convert_file') {
     
     $output_full = $base . '/' . $output_path;
     
-    // Проверяем, не существует ли уже целевой файл
+    // Check if the target file already exists
     if (file_exists($output_full)) {
         json_out(['error' => 'target file already exists'], 409);
     }
     
-    // Создаем директорию для выходного файла если нужно
+    // Create the output file directory if needed
     $output_dir = dirname($output_full);
     if (file_exists($output_dir) && !is_dir($output_dir)) {
         json_out(['error' => 'target is not directory'], 409);
@@ -3588,7 +3588,7 @@ if ($action === 'convert_file') {
     $result = convertFile($source_full, $output_full, $target_format);
     
     if ($result && file_exists($output_full)) {
-        // Удаляем оригинальный файл ТОЛЬКО если явно указано
+        // Delete the original file ONLY if explicitly requested
         if ($delete_original === true) {
     if (file_exists($source_full)) {
         if (!@unlink($source_full)) {
@@ -3960,7 +3960,7 @@ if ($action === 'export_pdf') {
         json_out(['error' => 'path required'], 400);
     }
 
-    // Определяем rootKey из пути
+    // Determine rootKey from the path
     $rootKey = get_requested_root_key();
     $rootMap = [
         '.archive' => 'archive',
@@ -3971,11 +3971,11 @@ if ($action === 'export_pdf') {
         '.trash' => 'trash'
     ];
     
-    // Если путь начинается с одного из скрытых каталогов, определяем rootKey автоматически
+    // If the path starts with one of the hidden directories, determine rootKey automatically
     foreach ($rootMap as $dirName => $key) {
         if (strpos($path, $dirName . '/') === 0 || $path === $dirName) {
             $rootKey = $key;
-            // Убираем имя корневого каталога из пути
+            // Strip the root directory name from the path
             $path = substr($path, strlen($dirName) + 1);
             break;
         }
@@ -4050,7 +4050,7 @@ if ($action === 'export_pdf') {
             'size' => filesize($pdfPath)
         ]);
     } else {
-        // Проверим, может быть pandoc создает файл, но возвращает ошибку
+        // Check whether pandoc creates the file but returns an error
         if (file_exists($pdfPath)) {
             $relativePdfPath = str_replace($base . '/', '', $pdfPath);
             $emailPdf = get_session_email();
@@ -4096,15 +4096,15 @@ if ($action === 'get_ai_config') {
 }
 
 if ($action === 'save_ai_config') {
-    // Проверяем метод запроса
+    // Check the request method
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         json_out(['error' => 'Method not allowed'], 405);
     }
     
-    // Получаем данные из POST или из тела запроса
+    // Get data from POST or from the request body
     $input = $_POST;
     
-    // Если данные пришли как JSON в теле запроса
+    // If the data arrived as JSON in the request body
     if (empty($input) && $jsonInput = file_get_contents('php://input')) {
         $input = json_decode($jsonInput, true);
     }
@@ -4113,7 +4113,7 @@ if ($action === 'save_ai_config') {
         json_out(['error' => 'Invalid input'], 400);
     }
     
-    // Сохраняем конфигурацию
+    // Save the configuration
     $result = saveAIConfig($input);
     
     if (isset($result['error'])) {
@@ -4381,14 +4381,14 @@ if ($action === 'get_folder_state') {
     try {
         ensure_file_tree_table($db);
         
-        // ВАЖНО: Проверяем, есть ли запись для пользователя
+        // IMPORTANT: Check if a record exists for the user
         $stmt = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
         $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $result = $stmt->execute();
         $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row['cnt'] == 0) {
-            // Создаем запись для пользователя, если её нет
+            // Create a record for the user if it does not exist
             $insert = $db->prepare("
                 INSERT INTO cloud_folder_state (email, folder_json, updated_at)
                 VALUES (:e, '[]', extract(epoch from now())::bigint)
@@ -4427,14 +4427,14 @@ if ($action === 'set_folder_state') {
 
     try {
         ensure_file_tree_table($db);
-        // Сначала убеждаемся, что запись существует
+        // First make sure the record exists
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
         $check->bindValue(':e', $email, PDO::PARAM_STR);
         $result = $check->execute();
         $row = $result->fetch(PDO::FETCH_ASSOC);
         
         if ($row['cnt'] == 0) {
-            // Создаем запись, если её нет
+            // Create the record if it does not exist
             $insert = $db->prepare("
                 INSERT INTO cloud_folder_state (email, folder_json, updated_at)
                 VALUES (:e, :j, extract(epoch from now())::bigint)
@@ -4443,7 +4443,7 @@ if ($action === 'set_folder_state') {
             $insert->bindValue(':j', $json, PDO::PARAM_STR);
             $insert->execute();
         } else {
-            // Обновляем существующую
+            // Update the existing one
             $update = $db->prepare("
                 UPDATE cloud_folder_state 
                 SET folder_json = :j, updated_at = extract(epoch from now())::bigint

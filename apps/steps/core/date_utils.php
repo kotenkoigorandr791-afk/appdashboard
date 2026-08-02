@@ -1,5 +1,5 @@
 <?php
-// ─── Утилиты дат ─────────────────────────────────────────────────────────────
+// Date utilities
 // dd-mm-yy → YYYY-MM-DD
 function csvDateToISO(string $raw): ?string {
     $parts = explode('-', trim($raw));
@@ -15,39 +15,39 @@ function isoToCSVDate(string $iso): string {
     return (new DateTime($iso))->format('d-m-y');
 }
 
-// Получение года из даты в формате YYYY-MM-DD
+// Get year from date in YYYY-MM-DD format
 function getYearFromISODate(string $isoDate): ?int {
     if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $isoDate, $matches)) return null;
     return (int)$matches[1];
 }
 
-// Получение месяца из даты в формате YYYY-MM-DD
+// Get month from date in YYYY-MM-DD format
 function getMonthFromISODate(string $isoDate): ?int {
     if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $isoDate, $matches)) return null;
     return (int)$matches[2];
 }
 
-// Получение текущего года
+// Get current year
 function getCurrentYear(): int {
     return (int)(new DateTime())->format('Y');
 }
 
-// Получение первого дня года
+// Get first day of year
 function getFirstDayOfYear(int $year): string {
     return "{$year}-01-01";
 }
 
-// Получение последнего дня года
+// Get last day of year
 function getLastDayOfYear(int $year): string {
     return "{$year}-12-31";
 }
 
-// Получение первого дня месяца
+// Get first day of month
 function getFirstDayOfMonth(int $year, int $month): string {
     return sprintf("%04d-%02d-01", $year, $month);
 }
 
-// Получение последнего дня месяца
+// Get last day of month
 function getLastDayOfMonth(int $year, int $month): string {
     return date("Y-m-t", strtotime(sprintf("%04d-%02d-01", $year, $month)));
 }

@@ -2,7 +2,7 @@
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 header("Content-type: text/css; charset: UTF-8");
 
-// Получаем параметры из URL
+// Get parameters from URL
 $theme = isset($_GET['theme']) && in_array($_GET['theme'], ['light', 'dark']) ? $_GET['theme'] : 'light';
 $color = isset($_GET['color']) && preg_match('/^#[0-9A-Fa-f]{6}$/', $_GET['color']) ? $_GET['color'] : '#78a300';
 
@@ -32,7 +32,7 @@ $btn_border_color = adjust_color_brightness($color, 0.58);
 
 $btn_gradient_end = adjust_color_brightness($color, 0.80);
 
-// Определяем цвета для обеспечения контрастности
+// Determine colors for contrast
 $text_color = $theme === 'light' ? '#000000' : '#ffffff';
 $scrollbar_thumb = $theme === 'light' ? '#b8b8b8' : '#4a4a4a';
 $scrollbar_thumb_hover = $theme === 'light' ? '#9f9f9f' : '#5a5a5a';
@@ -128,7 +128,7 @@ body {
     min-height: 100vh;
 }
 
-/* Блокировка прокрутки основной страницы при открытом модальном окне */
+/* Block main page scroll when a modal is open */
 body.modal-open {
     overflow: hidden !important;
 }
@@ -1733,7 +1733,7 @@ input[type="file"]:required {
     font-size: 16px;
 }
 
-/* Стили для переключателя языка в просмотре рецепта */
+/* Styles for the language switcher in recipe view */
 .language-switcher {
     display: flex;
     gap: 10px;
@@ -1774,7 +1774,7 @@ input[type="file"]:required {
     box-shadow: var(--glow);
 }
 
-/* Стили для модального окна поделиться */
+/* Styles for the share modal */
 .share-modal {
     width: 80vw;
     max-width: 800px;
@@ -1973,7 +1973,7 @@ input[type="file"]:required {
     box-shadow: var(--hover-shadow);
 }
 
-/* Улучшенные стили для превью изображения */
+/* Improved styles for the image preview */
 .share-preview-wrapper {
     width: 100%;
     max-height: 60vh;
@@ -2000,7 +2000,7 @@ input[type="file"]:required {
     border-radius: var(--border-radius);
 }
 
-/* Кастомный скролл для превью */
+/* Custom scroll for the preview */
 .share-preview-wrapper::-webkit-scrollbar {
     width: 7px;
     height: 7px;
@@ -2023,7 +2023,7 @@ input[type="file"]:required {
     background: var(--text-color);
 }
 
-/* Улучшенные стили для крестика закрытия в модальном окне просмотра рецепта */
+/* Improved styles for the close cross in the recipe view modal */
 #recipeViewModal .modal-close {
     position: absolute;
     top: 10px;
@@ -2061,7 +2061,7 @@ input[type="file"]:required {
     padding-top: 60px;
 }
 
-/* ==================== МОБИЛЬНАЯ ВЕРСИЯ ==================== */
+/* ==================== MOBILE VERSION ==================== */
 @media (max-width: 768px) {
     :root {
         --app-top-bar-height: 68px;
@@ -2102,7 +2102,7 @@ input[type="file"]:required {
         height: 40px;
     }
 
-    /* Базовые стили для мобильных модальных окон */
+    /* Base styles for mobile modals */
     .modal {
         padding: 0 !important;
         align-items: flex-start !important;
@@ -2133,18 +2133,18 @@ input[type="file"]:required {
         padding: 0;
     }
     
-    /* ========== СТИЛИ ДЛЯ ОКНА ПОИСКА РЕЦЕПТОВ - ЕДИНЫЙ СКРОЛЛ ========== */
+    /* ========== RECIPE SEARCH WINDOW STYLES - UNIFIED SCROLL ========== */
     #searchRecipeModal .modal-content {
         display: flex;
         flex-direction: column;
         padding-top: 60px !important;
         height: 100vh !important;
-        overflow-y: auto !important; /* ЕДИНСТВЕННЫЙ СКРОЛЛ - ВЕСЬ КОНТЕЙНЕР */
+        overflow-y: auto !important; /* SINGLE SCROLL - ENTIRE CONTAINER */
         overflow-x: hidden !important;
         max-height: 100vh;
     }
     
-    /* Убираем отдельные скроллы у внутренних блоков */
+    /* Remove individual scrolls from inner blocks */
     #searchRecipeModal .product-grid-container {
         flex-grow: 0;
         flex-shrink: 0;
@@ -2289,7 +2289,7 @@ input[type="file"]:required {
         text-decoration: none;
     }
     
-    /* ========== СТИЛИ ДЛЯ ОКНА ДОБАВЛЕНИЯ/РЕДАКТИРОВАНИЯ РЕЦЕПТОВ ========== */
+    /* ========== ADD/EDIT RECIPE WINDOW STYLES ========== */
     #recipeModal .modal-content {
         overflow-x: hidden !important;
         overflow-y: auto !important;
@@ -2460,7 +2460,7 @@ input[type="file"]:required {
         box-sizing: border-box;
     }
     
-    /* Скрываем прокрутку тела при открытом модальном окне */
+    /* Hide body scroll when a modal is open */
     body.modal-open {
         overflow: hidden !important;
         position: fixed;
@@ -2468,7 +2468,7 @@ input[type="file"]:required {
         height: 100%;
     }
     
-    /* Предотвращаем закрытие при клике на фон на мобильных */
+    /* Prevent closing on background click on mobile */
     #searchRecipeModal.modal {
         touch-action: none;
     }
@@ -2477,7 +2477,7 @@ input[type="file"]:required {
         background-color: var(--bg-color);
     }
     
-    /* Улучшение отображения других модальных окон */
+    /* Improve rendering of other modals */
     #productModal .modal-content,
     #productSelectionModal .modal-content {
         width: 100vw !important;
@@ -2555,7 +2555,7 @@ input[type="file"]:required {
 }
 
 @media (max-width: 480px) {
-    /* Еще меньшие экраны */
+    /* Even smaller screens */
     #recipeModal .modal-content {
         padding: 50px 10px 10px 10px !important;
     }
@@ -2599,7 +2599,7 @@ input[type="file"]:required {
     }
 }
 
-/* Мобильные стили для модального окна поделиться */
+/* Mobile styles for the share modal */
 @media (max-width: 768px) {
     .share-modal {
         width: 100vw;

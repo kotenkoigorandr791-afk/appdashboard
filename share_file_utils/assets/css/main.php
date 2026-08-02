@@ -97,7 +97,7 @@ body {font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-ser
 .onlyoffice-viewer {width:100%;height:100%;position:relative;background:transparent;}
 video,audio {max-width:90%;max-height:90%;}
 
-/* PDF.js viewer styles - улучшенная версия */
+/* PDF.js viewer styles - improved version */
 .pdf-viewer-container {
     width: 100%;
     height: 100%;
@@ -289,7 +289,7 @@ video,audio {max-width:90%;max-height:90%;}
     text-align: center;
 }
 
-/* 3D model viewer styles - улучшенная версия */
+/* 3D model viewer styles - improved version */
 .model-viewer-container {
     width: 100%;
     height: 100%;
@@ -368,7 +368,7 @@ video,audio {max-width:90%;max-height:90%;}
 .feature-icon {color:#<?php echo $color; ?>;flex-shrink:0;margin-top:2px;}
 .feature-text {flex:1;}
 .feature-category {font-size:16px;font-weight:600;margin-bottom:12px;color:#<?php echo $color; ?>;padding-bottom:6px;border-bottom:2px solid rgba(<?php echo hexdec(substr($color,0,2)); ?>, <?php echo hexdec(substr($color,2,2)); ?>, <?php echo hexdec(substr($color,4,2)); ?>, 0.2);}
-/* Toast уведомление в стиле цитаты */
+/* Quote-style toast notification */
 .toast-notification {
     position: fixed;
     bottom: 24px;
@@ -450,7 +450,7 @@ video,audio {max-width:90%;max-height:90%;}
     fill: currentColor;
 }
 
-/* Анимация появления */
+/* Appearance animation */
 @keyframes slideIn {
     from {
         transform: translateX(400px);

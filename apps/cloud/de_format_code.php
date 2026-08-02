@@ -1,12 +1,12 @@
 <?php
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 /**
- * Упрощенный компактор кода - удаляет пустые строки и сжимает код
+  * Simplified code compactor - removes empty lines and compresses code
  */
 class AdvancedCodeCompactor {
     
     public function compactCode($code, $language) {
-        // Удаляем все пустые строки для всех языков
+        // Remove all empty lines for all languages
         $code = $this->removeEmptyLines($code);
         
         switch(strtolower($language)) {
@@ -31,12 +31,12 @@ class AdvancedCodeCompactor {
     }
 
     private function removeEmptyLines($code) {
-        // Удаляем только полностью пустые строки (сохраняем пробелы в начале для Python)
+        // Remove only completely empty lines (preserve leading spaces for Python)
         $lines = explode("\n", $code);
         $result = [];
         
         foreach ($lines as $line) {
-            // Сохраняем строку если она не пустая (может содержать пробелы/табы для отступов)
+            // Keep line if not empty (may contain spaces/tabs for indentation)
             if (trim($line) !== '') {
                 $result[] = $line;
             }
@@ -50,7 +50,7 @@ class AdvancedCodeCompactor {
     }
 
     private function compactBraceLanguage($code) {
-        // Сохраняем директивы #include на отдельных строках
+        // Keep #include directives on separate lines
         $lines = explode("\n", $code);
         $processedLines = [];
         
@@ -59,7 +59,7 @@ class AdvancedCodeCompactor {
             if (preg_match('/^#include/', $trimmed)) {
                 $processedLines[] = $trimmed;
             } else {
-                // Для остальных строк объединяем в одну строку для дальнейшей обработки
+                // For other lines, combine into one for further processing
                 if (empty($processedLines) || !preg_match('/^#include/', end($processedLines))) {
                     $processedLines[] = $trimmed;
                 } else {
@@ -68,16 +68,16 @@ class AdvancedCodeCompactor {
             }
         }
         
-        // Объединяем обратно в строку, но сохраняем #include на отдельных строках
+        // Join back into string, but keep #include on separate lines
         $code = implode("\n", $processedLines);
         
-        // Обрабатываем открывающие скобки - переносим на новую строку
+        // Process opening braces - move to new line
         $code = preg_replace('/([^ ])\s*{\s*/', "$1\n{", $code);
         
-        // Обрабатываем закрывающие скобки - переносим на новую строку
+        // Process closing braces - move to new line
         $code = preg_replace('/\s*}\s*/', "\n}", $code);
         
-        // Разбиваем на строки и обрабатываем
+        // Split into lines and process
         $lines = explode("\n", $code);
         $result = [];
         $indentLevel = 0;
@@ -86,21 +86,21 @@ class AdvancedCodeCompactor {
             $trimmed = trim($line);
             if ($trimmed === '') continue;
             
-            // Сохраняем директивы #include без отступов
+            // Keep #include directives without indentation
             if (preg_match('/^#include/', $trimmed)) {
                 $result[] = $trimmed;
                 continue;
             }
             
-            // Уменьшаем отступ если это закрывающая скобка
+            // Decrease indent if closing brace
             if ($trimmed === '}') {
                 $indentLevel = max(0, $indentLevel - 1);
             }
             
-            // Добавляем строку с правильным отступом
+            // Add line with proper indentation
             $result[] = str_repeat('    ', $indentLevel) . $trimmed;
             
-            // Увеличиваем отступ если это открывающая скобка
+            // Increase indent if opening brace
             if ($trimmed === '{') {
                 $indentLevel++;
             }
@@ -110,7 +110,7 @@ class AdvancedCodeCompactor {
     }
 
     private function compactHTML($code) {
-        // Агрессивное удаление пробелов для HTML
+        // Aggressive whitespace removal for HTML
         $code = preg_replace('/\s+/', ' ', $code);
         $code = preg_replace('/>\s+</', '><', $code);
         $code = preg_replace('/\s+>/', '>', $code);
@@ -120,7 +120,7 @@ class AdvancedCodeCompactor {
     }
 
     private function compactPython($code) {
-        // Для Python только удаляем пустые строки, сохраняя все отступы
+        // For Python only remove empty lines, preserving all indentation
         return $code;
     }
 
@@ -129,7 +129,7 @@ class AdvancedCodeCompactor {
     }
 
     private function compactGeneric($code) {
-        // Универсальное сжатие - только удаление пустых строк
+        // Universal compression - only remove empty lines
         return $code;
     }
 }
@@ -139,7 +139,7 @@ function compactCode($code, $language) {
     return $compactor->compactCode($code, $language);
 }
 
-// Если файл запущен напрямую - возвращаем JSON API
+// If file run directly - return JSON API
 if (isset($_POST['action']) && $_POST['action'] === 'compact') {
     header('Content-Type: application/json');
     

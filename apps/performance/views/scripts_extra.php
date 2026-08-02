@@ -1,17 +1,17 @@
 <script>
-// Анимация созвездий на фоне
+// Constellation animation in background
 (function() {
     const canvas = document.getElementById('constellation-bg');
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     let stars = [];
-    const STAR_COUNT = 100; // количество звезд
-    const primaryColor = '<?= $color ?>'; // цвет из ссылки
+    const STAR_COUNT = 100; // Number of stars
+    const primaryColor = '<?= $color ?>'; // color from the link
     
-    // Функция для получения цвета с прозрачностью
+    // Function to get color with opacity
     function getColorWithOpacity(opacity) {
-        // Парсим HEX в RGB
+        // Parse HEX to RGB
         let r, g, b;
         if (primaryColor.startsWith('#')) {
             const hex = primaryColor.slice(1);
@@ -25,7 +25,7 @@
                 b = parseInt(hex.substring(4, 6), 16);
             }
         } else {
-            // Если не HEX, используем цвет по умолчанию
+            // If not HEX, use default color
             r = 133; g = 181; b = 3;
         }
         return `rgba(${r}, ${g}, ${b}, ${opacity})`;
@@ -34,7 +34,7 @@
     function resize() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        // При изменении размера пересоздаем звезды для равномерного распределения
+        // On resize recreate stars for even distribution
         initStars();
     }
     
@@ -58,7 +58,7 @@
             s.x += s.vx;
             s.y += s.vy;
             
-            // Зацикливание по краям экрана с плавным переходом
+            // Wrap around screen edges with smooth transition
             if (s.x < 0) s.x = canvas.width;
             if (s.x > canvas.width) s.x = 0;
             if (s.y < 0) s.y = canvas.height;
@@ -67,10 +67,10 @@
     }
     
     function draw() {
-        // Очищаем canvas
+        // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // Рисуем линии между звездами
+        // Draw lines between stars
         ctx.lineWidth = 0.5;
         
         for (let i = 0; i < stars.length; i++) {
@@ -79,9 +79,9 @@
                 const dy = stars[i].y - stars[j].y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                // Рисуем линию, если звезды достаточно близко
+                // Draw line if stars are close enough
                 if (dist < 140) {
-                    // Прозрачность зависит от расстояния
+                    // Opacity depends on distance
                     const opacity = 0.2 * (1 - dist / 140);
                     ctx.strokeStyle = getColorWithOpacity(opacity);
                     ctx.beginPath();
@@ -92,7 +92,7 @@
             }
         }
         
-        // Рисуем звезды
+        // Draw stars
         for (let i = 0; i < stars.length; i++) {
             ctx.fillStyle = getColorWithOpacity(0.4);
             ctx.beginPath();
@@ -104,7 +104,7 @@
         requestAnimationFrame(draw);
     }
     
-    // Инициализация с текущими размерами
+    // Initialization with current sizes
     resize();
     draw();
 })();

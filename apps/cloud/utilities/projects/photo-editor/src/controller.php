@@ -4,7 +4,7 @@ ini_set('display_errors', (string)getenv('APP_DEBUG') === '1' ? '1' : '0');
 ini_set('display_startup_errors', (string)getenv('APP_DEBUG') === '1' ? '1' : '0');
 ini_set('log_errors', '1');
 
-// Получаем параметры
+// Get parameters
 $currentUser = isset($_GET['user']) ? $_GET['user'] : 'default';
 $path = isset($_GET['path']) ? $_GET['path'] : '';
 $lang = isset($_GET['lang']) ? $_GET['lang'] : 'en';
@@ -39,16 +39,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $savePath = resolve_cloud_photo_path_or_fail($currentUser, $root, (string)$data['path']);
         $imageData = $data['data'];
         
-        // Декодируем base64 изображение
+        // Decode the base64 image
         $imageData = str_replace('data:image/png;base64,', '', $imageData);
         $imageData = str_replace(' ', '+', $imageData);
         $decodedData = base64_decode($imageData);
         
-        // Сохраняем файл
+        // Save the file
         $success = file_put_contents($savePath, $decodedData);
         
         if ($success !== false) {
-            // Вычисляем относительный путь для основного приложения
+            // Compute the relative path for the main app
             $relativePath = appdata_root_relative_path($root, cloud_relative_input_path($currentUser, (string)$data['path']));
             
             echo json_encode([

@@ -6,8 +6,8 @@
     <title>Markdown Editor with LaTeX Support</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <!-- Убираем polyfill.io который вызывает ошибку -->
-    <!-- Загружаем MathJax напрямую с правильными настройками -->
+    <!-- Remove polyfill.io which causes an error -->
+    <!-- Load MathJax directly with correct settings -->
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script1.js.php'; ?>
 </script>
@@ -184,16 +184,16 @@
             width: 90%;
             background: #252526;
             border-radius: 16px;
-            padding: 0; /* Измените padding на 0 */
+            padding: 0; /* Change padding to 0 */
             box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
             border: 1px solid <?php echo $color;?>;
             max-height: 90vh;
-            overflow: hidden; /* Добавьте это */
+            overflow: hidden; /* Add this */
             display: flex;
             flex-direction: column;
         }
         .translation-modal-content .modal-body {
-            padding: 24px; /* Перенесите padding сюда */
+            padding: 24px; /* Move the padding here */
             overflow-y: auto;
             flex: 1;
         }
@@ -231,7 +231,7 @@
             box-sizing: border-box;
             opacity: 1;
             
-            /* Кастомный скроллбар для темной темы */
+            /* Custom scrollbar for dark theme */
             scrollbar-width: thin;
             scrollbar-color: #555 #2d2d2d;
         }
@@ -260,13 +260,13 @@
             background: #2d2d2d;
         }
 
-        /* Для light темы */
+        /* For light theme */
         body.light-theme .translation-text-box textarea {
             background: #ffffff;
             color: #333;
             border: 1px solid #ccc;
             
-            /* Кастомный скроллбар для светлой темы */
+            /* Custom scrollbar for light theme */
             scrollbar-width: thin;
             scrollbar-color: #bbb #f0f0f0;
         }

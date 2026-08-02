@@ -2,7 +2,7 @@
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 session_start();
 
-// Конфигурация
+// Configuration
 define('BIN_PATH', __DIR__ . '/bin/');
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 define('FRAMES_DIR', __DIR__ . '/frames/');
@@ -11,7 +11,7 @@ define('MIN_STEPS_VALUE', 100);
 define('MAX_STEPS_VALUE', 80000);
 define('VIDEO_JOB_RUNNING_STALE_SEC', 86400);
 
-// URL параметры
+// URL parameters
 $allowedPostTesseract = ['eng', 'rus', 'ukr', 'bel'];
 $lang = 'en';
 if (isset($_POST['language']) && is_string($_POST['language'])) {
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['language']) && is_str
     $tessSelForForms = trim($_POST['language']);
 }
 
-// Переводы
+// Translations
 $translations = [
     'en' => [
         'title' => 'Enhanced Video Step Counter',
@@ -1044,18 +1044,40 @@ cleanupOldFiles(RESULTS_DIR, 24);
         }
         .modal-table-wrap, #fileViewModal .modal-content > pre { max-height: 50vh; overflow-x: hidden; overflow-y: auto; margin: 10px 0; box-sizing: border-box; width: 100%; min-width: 0; }
         #fileViewModal .modal-content > pre { text-align: left; }
-        .cropper-container img { 
-            max-width: 100%; 
-            max-height: 70vh; 
-            object-fit: contain; 
+        .cropper-container {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            max-width: 45vw;
+            max-height: 30vh;
+        }
+        .cropper-container img {
+            max-width: 45vw;
+            max-height: 30vh;
+            object-fit: contain;
+            height: auto;
+            width: auto;
+        }
+        #cropModal {
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
         #cropModal .modal-content {
-            max-width: 80vw;
-            max-height: 100vh;
-            overflow: hidden;
+            width: auto;
+            max-width: 50vw;
+            max-height: 50vh;
+            overflow: visible;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
         }
         #cropModal .cropper-container {
-            max-height: 60vh;
+            max-width: 45vw;
+            max-height: 30vh;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
         }
         .crop-btn { 
             margin: 10px; 

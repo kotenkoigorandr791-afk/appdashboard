@@ -16,14 +16,14 @@
             const navButtons = document.querySelector('.nav-buttons');
             if (images.length <= 1 && navButtons) navButtons.classList.add('is-hidden');
 
-            // Извлекаем относительный путь для API
+            // Extract the relative path for the API
             let apiBasePath = fullPath;
             const pathMatch = fullPath.match(/^storage\/[^/]+\/(?:\.[^/]+\/)?(.+)$/);
             if (pathMatch) {
                 apiBasePath = pathMatch[1];
             }
 
-            // Функция загрузки GPS метаданных через API
+            // Function to load GPS metadata via the API
             function loadGpsMetadata(apiPath, callback) {
                 fetch(`<?= htmlspecialchars($apiUrl) ?>?action=metadata&path=${encodeURIComponent(apiPath)}&root=<?= rawurlencode($root) ?>`)
                     .then(res => res.json())
@@ -34,7 +34,7 @@
                     .catch(() => callback(null));
             }
 
-            // Инициализация карты если есть GPS данные
+            // Initialize the map if GPS data exists
             function initMap(lat, lon, theme) {
                 const mapContainer = document.getElementById('locationMap');
                 if (!lat || !lon) {
@@ -113,7 +113,7 @@
                 });
             }
 
-            // Функция загрузки нового изображения
+            // Function to load a new image
             async function loadImage(index) {
                 if (index < 0 || index >= images.length) return;
 
@@ -137,11 +137,11 @@
                     return;
                 }
 
-                // Обновляем индикаторы
+                // Update the indicators
                 document.querySelector('.position-indicator').textContent = fileName;
                 document.querySelector('.image-counter').textContent = `${index + 1} / ${images.length}`;
 
-                // Обновляем состояние кнопок навигации
+                // Update the navigation button state
                 const prevBtn = document.querySelector('.prev-btn');
                 const nextBtn = document.querySelector('.next-btn');
                 if (prevBtn && nextBtn) {
@@ -161,7 +161,7 @@
                     }
                 }
 
-                // Загружаем GPS метаданные через API
+                // Load GPS metadata via the API
                 loadGpsMetadata(apiPath, function(gps) {
                     if (gps) {
                         currentGpsData = gps;
@@ -173,10 +173,10 @@
                     }
                 });
 
-                // Обновляем текущий индекс
+                // Update the current index
                 currentIndex = index;
                 
-                // Обновляем название вкладки в родителе (без эмодзи)
+                // Update the tab title in the parent (without emoji)
                 if (window.parent && window.parent.postMessage) {
                     window.parent.postMessage({ 
                         type: 'UPDATE_TAB_TITLE', 
@@ -203,7 +203,7 @@
                 }).catch(() => fileProgress.fail('Error'));
             }
 
-            // Обработчики навигации
+            // Navigation handlers
             const prevNav = document.querySelector('.prev-btn');
             const nextNav = document.querySelector('.next-btn');
             if (prevNav) prevNav.addEventListener('click', () => {
@@ -213,7 +213,7 @@
                 if (currentIndex < images.length - 1) loadImage(currentIndex + 1);
             });
 
-            // Клавиатурная навигация
+            // Keyboard navigation
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'ArrowLeft') {
                     e.preventDefault();
@@ -228,13 +228,13 @@
                 }
             });
 
-            // Синхронизация темы с родителем
+            // Sync the theme with the parent
             window.addEventListener('message', function(event) {
                 if (event.data.type === 'THEME_UPDATE') {
                     const newTheme = event.data.theme;
                     document.body.setAttribute('data-theme', newTheme);
 
-                    // Обновляем стиль карты если она есть
+                    // Update the map style if present
                     const mapContainer = document.getElementById('locationMap');
                     if (mapContainer && mapContainer.style.display !== 'none' && currentGpsData) {
                         initMap(currentGpsData.lat, currentGpsData.lon, newTheme);
@@ -242,12 +242,12 @@
                 }
             });
 
-            // Запрос темы у родителя при загрузке
+            // Request the theme from the parent on load
             if (window.parent && window.parent.postMessage) {
                 window.parent.postMessage({ type: 'REQUEST_THEME' }, '*');
             }
 
-            // Авто-скрытие toolbar с задержкой
+            // Auto-hide the toolbar with a delay
             let hideTimeout;
             document.addEventListener('mousemove', () => {
                 clearTimeout(hideTimeout);
@@ -258,7 +258,7 @@
                 }, 5000);
             });
 
-            // Блокировка Esc и контекстного меню
+            // Block Esc and the context menu
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') e.preventDefault();
             }, true);

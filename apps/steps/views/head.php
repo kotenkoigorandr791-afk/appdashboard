@@ -85,7 +85,7 @@
             backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
         }
         
-        /* Скрываем скроллбар при открытом модальном окне */
+        /* Hide scrollbar when a modal is open */
         body.modal-open {
             overflow: hidden !important;
             position: fixed;
@@ -436,7 +436,7 @@
         #year-selector { width: 90px; }
         #month-selector { width: 160px; }
 
-        /* Стильный бокс для селектов года/месяца */
+        /* Stylish box for year/month selects */
         .calendar-selector-box {
             display: inline-flex;
             gap: 8px;
@@ -521,7 +521,7 @@
             border-radius: 50%;
         }
         
-        /* Модальные окна для мобильных */
+        /* Modal windows for mobile */
         #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #alert-modal {
             position: fixed; 
             top: 0; 
@@ -699,6 +699,40 @@
             padding: 14px 16px;
             border-radius: 10px;
             font-size: 14px;
+        }
+        .settings-chart-preview-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+        }
+        @media (max-width: 768px) {
+            .settings-chart-preview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .settings-chart-preview-item {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .settings-chart-preview-item .chart-type-btn {
+            width: 100%;
+        }
+        .settings-chart-preview-box {
+            padding: 12px;
+            background: var(--group-block-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            transition: border-color 0.2s ease;
+        }
+        .settings-chart-preview-item:has(.chart-type-btn.active) .settings-chart-preview-box {
+            border-color: var(--primary-color);
+        }
+        .settings-chart-preview-box canvas {
+            width: 100%;
+            height: 200px;
+            display: block;
         }
         #add-steps-modal .add-steps-content {
             overflow: hidden;
@@ -1156,7 +1190,7 @@
             padding-right: 36px;
         }
         
-        /* Excel таблица */
+        /* Excel table */
         .excel-table-container {
             width: 100%;
             max-width: 100%;
@@ -1291,7 +1325,7 @@
             color: var(--text-color); 
         }
         
-        /* Шире поле даты рождения */
+        /* Wider date of birth field */
         .settings-content input[name="birth_date"] {
             width: 150px;
         }
@@ -1520,7 +1554,7 @@
             color: white;
         }
         
-        /* Пагинация таблицы */
+        /* Table pagination */
         .table-pagination {
             display: flex;
             align-items: center;
@@ -1542,7 +1576,7 @@
         .page-btn:not(:disabled):hover { background: var(--primary-color); color: #fff; }
         .page-info { font-size: 13px; color: var(--text-color); }
 
-        /* Мобильная адаптация */
+        /* Mobile adaptation */
         @media only screen and (max-width: 768px) {
             body.modal-open {
                 padding: 0 !important;

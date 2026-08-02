@@ -1,5 +1,5 @@
 <?php
-// ─── Фото/роль (используется get_current_user_email из auth_common) ───────────
+// Photo/role (uses get_current_user_email from auth_common)
 function getUserPhoto(string $email): ?string {
     $db = getDB();
     if (!$db) return null;

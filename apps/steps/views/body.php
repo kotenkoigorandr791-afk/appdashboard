@@ -243,15 +243,25 @@
                 </div>
                 <div id="settings-panel-chart" class="settings-tab-panel" role="tabpanel">
                     <p class="settings-chart-type-intro"><?php echo htmlspecialchars($translations['settings_chart_type_hint'] ?? 'Choose how the main chart is drawn.'); ?></p>
-                    <div class="settings-chart-type-group">
-                        <button type="button" class="chart-type-btn active" data-type="bar">
-                            <i class="fas fa-chart-bar"></i>
-                            <span><?php echo htmlspecialchars($translations['bar_chart'] ?? 'Bar Chart'); ?></span>
-                        </button>
-                        <button type="button" class="chart-type-btn" data-type="line">
-                            <i class="fas fa-chart-line"></i>
-                            <span><?php echo htmlspecialchars($translations['linear_chart'] ?? 'Linear Chart'); ?></span>
-                        </button>
+                    <div class="settings-chart-preview-grid">
+                        <div class="settings-chart-preview-item">
+                            <button type="button" class="chart-type-btn active" data-type="bar">
+                                <i class="fas fa-chart-bar"></i>
+                                <span><?php echo htmlspecialchars($translations['bar_chart'] ?? 'Bar Chart'); ?></span>
+                            </button>
+                            <div class="settings-chart-preview-box">
+                                <canvas id="settings-chart-preview-bar"></canvas>
+                            </div>
+                        </div>
+                        <div class="settings-chart-preview-item">
+                            <button type="button" class="chart-type-btn" data-type="line">
+                                <i class="fas fa-chart-line"></i>
+                                <span><?php echo htmlspecialchars($translations['linear_chart'] ?? 'Linear Chart'); ?></span>
+                            </button>
+                            <div class="settings-chart-preview-box">
+                                <canvas id="settings-chart-preview-line"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

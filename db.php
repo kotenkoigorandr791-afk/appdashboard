@@ -363,7 +363,7 @@ function initDB(AppDatabase $db): void {
         return;
     }
     
-    // Включаем поддержку внешних ключей
+    // Enable foreign key support
     $db->exec("SELECT 1");
 
     // ── Users ────────────────────────────────────────────────────────────────
@@ -406,7 +406,7 @@ function initDB(AppDatabase $db): void {
     )");
 
     // ── Active sessions ──────────────────────────────────────────────────────
-    // Добавлен FOREIGN KEY с каскадным удалением
+    // Added FOREIGN KEY with cascading delete
     $db->exec("CREATE TABLE IF NOT EXISTS active_sessions (
         session_id    TEXT PRIMARY KEY,
         email         TEXT NOT NULL,
@@ -431,7 +431,7 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_stats_date ON visit_stats(stat_date)");
 
     // ── Shared files ─────────────────────────────────────────────────────────
-    // Добавлен FOREIGN KEY с каскадным удалением
+    // Added FOREIGN KEY with cascading delete
     $db->exec("CREATE TABLE IF NOT EXISTS shared_files (
         share_id    TEXT PRIMARY KEY,
         file_name   TEXT NOT NULL DEFAULT '',
@@ -458,7 +458,7 @@ function initDB(AppDatabase $db): void {
     try { $db->exec("ALTER TABLE shared_files ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
 
     // ── Password reset codes ─────────────────────────────────────────────────
-    // Добавлен FOREIGN KEY с каскадным удалением
+    // Added FOREIGN KEY with cascading delete
     $db->exec("CREATE TABLE IF NOT EXISTS reset_codes (
         email   TEXT PRIMARY KEY,
         code    TEXT NOT NULL,
@@ -1000,13 +1000,13 @@ function saveUsers(array $users): void {
     }
     
     foreach ($users as $email => $u) {
-        // Проверяем, существует ли пользователь
+        // Check if user exists
         $checkStmt = $db->prepare("SELECT COUNT(*) FROM users WHERE email = :email");
         $checkStmt->bindValue(':email', $email);
         $exists = (int)$checkStmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
         
         if ($exists) {
-            // Используем UPDATE для существующих пользователей
+            // Use UPDATE for existing users
             $stmt = $db->prepare("UPDATE users SET 
                 name = :name,
                 password = :password,
@@ -1022,7 +1022,7 @@ function saveUsers(array $users): void {
                 created_at = :created_at
                 WHERE email = :email");
         } else {
-            // Используем INSERT для новых пользователей
+            // Use INSERT for new users
             $stmt = $db->prepare("INSERT INTO users 
                 (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at)
                 VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at)");
@@ -1292,20 +1292,20 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
               ?? 'Unknown';
     $now = time();
     
-    // Проверяем, существует ли уже такая сессия
+    // Check if this session already exists
     $checkStmt = $db->prepare("SELECT session_id FROM active_sessions WHERE session_id = :sid");
     $checkStmt->bindValue(':sid', $sessionId);
     $exists = $checkStmt->execute()->fetch();
     
     if ($exists) {
-        // Обновляем существующую сессию
+        // Update existing session
         $stmt = $db->prepare("UPDATE active_sessions 
                               SET email = :email, user_data = :ud, login_time = :lt, 
                                   last_activity = :la, ip_address = :ip, user_agent = :ua, 
                                   device = :dev, browser = :br 
                               WHERE session_id = :sid");
     } else {
-        // Создаём новую сессию (не удаляя другие сессии этого же пользователя)
+        // Create new session (without deleting other sessions of this user)
         $stmt = $db->prepare("INSERT INTO active_sessions
             (session_id,email,user_data,login_time,last_activity,ip_address,user_agent,device,browser)
             VALUES(:sid,:email,:ud,:lt,:la,:ip,:ua,:dev,:br)");
@@ -1492,7 +1492,7 @@ function loadSharedFiles(?string $userEmail = null, bool $loadAllForAdmin = fals
     return $out;
 }
 
-// Замените функцию saveSharedFiles на:
+// Replace saveSharedFiles function with:
 function saveSharedFiles(array $files): void {
     $db = getDB();
     $db->exec("DELETE FROM shared_files");
@@ -1516,7 +1516,7 @@ function saveSharedFiles(array $files): void {
     }
 }
 
-// Добавьте функцию для получения расшаренного файла по ID с проверкой пользователя:
+// Add function to get shared file by ID with user verification:
 function getSharedFileById(string $shareId, ?string $userEmail = null): ?array {
     $db = getDB();
     if ($userEmail !== null) {
@@ -2466,7 +2466,7 @@ function migrateJsonToSQLite(): array {
 // =============================================================================
 
 /**
- * Генерирует уникальный 6-значный PIN, не совпадающий с существующими в БД.
+ * Generates a unique 6-digit PIN not matching existing ones in DB.
  */
 function generateUniqueOTP(): string {
     $db       = getDB();
@@ -2477,28 +2477,28 @@ function generateUniqueOTP(): string {
         $stmt->bindValue(':p', $pin);
         $exists = (int)$stmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
         $attempts++;
-        if ($attempts > 200) break; // защита от бесконечного цикла
+        if ($attempts > 200) break; // protection against infinite loop
     } while ($exists);
     return $pin;
 }
 
 /**
- * Создаёт новый OTP для пользователя.
- * Сначала удаляет все предыдущие OTP этого пользователя и просроченные чужие.
+ * Creates a new OTP for a user.
+ * First deletes all previous OTPs of this user and expired ones of others.
  *
- * @param string $email   E-mail владельца кода
- * @param int    $ttlSec  Время жизни в секундах (по умолчанию 300 = 5 мин)
- * @return string  Сгенерированный 6-значный PIN
+ * @param string $email   Owner's email
+ * @param int    $ttlSec  Time to live in seconds (default 300 = 5 min)
+ * @return string Generated 6-digit PIN
  */
 function createOTP(string $email, int $ttlSec = 300): string {
     $db = getDB();
 
-    // Удалить старые OTP этого пользователя
+    // Delete old OTPs of this user
     $del = $db->prepare("DELETE FROM one_time_pins WHERE email=:e");
     $del->bindValue(':e', $email);
     $del->execute();
 
-    // Фоновая чистка просроченных кодов всех пользователей
+    // Background cleanup of expired codes for all users
     $db->exec("DELETE FROM one_time_pins WHERE expires < " . time());
 
     $pin     = generateUniqueOTP();
@@ -2514,8 +2514,8 @@ function createOTP(string $email, int $ttlSec = 300): string {
 }
 
 /**
- * Проверяет OTP и при успехе удаляет его (одноразовый).
- * Возвращает email владельца при успехе или null при ошибке/просрочке.
+ * Verifies OTP and deletes it on success (one-time use).
+ * Returns owner's email on success or null on error/expiry.
  */
 function verifyAndConsumeOTP(string $pin): ?string {
     $db   = getDB();
@@ -2527,14 +2527,14 @@ function verifyAndConsumeOTP(string $pin): ?string {
     if (!$row) return null;
 
     if ((int)$row['expires'] < $now) {
-        // Просрочен — удаляем
+        // Expired — delete
         $del = $db->prepare("DELETE FROM one_time_pins WHERE pin=:p");
         $del->bindValue(':p', $pin);
         $del->execute();
         return null;
     }
 
-    // Успех — удаляем (одноразовый)
+    // Success — delete (one-time use)
     $del = $db->prepare("DELETE FROM one_time_pins WHERE pin=:p");
     $del->bindValue(':p', $pin);
     $del->execute();
@@ -2547,7 +2547,7 @@ function verifyAndConsumeOTP(string $pin): ?string {
 // =============================================================================
 
 /**
- * Возвращает запись блокировки для IP + тип.
+ * Returns lockout record for IP + type.
  * lock_type: 'otp' | 'login'
  */
 function getLockout(string $ip, string $lockType): array {
@@ -2566,18 +2566,18 @@ function getLockout(string $ip, string $lockType): array {
 }
 
 /**
- * Регистрирует неудачную попытку входа.
+ * Records a failed login attempt.
  *
- * Лимиты:
- *   otp   — 3 попытки → блокировка 180 сек (3 мин)
- *   login — 10 попыток → блокировка 600 сек (10 мин)
+ * Limits:
+ *   otp   — 3 attempts → lockout 180 sec (3 min)
+ *   login — 10 attempts → lockout 600 sec (10 min)
  */
 function recordFailedAttempt(string $ip, string $lockType): void {
     $db      = getDB();
     $lockout = getLockout($ip, $lockType);
     $now     = time();
 
-    // Если старая блокировка уже истекла — обнуляем счётчик
+    // If old lockout has already expired — reset counter
     if ($lockout['locked_until'] && (int)$lockout['locked_until'] < $now) {
         $lockout['attempts']     = 0;
         $lockout['locked_until'] = null;
@@ -2612,7 +2612,7 @@ function recordFailedAttempt(string $ip, string $lockType): void {
 }
 
 /**
- * Сбрасывает счётчик неудачных попыток после успешного входа.
+ * Resets failed attempts counter after successful login.
  */
 function resetFailedAttempts(string $ip, string $lockType): void {
     $db   = getDB();
@@ -2623,7 +2623,7 @@ function resetFailedAttempts(string $ip, string $lockType): void {
 }
 
 /**
- * Возвращает количество секунд до снятия блокировки, или 0 если не заблокирован.
+ * Returns seconds remaining until lockout expires, or 0 if not locked out.
  */
 function getIpLockoutSeconds(string $ip, string $lockType): int {
     $lockout = getLockout($ip, $lockType);

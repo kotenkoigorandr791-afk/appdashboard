@@ -138,7 +138,7 @@ function cloud_onlyoffice_user_image_url(?string $email): string {
     return $origin . '/' . ltrim($photo, '/');
 }
 
-// ---------- ОБРАБОТКА СКАЧИВАНИЯ ФАЙЛА ----------
+// ---------- FILE DOWNLOAD HANDLING ----------
 if (isset($_GET['action']) && $_GET['action'] === 'download') {
     $requestedPath = isset($_GET['path']) ? (string)$_GET['path'] : '';
     $requestedUser = isset($_GET['user']) ? (string)$_GET['user'] : 'default';
@@ -182,7 +182,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'download') {
     exit;
 }
 
-// ---------- ОБРАБОТКА CALLBACK ОТ ONLYOFFICE ----------
+// ---------- ONLYOFFICE CALLBACK HANDLING ----------
 if (isset($_GET['callback'])) {
     header('Content-Type: application/json; charset=utf-8');
     $body = json_decode(file_get_contents('php://input'), true);
@@ -209,13 +209,13 @@ if (isset($_GET['callback'])) {
     exit;
 }
 
-// Проверяем, что путь указан
+// Check that path is provided
 if (empty($filePath)) {
     cloud_onlyoffice_error('File path is required', 400);
 }
 require_cloud_onlyoffice_group_access($rootKey);
 
-// Формируем полный путь к файлу с учетом скрытых root-папок
+// Build full file path accounting for hidden root folders
 $fullPath = resolve_cloud_user_path_or_fail($user, $rootKey, $filePath);
 if (!file_exists($fullPath) && $rootKey === 'main') {
     $groupRoot = cloud_onlyoffice_find_group_root_for_file($user, $filePath);
@@ -226,12 +226,12 @@ if (!file_exists($fullPath) && $rootKey === 'main') {
     }
 }
 
-// Проверяем существование файла
+// Check file exists
 if (!file_exists($fullPath)) {
     cloud_onlyoffice_error('File not found: ' . cloud_onlyoffice_safe_name($filePath), 404);
 }
 
-// Определяем тип документа
+// Determine document type
 $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 $docTypes = [
     'doc' => 'word', 'docx' => 'word', 'odt' => 'word', 'rtf' => 'word', 'txt' => 'word',
@@ -245,11 +245,11 @@ if (!isset($docTypes[$ext])) {
 
 $documentType = $docTypes[$ext];
 
-// Проверка на зашифрованную папку .documents
+// Check for encrypted .documents folder
 $isDocumentsRoot = ($rootKey === 'documents');
 $tempFilePath = null;
 
-// Функция для шифрования контента .documents
+// Function to encrypt .documents content
 function encrypt_documents_content(string $plain, string $user): string {
     $ivLen = openssl_cipher_iv_length('aes-256-cbc');
     $iv = random_bytes($ivLen);
@@ -260,7 +260,7 @@ function encrypt_documents_content(string $plain, string $user): string {
     return "CLOUDDOC1" . $iv . $cipher;
 }
 
-// Функция для расшифровки контента .documents
+// Function to decrypt .documents content
 function decrypt_documents_content(string $raw, string $user): string {
     if (!str_starts_with($raw, "CLOUDDOC1")) return $raw;
     $ivLen = openssl_cipher_iv_length('aes-256-cbc');
@@ -273,7 +273,7 @@ function decrypt_documents_content(string $raw, string $user): string {
     return $plain === false ? '' : $plain;
 }
 
-// ---------- JWT и CONFIG ----------
+// ---------- JWT AND CONFIG ----------
 function jwtBase64Url(string $raw): string {
     return rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
 }
@@ -287,14 +287,14 @@ function jwtEncode($payload, $secret) {
     return $h . '.' . $p . '.' . $s;
 }
 
-// Получаем базовый URL с HTTPS
+// Get base URL with HTTPS
 $host = $_SERVER['HTTP_HOST'];
 $scriptName = $_SERVER['PHP_SELF'];
 
-// Формируем URL с принудительным HTTPS
+// Build URL with forced HTTPS
 $baseUrl = "https://$host$scriptName";
 
-// Создаем URL для скачивания файла (с указанием rootKey для расшифровки)
+// Create download URL for file (with rootKey for decryption)
 $docDownloadUser = $user;
 $docDownloadRoot = $rootKey;
 $docDownloadPath = $filePath;
@@ -384,7 +384,7 @@ $docConfig = [
     ],
 ];
 
-// Добавляем JWT токен
+// Add JWT token
 $docConfig['token'] = jwtEncode($docConfig, $JWT_SECRET);
 if ($docConfig['token'] === '') {
     http_response_code(500);
@@ -392,7 +392,7 @@ if ($docConfig['token'] === '') {
     exit('Failed to generate ONLYOFFICE security token');
 }
 
-// Настройки темы для CSS
+// Theme settings for CSS
 $bgColor = ($theme === 'light') ? '#ffffff' : '#1a1a1a';
 $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
 
@@ -466,7 +466,7 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
     <div id="editor"></div>
     
     <script>
-        // Функция для обработки ошибок загрузки API
+        // Function to handle API load errors
         function handleApiError() {
             document.getElementById('editor').innerHTML = `
                 <div class="onlyoffice-loading">
@@ -486,15 +486,15 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
             }, '*');
         }
 
-        // Обработка сообщений от родительского окна
+        // Handle messages from parent window
         window.addEventListener('message', function(event) {
             if (event.data.type === 'saveOnlyOfficeDocument') {
 
-                // Здесь можно добавить логику принудительного сохранения
+                // Can add forced save logic here
             }
         });
 
-        // Инициализация редактора
+        // Editor initialization
         function initEditor() {
             const config = <?php echo json_encode($docConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
             try {
@@ -524,10 +524,10 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
             }
         }
 
-        // Устанавливаем таймаут для загрузки API
-        const apiTimeout = setTimeout(handleApiError, 10000); // 10 секунд таймаут
+        // Set timeout for API loading
+        const apiTimeout = setTimeout(handleApiError, 10000); // 10 second timeout
 
-        // Загружаем редактор после загрузки API
+        // Load editor after API loads
         if (typeof DocsAPI !== 'undefined' && DocsAPI.DocEditor) {
             clearTimeout(apiTimeout);
             initEditor();
@@ -540,7 +540,7 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
                 </div>
             `;
             
-            // Проверяем доступность API
+            // Check API availability
             let checkCount = 0;
             let checkInterval = setInterval(() => {
                 checkCount++;
@@ -549,7 +549,7 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
                     clearInterval(checkInterval);
                     clearTimeout(apiTimeout);
                     initEditor();
-                } else if (checkCount > 40) { // 20 секунд максимум (40 * 500ms)
+                } else if (checkCount > 40) { // 20 seconds max (40 * 500ms)
                     clearInterval(checkInterval);
                     clearTimeout(apiTimeout);
                     handleApiError();
@@ -557,7 +557,7 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
             }, 500);
         }
 
-        // Добавляем обработчик ошибок глобально
+        // Add global error handler
         window.addEventListener('error', function(event) {
             console.error('Global error:', event.error);
             if (event.error && event.error.message && event.error.message.includes('DocsAPI')) {

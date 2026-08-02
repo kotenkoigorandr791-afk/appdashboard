@@ -136,7 +136,7 @@
         }
         
         .audio-panel {
-            /* Специальный класс для панели с аудио */
+            /* Special class for the audio panel */
             overflow: hidden;
         }
         
@@ -548,7 +548,7 @@
             }
             
             .audio-panel {
-                /* На мобильных включаем прокрутку для всей панели аудио */
+                /* Enable scrolling for the whole audio panel on mobile */
                 overflow-y: auto;
             }
             
@@ -578,7 +578,7 @@
                 font-size: 14px;
             }
             
-            /* Скрываем скроллбары на мобильных устройствах */
+            /* Hide scrollbars on mobile devices */
             .audio-panel::-webkit-scrollbar,
             .panel::-webkit-scrollbar {
                 display: none;

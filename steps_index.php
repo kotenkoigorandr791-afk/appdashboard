@@ -4,22 +4,22 @@ smart_log_bootstrap('steps');
 ini_set('display_errors', 0);
 ini_set('log_errors', 1);
 
-// ╨С╤Г╤Д╨╡╤А╨╕╨╖╨░╤Ж╨╕╤П тАФ ╤З╤В╨╛╨▒╤Л POST-╨╛╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨╝╨╛╨│╨╗╨╕ ╤Б╨┤╨╡╨╗╨░╤В╤М exit() ╤Б JSON ╨┤╨╛ ╨▓╤Л╨▓╨╛╨┤╨░ HTML
+// Buffering — so POST handlers can exit() with JSON before HTML output
 ob_start();
 require_once __DIR__ . '/apps/steps/auth_common.php';
 require_once __DIR__ . '/apps/steps/core/db_helpers.php';
 require_once __DIR__ . '/video_job_sqlite.php';
 require_once __DIR__ . '/utils/google_fit_takeout/fit_takeout_state.php';
-// тФАтФАтФА ╨Ю╨▒╤Й╨░╤П ╨▒╨░╨╖╨░ ╨┤╨░╨╜╨╜╤Л╤Е (╨░╨▓╤В╨╛╤А╨╕╨╖╨░╤Ж╨╕╤П, ╤Б╨╡╤Б╤Б╨╕╨╕) тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// === General database (auth, sessions) ===
 const UPLOAD_SESSIONS_DIR = __DIR__ . '/upload_sessions';
-const TABLE_PAGE_SIZE     = 50; // ╤Б╤В╤А╨╛╨║ ╨╜╨░ ╤Б╤В╤А╨░╨╜╨╕╤Ж╤Г ╨▓ excel-╤В╨░╨▒╨╗╨╕╤Ж╨╡
+const TABLE_PAGE_SIZE     = 50; // rows per page in excel table
 
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
 
-// ─── Пользовательская база данных — apps/steps/core/db_helpers.php ───
+// ─── User database — apps/steps/core/db_helpers.php ───
 
-// ─── Утилиты дат ───
-// dd-mm-yy тЖТ YYYY-MM-DD
+// ─── Date utilities ───
+// dd-mm-yy -> YYYY-MM-DD
 function csvDateToISO(string $raw): ?string {
     $parts = explode('-', trim($raw));
     if (count($parts) !== 3) return null;
@@ -29,12 +29,12 @@ function csvDateToISO(string $raw): ?string {
     return "$fullYear-$m-$d";
 }
 
-// YYYY-MM-DD тЖТ dd-mm-yy
+// YYYY-MM-DD -> dd-mm-yy
 function isoToCSVDate(string $iso): string {
     return (new DateTime($iso))->format('d-m-y');
 }
 
-// тФАтФАтФА ╨Э╨░╤Б╤В╤А╨╛╨╣╨║╨╕ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// === Settings ===
 $defaultSettings = [
     'goal_steps'    => 10000,
     'height'        => 170,
@@ -74,7 +74,7 @@ function saveUserSetting(AppDatabase $db, string $key, string $value): void {
     $stmt->execute();
 }
 
-// тФАтФАтФА ╨и╨░╨│╨╕ тАФ ╨▒╨░╨╖╨╛╨▓╤Л╨╡ ╨╛╨┐╨╡╤А╨░╤Ж╨╕╨╕ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// === Charts — basic operations ===
 function upsertStep(AppDatabase $db, string $date, int $steps): void {
     $stmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
     $stmt->bindValue(':d', $date, PDO::PARAM_STR);
@@ -135,7 +135,7 @@ function normalizeStepsDatesTable(AppDatabase $db): void {
     }
 }
 
-// ╨Ч╨░╨│╤А╤Г╨╖╨║╨░ ╨в╨Ю╨Ы╨м╨Ъ╨Ю ╨╜╤Г╨╢╨╜╨╛╨│╨╛ ╨┤╨╕╨░╨┐╨░╨╖╨╛╨╜╨░ ╨┤╨░╤В (╨┤╨╗╤П ╨│╤А╨░╤Д╨╕╨║╨░/╨║╨░╨╗╨╡╨╜╨┤╨░╤А╤П)
+// Load ONLY needed date range (for chart/calendar)
 function loadStepsRange(AppDatabase $db, string $from, string $to): array {
     $steps = [];
     try {
@@ -154,7 +154,7 @@ function loadStepsRange(AppDatabase $db, string $from, string $to): array {
     return $steps;
 }
 
-// ╨Ь╨╕╨╜╨╕╨╝╨░╨╗╤М╨╜╨░╤П ╨╕ ╨╝╨░╨║╤Б╨╕╨╝╨░╨╗╤М╨╜╨░╤П ╨┤╨░╤В╨░ ╨▓ ╨▒╨░╨╖╨╡
+// Min and max date in DB
 function getStepsDateBounds(AppDatabase $db): array {
     try {
         $minDate = $db->querySingle('SELECT MIN(date) FROM steps');
@@ -165,21 +165,21 @@ function getStepsDateBounds(AppDatabase $db): array {
     }
 }
 
-// ╨Ч╨░╨│╤А╤Г╨╖╨║╨░ ╤Б╤В╤А╨░╨╜╨╕╤Ж╤Л ╤В╨░╨▒╨╗╨╕╤Ж╤Л ╤Б SQL-╤Д╨╕╨╗╤М╤В╤А╨╛╨╝
+// Load table page with SQL filter
 function loadStepsPage(AppDatabase $db, int $page, int $pageSize, string $filterOp, ?int $filterVal, ?int $filterValTo, ?string $dateFrom, ?string $dateTo): array {
     $offset = ($page - 1) * $pageSize;
 
-    // ╨б╤В╤А╨╛╨╕╨╝ WHERE
+    // Build WHERE
     [$where, $params] = buildStepsWhere($filterOp, $filterVal, $filterValTo, $dateFrom, $dateTo);
 
     try {
-        // ╨Ю╨▒╤Й╨╡╨╡ ╨║╨╛╨╗-╨▓╨╛
+        // Total count
         $countSql = "SELECT COUNT(*) FROM steps" . ($where ? " WHERE $where" : '');
         $countStmt = $db->prepare($countSql);
         foreach ($params as $k => $v) $countStmt->bindValue($k, $v[0], $v[1]);
         $total = (int)$countStmt->execute()->fetch(PDO::FETCH_NUM)[0];
 
-        // ╨б╤В╤А╨░╨╜╨╕╤Ж╨░
+        // Page
         $sql = "SELECT date, steps FROM steps" . ($where ? " WHERE $where" : '') . " ORDER BY date DESC LIMIT :lim OFFSET :off";
         $stmt = $db->prepare($sql);
         foreach ($params as $k => $v) $stmt->bindValue($k, $v[0], $v[1]);
@@ -235,7 +235,7 @@ function buildStepsWhere(string $op, ?int $val, ?int $valTo, ?string $dateFrom, 
     return [implode(' AND ', $parts), $params];
 }
 
-// ╨н╨║╤Б╨┐╨╛╤А╤В ╨▓╤Б╨╡╤Е ╤И╨░╨│╨╛╨▓ ╨▓ CSV (╨┤╨╗╤П ╨▒╤Н╨║╨░╨┐╨╛╨▓)
+// Export all steps to CSV (for backup)
 function exportStepsToCSV(AppDatabase $db): string {
     $out = '';
     try {
@@ -249,7 +249,7 @@ function exportStepsToCSV(AppDatabase $db): string {
     return $out;
 }
 
-// ╨Ш╨╝╨┐╨╛╤А╤В CSV-╨║╨╛╨╜╤В╨╡╨╜╤В╨░ ╨▓ ╨▒╨░╨╖╤Г
+// Import CSV content into DB
 function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $replace = true): array {
     $imported = [];
     $lines = explode("\n", $csvContent);
@@ -301,7 +301,7 @@ function steps_delete_tree(string $dir): bool {
     return @rmdir($dir);
 }
 
-// тФАтФАтФА ╨д╨╛╤В╨╛/╤А╨╛╨╗╤М (╨╕╤Б╨┐╨╛╨╗╤М╨╖╤Г╨╡╤В╤Б╤П get_current_user_email ╨╕╨╖ auth_common) тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// === Photo/role (uses get_current_user_email from auth_common) ===
 function getUserPhoto(string $email): ?string {
     $db = getDB();
     if (!$db) return null;
@@ -358,7 +358,7 @@ function checkDirectory(string $dir): void {
     }
 }
 
-// тФАтФАтФА ╨Ш╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// Initialization
 require_once __DIR__ . '/project/i18n_helpers.php';
 $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';
@@ -376,7 +376,7 @@ $userDir  = "$usersDir/$safeUserName";
 checkDirectory($usersDir);
 checkDirectory($userDir);
 
-// ╨д╨╛╤В╨╛ ╨┐╤А╨╛╤Д╨╕╨╗╤П
+// User profile
 $profilePhoto = 'default_profile.jpg';
 if (!empty($userPhotoFromDB)) {
     $photoPath = "$userDir/profile.jpg";
@@ -393,18 +393,18 @@ if (!empty($userPhotoFromDB)) {
     }
 }
 
-// ╨Ю╤В╨║╤А╤Л╨▓╨░╨╡╨╝ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤М╤Б╨║╤Г╤О ╨С╨Ф
+// Open user DB
 $userDb = getUserDB($userDir);
 normalizeStepsDatesTable($userDb);
 
-// ╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨╜╨░╤Б╤В╤А╨╛╨╣╨║╨╕
+// Load settings
 $userSettings = loadUserSettings($userDb, $defaultSettings);
 
-// тФАтФАтФА ╨Ш╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨╕╤А╤Г╨╡╨╝ ╤И╨░╨│╨╕: ╤В╨╛╨╗╤М╨║╨╛ ╨┐╨╛╤Б╨╗╨╡╨┤╨╜╨╕╨╡ 12 ╨╝╨╡╤Б╤П╤Ж╨╡╨▓ ╨┤╨╗╤П ╨╜╨░╤З╨░╨╗╤М╨╜╨╛╨│╨╛ ╤А╨╡╨╜╨┤╨╡╤А╨░ тФА
+// Initialize steps: only last 12 months for initial render
 $today        = (new DateTime())->format('Y-m-d');
 $yearAgo      = (new DateTime())->modify('-12 months')->format('Y-m-d');
 
-// ╨Х╤Б╨╗╨╕ ╨С╨Ф ╨┐╤Г╤Б╤В╨░ тАФ ╨╖╨░╨┐╨╛╨╗╨╜╤П╨╡╨╝ ╨╝╨╡╤Б╤П╤Ж╨╡╨╝ ╨╜╤Г╨╗╨╡╨╣
+// If DB is empty — fill month with zeros
 $totalCount = (int)$userDb->querySingle('SELECT COUNT(*) FROM steps');
 if ($totalCount === 0) {
     $sd = (new DateTime())->modify('-1 month');
@@ -417,19 +417,19 @@ if ($totalCount === 0) {
     $userDb->exec('COMMIT');
 }
 
-// ╨г╨▒╨╡╨┤╨╕╨╝╤Б╤П, ╤З╤В╨╛ ╤Б╨╡╨│╨╛╨┤╨╜╤П╤И╨╜╨╕╨╣ ╨┤╨╡╨╜╤М ╨╡╤Б╤В╤М ╨▓ ╨▒╨░╨╖╨╡
+// Ensure today exists in DB
 $userDb->exec("INSERT INTO steps (date, steps) VALUES ('$today', 0) ON CONFLICT (date) DO NOTHING");
 
-// ╨Ю╨┐╤А╨╡╨┤╨╡╨╗╤П╨╡╨╝ ╤Б╨░╨╝╤Г╤О ╤А╨░╨╜╨╜╤О╤О ╨┤╨░╤В╤Г
+// Determine earliest date
 [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
 $earliestDate = $earliestInDB ?? $today;
 
-// ╨Ч╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╨▓╨╡╤Б╤М ╨┤╨╛╤Б╤В╤Г╨┐╨╜╤Л╨╣ ╨┤╨╕╨░╨┐╨░╨╖╨╛╨╜ ╨┤╨░╤В ╨┤╨╗╤П JS
+// Load full available date range for JS
 $jsRangeFrom = $earliestInDB ?? $today;
 $jsRangeTo = ($latestInDB && strcmp($latestInDB, $today) > 0) ? $latestInDB : $today;
 $stepsDataRaw = loadStepsRange($userDb, $jsRangeFrom, $jsRangeTo);
 
-// ╨Ч╨░╨┐╨╛╨╗╨╜╤П╨╡╨╝ ╨┐╤А╨╛╨┐╤Г╤Б╨║╨╕ ╨╜╤Г╨╗╤П╨╝╨╕ ╨▓ ╨╖╨░╨│╤А╤Г╨╢╨╡╨╜╨╜╨╛╨╝ ╨┤╨╕╨░╨┐╨░╨╖╨╛╨╜╨╡
+// Fill gaps with zeros in loaded range
 $cd = new DateTime($jsRangeFrom);
 $ed2 = new DateTime($jsRangeTo);
 $toInsert = [];
@@ -488,12 +488,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['video_bootstrap']) && (
     exit(json_encode(['ok' => true, 'mode' => 'idle']));
 }
 
-// тФАтФАтФА POST-╨╛╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     ob_clean();
 
-    // ╨б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╨╜╨░╤Б╤В╤А╨╛╨╡╨║
+    // Save settings
     if (isset($_POST['settings'])) {
         $goalSteps = filter_var(str_replace(',', '.', $_POST['goal_steps']), FILTER_VALIDATE_FLOAT);
         if ($goalSteps === false || $goalSteps < 0)
@@ -514,7 +514,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success']));
     }
 
-    // ╨Ф╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╕╨╡ ╤И╨░╨│╨╛╨▓
+    // Add steps
     if (isset($_POST['add_steps'])) {
         $date  = $_POST['date'] ?? '';
         $stepsRaw = preg_replace('/\D+/', '', (string)($_POST['steps'] ?? ''));
@@ -619,7 +619,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success']));
     }
 
-    // ╨б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╤Б╤В╤А╨╛╨║╨╕ ╨╕╨╖ ╤В╨░╨▒╨╗╨╕╤Ж╤Л (╨┤╨░╤В╨░ dd-mm-yy)
+    // Save row from table (date dd-mm-yy)
     if (isset($_POST['save_table_data'])) {
         $date  = $_POST['date']  ?? '';
         $steps = preg_replace('/\D+/', '', (string)($_POST['steps'] ?? ''));
@@ -638,7 +638,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // тФАтФА ╨в╨░╨▒╨╗╨╕╤Ж╨░: ╨┐╨╛╨╗╤Г╤З╨╡╨╜╨╕╨╡ ╤Б╤В╤А╨░╨╜╨╕╤Ж╤Л ╤Б ╤Д╨╕╨╗╤М╤В╤А╨╛╨╝ (╤З╨╡╤А╨╡╨╖ SQL) тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+    // Table: get page with filter (via SQL)
     if (isset($_POST['get_table_page'])) {
         $page       = max(1, (int)($_POST['page']      ?? 1));
         $filterOp   = $_POST['filter_op']              ?? '';
@@ -651,7 +651,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success'] + $result));
     }
 
-    // ╨б╨╛╨╖╨┤╨░╨╜╨╕╨╡ ╨▒╤Н╨║╨░╨┐╨░
+    // Create backup
     if (isset($_POST['create_backup'])) {
         checkDirectory($userDir);
         $backupDir = "$userDir/backups";
@@ -672,7 +672,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'error', 'message' => $translations['failed_create_backup'] ?? 'Failed to create backup']));
     }
 
-    // ╨б╨┐╨╕╤Б╨╛╨║ ╨▒╤Н╨║╨░╨┐╨╛╨▓
+    // List backups
     if (isset($_POST['get_backups_list'])) {
         $backupDir = "$userDir/backups";
         $backups   = [];
@@ -685,13 +685,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success', 'backups' => $backups]));
     }
 
-    // ╨Т╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡ ╨╕╨╖ ╨▒╤Н╨║╨░╨┐╨░
+    // Restore from backup
     if (isset($_POST['restore_backup'])) {
         $bname     = $_POST['backup_file'] ?? '';
         $backupDir = "$userDir/backups";
         if (empty($bname) || !file_exists("$backupDir/$bname"))
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
-        // ╨Р╨▓╤В╨╛╨▒╤Н╨║╨░╨┐ ╨┐╨╡╤А╨╡╨┤ ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╨╡╨╝
+        // Auto backup before restore
         $autoCSV = exportStepsToCSV($userDb);
         if ($autoCSV) file_put_contents("$backupDir/Before_restore_" . date('Y-m-d_H-i-s') . ".csv", $autoCSV);
         $content = file_get_contents("$backupDir/$bname");
@@ -706,7 +706,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ╨г╨┤╨░╨╗╨╡╨╜╨╕╨╡ ╨▒╤Н╨║╨░╨┐╨░
+    // Delete backup
     if (isset($_POST['delete_backup'])) {
         $bname     = $_POST['backup_file'] ?? '';
         $backupDir = "$userDir/backups";
@@ -717,7 +717,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             : ['status' => 'error',   'message' => $translations['failed_delete_backup'] ?? 'Failed to delete']));
     }
 
-    // ╨б╨║╨░╤З╨╕╨▓╨░╨╜╨╕╨╡ ╤В╨╡╨║╤Г╤Й╨╕╤Е ╨┤╨░╨╜╨╜╤Л╤Е ╨║╨░╨║ CSV
+    // Export current data as CSV
     if (isset($_POST['download_backup'])) {
         $csv = exportStepsToCSV($userDb);
         if ($csv) {
@@ -733,7 +733,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit(json_encode(['status' => 'error', 'message' => $translations['invalid_request'] ?? 'Invalid request']));
 }
 
-// тФАтФАтФА HTML-╨▓╤Л╨▓╨╛╨┤ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+// HTML output
 ob_clean();
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Content-Type: text/html; charset=UTF-8');
@@ -762,7 +762,7 @@ header('Content-Type: text/html; charset=UTF-8');
             --scrollbar-thumb: <?php echo $theme === 'dark' ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)'; ?>; 
         }
         
-        /* ╨б╨║╤А╤Л╨▓╨░╨╡╨╝ ╤Б╨║╤А╨╛╨╗╨╗╨▒╨░╤А ╨┐╤А╨╕ ╨╛╤В╨║╤А╤Л╤В╨╛╨╝ ╨╝╨╛╨┤╨░╨╗╤М╨╜╨╛╨╝ ╨╛╨║╨╜╨╡ */
+        // Hide scrollbar when modal open
         body.modal-open {
             overflow: hidden !important;
             position: fixed;
@@ -951,7 +951,7 @@ header('Content-Type: text/html; charset=UTF-8');
         .goal-icon { width: 20px; height: 20px; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); }
         .goal-summary { margin-top: 20px; padding: 10px; background: var(--group-block-bg); border-radius: 8px; border: 1px solid var(--border-color); }
         
-        /* ╨Ъ╨╜╨╛╨┐╨║╨╕ ╨╝╨╡╨╜╤О ╤Б ╨╛╨┤╨╕╨╜╨░╨║╨╛╨▓╤Л╨╝╨╕ ╨╕╨║╨╛╨╜╨║╨░╨╝╨╕ */
+        /* Menu buttons with identical icons */
         #info-button, #settings-button, #add-steps-button, #excel-button { 
             position: absolute; 
             top: 5px; 
@@ -976,7 +976,7 @@ header('Content-Type: text/html; charset=UTF-8');
         #add-steps-button { right: 210px; }
         #excel-button { right: 160px; }
         
-        /* ╨Ъ╤А╤Г╨│╨╗╨╛╨╡ ╤Д╨╛╤В╨╛ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П тАФ ╨║╤А╨░╨╣╨╜╨╡╨╡ ╨┐╤А╨░╨▓╨╛╨╡ */
+        /* Round user photo - far right */
         #user-button {
             position: absolute;
             top: 5px;
@@ -998,7 +998,7 @@ header('Content-Type: text/html; charset=UTF-8');
             border-radius: 50%;
         }
         
-        /* ╨Ь╨╛╨┤╨░╨╗╤М╨╜╤Л╨╡ ╨╛╨║╨╜╨░ ╨┤╨╗╤П ╨╝╨╛╨▒╨╕╨╗╤М╨╜╤Л╤Е */
+        /* Modal windows for mobile */
         #info-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #alert-modal { 
             position: fixed; 
             top: 0; 
@@ -1500,7 +1500,7 @@ header('Content-Type: text/html; charset=UTF-8');
             padding-right: 36px;
         }
         
-        /* Excel ╤В╨░╨▒╨╗╨╕╤Ж╨░ */
+        /* Excel table */
         .excel-table-container {
             width: 100%;
             max-width: 100%;
@@ -1635,7 +1635,7 @@ header('Content-Type: text/html; charset=UTF-8');
             color: var(--text-color); 
         }
         
-        /* ╨и╨╕╤А╨╡ ╨┐╨╛╨╗╨╡ ╨┤╨░╤В╤Л ╤А╨╛╨╢╨┤╨╡╨╜╨╕╤П */
+        /* Wider date of birth field */
         .settings-content input[name="birth_date"] {
             width: 150px;
         }
@@ -1863,7 +1863,7 @@ header('Content-Type: text/html; charset=UTF-8');
             color: white;
         }
         
-        /* ╨Я╨░╨│╨╕╨╜╨░╤Ж╨╕╤П ╤В╨░╨▒╨╗╨╕╤Ж╤Л */
+        /* Table pagination */
         .table-pagination {
             display: flex;
             align-items: center;
@@ -1885,7 +1885,7 @@ header('Content-Type: text/html; charset=UTF-8');
         .page-btn:not(:disabled):hover { background: var(--primary-color); color: #fff; }
         .page-info { font-size: 13px; color: var(--text-color); }
 
-        /* ╨Ь╨╛╨▒╨╕╨╗╤М╨╜╨░╤П ╨░╨┤╨░╨┐╤В╨░╤Ж╨╕╤П */
+        /* Mobile adaptation */
         @media only screen and (max-width: 768px) {
             body.modal-open {
                 padding: 0 !important;
@@ -1916,7 +1916,7 @@ header('Content-Type: text/html; charset=UTF-8');
             #add-steps-button { right: 195px; }
             #excel-button { right: 150px; }
             
-            /* ╨Ъ╤А╤Г╨│╨╗╨╛╨╡ ╤Д╨╛╤В╨╛ ╨┐╨╛╨╗╤М╨╖╨╛╨▓╨░╤В╨╡╨╗╤П ╨┤╨╗╤П ╨╝╨╛╨▒╨╕╨╗╤М╨╜╤Л╤Е */
+            /* Round user photo for mobile */
             #user-button {
                 width: 35px;
                 height: 35px;
@@ -2707,7 +2707,7 @@ header('Content-Type: text/html; charset=UTF-8');
         
         Chart.register(ChartZoom);
         
-        // ╨Т╤Б╨┐╨╛╨╝╨╛╨│╨░╤В╨╡╨╗╤М╨╜╤Л╨╡ ╤Д╤Г╨╜╨║╤Ж╨╕╨╕
+        // Helper functions
         const formatNumber = num => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         const formatLocalYMD = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         const localDateFromYMD = s => { const p = String(s).split('-'); if (p.length !== 3) return new Date(NaN); const y = +p[0], m = +p[1], da = +p[2]; if (!y || !m || !da) return new Date(NaN); return new Date(y, m - 1, da); };
@@ -2747,7 +2747,7 @@ header('Content-Type: text/html; charset=UTF-8');
             dataType === 'distance' ? data.map(steps => (steps * userSettings.stride_length) / 100000) : 
             data.map(steps => steps * 0.04 * (userSettings.weight / 70));
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╤П ╨┤╨╗╤П ╨┐╨╛╨║╨░╨╖╨░ ╨░╨╗╨╡╤А╤В╨░
+        // Function to show alert
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('alert-modal');
@@ -2802,7 +2802,7 @@ header('Content-Type: text/html; charset=UTF-8');
             });
         }
         
-        // ╨Ю╨▒╤А╨░╨▒╨╛╤В╨║╨░ ╨╝╨╛╨┤╨░╨╗╤М╨╜╤Л╤Е ╨╛╨║╨╛╨╜
+        // Modal window handlers
         function syncChartTypeButtons() {
             document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-type') === currentChartType));
         }
@@ -2876,7 +2876,7 @@ header('Content-Type: text/html; charset=UTF-8');
             }
         }
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╨╕ ╨┤╨╗╤П ╤А╨░╨▒╨╛╤В╤Л ╤Б ╨│╤А╨░╤Д╨╕╨║╨╛╨╝
+        // Functions for working with charts
         function prepareChartData(view, selectedDate, dataType, lang = currentLocale) {
     let labels = [], data = [], dates = [];
     
@@ -2884,14 +2884,14 @@ header('Content-Type: text/html; charset=UTF-8');
         const year = selectedDate.getFullYear();
         const yearData = {};
         
-        // ╨Ш╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨╕╤А╤Г╨╡╨╝ ╨▓╤Б╨╡ ╨╝╨╡╤Б╤П╤Ж╤Л ╨│╨╛╨┤╨░
+        // Initialize all months of the year
         for (let month = 0; month < 12; month++) {
             const yearMonth = `${year}-${month + 1}`;
             yearData[yearMonth] = 0;
             yearData[`${yearMonth}_date`] = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         }
         
-        // ╨б╤Г╨╝╨╝╨╕╤А╤Г╨╡╨╝ ╤И╨░╨│╨╕ ╨┐╨╛ ╨╝╨╡╤Б╤П╤Ж╨░╨╝ ╨▓╤Л╨▒╤А╨░╨╜╨╜╨╛╨│╨╛ ╨│╨╛╨┤╨░
+        // Sum steps by months of selected year
         stepsData.forEach(entry => { 
             const date = localDateFromYMD(entry.date);
             if (date.getFullYear() === year) {
@@ -2900,7 +2900,7 @@ header('Content-Type: text/html; charset=UTF-8');
             }
         });
         
-        // ╨б╨╛╤А╤В╨╕╤А╤Г╨╡╨╝ ╨╝╨╡╤Б╤П╤Ж╤Л
+        // Sort months
         const sortedMonths = Object.keys(yearData).filter(key => !key.includes('_date')).sort((a, b) => {
             const aMonth = parseInt(a.split('-')[1]);
             const bMonth = parseInt(b.split('-')[1]);
@@ -3156,7 +3156,7 @@ header('Content-Type: text/html; charset=UTF-8');
             if (goalNotifRevealDone) el.style.display = 'block';
         }
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╨╕ ╨┤╨╗╤П ╨║╨░╨╗╨╡╨╜╨┤╨░╤А╤П
+        // Functions for calendar
         function updateCalendar(lang = currentLocale) {
             const monthSelector = document.getElementById('month-selector');
             monthSelector.innerHTML = getAvailableMonths(lang)
@@ -3209,7 +3209,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 <div>${translations.goal_days}: ${goalDays}</div>`;
         }
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╨╕ ╨┤╨╗╤П ╨╝╨╛╨┤╨░╨╗╤М╨╜╨╛╨│╨╛ ╨╛╨║╨╜╨░ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╕╤П ╤И╨░╨│╨╛╨▓
+        // Functions for modal window for adding steps
         function applyManualDate(date, lang = currentLocale, direction = 'none') {
             document.getElementById('selected-date-input').value = date;
             setStepsInputValue((stepsData.find(entry => entry.date === date) || { steps: 0 }).steps);
@@ -3312,8 +3312,8 @@ header('Content-Type: text/html; charset=UTF-8');
             }
         }
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╨╕ ╨┤╨╗╤П Excel ╨╝╨╛╨┤╨░╨╗╤М╨╜╨╛╨│╨╛ ╨╛╨║╨╜╨░
-        // тФАтФА ╨в╨░╨▒╨╗╨╕╤Ж╨░ ╤Б ╨┐╨░╨│╨╕╨╜╨░╤Ж╨╕╨╡╨╣ ╨╕ SQL-╤Д╨╕╨╗╤М╤В╤А╨╛╨╝ тФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФАтФА
+        // Functions for Excel modal window
+        // ------ Table with pagination and SQL filter ------
         let tablePage = 1;
         let tableTotal = 0;
         let tablePageSize = 50;
@@ -3412,10 +3412,10 @@ header('Content-Type: text/html; charset=UTF-8');
                 currentCol = col;
                 
                 if (e.shiftKey && startCell) {
-                    // ╨Т╤Л╨┤╨╡╨╗╨╡╨╜╨╕╨╡ ╨┤╨╕╨░╨┐╨░╨╖╨╛╨╜╨░
+                    // Range selection
                     selectCellRange(startCell, cell);
                 } else {
-                    // ╨Ю╨┤╨╕╨╜╨╛╤З╨╜╨╛╨╡ ╨▓╤Л╨┤╨╡╨╗╨╡╨╜╨╕╨╡
+                    // Single selection
                     clearSelection();
                     toggleCellSelection(cell);
                     startCell = cell;
@@ -3434,20 +3434,20 @@ header('Content-Type: text/html; charset=UTF-8');
                 }
             });
             
-            // ╨Р╨▓╤В╨╛╨╝╨░╤В╨╕╤З╨╡╤Б╨║╨╛╨╡ ╤Б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╨┐╤А╨╕ ╨┐╨╛╤В╨╡╤А╨╡ ╤Д╨╛╨║╤Г╤Б╨░
+            // Auto-save on focus loss
             table.addEventListener('focusout', (e) => {
                 if (editingCell) {
                     finishEditing(true);
                 }
             });
             
-            // ╨б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╨┐╤А╨╕ ╨╜╨░╨╢╨░╤В╨╕╨╕ Tab
+            // Save on Tab press
             table.addEventListener('keydown', (e) => {
                 if (e.key === 'Tab' && editingCell) {
                     e.preventDefault();
                     finishEditing(true);
                     
-                    // ╨Я╨╡╤А╨╡╤Е╨╛╨┤ ╨║ ╤Б╨╗╨╡╨┤╤Г╤О╤Й╨╡╨╣ ╤П╤З╨╡╨╣╨║╨╡
+                    // Move to the next cell
                     const nextCell = getCell(currentRow, currentCol + 1);
                     if (nextCell) {
                         startEditing(nextCell);
@@ -3459,7 +3459,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 isSelecting = false;
             });
             
-            // ╨Ф╨▓╨╛╨╣╨╜╨╛╨╣ ╨║╨╗╨╕╨║ ╨┤╨╗╤П ╤А╨╡╨┤╨░╨║╤В╨╕╤А╨╛╨▓╨░╨╜╨╕╤П
+            // Double click to edit
             table.addEventListener('dblclick', (e) => {
                 const cell = e.target.closest('td');
                 if (!cell || cell.closest('thead')) return;
@@ -3472,7 +3472,7 @@ header('Content-Type: text/html; charset=UTF-8');
             });
         }
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╤П ╨┤╨╗╤П ╨╜╨░╨▓╨╕╨│╨░╤Ж╨╕╨╕ ╨┐╨╛ ╤В╨░╨▒╨╗╨╕╤Ж╨╡ ╤Б ╨┐╨╛╨╝╨╛╤Й╤М╤О ╤Б╤В╤А╨╡╨╗╨╛╨║
+        // Function for navigating the table with arrow keys
         function setupTableNavigation(table) {
             function getCell(row, col) {
                 return table.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
@@ -3481,30 +3481,30 @@ header('Content-Type: text/html; charset=UTF-8');
             function moveSelection(newRow, newCol) {
                 const rows = table.querySelectorAll('tbody tr');
                 const maxRow = rows.length - 1;
-                const maxCol = 1; // 0 - ╨┤╨░╤В╨░, 1 - ╤И╨░╨│╨╕
+                const maxCol = 1; // 0 - date, 1 - steps
                 
-                // ╨Ю╨│╤А╨░╨╜╨╕╤З╨╕╨▓╨░╨╡╨╝ ╨┤╨╕╨░╨┐╨░╨╖╨╛╨╜
+                // Clamp the range
                 newRow = Math.max(0, Math.min(newRow, maxRow));
                 newCol = Math.max(0, Math.min(newCol, maxCol));
                 
-                // ╨б╨╜╨╕╨╝╨░╨╡╨╝ ╨▓╤Л╨┤╨╡╨╗╨╡╨╜╨╕╨╡ ╤Б╨╛ ╨▓╤Б╨╡╤Е ╤П╤З╨╡╨╡╨║
+                // Clear selection from all cells
                 clearSelection();
                 
-                // ╨Т╤Л╨┤╨╡╨╗╤П╨╡╨╝ ╨╜╨╛╨▓╤Г╤О ╤П╤З╨╡╨╣╨║╤Г
+                // Select the new cell
                 const newCell = getCell(newRow, newCol);
                 if (newCell) {
                     toggleCellSelection(newCell);
                     currentRow = newRow;
                     currentCol = newCol;
                     
-                    // ╨Я╤А╨╛╨║╤А╤Г╤З╨╕╨▓╨░╨╡╨╝ ╨║ ╤П╤З╨╡╨╣╨║╨╡ ╨╡╤Б╨╗╨╕ ╨╛╨╜╨░ ╨╜╨╡ ╨▓╨╕╨┤╨╜╨░
+                    // Scroll to the cell if it is not visible
                     newCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
             
-            // ╨Ю╨▒╤А╨░╨▒╨╛╤В╨║╨░ ╨│╨╛╤А╤П╤З╨╕╤Е ╨║╨╗╨░╨▓╨╕╤И
+            // Hotkey handling
             document.addEventListener('keydown', (e) => {
-                // ╨Х╤Б╨╗╨╕ ╨╝╤Л ╨▓ ╤А╨╡╨╢╨╕╨╝╨╡ ╤А╨╡╨┤╨░╨║╤В╨╕╤А╨╛╨▓╨░╨╜╨╕╤П, ╨╜╨╡ ╨╛╨▒╤А╨░╨▒╨░╤В╤Л╨▓╨░╨╡╨╝ ╤Б╤В╤А╨╡╨╗╨║╨╕
+                // If in edit mode, do not handle arrows
                 if (editingCell || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
                     return;
                 }
@@ -3634,15 +3634,15 @@ header('Content-Type: text/html; charset=UTF-8');
         function startEditing(cell) {
             if (!cell) return;
             
-            // ╨Я╤А╨╛╨▓╨╡╤А╤П╨╡╨╝, ╨╜╨╡ ╤П╨▓╨╗╤П╨╡╤В╤Б╤П ╨╗╨╕ ╤П╤З╨╡╨╣╨║╨░ ╨┤╨░╤В╨╛╨╣ (╨║╨╛╨╗╨╛╨╜╨║╨░ 0)
+            // Check whether the cell is a date (column 0)
             const col = parseInt(cell.getAttribute('data-col'));
             if (col === 0) {
-                // ╨н╤В╨╛ ╤П╤З╨╡╨╣╨║╨░ ╤Б ╨┤╨░╤В╨╛╨╣ - ╨╖╨░╨┐╤А╨╡╤Й╨░╨╡╨╝ ╤А╨╡╨┤╨░╨║╤В╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡
+                // This is a date cell - disable editing
                 showAlert(translations.date_not_editable || 'Date cannot be edited');
                 return;
             }
             
-            // ╨Ч╨░╨▓╨╡╤А╤И╨░╨╡╨╝ ╨┐╤А╨╡╨┤╤Л╨┤╤Г╤Й╨╡╨╡ ╤А╨╡╨┤╨░╨║╤В╨╕╤А╨╛╨▓╨░╨╜╨╕╨╡, ╨╡╤Б╨╗╨╕ ╨╡╤Б╤В╤М
+            // Finish the previous edit, if any
             if (editingCell) {
                 finishEditing(false);
             }
@@ -3660,10 +3660,10 @@ header('Content-Type: text/html; charset=UTF-8');
             } else {
                 cell.setAttribute('data-original', displayVal);
             }
-            // ╨д╨╛╨║╤Г╤Б╨╕╤А╤Г╨╡╨╝╤Б╤П ╨╕ ╨▓╤Л╨┤╨╡╨╗╤П╨╡╨╝ ╤В╨╡╨║╤Б╤В
+            // Focus and select text
             cell.focus();
             
-            // ╨Т╤Л╨┤╨╡╨╗╤П╨╡╨╝ ╤В╨╡╨║╤Б╤В
+            // Select text
             const range = document.createRange();
             range.selectNodeContents(cell);
             const selection = window.getSelection();
@@ -3672,13 +3672,13 @@ header('Content-Type: text/html; charset=UTF-8');
         }
         
         async function updateDataFromTable() {
-            // ╨б╨╛╤Е╤А╨░╨╜╤П╨╡╨╝ ╤В╨╛╨╗╤М╨║╨╛ ╤А╨╡╨┤╨░╨║╤В╨╕╤А╤Г╨╡╨╝╤Г╤О ╤П╤З╨╡╨╣╨║╤Г
+            // Save only the edited cell
             if (!editingCell) return false;
             
             const row = parseInt(editingCell.getAttribute('data-row'));
             const col = parseInt(editingCell.getAttribute('data-col'));
             
-            // ╨Я╨╛╨╗╤Г╤З╨░╨╡╨╝ ╨▓╤Б╤О ╤Б╤В╤А╨╛╨║╤Г
+            // Get the whole row
             const table = document.getElementById('excel-table');
             if (!table) return false;
             
@@ -3695,10 +3695,10 @@ header('Content-Type: text/html; charset=UTF-8');
             const newSteps = parseInt(parseStepsRaw(stepsCell.textContent), 10) || 0;
             const originalSteps = parseInt(parseStepsRaw(editingCell.getAttribute('data-original') || '0'), 10) || 0;
             
-            // ╨Я╤А╨╛╨▓╨╡╤А╤П╨╡╨╝, ╨╕╨╖╨╝╨╡╨╜╨╕╨╗╨╛╤Б╤М ╨╗╨╕ ╨╖╨╜╨░╤З╨╡╨╜╨╕╨╡
+            // Check whether the value changed
             if (newSteps === originalSteps) {
                 console.log('No changes detected');
-                return true; // ╨Э╨╕╤З╨╡╨│╨╛ ╨╜╨╡ ╨╕╨╖╨╝╨╡╨╜╨╕╨╗╨╛╤Б╤М, ╨╜╨╛ ╤Н╤В╨╛ ╨╜╨╡ ╨╛╤И╨╕╨▒╨║╨░
+                return true; // Nothing changed, but this is not an error
             }
             return await persistTableRow(dateStr, newSteps, row);
         }
@@ -3732,37 +3732,37 @@ header('Content-Type: text/html; charset=UTF-8');
         }
         
         function updateLocalData(date, steps, rowIndex) {
-            // ╨Я╤А╨╡╨╛╨▒╤А╨░╨╖╤Г╨╡╨╝ ╨┤╨░╤В╤Г ╨╕╨╖ dd-mm-yy ╨▓ yyyy-mm-dd ╨┤╨╗╤П ╨┐╨╛╨╕╤Б╨║╨░ ╨▓ stepsData
+            // Convert date from dd-mm-yy to yyyy-mm-dd for search in stepsData
             const dateParts = date.split('-');
             const day = dateParts[0];
             const month = dateParts[1];
             const year = dateParts[2];
             
-            // ╨Ю╨┐╤А╨╡╨┤╨╡╨╗╤П╨╡╨╝ ╨┐╨╛╨╗╨╜╤Л╨╣ ╨│╨╛╨┤
+            // Determine the full year
             const fullYear = parseInt(year) < 70 ? `20${year}` : `19${year}`;
             const searchDate = `${fullYear}-${month}-${day}`;
             
-            console.log('Updating local data:', { date, searchDate, steps }); // ╨Ю╤В╨╗╨░╨┤╨║╨░
+            console.log('Updating local data:', { date, searchDate, steps }); // Debug
             
-            // ╨Э╨░╤Е╨╛╨┤╨╕╨╝ ╨╕ ╨╛╨▒╨╜╨╛╨▓╨╗╤П╨╡╨╝ ╨╖╨░╨┐╨╕╤Б╤М ╨▓ stepsData
+            // Find and update the record in stepsData
             let found = false;
             for (let i = 0; i < stepsData.length; i++) {
                 if (stepsData[i].date === searchDate) {
-                    console.log('Found existing entry:', stepsData[i]); // ╨Ю╤В╨╗╨░╨┤╨║╨░
+                    console.log('Found existing entry:', stepsData[i]); // Debug
                     stepsData[i].steps = steps;
                     found = true;
                     break;
                 }
             }
             
-            // ╨Х╤Б╨╗╨╕ ╨╜╨╡ ╨╜╨░╤И╨╗╨╕, ╨┤╨╛╨▒╨░╨▓╨╗╤П╨╡╨╝ ╨╜╨╛╨▓╤Г╤О ╨╖╨░╨┐╨╕╤Б╤М
+            // If not found, add a new record
             if (!found) {
-                console.log('Adding new entry:', { date: searchDate, steps }); // ╨Ю╤В╨╗╨░╨┤╨║╨░
+                console.log('Adding new entry:', { date: searchDate, steps }); // Debug
                 stepsData.push({ date: searchDate, steps: steps });
                 stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
             }
             
-            // ╨Ю╨▒╨╜╨╛╨▓╨╗╤П╨╡╨╝ ╨│╤А╨░╤Д╨╕╨║ ╨╕ ╨║╨░╨╗╨╡╨╜╨┤╨░╤А╤М
+            // Update the chart and calendar
             renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
             updateCalendar(currentLocale);
             updateStatsNotification();
@@ -3852,7 +3852,7 @@ header('Content-Type: text/html; charset=UTF-8');
             await showAlert(translations.cells_cleared || 'Cells cleared successfully');
         }
         
-        // ╨д╤Г╨╜╨║╤Ж╨╕╤П ╨┤╨╗╤П ╤Б╨╛╨╖╨┤╨░╨╜╨╕╤П ╨╜╨╛╨▓╨╛╨│╨╛ ╨▒╤Н╨║╨░╨┐╨░
+        // Function to create a new backup
         async function createBackup() {
             try {
                 const response = await fetch('', {
@@ -3867,7 +3867,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 
                 if (data.status === 'success') {
                     await showAlert(data.message || translations.backup_created || 'Backup created successfully');
-                    await loadBackups(); // ╨Ю╨▒╨╜╨╛╨▓╨╗╤П╨╡╨╝ ╤Б╨┐╨╕╤Б╨╛╨║ ╨▒╤Н╨║╨░╨┐╨╛╨▓
+                    await loadBackups(); // Update the backup list
                 } else {
                     await showAlert(`Error: ${data.message}`);
                 }
@@ -3876,7 +3876,7 @@ header('Content-Type: text/html; charset=UTF-8');
             }
         }
         
-        // ╨Я╨╛╨╕╤Б╨║ тАФ SQL-╤Д╨╕╨╗╤М╤В╤А ╤З╨╡╤А╨╡╨╖ ╤Б╨╡╤А╨▓╨╡╤А, ╨┐╨╡╤А╨▓╨░╤П ╤Б╤В╤А╨░╨╜╨╕╤Ж╨░
+        // Search - SQL filter via server, first page
         async function searchInTable() {
             const val   = document.getElementById('search-steps').value.trim();
             const op    = document.getElementById('search-operator').value;
@@ -3948,7 +3948,7 @@ header('Content-Type: text/html; charset=UTF-8');
             
             container.innerHTML = html;
             
-            // ╨Ф╨╛╨▒╨░╨▓╨╗╤П╨╡╨╝ ╨╛╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨┤╨╗╤П ╨║╨╜╨╛╨┐╨╛╨║
+            // Add handlers for buttons
             container.querySelectorAll('.backup-btn.restore').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const fileName = btn.getAttribute('data-file');
@@ -3987,7 +3987,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 if (data.status === 'success') {
                     await showAlert(translations.backup_restored || 'Backup restored successfully');
                     
-                    // ╨Я╨╡╤А╨╡╨╖╨░╨│╤А╤Г╨╢╨░╨╡╨╝ ╤Б╤В╤А╨░╨╜╨╕╤Ж╤Г ╨┤╨╗╤П ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╨┤╨░╨╜╨╜╤Л╤Е
+                    // Reload the page to update data
                     location.reload();
                 } else {
                     await showAlert(`Error: ${data.message}`);
@@ -4019,7 +4019,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 
                 if (data.status === 'success') {
                     await showAlert(translations.backup_deleted || 'Backup deleted successfully');
-                    await loadBackups(); // ╨Ю╨▒╨╜╨╛╨▓╨╗╤П╨╡╨╝ ╤Б╨┐╨╕╤Б╨╛╨║
+                    await loadBackups(); // Update the list
                 } else {
                     await showAlert(`Error: ${data.message}`);
                 }
@@ -4863,7 +4863,7 @@ header('Content-Type: text/html; charset=UTF-8');
             }
         }
 
-        // ╨Ш╨╜╨╕╤Ж╨╕╨░╨╗╨╕╨╖╨░╤Ж╨╕╤П ╨┐╤А╨╕╨╗╨╛╨╢╨╡╨╜╨╕╤П
+        // Application initialization
         function initApp() {
             renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
             updateCalendar(currentLocale);
@@ -4875,12 +4875,12 @@ header('Content-Type: text/html; charset=UTF-8');
             workerStartRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
             
-            // ╨Ю╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨┤╨╗╤П ╨║╨╜╨╛╨┐╨║╨╕ ╨╕╨╜╤Д╨╛╤А╨╝╨░╤Ж╨╕╨╕
+            // Handlers for info button
             document.getElementById('info-button').addEventListener('click', () => {
                 openModal('info-modal');
             });
             
-            // ╨Ю╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨┤╨╗╤П ╨║╨╜╨╛╨┐╨╛╨║ ╨┐╤А╨╡╨┤╤Б╤В╨░╨▓╨╗╨╡╨╜╨╕╤П
+            // Handlers for presentation buttons
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
@@ -4890,7 +4890,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 });
             });
             
-            // ╨Ю╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨┤╨╗╤П ╤В╨╕╨┐╨░ ╨┤╨░╨╜╨╜╤Л╤Е
+            // Handlers for data type
             document.querySelectorAll('.data-type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.data-type-btn').forEach(b => b.classList.remove('active'));
@@ -4900,7 +4900,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 });
             });
             
-            // ╨Ю╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨┤╨╗╤П ╤В╨╕╨┐╨░ ╨│╤А╨░╤Д╨╕╨║╨░
+            // Handlers for chart type
             document.querySelectorAll('.chart-type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
                     document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.remove('active'));
@@ -4922,7 +4922,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 });
             });
             
-            // ╨Э╨░╨▓╨╕╨│╨░╤Ж╨╕╤П ╨┐╨╛ ╨│╤А╨░╤Д╨╕╨║╤Г
+            // Chart navigation
             document.getElementById('chart-nav-left').addEventListener('click', () => { 
                 if (currentView === 'month') {
                     currentDate.setMonth(currentDate.getMonth() - 1);
@@ -4947,7 +4947,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 if (currentView === 'month') updateCalendar(currentLocale);
             });
             
-            // ╨Т╤Л╨▒╨╛╤А ╨╝╨╡╤Б╤П╤Ж╨░
+            // Month selection
             document.getElementById('month-selector').addEventListener('change', () => { 
                 const [year, month] = document.getElementById('month-selector').value.split('-'); 
                 currentDate = new Date(year, month - 1); 
@@ -4955,12 +4955,12 @@ header('Content-Type: text/html; charset=UTF-8');
                 renderChart('month', currentDate, currentDataType, currentChartType, currentLocale); 
             });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╨╜╨░╤Б╤В╤А╨╛╨╡╨║
+            // Settings button
             document.getElementById('settings-button').addEventListener('click', () => {
                 openModal('settings-modal');
             });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╨┤╨╛╨▒╨░╨▓╨╗╨╡╨╜╨╕╤П ╤И╨░╨│╨╛╨▓
+            // Add steps button
             document.getElementById('add-steps-button').addEventListener('click', () => { 
                 const today = formatLocalYMD(new Date()); 
                 document.getElementById('selected-date-input').value = today; 
@@ -4970,7 +4970,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 setTimeout(() => document.getElementById('steps-input').focus(), 100); 
             });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ Excel
+            // Excel button
             document.getElementById('excel-button').addEventListener('click', () => {
                 document.getElementById('search-steps').value = '';
                 document.getElementById('search-steps-to').value = '';
@@ -4981,7 +4981,7 @@ header('Content-Type: text/html; charset=UTF-8');
             });
             document.getElementById('excel-hotkeys-open')?.addEventListener('click', () => { openModal('excel-hotkeys-modal'); });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╤Б╨╛╨╖╨┤╨░╨╜╨╕╤П ╨▒╤Н╨║╨░╨┐╨░
+            // Create backup button
             document.getElementById('create-backup').addEventListener('click', createBackup);
             
             document.getElementById('video-recognition-notif-open')?.addEventListener('click', function() { vaOpenVideoModal(); });
@@ -5286,30 +5286,30 @@ header('Content-Type: text/html; charset=UTF-8');
                     takeoutGuideToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                 });
             }
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╨▓╨╛╤Б╤Б╤В╨░╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╨╕╨╖ ╨▒╨╡╨║╨░╨┐╨░
+            // Restore from backup button
             document.getElementById('restore-backup').addEventListener('click', async () => {
                 await loadBackups();
                 openModal('backups-modal');
             });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╤Г╨┐╤А╨░╨▓╨╗╨╡╨╜╨╕╤П ╨▒╨╡╨║╨░╨┐╨░╨╝╨╕
+            // Manage backups button
             document.getElementById('manage-backups').addEventListener('click', async () => {
                 await loadBackups();
                 openModal('backups-modal');
             });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╨╛╨▒╨╜╨╛╨▓╨╗╨╡╨╜╨╕╤П ╤Б╨┐╨╕╤Б╨║╨░ ╨▒╨╡╨║╨░╨┐╨╛╨▓
+            // Refresh backups list button
             document.getElementById('refresh-backups')?.addEventListener('click', async () => {
                 await loadBackups();
             });
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╤Б╨║╨░╤З╨╕╨▓╨░╨╜╨╕╤П ╨▒╨╡╨║╨░╨┐╨░
+            // Download backup button
             document.getElementById('download-backup').addEventListener('click', downloadBackup);
             
-            // ╨Ъ╨╜╨╛╨┐╨║╨░ ╨┐╨╛╨╕╤Б╨║╨░
+            // Search button
             document.getElementById('search-btn').addEventListener('click', searchInTable);
             
-            // ╨Ю╤З╨╕╤Б╤В╨║╨░ ╨┐╨╛╨╕╤Б╨║╨░
+            // Clear search
             document.getElementById('clear-search').addEventListener('click', () => {
                 document.getElementById('search-steps').value = '';
                 document.getElementById('search-steps-to').value = '';
@@ -5318,7 +5318,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 renderExcelTable(1, '', '', '', '', '');
             });
             
-            // ╨Ш╨╖╨╝╨╡╨╜╨╡╨╜╨╕╨╡ ╨╛╨┐╨╡╤А╨░╤В╨╛╤А╨░ ╨┐╨╛╨╕╤Б╨║╨░
+            // Change search operator
             document.getElementById('search-operator').addEventListener('change', function() {
                 const rangeInput = document.getElementById('search-steps-to');
                 if (this.value === 'range') {
@@ -5329,7 +5329,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 }
             });
             
-            // Enter ╨┤╨╗╤П ╨┐╨╛╨╕╤Б╨║╨░
+            // Enter to search
             document.getElementById('search-steps').addEventListener('keypress', e => { 
                 if (e.key === 'Enter') searchInTable(); 
             });
@@ -5340,7 +5340,7 @@ header('Content-Type: text/html; charset=UTF-8');
             document.getElementById('search-date-from').addEventListener('change', searchInTable);
             document.getElementById('search-date-to').addEventListener('change', searchInTable);
             
-            // ╨Ч╨░╨║╤А╤Л╤В╨╕╨╡ ╨╝╨╛╨┤╨░╨╗╤М╨╜╤Л╤Е ╨╛╨║╨╛╨╜
+            // Close modal windows
             document.querySelectorAll('.modal-close').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const modal = btn.closest('[id$="-modal"]');
@@ -5371,7 +5371,7 @@ header('Content-Type: text/html; charset=UTF-8');
                 });
             });
             
-            // ╨б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╨╜╨░╤Б╤В╤А╨╛╨╡╨║
+            // Save settings
             document.getElementById('settings-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 try {
@@ -5389,22 +5389,22 @@ header('Content-Type: text/html; charset=UTF-8');
                 }
             });
             
-            // ╨б╨╛╤Е╤А╨░╨╜╨╡╨╜╨╕╨╡ ╤И╨░╨│╨╛╨▓
+            // Save steps
             document.getElementById('add-steps-submit').addEventListener('click', saveSteps);
             const stepsInpEl = document.getElementById('steps-input');
             stepsInpEl.addEventListener('focus', function() { this.value = parseStepsRaw(this.value); });
             stepsInpEl.addEventListener('blur', function() { const t = this.value.replace(/\D/g, ''); this.value = t ? formatNumber(parseInt(t, 10) || 0) : ''; });
             stepsInpEl.addEventListener('keypress', e => { if (e.key === 'Enter') saveSteps(); });
             
-            // ╨Я╤А╨╛╨║╤А╤Г╤В╨║╨░ ╨┤╨░╤В╤Л
+            // Date scroll
             document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);
             
-            // ╨Я╤А╨╡╨┤╨╛╤В╨▓╤А╨░╤Й╨╡╨╜╨╕╨╡ ╨┐╤А╨╛╨║╤А╤Г╤В╨║╨╕ ╨▓ ╤Б╨╛╤Б╨╡╨┤╨╜╨╕╤Е ╨┤╨░╤В╨░╤Е
+            // Prevent scrolling in adjacent dates
             document.querySelectorAll('.adjacent-dates').forEach(container => {
                 container.addEventListener('wheel', e => e.preventDefault());
             });
             
-            // ╨Ъ╨╗╨╕╨║ ╨┐╨╛ ╨║╨░╨╗╨╡╨╜╨┤╨░╤А╤О
+            // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {
                 const cell = e.target.closest('td[data-date]');
                 if (cell) { 
@@ -5414,11 +5414,11 @@ header('Content-Type: text/html; charset=UTF-8');
                 }
             });
             
-            // ╨Ю╨▒╤А╨░╨▒╨╛╤В╤З╨╕╨║╨╕ ╨┤╨╗╤П Excel ╨╝╨╛╨┤╨░╨╗╤М╨╜╨╛╨│╨╛ ╨╛╨║╨╜╨░
+            // Handlers for the Excel modal window
             document.getElementById('delete-selected').addEventListener('click', deleteSelectedCells);
         }
         
-        // ╨Ч╨░╨┐╤Г╤Б╨║ ╨┐╤А╨╕╨╗╨╛╨╢╨╡╨╜╨╕╤П
+        // App startup
         initApp();
     </script>
 </body>

@@ -202,11 +202,11 @@
         function updateButtonStates() {
             if (!editor) return;
             
-            // Получаем состояние undo/redo
+            // Get the undo/redo state
             const undoState = editor.getModel().canUndo();
             const redoState = editor.getModel().canRedo();
             
-            // Обновляем кнопки undo/redo
+            // Update the undo/redo buttons
             const undoBtn = document.getElementById('undoBtn');
             const redoBtn = document.getElementById('redoBtn');
             
@@ -226,11 +226,11 @@
                 redoBtn.disabled = true;
             }
             
-            // Обновляем состояние кнопок форматирования (требуют выделения)
+            // Update formatting button state (requires selection)
             const selection = editor.getSelection();
             const hasSelection = selection && !selection.isEmpty();
             
-            // Кнопки, требующие выделения
+            // Buttons that require a selection
             const selectionButtons = [
                 document.getElementById('boldBtn'),
                 document.getElementById('italicBtn'),
@@ -254,7 +254,7 @@
                 }
             });
 
-            // Выпадающий список заголовков
+            // Heading dropdown
             const headingSelect = document.getElementById('headingSelect');
             if (hasSelection) {
                 headingSelect.classList.remove('disabled');
@@ -264,7 +264,7 @@
                 headingSelect.disabled = true;
             }
             
-            // Кнопка переводчика - всегда активна, но меняет стиль
+            // Translator button - always active but changes style
             if (hasSelection) {
                 translateBtnToolbar.classList.remove('default');
                 translateBtnToolbar.classList.add('primary');
@@ -289,7 +289,7 @@
         const mathBtn = document.getElementById('mathBtn');
         const undoBtn = document.getElementById('undoBtn');
         const redoBtn = document.getElementById('redoBtn');
-        // Кнопки, которые всегда активны
+        // Buttons that are always active
         const alwaysActiveButtons = [tableBtn, hrBtn, mathBtn];
         const confirmClearModal = document.getElementById('confirmClearModal');
         const tableModal = document.getElementById('tableModal');
@@ -307,7 +307,7 @@
         const tableCols = document.getElementById('tableCols');
         const mathFormula = document.getElementById('mathFormula');
 
-        // Настройка marked для правильной обработки LaTeX
+        // Configure marked for correct LaTeX handling
         marked.setOptions({
             breaks: true,
             gfm: true,
@@ -315,7 +315,7 @@
             mangle: false
         });
 
-        // Функция для обработки LaTeX перед Markdown
+        // Function to process LaTeX before Markdown
         function processLatex(text) {
             const blocks = [];
             let processed = text;
@@ -338,11 +338,11 @@
             return { processed, blocks };
         }
 
-        // Функция для восстановления LaTeX после Markdown
+        // Function to restore LaTeX after Markdown
         function restoreLatex(html, blocks) {
             let restored = html;
             blocks.forEach((block, i) => {
-                // Заменяем маркеры обратно на LaTeX, но экранируем для HTML
+                // Replace markers back to LaTeX, but escape for HTML
                 restored = restored.replace(`%%LATEX_BLOCK_${i}%%`, block);
                 restored = restored.replace(`%%LATEX_INLINE_${i}%%`, block);
             });
@@ -355,19 +355,19 @@
             const fallbackImageDataUri = 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22150%22 height=%22150%22 viewBox=%220 0 150 150%22%3E%3Crect width=%22150%22 height=%22150%22 fill=%22%232d2d2d%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22Arial%2Csans-serif%22 font-size=%2212%22 fill=%22%23bbbbbb%22%3Eimage%3C/text%3E%3C/svg%3E';
             const safeMarkdownText = markdownText.replace(/https?:\/\/via\.placeholder\.com\/150(?:[^\s)]*)?/gi, fallbackImageDataUri);
 
-            // Обрабатываем LaTeX
+            // Process LaTeX
             const { processed, blocks } = processLatex(safeMarkdownText);
 
-            // Конвертируем Markdown в HTML
+            // Convert Markdown to HTML
             let html = marked.parse(processed);
 
-            // Восстанавливаем LaTeX
+            // Restore LaTeX
             html = restoreLatex(html, blocks);
 
-            // Вставляем в preview
+            // Insert into the preview
             previewContent.innerHTML = html;
 
-            // Рендерим математику через MathJax
+            // Render math via MathJax
             if (window.MathJax && typeof MathJax.typesetPromise === 'function') {
                 MathJax.typesetPromise([previewContent]).catch(err => {
                     // MathJax errors are non-critical
@@ -530,18 +530,18 @@
             const selection = editor.getSelection();
             const selectedText = editor.getModel().getValueInRange(selection);
             
-            // Всегда показываем окно, даже если нет выделения
+            // Always show the window, even without a selection
             if (selectedText && selectedText.trim().length > 0) {
                 currentSelectedText = selectedText;
                 sourceText.value = selectedText;
             } else {
-                // Если нет выделения, очищаем поля
+                // If there is no selection, clear the fields
                 sourceText.value = '';
                 targetText.value = '';
                 currentSelectedText = '';
             }
             
-            // Если есть предыдущий результат с теми же языками, показываем его
+            // If there is a previous result with the same languages, show it
             if (lastTranslationResult && 
                 lastTranslationParams.sourceLang === sourceLang.value && 
                 lastTranslationParams.targetLang === targetLang.value &&
@@ -553,7 +553,7 @@
             
             translationModal.style.display = 'flex';
             
-            // Фокус на поле ввода для удобства
+            // Focus the input field for convenience
             setTimeout(() => sourceText.focus(), 100);
         }
         async function performTranslation() {
@@ -675,7 +675,7 @@
                     fontSize: 14,
                     fontFamily: 'Consolas, "Courier New", monospace',
                     lineHeight: 1.6,
-                    // Миникарта вместо скроллбара - скрыта на touch устройствах в портретной ориентации
+                    // Minimap instead of scrollbar - hidden on touch devices in portrait orientation
                     minimap: (function() {
                         var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
                         var isPortrait = window.innerHeight > window.innerWidth;
@@ -688,7 +688,7 @@
                             renderCharacters: false
                         };
                     })(),
-                    // Отключаем вертикальный скроллбар
+                    // Disable the vertical scrollbar
                     scrollbar: {
                         vertical: 'hidden',
                         horizontal: 'visible',
@@ -699,7 +699,7 @@
                         horizontalScrollbarSize: 8,
                         alwaysConsumeMouseWheel: false
                     },
-                    // Дополнительные настройки для удобства
+                    // Additional settings for convenience
                     scrollBeyondLastLine: true,
                     wordWrap: 'on',
                     automaticLayout: true,
@@ -728,12 +728,12 @@
                 });
                 editor.onDidChangeCursorSelection(() => { updateButtonStates(); });
 
-                // Добавляем слушатели для обновления состояния undo/redo при изменении стека
+                // Add listeners to update undo/redo state when the stack changes
                 editor.onDidChangeModel(() => {
                     updateButtonStates();
                 });
 
-                // Обновляем видимость миникарты при изменении ориентации
+                // Update minimap visibility on orientation change
                 function updateMinimapVisibility() {
                     var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
                     var isPortrait = window.innerHeight > window.innerWidth;
@@ -768,7 +768,7 @@
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU, () => insertTextAtCursor('<u>', '</u>'));
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
                 
-                // Устанавливаем начальное состояние кнопок
+                // Set the initial button state
                 updateButtonStates();
             });
         }

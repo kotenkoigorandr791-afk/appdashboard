@@ -24,15 +24,15 @@ function copyAllContent() {
     showToast('Copy disabled for this shared link', 3000);
     return;
     <?php endif; ?>
-    // Приоритет 1: Если редактор Monaco уже загружен
+    // Priority 1: If Monaco editor is already loaded
     if (window.editor && typeof window.editor.getValue === 'function') {
         const content = window.editor.getValue();
         copyToClipboard(content);
         return;
     }
     
-    // Приоритет 2: Если это простой текстовый файл (например, .txt) и Monaco еще не загружен
-    // Пытаемся получить содержимое из DOM или из переменной PHP
+    // Priority 2: If this is a simple text file (e.g., .txt) and Monaco not loaded yet
+    // Try to get content from DOM or PHP variable
     <?php if ($fileType === 'text' && $fileContent !== false && $fileContent !== 'FILE_TOO_LARGE'): ?>
     const fallbackContent = <?php echo json_encode($fileContent); ?>;
     if (fallbackContent) {
@@ -41,7 +41,7 @@ function copyAllContent() {
     }
     <?php endif; ?>
     
-    // Если ничего не сработало
+    // If nothing worked
     showToast('Content not available for copying', 3000);
 }
 
@@ -50,16 +50,16 @@ function copyToClipboard(text) {
     showToast('Copy disabled for this shared link', 3000);
     return;
     <?php endif; ?>
-    // Используем современный Clipboard API
+    // Use modern Clipboard API
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(text).then(() => {
             showToast('<?php echo htmlspecialchars($translations['content_copied']); ?>', 3000);
         }).catch(err => {
-            // Fallback на старый метод
+            // Fallback to old method
             fallbackCopy(text);
         });
     } else {
-        // Fallback для старых браузеров
+        // Fallback for old browsers
         fallbackCopy(text);
     }
 }
@@ -240,7 +240,7 @@ function initPDFViewer() {
     const progressText = document.getElementById('pdf-progress-text');
     const progressContainer = document.getElementById('pdf-progress-container');
     
-    // Скрываем контролы до загрузки
+    // Hide controls until loaded
     document.getElementById('pdf-controls').style.opacity = '0.5';
     document.getElementById('pdf-controls').style.pointerEvents = 'none';
     
@@ -266,7 +266,7 @@ function initPDFViewer() {
         pdfTotalPages = pdf.numPages;
         document.getElementById('pdf-page-count').textContent = pdfTotalPages;
         
-        // Скрываем индикатор загрузки
+        // Hide loading indicator
         loadingDiv.style.display = 'none';
         progressContainer.style.opacity = '0';
         progressText.style.opacity = '0';
@@ -275,18 +275,18 @@ function initPDFViewer() {
             progressText.style.display = 'none';
         }, 300);
         
-        // Показываем контролы
+        // Show controls
         document.getElementById('pdf-controls').style.opacity = '1';
         document.getElementById('pdf-controls').style.pointerEvents = 'auto';
         
-        // Автоматический зум для мобильных
+        // Auto zoom for mobile
         if (window.innerWidth <= 768) {
             const containerWidth = container.clientWidth - 40;
             pdfScale = containerWidth / 612;
             updatePDFZoomSelect(pdfScale);
         }
         
-        // Рендерим все страницы
+        // Render all pages
         renderAllPDFPages();
     }).catch(error => {
         console.error('Error loading PDF:', error);
@@ -538,7 +538,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Инициализация PDF если нужно
+        // Initialize PDF if needed
     <?php if ($fileType === 'pdf'): ?>
     initPDFViewer();
     <?php endif; ?>

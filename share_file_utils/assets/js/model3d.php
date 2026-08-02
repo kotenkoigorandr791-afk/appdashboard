@@ -109,7 +109,7 @@ class ModelViewer {
             (geometry) => {
                 loadingDiv.remove();
                 
-                // Создаем материал с цветом из темы
+                // Create material with theme color
                 const material = new THREE.MeshPhysicalMaterial({ 
                     color: 0x<?php echo $color; ?>,
                     roughness: 0.2,
@@ -125,7 +125,7 @@ class ModelViewer {
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
                 
-                // Центрирование и масштабирование
+                // Centering and scaling
                 if (!geometry.boundingBox) {
                     geometry.computeBoundingBox();
                 }
@@ -144,11 +144,11 @@ class ModelViewer {
                 
                 this.scene.add(mesh);
                 
-                // Информация о модели
+                // Model info
                 document.getElementById('model-info').innerHTML = 
                     `3D Model • ${extension.toUpperCase()} • ${size.x.toFixed(2)}x${size.y.toFixed(2)}x${size.z.toFixed(2)}`;
                 
-                // Автозум
+                // Auto-zoom
                 this.fitCameraToObject(mesh);
             },
             (xhr) => {

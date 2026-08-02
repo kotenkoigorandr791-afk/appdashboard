@@ -5,14 +5,14 @@ ini_set('log_errors', '1');
 error_reporting(E_ALL);
 
 // ============================================
-// НАСТРОЙКИ ONLYOFFICE
+// ONLYOFFICE SETTINGS
 // ============================================
 $DOC_SERV_URL = 'https://document.serverkherson.xyz'; 
 $JWT_SECRET = 'uZbUAlqEAONtLYmVrZVNjuqOefiQZR';
 $VIEWER_USER = 'zip-viewer';
 
 // ============================================
-// МУЛЬТИЯЗЫЧНОСТЬ
+// MULTILANGUAGE
 // ============================================
 
 $languages = cloud_load_translation_map(__DIR__);
@@ -236,7 +236,7 @@ $archivePassword = isset($_POST['archive_password']) ? (string)$_POST['archive_p
 $archiveFormat = zip_viewer_archive_format($archiveName);
 $archiveNeedsPassword = $archivePath !== '' && is_file($archivePath) && zip_viewer_archive_requires_password($archivePath);
 
-// Сохраняем информацию о родительском архиве для навигации
+// Store parent archive info for navigation
 $archiveChain = [];
 if ($parentArchive) {
     $archiveChain = json_decode($parentArchive, true) ?: [];
@@ -253,7 +253,7 @@ $zipFiles = [];
 $error = '';
 
 // ============================================
-// ОБРАБОТКА ONLYOFFICE CALLBACK
+// ONLYOFFICE CALLBACK HANDLING
 // ============================================
 if ($officeCallback && isset($_GET['file']) && isset($_GET['user'])) {
     header('Content-Type: application/json; charset=utf-8');
@@ -267,7 +267,7 @@ if ($officeCallback && isset($_GET['file']) && isset($_GET['user'])) {
 }
 
 // ============================================
-// ОБРАБОТКА СКАЧИВАНИЯ ФАЙЛА ДЛЯ ONLYOFFICE
+// FILE DOWNLOAD HANDLING FOR ONLYOFFICE
 // ============================================
 if ($officeDownload && isset($_GET['file']) && isset($_GET['user'])) {
     $downloadFile = urldecode($_GET['file']);
@@ -294,7 +294,7 @@ if ($officeDownload && isset($_GET['file']) && isset($_GET['user'])) {
 }
 
 // ============================================
-// СКАЧИВАНИЕ ФАЙЛА ИЗ АРХИВА БЕЗ РАСПАКОВКИ
+// DOWNLOADING A FILE FROM THE ARCHIVE WITHOUT EXTRACTION
 // ============================================
 if ($downloadFromZip && isset($_GET['file']) && !empty($archivePath) && file_exists($archivePath)) {
     $downloadFile = urldecode($_GET['file']);
@@ -315,7 +315,7 @@ if ($downloadFromZip && isset($_GET['file']) && !empty($archivePath) && file_exi
 }
 
 // ============================================
-// ОБРАБОТКА ПРОСМОТРА ЧЕРЕЗ ONLYOFFICE
+// VIEWING VIA ONLYOFFICE
 // ============================================
 if ($officeView && !$error) {
     $officeFilePath = urldecode($officeView);
@@ -427,7 +427,7 @@ if ($officeView && !$error) {
 }
 
 // ============================================
-// ОСНОВНАЯ ЛОГИКА РАБОТЫ С АРХИВОМ
+// MAIN ARCHIVE HANDLING LOGIC
 // ============================================
 
 if (empty($archivePath)) {
@@ -551,9 +551,9 @@ function buildUrl($params = []) {
     ];
     if ($archivePassword !== '') $defaultParams['password'] = $archivePassword;
     
-    // Добавляем цепочку архивов для навигации
+    // Add the archive chain for navigation
     if (count($archiveChain) > 1) {
-        // Убираем текущий архив из цепочки для parent
+        // Remove the current archive from the chain for parent
         $parentChain = array_slice($archiveChain, 0, -1);
         $defaultParams['parent'] = urlencode(json_encode($parentChain));
     }
@@ -612,9 +612,9 @@ function getBreadcrumbs($path) {
     return $breadcrumbs;
 }
 
-// Функция для проверки, является ли файл текстовым
+// Function to check whether a file is text
 function isTextFile($data, $ext) {
-    // Сначала проверяем расширение
+    // First check the extension
     $textExtensions = ['txt', 'md', 'log', 'json', 'csv', 'php', 'html', 'htm', 'css', 
                        'js', 'jsx', 'ts', 'tsx', 'xml', 'yml', 'yaml', 'ini', 'sql',
                        'py', 'java', 'cpp', 'c', 'h', 'hpp', 'cs', 'go', 'rb', 'rs',
@@ -625,9 +625,9 @@ function isTextFile($data, $ext) {
         return true;
     }
     
-    // Если расширение не в списке, проверяем содержимое на наличие нулевых байтов
-    // Текстовые файлы обычно не содержат нулевых байтов
-    $sample = substr($data, 0, 1024); // Проверяем первые 1024 байта
+    // If the extension is not in the list, check the content for null bytes
+    // Text files usually do not contain null bytes
+    $sample = substr($data, 0, 1024); // Check the first 1024 bytes
     return strpos($sample, "\0") === false && mb_check_encoding($sample, 'UTF-8');
 }
 
@@ -701,7 +701,7 @@ if ($viewFile && $zip && !$error) {
                 $pdfData = base64_encode($data);
             }
             elseif (isTextFile($data, $ext)) {
-                // Все текстовые файлы открываем в Monaco
+                // Open all text files in Monaco
                 $previewType = 'monaco';
                 $previewContent = $data;
                 $monacoLanguage = match ($ext) {

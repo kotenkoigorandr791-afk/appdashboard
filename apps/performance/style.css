@@ -286,6 +286,6 @@ header { display: block; margin-bottom: 0; padding: 16px 0; border-bottom: 1px s
     width: 100%;
     height: 100%;
     z-index: -1;
-    opacity: 0.95; /* прозрачность как вы requested */
-    pointer-events: none; /* чтобы canvas не мешал кликам */
+    opacity: 0.95; /* opacity as you requested */
+    pointer-events: none; /* so canvas does not interfere with clicks */
 }

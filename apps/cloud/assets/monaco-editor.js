@@ -191,17 +191,17 @@ function monacoInjectSelectionHandlesCSS() {
             box-shadow: 0 2px 6px rgba(0,0,0,0.35) !important;
             position: relative !important;
         }
-        /* Каплевидная форма для левого маркера (острие вниз) */
+        /* Teardrop shape for the left handle (pointing down) */
         .monaco-selection-handle-start {
             clip-path: path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z') !important;
             transform: translate(-50%, -30%) !important;
         }
-        /* Каплевидная форма для правого маркера (острие вниз, поднят на полстроки выше) */
+        /* Teardrop shape for the right handle (pointing down, raised half a line) */
         .monaco-selection-handle-end {
             clip-path: path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z') !important;
             transform: translate(-50%, -20%) !important;
         }
-        /* Увеличенная зона клика для обоих маркеров */
+        /* Enlarged click area for both handles */
         .monaco-selection-handle::before {
             content: '' !important;
             position: absolute !important;
@@ -384,7 +384,7 @@ function initMonaco() {
     });
 }
 
-// Регистрация подсказок из completions.js
+// Register hints from completions.js
 function monacoRegisterCompletions() {
     if (monacoCompletionsRegistered) return;
     monacoCompletionsRegistered = true;
@@ -395,7 +395,7 @@ function monacoRegisterCompletions() {
 
     const completions = window.completions;
 
-    // Регистрируем провайдеры для каждого языка
+    // Register providers for each language
     Object.keys(completions).forEach(langId => {
         const langCompletions = completions[langId];
         
@@ -406,7 +406,7 @@ function monacoRegisterCompletions() {
                 }
                 const suggestions = [];
                 
-                // Добавляем ключевые слова
+                // Add keywords
                 if (langCompletions.keywords) {
                     langCompletions.keywords.forEach(keyword => {
                         suggestions.push({
@@ -419,7 +419,7 @@ function monacoRegisterCompletions() {
                     });
                 }
                 
-                // Добавляем встроенные функции/объекты
+                // Add built-in functions/objects
                 if (langCompletions.builtins) {
                     langCompletions.builtins.forEach(builtin => {
                         suggestions.push({
@@ -432,7 +432,7 @@ function monacoRegisterCompletions() {
                     });
                 }
                 
-                // Добавляем методы (для JavaScript, Python и др.)
+                // Add methods (for JavaScript, Python, etc.)
                 if (langCompletions.methods) {
                     langCompletions.methods.forEach(method => {
                         suggestions.push({
@@ -446,7 +446,7 @@ function monacoRegisterCompletions() {
                     });
                 }
                 
-                // Добавляем операторы
+                // Add operators
                 if (langCompletions.operators) {
                     langCompletions.operators.forEach(operator => {
                         suggestions.push({
@@ -459,7 +459,7 @@ function monacoRegisterCompletions() {
                     });
                 }
                 
-                // Специфичные для HTML теги и атрибуты
+                // HTML-specific tags and attributes
                 if (langId === 'html') {
                     if (langCompletions.tags) {
                         langCompletions.tags.forEach(tag => {
@@ -487,7 +487,7 @@ function monacoRegisterCompletions() {
                     }
                 }
                 
-                // Специфичные для CSS
+                // CSS-specific
                 if (langId === 'css') {
                     if (langCompletions.properties) {
                         langCompletions.properties.forEach(prop => {
@@ -525,7 +525,7 @@ function monacoRegisterCompletions() {
                     }
                 }
                 
-                // Специфичные для PHP
+                // PHP-specific
                 if (langId === 'php') {
                     if (langCompletions.functions) {
                         langCompletions.functions.forEach(func => {
@@ -563,7 +563,7 @@ function monacoRegisterCompletions() {
                     }
                 }
                 
-                // Специфичные для SQL
+                // SQL-specific
                 if (langId === 'sql') {
                     if (langCompletions.functions) {
                         langCompletions.functions.forEach(func => {
@@ -589,7 +589,7 @@ function monacoRegisterCompletions() {
                     }
                 }
                 
-                // Специфичные для Python модули
+                // Python-specific modules
                 if (langId === 'python' && langCompletions.modules) {
                     langCompletions.modules.forEach(module => {
                         suggestions.push({
@@ -1830,7 +1830,7 @@ function monacoDuplicateLine(editor) {
     editor.trigger('keyboard', 'editor.action.duplicateSelection', {});
 }
 
-// Улучшенная поддержка сенсорных экранов с мобильным выделением
+// Improved touch screen support with mobile selection
 function monacoEnableTouchSelection(editor, container) {
     if (!monacoIsTouchDevice) return;
 
@@ -1857,14 +1857,14 @@ function monacoEnableTouchSelection(editor, container) {
         domListeners.push(() => target.removeEventListener(eventName, handler, options));
     };
 
-    // Создание визуальных маркеров выделения
+    // Create visual selection handles
     function createSelectionHandles() {
         removeSelectionHandles();
 
         const editorDom = editor.getDomNode();
         if (!editorDom) return;
 
-        // Убедимся, что редактор имеет position: relative для абсолютного позиционирования детей
+        // Make sure the editor has position: relative for absolute positioning of children
         if (editorDom.style.position !== 'relative' && editorDom.style.position !== 'absolute' && editorDom.style.position !== 'fixed') {
             editorDom.style.position = 'relative';
         }
@@ -1873,7 +1873,7 @@ function monacoEnableTouchSelection(editor, container) {
         selectionHandles.className = 'monaco-touch-selection-handles';
         selectionHandles.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:hidden;';
 
-        // Левый маркер (каплевидной формы, шире + увеличенная зона клика)
+        // Left handle (teardrop shape, wider + enlarged click area)
         const startHandle = document.createElement('div');
         startHandle.className = 'monaco-selection-handle monaco-selection-handle-start';
         startHandle.style.cssText = `
@@ -1893,7 +1893,7 @@ function monacoEnableTouchSelection(editor, container) {
         `;
         startHandle.dataset.handle = 'start';
 
-        // Правый маркер (каплевидной формы, шире + увеличенная зона клика, поднят выше)
+        // Right handle (teardrop shape, wider + enlarged click area, raised higher)
         const endHandle = document.createElement('div');
         endHandle.className = 'monaco-selection-handle monaco-selection-handle-end';
         endHandle.style.cssText = `
@@ -1970,7 +1970,7 @@ function monacoEnableTouchSelection(editor, container) {
         const editorDom = editor.getDomNode();
         if (!editorDom) return;
         
-        // Получаем координаты начала и конца выделения
+        // Get the selection start and end coordinates
         const startCoords = editor.getScrolledVisiblePosition({
             lineNumber: selection.startLineNumber,
             column: selection.startColumn
@@ -1988,11 +1988,11 @@ function monacoEnableTouchSelection(editor, container) {
 
         const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
 
-        // Позиция левого маркера (начало выделения) - на середине высоты строки
+        // Left handle position (selection start) - at mid line height
         const startX = startCoords.left;
         const startY = startCoords.top + (lineHeight / 2);
 
-        // Позиция правого маркера (конец выделения) - на полстроки выше (поднят на половину высоты строки)
+        // Right handle position (selection end) - half a line higher
         const endLineContent = editor.getModel().getLineContent(selection.endLineNumber);
         const endColumnX = endCoords.left;
         const endY = endCoords.top + (lineHeight / 2) - (lineHeight / 2);
@@ -2097,7 +2097,7 @@ function monacoEnableTouchSelection(editor, container) {
     container.style.userSelect = 'text';
 
     addListener(container, 'touchstart', (e) => {
-        // Если перетаскиваем маркер - игнорируем обычные обработчики
+        // If dragging a handle - ignore normal handlers
         if (isDraggingHandle) return;
 
         const touch = e.touches[0];
@@ -2132,11 +2132,11 @@ function monacoEnableTouchSelection(editor, container) {
         // Start long press timer - only activate selection after holding
         longPressTimer = setTimeout(() => {
             if (touchStart && !isScrolling) {
-                // Long press detected - activate selection mode и выделить слово
+                // Long press detected - activate selection mode and select the word
                 selectionInProgress = true;
                 container.style.touchAction = 'none';
 
-                // Выделяем слово под курсором
+                // Select the word under the cursor
                 if (touchStart.position) {
                     const word = editor.getModel().getWordAtPosition(touchStart.position);
                     if (word) {
@@ -2149,7 +2149,7 @@ function monacoEnableTouchSelection(editor, container) {
                         editor.setSelection(range);
                         editor.revealRange(range);
                         
-                        // Создаем маркеры выделения
+                        // Create selection handles
                         createSelectionHandles();
                         setTimeout(updateSelectionHandlesPosition, 10);
                     }
@@ -2163,11 +2163,11 @@ function monacoEnableTouchSelection(editor, container) {
     addListener(container, 'touchmove', (e) => {
         const touch = e.touches[0];
 
-        // Обработка перетаскивания маркеров выделения (дублируем для надежности)
+        // Handle selection handle dragging (duplicated for reliability)
         if (isDraggingHandle && selectionHandles) {
             e.preventDefault();
             e.stopPropagation();
-            return; // Глобальный обработчик справится с этим
+            return; // The global handler will handle this
         }
 
         if (!touchStart || e.touches.length !== 1) return;
@@ -2186,7 +2186,7 @@ function monacoEnableTouchSelection(editor, container) {
             }
         }
 
-        // Если выделение активно (долгое нажатие сработало), позволяем расширять выделение
+        // If selection is active (long press fired), allow expanding the selection
         if (!selectionInProgress) return;
 
         e.preventDefault();
@@ -2196,7 +2196,7 @@ function monacoEnableTouchSelection(editor, container) {
     }, { passive: false });
 
     addListener(container, 'touchend', (e) => {
-        // Завершаем перетаскивание маркера
+        // Finish handle dragging
         if (isDraggingHandle) {
             isDraggingHandle = null;
             stopTouchAutoScroll();
@@ -2234,7 +2234,7 @@ function monacoEnableTouchSelection(editor, container) {
                     editor.setSelection(range);
                     editor.revealRange(range);
                     
-                    // Создаем маркеры для двойного тапа
+                    // Create handles for double tap
                     createSelectionHandles();
                     setTimeout(updateSelectionHandlesPosition, 10);
                 }
@@ -2260,15 +2260,15 @@ function monacoEnableTouchSelection(editor, container) {
                 editor.setSelection(range);
                 editor.revealLine(lineNumber);
                 
-                // Создаем маркеры для тройного тапа
+                // Create handles for triple tap
                 createSelectionHandles();
                 setTimeout(updateSelectionHandlesPosition, 10);
             }
         }
-        // Long press - слово уже выделено в touchstart
+        // Long press - the word is already selected in touchstart
         else if (touchDuration > LONG_PRESS_DELAY && selectionInProgress && !isScrolling) {
             e.preventDefault();
-            // Выделение уже сделано в touchstart
+            // Selection was already made in touchstart
         }
 
         // Reset selection mode after touch ends
@@ -2285,7 +2285,7 @@ function monacoEnableTouchSelection(editor, container) {
                 const currentSelection = editor.getSelection();
                 if (!currentSelection || currentSelection.isEmpty()) {
                     editor.setPosition(position.position);
-                    // Скрываем маркеры если нет выделения
+                    // Hide handles if there is no selection
                     hideSelectionHandles();
                 }
             }
@@ -2300,7 +2300,7 @@ function monacoEnableTouchSelection(editor, container) {
 
     }, { passive: false });
 
-    // Обновляем позиции маркеров при скролле и изменении выделения
+    // Update handle positions on scroll and selection change
     editor.onDidScrollChange(() => {
         updateSelectionHandlesPosition();
     });
@@ -2361,16 +2361,16 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         let model = monacoAcquireModel(filePath, content, language);
         monacoTabModelPaths.set(tabId, filePath);
 
-        // Настройки для редактора с улучшенным скроллбаром и миникартой
+        // Settings for the editor with an improved scrollbar and minimap
         const editorOptions = {
             model: model,
             language: language,
             theme: document.body.getAttribute('data-theme') === 'dark' ? 'custom-dark' : 'custom-light',
             readOnly: readOnly,
 
-            // Настройки миникарты - скрыта на мобильных устройствах в портретной ориентации
+            // Minimap settings - hidden on mobile devices in portrait orientation
             minimap: {
-                enabled: !monacoShouldHideMinimap(), // Отключаем на touch устройствах в портретной ориентации
+                enabled: !monacoShouldHideMinimap(), // Disabled on touch devices in portrait orientation
                 maxColumn: 80,
                 renderCharacters: true,
                 scale: 1,
@@ -2379,10 +2379,10 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
                 size: 'proportional'
             },
             
-            // Настройки скроллбаров - скрываем вертикальный и горизонтальный
+            // Scrollbar settings - hide vertical and horizontal
             scrollbar: {
-                vertical: 'hidden', // Полностью скрываем вертикальный скроллбар
-                horizontal: 'hidden', // Полностью скрываем горизонтальный скроллбар
+                vertical: 'hidden', // Completely hide the vertical scrollbar
+                horizontal: 'hidden', // Completely hide the horizontal scrollbar
                 verticalScrollbarSize: 0,
                 horizontalScrollbarSize: 0,
                 useShadows: false,
@@ -2396,7 +2396,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             roundedSelection: true,
             scrollBeyondLastLine: true,
             
-            // Настройки переноса слов
+            // Word wrap settings
             wordWrap: 'on',
             wrappingIndent: 'same',
             wrappingStrategy: 'advanced',
@@ -2404,12 +2404,12 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             wordWrapBreakBeforeCharacters: '{([+',
             wordWrapBreakObtrusiveCharacters: '.',
             
-            // Настройки отступов
+            // Indentation settings
             tabSize: 2,
             insertSpaces: true,
             detectIndentation: true,
             
-            // Подсветка и визуальные эффекты
+            // Highlighting and visual effects
             bracketPairColorization: { enabled: true },
             guides: { bracketPairs: true, indentation: true },
             autoClosingBrackets: 'always',
@@ -2421,16 +2421,16 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             smoothScrolling: true,
             mouseWheelZoom: true,
             
-            // Настройки folding
+            // Folding settings
             folding: true,
             foldingStrategy: 'auto',
             showFoldingControls: 'mouseover',
             
-            // Контекстное меню
+            // Context menu
             contextmenu: true,
             multiCursorModifier: 'alt',
             
-            // Подсказки и автодополнение
+            // Hints and autocomplete
             quickSuggestions: true,
             suggestOnTriggerCharacters: true,
             acceptSuggestionOnEnter: 'on',
@@ -2443,20 +2443,20 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
                 nonBasicASCII: false
             },
             
-            // Специальные настройки для touch
+            // Special settings for touch
             dragAndDrop: false,
             mouseWheelScrollSensitivity: monacoIsTouchDevice ? 3 : 1,
             fastScrollSensitivity: monacoIsTouchDevice ? 4 : 2,
             multiCursorMergeOverlapping: true,
             selectionClipboard: true,
             
-            // Увеличиваем область касания
+            // Enlarge the touch area
             lineDecorationsWidth: monacoIsTouchDevice ? 20 : 10,
             overviewRulerLanes: 0,
             overviewRulerBorder: false,
             hideCursorInOverviewRuler: true,
             
-            // Настройки прокрутки через миникарту
+            // Scroll settings via the minimap
             scrollByPage: true,
             scrollBeyondLastColumn: 5
         };
@@ -2471,7 +2471,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         
         monacoCreateStatusBar(editor, container, filePath, tabId, readOnly);
 
-        // Транслитерация
+        // Transliteration
         // Track IME composition state to avoid interfering with native keyboard input
         let isComposing = false;
 
@@ -2564,23 +2564,23 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
-        // ── Глобальные хоткеи приложения ───────────────────────────────────────
-        // Monaco поглощает все нажатия клавиш внутри себя и не даёт им всплыть
-        // до document. Поэтому мы явно перехватываем каждый глобальный хоткей
-        // через addCommand и вызываем соответствующую функцию приложения напрямую
-        // (они доступны, т.к. monaco-editor.js загружается в том же окне, что и app.js).
+        // ── App global hotkeys ───────────────────────────────────────
+        // Monaco absorbs all key presses inside itself and does not let them bubble up
+        // to document. So we explicitly intercept every global hotkey
+        // via addCommand and call the corresponding app function directly
+        // (they are available since monaco-editor.js loads in the same window as app.js).
 
-        // Ctrl+S — сохранить файл (вместо «Сохранить страницу» браузера)
+        // Ctrl+S - save the file (instead of the browser 'Save page')
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
             if (typeof saveFile === 'function') saveFile();
         });
 
-        // F9 — переключить язык ввода
+        // F9 - switch input language
         editor.addCommand(monaco.KeyCode.F9, function() {
             if (typeof switchInputLanguage === 'function') switchInputLanguage();
         });
 
-        // F8 — компиляция/запуск
+        // F8 - compile/run
         editor.addCommand(monaco.KeyCode.F8, function() {
             const viewer = document.getElementById('viewer');
             const path = viewer && viewer.dataset.path;
@@ -2599,28 +2599,28 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
-        // F5 — обновить дерево файлов
+        // F5 - refresh the file tree
         editor.addCommand(monaco.KeyCode.F5, function() {
             document.getElementById('btn-refresh-tree')?.click();
         });
 
-        // Ctrl+Shift+A — открыть/закрыть AI-ассистент
+        // Ctrl+Shift+A - open/close the AI assistant
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyA, function() {
             if (typeof toggleAIModal === 'function') toggleAIModal();
         });
 
-        // Ctrl+Shift+→ — следующая вкладка
+        // Ctrl+Shift+→ - next tab
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.RightArrow, function() {
             if (typeof switchToNextTab === 'function') switchToNextTab();
         });
 
-        // Ctrl+Shift+← — предыдущая вкладка
+        // Ctrl+Shift+← - previous tab
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.LeftArrow, function() {
             if (typeof switchToPrevTab === 'function') switchToPrevTab();
         });
         // ───────────────────────────────────────────────────────────────────────
 
-        // Добавляем команды для hotkeys
+        // Add commands for hotkeys
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD, function() {
             monacoDeleteLine(editor);
         });
@@ -2667,7 +2667,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
-        // Добавляем команду Select All для touch
+        // Add a Select All command for touch
         if (monacoIsTouchDevice) {
             editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, function() {
                 const model = editor.getModel();

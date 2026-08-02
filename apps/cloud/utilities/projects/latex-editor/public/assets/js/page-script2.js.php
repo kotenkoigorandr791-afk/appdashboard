@@ -292,12 +292,12 @@
       
       editor.addAction({
         id: 'select-all-custom',
-        label: 'Select All',           // или t['select_all'] если добавите перевод
+        label: 'Select All',           // or t['select_all'] if you add a translation
         keybindings: [
           monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA
         ],
-        contextMenuGroupId: 'navigation', // группа в контекстном меню
-        contextMenuOrder: 0,              // порядок — первым
+        contextMenuGroupId: 'navigation', // group in the context menu
+        contextMenuOrder: 0,              // order - first
         run: function(ed) {
           const model = ed.getModel();
           const lastLine = model.getLineCount();
@@ -346,7 +346,7 @@
     let lastTranslationPromise = null;
 
     function showNotification(title, message, type = 'info', duration = 5000) {
-      // Показываем уведомления для всех важных операций
+      // Show notifications for all important operations
       const container = document.getElementById('notification-container');
       
       const notification = document.createElement('div');
@@ -443,7 +443,7 @@
         
         isFullscreen = !isFullscreen;
         
-        // Принудительно обновляем layout редактора
+        // Force the editor layout refresh
         setTimeout(() => {
             if (editor) {
                 editor.layout();
@@ -993,7 +993,7 @@
       const mobileIndicator = document.getElementById('mobile-status');
       const mobileCompileBtn = document.getElementById('mobile-compile-btn');
       
-      // Если есть активные таймеры, отменяем их
+      // If there are active timers, cancel them
       if (window.statusHideTimer) {
         clearTimeout(window.statusHideTimer);
         window.statusHideTimer = null;
@@ -1003,7 +1003,7 @@
         window.statusGrayTimer = null;
       }
       
-      // Определяем цвета в зависимости от темы
+      // Determine colors depending on the theme
       const isDark = document.body.classList.contains('fullscreen-editor') ? 
         <?php echo $theme === 'dark' ? 'true' : 'false'; ?> : 
         <?php echo $theme === 'dark' ? 'true' : 'false'; ?>;
@@ -1019,7 +1019,7 @@
         indicator.style.opacity = '1';
         indicator.style.transition = 'opacity 0.5s, color 0.5s';
         
-        // Устанавливаем цвет в зависимости от класса статуса
+        // Set the color based on the status class
         if (className === 'status-ok') {
           indicator.style.color = successColor;
         } else if (className === 'status-error') {
@@ -1030,12 +1030,12 @@
           indicator.style.color = normalColor;
         }
         
-        // Таймер для изменения цвета на серый через 5 секунд
+        // Timer to change the color to gray after 5 seconds
         window.statusGrayTimer = setTimeout(() => {
           indicator.style.color = '#888';
         }, 5000);
         
-        // Таймер для скрытия через 30 секунд
+        // Timer to hide after 30 seconds
         window.statusHideTimer = setTimeout(() => {
           indicator.style.opacity = '0';
         }, 30000);
@@ -1047,7 +1047,7 @@
         mobileIndicator.style.opacity = '1';
         mobileIndicator.style.transition = 'opacity 0.5s, color 0.5s';
         
-        // Устанавливаем цвет в зависимости от класса статуса
+        // Set the color based on the status class
         if (className === 'status-ok') {
           mobileIndicator.style.color = successColor;
         } else if (className === 'status-error') {
@@ -1058,18 +1058,18 @@
           mobileIndicator.style.color = normalColor;
         }
         
-        // Таймер для изменения цвета на серый через 5 секунд
+        // Timer to change the color to gray after 5 seconds
         setTimeout(() => {
           mobileIndicator.style.color = '#888';
         }, 5000);
         
-        // Таймер для скрытия через 30 секунд
+        // Timer to hide after 30 seconds
         setTimeout(() => {
           mobileIndicator.style.opacity = '0';
         }, 30000);
       }
       
-      // Обновляем состояние кнопки компиляции на мобильных устройствах
+      // Update the compile button state on mobile devices
       if (isMobile && !isTablet && mobileCompileBtn) {
         mobileCompileBtn.classList.remove('status-compiling', 'status-ok', 'status-error');
         mobileCompileBtn.classList.add(className);
@@ -1096,7 +1096,7 @@
       const normalColor = isDark ? '#cccccc' : '#333333';
       
       if (indicator) {
-        // Отменяем текущие таймеры
+        // Cancel the current timers
         if (window.statusGrayTimer) {
           clearTimeout(window.statusGrayTimer);
           window.statusGrayTimer = null;
@@ -1106,11 +1106,11 @@
           window.statusHideTimer = null;
         }
         
-        // Восстанавливаем цвет и прозрачность
+        // Restore color and transparency
         indicator.style.color = normalColor;
         indicator.style.opacity = '1';
         
-        // Перезапускаем таймеры
+        // Restart the timers
         window.statusGrayTimer = setTimeout(() => {
           indicator.style.color = '#888';
         }, 5000);
@@ -1126,9 +1126,9 @@
       }
     }
         
-    // Добавьте эту функцию в инициализацию
+    // Add this function to the initialization
     function setupStatusBarReset() {
-      // Сброс при кликах на редактор
+      // Reset on editor clicks
       if (editor) {
         editor.onDidChangeCursorSelection(function() {
           resetStatusColor();
@@ -1140,9 +1140,9 @@
         });
       }
       
-      // Сброс при кликах на основные кнопки
+      // Reset on clicks on the main buttons
       document.getElementById('compile-btn')?.addEventListener('click', function() {
-        // setStatus будет вызван отдельно, не сбрасываем здесь
+        // setStatus will be called separately, do not reset here
       });
       
       document.getElementById('save-pdf-btn')?.addEventListener('click', function() {
@@ -1380,9 +1380,9 @@
             
             if (alwaysActiveCommands.includes(command)) {
                 if (command === 'translate') {
-                    // Кнопка перевода всегда доступна
+                    // The translate button is always available
                     btn.disabled = false;
-                    // Подсвечиваем, если есть выделение
+                    // Highlight if there is a selection
                     if (hasSelection) {
                         btn.classList.add('active');
                     } else {
@@ -1517,7 +1517,7 @@
       });
     }
     
-    // Функция для обновления состояния кнопок Undo/Redo
+    // Function to update the Undo/Redo button state
     function updateUndoRedoButtons() {
         if (!editor) return;
         
@@ -1526,15 +1526,15 @@
         
         if (!undoBtn || !redoBtn) return;
         
-        // Проверяем, можно ли выполнить undo
+        // Check whether undo is possible
         const canUndo = editor.getModel()?.canUndo() || false;
         undoBtn.disabled = !canUndo;
         
-        // Проверяем, можно ли выполнить redo
+        // Check whether redo is possible
         const canRedo = editor.getModel()?.canRedo() || false;
         redoBtn.disabled = !canRedo;
         
-        // Визуальное отображение неактивных кнопок
+        // Visual display of inactive buttons
         undoBtn.style.opacity = canUndo ? '1' : '0.5';
         redoBtn.style.opacity = canRedo ? '1' : '0.5';
     }
@@ -1922,7 +1922,7 @@
       document.getElementById('listing-insert').addEventListener('click', insertListing);
       document.getElementById('listing-copy-code').addEventListener('click', copyListingCode);
       
-      // Сохраняем параметры перевода при закрытии модального окна
+      // Save translation parameters when the modal closes
       document.getElementById('translation-modal').addEventListener('close', function() {
         lastTranslationParams.sourceLang = document.getElementById('source-lang').value;
         lastTranslationParams.targetLang = document.getElementById('target-lang').value;
@@ -1933,19 +1933,19 @@
       const selection = editor ? editor.getSelection() : null;
       let selectedText = '';
       
-      // Если есть выделение, берем его
+      // If there is a selection, take it
       if (selection && !selection.isEmpty()) {
         selectedText = editor.getModel().getValueInRange(selection);
         currentSelectedText = selectedText;
         document.getElementById('source-text').value = selectedText;
       } else {
-        // Если выделения нет, очищаем поля
+        // If there is no selection, clear the fields
         currentSelectedText = '';
         document.getElementById('source-text').value = '';
         document.getElementById('target-text').value = '';
       }
       
-      // Если есть сохраненный перевод для этого текста, показываем его
+      // If there is a saved translation for this text, show it
       if (lastTranslationResult && lastTranslationParams.sourceLang === document.getElementById('source-lang').value && 
           lastTranslationParams.targetLang === document.getElementById('target-lang').value &&
           selectedText === currentSelectedText) {
@@ -1977,7 +1977,7 @@
       formData.append('source_lang', sourceLang);
       formData.append('target_lang', targetLang);
       
-      // Сохраняем промис для отслеживания статуса
+      // Keep the promise to track status
       lastTranslationPromise = fetch('', { method: 'POST', body: formData, timeout: 180000 })
       .then(response => response.json())
       .then(data => {
@@ -1986,7 +1986,7 @@
           lastTranslationResult = data.translated_text;
           lastTranslationParams = { sourceLang, targetLang };
           
-          // Если модальное окно закрыто, показываем уведомление в статусбаре
+          // If the modal is closed, show a notification in the status bar
           if (document.getElementById('translation-modal').style.display !== 'flex') {
             setStatus(t['translation_background'] + ': ' + t['translation_completed'], 'status-ok');
           }
@@ -2081,7 +2081,7 @@
         e.stopPropagation();
         e.preventDefault();
         
-        // Закрываем другие dropdowns
+        // Close other dropdowns
         document.querySelectorAll('.dropdown-content').forEach(dropdown => {
             if (dropdown !== templateDropdown) {
                 dropdown.classList.remove('show');
@@ -2098,7 +2098,7 @@
         e.stopPropagation();
         e.preventDefault();
         
-        // Закрываем другие dropdowns
+        // Close other dropdowns
         document.querySelectorAll('.dropdown-content').forEach(dropdown => {
             if (dropdown !== insertDropdown) {
                 dropdown.classList.remove('show');
@@ -2115,12 +2115,12 @@
             if (this.closest('#template-dropdown')) loadTemplate(value);
             else if (this.closest('#insert-dropdown')) insertElement(value);
             
-            // Закрываем dropdown после выбора
+            // Close the dropdown after selection
             this.closest('.dropdown-content').classList.remove('show');
         });
     });
     
-    // Закрываем dropdown при клике вне его
+    // Close the dropdown on outside click
     document.addEventListener('click', function(e) {
         if (!e.target.closest('.dropdown')) {
             document.querySelectorAll('.dropdown-content').forEach(dropdown => {
@@ -2129,7 +2129,7 @@
         }
     });
     
-    // Предотвращаем закрытие при клике внутри dropdown
+    // Prevent closing on click inside the dropdown
     document.querySelectorAll('.dropdown-content').forEach(dropdown => {
         dropdown.addEventListener('click', function(e) {
             e.stopPropagation();
@@ -2150,13 +2150,13 @@
             } else if (command === 'undo') {
                 if (editor && editor.getModel()?.canUndo()) {
                     editor.trigger('undo', 'undo');
-                    // Обновляем состояние кнопок после выполнения
+                    // Update the button state after execution
                     setTimeout(updateUndoRedoButtons, 50);
                 }
             } else if (command === 'redo') {
                 if (editor && editor.getModel()?.canRedo()) {
                     editor.trigger('redo', 'redo');
-                    // Обновляем состояние кнопок после выполнения
+                    // Update the button state after execution
                     setTimeout(updateUndoRedoButtons, 50);
                 }
             } else {
@@ -2237,7 +2237,7 @@
     }
     
     function openListingModal() {
-      // Создаем редактор для листинга, если его еще нет
+      // Create the listing editor if it does not exist yet
       if (!listingEditor && document.getElementById('listing-code-editor')) {
         require(['vs/editor/editor.main'], function() {
           listingEditor = monaco.editor.create(document.getElementById('listing-code-editor'), {
@@ -2253,30 +2253,30 @@
             tabSize: 4
           });
           
-          // Добавляем обработчик изменения содержимого для обновления превью
+          // Add a content change handler to update the preview
           listingEditor.onDidChangeModelContent(function() {
             updateListingPreview();
           });
           
-          // Первоначальное обновление превью
+          // Initial preview update
           setTimeout(updateListingPreview, 100);
         });
       } else if (listingEditor) {
-        // Если редактор уже существует, обновляем его содержимое
+        // If the editor already exists, update its content
         listingEditor.setValue('# Example code\nimport numpy as np\n\nx = np.linspace(0, 10, 100)\ny = np.sin(x)\n\nprint("Hello, World!")');
         
-        // Принудительно обновляем превью
+        // Force the preview refresh
         setTimeout(updateListingPreview, 100);
       }
       
-      // Добавляем обработчики для всех элементов управления
+      // Add handlers for all controls
       setupListingEventListeners();
       
       document.getElementById('listing-modal').style.display = 'flex';
     }
 
     function setupListingEventListeners() {
-      // Список всех элементов, изменение которых должно обновлять превью
+      // List of all elements whose changes should update the preview
       const elements = [
         'listing-language',
         'listing-font-family',
@@ -2297,7 +2297,7 @@
         'listing-showstringspaces'
       ];
       
-      // Удаляем старые обработчики, если они были
+      // Remove old handlers, if any
       elements.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -2306,7 +2306,7 @@
         }
       });
       
-      // Добавляем новые обработчики
+      // Add new handlers
       elements.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
@@ -2330,7 +2330,7 @@
       const previewElement = document.getElementById('listing-preview-code');
       if (!previewElement) return;
       
-      // Получаем все текущие настройки для отображения в превью
+      // Get all current settings for display in the preview
       const language = document.getElementById('listing-language')?.value || 'Python';
       const fontFamily = document.getElementById('listing-font-family')?.value || 'ttfamily';
       const fontSize = document.getElementById('listing-font-size')?.value || 'small';
@@ -2343,7 +2343,7 @@
       const tabsize = document.getElementById('listing-tabsize')?.value || 4;
       const breaklines = document.getElementById('listing-breaklines')?.checked || false;
       
-      // Создаем информативное превью с текущими настройками
+      // Create an informative preview with the current settings
       let previewText = `// ${t['listing_preview'] || 'Code Preview'} (${language})\n`;
       previewText += `// ${t['listing_font_family']}: ${fontFamily}, ${t['listing_font_size']}: ${fontSize}\n`;
       previewText += `// ${t['listing_frame']}: ${frame}, ${t['listing_numbers']}: ${numbers}\n`;
@@ -2357,7 +2357,7 @@
       
       previewElement.textContent = previewText;
       
-      // Добавляем небольшую задержку для визуального подтверждения обновления
+      // Add a small delay for visual confirmation of the update
       previewElement.style.transition = 'background-color 0.2s';
       previewElement.style.backgroundColor = 'rgba(var(--accent-color-rgb), 0.1)';
       setTimeout(() => {
@@ -2413,11 +2413,11 @@
       const model = editor.getModel();
       const content = model.getValue();
       
-      // Проверяем наличие пакетов в преамбуле
+      // Check for packages in the preamble
       const hasListings = /\\usepackage\s*(?:\[[^\]]*\])?\s*\{listings\}/.test(content);
       const hasXcolor = /\\usepackage\s*(?:\[[^\]]*\])?\s*\{xcolor\}/.test(content);
       
-      // Создаем настройки листинга
+      // Create the listing settings
       let lstsetContent = '';
       
       lstsetContent += `language=${language},\n`;
@@ -2458,23 +2458,23 @@
       lstsetContent += `    breakatwhitespace=true,\n`;
       lstsetContent += `    escapeinside={\\%*}{*)},\n`;
       
-      // Сам листинг (будет вставлен в позицию курсора)
+      // The listing itself (will be inserted at the cursor position)
       const listingCode = `\\begin{lstlisting}[caption={${caption}}, label=${label}]\n${code}\n\\end{lstlisting}`;
       
-      // Если нужны пакеты, вставляем их сразу после \documentclass
+      // If packages are needed, insert them right after \documentclass
       if (!hasListings || !hasXcolor) {
-        // Ищем \documentclass
+        // Find \documentclass
         const docClassMatch = content.match(/\\documentclass(?:\[[^\]]*\])?\s*\{[^}]*\}/);
         
         if (docClassMatch) {
-          // Находим позицию после \documentclass
+          // Find the position after \documentclass
           const docClassEnd = docClassMatch.index + docClassMatch[0].length;
           
-          // Определяем номер строки, где заканчивается \documentclass
+          // Determine the line number where \documentclass ends
           const textBeforeDocClass = content.substring(0, docClassEnd);
           const lineNumber = (textBeforeDocClass.match(/\n/g) || []).length + 1;
           
-          // Определяем позицию для вставки (в конец строки с \documentclass)
+          // Determine the insertion position (end of the \documentclass line)
           const lineContent = model.getLineContent(lineNumber);
           const columnPosition = lineContent.length + 1;
           
@@ -2486,10 +2486,10 @@
             packagesToInsert += '\\usepackage{xcolor}\n';
           }
           
-          // Создаем операцию для вставки пакетов сразу после \documentclass
+          // Create an operation to insert packages right after \documentclass
           const packagesRange = new monaco.Range(lineNumber, columnPosition, lineNumber, columnPosition);
           
-          // Вставка настроек и листинга в позицию курсора
+          // Insert settings and listing at the cursor position
           const selection = editor.getSelection();
           const fullListingText = `\n\n% Настройки листинга\n\\lstset{\n${lstsetContent}}\n\n${listingCode}`;
           
@@ -2510,7 +2510,7 @@
           
           editor.executeEdits('insert-listing-full', operations);
         } else {
-          // Если не можем найти \documentclass, вставляем всё в позицию курсора с пояснениями
+          // If \documentclass cannot be found, insert everything at the cursor position with explanations
           let packagesText = '';
           if (!hasListings) {
             packagesText += '\\usepackage{listings}\n';
@@ -2531,7 +2531,7 @@
           editor.executeEdits('insert-listing', [op]);
         }
       } else {
-        // Пакеты уже есть, вставляем только настройки и листинг в позицию курсора
+        // Packages already exist, insert only settings and listing at the cursor position
         const fullText = `\n\n\\lstset{\n${lstsetContent}}\n\n${listingCode}`;
         
         const selection = editor.getSelection();

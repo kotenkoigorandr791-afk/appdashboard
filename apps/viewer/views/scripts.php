@@ -317,7 +317,7 @@
                 }
                 
                 if (currentIndex === -1) {
-                    // Если нет текущего сайта, возвращаем первый
+                    // If no current site, return first
                     return { site: visibleSites[0], index: config.sites.indexOf(visibleSites[0]) };
                 }
                 
@@ -338,7 +338,7 @@
             }
 
             function handleKeyNavigation(event) {
-                // Проверяем, что не в поле ввода
+                // Check that not in input field
                 const activeElement = document.activeElement;
                 const isInputFocused = activeElement.tagName === 'INPUT' || 
                                     activeElement.tagName === 'TEXTAREA' ||
@@ -382,10 +382,10 @@
 
 
 
-            // Добавьте обработчик клавиатуры
+            // Add keyboard handler
             document.addEventListener('keydown', handleKeyNavigation);
 
-            // Обновите функцию selectSite, чтобы выделялся активный элемент в списке
+            // Update selectSite function to highlight active item in list
             function selectSite(site, index) {
                 document.querySelectorAll('.site-item').forEach((item, i) => {
                     item.classList.toggle('active', i === index);
@@ -396,7 +396,7 @@
                 elements.fullscreenSiteTitle.textContent = site.name;
                 loadSiteContent();
                 
-                // Прокручиваем к активному элементу в списке
+                // Scroll to active item in list
                 const activeItem = document.querySelector('.site-item.active');
                 if (activeItem) {
                     activeItem.scrollIntoView({

@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Проверка авторизации (должен быть root)
+// Auth check (must be root)
 function checkUserRole() {
     $sessions_file = __DIR__ . '/active_sessions.json';
     
@@ -33,10 +33,10 @@ function checkUserRole() {
     
     if ($session_id && isset($sessions_data[$session_id])) {
         $role = $sessions_data[$session_id]['user_data']['role'] ?? 0;
-        return $role === 2; // Только root (role = 2)
+        return $role === 2; // Root only (role = 2)
     }
     
-    // Проверка по cookie
+    // Check by cookie
     if (isset($_COOKIE['PHPSESSID'])) {
         $cookie_session = $_COOKIE['PHPSESSID'];
         if (isset($sessions_data[$cookie_session])) {
@@ -54,7 +54,7 @@ if (!checkUserRole()) {
     exit;
 }
 
-// Получаем данные из запроса
+// Get data from request
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!$input || !isset($input['api_key'])) {

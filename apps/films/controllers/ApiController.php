@@ -81,7 +81,7 @@ try {
                 exit;
                 
             case 'add_movie':
-                // Проверка уровня доступа: требуется уровень 1 или выше
+                // Access level check: requires level 1 or higher
                 global $user_access_level;
                 if ($user_access_level < 1) {
                     echo json_encode(['success' => false, 'error' => 'Access denied. You need level 1 or higher to add movies.']);
@@ -198,7 +198,7 @@ try {
                 exit;
                 
             case 'toggle_visibility':
-                // Проверка уровня доступа: требуется уровень 2 или выше
+                // Access level check: requires level 2 or higher
                 global $user_access_level;
                 if ($user_access_level < 2) {
                     echo json_encode(['success' => false, 'error' => 'Access denied. You need level 2 or higher to manage movie visibility.']);
@@ -233,7 +233,7 @@ try {
                 exit;
                 
             case 'delete_movie':
-                // Проверка уровня доступа: требуется уровень 2 или выше
+                // Access level check: requires level 2 or higher
                 global $user_access_level;
                 if ($user_access_level < 2) {
                     echo json_encode(['success' => false, 'error' => 'Access denied. You need level 2 or higher to delete movies.']);
@@ -325,7 +325,7 @@ try {
                 exit;
                 
             case 'delete_comment':
-                // Проверка уровня доступа: требуется уровень 2 или выше
+                // Access level check: requires level 2 or higher
                 global $user_access_level;
                 if ($user_access_level < 2) {
                     echo json_encode(['success' => false, 'error' => 'Access denied. You need level 2 or higher to delete comments.']);
