@@ -159,14 +159,15 @@
         #notifications-btn + #support-chat-btn{margin-left:0;}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
-	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1002;padding:0;border:none;outline:none;width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);}
+	        #menu-button{position:fixed;top:var(--shell-menu-button-top);left:var(--shell-menu-button-left);cursor:pointer;color:var(--text-color);z-index:1002;padding:0;border:none;outline:none;width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.2s,box-shadow 0.2s,background 0.2s;}
+        body.app-modal-open #menu-button{opacity:0;visibility:hidden;pointer-events:none;z-index:0;transition:none;}
 	        <?php if(!empty($selectedAppMenuButtonScroll)): ?>#menu-button{position:absolute;}<?php endif; ?>
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
         <?php if($isHomeDashboard): ?>
         #top-bar{justify-content:flex-start;}
         #top-bar-title{flex:0 0 auto;margin-left:12px;}
-        #menu-button{position:static;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transform:none;}
+        #menu-button{position:static;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transform:none;}
         #home-root-button{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--primary-color);text-decoration:none;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);flex:0 0 auto;border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
         #home-root-button svg{width:22px;height:22px;}
         #home-root-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
@@ -3088,6 +3089,73 @@ var T=<?php echo json_encode([
         
         const menuButton=document.getElementById('menu-button');
         const sidebar=document.getElementById('sidebar');
+        function bindAppModalMenuLayer(){
+            const iframe=document.getElementById('app-iframe');
+            if(!iframe||!menuButton)return;
+            let observer=null;
+            const selectors='dialog[open],[aria-modal="true"],[role="dialog"],.modal,.modal-overlay,.overlay,.lightbox,[id*="Modal"],[id*="modal"],[class*="Modal"],[class*="modal"],[id*="Overlay"],[id*="overlay"],[class*="Overlay"],[class*="overlay"],[id*="Lightbox"],[id*="lightbox"],[class*="Lightbox"],[class*="lightbox"]';
+            const contentSelectors='.modal-content,[class*="modal-content"],[class*="ModalContent"],[class*="dialog-content"],[class*="DialogContent"],[class*="lightbox-inner"],[class*="LightboxInner"],[role="document"]';
+            function isVisibleLayer(el,win){
+                if(!el||el===el.ownerDocument.body||el===el.ownerDocument.documentElement)return false;
+                if(el.getAttribute('aria-hidden')==='true')return false;
+                const cs=win.getComputedStyle(el);
+                if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0)return false;
+                const rect=el.getBoundingClientRect();
+                if(rect.width<2||rect.height<2)return false;
+                if(rect.bottom<=0||rect.right<=0||rect.top>=win.innerHeight||rect.left>=win.innerWidth)return false;
+                return true;
+            }
+            function rectsOverlap(a,b){
+                return a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;
+            }
+            function layerRects(el,win){
+                const rect=el.getBoundingClientRect();
+                const isBackdrop=rect.width>=win.innerWidth*0.8&&rect.height>=win.innerHeight*0.8;
+                if(isBackdrop){
+                    const content=Array.from(el.querySelectorAll(contentSelectors)).filter(child=>isVisibleLayer(child,win));
+                    if(content.length)return content.map(child=>child.getBoundingClientRect());
+                    if(el.matches('dialog[open]'))return [rect];
+                    return [];
+                }
+                return [rect];
+            }
+            function sync(){
+                let hasOverlap=false;
+                try{
+                    const doc=iframe.contentDocument||iframe.contentWindow.document;
+                    const win=iframe.contentWindow;
+                    const iframeRect=iframe.getBoundingClientRect();
+                    const menuRect=menuButton.getBoundingClientRect();
+                    hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
+                        if(!isVisibleLayer(el,win))return false;
+                        return layerRects(el,win).some(rect=>rectsOverlap(menuRect,{
+                            left:iframeRect.left+rect.left,
+                            right:iframeRect.left+rect.right,
+                            top:iframeRect.top+rect.top,
+                            bottom:iframeRect.top+rect.bottom
+                        }));
+                    });
+                }catch(e){}
+                document.body.classList.toggle('app-modal-open',hasOverlap);
+                if(hasOverlap&&sidebar&&sidebar.classList.contains('open'))closeSidebarMenu();
+            }
+            function scheduleSync(){
+                sync();
+            }
+            function attach(){
+                if(observer)observer.disconnect();
+                document.body.classList.remove('app-modal-open');
+                try{
+                    const doc=iframe.contentDocument||iframe.contentWindow.document;
+                    observer=new MutationObserver(scheduleSync);
+                    observer.observe(doc.documentElement,{attributes:true,childList:true,subtree:true,attributeFilter:['class','style','open','aria-hidden','aria-modal','role']});
+                    sync();
+                }catch(e){}
+            }
+            iframe.addEventListener('load',attach);
+            attach();
+        }
+        bindAppModalMenuLayer();
         const settingsButton=document.getElementById('settings-button');
         const settingsModal=document.getElementById('settings-modal');
         const searchBar=document.getElementById('search-bar');
