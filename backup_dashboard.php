@@ -2213,7 +2213,7 @@ async function openRestoreModal(id, name) {
         }
         select.innerHTML = versions.map(v => {
             const full = v.IsFullBackup == 1 ? t('fullBackup') : t('incrementalBackup');
-            return `<option value="${esc(String(v.Version))}">v${esc(String(v.Version))} — ${esc(formatDate(v.Time))} — ${esc(full)}</option>`;
+            return `<option value="${esc(String(v.Version))}" data-time="${esc(String(v.Time || ''))}">v${esc(String(v.Version))} — ${esc(formatDate(v.Time))} — ${esc(full)}</option>`;
         }).join('');
         document.getElementById('restoreModalStatus').textContent = '';
     } catch (err) {
@@ -2229,14 +2229,17 @@ async function restoreSelectedVersion() {
         return;
     }
     const restorePath = document.getElementById('restorePathInput').value.trim();
+    const selected = document.getElementById('restoreVersionSelect').selectedOptions[0];
+    const restoreTime = selected?.dataset.time || '';
     loading(true, t('restoring'));
     try {
         const data = {
-            Paths: [],
-            Version: Number(version),
-            RestorePath: restorePath || null,
-            Overwrite: document.getElementById('restoreOverwrite').checked,
-            Permissions: true
+            time: restoreTime,
+            paths: [],
+            restore_path: restorePath || null,
+            overwrite: document.getElementById('restoreOverwrite').checked,
+            permissions: true,
+            passphrase: null
         };
         await apiCall(`backup/${id}/restore`, 'POST', data);
         closeModal('restoreModal');
