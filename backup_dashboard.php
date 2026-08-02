@@ -1973,7 +1973,7 @@ function formatProgressSpeed(ps) {
 function isProgressPhaseActive(ps) {
     if (!ps || typeof ps !== 'object') return false;
     const phase = String(ps.Phase || ps.BackupPhase || '').trim();
-    if (!phase || phase === 'Backup_Complete') return false;
+    if (!phase || /(^|_)Complete(d)?$/i.test(phase)) return false;
     const overall = Number(ps.OverallProgress ?? ps.Progress ?? ps.OverallPercent);
     if (Number.isFinite(overall) && overall >= 1) return false;
     return true;
