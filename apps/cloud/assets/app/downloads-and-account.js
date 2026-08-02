@@ -116,10 +116,10 @@ function addDownloadItem(path, filename, totalSize) {
     return downloadId;
 }
 
-// Добавьте в начало файла
+// Add to the top of the file
 let pendingUpdates = new Map();
 let downloadRenderTimer = null;
-const RENDER_INTERVAL = 50; // мс - частота обновления UI (20 раз в секунду)
+const RENDER_INTERVAL = 50; // ms - UI refresh rate (20 times per second)
 
 function ensureDownloadRenderLoop() {
     if (downloadRenderTimer) return;
@@ -132,7 +132,7 @@ function ensureDownloadRenderLoop() {
     }, RENDER_INTERVAL);
 }
 
-// В функции updateDownloadProgress
+// In the updateDownloadProgress function
 function updateDownloadProgress(downloadId, loaded) {
     const item = downloadState.items.get(downloadId);
     if (!item || item.cancelled) return;
@@ -140,7 +140,7 @@ function updateDownloadProgress(downloadId, loaded) {
     const now = Date.now();
     const timeDiff = (now - item.lastTime) / 1000;
     
-    // Обновляем скорость чаще, чтобы UI не "подвисал".
+        // Update the speed more often so the UI does not 'freeze'.
     if (timeDiff >= 0.25) {
         const loadedDiff = loaded - item.lastLoaded;
         item.speed = loadedDiff / timeDiff;
@@ -151,14 +151,14 @@ function updateDownloadProgress(downloadId, loaded) {
     item.loaded = loaded;
     item.progress = (loaded / item.totalSize) * 100;
     
-    // Обновляем круговой прогресс сразу (это важно для анимации)
+        // Update the circular progress right away (important for animation)
     if (downloadState.items.size > 0) {
         const totalProgress = Array.from(downloadState.items.values())
             .reduce((sum, item) => sum + item.progress, 0) / downloadState.items.size;
         updateCircularProgress(totalProgress);
     }
     
-    // Сохраняем обновление для отложенной отрисовки панели
+        // Save the update for deferred panel rendering
     pendingUpdates.set(downloadId, {
         progress: item.progress,
         loaded: loaded,
@@ -166,12 +166,12 @@ function updateDownloadProgress(downloadId, loaded) {
         totalSize: item.totalSize
     });
 
-    // Гарантируем обновления независимо от фокуса/кликов в UI.
+        // Ensure updates regardless of focus/clicks in the UI.
     ensureDownloadRenderLoop();
     renderPendingUpdates();
 }
 
-// Функция для отрисовки накопленных обновлений
+// Function to render accumulated updates
 function renderPendingUpdates() {
     if (pendingUpdates.size === 0) return;
     
@@ -328,11 +328,11 @@ async function downloadWithProgress(downloadId) {
 
         const supportsResume = response.status === 206;
         if (pauseBtn && !supportsResume && startByte > 0) {
-            // Если сервер не поддержал Range после паузы — отключаем resume для этого файла.
+                        // If the server did not support Range after a pause, disable resume for this file.
             pauseBtn.classList.add('hidden');
         }
         if (startByte > 0 && !supportsResume) {
-            // Сервер не поддержал Range: перезапускаем с начала.
+                        // The server did not support Range: restart from the beginning.
             item.loaded = 0;
             item.lastLoaded = 0;
             item.lastTime = Date.now();
@@ -363,7 +363,7 @@ async function downloadWithProgress(downloadId) {
         if (completeItem.loaded >= completeItem.totalSize) {
             finalizeDownloadedFile(downloadId);
         } else {
-            // Защита на случай неточного Content-Length: пробуем догрузить.
+                        // Guard against an inaccurate Content-Length: try to reload.
             await continueDownload(downloadId);
         }
     } catch (err) {
@@ -398,7 +398,7 @@ async function continueDownload(downloadId) {
     await downloadWithProgress(downloadId);
 }
 
-// Функция для получения всех изображений в папке
+// Function to get all images in the folder
 async function getImagesInFolder(folderPath, rootOverride) {
     try {
         const params = { path: folderPath };
@@ -414,7 +414,7 @@ async function getImagesInFolder(folderPath, rootOverride) {
                 }
                 return false;
             })
-            .map(item => item.name); // возвращаем только имена файлов
+            .map(item => item.name); // return only file names
         
         return images;
     } catch (err) {
@@ -435,12 +435,12 @@ function initFormatTagsClickHandler() {
             
             let extension = this.textContent.trim();
             
-            // Проверяем, начинается ли с точки
+                        // Check whether it starts with a dot
             if (!extension.startsWith('.')) {
                 extension = '.' + extension;
             }
             
-            // Проверяем, есть ли такое расширение в выпадающем списке
+                        // Check whether the extension is in the dropdown
             let optionFound = false;
             for (let i = 0; i < extensionSelect.options.length; i++) {
                 if (extensionSelect.options[i].value === extension) {
@@ -451,29 +451,29 @@ function initFormatTagsClickHandler() {
             }
             
             if (optionFound) {
-                // Обновляем кастомный селект
+                                // Update the custom select
                 if (selectedDisplay) {
                     const arrow = selectedDisplay.querySelector('span:last-child');
                     selectedDisplay.textContent = extension;
                     if (arrow) selectedDisplay.appendChild(arrow);
                 }
                 
-                // Скрываем кастомное поле ввода
+                                // Hide the custom input field
                 customExtensionInput.classList.add('hidden');
                 customExtensionInput.value = '';
                 
-                // Подсвечиваем выбранный тег
+                                // Highlight the selected tag
                 formatTags.forEach(t => t.style.background = '');
                 this.style.background = 'var(--accent)';
                 this.style.color = 'white';
                 
-                // Анимация выбора
+                                // Selection animation
                 this.style.transform = 'scale(1.1)';
                 setTimeout(() => {
                     this.style.transform = 'scale(1)';
                 }, 200);
                 
-                // Если это специальный формат с цветом
+                                // If this is a special format with a color
                 const officeColors = {
                     '.docx': '#2b579a',
                     '.doc': '#2b579a',
@@ -500,15 +500,15 @@ function initFormatTagsClickHandler() {
                     }
                 }
                 
-                // Добавляем визуальную обратную связь для поля ввода имени файла
+                                // Add visual feedback for the file name input
                 const fileNameInput = document.getElementById('new-file-name');
                 if (fileNameInput.value) {
-                    // Если есть имя файла, показываем предварительный просмотр полного имени
+                                        // If there is a file name, show a preview of the full name
                     const fullFileName = fileNameInput.value + extension;
                     flashStatus(`File will be created as: ${fullFileName}`);
                 }
             } else {
-                // Если расширение не найдено в списке, используем кастомное
+                                // If the extension is not in the list, use the custom one
                 extensionSelect.value = 'custom';
                 customExtensionInput.classList.remove('hidden');
                 customExtensionInput.value = extension;
@@ -522,11 +522,11 @@ function initFormatTagsClickHandler() {
             }
         });
         
-        // Добавляем стили для курсора при наведении
+                // Add cursor styles on hover
         tag.style.cursor = 'pointer';
         tag.style.transition = 'all 0.2s ease';
         
-        // Добавляем эффект при наведении
+                // Add a hover effect
         tag.addEventListener('mouseenter', function() {
             if (this.style.background !== 'var(--accent)') {
                 this.style.opacity = '0.8';
@@ -544,10 +544,10 @@ function initFormatTagsClickHandler() {
 }
 async function getUserRole() {
     try {
-        // Создаем запрос к API для проверки роли
+                // Create an API request to check the role
         const url = new URL(window.APP_CONFIG.apiBase, window.location.href);
         url.searchParams.set('action', 'get_user_role');
-        url.searchParams.set('v', Date.now()); // Отключаем кэширование
+        url.searchParams.set('v', Date.now()); // Disable caching
 
         const response = await fetch(url, {
             method: 'GET',
@@ -585,10 +585,10 @@ function updateUserRoleIcon(role) {
     
     if (!icon || !label) return;
 
-    // Удаляем все классы ролей
+        // Remove all role classes
     icon.classList.remove('role-guest', 'role-manager', 'role-admin');
 
-    // Устанавливаем соответствующий класс и текст
+        // Set the corresponding class and text
     let roleClass, roleKey;
     switch(role) {
         case 0:
@@ -614,7 +614,7 @@ function updateUserRoleIcon(role) {
 }
 
 function getSessionId() {
-    // Пытаемся получить session_id из разных источников
+        // Try to get session_id from different sources
     if (typeof session_id !== 'undefined') {
         return session_id;
     }

@@ -25,7 +25,7 @@ function resolve_cloud_path_or_fail(string $user, string $root, string $path): s
 }
 $userStoragePath = resolve_cloud_path_or_fail($currentUser, $root, $filePath);
 
-// Выполнение перевода
+// Run translation
 if (isset($_POST['translate'])) {
     $text = $_POST['text'] ?? '';
     $sourceLang = $_POST['source_lang'] ?? 'auto';

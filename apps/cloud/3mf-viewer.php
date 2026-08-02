@@ -34,7 +34,7 @@ if (empty($filePath)) {
     die('File path is required');
 }
 
-// Вместо прямого доступа к файлам, используем API
+// Instead of direct file access, use API
 $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlencode($root);
 ?>
 <!DOCTYPE html>
@@ -289,7 +289,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
     const DEFAULT_GRID_VISIBLE = true;
     const DEFAULT_CONTRAST_MODE = 'high';
 
-    // Переменные
+    // Variables
     let scene, camera, renderer, controls, model, gridHelper, gridLabelsGroup, modelBoundsSphere, modelHeightRange = null;
     let ambientLight, mainLight, fillLight, backLight, rimLight, lowerFillLight;
     const visualState = {
@@ -737,7 +737,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         throw lastError || new Error('WebGL renderer initialization failed');
     }
 
-    // Инициализация
+    // Initialization
     function init() {
         const canvas = document.getElementById('viewer');
 
@@ -753,11 +753,11 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
             return false;
         }
 
-        // Сцена
+        // Scene
         scene = new THREE.Scene();
         scene.background = new THREE.Color(viewerPalette.scene);
         
-        // Камера с улучшенными настройками
+        // Camera with enhanced settings
         camera = new THREE.PerspectiveCamera(
             60,
             window.innerWidth / window.innerHeight,
@@ -779,13 +779,13 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
             return false;
         }
 
-        // Освещение для лучшей детализации
+        // Lighting for better detail
         setupLighting();
 
-        // Загрузка модели
+        // Load model
         loadModel();
 
-        // Обработчики событий
+        // Event handlers
         window.addEventListener('resize', onWindowResize);
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -821,7 +821,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         updateModeButtons();
         updateElevationLegend();
 
-        // Фокус на canvas
+        // Focus on canvas
         canvas.setAttribute('tabindex', '0');
         canvas.focus();
 
@@ -829,16 +829,16 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
     }
 
     function setupLighting() {
-        // Ambient light - мягкое окружающее освещение
+        // Ambient light - soft ambient lighting
         ambientLight = new THREE.AmbientLight(0xffffff, 0.92);
         scene.add(ambientLight);
         
-        // Основной directional light
+        // Main directional light
         mainLight = new THREE.DirectionalLight(0xffffff, 1.6);
         mainLight.position.set(10, 15, 10);
         mainLight.castShadow = true;
         
-        // Настройки теней для четкости
+        // Shadow settings for clarity
         mainLight.shadow.mapSize.width = 2048;
         mainLight.shadow.mapSize.height = 2048;
         mainLight.shadow.camera.near = 0.5;
@@ -850,12 +850,12 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         
         scene.add(mainLight);
 
-        // Заполняющий свет
+        // Fill light
         fillLight = new THREE.DirectionalLight(0xffffff, 0.95);
         fillLight.position.set(-10, 5, -5);
         scene.add(fillLight);
 
-        // Контровой свет
+        // Back light
         backLight = new THREE.DirectionalLight(0xffffff, 0.82);
         backLight.position.set(0, 5, -10);
         scene.add(backLight);
@@ -883,8 +883,8 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
             (loaded) => {
                 model = createModelObject(loaded);
                 setupModel(model);
-                setupControls(); // Настраиваем контролы ПОСЛЕ загрузки модели
-                autoZoomToFit(); // АВТОМАТИЧЕСКИЙ ЗУМ ПОД РАЗМЕР МОДЕЛИ
+                setupControls(); // Configure controls AFTER the model loads
+                autoZoomToFit(); // AUTO ZOOM TO FIT MODEL SIZE
                 document.getElementById('loading').style.display = 'none';
                 document.title = fileName + ' - 3D Viewer';
             },
@@ -899,10 +899,10 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
     }
 
     function setupModel(object) {
-        // Применяем цвет ко всем материалам
+        // Apply color to all materials
         object.traverse((child) => {
             if (child.isMesh) {
-                // Создаем новый материал с улучшенными настройками для четкости
+                // Create new material with enhanced settings for clarity
                 const newMaterial = new THREE.MeshPhysicalMaterial({
                     color: viewerPalette.part,
                     roughness: 0.52,
@@ -917,7 +917,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
                 child.castShadow = visualState.displayMode === 'shadows';
                 child.receiveShadow = visualState.displayMode === 'shadows';
                 
-                // Улучшаем геометрию для лучшего отображения
+                // Improve geometry for better display
                 if (child.geometry) {
                     child.geometry.computeVertexNormals();
                     child.geometry.computeBoundingBox();
@@ -925,11 +925,11 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
             }
         });
 
-        // Центрирование модели
+        // Model centering
         const box = new THREE.Box3().setFromObject(object);
         const center = box.getCenter(new THREE.Vector3());
         
-        // Смещаем модель так, чтобы ее центр был в (0,0,0)
+        // Move model so its center is at (0,0,0)
         object.position.sub(center);
 
         scene.add(object);
@@ -1123,24 +1123,24 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
     }
 
     function setupControls() {
-        // Инициализируем контролы ПОСЛЕ загрузки модели
+        // Initialize controls AFTER model loads
         controls = new OrbitControls(camera, renderer.domElement);
         
-        // Центр вращения
+        // Rotation center
         controls.target.set(0, 0, 0);
         
-        // Настройки плавности
+        // Smoothness settings
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         
-        // СКОРОСТИ УПРАВЛЕНИЯ
+        // CONTROL SPEEDS
         controls.rotateSpeed = 1.0;
         controls.zoomSpeed = 1.2;
         controls.panSpeed = 2.0;
         
-        // Ограничения - УВЕЛИЧИВАЕМ минимальную дистанцию для возможности приближения
+        // Constraints - INCREASE min distance for close zoom
         controls.minDistance = 0.02;
-        controls.maxDistance = 1000;  // УВЕЛИЧИЛИ максимальную дистанцию
+        controls.maxDistance = 1000;  // INCREASED the maximum distance
         
         controls.maxPolarAngle = Math.PI;
         controls.screenSpacePanning = true;
@@ -1148,7 +1148,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         
     }
 
-    // ФУНКЦИЯ АВТОМАТИЧЕСКОГО ЗУМА ПОД РАЗМЕР МОДЕЛИ
+    // AUTO ZOOM FUNCTION TO FIT MODEL SIZE
     function autoZoomToFit() {
         if (!model) return;
         
@@ -1159,7 +1159,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         
-        // Рассчитываем оптимальное расстояние для камеры
+        // Calculate optimal camera distance
         let cameraDistance = Math.abs((maxDim * 0.8) / Math.tan(fov / 2));
         
         cameraDistance *= 1.25;
@@ -1167,11 +1167,11 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         camera.far = Math.max(maxDim * 40, 5000);
         camera.updateProjectionMatrix();
         
-        // Устанавливаем позицию камеры
+        // Set camera position
         camera.position.set(center.x + cameraDistance, center.y + cameraDistance * 0.6, center.z + cameraDistance);
         camera.lookAt(center);
         
-        // Обновляем контролы
+        // Update controls
         controls.target.copy(center);
         controls.minDistance = Math.max((modelBoundsSphere?.radius || (maxDim * 0.5)) * 0.003, 0.01);
         controls.maxDistance = Math.max(maxDim * 12, 1000);
@@ -1186,7 +1186,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         camera.updateProjectionMatrix();
         renderer.setSize(window.innerWidth, window.innerHeight, false);
         
-        // При изменении размера окна пересчитываем зум
+        // On window resize recalculate zoom
         if (model) {
             autoZoomToFit();
         }
@@ -1194,7 +1194,7 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
         renderer.render(scene, camera);
     }
 
-    // Анимация
+    // Animation
     function animate() {
         requestAnimationFrame(animate);
 
@@ -1202,17 +1202,17 @@ $apiUrl = 'api.php?action=raw&path=' . urlencode($filePath) . '&root=' . urlenco
             return;
         }
         
-        // Обновляем элементы управления
+        // Update controls
         if (controls) {
             controls.update();
         }
         enforceCameraOutsideModel();
         
-        // Рендерим сцену
+        // Render scene
         renderer.render(scene, camera);
     }
 
-    // Запуск приложения
+    // App startup
     document.getElementById('loading-title').textContent = text.loadingModel;
 
     if (init()) {

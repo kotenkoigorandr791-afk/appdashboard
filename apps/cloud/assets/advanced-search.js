@@ -1,7 +1,7 @@
 // advanced-search.js
-// Модуль для расширенного поиска файлов и папок с визуальным деревом редак
+// Module for advanced file and folder search with a visual tree
 
-// Состояние расширенного поиска
+// Advanced search state
 let advancedSearchState = {
     active: false,
     query: '',
@@ -34,7 +34,7 @@ let advancedSearchState = {
     }
 };
 
-// Кеш для дерева папок
+// Cache for the folder tree
 let folderTreeCache = null;
 let extensionSuggestionsInitialized = false;
 
@@ -172,7 +172,7 @@ function initExtensionSuggestions() {
     extensionSuggestionsInitialized = true;
 }
 
-// Инициализация расширенного поиска
+// Initialize the advanced search
 window.initAdvancedSearch = function() {
     const btnAdvancedSearch = document.getElementById('btn-advanced-search');
     const modal = document.getElementById('advanced-search-modal');
@@ -185,14 +185,14 @@ window.initAdvancedSearch = function() {
     initExtensionSuggestions();
     initAdvancedSearchModeControls();
 
-    // Открытие модального окна
+    // Open the modal
     btnAdvancedSearch.addEventListener('click', async () => {
         modal.classList.remove('hidden');
         await loadFoldersForAdvancedSearch();
         resetAdvancedSearchForm();
     });
 
-    // Закрытие модального окна
+    // Close the modal
     const closeModal = () => {
         if (advancedSearchState.isSearching) {
             advancedSearchState.abortController?.abort();
@@ -208,14 +208,14 @@ window.initAdvancedSearch = function() {
         if (e.target === modal) closeModal();
     });
 
-    // Сброс формы
+    // Reset the form
     resetBtn.addEventListener('click', resetAdvancedSearchForm);
 
-    // Обработчики для условий размера
+    // Handlers for size conditions
     sizeOperator.addEventListener('change', toggleSizeInputs);
     dateOperator.addEventListener('change', toggleDateInputs);
 
-    // Запуск поиска
+    // Run the search
     startBtn.addEventListener('click', startAdvancedSearch);
 }
 
@@ -248,12 +248,12 @@ function setAdvancedTextMode(mode) {
     }
 }
 
-// Загрузка папок с визуальным деревом
+// Load folders with a visual tree
 async function loadFoldersForAdvancedSearch() {
     const treeContainer = document.getElementById('search-folder-tree-container');
     if (!treeContainer) return;
 
-    // Показываем загрузку
+    // Show loading
     treeContainer.innerHTML = `
         <div class="folder-tree-loading" style="padding: 20px; text-align: center; color: var(--muted);">
             <div class="spinner" style="
@@ -272,7 +272,7 @@ async function loadFoldersForAdvancedSearch() {
     `;
 
     try {
-        // Получаем корневые элементы
+        // Get the root elements
         const rootItems = await api('list', { path: '' }, 'GET');
         const folders = rootItems.items.filter(item => item.type === 'dir');
         
@@ -346,7 +346,7 @@ async function loadFoldersForAdvancedSearch() {
     }
 }
 
-// Создание узла папки для дерева
+// Create a folder node for the tree
 function createFolderNode(item, depth = 0, isRoot = false) {
     const node = document.createElement('div');
     node.className = 'search-folder-node';
@@ -371,13 +371,13 @@ function createFolderNode(item, depth = 0, isRoot = false) {
         transition: background 0.2s;
     `;
 
-    // Иконка папки
+    // Folder icon
     const icon = document.createElement('span');
     icon.className = 'folder-icon';
     icon.innerHTML = typeof window.getFolderIconMarkup === 'function' ? window.getFolderIconMarkup() : '';
     icon.style.marginRight = '8px';
 
-    // Название папки
+    // Folder name
     const label = document.createElement('span');
     label.className = 'folder-label';
     label.textContent = isRoot ? item.name : item.name;
@@ -386,7 +386,7 @@ function createFolderNode(item, depth = 0, isRoot = false) {
     label.style.textOverflow = 'ellipsis';
     label.style.whiteSpace = 'nowrap';
 
-    // Индикатор выбора
+    // Selection indicator
     const checkmark = document.createElement('span');
     checkmark.className = 'folder-checkmark';
     checkmark.style.cssText = `
@@ -411,13 +411,13 @@ function createFolderNode(item, depth = 0, isRoot = false) {
     nodeContent.appendChild(label);
     nodeContent.appendChild(checkmark);
 
-    // Обработчик выбора папки
+    // Folder selection handler
     nodeContent.addEventListener('click', (e) => {
         e.stopPropagation();
         selectFolderForSearch(node.dataset.path, node.dataset.root || '', false);
     });
 
-    // Обработчик двойного клика для раскрытия/сворачивания
+    // Double click handler to expand/collapse
     nodeContent.addEventListener('dblclick', async (e) => {
         e.stopPropagation();
         if (node.dataset.type === 'dir') {
@@ -427,7 +427,7 @@ function createFolderNode(item, depth = 0, isRoot = false) {
 
     node.appendChild(nodeContent);
 
-    // Контейнер для дочерних элементов
+    // Container for child elements
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'search-folder-children';
     childrenContainer.style.display = 'none';
@@ -437,7 +437,7 @@ function createFolderNode(item, depth = 0, isRoot = false) {
     return node;
 }
 
-// Рендеринг узлов папок для поиска
+// Render folder nodes for search
 function renderSearchFolderNodes(items, basePath = '', depth = 0) {
     const container = document.createElement('div');
     container.className = 'search-folder-tree-container';
@@ -445,7 +445,7 @@ function renderSearchFolderNodes(items, basePath = '', depth = 0) {
     items.forEach(item => {
         const node = createFolderNode(item, depth);
         
-        // Добавляем стрелку для раскрытия если есть папка
+        // Add an expand arrow if there is a folder
         const toggle = document.createElement('span');
         toggle.className = 'folder-toggle';
         toggle.innerHTML = `
@@ -467,7 +467,7 @@ function renderSearchFolderNodes(items, basePath = '', depth = 0) {
         const nodeContent = node.querySelector('.search-folder-content');
         nodeContent.insertBefore(toggle, nodeContent.firstChild);
         
-        // Обработчик для стрелки
+        // Arrow handler
         toggle.addEventListener('click', async (e) => {
             e.stopPropagation();
             await toggleFolder(node, item);
@@ -479,13 +479,13 @@ function renderSearchFolderNodes(items, basePath = '', depth = 0) {
     return container;
 }
 
-// Переключение раскрытия папки
+// Toggle folder expansion
 async function toggleFolder(node, item) {
     const childrenContainer = node.querySelector('.search-folder-children');
     const toggle = node.querySelector('.folder-toggle');
     const isOpen = childrenContainer.style.display !== 'none';
     
-    // Анимируем стрелку
+    // Animate the arrow
     toggle.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(90deg)';
     
     if (!isOpen) {
@@ -527,7 +527,7 @@ async function toggleFolder(node, item) {
     }
 }
 
-// Выбор папки для поиска
+// Select a folder for search
 function getSearchTargetKey(folderPath, root = '') {
     return `${root || 'main'}:${folderPath || ''}`;
 }
@@ -591,7 +591,7 @@ function selectFolderForSearch(folderPath, root = '', forceSelected = false) {
     updateSearchFolderSelectionUI();
 }
 
-// Переключение полей размера
+// Toggle size fields
 function toggleSizeInputs() {
     const operator = document.getElementById('search-size-operator').value;
     const sizeValue = document.getElementById('search-size-value');
@@ -601,7 +601,7 @@ function toggleSizeInputs() {
     sizeBetween.classList.toggle('hidden', operator !== 'between');
 }
 
-// Переключение полей даты
+// Toggle date fields
 function toggleDateInputs() {
     const operator = document.getElementById('search-date-operator').value;
     const dateValue = document.getElementById('search-date-value');
@@ -611,7 +611,7 @@ function toggleDateInputs() {
     dateBetween.classList.toggle('hidden', operator !== 'between');
 }
 
-// Сброс формы
+// Reset the form
 function resetAdvancedSearchForm() {
     document.getElementById('search-name').value = '';
     document.getElementById('search-extension').value = '';
@@ -630,7 +630,7 @@ function resetAdvancedSearchForm() {
     document.getElementById('search-date-end').value = '';
     hideExtensionSuggestions();
     
-    // Сбрасываем выделение папки на корень
+    // Reset the folder selection to the root
     advancedSearchState.searchTargets = [];
     selectFolderForSearch('', 'all', true);
     
@@ -638,10 +638,10 @@ function resetAdvancedSearchForm() {
     toggleDateInputs();
 }
 
-// Запуск расширенного поиска
+// Run the advanced search
 async function startAdvancedSearch() {
     const textMode = advancedSearchState.textMode || 'name';
-    // Собираем фильтры
+    // Collect the filters
     const filters = {
         name: textMode === 'name' ? document.getElementById('search-name').value.trim() : '',
         extension: textMode === 'extension' ? document.getElementById('search-extension').value.trim() : '',
@@ -665,10 +665,10 @@ async function startAdvancedSearch() {
         }
     };
 
-    // Закрываем модальное окно
+    // Close the modal
     document.getElementById('advanced-search-modal').classList.add('hidden');
     
-    // Запускаем поиск с прогрессом
+    // Run the search with progress
     await performAdvancedSearchWithProgress(filters);
 }
 
@@ -688,7 +688,7 @@ function normalizeAdvancedSearchTargets(targets) {
     return selected.map((target) => ({ folder: target.folder || '', root: target.root || '' }));
 }
 
-// Выполнение расширенного поиска с прогресс-баром
+// Execute the advanced search with a progress bar
 async function performAdvancedSearchWithProgress(filters) {
     const progressContainer = document.getElementById('search-progress-container');
     const progressPercent = document.getElementById('search-progress-percent');
@@ -696,7 +696,7 @@ async function performAdvancedSearchWithProgress(filters) {
     const processedSpan = document.getElementById('search-processed-items');
     const totalSpan = document.getElementById('search-total-items');
     
-    // Показываем прогресс-бар
+    // Show the progress bar
     progressContainer.classList.remove('hidden');
     
     advancedSearchState.isSearching = true;
@@ -720,10 +720,10 @@ async function performAdvancedSearchWithProgress(filters) {
     advancedSearchState.totalItems = allItems.length;
     totalSpan.textContent = allItems.length;
     
-    // Создаем AbortController для возможности отмены
+    // Create an AbortController for cancellation
     advancedSearchState.abortController = new AbortController();
     
-    // Выполняем поиск с прогрессом
+    // Run the search with progress
     const results = [];
     
     for (let i = 0; i < allItems.length; i++) {
@@ -733,28 +733,28 @@ async function performAdvancedSearchWithProgress(filters) {
         
         const item = allItems[i];
         
-        // Проверяем соответствие фильтрам
+        // Check filter matching
         if (matchesFilters(item, filters)) {
             results.push(item);
         }
         
-        // Обновляем прогресс
+        // Update the progress
         advancedSearchState.processedItems = i + 1;
         const percent = Math.round(((i + 1) / allItems.length) * 100);
         progressPercent.textContent = percent + '%';
         progressFill.style.width = percent + '%';
         processedSpan.textContent = i + 1;
         
-        // Даем браузеру время на обновление UI
+        // Give the browser time to update the UI
         if (i % 100 === 0) {
             await new Promise(resolve => setTimeout(resolve, 0));
         }
     }
     
-    // Скрываем прогресс-бар
+    // Hide the progress bar
     progressContainer.classList.add('hidden');
     
-    // Отображаем результаты
+    // Display the results
     advancedSearchState.results = results;
     displayAdvancedSearchResults(results, filters);
     
@@ -762,7 +762,7 @@ async function performAdvancedSearchWithProgress(filters) {
     advancedSearchState.abortController = null;
 }
 
-// Получение всех элементов для поиска
+// Get all elements for search
 async function getAllItemsForSearch(path, root = '') {
     const params = { path };
     if (root) params.root = root;
@@ -777,9 +777,9 @@ async function getAllItemsForSearch(path, root = '') {
     return allItems;
 }
 
-// Проверка соответствия фильтрам
+// Check filter matching
 function matchesFilters(item, filters) {
-    // Фильтр по имени
+    // Filter by name
     if (filters.name) {
         const pattern = filters.name.replace(/\*/g, '.*').toLowerCase();
         const regex = new RegExp(pattern);
@@ -788,7 +788,7 @@ function matchesFilters(item, filters) {
         }
     }
     
-    // Фильтр по расширению
+    // Filter by extension
     if (filters.extension) {
         const ext = '.' + item.name.split('.').pop().toLowerCase();
         const searchExt = filters.extension.toLowerCase();
@@ -797,19 +797,19 @@ function matchesFilters(item, filters) {
         }
     }
     
-    // Фильтр по типу
+    // Filter by type
     if (filters.type !== 'all' && !matchesType(item, filters.type)) {
         return false;
     }
     
-    // Фильтр по размеру (только для файлов)
+    // Filter by size (files only)
     if (item.type === 'file' && filters.size.operator !== 'any') {
         if (!matchesSize(item.size || 0, filters.size)) {
             return false;
         }
     }
     
-    // Фильтр по дате
+    // Filter by date
     if (filters.date.operator !== 'any' && item.mtime) {
         if (!matchesDate(item.mtime, filters.date)) {
             return false;
@@ -819,7 +819,7 @@ function matchesFilters(item, filters) {
     return true;
 }
 
-// Проверка типа файла
+// File type check
 function matchesType(item, type) {
     if (type === 'file') return item.type === 'file';
     if (type === 'folder') return item.type === 'dir';
@@ -840,7 +840,7 @@ function matchesType(item, type) {
     return typeMap[type]?.includes(ext) || false;
 }
 
-// Проверка размера
+// Size check
 function matchesSize(size, sizeFilter) {
     const value = convertToBytes(sizeFilter.value, sizeFilter.unit);
     const min = convertToBytes(sizeFilter.min, sizeFilter.betweenUnit);
@@ -854,13 +854,13 @@ function matchesSize(size, sizeFilter) {
         case 'between':
             return size >= min && size <= max;
         case 'exact':
-            return Math.abs(size - value) < 1024; // Допуск 1KB
+            return Math.abs(size - value) < 1024; // 1KB tolerance
         default:
             return true;
     }
 }
 
-// Проверка даты
+// Date check
 function matchesDate(timestamp, dateFilter) {
     const itemDate = new Date(timestamp * 1000);
     
@@ -877,7 +877,7 @@ function matchesDate(timestamp, dateFilter) {
     }
 }
 
-// Конвертация в байты
+// Convert to bytes
 function convertToBytes(value, unit) {
     if (!value) return 0;
     
@@ -891,7 +891,7 @@ function convertToBytes(value, unit) {
     return value * (multipliers[unit] || 1);
 }
 
-// Отображение результатов расширенного поиска
+// Display advanced search results
 function displayAdvancedSearchResults(results, filters) {
     const tree = document.getElementById('tree');
     tree.innerHTML = '';
@@ -904,7 +904,7 @@ function displayAdvancedSearchResults(results, filters) {
     const container = document.createElement('div');
     container.className = 'search-results-table';
     
-    // Заголовок с количеством результатов
+    // Title with the result count
     const header = document.createElement('div');
     header.className = 'search-results-header';
     header.innerHTML = `
@@ -915,7 +915,7 @@ function displayAdvancedSearchResults(results, filters) {
     `;
     container.appendChild(header);
     
-    // Таблица результатов
+    // Results table
     results.forEach((item, index) => {
         const resolved = typeof getSearchResultDisplayPath === 'function'
             ? getSearchResultDisplayPath(item)
@@ -995,7 +995,7 @@ function displayAdvancedSearchResults(results, filters) {
     tree.appendChild(container);
 }
 
-// Вспомогательная функция для получения иконки файла
+// Helper function to get the file icon
 function getFileIconForPreview(item) {
     if (typeof window.getItemIconMarkup === 'function') {
         return window.getItemIconMarkup(item);
@@ -1003,7 +1003,7 @@ function getFileIconForPreview(item) {
     return '';
 }
 
-// Функция для разворачивания к папке
+// Function to expand to the folder
 async function expandToFolder(path, root = null) {
     if (typeof buildTree === 'function') {
         if (root && root !== getCurrentCloudRoot() && typeof switchCloudRoot === 'function') {

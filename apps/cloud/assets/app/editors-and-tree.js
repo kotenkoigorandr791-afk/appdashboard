@@ -1257,7 +1257,7 @@ function treeNodeAdd(item, options = {}) {
 
   if (options.highlight !== false) highlightNewTreeNode(itemPath);
 
-  // Если в режиме выделения - добавляем чекбокс
+  // In selection mode - add a checkbox
   if (selectionState.active) {
     const node = tree.querySelector(`.node[data-path="${esc}"]`);
     if (node && !node.querySelector('.selection-checkbox')) {

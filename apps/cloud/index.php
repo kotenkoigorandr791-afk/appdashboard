@@ -163,7 +163,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <!-- Tesseract must load before Monaco's AMD loader (vs/loader.js), otherwise the UMD build
        calls define() and never sets window.Tesseract — OCR then times out waiting for the API. -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@6/dist/tesseract.min.js"></script>
-<!-- После подключений CodeMirror добавьте Monaco Editor -->
+<!-- After CodeMirror connections, add Monaco Editor -->
 <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/editor/editor.main.min.css">
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
 <script>
@@ -1033,7 +1033,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 
 
-  <!-- Modal для шаринга файла -->
+  <!-- Modal for file sharing -->
 <div id="share-modal" class="modal hidden">
   <div class="modal-content" style="max-width: 560px; position:relative; overflow:hidden;">
     <div class="modal-header" style="padding-right:52px; margin:0 -6px; border-bottom:1px solid var(--border);">
@@ -1166,7 +1166,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 </div>
 
 
-  <!-- Модальное окно для просмотра результатов компактирования/форматирования -->
+  <!-- Modal for viewing compact/format results -->
 <div id="code-modal" class="modal hidden">
   <div class="modal-content code-modal-content">
     <div class="modal-header">
@@ -1306,7 +1306,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   </div>
 </div>
 
-<!-- Модальное окно для создания файла -->
+<!-- Modal for creating a file -->
 <div id="new-file-modal" class="modal hidden">
   <div class="modal-content" style="max-width: 500px;">
     <div class="modal-header">
@@ -1395,7 +1395,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   </div>
 </div>
 
-<!-- Модальное окно для переименования -->
+<!-- Modal for renaming -->
 <div id="rename-modal" class="modal hidden">
   <div class="modal-content" style="max-width: 500px;">
     <div class="modal-header">
@@ -1462,7 +1462,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 
 
-<!-- Модальное окно для создания папки -->
+<!-- Modal for creating a folder -->
 <div id="new-folder-modal" class="modal hidden">
   <div class="modal-content" style="max-width: 500px;">
     <div class="modal-header">
@@ -1604,7 +1604,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 
 
-<!-- Модальное окно расширенного поиска -->
+<!-- Advanced search modal -->
 <div id="advanced-search-modal" class="modal hidden">
   <div class="modal-content" style="max-width: 700px; max-height: 80vh;">
     <div class="modal-header">
@@ -1621,7 +1621,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
     </div>
     
     <div class="modal-body" style="overflow-y: auto;">
-      <!-- Прогресс бар -->
+      <!-- Progress bar -->
       <div id="search-progress-container" class="search-progress-container hidden">
         <div class="progress-info">
           <span data-i18n="searching">Searching...</span>
@@ -1636,9 +1636,9 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         </div>
       </div>
 
-      <!-- Форма поиска -->
+      <!-- Search form -->
       <div class="search-form">
-        <!-- Выбор папки с визуальным деревом -->
+        <!-- Folder selection with visual tree -->
         <div class="form-group">
           <label data-i18n="searchInFolder">Search in folder:</label>
           <div class="folder-selector-with-tree">
@@ -1717,9 +1717,9 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
             </select>
           </div>
           <div id="search-size-between" class="size-between hidden">
-            <input type="number" id="search-size-min" class="size-min" data-i18n-placeholder="sizeMinPlaceholder" placeholder="Мин" min="0">
+            <input type="number" id="search-size-min" class="size-min" data-i18n-placeholder="sizeMinPlaceholder" placeholder="Min" min="0">
             <span>—</span>
-            <input type="number" id="search-size-max" class="size-max" data-i18n-placeholder="sizeMaxPlaceholder" placeholder="Макс" min="0">
+            <input type="number" id="search-size-max" class="size-max" data-i18n-placeholder="sizeMaxPlaceholder" placeholder="Max" min="0">
             <select id="search-size-between-unit" class="size-unit">
               <option value="B">B</option>
               <option value="KB">KB</option>
@@ -1857,7 +1857,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 
     
-<!-- Панель действий для выбранных элементов -->
+<!-- Action panel for selected items -->
 <div id="selection-action-panel" class="hidden">
     <button id="btn-move-selected" class="btn secondary small">
         <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
@@ -1866,7 +1866,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         <span data-i18n="moveSelected"></span>
     </button>
     
-    <!-- Новая кнопка скачивания -->
+    <!-- New download button -->
     <button id="btn-download-selected" class="btn primary small">
         <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

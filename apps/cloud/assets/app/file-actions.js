@@ -637,7 +637,7 @@ function createNewFile() {
     fileNameInput.focus();
     return;
   }
-  let extension = '.txt'; // значение по умолчанию
+  let extension = '.txt'; // default value
   if (extensionSelect.value === 'custom') {
     extension = customExtensionInput.value.trim();
     if (extension && !extension.startsWith('.')) {
@@ -998,7 +998,7 @@ function showContextMenu(e, path, type, name) {
                 icon: 'deselect',
                 action: () => {
                     toggleSelectionMode();
-                    menu.remove(); // Закрываем меню после выбора
+                    menu.remove(); // Close the menu after selection
                 }
             },
             { 
@@ -1530,50 +1530,50 @@ async function shareItem(path, type) {
 
 
 
-// Добавьте эту функцию для получения иконок в preview
+// Add this function to get icons in the preview
 function getFileIconForPreview(item) {
     return getItemIconMarkup(item);
 }
 
-// Также добавьте функцию для получения цвета иконки по расширению (опционально)
+// Also add a function to get the icon color by extension (optional)
 function getFileIconColor(ext) {
     const colorMap = {
-        // Изображения
+                // Images
         'jpg': '#e67e22',
         'jpeg': '#e67e22',
         'png': '#e67e22',
         'gif': '#9b59b6',
         'svg': '#f1c40f',
         
-        // Документы
+                // Documents
         'pdf': '#e74c3c',
         'doc': '#2980b9',
         'docx': '#2980b9',
         'txt': '#7f8c8d',
         'md': '#2ecc71',
         
-        // Таблицы
+                // Spreadsheets
         'xls': '#27ae60',
         'xlsx': '#27ae60',
         'csv': '#2ecc71',
         
-        // Презентации
+                // Presentations
         'ppt': '#e67e22',
         'pptx': '#e67e22',
         
-        // Архивы
+                // Archives
         'zip': '#95a5a6',
         'rar': '#95a5a6',
         
-        // Аудио
+                // Audio
         'mp3': '#3498db',
         'wav': '#3498db',
         
-        // Видео
+                // Video
         'mp4': '#9b59b6',
         'avi': '#9b59b6',
         
-        // Код
+                // Code
         'js': '#f1c40f',
         'html': '#e34c26',
         'css': '#264de4',
@@ -1796,8 +1796,8 @@ function isTextFile(path) {
   const ext = path.split('.').pop().toLowerCase();
   const textExts = ['txt', 'md', 'js', 'ts', 'json', 'html', 'css', 'php', 'py', 'rb', 'go', 'java', 'cs', 'cpp', 'c', 'h', 'hpp', 'sh', 'yml', 'yaml', 'sql', 'kt', 'swift', 'rs', 'lua', 'pl', 'r', 'toml', 'ini', 'dockerfile', 'vue', 'm','tex', 'latex'];
   const binaryExts = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 
-                     'mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv',  // видео
-                     'mp3', 'wav', 'ogg', 'm4a', 'flac'];        // аудио
+                     'mp4', 'webm', 'ogg', 'mov', 'avi', 'mkv',  // video
+                     'mp3', 'wav', 'ogg', 'm4a', 'flac'];        // audio
   if (binaryExts.includes(ext)) {
     return false;
   }
@@ -2093,18 +2093,18 @@ function loadLatexEditorToTab(tab) {
         const theme = urlParams.get('theme') || 'dark';
         const color = urlParams.get('color') || '#85b503';
         
-        // ИЗМЕНЕНИЕ ЗДЕСЬ - используем сохраненный fullPath если есть
+                // CHANGE HERE - use the saved fullPath if available
         let currentUser;
         let filePath;
         
         if (tab.fullPath) {
-            // Извлекаем пользователя и путь из fullPath
+                        // Extract the user and path from fullPath
             const parts = tab.fullPath.split('/');
             if (parts.length >= 3 && parts[0] === 'storage') {
                 currentUser = parts[1];
                 filePath = parts.slice(2).join('/');
             } else {
-                // Fallback на стандартный метод
+                                // Fallback to the standard method
                 currentUser = currentUserState.user || 'default';
                 currentUser = currentUser.replace(/\s+/g, '_');
                 filePath = tab.path;
@@ -2120,7 +2120,7 @@ function loadLatexEditorToTab(tab) {
         applyFullScreenStyles(iframe);
         viewer.appendChild(iframe);
         
-        // Сохраняем fullPath для будущего использования
+                // Save fullPath for future use
         tab.fullPath = buildEditorStoragePath(currentUser, filePath, getResolvedTabRoot(tab));
     } else {
         applyFullScreenStyles(iframe);
@@ -2426,8 +2426,8 @@ function handleHotkeys(e, i18n) {
   const isInput = e.target.matches('input, textarea, [contenteditable="true"]');
   const isCodeMirror = e.target.closest('.CodeMirror');
 
-  // Функциональные клавиши и глобальные комбинации работают ВСЕГДА,
-  // независимо от того, где находится фокус (input, textarea, editor и т.д.)
+    // Function keys and global combos ALWAYS work,
+    // regardless of where the focus is (input, textarea, editor, etc.)
   const isGlobalHotkey = (
     e.key === 'F9' ||
     e.key === 'F8' ||
@@ -2438,7 +2438,7 @@ function handleHotkeys(e, i18n) {
     (e.shiftKey && mod && e.key === 'ArrowLeft')
   );
 
-  // Блокируем ранний выход только для НЕ-глобальных хоткеев в обычных полях ввода
+    // Block early exit only for NON-global hotkeys in regular input fields
   if (isInput && !isCodeMirror && !isGlobalHotkey) {
     return;
   }
@@ -2497,9 +2497,9 @@ function handleHotkeys(e, i18n) {
     }
   }
 
-  // Глобальные горячие клавиши для режима выделения (работают всегда)
+    // Global hotkeys for selection mode (always work)
   if (selectionState.active && selectionState.selectedItems.size > 0) {
-    // Escape - отменить выделение
+        // Escape - cancel selection
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
@@ -2508,7 +2508,7 @@ function handleHotkeys(e, i18n) {
       return;
     }
 
-    // Delete - удалить выбранные файлы
+        // Delete - delete the selected files
     if (e.key === 'Delete') {
       e.preventDefault();
       e.stopPropagation();
@@ -2516,7 +2516,7 @@ function handleHotkeys(e, i18n) {
       return;
     }
 
-    // D - скачать выбранные файлы
+        // D - download the selected files
     if (e.key.toLowerCase() === 'd' && !mod && !e.shiftKey && !e.altKey) {
       e.preventDefault();
       e.stopPropagation();
@@ -2525,7 +2525,7 @@ function handleHotkeys(e, i18n) {
     }
   }
 
-  // Escape - закрыть лассо если активно
+    // Escape - close the lasso if active
   if (e.key === 'Escape' && lassoState.active) {
     e.preventDefault();
     e.stopPropagation();
@@ -2619,17 +2619,17 @@ function loadZipViewerToTab(tab) {
     
     updateToolbarForZipViewer();
     
-    // Сначала скрываем все iframe
+        // First hide all iframes
     const allIframes = viewer.querySelectorAll('iframe');
     allIframes.forEach(iframe => {
         iframe.style.display = 'none';
     });
     
-    // Проверяем, есть ли уже закешированный iframe для этой вкладки
+        // Check if there is already a cached iframe for this tab
     let iframe = tabsState.iframeCache.get(tab.id);
     
     if (!iframe || !iframe.parentNode) {
-        // Если нет в кеше или он был удален, создаем новый
+                // If not in the cache or it was removed, create a new one
         iframe = document.createElement('iframe');
         iframe.setAttribute('data-tab-id', tab.id);
         
@@ -2672,15 +2672,15 @@ function loadZipViewerToTab(tab) {
         applyFullScreenStyles(iframe);
         viewer.appendChild(iframe);
         
-        // Сохраняем в кеш
+                // Save to the cache
         tabsState.iframeCache.set(tab.id, iframe);
     } else {
-        // Если есть в кеше, просто показываем его
+                // If in the cache, just show it
         applyFullScreenStyles(iframe);
         iframe.style.display = 'block';
     }
     
-    // Убеждаемся, что все остальные iframe скрыты
+        // Make sure all other iframes are hidden
     viewer.querySelectorAll('iframe').forEach(f => {
         if (parseInt(f.getAttribute('data-tab-id')) !== tab.id) {
             f.style.display = 'none';

@@ -1,10 +1,10 @@
 <?php
-// ─── POST-обработчики ─────────────────────────────────────────────────────────
+// === POST handlers ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     ob_clean();
 
-    // Сохранение настроек
+    // Save settings
     if (isset($_POST['settings'])) {
         $goalSteps = filter_var(str_replace(',', '.', $_POST['goal_steps']), FILTER_VALIDATE_FLOAT);
         if ($goalSteps === false || $goalSteps < 0)
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success']));
     }
 
-    // Добавление шагов
+    // Add steps
     if (isset($_POST['add_steps'])) {
         $date  = $_POST['date'] ?? '';
         $stepsRaw = preg_replace('/\D+/', '', (string)($_POST['steps'] ?? ''));
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success']));
     }
 
-    // Сохранение строки из таблицы (дата dd-mm-yy)
+    // Save table row (date in dd-mm-yy)
     if (isset($_POST['save_table_data'])) {
         $date  = $_POST['date']  ?? '';
         $steps = preg_replace('/\D+/', '', (string)($_POST['steps'] ?? ''));
@@ -149,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Пакетное сохранение строк из таблицы (массовое удаление/обнуление)
+    // Batch save table rows (bulk delete/zero)
     if (isset($_POST['save_table_data_batch'])) {
         $raw = $_POST['items'] ?? '[]';
         $items = json_decode($raw, true);
@@ -178,7 +178,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // ── Таблица: получение страницы с фильтром (через SQL) ───────────────────
+    // Table: get page with filter (via SQL)
     if (isset($_POST['get_table_page'])) {
         $page       = max(1, (int)($_POST['page']      ?? 1));
         $filterOp   = $_POST['filter_op']              ?? '';
@@ -191,7 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success'] + $result));
     }
 
-    // Создание бэкапа
+    // Create backup
     if (isset($_POST['create_backup'])) {
         checkDirectory($userDir);
         $backupDir = "$userDir/backups";
@@ -212,7 +212,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'error', 'message' => $translations['failed_create_backup'] ?? 'Failed to create backup']));
     }
 
-    // Список бэкапов
+    // Backups list
     if (isset($_POST['get_backups_list'])) {
         $backupDir = "$userDir/backups";
         $backups   = [];
@@ -225,13 +225,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success', 'backups' => $backups]));
     }
 
-    // Восстановление из бэкапа
+    // Restore from backup
     if (isset($_POST['restore_backup'])) {
         $bname     = $_POST['backup_file'] ?? '';
         $backupDir = "$userDir/backups";
         if (empty($bname) || !file_exists("$backupDir/$bname"))
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
-        // Автобэкап перед восстановлением
+        // Auto-backup before restore
         $autoCSV = exportStepsToCSV($userDb);
         if ($autoCSV) file_put_contents("$backupDir/Before_restore_" . date('Y-m-d_H-i-s') . ".csv", $autoCSV);
         $content = file_get_contents("$backupDir/$bname");
@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Удаление бэкапа
+    // Delete backup
     if (isset($_POST['delete_backup'])) {
         $bname     = $_POST['backup_file'] ?? '';
         $backupDir = "$userDir/backups";
@@ -257,7 +257,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             : ['status' => 'error',   'message' => $translations['failed_delete_backup'] ?? 'Failed to delete']));
     }
 
-    // Скачивание текущих данных как CSV
+    // Download current data as CSV
     if (isset($_POST['download_backup'])) {
         $csv = exportStepsToCSV($userDb);
         if ($csv) {

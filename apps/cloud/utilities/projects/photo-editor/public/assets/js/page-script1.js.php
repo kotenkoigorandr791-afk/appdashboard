@@ -32,7 +32,7 @@
         let lastPosY = 0;
         let canvasOffset = { x: 0, y: 0 };
         
-        // Глобальные настройки рисования
+                // Global drawing settings
         let currentColor = '<?php echo $theme === 'dark' ? '#ffffff' : '#000000'; ?>';
         let currentLineWidth = 3;
         let isDrawingShapeMode = false;
@@ -65,7 +65,7 @@
             }); 
         }
         
-        // Функция для изменения размера холста с учетом изображения
+                // Function to resize the canvas based on the image
         function resizeCanvasToFitImage(imgWidth, imgHeight, keepZoomAndPan = false) {
             const container = document.getElementById('canvas-container');
             const maxW = container.clientWidth * 0.9;
@@ -80,7 +80,7 @@
             
             let w = imgWidth, h = imgHeight;
             
-            // Масштабируем чтобы изображение помещалось в контейнер
+                        // Scale so the image fits the container
             const scale = Math.min(maxW / w, maxH / h, 1);
             w *= scale;
             h *= scale;
@@ -88,7 +88,7 @@
             canvas.setWidth(w); 
             canvas.setHeight(h);
             
-            // Применяем масштаб и панорамирование
+                        // Apply scale and pan
             applyZoomAndPan();
             
             return scale;
@@ -187,11 +187,11 @@
 
         window.onresize = () => { 
             if (imgInstance) { 
-                // Получаем текущие размеры изображения с учетом масштаба
+                                // Get the current image dimensions accounting for scale
                 const imgWidth = imgInstance.width * imgInstance.scaleX;
                 const imgHeight = imgInstance.height * imgInstance.scaleY;
                 
-                // Изменяем размер холста под новые размеры контейнера
+                                // Resize the canvas to the new container dimensions
                 const container = document.getElementById('canvas-container');
                 const maxW = container.clientWidth * 0.9;
                 const maxH = container.clientHeight * 0.9;
@@ -201,10 +201,10 @@
                 canvas.setWidth(imgWidth * scale); 
                 canvas.setHeight(imgHeight * scale);
                 
-                // Масштабируем изображение
+                                // Scale the image
                 imgInstance.scale(imgInstance.scaleX * scale / (imgInstance.scaleX));
                 
-                // Применяем текущий зум и панорамирование
+                                // Apply the current zoom and pan
                 applyZoomAndPan();
             } 
         };
@@ -363,42 +363,42 @@
             }
         };
 
-        // Полностью переработанная функция поворота
+                // Completely reworked rotation function
         const rotate = (angle) => { 
             if (!imgInstance) return; 
             
-            pushState(); // Сохраняем состояние перед поворотом
+            pushState(); // Save state before rotating
             
-            // Получаем текущие размеры и позицию
+                        // Get the current dimensions and position
             const oldWidth = canvas.width;
             const oldHeight = canvas.height;
             const oldScaleX = imgInstance.scaleX;
             const oldScaleY = imgInstance.scaleY;
             
-            // Поворачиваем изображение
+                        // Rotate the image
             imgInstance.rotate((imgInstance.angle || 0) + angle);
             
-            // Получаем размеры изображения после поворота
+                        // Get the image dimensions after rotation
             const imgWidth = imgInstance.width * oldScaleX;
             const imgHeight = imgInstance.height * oldScaleY;
             
-            // Нормализуем угол до 0-360
+                        // Normalize the angle to 0-360
             let normalizedAngle = imgInstance.angle % 360;
             if (normalizedAngle < 0) normalizedAngle += 360;
             
-            // Определяем, нужно ли менять размеры холста
+                        // Determine whether the canvas size needs changing
             let newWidth, newHeight;
             
             if (normalizedAngle === 90 || normalizedAngle === 270) {
-                // Меняем ширину и высоту местами
+                                // Swap the width and height
                 newWidth = imgHeight;
                 newHeight = imgWidth;
             } else if (normalizedAngle === 180) {
-                // Размеры остаются теми же, но изображение перевернуто
+                                // Dimensions stay the same but the image is flipped
                 newWidth = imgWidth;
                 newHeight = imgHeight;
             } else {
-                // Для произвольных углов вычисляем ограничивающий прямоугольник
+                                // For arbitrary angles, compute the bounding rectangle
                 const radians = (normalizedAngle * Math.PI) / 180;
                 const sin = Math.abs(Math.sin(radians));
                 const cos = Math.abs(Math.cos(radians));
@@ -407,11 +407,11 @@
                 newHeight = imgWidth * sin + imgHeight * cos;
             }
             
-            // Изменяем размер холста
+                        // Resize the canvas
             canvas.setWidth(newWidth);
             canvas.setHeight(newHeight);
             
-            // Центрируем изображение на новом холсте
+                        // Center the image on the new canvas
             imgInstance.set({
                 left: canvas.width / 2,
                 top: canvas.height / 2,
@@ -436,12 +436,12 @@
             canvas.selection = true;
         };
         
-        // Инициализация кисти рисования
+                // Initialize the drawing brush
         canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
         canvas.freeDrawingBrush.color = currentColor;
         canvas.freeDrawingBrush.width = currentLineWidth;
         
-        // Обновление глобальных настроек цвета и толщины
+                // Update global color and thickness settings
         document.getElementById('drawing-color').oninput = e => { 
             currentColor = e.target.value;
             canvas.freeDrawingBrush.color = currentColor;
@@ -469,7 +469,7 @@
             };
         });
 
-        // Полностью переработанный класс для стрелки
+                // Completely reworked arrow class
         class CustomArrow {
             static create(x1, y1, x2, y2, options = {}) {
                 const stroke = options.stroke || '#000000';
@@ -477,13 +477,13 @@
                 const headLength = options.headLength || 20;
                 const headWidth = options.headWidth || 15;
                 
-                // Вычисляем угол и длину линии
+                                // Compute the angle and line length
                 const dx = x2 - x1;
                 const dy = y2 - y1;
                 const angle = Math.atan2(dy, dx);
                 const length = Math.sqrt(dx * dx + dy * dy);
                 
-                // Если длина слишком маленькая, возвращаем просто линию
+                                // If the length is too small, return a plain line
                 if (length < headLength * 1.5) {
                     return new fabric.Line([x1, y1, x2, y2], {
                         stroke: stroke,
@@ -492,10 +492,10 @@
                     });
                 }
                 
-                // Создаем группу для стрелки
+                                // Create a group for the arrow
                 const objects = [];
                 
-                // Основная линия
+                                // Main line
                 const line = new fabric.Line([x1, y1, x2, y2], {
                     stroke: stroke,
                     strokeWidth: strokeWidth,
@@ -504,7 +504,7 @@
                 });
                 objects.push(line);
                 
-                // Наконечник стрелки (треугольник)
+                                // Arrowhead (triangle)
                 const arrowAngle = (angle * 180 / Math.PI) - 35;
                 
                 const arrowHead = new fabric.Triangle({
@@ -520,7 +520,7 @@
                 });
                 objects.push(arrowHead);
                 
-                // Создаем группу
+                                // Create the group
                 const group = new fabric.Group(objects, {
                     left: Math.min(x1, x2),
                     top: Math.min(y1, y2),
@@ -533,7 +533,7 @@
                     subTargetCheck: false
                 });
                 
-                // Сохраняем исходные точки для возможности редактирования
+                                // Save the original points for later editing
                 group.set('x1', x1);
                 group.set('y1', y1);
                 group.set('x2', x2);
@@ -580,7 +580,7 @@
                     });
                     break;
                 case 'arrow':
-                    // Используем новый класс для стрелки
+                                        // Use the new arrow class
                     currentShape = CustomArrow.create(pointer.x, pointer.y, pointer.x, pointer.y, {
                         stroke: currentColor,
                         strokeWidth: currentLineWidth,
@@ -618,7 +618,7 @@
                     currentShape.set({ radius: radius });
                     break;
                 case 'arrow':
-                    // Обновляем стрелку - удаляем старую и создаем новую
+                                        // Update the arrow - remove the old one and create a new one
                     canvas.remove(currentShape);
                     currentShape = CustomArrow.create(startPoint.x, startPoint.y, pointer.x, pointer.y, {
                         stroke: currentColor,
@@ -636,7 +636,7 @@
         canvas.on('mouse:up', () => {
             if (!isDrawingShapeMode || !currentShape) return;
             
-            // Проверяем минимальный размер
+                        // Check the minimum size
             let shouldRemove = false;
             
             if (activeShapeType === 'line' || activeShapeType === 'arrow') {
@@ -743,7 +743,7 @@
                     if (contextMenuTarget.type === 'i-text' || contextMenuTarget.type === 'text') {
                         contextMenuTarget.set('fill', newColor);
                     } else if (contextMenuTarget.customType === 'arrow') {
-                        // Для стрелки меняем цвет всех элементов
+                                                // For the arrow, change the color of all elements
                         contextMenuTarget.forEachObject(obj => {
                             if (obj.type === 'line') {
                                 obj.set('stroke', newColor);
@@ -1002,7 +1002,7 @@
                         console.log('Save response:', data);
                         if (data.success) {
                             showModal(translations['success'], translations['image_saved']);
-                            // Отправляем сообщение родительскому окну
+                                                        // Send a message to the parent window
                             if (window.parent) {
                                 window.parent.postMessage({
                                     type: 'photoEditorSaved',

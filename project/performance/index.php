@@ -10,6 +10,7 @@ $lang = isset($_GET['lang']) && isset($translations[$_GET['lang']]) ? $_GET['lan
 $themeRaw = isset($_GET['theme']) ? strtolower($_GET['theme']) : 'light';
 $theme = $themeRaw === 'dark' ? 'dark' : 'light';
 $color = isset($_GET['color']) ? htmlspecialchars($_GET['color']) : '#85b503';
+$embedMode = isset($_GET['embed']) && $_GET['embed'] === '1';
 
 $t = $translations[$lang];
 $GLOBALS['_t_i18n'] = $t;

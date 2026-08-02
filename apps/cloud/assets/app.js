@@ -143,10 +143,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     window.i18n = {};
   }
   
-  // ВАЖНО: Сначала обновляем пользователей и загружаем их состояние
+  // IMPORTANT: First update users and load their state
   await refreshUsers(window.i18n);
   
-  // Теперь загружаем состояние папок (пользователь уже определен)
+  // Now load the folders state (user is already determined)
   await loadFolderState();
   
   applyTheme(cfg.theme, cfg.color);
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   await buildTree('');
   await syncRootModeView();
   
-  // Восстанавливаем состояние после загрузки дерева
+  // Restore state after the tree loads
   await restoreFolderState();
   initTreeAutoRefresh();
   ensureCloudDeviceId();
@@ -179,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
 function waitForAPP_CONFIG() {
   return new Promise((resolve) => {
-    const maxWaitTime = 5000; // 5 секунд максимум
+    const maxWaitTime = 5000; // 5 seconds max
     const startTime = Date.now();
     function check() {
       if (window.APP_CONFIG) {
@@ -215,7 +215,7 @@ window.addEventListener('beforeunload', () => {
     }
 });
 let autoSaveTimers = new Map();
-const AUTO_SAVE_DELAY = 10000; // 10 секунд
+const AUTO_SAVE_DELAY = 10000; // 10 seconds
 const MONACO_COLLAB_CURSOR_MS = 80;
 const MONACO_COLLAB_SNAPSHOT_MS = 500;
 const MONACO_COLLAB_SYNC_REQUEST_MS = 600;
@@ -429,9 +429,9 @@ let deleteState = {
 };
 let selectionState = {
     active: false,
-    selectedItems: new Set(), // пути выбранных элементов
+    selectedItems: new Set(), // paths of selected items
     selectedRoots: new Map(),
-    mode: 'select' // 'select' или 'deselect'
+    mode: 'select' // 'select' or 'deselect'
 };
 let usageStatusRefreshTimerId = null;
 let currentTreeDragPaths = [];
@@ -833,7 +833,7 @@ function initFloatingCompileUI() {
     window.addEventListener('resize', positionFloatingCompileButton);
     updateCompileFloatingButtonState();
 }
-// Функция для создания элемента прямоугольника выделения
+// Function to create a selection rectangle element
 function createLassoElement() {
     const lasso = document.createElement('div');
     lasso.className = 'lasso-selection';
@@ -853,7 +853,7 @@ function createLassoElement() {
     return lasso;
 }
 
-// Функция для получения всех элементов дерева в заданном прямоугольнике
+// Function to get all tree elements in a given rectangle
 function getTreeElementsInRect(rect) {
     const tree = document.getElementById('tree');
     const nodes = tree.querySelectorAll('.node');
@@ -862,17 +862,17 @@ function getTreeElementsInRect(rect) {
     nodes.forEach(node => {
         const nodeRect = node.getBoundingClientRect();
         
-        // Проверяем пересечение прямоугольников
+        // Check rectangle intersection
         if (nodeRect.right > rect.left && 
             nodeRect.left < rect.right && 
             nodeRect.bottom > rect.top && 
             nodeRect.top < rect.bottom) {
             
-            // Проверяем видимость элемента (не скрыт ли он в свернутой папке)
+            // Check element visibility (not hidden inside a collapsed folder)
             let isVisible = true;
             let parent = node.parentElement;
             
-            // Проверяем, не находится ли элемент внутри свернутой папки
+            // Check whether the element is inside a collapsed folder
             while (parent && parent !== tree) {
                 if (parent.classList.contains('children') && parent.style.display === 'none') {
                     isVisible = false;
@@ -909,7 +909,7 @@ function getTrashElementsInRect(rect) {
     return elementsInRect;
 }
 
-// Функция для выделения элементов прямоугольником
+// Function to select elements with a rectangle
 function selectElementsInLasso(lassoRect) {
     if (!selectionState.active) return;
     
@@ -922,12 +922,12 @@ function selectElementsInLasso(lassoRect) {
         if (!selectionState.selectedItems.has(path)) {
             selectionState.selectedItems.add(path);
             
-            // Добавляем чекбокс если его нет
+            // Add a checkbox if missing
             if (!node.querySelector('.selection-checkbox')) {
                 addCheckboxToNode(node);
             }
             
-            // Отмечаем чекбокс
+            // Check the checkbox
             const checkbox = node.querySelector('.selection-checkbox');
             if (checkbox) {
                 checkbox.checked = true;
@@ -1071,7 +1071,7 @@ function initLassoSelection() {
         e.preventDefault();
     }, lassoCapture);
 
-    // Обработчик для отмены выделения при нажатии Escape
+    // Handler to clear selection on Escape
     document.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape') return;
         if (lassoState.active) {
@@ -1103,7 +1103,7 @@ function processElementsInLasso(lassoRect, mode) {
         const type = node.dataset.type;
         
         if (mode === 'toggle') {
-            // Режим переключения: если выделен - снимаем, если нет - выделяем
+            // Toggle mode: if selected - deselect, if not - select
             if (selectionState.selectedItems.has(path)) {
                 selectionState.selectedItems.delete(path);
                 node.classList.remove('selected');
@@ -1113,7 +1113,7 @@ function processElementsInLasso(lassoRect, mode) {
                 selectionState.selectedItems.add(path);
                 node.classList.add('selected');
                 
-                // Добавляем чекбокс если его нет
+                // Add a checkbox if missing
                 if (!node.querySelector('.selection-checkbox')) {
                     addCheckboxToNode(node);
                 }
@@ -1122,11 +1122,11 @@ function processElementsInLasso(lassoRect, mode) {
                 if (checkbox) checkbox.checked = true;
             }
         } else {
-            // Обычный режим: выделяем все в прямоугольнике
+            // Normal mode: select all in the rectangle
             if (!selectionState.selectedItems.has(path)) {
                 selectionState.selectedItems.add(path);
                 
-                // Добавляем чекбокс если его нет
+                // Add a checkbox if missing
                 if (!node.querySelector('.selection-checkbox')) {
                     addCheckboxToNode(node);
                 }
@@ -1821,7 +1821,7 @@ function translateUI(i18n) {
     settingsButton.title = t(i18n, 'settings');
   }
   
-  // Дополнительно обновляем текст кнопки компиляции, если окно открыто
+  // Also update the compile button text if the window is open
   const compileSendBtn = document.getElementById('btn-compile-send');
   if (compileSendBtn && !document.getElementById('compile-modal').classList.contains('hidden')) {
     compileSendBtn.textContent = t(i18n, 'compileAndRun');
@@ -2010,7 +2010,7 @@ function initTabs() {
             tabsState.activeTabId = parsed.activeTabId;
             tabsState.nextTabId = parsed.nextTabId || 1;
             
-            // ДОБАВЬТЕ ЭТОТ КОД - восстанавливаем пользователя для LaTeX и других редакторов
+            // ADD THIS CODE - restore the user for LaTeX and other editors
             
             
             tabsState.tabs.forEach(tab => {
@@ -2041,7 +2041,7 @@ function initTabs() {
 function saveTabsState() {
     const stateToSave = {
         tabs: tabsState.tabs.map(({ content, ...rest }) => {
-            // ДОБАВЬТЕ ЭТУ ПРОВЕРКУ - сохраняем fullPath для LaTeX и других редакторов
+            // ADD THIS CHECK - save fullPath for LaTeX and other editors
             if (rest.zipViewer && rest.fullPath) {
                 return { ...rest, fullPath: rest.fullPath };
             }
@@ -2119,12 +2119,12 @@ function refreshAllEditorIframes() {
         }
     });
 }
-// Найдите функцию openFileInTab в app.js (примерно строка 550)
+// Find the openFileInTab function in app.js (around line 550)
 function openFileInTab(path, editMode = false, root = null) {
-    // Проверяем, является ли устройство мобильным
+    // Check whether the device is mobile
     const isMobile = isMobileDevice();
     
-    // Только для мобильных устройств сворачиваем сайдбар при открытии в режиме редактирования
+    // Only on mobile, collapse the sidebar when opening in edit mode
     if (isMobile && editMode) {
         const sidebar = document.querySelector('.sidebar');
         if (sidebar && sidebar.classList.contains('active')) {
@@ -2329,7 +2329,7 @@ window.addEventListener('message', function(event) {
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
         if (activeTab && event.data.title) {
             activeTab.title = event.data.title;
-            activeTab.isImage = true; // Добавляем флаг
+            activeTab.isImage = true; // Add the flag
             renderTabs();
             document.getElementById('file-name').textContent = event.data.title;
         }
@@ -2725,16 +2725,16 @@ function closeAllTabs() {
     }
     
     monacoCollabSessions.forEach((_, tabId) => stopMonacoCollabSession(tabId));
-    // Очищаем все редакторы
+    // Clear all editors
     editorsMap.clear();
     
-    // Очищаем кеш iframe
+    // Clear the iframe cache
     tabsState.iframeCache.forEach((iframe, tabId) => {
         if (iframe) iframe.remove();
     });
     tabsState.iframeCache.clear();
     
-    // Удаляем все iframe и контейнеры
+    // Remove all iframes and containers
     const viewer = document.getElementById('viewer');
     const allIframes = viewer.querySelectorAll('iframe');
     allIframes.forEach(iframe => iframe.remove());
@@ -2742,7 +2742,7 @@ function closeAllTabs() {
     const allContainers = viewer.querySelectorAll('.file-content-container');
     allContainers.forEach(container => container.remove());
     
-    // Очищаем состояние
+    // Clear state
     tabsState.tabs = [];
     tabsState.activeTabId = null;
     tabsState.contentCache.clear();
@@ -2751,7 +2751,7 @@ function closeAllTabs() {
     
     renderTabs();
     
-    // Сохраняем состояние
+    // Save state
     saveTabsState();
     
     document.body.classList.toggle('tabs-open', false);
@@ -2802,20 +2802,20 @@ function restoreTabContent(tab) {
                        tab.onlyOfficeEditor || tab.markdownEditor || tab.htmlEditor || tab.zipViewer || tab.ttsEditor;
     
     if (isEditorTab) {
-        // Сначала проверяем кеш iframe
+        // First check the iframe cache
         let iframe = tabsState.iframeCache.get(tab.id);
         
         if (iframe && iframe.parentNode !== viewer) {
-            // Если есть в кеше, но не в DOM - добавляем
+            // If cached but not in the DOM - add it
             viewer.appendChild(iframe);
             applyFullScreenStyles(iframe);
             iframe.style.display = 'block';
         } else if (iframe && iframe.parentNode === viewer) {
-            // Если уже в DOM - просто показываем
+            // If already in the DOM - just show it
             applyFullScreenStyles(iframe);
             iframe.style.display = 'block';
         } else {
-            // Если нет в кеше - создаем новый
+            // If not cached - create a new one
             if (tab.photoEditor) {
                 loadPhotoEditorToTab(tab);
             } else if (tab.latexEditor) {
@@ -2835,7 +2835,7 @@ function restoreTabContent(tab) {
             }
         }
     } else {
-        // Обычные файлы
+        // Regular files
         let contentElement = null;
         const editorMarkers = viewer.querySelectorAll('[data-tab-id="' + tab.id + '"]');
         if (editorMarkers.length > 0) {
@@ -2944,7 +2944,7 @@ function cacheTabContent(tab) {
         fullPath: tab.fullPath
     };
     
-    // Проверяем Monaco редактор
+    // Check the Monaco editor
     if (window.monacoManager) {
         const monacoContent = window.monacoManager.getContent(tab.id);
         if (monacoContent !== '') {
@@ -2962,7 +2962,7 @@ function cacheTabContent(tab) {
         const iframe = viewer.querySelector('iframe[data-tab-id="' + tab.id + '"]');
         if (iframe) {
             cacheData.type = 'iframe';
-            cacheData.src = iframe.src; // СОХРАНЯЕМ ПОЛНЫЙ URL iframe
+            cacheData.src = iframe.src; // SAVE THE FULL iframe URL
             cacheData.editorType = tab.photoEditor ? 'photo' :
                                   tab.latexEditor ? 'latex' :
                                   tab.transcriptionEditor ? 'transcription' :
@@ -2970,11 +2970,11 @@ function cacheTabContent(tab) {
                                   tab.onlyOfficeEditor ? 'office' :
                                   tab.zipViewer ? 'zip' : 'unknown';
             
-            // Сохраняем живой iframe, чтобы потом восстановить его без новой загрузки.
+            // Keep the live iframe to restore it later without reloading.
             tabsState.iframeCache.set(tab.id, iframe);
         }
     } 
-    // ===== ДОБАВЛЯЕМ ЭТОТ БЛОК ДЛЯ ИЗОБРАЖЕНИЙ =====
+    // ===== ADD THIS BLOCK FOR IMAGES =====
     else if (viewer.querySelector('img')) {
         const imgContainer = viewer.querySelector('.image-viewer-container');
         if (imgContainer) {
@@ -2983,7 +2983,7 @@ function cacheTabContent(tab) {
             cacheData.scrollLeft = imgContainer.scrollLeft;
             cacheData.scrollTop = imgContainer.scrollTop;
             
-            // Для фото-просмотрщика сохраняем iframe отдельно
+            // For the photo viewer, keep the iframe separately
             const iframe = imgContainer.querySelector('iframe');
             if (iframe) {
                 cacheData.iframeSrc = iframe.src;
@@ -2991,7 +2991,7 @@ function cacheTabContent(tab) {
             }
         }
     } 
-    // ===== КОНЕЦ БЛОКА =====
+    // ===== END OF BLOCK =====
     else if (viewer.querySelector('audio, video')) {
         cacheData.type = 'media';
         cacheData.html = viewer.innerHTML;
@@ -3031,7 +3031,7 @@ function restoreCachedContent(tab, cacheData) {
     hideAllTabPanels(tab.id);
     switch(cacheData.type) {
         case 'iframe':
-            // Восстанавливаем флаги редакторов из кеша
+            // Restore editor flags from the cache
             if (cacheData.photoEditor) tab.photoEditor = true;
             if (cacheData.latexEditor) tab.latexEditor = true;
             if (cacheData.transcriptionEditor) tab.transcriptionEditor = true;
@@ -3215,7 +3215,7 @@ function initFullscreen() {
             if (icon) {
                 icon.innerHTML = '<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>';
             }
-            // Добавляем обработку модальных окон
+            // Add modal window handling
             handleFullscreenWithModals(true);
             focusActiveEditorFrame();
         } else {
@@ -3223,7 +3223,7 @@ function initFullscreen() {
             if (icon) {
                 icon.innerHTML = '<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>';
             }
-            // Восстанавливаем нормальное поведение
+            // Restore normal behavior
             handleFullscreenWithModals(false);
         }
     });
@@ -3234,10 +3234,10 @@ function handleFullscreenWithModals(isFullscreen) {
   const selectionPanel = document.getElementById('selection-action-panel');
   
   if (isFullscreen) {
-    // В полноэкранном режиме
+    // In fullscreen mode
     document.body.style.overflow = 'hidden';
     
-    // Если есть открытые модальные окна, убеждаемся что они поверх
+    // If there are open modals, make sure they stay on top
     modals.forEach(modal => {
       modal.style.zIndex = '30000';
     });
@@ -3250,10 +3250,10 @@ function handleFullscreenWithModals(isFullscreen) {
       selectionPanel.style.zIndex = '32000';
     }
   } else {
-    // Выход из полноэкранного режима
+    // Exit fullscreen mode
     document.body.style.overflow = '';
     
-    // Восстанавливаем обычные z-index
+    // Restore normal z-index values
     modals.forEach(modal => {
       modal.style.zIndex = '';
     });
@@ -3300,7 +3300,7 @@ function initTabScrolling() {
     const SCROLL_AMOUNT = 200;
     
     window.updateScrollButtons = function() {
-        // Получаем свежие ссылки на элементы каждый раз
+        // Get fresh element references each time
         const tabsList = document.getElementById('tabs-list');
         const scrollLeftBtn = document.getElementById('tab-scroll-left');
         const scrollRightBtn = document.getElementById('tab-scroll-right');
@@ -3331,11 +3331,11 @@ function initTabScrolling() {
         scrollRightBtn.classList.toggle('hidden', isAtEnd);
     };
     
-    // Удаляем старые обработчики перед добавлением новых
+    // Remove old handlers before adding new ones
     scrollLeftBtn.replaceWith(scrollLeftBtn.cloneNode(true));
     scrollRightBtn.replaceWith(scrollRightBtn.cloneNode(true));
     
-    // Получаем новые ссылки после клонирования
+    // Get new references after cloning
     const newScrollLeft = document.getElementById('tab-scroll-left');
     const newScrollRight = document.getElementById('tab-scroll-right');
     const newTabsList = document.getElementById('tabs-list');
@@ -3351,14 +3351,14 @@ function initTabScrolling() {
     newTabsList.addEventListener('scroll', window.updateScrollButtons);
     window.addEventListener('resize', window.updateScrollButtons);
     
-    // Наблюдаем за изменениями в списке вкладок
+    // Observe changes in the tab list
     const observer = new MutationObserver(window.updateScrollButtons);
     observer.observe(newTabsList, { childList: true, subtree: true, attributes: true });
     
-    // Первоначальное обновление с большей задержкой для гарантии загрузки DOM
+    // Initial update with a longer delay to ensure the DOM loads
     setTimeout(window.updateScrollButtons, 150);
     
-    // Прокрутка колесиком
+    // Wheel scrolling
     newTabsList.addEventListener('wheel', (e) => {
         if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
             e.preventDefault();
@@ -3375,9 +3375,9 @@ function renderTabs() {
     let tabsList = document.getElementById('tabs-list');
     let closeAllBtn = document.getElementById('btn-close-all-tabs');
     
-    // Проверяем, существует ли уже контейнер с кнопками
+    // Check if a button container already exists
     if (!tabsContainer || !document.getElementById('tab-scroll-left')) {
-        // Если контейнера нет, создаем его
+        // If the container does not exist, create it
         if (!tabsContainer) {
             tabsContainer = document.createElement('div');
             tabsContainer.className = 'tabs-container';
@@ -3407,21 +3407,21 @@ function renderTabs() {
             </button>
         `;
         
-        // Переинициализируем ссылки
+        // Re-initialize references
         tabsList = document.getElementById('tabs-list');
         closeAllBtn = document.getElementById('btn-close-all-tabs');
         
-        // Добавляем обработчик для кнопки закрытия всех вкладок
+        // Add a handler for the close-all-tabs button
         closeAllBtn.addEventListener('click', closeAllTabs);
         
-        // Инициализируем прокрутку
+        // Initialize scrolling
         if (typeof initTabScrolling === 'function' && !window.tabScrollingInitialized) {
             initTabScrolling();
             window.tabScrollingInitialized = true;
         }
     }
     
-    // Обработка пустого состояния
+    // Handle empty state
     if (tabsState.tabs.length === 0) {
         tabsList.innerHTML = '';
         if (closeAllBtn) closeAllBtn.style.display = 'none';
@@ -3433,7 +3433,7 @@ function renderTabs() {
         return;
     }
     
-    // Показываем кнопку закрытия всех вкладок
+    // Show the close-all-tabs button
     if (closeAllBtn) closeAllBtn.style.display = 'flex';
 
     const existingTabs = new Map(
@@ -3582,7 +3582,7 @@ function renderTabs() {
             });
         }
         
-        // Обновляем состояние кнопок прокрутки
+        // Update scroll button state
         if (typeof window.updateScrollButtons === 'function') {
             window.updateScrollButtons();
         }
@@ -3826,7 +3826,7 @@ function getItemIconMarkup(item, extraClass = '') {
     if (item && item.type === 'dir') {
         return getFolderIconMarkup(extraClass);
     }
-    // Для определения иконки используем name в первую очередь (важно для корзины, где path - это ID)
+    // Use name first to determine the icon (important for trash, where path is an ID)
     const iconTarget = typeof item === 'string' ? item : (item && (item.name || item.path)) || '';
     return getFileIconMarkup(iconTarget, extraClass);
 }
@@ -4122,10 +4122,10 @@ function initF2Rename() {
                     }
                 }
             }
-            // Обновляем название вкладки с SVG иконкой
+            // Update the tab title with an SVG icon
             const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
             if (activeTab) {
-                // Сохраняем оригинальное название, но добавим флаг что это фото
+                // Keep the original title but add a flag that this is a photo
                 activeTab.isImage = true;
                 activeTab.title = path.split('/').pop();
                 renderTabs();
@@ -4432,13 +4432,13 @@ function initRootToolbar(i18n) {
         usersTable.addEventListener('change', async function(e) {
             const selectedUser = e.target.value;
             
-            // Загружаем состояние папок для нового пользователя
+            // Load folder state for the new user
             await loadFolderState();
             
-            // Перезагружаем дерево
+            // Reload the tree
             await buildTree('');
             
-            // Восстанавливаем состояние
+            // Restore state
             await restoreFolderState();
             
             flashStatus(t(i18n, 'userSwitched', { user: selectedUser }));
@@ -4446,13 +4446,13 @@ function initRootToolbar(i18n) {
     }
 
 
-    // Добавьте в конец функции bindUI()
+    // Add to the end of the bindUI() function
     const observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
             if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                 const modal = mutation.target;
                 if (modal.classList && !modal.classList.contains('hidden')) {
-                    // Модальное окно стало видимым
+                    // The modal became visible
                     const fileView = document.getElementById('file-view');
                     if (fileView && fileView.classList.contains('fullscreen-mode')) {
                         modal.style.zIndex = '30000';
@@ -4462,7 +4462,7 @@ function initRootToolbar(i18n) {
         });
     });
 
-    // Отслеживаем все модальные окна
+    // Track all modals
     document.querySelectorAll('.modal').forEach(modal => {
         observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
     });
@@ -4561,34 +4561,34 @@ function toggleSelectionMode() {
             addCheckboxToNode(node);
         });
 
-        // Добавляем класс для изменения курсора
+        // Add a class to change the cursor
         document.getElementById('tree').classList.add('selection-mode');
         syncAllTreeNodeDragHandles();
         flashStatus(t(i18n, 'selectionModeActive'));
     } else {
         clearSelection();
         
-        // Убираем класс курсора
+        // Remove the cursor class
         const tree = document.getElementById('tree');
         if (tree) {
             tree.classList.remove('selection-mode');
-            // Принудительно сбрасываем курсор
+            // Force reset the cursor
             tree.style.cursor = '';
         }
         
-        // Скрываем лассо если активно
+        // Hide the lasso if active
         if (lassoState.element) {
             lassoState.element.style.display = 'none';
         }
         
-        // Сбрасываем состояние лассо
+        // Reset lasso state
         lassoState.active = false;
         lassoState.mode = null;
         
-        // Восстанавливаем выделение текста
+        // Restore text selection
         document.body.style.userSelect = '';
         
-        // Удаляем все чекбоксы
+        // Remove all checkboxes
         document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
             checkbox.remove();
         });
@@ -4753,7 +4753,7 @@ function updateSelectionMenuItem() {
 function initSelectionPanelHandlers() {
     const moveBtn = document.getElementById('btn-move-selected');
     const deleteBtn = document.getElementById('btn-delete-selected');
-    const downloadBtn = document.getElementById('btn-download-selected'); // Новая кнопка
+    const downloadBtn = document.getElementById('btn-download-selected'); // New button
     const clearBtn = document.getElementById('btn-clear-selection');
 
     if (moveBtn) {
@@ -4772,7 +4772,7 @@ function initSelectionPanelHandlers() {
         });
     }
 
-    // Новый обработчик для кнопки скачивания
+    // New handler for the download button
     if (downloadBtn) {
         downloadBtn.addEventListener('click', () => {
             if (selectionState.selectedItems.size > 0) {
@@ -4886,7 +4886,7 @@ function handleItemSelection(path, type, selected, root = null) {
         const nodeForRoot = document.querySelector(`#tree .advanced-search-result[data-path="${esc}"], #tree .node[data-path="${esc}"]`);
         selectionState.selectedRoots.set(p, root || nodeForRoot?.dataset.root || getCurrentCloudRoot());
         
-        // Анимируем добавление
+        // Animate the addition
         const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
         if (node) {
             node.classList.add('selected');
@@ -4925,7 +4925,7 @@ function updateSelectionUI() {
         return;
     }
     
-    // Обновляем выделение узлов
+    // Update node selection
     document.querySelectorAll('#tree .node, #tree .advanced-search-result').forEach(node => {
         const path = node.dataset.path;
         if (selectionState.selectedItems.has(path)) {
@@ -4935,7 +4935,7 @@ function updateSelectionUI() {
         }
     });
     
-    // Обновляем чекбоксы
+    // Update checkboxes
     document.querySelectorAll('#tree .selection-checkbox').forEach(checkbox => {
         const node = checkbox.closest('.node, .advanced-search-result');
         if (node) {
@@ -4944,13 +4944,13 @@ function updateSelectionUI() {
         }
     });
     
-    // Обновляем панель действий
+    // Update the actions panel
     const actionPanel = document.getElementById('selection-action-panel');
     if (actionPanel) {
         if (count > 0 && selectionState.active) {
             actionPanel.classList.remove('hidden');
             
-            // Обновляем текст всех кнопок
+            // Update the text of all buttons
             const moveBtn = document.getElementById('btn-move-selected');
             const deleteBtn = document.getElementById('btn-delete-selected');
             const downloadBtn = document.getElementById('btn-download-selected');
@@ -4992,7 +4992,7 @@ function updateSelectionUI() {
         }
     }
     
-    // Обновляем статус-бар
+    // Update the status bar
     const statusRight = document.getElementById('status-right-content') || document.getElementById('status-right');
     if (selectionState.active && count > 0) {
         statusRight.textContent = t(i18n, 'selectionStatus', { 
@@ -5010,7 +5010,7 @@ function updateSelectionUI() {
     syncAllTreeNodeDragHandles();
 }
 
-// Добавьте обработчик для клавиши Ctrl (для режима переключения)
+// Add a handler for the Ctrl key (toggle mode)
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Control' && lassoState.active) {
         lassoState.mode = 'toggle';
@@ -5034,39 +5034,39 @@ function clearSelection() {
         return;
     }
     
-    // Удаляем класс выделения со всех узлов
+    // Remove the selection class from all nodes
     document.querySelectorAll('#tree .node.selected, #tree .advanced-search-result.selected').forEach(node => {
         node.classList.remove('selected');
     });
     
-    // Удаляем чекбоксы
+    // Remove checkboxes
     document.querySelectorAll('#tree .selection-checkbox').forEach(checkbox => {
         checkbox.remove();
     });
     
-    // Скрываем панель действий
+    // Hide the actions panel
     const actionPanel = document.getElementById('selection-action-panel');
     if (actionPanel) {
         actionPanel.classList.add('hidden');
     }
     
-    // Сбрасываем курсор дерева
+    // Reset the tree cursor
     const tree = document.getElementById('tree');
     if (tree) {
         tree.classList.remove('selection-mode');
         tree.style.cursor = '';
     }
     
-    // Скрываем лассо если активно
+    // Hide the lasso if active
     if (lassoState.element) {
         lassoState.element.style.display = 'none';
     }
     
-    // Сбрасываем состояние лассо
+    // Reset lasso state
     lassoState.active = false;
     lassoState.mode = null;
     
-    // Восстанавливаем выделение текста
+    // Restore text selection
     document.body.style.userSelect = '';
     
     updateSelectionUI();
@@ -5316,7 +5316,7 @@ function toggleCodeActionsMenu(e) {
     const menu = document.getElementById('code-actions-menu');
     if (!menu) return;
     const isHidden = menu.classList.contains('hidden');
-    closeAllDropdowns(); // Сначала закрываем все
+    closeAllDropdowns(); // First close all
     if (isHidden) {
         if (menu.parentElement !== document.body) {
             document.body.appendChild(menu);
@@ -5779,7 +5779,7 @@ function initSidebarResizer() {
 }
 
 async function compileAndRun() {
-  // Блокируем компиляцию для пользователей с уровнем 0
+  // Block compilation for level 0 users
   const _compileRole = await getUserRole();
   if (_compileRole === 0) {
     flashStatus(t(i18n, 'noPermission') || 'No permission to compile');
@@ -5850,19 +5850,19 @@ function showCompileTerminal(filename, content, language) {
   const input = document.getElementById('compile-input-text');
   input.value = '';
   
-  // Обновляем плейсхолдер с переводом
+  // Update the placeholder with the translation
   if (window.i18n && window.i18n.enterProgramInput) {
     input.placeholder = window.i18n.enterProgramInput;
   }
   
   const sendButton = document.getElementById('btn-compile-send');
   
-  // Обновляем текст кнопки с переводом
+  // Update the button text with the translation
   if (window.i18n && window.i18n.compileAndRun) {
     sendButton.textContent = window.i18n.compileAndRun;
   }
   
-  // Удаляем старый обработчик, если он есть, и добавляем новый
+  // Remove the old handler, if any, and add a new one
   sendButton.replaceWith(sendButton.cloneNode(true));
   const newSendButton = document.getElementById('btn-compile-send');
   
@@ -5916,7 +5916,7 @@ function addCopyButtonToTerminal(terminal) {
         break;
       }
     }
-    // - Если есть "🔄 Ready", копируем все строки до нее (не включая)
+    // - If there is a "🔄 Ready", copy all lines up to it (excluding)
     let linesToCopy;
     if (lastReadyIndex > 0) {
       linesToCopy = allLines.slice(4, lastReadyIndex);
@@ -6028,7 +6028,7 @@ async function performCompilation(filename, content, language, terminal, input) 
     
     loadingLine.remove();
     
-    // Останавливаем таймер при получении ответа
+    // Stop the timer when the response arrives
     stopCompileTimer();
     
     const data = await response.json();
@@ -6036,57 +6036,57 @@ async function performCompilation(filename, content, language, terminal, input) 
     if (data.fileChanges && data.fileChanges.length > 0) {
       await applyCompileFileChangesToTree(data.fileChanges, { root: compileRoot, sourcePath });
       
-      // Разделяем изменения на файлы и папки
+      // Split changes into files and folders
       const createdFiles = data.fileChanges.filter(change => change.action === 'created' && change.type === 'file');
       const createdFolders = data.fileChanges.filter(change => change.action === 'created' && change.type === 'dir');
       const deletedFiles = data.fileChanges.filter(change => change.action === 'deleted' && change.type === 'file');
       const deletedFolders = data.fileChanges.filter(change => change.action === 'deleted' && change.type === 'dir');
       
-      // Отображаем созданные папки
+      // Display created folders
       if (createdFolders.length > 0) {
         const folderNames = createdFolders.map(f => f.file).join(', ');
         addTerminalLine(terminal, `[DIR] ${t(i18n, 'foldersCreated')}: ${folderNames}`, 'compile-success');
         
-        // Детальный вывод для каждой папки
+        // Detailed output for each folder
         createdFolders.forEach(folder => {
           addTerminalLine(terminal, `   [DIR] Created folder: ${folder.fullPath}`, 'compile-success');
         });
       }
       
-      // Отображаем созданные файлы
+      // Display created files
       if (createdFiles.length > 0) {
         const fileNames = createdFiles.map(f => f.file).join(', ');
         addTerminalLine(terminal, `[FILE] ${t(i18n, 'filesCreated')}: ${fileNames}`, 'compile-success');
         
-        // Детальный вывод для каждого файла
+        // Detailed output for each file
         createdFiles.forEach(file => {
           addTerminalLine(terminal, `   [FILE] Created file: ${file.fullPath}`, 'compile-success');
         });
       }
       
-      // Отображаем удаленные папки
+      // Display deleted folders
       if (deletedFolders.length > 0) {
         const folderNames = deletedFolders.map(f => f.file).join(', ');
         addTerminalLine(terminal, `🗑️ ${t(i18n, 'foldersDeleted')}: ${folderNames}`, 'compile-warning');
         
-        // Детальный вывод для каждой удаленной папки
+        // Detailed output for each deleted folder
         deletedFolders.forEach(folder => {
           addTerminalLine(terminal, `   🗑️ Deleted folder: ${folder.fullPath}`, 'compile-warning');
         });
       }
       
-      // Отображаем удаленные файлы
+      // Display deleted files
       if (deletedFiles.length > 0) {
         const fileNames = deletedFiles.map(f => f.file).join(', ');
         addTerminalLine(terminal, `🗑️ ${t(i18n, 'filesDeleted')}: ${fileNames}`, 'compile-warning');
         
-        // Детальный вывод для каждого удаленного файла
+        // Detailed output for each deleted file
         deletedFiles.forEach(file => {
           addTerminalLine(terminal, `   🗑️ Deleted file: ${file.fullPath}`, 'compile-warning');
         });
       }
       
-      // Если были изменения, показываем общую статистику
+      // If there were changes, show overall statistics
       if (createdFiles.length > 0 || createdFolders.length > 0 || 
           deletedFiles.length > 0 || deletedFolders.length > 0) {
         addTerminalLine(terminal, `[SUMMARY] ${t(i18n, 'changesSummary')}:`, 'compile-success');
@@ -6097,7 +6097,7 @@ async function performCompilation(filename, content, language, terminal, input) 
     if (data.success) {
       addTerminalLine(terminal, `✅ ${t(i18n, 'compilationSuccess')}`, 'compile-success');
       
-      // Добавляем информацию о времени выполнения
+      // Add execution time info
       const elapsedTime = compileTimerState.elapsedSeconds.toFixed(1);
       addTerminalLine(terminal, `⏱️ Execution time: ${elapsedTime}s`, 'compile-success');
       
@@ -6118,12 +6118,12 @@ async function performCompilation(filename, content, language, terminal, input) 
         addTerminalLine(terminal, data.error);
       }
       
-      // Помечаем таймер как завершенный успешно
+      // Mark the timer as completed successfully
       finishCompileTimer();
     } else {
       addTerminalLine(terminal, `❌ ${t(i18n, 'compilationFailed')}`, 'compile-error');
       
-      // Добавляем информацию о времени даже при ошибке
+      // Add time info even on error
       const elapsedTime = compileTimerState.elapsedSeconds.toFixed(1);
       addTerminalLine(terminal, `⏱️ Failed after: ${elapsedTime}s`, 'compile-warning');
       
@@ -6142,7 +6142,7 @@ async function performCompilation(filename, content, language, terminal, input) 
   } catch (err) {
     loadingLine.remove();
     
-    // Останавливаем таймер при ошибке сети
+    // Stop the timer on network error
     stopCompileTimer();
     
     const elapsedTime = compileTimerState.elapsedSeconds.toFixed(1);
@@ -6152,7 +6152,7 @@ async function performCompilation(filename, content, language, terminal, input) 
   
   addTerminalLine(terminal, '');
   
-  // Используем перевод для сообщения о готовности
+  // Use the translation for the ready message
   const readyMessage = t(i18n, 'readyForCompilation') || 'Ready for next compilation';
   addTerminalLine(terminal, `🔄 ${readyMessage}`);
   
@@ -6168,7 +6168,7 @@ function closeCompileModal() {
   if (modal) {
     modal.classList.add('hidden');
     hideFloatingCompileButton();
-    resetCompileTimer(); // Сбрасываем таймер при закрытии
+    resetCompileTimer(); // Reset the timer on close
   }
 }
 
@@ -6337,7 +6337,7 @@ function initFileExtensionHighlighting() {
         border: 1px solid rgba(var(--accent-rgb), 0.3);
     `;
     
-    // Добавляем стили для скролла
+    // Add scroll styles
     optionsContainer.style.scrollbarWidth = 'thin';
     optionsContainer.style.scrollbarColor = 'var(--scrollbar-thumb) var(--scrollbar-track)';
     
@@ -6351,7 +6351,7 @@ function initFileExtensionHighlighting() {
         '.ppt': '#d24726'
     };
     
-    // Собираем опции
+    // Collect options
     for (let i = 0; i < extensionSelect.options.length; i++) {
         const option = extensionSelect.options[i];
         const customOption = document.createElement('div');
@@ -6441,45 +6441,45 @@ function initFileExtensionHighlighting() {
     function showOptions() {
         const rect = selectedDisplay.getBoundingClientRect();
         
-        // Рассчитываем позицию
+        // Calculate the position
         const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
         
-        // Определяем ширину списка (минимум 200px, максимум 300px)
+        // Determine list width (min 200px, max 300px)
         let listWidth = Math.min(300, Math.max(200, rect.width));
         
-        // Позиция по горизонтали (центрируем относительно селекта)
+        // Horizontal position (center relative to the select)
         let left = rect.left + (rect.width / 2) - (listWidth / 2);
         
-        // Корректируем, чтобы не выходил за края (с отступом 10px)
+        // Adjust so it does not overflow the edges (10px margin)
         left = Math.max(10, Math.min(left, viewportWidth - listWidth - scrollbarWidth - 10));
         
-        // Сбрасываем предыдущие стили позиционирования
+        // Reset previous positioning styles
         optionsContainer.style.top = '';
         optionsContainer.style.bottom = '';
         
-        // Позиция по вертикали
-        let top = rect.bottom + 5; // Отступ 5px снизу
+        // Vertical position
+        let top = rect.bottom + 5; // 5px offset from the bottom
         
-        // Проверяем, помещается ли список снизу (с отступом 10px от нижнего края)
+        // Check if the list fits below (10px from the bottom edge)
         const spaceBelow = viewportHeight - top - 10;
         const spaceAbove = rect.top - 10;
         
         if (spaceBelow >= 200) {
-            // Помещается снизу - показываем вниз
+            // Fits below - show downward
             top = rect.bottom + 5;
             optionsContainer.style.top = `${top}px`;
             optionsContainer.style.maxHeight = `${Math.min(400, spaceBelow - 10)}px`;
             optionsContainer.style.transformOrigin = 'top';
         } else if (spaceAbove >= 200) {
-            // Не помещается снизу, но помещается сверху
+            // Does not fit below but fits above
             const bottom = viewportHeight - rect.top + 5;
             optionsContainer.style.bottom = `${bottom}px`;
             optionsContainer.style.maxHeight = `${Math.min(400, spaceAbove - 10)}px`;
             optionsContainer.style.transformOrigin = 'bottom';
         } else {
-            // Не помещается ни сверху, ни снизу - используем доступное пространство
+            // Fits neither above nor below - use available space
             if (spaceBelow > spaceAbove) {
                 top = rect.bottom + 5;
                 optionsContainer.style.top = `${top}px`;
@@ -6496,7 +6496,7 @@ function initFileExtensionHighlighting() {
         optionsContainer.style.left = `${left}px`;
         optionsContainer.style.width = `${listWidth}px`;
         
-        // Показываем с анимацией
+        // Show with animation
         optionsContainer.classList.remove('hidden');
         setTimeout(() => {
             optionsContainer.style.opacity = '1';
@@ -6517,7 +6517,7 @@ function initFileExtensionHighlighting() {
         e.preventDefault();
         
         if (optionsContainer.classList.contains('hidden')) {
-            // Скрываем все другие открытые селекты
+            // Hide all other open selects
             document.querySelectorAll('.custom-select-options:not(.hidden)').forEach(el => {
                 el.classList.add('hidden');
                 el.style.opacity = '0';
@@ -6530,17 +6530,17 @@ function initFileExtensionHighlighting() {
         }
     });
     
-    // Закрываем при клике вне
+    // Close on outside click
     document.addEventListener('click', (e) => {
         if (!customSelect.contains(e.target) && !optionsContainer.contains(e.target)) {
             hideOptions();
         }
     });
     
-    // Закрываем при скролле ТОЛЬКО если скролл был НЕ внутри списка
+    // Close on scroll ONLY if the scroll was NOT inside the list
     window.addEventListener('scroll', () => {
         if (!optionsContainer.classList.contains('hidden')) {
-            // Проверяем, не находится ли фокус внутри списка
+            // Check whether the focus is inside the list
             const activeElement = document.activeElement;
             const isScrollingInside = optionsContainer.contains(activeElement) || 
                                       optionsContainer.matches(':hover') ||
@@ -6552,21 +6552,21 @@ function initFileExtensionHighlighting() {
         }
     }, true);
     
-    // Закрываем при изменении размера окна
+    // Close on window resize
     window.addEventListener('resize', () => {
         if (!optionsContainer.classList.contains('hidden')) {
             hideOptions();
         }
     });
     
-    // Закрываем при нажатии Escape
+    // Close on Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !optionsContainer.classList.contains('hidden')) {
             hideOptions();
         }
     });
     
-    // Предотвращаем всплытие события скролла внутри списка
+    // Prevent the scroll event from bubbling inside the list
     optionsContainer.addEventListener('wheel', (e) => {
         e.stopPropagation();
     });
@@ -6575,7 +6575,7 @@ function initFileExtensionHighlighting() {
         e.stopPropagation();
     });
     
-    // Закрываем при открытии модального окна
+    // Close when a modal opens
     const modal = document.getElementById('new-file-modal');
     if (modal) {
         const observer = new MutationObserver((mutations) => {
@@ -6583,7 +6583,7 @@ function initFileExtensionHighlighting() {
                 if (mutation.attributeName === 'class') {
                     const isHidden = modal.classList.contains('hidden');
                     if (!isHidden) {
-                        // Сброс при открытии модалки
+                        // Reset when a modal opens
                         selectedDisplay.style.borderColor = 'var(--border)';
                         selectedDisplay.style.boxShadow = '';
                         selectedDisplay.style.color = 'var(--fg)';
@@ -6593,7 +6593,7 @@ function initFileExtensionHighlighting() {
                         extensionSelect.value = '';
                         hideOptions();
                     } else {
-                        // Закрываем список при закрытии модалки
+                        // Close the list when the modal closes
                         hideOptions();
                     }
                 }
@@ -6607,7 +6607,7 @@ function initFileExtensionHighlighting() {
     originalContainer.insertBefore(customSelect, extensionSelect.nextSibling);
     extensionSelect.style.display = 'none';
     
-    // Добавляем стили
+    // Add styles
     const style = document.createElement('style');
     style.textContent = `
         .custom-select-options {
@@ -6647,12 +6647,12 @@ function initFileExtensionHighlighting() {
             color: white !important;
         }
         
-        /* Анимация для плавного появления */
+        /* Animation for smooth appearance */
         .custom-select-options {
             transition: opacity 0.15s ease, transform 0.15s ease;
         }
         
-        /* Убираем pointer-events для скролла */
+        /* Remove pointer-events for scrolling */
         .custom-select-options {
             pointer-events: auto !important;
         }
@@ -6725,13 +6725,13 @@ async function syncSettingsControls(state = null) {
     localStorage.setItem(HIDE_LANG_SWITCHER_CACHE_KEY, active.hide_lang_switcher ? '1' : '0');
     applyLangSwitcherVisibility(!!active.hide_lang_switcher);
 
-    // Проверяем уровень пользователя и показываем кнопку смены ключа
+    // Check the user level and show the key change button
     const userRole = await getUserRole();
 
-    // Обновляем иконку роли пользователя
+    // Update the user role icon
     updateUserRoleIcon(userRole);
 
-    // Скрываем кнопку компиляции для пользователей с уровнем 0
+    // Hide the compile button for level 0 users
     const compileMenuItem = document.getElementById('code-action-compile');
     if (compileMenuItem) {
         compileMenuItem.style.display = (userRole === 0) ? 'none' : 'flex';
@@ -7443,7 +7443,7 @@ function deleteSelectedItems() {
 function showDeleteConfirmationModal(selectedItems, options = {}) {
     let permanent = !!options.permanent;
     const fromTrash = !!options.fromTrash;
-    // Проверяем, есть ли уже открытое модальное окно
+    // Check if a modal is already open
     const existingModal = document.querySelector('.modal[data-delete-modal="true"]');
     if (existingModal) {
         existingModal.remove();
@@ -7454,7 +7454,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
     modal.style.display = 'flex';
     modal.setAttribute('data-delete-modal', 'true');
     
-    // Показываем загрузку
+    // Show loading
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
@@ -7486,7 +7486,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
     
     document.body.appendChild(modal);
     
-    // Добавляем обработчики сразу
+    // Add handlers right away
     const cancelBtn = document.getElementById('btn-cancel-delete-selected');
     const confirmBtn = document.getElementById('btn-confirm-delete-selected');
     const closeBtn = modal.querySelector('.close-btn');
@@ -7511,7 +7511,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
         }
     });
     
-    // Закрытие по Escape
+    // Close on Escape
     const escapeHandler = (e) => {
         if (e.key === 'Escape') {
             closeModal();
@@ -7520,16 +7520,16 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
     };
     document.addEventListener('keydown', escapeHandler);
     
-    // Загружаем информацию о размерах файлов
+    // Load file size info
     Promise.all(selectedItems.map(async (path) => {
         try {
-            // Получаем имя файла из пути
+            // Get the file name from the path
             const fileName = path.split('/').pop();
             
-            // Используем правильный API эндпоинт для получения информации о файле
+            // Use the correct API endpoint to get file info
             const info = await api('file_info', { path }, 'GET');
             
-            // Определяем тип (папка или файл)
+            // Determine the type (folder or file)
             const isDir = info.type === 'dir' || path.endsWith('/');
             
             return { 
@@ -7540,7 +7540,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
             };
         } catch (err) {
             console.warn(`Failed to get size for ${path}:`, err);
-            // Пробуем альтернативный метод получения размера
+            // Try an alternative method to get the size
             try {
                 const fileInfo = await api('open', { path }, 'GET');
                 const fileName = path.split('/').pop();
@@ -7565,7 +7565,7 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
         const foldersCount = fileInfos.filter(item => item.type === 'dir').length;
         const filesCount = fileInfos.filter(item => item.type === 'file').length;
         
-        // Обновляем содержимое модального окна
+        // Update the modal content
         const modalBody = modal.querySelector('.modal-body');
         modalBody.innerHTML = `
             <p>${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
@@ -7599,12 +7599,12 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
             </p>
         `;
         
-        // Активируем кнопку удаления
+        // Enable the delete button
         confirmBtn.disabled = false;
         
     }).catch(err => {
         console.error('Failed to load file sizes:', err);
-        // Если не удалось загрузить размеры, показываем простое окно
+        // If sizes could not be loaded, show a simple window
         const modalBody = modal.querySelector('.modal-body');
         modalBody.innerHTML = `
             <p>${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
@@ -8217,7 +8217,7 @@ function renderNodes(items, basePath = '', depth = 0) {
         let clickTimer = null;
         let isDoubleClick = false;
         
-        // Модифицированный обработчик клика
+        // Modified click handler
         node.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (shouldSuppressMobileActivation()) {
@@ -8225,12 +8225,12 @@ function renderNodes(items, basePath = '', depth = 0) {
                 return;
             }
             
-            // Если кликнули по чекбоксу, не обрабатываем дальше
+            // If a checkbox was clicked, do not process further
             if (e.target.classList.contains('selection-checkbox')) {
                 return;
             }
             
-            // Если в режиме выбора - выбираем элемент вместо открытия
+            // In selection mode - select the item instead of opening
             if (selectionState.active) {
                 const checkbox = node.querySelector('.selection-checkbox');
                 if (checkbox) {
@@ -8245,7 +8245,7 @@ function renderNodes(items, basePath = '', depth = 0) {
                 return;
             }
             
-            // Если не в режиме выбора - обычное поведение
+            // If not in selection mode - normal behavior
             if (isDoubleClick) {
                 isDoubleClick = false;
                 return;
@@ -8285,7 +8285,7 @@ function renderNodes(items, basePath = '', depth = 0) {
                     syncTreeFolderEndLine(children, true);
                     expandedFolders.add(item.path);
                 }
-                // ВАЖНО: Сохраняем состояние после каждого клика
+                // IMPORTANT: Save state after each click
                 saveFolderState();
             }
         });
@@ -8294,12 +8294,12 @@ function renderNodes(items, basePath = '', depth = 0) {
             showContextMenu(menuEvent, item.path, item.type, item.name);
         });
         
-        // Обработчик двойного клика остается без изменений
-        // Найдите обработчик двойного клика в renderNodes (примерно строка 1135)
+        // Double click handler remains unchanged
+        // Find the double click handler in renderNodes (around line 1135)
         node.addEventListener('dblclick', async (e) => {
             e.stopPropagation();
             
-            // Если в режиме выбора - отменяем двойной клик
+            // In selection mode - cancel the double click
             if (selectionState.active) {
                 e.preventDefault();
                 return;
@@ -9650,7 +9650,7 @@ async function updateQuota() {
     return;
   }
   try {
-    await api('set_quota', { quota_mb: mb }); // без name — сервер сам поймёт, кто текущий
+    await api('set_quota', { quota_mb: mb }); // without name - the server will figure out the current user
     flashStatus(t(i18n, 'quotaUpdated'));
     await refreshUsers(i18n);
   } catch (err) {
@@ -9660,7 +9660,7 @@ async function updateQuota() {
 async function updateSessionLimit() {
   const mb = parseInt(document.getElementById('session-limit-mb').value || '0', 10);
   try {
-    await api('set_session_limit', { session_limit_mb: mb }); // без name
+    await api('set_session_limit', { session_limit_mb: mb }); // without name
     flashStatus(t(i18n, 'sessionLimitUpdated'));
     await refreshUsers(i18n);
   } catch (err) {
@@ -9905,7 +9905,7 @@ async function uploadFile(path, file) {
       await insertTreeItem(newItem, uploadRoot);
       scheduleUserUsageStatusRefresh();
 
-      // 3. Если родительская папка свернута - показываем уведомление
+      // 3. If the parent folder is collapsed - show a notification
       const parentPath = uploadedPath.includes('/')
         ? uploadedPath.substring(0, uploadedPath.lastIndexOf('/'))
         : '';
@@ -9914,7 +9914,7 @@ async function uploadFile(path, file) {
         flashStatus(t(i18n, 'fileUploadedHidden', { name: uploadedName, folder: parentPath }));
       }
 
-      // 4. Обновляем состояние выделения (если активно)
+      // 4. Update the selection state (if active)
       if (selectionState.active) {
         const node = document.querySelector(`.node[data-path="${uploadedPath}"]`);
         if (node && !node.querySelector('.selection-checkbox')) {

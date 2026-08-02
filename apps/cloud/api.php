@@ -155,9 +155,9 @@ function ensure_cloud_encryption_consents_table(): void {
     }
 }
 
-// api.php - добавьте после констант
+// api.php - add after constants
 
-// Хранилище активных загрузок
+// Active upload sessions storage
 const UPLOAD_SESSIONS_DIR = __DIR__ . '/upload_sessions';
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
 
@@ -172,7 +172,7 @@ function upload_sessions_dir() {
     return $dir = $fallback;
 }
 
-// Функция для создания сессии загрузки с привязкой к пути
+// Function to create upload session bound to path
 function create_upload_session($target_path, $user) {
     $upload_id = bin2hex(random_bytes(16));
     $session_file = upload_sessions_dir() . '/' . $upload_id . '.json';
@@ -180,8 +180,8 @@ function create_upload_session($target_path, $user) {
     $session_data = [
         'id' => $upload_id,
         'user' => $user,
-        'target_path' => $target_path, // Полный путь назначения
-        'base_path' => dirname($target_path), // Папка назначения
+        'target_path' => $target_path, // Full destination path
+        'base_path' => dirname($target_path), // Destination folder
         'filename' => basename($target_path),
         'created' => time(),
         'last_activity' => time(),
@@ -194,7 +194,7 @@ function create_upload_session($target_path, $user) {
     return $upload_id;
 }
 
-// Функция для получения сессии загрузки
+// Function to get upload session
 function get_upload_session($upload_id) {
     $session_file = upload_sessions_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
     if (file_exists($session_file)) {
@@ -203,7 +203,7 @@ function get_upload_session($upload_id) {
     return null;
 }
 
-// Функция для обновления сессии
+// Function to update session
 function update_upload_session($upload_id) {
     $session_file = upload_sessions_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
     if (file_exists($session_file)) {
@@ -213,25 +213,25 @@ function update_upload_session($upload_id) {
     }
 }
 
-// Функция для удаления сессии
+// Function to delete session
 function delete_upload_session($upload_id) {
     $session_file = upload_sessions_dir() . '/' . preg_replace('/[^a-f0-9]/', '', $upload_id) . '.json';
     @unlink($session_file);
 }
 
-// Очистка старых сессий (можно вызвать при старте)
+// Cleanup old sessions (can call at startup)
 function cleanup_old_upload_sessions() {
     $files = glob(upload_sessions_dir() . '/*.json');
     $now = time();
     foreach ($files as $file) {
-        if ($now - filemtime($file) > 86400) { // 24 часа
+        if ($now - filemtime($file) > 86400) { // 24 hours
             @unlink($file);
         }
     }
 }
 cleanup_old_upload_sessions();
 
-// api.php - замените существующую функцию
+// api.php - replace the existing function
 
 function ensure_client_auth_tokens_table(): void {
     $db = getDB();
@@ -626,34 +626,34 @@ function json_out($data, int $code=200): void {
 
 
 function safe_path($path) {
-    // Разрешаем пути с точками (например .archive, .temp_files)
-    // но предотвращаем path traversal через ..
+    // Allow paths with dots (e.g. .archive, .temp_files)
+    // but prevent path traversal via ..
     
-    // Нормализуем путь: убираем множественные слеши
+    // Normalize the path: remove multiple slashes
     $path = preg_replace('#/+#', '/', $path);
     
-    // Разбиваем путь на компоненты и обрабатываем ..
+    // Split the path into components and handle ..
     $parts = explode('/', $path);
     $result = [];
     
     foreach ($parts as $part) {
         if ($part === '' || $part === '.') {
-            // Пропускаем пустые и текущую директорию
+            // Skip empty and current directory entries
             continue;
         } else if ($part === '..') {
-            // Запрещаем выход за пределы базовой директории
-            // Просто игнорируем .. для безопасности
+            // Block escaping the base directory
+            // Simply ignore .. for safety
             continue;
         } else {
-            // Разрешаем все остальные пути (включая .archive, .temp_files и т.д.)
+            // Allow all other paths (including .archive, .temp_files, etc.)
             $result[] = $part;
         }
     }
     
-    // Собираем путь обратно
+    // Rebuild the path
     $path = implode('/', $result);
     
-    // Убираем ведущие и завершающие слеши
+    // Strip leading and trailing slashes
     $path = trim($path, '/');
     
     return $path;
@@ -942,9 +942,9 @@ function dir_size(string $dir): int {
 function is_text_mime(string $mime): bool {
   return str_starts_with($mime, 'text/') || in_array($mime, ['application/json','application/xml','application/javascript','application/x-sh','application/x-httpd-php', 'text/x-matlab']);
 }
-// Конвертация Word в HTML с поддержкой темной темы
+// Word to HTML conversion with dark theme support
 function wordToHtml($filePath) {
-    // Проверка размера файла (более 50MB)
+    // Check file size (over 50MB)
     $fileSize = filesize($filePath);
     $maxSize = 10 * 1024 * 1024; // 50MB
     
@@ -1059,7 +1059,7 @@ function wordToHtml($filePath) {
             <meta charset="UTF-8">
             <title>Document preview</title>
             <style>
-                /* Стили для скроллбаров */
+                /* Styles for scrollbars */
                 ::-webkit-scrollbar {
                     width: 12px;
                     height: 12px;
@@ -1077,13 +1077,13 @@ function wordToHtml($filePath) {
                     background: #666;
                 }
                 
-                /* Для Firefox */
+                /* For Firefox */
                 * {
                     scrollbar-width: thin;
                     scrollbar-color: #555 #2a2a2a;
                 }
                 
-                /* Базовая темная тема */
+                /* Base dark theme */
                 body {
                     background: #1a1a1a !important;
                     color: #ffffff !important;
@@ -1107,19 +1107,19 @@ function wordToHtml($filePath) {
                     position: relative;
                 }
                 
-                /* Базовые стили для всего текста - белый по умолчанию */
+                /* Base styles for all text - white by default */
                 .word-container * {
                     color: #ffffff !important;
                 }
                 
-                /* Стили для секций Word */
+                /* Styles for Word sections */
                 .WordSection1, .WordSection2, .WordSection3 {
                     width: 100% !important;
                     max-width: 100% !important;
                     background: #2a2a2a !important;
                 }
                 
-                /* Заголовки */
+                /* Headings */
                 h1, h2, h3, h4, h5, h6 {
                     color: #ffffff !important;
                     margin-top: 1.2em !important;
@@ -1135,7 +1135,7 @@ function wordToHtml($filePath) {
                 h5 { font-size: 11pt !important; }
                 h6 { font-size: 10pt !important; }
                 
-                /* Параграфы */
+                /* Paragraphs */
                 p {
                     margin: 0.8em 0 !important;
                     text-align: left !important;
@@ -1144,7 +1144,7 @@ function wordToHtml($filePath) {
                     font-size: 11pt !important;
                 }
                 
-                /* Списки */
+                /* Lists */
                 ul, ol {
                     margin: 0.8em 0 !important;
                     padding-left: 2.5em !important;
@@ -1157,7 +1157,7 @@ function wordToHtml($filePath) {
                     font-size: 11pt !important;
                 }
                 
-                /* ТАБЛИЦЫ - УЛУЧШЕННЫЕ СТИЛИ */
+                /* TABLES - ENHANCED STYLES */
                 table {
                     width: 100% !important;
                     max-width: 100% !important;
@@ -1188,14 +1188,14 @@ function wordToHtml($filePath) {
                     border-bottom: 2px solid #777 !important;
                 }
                 
-                /* Специфичные стили для таблиц Word */
+                /* Word-specific table styles */
                 .MsoNormalTable {
                     width: 100% !important;
                     border-collapse: collapse !important;
                     margin: 1em 0 !important;
                 }
                 
-                /* Ссылки */
+                /* Links */
                 a {
                     color: #4dabf7 !important;
                     text-decoration: underline !important;
@@ -1205,7 +1205,7 @@ function wordToHtml($filePath) {
                     color: #74c0fc !important;
                 }
                 
-                /* Изображения */
+                /* Images */
                 img {
                     max-width: 100% !important;
                     height: auto !important;
@@ -1217,7 +1217,7 @@ function wordToHtml($filePath) {
                     box-sizing: border-box;
                 }
                 
-                /* Блоки кода и цитаты */
+                /* Code blocks and quotes */
                 blockquote {
                     margin: 1em 2em !important;
                     padding: 1em !important;
@@ -1237,13 +1237,13 @@ function wordToHtml($filePath) {
                     font-size: 10pt !important;
                 }
                 
-                /* Выравнивание */
+                /* Alignment */
                 .align-center { text-align: center !important; }
                 .align-right { text-align: right !important; }
                 .align-left { text-align: left !important; }
                 .align-justify { text-align: justify !important; }
                 
-                /* Специфичные стили Word */
+                /* Word-specific styles */
                 .MsoNormal {
                     margin: 0.8em 0 !important;
                     line-height: 1.5 !important;
@@ -1263,7 +1263,7 @@ function wordToHtml($filePath) {
                     color: #999 !important;
                 }
                 
-                /* Подстрочные и надстрочные знаки */
+                /* Subscript and superscript marks */
                 sup, sub {
                     font-size: 0.8em !important;
                     line-height: 0 !important;
@@ -1273,21 +1273,21 @@ function wordToHtml($filePath) {
                 sup { vertical-align: super !important; }
                 sub { vertical-align: sub !important; }
                 
-                /* Подсветка текста */
+                /* Text highlight */
                 mark {
                     background-color: #ffeb3b !important;
                     color: #000 !important;
                     padding: 0.1em 0.2em !important;
                 }
                 
-                /* Линии */
+                /* Lines */
                 hr {
                     border: none !important;
                     border-top: 1px solid #555 !important;
                     margin: 2em 0 !important;
                 }
                 
-                /* Адаптивность */
+                /* Responsiveness */
                 @media (max-width: 768px) {
                     body {
                         padding: 20px !important;
@@ -1313,7 +1313,7 @@ function wordToHtml($filePath) {
         <body>
             <div class="word-container">';
         
-        // Используем кастомный HTML Writer
+        // Use a custom HTML Writer
         $htmlWriter = WordIOFactory::createWriter($phpWord, 'HTML');
         $htmlWriter->setUseDiskCaching(true);
         
@@ -1321,7 +1321,7 @@ function wordToHtml($filePath) {
         $htmlWriter->save('php://output');
         $wordHtml = ob_get_clean();
         
-        // Обрабатываем HTML для улучшения отображения
+        // Process HTML for better rendering
         $wordHtml = processWordHtml($wordHtml);
         
         $html .= $wordHtml;
@@ -1421,103 +1421,103 @@ function wordToHtml($filePath) {
     }
 }
 
-// Улучшенная функция обработки HTML Word
+// Improved Word HTML processing function
 function processWordHtml($html) {
-    // Удаляем ненужные теги
+    // Remove unnecessary tags
     $html = preg_replace('/<(!DOCTYPE|xml|meta|link).*?>/i', '', $html);
     
-    // Исправляем кодировку
+    // Fix encoding
     $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
     
-    // Обрабатываем стили для темной темы
+    // Process styles for dark theme
     $html = processWordStylesForDarkTheme($html);
     
-    // Обрабатываем таблицы
+    // Process tables
     $html = processWordTables($html);
     
-    // Обрабатываем изображения
+    // Process images
     $html = processWordImages($html);
     
-    // Обрабатываем списки
+    // Process lists
     $html = processWordLists($html);
     
     return $html;
 }
 
-// Обработка стилей для темной темы
+// Style processing for dark theme
 function processWordStylesForDarkTheme($html) {
-    // Сохраняем цветные тексты, но для черного текста меняем на белый
+    // Keep colored text, but change black text to white
     $html = preg_replace_callback('/style="[^"]*color:\s*([^;"]+)[^"]*"/i', function($matches) {
         $color = strtolower(trim($matches[1]));
         
-        // Если цвет черный или очень темный - меняем на белый
+        // If the color is black or very dark - change to white
         if ($color === '#000000' || $color === 'black' || $color === '#000' || 
             $color === 'rgb(0,0,0)' || $color === 'windowtext') {
             return 'style="color: #ffffff !important;"';
         }
         
-        // Если цвет близок к черному - тоже меняем на белый
+        // If the color is close to black - also change to white
         if (preg_match('/^#([0-9a-f]{6})$/i', $color, $hexMatches)) {
             $hex = $hexMatches[1];
             $r = hexdec(substr($hex, 0, 2));
             $g = hexdec(substr($hex, 2, 2));
             $b = hexdec(substr($hex, 4, 2));
             
-            // Если очень темный цвет (меньше 20% яркости)
+            // If very dark color (less than 20% brightness)
             if ($r < 51 && $g < 51 && $b < 51) {
                 return 'style="color: #ffffff !important;"';
             }
         }
         
-        // Для остальных цветов сохраняем оригинальный цвет
+        // Keep the original color for other colors
         return 'style="color: ' . $matches[1] . ' !important;"';
     }, $html);
     
-    // Обрабатываем фон - для светлого фона делаем темным
+    // Process background - make light backgrounds dark
     $html = preg_replace_callback('/style="[^"]*background-color:\s*([^;"]+)[^"]*"/i', function($matches) {
         $bgColor = strtolower(trim($matches[1]));
         
-        // Если фон белый или очень светлый - меняем на темный
+        // If the background is white or very light - change to dark
         if ($bgColor === '#ffffff' || $bgColor === 'white' || $bgColor === '#fff' || 
             $bgColor === 'rgb(255,255,255)' || $bgColor === 'transparent') {
             return 'style="background-color: #2a2a2a !important;"';
         }
         
-        // Если фон близок к белому - тоже меняем на темный
+        // If the background is close to white - also change to dark
         if (preg_match('/^#([0-9a-f]{6})$/i', $bgColor, $hexMatches)) {
             $hex = $hexMatches[1];
             $r = hexdec(substr($hex, 0, 2));
             $g = hexdec(substr($hex, 2, 2));
             $b = hexdec(substr($hex, 4, 2));
             
-            // Если очень светлый фон (больше 80% яркости)
+            // If very light background (more than 80% brightness)
             if ($r > 204 && $g > 204 && $b > 204) {
                 return 'style="background-color: #2a2a2a !important;"';
             }
         }
         
-        // Для остальных фонов сохраняем оригинальный цвет
+        // Keep the original color for other backgrounds
         return 'style="background-color: ' . $matches[1] . ' !important;"';
     }, $html);
     
-    // Обрабатываем другие стили
+    // Process other styles
     $styles = [
-        // Выравнивание
+        // Alignment
         '/style="[^"]*text-align:\s*center[^"]*"/i' => 'class="align-center"',
         '/style="[^"]*text-align:\s*right[^"]*"/i' => 'class="align-right"',
         '/style="[^"]*text-align:\s*left[^"]*"/i' => 'class="align-left"',
         '/style="[^"]*text-align:\s*justify[^"]*"/i' => 'class="align-justify"',
         
-        // Жирный текст
+        // Bold text
         '/style="[^"]*font-weight:\s*(bold|700|800|900)[^"]*"/i' => 'style="font-weight: bold !important;"',
         
-        // Курсив
+        // Italic
         '/style="[^"]*font-style:\s*italic[^"]*"/i' => 'style="font-style: italic !important;"',
         
-        // Подчеркивание
+        // Underline
         '/style="[^"]*text-decoration:\s*underline[^"]*"/i' => 'style="text-decoration: underline !important;"',
         
-        // Размер шрифта
+        // Font size
         '/style="[^"]*font-size:\s*(\d+\.?\d*)pt[^"]*"/i' => 'style="font-size: $1pt !important;"',
         '/style="[^"]*font-size:\s*(\d+\.?\d*)px[^"]*"/i' => 'style="font-size: $1px !important;"',
     ];
@@ -1529,13 +1529,13 @@ function processWordStylesForDarkTheme($html) {
     return $html;
 }
 
-// Улучшенная обработка таблиц
+// Improved table processing
 function processWordTables($html) {
-    // Убеждаемся, что у всех таблиц есть правильные стили
+    // Make sure all tables have proper styles
     $html = preg_replace_callback('/<table[^>]*>/i', function($matches) {
         $table = $matches[0];
         
-        // Добавляем border и cellspacing если их нет
+        // Add border and cellspacing if missing
         if (strpos($table, 'border=') === false) {
             $table = str_replace('<table', '<table border="1"', $table);
         }
@@ -1548,7 +1548,7 @@ function processWordTables($html) {
             $table = str_replace('<table', '<table cellpadding="5"', $table);
         }
         
-        // Добавляем класс если его нет
+        // Add class if missing
         if (strpos($table, 'class=') === false) {
             $table = str_replace('<table', '<table class="word-table"', $table);
         }
@@ -1556,12 +1556,12 @@ function processWordTables($html) {
         return $table;
     }, $html);
     
-    // Обрабатываем ячейки таблиц
+    // Process table cells
     $html = preg_replace_callback('/<(td|th)[^>]*>/i', function($matches) {
         $cell = $matches[0];
         $tag = $matches[1];
         
-        // Добавляем стили для ячеек
+        // Add styles for cells
         if (strpos($cell, 'style=') === false) {
             $cell = str_replace('<' . $tag, '<' . $tag . ' style="border: 1px solid #666; padding: 8px; background: #2a2a2a; color: #ffffff;"', $cell);
         }
@@ -1572,7 +1572,7 @@ function processWordTables($html) {
     return $html;
 }
 
-// Обработка изображений (оставляем без изменений)
+// Image processing (leave unchanged)
 function processWordImages($html) {
     $html = preg_replace_callback('/<img[^>]+>/i', function($matches) {
         $img = $matches[0];
@@ -1591,7 +1591,7 @@ function processWordImages($html) {
     return $html;
 }
 
-// Обработка списков (оставляем без изменений)
+// List processing (leave unchanged)
 function processWordLists($html) {
     $html = preg_replace_callback('/<(ul|ol)[^>]*>/i', function($matches) {
         $list = $matches[0];
@@ -1607,7 +1607,7 @@ function processWordLists($html) {
 }
 
 function excelToHtml($filePath) {
-    // Проверка размера файла (более 50MB)
+    // Check file size (over 50MB)
     $fileSize = filesize($filePath);
     $maxSize = 1 * 1024 * 1024; // 50MB
     
@@ -1730,7 +1730,7 @@ function excelToHtml($filePath) {
             <meta charset="UTF-8">
             <title>Spreadsheet preview</title>
             <style>
-                /* Стили для скроллбаров */
+                /* Styles for scrollbars */
                 ::-webkit-scrollbar {
                     width: 12px;
                     height: 12px;
@@ -1748,7 +1748,7 @@ function excelToHtml($filePath) {
                     background: #666;
                 }
                 
-                /* Для Firefox */
+                /* For Firefox */
                 * {
                     scrollbar-width: thin;
                     scrollbar-color: #555 #989898ff;
@@ -1840,7 +1840,7 @@ function excelToHtml($filePath) {
                     white-space: nowrap;
                 }
                 
-                /* Стили для незакрашенных ячеек */
+                /* Styles for unfilled cells */
                 td.default-bg {
                     background: #ffffffff !important;
                 }
@@ -1851,7 +1851,7 @@ function excelToHtml($filePath) {
                     height: 100%;
                 }
                 
-                /* Стили для повернутого текста */
+                /* Styles for rotated text */
                 .vertical-text {
                     writing-mode: vertical-rl;
                     transform: rotate(180deg);
@@ -1864,7 +1864,7 @@ function excelToHtml($filePath) {
                     white-space: nowrap;
                 }
                 
-                /* Стили для переноса текста */
+                /* Styles for text wrapping */
                 .wrapped-text {
                     white-space: normal !important;
                     word-wrap: break-word;
@@ -1878,7 +1878,7 @@ function excelToHtml($filePath) {
                 
                 <nav class="sheet-nav">';
 
-        // Навигация по листам
+        // Sheet navigation
         foreach ($sheetNames as $index => $name) {
             $activeClass = ($index === $sheetIndex) ? 'active' : '';
             $html .= '<a href="?action=view_excel&path=' . urlencode($currentPath) . '&sheet=' . $index . '" class="nav-link ' . $activeClass . '">' . htmlspecialchars($name) . '</a>';
@@ -1889,48 +1889,48 @@ function excelToHtml($filePath) {
 
         $sheet = $spreadsheet->getSheet($sheetIndex);
         
-        // Карта объединенных ячеек - ИСПРАВЛЕННАЯ ЛОГИКА
+        // Merged cell map - FIXED LOGIC
         $mergedCells = $sheet->getMergeCells();
         $mergedCellMap = [];
         
         foreach ($mergedCells as $range) {
             try {
-                // Безопасное получение границ диапазона
+                // Safe retrieval of range boundaries
                 $rangeBoundaries = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::rangeBoundaries($range);
                 
                 if (is_array($rangeBoundaries) && count($rangeBoundaries) === 2) {
-                    $startCol = $rangeBoundaries[0][0]; // Начальная колонка (число)
-                    $startRow = $rangeBoundaries[0][1]; // Начальная строка (число)
-                    $endCol = $rangeBoundaries[1][0];   // Конечная колонка (число)
-                    $endRow = $rangeBoundaries[1][1];   // Конечная строка (число)
+                    $startCol = $rangeBoundaries[0][0]; // Start column (number)
+                    $startRow = $rangeBoundaries[0][1]; // Start row (number)
+                    $endCol = $rangeBoundaries[1][0];   // End column (number)
+                    $endRow = $rangeBoundaries[1][1];   // End row (number)
                     
-                    // Вычисляем размеры объединения
+                    // Compute merge dimensions
                     $colspan = ($endCol - $startCol) + 1;
                     $rowspan = ($endRow - $startRow) + 1;
                     
-                    // Заполняем карту объединенных ячеек
+                    // Fill the merged cell map
                     for ($row = $startRow; $row <= $endRow; $row++) {
                         for ($col = $startCol; $col <= $endCol; $col++) {
                             if ($row == $startRow && $col == $startCol) {
-                                // Основная ячейка объединения
+                                // Main merge cell
                                 $mergedCellMap[$row][$col] = [
                                     'colspan' => $colspan, 
                                     'rowspan' => $rowspan
                                 ];
                             } else {
-                                // Вторичные ячейки объединения (должны быть скрыты)
+                                // Secondary merge cells (should be hidden)
                                 $mergedCellMap[$row][$col] = ['merged' => true];
                             }
                         }
                     }
                 }
             } catch (Exception $e) {
-                // Пропускаем проблемные диапазоны
+                // Skip problematic ranges
                 continue;
             }
         }
 
-        // Вспомогательные функции
+        // Helper functions
         if (!function_exists('excel_argbToHex')) {
             function excel_argbToHex($argb) {
                 if (empty($argb) || strlen($argb) < 6 || $argb === '00000000') {
@@ -1945,7 +1945,7 @@ function excelToHtml($filePath) {
                 if ($borderStyle === \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_NONE) {
                     return 'none';
                 }
-                return 'solid'; // Упрощаем для надежности
+                return 'solid'; // Simplify for reliability
             }
         }
         
@@ -1963,7 +1963,7 @@ function excelToHtml($filePath) {
 
         $html .= '<table>';
         
-        // Колонки - БЕЗОПАСНОЕ ПОЛУЧЕНИЕ РАЗМЕРОВ
+        // Columns - SAFE SIZE RETRIEVAL
         $highestColumn = $sheet->getHighestColumn();
         $highestColumnIndex = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
         $highestRow = $sheet->getHighestRow();
@@ -1986,7 +1986,7 @@ function excelToHtml($filePath) {
         }
         $html .= '</colgroup>';
 
-        // Строки - БЕЗОПАСНАЯ ОБРАБОТКА
+        // Rows - SAFE PROCESSING
         for ($rowIndex = 1; $rowIndex <= $highestRow; $rowIndex++) {
             try {
                 $rowDimension = $sheet->getRowDimension($rowIndex);
@@ -1995,7 +1995,7 @@ function excelToHtml($filePath) {
                 $html .= '<tr' . ($rowHeight > 0 && $rowHeight !== -1 ? ' style="height: ' . $rowHeight . 'pt;"' : '') . '>';
                 
                 for ($colIndex = 1; $colIndex <= $highestColumnIndex; $colIndex++) {
-                    // Пропускаем объединенные ячейки
+                    // Skip merged cells
                     if (isset($mergedCellMap[$rowIndex][$colIndex]['merged'])) {
                         continue;
                     }
@@ -2010,17 +2010,17 @@ function excelToHtml($filePath) {
                         $wrapperClass = 'content-wrapper';
                         $cellClass = 'default-bg';
 
-                        // Заливка
+                        // Fill
                         $fill = $style->getFill();
                         if ($fill->getFillType() === \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID) {
                             $fillColor = $fill->getStartColor()->getARGB();
                             if ($hexColor = excel_argbToHex($fillColor)) {
                                 $cellCss .= 'background-color: ' . $hexColor . ';';
-                                $cellClass = ''; // Убираем класс по умолчанию если есть заливка
+                                $cellClass = ''; // Remove the default class if there is a fill
                             }
                         }
 
-                        // Шрифт
+                        // Font
                         $font = $style->getFont();
                         $fontColor = $font->getColor()->getARGB();
                         if ($hexFontColor = excel_argbToHex($fontColor)) {
@@ -2050,7 +2050,7 @@ function excelToHtml($filePath) {
                             $cellCss .= 'text-decoration: line-through;';
                         }
 
-                        // Границы - УПРОЩЕННАЯ ОБРАБОТКА
+                        // Borders - SIMPLIFIED PROCESSING
                         $borders = $style->getBorders();
                         foreach (['top', 'right', 'bottom', 'left'] as $side) {
                             $border = $borders->{'get' . ucfirst($side)}();
@@ -2063,7 +2063,7 @@ function excelToHtml($filePath) {
                             }
                         }
 
-                        // Выравнивание
+                        // Alignment
                         $alignment = $style->getAlignment();
                         $horizontal = $alignment->getHorizontal();
                         if ($horizontal && $horizontal !== 'general') {
@@ -2075,13 +2075,13 @@ function excelToHtml($filePath) {
                             $cellCss .= 'vertical-align: ' . strtolower($vertical) . ';';
                         }
 
-                        // Перенос текста
+                        // Text wrapping
                         if ($alignment->getWrapText()) {
                             $wrapperClass .= ' wrapped-text';
                             $cellCss = str_replace('white-space: nowrap;', '', $cellCss);
                         }
 
-                        // Поворот текста
+                        // Text rotation
                         $rotation = $alignment->getTextRotation();
                         if ($rotation !== null && $rotation !== 0) {
                             if ($rotation == 255) {
@@ -2092,15 +2092,15 @@ function excelToHtml($filePath) {
                             }
                         }
                         
-                        // Атрибуты объединения
+                        // Merge attributes
                         $extraAttrs = '';
                         if (isset($mergedCellMap[$rowIndex][$colIndex])) {
                             $mergeData = $mergedCellMap[$rowIndex][$colIndex];
                             $extraAttrs .= ' colspan="' . $mergeData['colspan'] . '" rowspan="' . $mergeData['rowspan'] . '"';
                         }
 
-                        // Значение ячейки
-                        $value = $cell->getCalculatedValue(); // Используем calculated value для формул
+                        // Cell value
+                        $value = $cell->getCalculatedValue(); // Use the calculated value for formulas
                         $displayValue = '';
                         
                         if ($value !== null) {
@@ -2116,14 +2116,14 @@ function excelToHtml($filePath) {
                         $html .= '</td>';
                         
                     } catch (Exception $cellException) {
-                        // Пропускаем проблемные ячейки
+                        // Skip problematic cells
                         $html .= '<td class="default-bg" title="Cell error">#ERROR</td>';
                     }
                 }
                 $html .= '</tr>';
                 
             } catch (Exception $rowException) {
-                // Пропускаем проблемные строки
+                // Skip problematic rows
                 continue;
             }
         }
@@ -2238,7 +2238,7 @@ function getFileProperties($fullPath, $relativePath) {
         'attributes' => getFileAttributes($fullPath)
     ];
     
-    // Получаем дополнительные свойства в зависимости от типа файла
+    // Get additional properties based on file type
     $ext = strtolower($fileInfo['extension'] ?? '');
     
     if (strpos($mimeType, 'image/') === 0) {
@@ -2251,7 +2251,7 @@ function getFileProperties($fullPath, $relativePath) {
         $properties['details'] = getDocumentProperties($fullPath);
     }
     
-    // Получаем информацию о безопасности (Windows)
+    // Get security info (Windows)
     $properties['security'] = getSecurityProperties($fullPath);
     
     // //cloud_safe_error_log($properties);
@@ -2267,7 +2267,7 @@ function getFileAttributes($path) {
         'archive' => true
     ];
     
-    // На Windows можно использовать system calls для получения точных атрибутов
+    // On Windows, system calls can retrieve exact attributes
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         $output = [];
         exec('attrib "' . $path . '"', $output);
@@ -2315,7 +2315,7 @@ function getImageProperties($path) {
                     //cloud_safe_error_log("ExifTool JSON decoded successfully, tags found: " . count($exifData[0]));
                     $tags = $exifData[0];
                     
-                    // Извлекаем ключевые свойства для всех изображений
+                    // Extract key properties for all images
                     $info['width'] = $tags['PNG:ImageWidth'] ?? $tags['File:ImageWidth'] ?? null;
                     $info['height'] = $tags['PNG:ImageHeight'] ?? $tags['File:ImageHeight'] ?? null;
                     $info['bitDepth'] = $tags['PNG:BitDepth'] ?? null;
@@ -2331,14 +2331,14 @@ function getImageProperties($path) {
                         'unit' => $tags['PNG:PixelUnits'] ?? null
                     ];
                     
-                    // EXIF-данные (для JPEG/TIFF)
+                    // EXIF data (for JPEG/TIFF)
                     if (isset($tags['EXIF:FocalLength'])) $info['focalLength'] = $tags['EXIF:FocalLength'];
                     if (isset($tags['EXIF:Model'])) $info['cameraModel'] = $tags['EXIF:Model'];
                     if (isset($tags['EXIF:FNumber'])) $info['aperture'] = $tags['EXIF:FNumber'];
                     if (isset($tags['EXIF:ISOSpeedRatings'])) $info['iso'] = $tags['EXIF:ISOSpeedRatings'];
                     if (isset($tags['EXIF:ExposureTime'])) $info['exposure'] = $tags['EXIF:ExposureTime'];
                     
-                    // Полный дамп тегов
+                    // Full tag dump
                     $info['allExifTags'] = $tags;
                     $info['exifOnly'] = array_filter($tags, fn($key) => strpos($key, 'EXIF:') === 0, ARRAY_FILTER_USE_KEY);
                     //cloud_safe_error_log("EXIF tags extracted: " . count($info['exifOnly']));
@@ -2430,7 +2430,7 @@ function getImageProperties($path) {
         //cloud_safe_error_log("exif_read_data not available or unsupported format: $ext");
     }
     
-    // Запасной вариант через getimagesize
+    // Fallback via getimagesize
     //cloud_safe_error_log("Checking getimagesize for $path");
     if (empty($info['width']) && ($imageSize = @getimagesize($path))) {
         $info['width'] = $imageSize[0];
@@ -2457,13 +2457,13 @@ function getImageProperties($path) {
 function getAudioProperties($path) {
     $info = [];
     
-    // Используем getID3 или аналогичную библиотеку для получения метаданных аудио
-    // Здесь упрощенная реализация
+    // Use getID3 or a similar library to get audio metadata
+    // Simplified implementation here
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     
-    // Для MP3 файлов можно попробовать получить базовую информацию
+    // For MP3 files, try to get basic info
     if ($ext === 'mp3' && function_exists('mp3_info')) {
-        // Реализация получения информации об MP3
+        // MP3 info retrieval implementation
     }
     
     return $info;
@@ -2472,8 +2472,8 @@ function getAudioProperties($path) {
 function getVideoProperties($path) {
     $info = [];
     
-    // Используем ffmpeg или аналогичные инструменты для получения метаданных видео
-    // Здесь упрощенная реализация
+    // Use ffmpeg or similar tools to get video metadata
+    // Simplified implementation here
     
     return $info;
 }
@@ -2482,7 +2482,7 @@ function getDocumentProperties($path) {
     $info = [];
     $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
     
-    // Для текстовых файлов
+    // For text files
     if (in_array($ext, ['txt', 'md', 'rtf'])) {
         $content = file_get_contents($path);
         $info['lines'] = substr_count($content, "\n") + 1;
@@ -2504,7 +2504,7 @@ function getSecurityProperties($path) {
         $security['group'] = $group['name'] ?? 'Unknown';
         $security['permissions'] = substr(sprintf('%o', fileperms($path)), -4);
     } else {
-        // На Windows
+        // On Windows
         $security['owner'] = get_current_user();
         $security['permissions'] = 'N/A';
     }
@@ -2512,11 +2512,11 @@ function getSecurityProperties($path) {
     return $security;
 }
 
-// Функция конвертации файлов
+// File conversion function
 function convertFile($inputFile, $outputFile, $targetFormat) {
     $inputFormat = strtolower(pathinfo($inputFile, PATHINFO_EXTENSION));
     
-    // Поддерживаемые конвертации
+    // Supported conversions
     $supportedConversions = [
         'docx' => ['pdf', 'txt', 'odt', 'html'],
         'doc' => ['pdf', 'txt', 'odt', 'html'],
@@ -2530,13 +2530,13 @@ function convertFile($inputFile, $outputFile, $targetFormat) {
         'gif' => ['jpg', 'png', 'webp', 'bmp']
     ];
     
-    // Проверяем поддержку конвертации
+    // Check conversion support
     if (!isset($supportedConversions[$inputFormat]) || 
         !in_array($targetFormat, $supportedConversions[$inputFormat])) {
         throw new Exception("Conversion from .$inputFormat to .$targetFormat is not supported");
     }
     
-    // Определяем тип файла
+    // Determine file type
     $isDocument = in_array($inputFormat, ['docx', 'doc', 'pdf', 'odt', 'txt', 'html']);
     $isImage = in_array($inputFormat, ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif']);
     
@@ -2550,7 +2550,7 @@ function convertFile($inputFile, $outputFile, $targetFormat) {
 }
 
 function convertDocument($inputFile, $outputFile, $from, $to) {
-    // Проверяем наличие LibreOffice
+    // Check if LibreOffice is available
     $libreofficeCmd = '';
     if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
         // Windows paths
@@ -2588,17 +2588,17 @@ function convertDocument($inputFile, $outputFile, $from, $to) {
     exec($command, $output, $returnCode);
     
     if ($returnCode === 0) {
-        // Ищем сконвертированный файл
+        // Look for the converted file
         $originalFilename = pathinfo($inputFile, PATHINFO_FILENAME);
         $convertedFile = $tempDir . '/' . $originalFilename . '.' . $to;
         
         if (file_exists($convertedFile)) {
-            // Перемещаем в нужное место
+            // Move to the target location
             if (!rename($convertedFile, $outputFile)) {
                 throw new Exception("Failed to move converted file");
             }
             
-            // Очищаем временные файлы
+            // Clean up temporary files
             $tempFiles = glob($tempDir . '/*');
             foreach ($tempFiles as $tempFile) {
                 if (is_file($tempFile)) {
@@ -2614,14 +2614,14 @@ function convertDocument($inputFile, $outputFile, $from, $to) {
 }
 
 function convertImage($inputFile, $outputFile, $from, $to) {
-    // Проверяем наличие GD
+    // Check if GD is available
     if (!extension_loaded('gd')) {
         throw new Exception("GD extension is required for image conversion");
     }
     
     $image = null;
     
-    // Загружаем изображение в зависимости от формата
+    // Load the image depending on format
     switch (strtolower($from)) {
         case 'jpg':
         case 'jpeg':
@@ -2629,7 +2629,7 @@ function convertImage($inputFile, $outputFile, $from, $to) {
             break;
         case 'png':
             $image = imagecreatefrompng($inputFile);
-            // Сохраняем прозрачность для PNG
+            // Preserve transparency for PNG
             imagealphablending($image, false);
             imagesavealpha($image, true);
             break;
@@ -2654,7 +2654,7 @@ function convertImage($inputFile, $outputFile, $from, $to) {
     
     $success = false;
     
-    // Сохраняем в нужном формате
+    // Save in the required format
     switch (strtolower($to)) {
         case 'jpg':
         case 'jpeg':
@@ -2687,9 +2687,9 @@ function convertImage($inputFile, $outputFile, $from, $to) {
     
     return true;
 }
-// Конвертация презентации в HTML
+// Presentation to HTML conversion
 function presentationToHtml($filePath) {
-    // Проверка размера файла (более 50MB)
+    // Check file size (over 50MB)
     $fileSize = filesize($filePath);
     $maxSize = 10 * 1024 * 1024; // 50MB
     
@@ -3136,7 +3136,7 @@ migrate_legacy_users_json();
 
 
 
-// Получение роли текущего пользователя
+// Get the current user's role
 
 if (!function_exists('cloud_text_revision')) {
   function cloud_text_revision(string $content): string {
@@ -3180,7 +3180,7 @@ if (!function_exists('cloud_merge_text_three_way')) {
 }
 
 
-// === НОВЫЙ ЭНДОПОИНТ ДЛЯ ONLYOFFICE: ЧИСТАЯ ОТДАЧА ФАЙЛА ===
+// === NEW ONLYOFFICE ENDPOINT: CLEAN FILE DELIVERY ===
 
 
 
@@ -3208,7 +3208,7 @@ if (!function_exists('cloud_merge_text_three_way')) {
 
 
 
-// Metadata endpoint - извлечение EXIF данных через exiftool
+// Metadata endpoint - EXIF extraction via exiftool
 
 
 
@@ -3227,10 +3227,10 @@ if (!function_exists('cloud_merge_text_three_way')) {
 
 
 
-// Получение конфигурации AI
+// Get AI configuration
 
 
-// Сохранение конфигурации AI (только для root)
+// Save AI configuration (root only)
 
 
 // ------------------------------------------------------------------

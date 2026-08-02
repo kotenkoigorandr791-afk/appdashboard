@@ -33,9 +33,9 @@ function renderAddForm() {
             [data-theme="light"] { --bg-color: #ffffff; --text-color: #000000; --card-bg: #f5f5f5; --scrollbar-bg: #f5f5f5; --scrollbar-thumb: #ccc; }
             @media (max-width: 768px) { header { padding: 1rem; flex-direction: column; align-items: flex-start; } .header-content { flex-direction: column; align-items: flex-start; } .route-form { margin: 1rem; padding: 1.5rem; } .btn { padding: 0.4rem 0.8rem; font-size: 0.9rem; }.search-container { 
                     width: 100%; 
-                    margin: 0 0 0.5rem 0; /* Изменено с margin: 0; */
+                    margin: 0 0 0.5rem 0; /* Changed from margin: 0; */
                     order: 1;
-                    max-width: none; /* Убираем ограничение на мобильных */
+                    max-width: none; /* Remove the limit on mobile */
                 } 
             }
             @media (max-width: 480px) { header { padding: 0.5rem; } .header-content h2 { font-size: 1.25rem; } .route-form { padding: 1rem; } .btn { padding: 0.3rem 0.6rem; font-size: 0.8rem; } .modal-close { right: 1rem; width: 42px; height: 42px; min-width: 42px; } }

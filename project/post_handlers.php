@@ -27,7 +27,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=$translations['invalid_credentials'];
         }
     }
-    // ── OTP: Generate (AJAX, авторизованный пользователь) ────────────────────
+        // ── OTP: Generate (AJAX, authenticated user) ────────────────────
     if(isset($_POST['generate_otp'])&&isset($_POST['ajax'])){
         if(!isset($_SESSION['user']['email'])){
             while(ob_get_level()>1)ob_end_clean();
@@ -44,7 +44,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         exit;
     }
 
-    // ── OTP: Verify (POST на /one-time-pin) ───────────────────────────────────
+        // ── OTP: Verify (POST to /one-time-pin) ───────────────────────────────────
     if(isset($_POST['verify_otp'])){
         $clientIp=trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]);
         $lockedSec=getIpLockoutSeconds($clientIp,'otp');
@@ -274,7 +274,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         if (!$currentUserEmail) {
             $response['message'] = 'Not authenticated';
         } elseif($shareId){
-            // Проверяем, имеет ли пользователь право удалить этот файл
+                        // Check whether the user has the right to delete this file
             $file = getSharedFileById($shareId);
             if ($file && ($isAdmin || ($file['user_email'] === $currentUserEmail))) {
                 if(deleteSharedFile($shareId)){
@@ -622,7 +622,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
     }
     
-    // Формируем URL с параметрами
+        // Build the URL with parameters
     $redirectUrl = '/main';
     $params = [];
     
@@ -630,7 +630,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $params['app'] = $_POST['current_app'];
     }
     
-    // Добавляем параметры темы, языка и цвета
+        // Add theme, language and color parameters
     $params['theme'] = $newTheme;
     $params['lang'] = $newLanguage;
     $params['color'] = $newColor;
@@ -1368,6 +1368,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-omniroute"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['omniroute_title']??'OmniRoute'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
+        <button class="ap-nav-btn" data-panel="ap-performance"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/><path d="M3 20h18"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['performance_monitor_title']??'Performance'); ?></span></button>
+        <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-docker-manager"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 50 50"><path d="M 20 9 L 20 14 L 10 14 L 10 19 L 5 19 L 5 24 L 1.125 24 C 0.640625 24 0.242188 24.335938 0.15625 24.8125 C 0.148438 24.847656 0 25.683594 0 26.75 C 0 27.449219 0.0664063 28.210938 0.1875 28.96875 C 1.332031 28.695313 3.429688 28.285156 3.0625 26.9375 C 5.035156 29.222656 9.769531 28.53125 10.96875 27.40625 C 12.308594 29.347656 20.113281 28.605469 20.65625 27.09375 C 22.335938 29.0625 27.542969 29.0625 29.21875 27.09375 C 29.761719 28.605469 37.535156 29.347656 38.875 27.40625 C 39.300781 27.804688 40.1875 28.136719 41.21875 28.3125 C 41.566406 27.652344 41.886719 26.988281 42.1875 26.28125 C 48.539063 26.203125 49.910156 21.636719 49.96875 21.4375 C 50.078125 21.054688 49.929688 20.660156 49.625 20.40625 C 49.519531 20.316406 47.175781 18.414063 43.375 19.0625 C 42.308594 15.589844 39.5625 14.007813 39.4375 13.9375 C 39.078125 13.734375 38.632813 13.765625 38.3125 14.03125 C 38.210938 14.113281 35.847656 16.117188 36.21875 20.21875 C 36.3125 21.25 36.582031 22.160156 37 22.96875 C 36.179688 23.425781 34.769531 24 32.5 24 L 32 24 L 32 19 L 27 19 L 27 9 Z M 41.21875 28.3125 C 41.097656 28.546875 40.941406 28.773438 40.8125 29 L 49.84375 29 C 48.757813 28.726563 46.425781 28.359375 46.8125 26.9375 C 45.535156 28.414063 43.109375 28.632813 41.21875 28.3125 Z M 40.8125 29 L 0.1875 29 C 0.429688 30.46875 0.929688 32.007813 1.6875 33.5 C 7.117188 34.777344 12.816406 32.832031 12.875 32.8125 C 13.398438 32.628906 13.945313 32.917969 14.125 33.4375 C 14.308594 33.957031 14.050781 34.539063 13.53125 34.71875 C 13.339844 34.785156 9.90625 35.9375 5.6875 35.9375 C 4.851563 35.9375 3.972656 35.890625 3.09375 35.78125 C 5.71875 39.261719 10.167969 42 17 42 C 27.804688 42 36.113281 37.410156 40.8125 29 Z M 0.1875 29 C 0.183594 28.984375 0.191406 28.984375 0.1875 28.96875 C 0.121094 28.984375 0.0585938 28.984375 0 29 Z M 22 11 L 25 11 L 25 14 L 22 14 Z M 12 16 L 15 16 L 15 19 L 12 19 Z M 17 16 L 20 16 L 20 19 L 17 19 Z M 22 16 L 25 16 L 25 19 L 22 19 Z M 7 21 L 10 21 L 10 24 L 7 24 Z M 12 21 L 15 21 L 15 24 L 12 24 Z M 17 21 L 20 21 L 20 24 L 17 24 Z M 22 21 L 25 21 L 25 24 L 22 24 Z M 27 21 L 30 21 L 30 24 L 27 24 Z M 16 31 C 16.128906 31 16.261719 31.019531 16.375 31.0625 C 16.253906 31.132813 16.15625 31.253906 16.15625 31.40625 C 16.15625 31.632813 16.335938 31.84375 16.5625 31.84375 C 16.714844 31.84375 16.867188 31.75 16.9375 31.625 C 16.988281 31.742188 17 31.863281 17 32 C 17 32.550781 16.550781 33 16 33 C 15.449219 33 15 32.550781 15 32 C 15 31.449219 15.449219 31 16 31 Z" fill="currentColor"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['docker_manager_title']??'Docker Manager'); ?></span></button>
     </div>
     <div id="ap-content">
@@ -1601,6 +1603,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
                 <iframe id="ap-docker-frame" src="/docker_menager.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>"
+                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
+                </iframe>
+            </div>
+        </div>
+        <div class="ap-panel" id="ap-performance" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
+            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
+                <iframe id="ap-performance-frame" src="/project/performance/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                        title="<?php echo my_htmlspecialchars($translations['performance_monitor_title'] ?? 'Performance'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
             </div>
@@ -2366,7 +2376,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(isset($_POST['terminate_all_sessions'])){
     $userEmail=$_SESSION['user']['email']??'';
     if($userEmail){
-        // Удаляем все сессии, КРОМЕ текущей
+                // Delete all sessions EXCEPT the current one
         $db = getDB();
         $currentSessionId = session_id();
         $stmt = $db->prepare("DELETE FROM active_sessions WHERE email=:e AND session_id != :sid");
@@ -2374,7 +2384,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $stmt->bindValue(':sid', $currentSessionId);
         $stmt->execute();
         
-        // Обновляем текущую сессию
+                // Update the current session
         addUserToActiveSessions($userEmail, $currentSessionId, $_SESSION['user']);
         $sessionManagementSuccess=$translations['all_sessions_terminated'];
     }

@@ -297,8 +297,8 @@ function sendToAI($config, $model, $messages) {
     }
 }
 
-// Функция для получения текущего пользователя из главного API
-// ai.php - замените существующую функцию
+// Function to get current user from main API
+// ai.php - replace existing function
 
 function getCurrentUserFromMainAPI() {
     // Read from SQLite database (current session storage)
@@ -1363,7 +1363,7 @@ function clearChatHistory() {
 }
 
 function getHistoryFilePath() {
-    // Получаем текущего пользователя из главного API
+    // Get current user from main API
     $user = getCurrentUserFromMainAPI();
     
     // Sanitize username

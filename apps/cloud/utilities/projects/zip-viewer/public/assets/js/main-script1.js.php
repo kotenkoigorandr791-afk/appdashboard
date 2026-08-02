@@ -124,15 +124,15 @@ require(['vs/editor/editor.main'], function() {
             tabSize: 4,
             padding: { top: 8, bottom: 8 },
             scrollbar: {
-                vertical: 'auto',        // показывать только при прокрутке
-                horizontal: 'auto',      // показывать только при прокрутке
+                vertical: 'auto',        // show only when scrolling
+                horizontal: 'auto',      // show only when scrolling
                 useShadows: false,
                 verticalHasArrows: false,
                 horizontalHasArrows: false,
-                verticalScrollbarSize: 0, // нулевой размер
-                horizontalScrollbarSize: 0, // нулевой размер
+                verticalScrollbarSize: 0, // zero size
+                horizontalScrollbarSize: 0, // zero size
                 arrowSize: 0,
-                alwaysConsumeMouseWheel: false // разрешить прокрутку колесиком
+                alwaysConsumeMouseWheel: false // allow wheel scrolling
             }
         });
     }

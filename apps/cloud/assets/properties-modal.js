@@ -1,13 +1,13 @@
 // assets/properties-modal.js
-// Модуль для отображения свойств файлов и папок с поддержкой отмены и таймаута
+// Module for displaying file and folder properties with cancel and timeout support
 
 let currentAbortController = null;
 let loadingModalElement = null;
 
 /**
- * Показывает модальное окно свойств с поддержкой отмены загрузки
- * @param {string} filePath - Путь к файлу или папке
- * @param {string} fileType - Тип ('file' или 'dir')
+  * Shows a properties modal with upload cancellation support
+  * @param {string} filePath - Path to the file or folder
+  * @param {string} fileType - Type ('file' or 'dir')
  */
 async function showProperties(filePath, fileType) {
     if (!filePath) {
@@ -15,16 +15,16 @@ async function showProperties(filePath, fileType) {
         return;
     }
 
-    // Отменяем предыдущий запрос, если он был
+        // Cancel the previous request, if any
     if (currentAbortController) {
         currentAbortController.abort();
     }
 
-    // Создаем новый контроллер для отмены
+        // Create a new controller for cancellation
     currentAbortController = new AbortController();
     const signal = currentAbortController.signal;
 
-    // Показываем модальное окно загрузки с кнопкой отмены
+        // Show the loading modal with a cancel button
     const loadingModal = showLoadingModalWithCancel(
         t(window.i18n, 'loadingProperties'),
         () => {
@@ -41,7 +41,7 @@ async function showProperties(filePath, fileType) {
     loadingModalElement = loadingModal;
 
     try {
-        // Устанавливаем таймаут в 60 секунд
+                // Set a 60 second timeout
         const timeoutId = setTimeout(() => {
             if (currentAbortController) {
                 currentAbortController.abort();
@@ -86,7 +86,7 @@ async function showProperties(filePath, fileType) {
             loadingModalElement = null;
         }
 
-        // Игнорируем ошибки от отмененных запросов
+                // Ignore errors from cancelled requests
         if (err.name === 'AbortError' || err.message === 'Запрос отменен') {
             console.log('Properties loading cancelled');
             return;
@@ -94,7 +94,7 @@ async function showProperties(filePath, fileType) {
 
         console.error('Failed to get properties:', err);
         
-        // Показываем модальное окно с ошибкой
+                // Show an error modal
         showPropertiesErrorModal(err.message);
         
     } finally {
@@ -103,7 +103,7 @@ async function showProperties(filePath, fileType) {
 }
 
 /**
- * API запрос с поддержкой отмены
+  * API request with cancellation support
  */
 async function apiWithAbort(action, params = {}, method = 'GET', signal) {
     const url = new URL(window.APP_CONFIG.apiBase, window.location.href);
@@ -135,10 +135,10 @@ async function apiWithAbort(action, params = {}, method = 'GET', signal) {
 }
 
 /**
- * Показывает модальное окно загрузки с кнопкой отмены
+  * Shows a loading modal with a cancel button
  */
 function showLoadingModalWithCancel(message, onCancel) {
-    // Удаляем предыдущее модальное окно, если оно было
+        // Remove the previous modal, if any
     const existingModal = document.querySelector('.modal[data-loading-modal="true"]');
     if (existingModal) {
         existingModal.remove();
@@ -186,7 +186,7 @@ function showLoadingModalWithCancel(message, onCancel) {
         modal.remove();
     });
 
-    // Закрытие по Escape
+        // Close on Escape
     const escapeHandler = (e) => {
         if (e.key === 'Escape') {
             if (onCancel) onCancel();
@@ -200,7 +200,7 @@ function showLoadingModalWithCancel(message, onCancel) {
 }
 
 /**
- * Показывает модальное окно с ошибкой загрузки свойств
+  * Shows an error modal for loading properties
  */
 function showPropertiesErrorModal(errorMessage) {
     const modal = document.createElement('div');
@@ -268,16 +268,16 @@ function showPropertiesErrorModal(errorMessage) {
     modal.querySelector('.close-btn').addEventListener('click', closeModal);
     modal.querySelector('#btn-close-properties-error').addEventListener('click', closeModal);
     
-    // Кнопка повторной попытки
+        // Retry button
     const retryBtn = modal.querySelector('#btn-retry-properties');
     if (retryBtn) {
         retryBtn.addEventListener('click', () => {
             closeModal();
-            // Получаем текущий выбранный элемент из контекстного меню
+                        // Get the currently selected item from the context menu
             const contextMenu = document.getElementById('context-menu');
             if (contextMenu) {
                 const items = contextMenu.querySelectorAll('.context-menu-item');
-                // Симулируем клик на пункте "Properties"
+                                // Simulate a click on the 'Properties' item
                 for (const item of items) {
                     if (item.textContent.includes(t(window.i18n, 'properties'))) {
                         item.click();
@@ -292,7 +292,7 @@ function showPropertiesErrorModal(errorMessage) {
         if (e.target === modal) closeModal();
     });
 
-    // Закрытие по Escape
+        // Close on Escape
     const escapeHandler = (e) => {
         if (e.key === 'Escape') {
             closeModal();
@@ -303,7 +303,7 @@ function showPropertiesErrorModal(errorMessage) {
 }
 
 /**
- * Экранирует HTML для безопасного отображения
+  * Escapes HTML for safe display
  */
 function escapeHtml(text) {
     const div = document.createElement('div');
@@ -312,7 +312,7 @@ function escapeHtml(text) {
 }
 
 /**
- * Показывает модальное окно свойств файла
+  * Shows the file properties modal
  */
 function showFilePropertiesModal(properties, filePath) {
     const modal = document.createElement('div');
@@ -401,7 +401,7 @@ function showFilePropertiesModal(properties, filePath) {
         if (e.target === modal) closeModal();
     });
 
-    // Закрытие по Escape
+        // Close on Escape
     const escapeHandler = (e) => {
         if (e.key === 'Escape') {
             closeModal();
@@ -412,7 +412,7 @@ function showFilePropertiesModal(properties, filePath) {
 }
 
 /**
- * Показывает модальное окно свойств папки
+  * Shows the folder properties modal
  */
 function showFolderPropertiesModal(properties, folderPath) {
     const modal = document.createElement('div');
@@ -522,7 +522,7 @@ function showFolderPropertiesModal(properties, folderPath) {
         if (e.target === modal) closeModal();
     });
 
-    // Закрытие по Escape
+        // Close on Escape
     const escapeHandler = (e) => {
         if (e.key === 'Escape') {
             closeModal();
@@ -533,7 +533,7 @@ function showFolderPropertiesModal(properties, folderPath) {
 }
 
 /**
- * Форматирует размер файла
+  * Formats the file size
  */
 function formatFileSize(bytes) {
     if (bytes === 0) return '0 B';
@@ -547,7 +547,7 @@ function formatFileSize(bytes) {
 }
 
 /**
- * Форматирует дату
+  * Formats the date
  */
 function formatDate(dateString) {
     if (!dateString) return '-';
@@ -556,7 +556,7 @@ function formatDate(dateString) {
 }
 
 /**
- * Возвращает иконку для предпросмотра
+  * Returns an icon for the preview
  */
 function getFileIconForPreview(item) {
     if (typeof window.getItemIconMarkup === 'function') {
@@ -566,7 +566,7 @@ function getFileIconForPreview(item) {
 }
 
 /**
- * Рендерит общие свойства файла
+  * Renders common file properties
  */
 function renderFileGeneralProperties(properties, filePath) {
     return `
@@ -610,7 +610,7 @@ function renderFileGeneralProperties(properties, filePath) {
 }
 
 /**
- * Рендерит детали изображения
+  * Renders image details
  */
 function renderImageDetails(details) {
     let detailsHTML = '';
@@ -651,7 +651,7 @@ function renderImageDetails(details) {
         `;
     }
     
-    // Камера свойства
+        // Camera properties
     const cameraProps = [];
     if (details.cameraModel) cameraProps.push(`<div class="property-row"><span class="property-label">${t(window.i18n, 'cameraModel')}:</span><span class="property-value">${details.cameraModel}</span></div>`);
     if (details.exposure) cameraProps.push(`<div class="property-row"><span class="property-label">${t(window.i18n, 'exposure')}:</span><span class="property-value">${details.exposure}</span></div>`);
@@ -701,7 +701,7 @@ function renderImageDetails(details) {
 }
 
 /**
- * Форматирует ключ EXIF
+  * Formats the EXIF key
  */
 function formatExifKey(key) {
     const parts = key.split(':');
@@ -713,7 +713,7 @@ function formatExifKey(key) {
 }
 
 /**
- * Рендерит свойства безопасности
+  * Renders security properties
  */
 function renderSecurityProperties(properties) {
     if (!properties.security) return '';
@@ -735,7 +735,7 @@ function renderSecurityProperties(properties) {
 }
 
 /**
- * Рендерит атрибуты
+  * Renders attributes
  */
 function renderAttributes(attributes) {
     const attrList = [];
@@ -750,11 +750,11 @@ function renderAttributes(attributes) {
 }
 
 /**
- * Рендерит атрибуты папки
+  * Renders folder attributes
  */
 function renderFolderAttributes(attributes) {
     return renderAttributes(attributes);
 }
 
-// Экспортируем функцию для использования в других файлах
+// Export the function for use in other files
 window.showProperties = showProperties;

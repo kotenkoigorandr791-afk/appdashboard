@@ -2,7 +2,7 @@
 <script>
 <?php if ($fileType === 'pdf'): ?>
 document.addEventListener('DOMContentLoaded', function() {
-    // Назначаем обработчики после инициализации
+    // Assign handlers after initialization
     setTimeout(() => {
         document.getElementById('pdf-prev')?.addEventListener('click', pdfPrevPage);
         document.getElementById('pdf-next')?.addEventListener('click', pdfNextPage);
@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 50);
         });
         
-        // Ctrl + Wheel для зума
+        // Ctrl + Wheel for zoom
         container?.addEventListener('wheel', (e) => {
             if (e.ctrlKey) {
                 e.preventDefault();
@@ -66,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, {passive: false});
         
-        // Глобальные клавиши
+        // Global keys
         document.addEventListener('keydown', e => {
             if (e.target.tagName === 'INPUT') return;
             if (e.key === 'ArrowLeft') pdfPrevPage();

@@ -263,7 +263,7 @@
             </div>
         </div>
         
-        <!-- Единые настройки цвета и толщины -->
+        <!-- Unified color and thickness settings -->
         <div id="color-width-settings">
             <div class="control-group">
                 <label for="drawing-color"><?php echo htmlspecialchars($t['color']); ?></label>

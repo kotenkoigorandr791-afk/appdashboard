@@ -109,7 +109,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             iframe.style.cssText = `width: 100%; height: 100%; border: none; background: var(--panel);`;
             iframe.setAttribute('data-tab-id', tabsState.activeTabId);
 
-            // Получаем все изображения из той же папки
+            // Get all images from the same folder
             const folderPath = path.substring(0, path.lastIndexOf('/'));
             const imagesInFolder = await getImagesInFolder(folderPath, rootKey);
             if (isStaleLoad()) return;
@@ -155,7 +155,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         }
         else if (resp.preview && resp.previewType === 'video') {
             
-            // Создаем контейнер для видео
+            // Create a container for the video
             const container = document.createElement('div');
             container.className = 'video-player-container';
             container.style.cssText = `
@@ -170,7 +170,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                 overflow: hidden;
             `;
             
-            // Создаем элемент video
+            // Create the video element
             const video = document.createElement('video');
             video.src = `api.php?action=raw_video&path=${encodeURIComponent(path)}&root=${rootKey}`;
             video.controls = true;
@@ -178,13 +178,13 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             video.style.maxHeight = '100%';
             video.style.objectFit = 'contain';
             
-            // Добавляем класс для plyr
+            // Add the plyr class
             video.className = 'js-plyr';
             
-            // Создаем индикатор загрузки (только цифры)
+            // Create a loading indicator (numbers only)
             const loader = document.createElement('div');
             loader.className = 'video-loader';
-            loader.textContent = '0%'; // Начальное значение
+            loader.textContent = '0%'; // Initial value
             loader.style.cssText = `
                 position: absolute;
                 top: 50%;
@@ -208,7 +208,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             container.appendChild(loader);
             fileContainer.appendChild(container);
             
-            // Загружаем CSS для Plyr, если еще не загружен
+            // Load Plyr CSS if not loaded yet
             if (!document.querySelector('link[href*="plyr"]')) {
                 const plyrCSS = document.createElement('link');
                 plyrCSS.rel = 'stylesheet';
@@ -280,9 +280,9 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                 });
             }
             
-            // Функция для инициализации плеера с отслеживанием загрузки
+            // Function to initialize the player with loading tracking
             function initPlyrWithLoader(videoElement, loaderElement, PlyrCtor) {
-                // Отслеживаем прогресс загрузки
+                // Track loading progress
                 let lastProgress = 0;
                 
                 const updateLoader = () => {
@@ -296,7 +296,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                             loaderElement.textContent = progress + '%';
                         }
                         
-                        // Если видео загружено полностью или достаточно для плавного воспроизведения
+                        // If the video is fully loaded or enough for smooth playback
                         if (progress >= 95 || (progress > 30 && videoElement.readyState >= 3)) {
                             loaderElement.style.opacity = '0';
                             setTimeout(() => {
@@ -308,10 +308,10 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                     }
                 };
                 
-                // Обновляем прогресс каждые 200мс
+                // Update progress every 200ms
                 const interval = setInterval(updateLoader, 200);
                 
-                // Создаем плеер Plyr
+                // Create the Plyr player
                 const player = new PlyrCtor(videoElement, {
                     controls: [
                         'play-large', 'play', 'progress', 'current-time',
@@ -349,7 +349,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                     }
                 });
                 
-                // Когда видео готово к воспроизведению, скрываем загрузчик
+                // When the video is ready to play, hide the loader
                 videoElement.addEventListener('canplay', () => {
                     setTimeout(() => {
                         loaderElement.style.opacity = '0';
@@ -362,7 +362,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                     }, 1000);
                 });
                 
-                // Если видео уже загружено
+                // If the video is already loaded
                 if (videoElement.readyState >= 3) {
                     loaderElement.style.opacity = '0';
                     setTimeout(() => {
@@ -373,7 +373,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                     }, 500);
                 }
                 
-                // Очищаем интервал при смене вкладки или закрытии
+                // Clear the interval on tab switch or close
                 videoElement.addEventListener('destroy', () => {
                     clearInterval(interval);
                 });
@@ -846,7 +846,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             
             const content = restoredContent !== null ? restoredContent : resp.content;
             
-            // Используем Monaco Editor
+            // Use the Monaco Editor
             setTimeout(async () => {
                 try {
                     const editor = await window.monacoManager.createEditor(
@@ -856,7 +856,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                         tabId
                     );
                     
-                    // Сохраняем ссылку на редактор
+                    // Save the editor reference
                     editorsMap.set(tabId, editor);
                     initMonacoAutoSave(editor, path, tabId);
                     if (typeof isMonacoCollabEligiblePath === 'function' && isMonacoCollabEligiblePath(path)) {
@@ -884,7 +884,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             const fullZipPath = buildEditorStoragePath(currentUser, path, root);
             if (activeTab) {
                 activeTab.zipViewer = true;
-                activeTab.fullPath = fullZipPath; // КРИТИЧЕСКИ ВАЖНО!
+                activeTab.fullPath = fullZipPath; // CRITICALLY IMPORTANT!
             }
             const container = document.createElement('div');
             container.style.cssText = `
@@ -896,7 +896,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             `;
             const iframe = document.createElement('iframe');
             iframe.setAttribute('data-tab-id', tabsState.activeTabId);
-            iframe.dataset.archivePath = fullZipPath; // Сохраняем в дата-атрибут
+            iframe.dataset.archivePath = fullZipPath; // Save to the data attribute
             const urlParams = new URLSearchParams(window.location.search);
             const lang = urlParams.get('lang') || 'en';
             const theme = document.body.getAttribute('data-theme') || 'dark';
@@ -1009,17 +1009,17 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         } catch (err) {
         console.error('Error opening file:', err);
         
-        // Создаем контейнер для сообщения об ошибке
+        // Create a container for the error message
         const viewer = document.getElementById('viewer');
         const fileName = document.getElementById('file-name');
         
-        // Показываем, что файл не удалось загрузить
+        // Show that the file could not be loaded
         document.getElementById('file-view').classList.remove('hidden');
         fileName.textContent = path.split('/').pop();
         viewer.dataset.path = path;
         viewer.dataset.editMode = 'false';
         
-        // Скрываем кнопки редактирования
+        // Hide the edit buttons
         const saveBtn = document.getElementById('btn-save');
         const codeActionsBtn = document.getElementById('btn-code-actions');
         saveBtn.classList.add('hidden');
@@ -1037,7 +1037,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             viewer.innerHTML = '';
         }
         
-        // Создаем контейнер для сообщения об ошибке
+        // Create a container for the error message
         const errorContainer = document.createElement('div');
         errorContainer.style.cssText = `
             width: 100%;
@@ -1049,7 +1049,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             position: relative;
         `;
         
-        // Определяем тип ошибки
+        // Determine the error type
         let errorMessage = '';
         let errorSvg = '';
 
@@ -1092,7 +1092,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             `;
         }
         
-        // Создаем содержимое ошибки
+        // Create the error content
         errorContainer.innerHTML = `
             <div style="
                 max-width: 500px;
@@ -1155,7 +1155,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         
         flashStatus(t(i18n, 'openFileError') + err.message);
         
-        // Обновляем состояние вкладки, если она существует
+        // Update the tab state if it exists
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
         if (activeTab) {
             activeTab.content = null;

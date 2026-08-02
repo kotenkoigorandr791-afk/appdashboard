@@ -3777,7 +3777,7 @@ var T=<?php echo json_encode([
             });
             return html + '</select>';
         }
-        // Найдите этот блок (примерно в середине файла, где инициализируются модальные окна)
+        // Find this block (roughly in the middle of the file where modals are initialized)
         const sharedFilesButton = document.getElementById('shared-files-button');
         const sharedFilesModal = document.getElementById('shared-files-modal');
         const closeSharedFiles = document.getElementById('close-shared-files');
@@ -5470,6 +5470,7 @@ var T=<?php echo json_encode([
 #ap-content:has(#ap-backup.active),
 #ap-content:has(#ap-docs.active),
 #ap-content:has(#ap-db.active),
+#ap-content:has(#ap-performance.active),
 #ap-content:has(#ap-omniroute.active) {
     padding: 0;
 }
@@ -5495,6 +5496,7 @@ var T=<?php echo json_encode([
 #ap-backup.active,
 #ap-docs.active,
 #ap-db.active,
+#ap-performance.active,
 #ap-omniroute.active,
 #ap-ssh.active { display: flex; position: relative; flex: 1; min-height: 0; height: 100%; width: 100%; }
 #ap-ssh.ap-panel.active {
@@ -6181,30 +6183,30 @@ var T=<?php echo json_encode([
     background: color-mix(in srgb, var(--primary-color) 30%, transparent) !important;
     border-color: var(--primary-color) !important;
 }
-/* Вертикальная прокрутка для боковой панели админ-панели */
+/* Vertical scrolling for the admin panel sidebar */
 #ap-sidebar {
     overflow-y: auto;
     overflow-x: hidden;
     scrollbar-width: thin;
-    direction: rtl; /* Меняем направление для размещения скроллбара слева */
+    direction: rtl; /* Change direction to place the scrollbar on the left */
 }
 
-/* Компенсируем содержимое - возвращаем нормальное направление текста */
+/* Compensate content - restore normal text direction */
 #ap-sidebar > * {
     direction: ltr;
 }
 
-/* Стилизация скроллбара для WebKit браузеров (Chrome, Safari, Edge) */
+/* Scrollbar styling for WebKit browsers (Chrome, Safari, Edge) */
 #ap-sidebar::-webkit-scrollbar {
-    width: 2px; /* Еще тоньше - 2px вместо 4px */
+    width: 2px; /* Even thinner - 2px instead of 4px */
 }
 
-/* Полностью убираем фон (трек) */
+/* Completely remove the background (track) */
 #ap-sidebar::-webkit-scrollbar-track {
     background: transparent;
 }
 
-/* Стилизация только ползунка */
+/* Style only the thumb */
 #ap-sidebar::-webkit-scrollbar-thumb {
     background: var(--scrollbar-thumb, rgba(128, 128, 128, 0.4));
     border-radius: 1px;
@@ -6214,7 +6216,7 @@ var T=<?php echo json_encode([
     background: var(--scrollbar-thumb-hover, rgba(128, 128, 128, 0.7));
 }
 
-/* Убираем скроллбар по умолчанию, показываем только при наведении */
+/* Hide the scrollbar by default, show only on hover */
 #ap-sidebar {
     scrollbar-width: thin;
     scrollbar-color: transparent transparent;
@@ -6247,7 +6249,7 @@ var T=<?php echo json_encode([
     display: none;
 }
 
-/* Контейнер для iframe - на всю доступную область */
+/* iframe container - full available area */
 #ap-backup > div {
     flex: 1;
     min-height: 0;
@@ -6270,19 +6272,19 @@ var T=<?php echo json_encode([
     padding: 0 !important;
 }
 
-/* Альтернативный вариант - напрямую для #ap-backup.active */
+/* Alternative option - directly for #ap-backup.active */
 #ap-backup.active {
     margin: 0 !important;
     padding: 0 !important;
 }
 
-/* Также убираем отступы у родительского контейнера */
+/* Also remove padding from the parent container */
 #ap-backup.active + *,
 #ap-backup.active {
     padding: 0 !important;
 }
 
-/* Убираем отступы у всех родительских элементов, когда активен бэкап */
+/* Remove padding from all parent elements when backup is active */
 #ap-backup.active,
 #ap-backup.active ~ *,
 #ap-content:has(#ap-backup.active) {
@@ -6386,6 +6388,43 @@ var T=<?php echo json_encode([
 #ap-db.active,
 #ap-db.active ~ *,
 #ap-content:has(#ap-db.active) {
+    padding: 0 !important;
+}
+
+#ap-performance.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+#ap-performance > div {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+}
+#ap-performance iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    border-radius: 0;
+    background: var(--bg-color);
+}
+#ap-content:has(#ap-performance.active) {
+    padding: 0 !important;
+    overflow: hidden;
+}
+#ap-performance.active {
+    margin: 0 !important;
     padding: 0 !important;
 }
 
@@ -6502,8 +6541,8 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
     return window.__apMonacoPromise;
 };
 
-var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
+var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
 function injectOmniRouteTheme(){
@@ -6861,19 +6900,19 @@ function wireSshPanel(){
         try{ el.scrollTop = el.scrollHeight; }catch(_){}
     }
 
-    /** NBSP / narrow NBSP → normal space (fixes “ломаные” промпты при копипасте) */
+        /** NBSP / narrow NBSP → normal space (fixes 'broken' prompts on copy-paste) */
     function apSshNormalizeSpaces(s){
         return String(s || '').replace(/\u00a0/g,' ').replace(/\u202f/g,' ').replace(/\u2007/g,' ');
     }
 
-    /** Убираем служебные строки libs: … если они когда‑либо попадут в output */
+        /** Remove helper lines like libs: … if they ever end up in the output */
     function apSshStripLibsLines(text){
         return String(text || '').split(/\r?\n/).filter(function(line){
             return !/^\s*libs\s*:/i.test(apSshNormalizeSpaces(line).trim());
         }).join('\n');
     }
 
-    /** Простая ANSI‑подсветка для типичного вывода cmd (dir), JSON и “ключ=значение” */
+        /** Simple ANSI highlighting for typical cmd output (dir), JSON and 'key=value' */
     function apSshAnsiHighlightLine(line){
         var raw = apSshNormalizeSpaces(line);
         var t = raw.trim();
@@ -9181,19 +9220,19 @@ function wireJsonPanel(){
                     readOnly: !fmEditMode,
                     minimap: {
                         enabled: true,
-                        showSlider: 'always', // Постоянно показывать ползунок на миникарте
-                        size: 'fit' // Размер миникарты
+                        showSlider: 'always', // Always show the thumb on the minimap
+                        size: 'fit' // Minimap size
                     },
                     scrollbar: {
-                        vertical: 'hidden', // Скрыть вертикальную полосу прокрутки
-                        horizontal: 'auto', // Горизонтальную можно оставить или тоже скрыть
-                        verticalScrollbarSize: 0, // Установить размер 0 для полного скрытия
-                        handleMouseWheel: true // Разрешить прокрутку колесом мыши
+                        vertical: 'hidden', // Hide the vertical scrollbar
+                        horizontal: 'auto', // Horizontal can be kept or also hidden
+                        verticalScrollbarSize: 0, // Set size 0 for full hiding
+                        handleMouseWheel: true // Allow mouse wheel scrolling
                     },
                     fontSize: 13,
                     lineNumbers: 'on',
-                    scrollBeyondLastLine: true, // Разрешить прокрутку за последнюю строку
-                    scrollBeyondLastColumn: 3, // Дополнительная прокрутка по горизонтали (опционально)
+                    scrollBeyondLastLine: true, // Allow scrolling past the last line
+                    scrollBeyondLastColumn: 3, // Extra horizontal scrolling (optional)
                     automaticLayout: true,
                     wordWrap: 'off',
                     tabSize: 2,
@@ -12594,7 +12633,7 @@ function drawWindChart(daily) {
     svg += '<rect x="' + (vw / 2 + 10) + '" y="' + (legendY - 5) + '" width="12" height="10" fill="' + precipColor + '" rx="2"/>';
     svg += '<text x="' + (vw / 2 + 28) + '" y="' + (legendY + 4) + '" fill="' + textColor + '" font-size="10">' + escHtml(precipUnit) + '</text>';
     svg += '</svg>';
-    modalContent.innerHTML = '<div style="padding:16px 8px;">' + svg + '</div>';
+    modalContent.innerHTML = '<div style="padding:72px 8px 16px 8px;">' + svg + '</div>';
 }
 window.toggleWindChart = toggleWindChart;
     function initMobileTopBarRotation() {

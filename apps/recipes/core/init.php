@@ -31,7 +31,7 @@ if ($db) {
     }
 }
 
-$userRole = 0; // По умолчанию гость
+$userRole = 0; // Guest by default
 $currentUser = 'Guest';
 
 // Get user data from database instead of file

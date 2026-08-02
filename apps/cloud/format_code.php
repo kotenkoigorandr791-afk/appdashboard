@@ -162,19 +162,19 @@ class AdvancedCodeFormatter {
             if(empty($token)) continue;
             
             if(preg_match('/^<([^\/\s>]+)/', $token, $tagMatches)) {
-                // Открывающий тег
+                // Opening tag
                 $tagName = strtolower($tagMatches[1]);
                 
                 if(!in_array($tagName, $this->inlineTags)) {
                     $result[] = $token;
                     $previousWasOpenTag = true;
                 } else {
-                    // Инлайн тег - не добавляем перенос
+                    // Inline tag — don't add line break
                     $result[] = $token;
                     $previousWasOpenTag = false;
                 }
             } elseif(preg_match('/^<\/([^>]+)>/', $token, $tagMatches)) {
-                // Закрывающий тег
+                // Closing tag
                 $tagName = strtolower($tagMatches[1]);
                 
                 if(!in_array($tagName, $this->inlineTags)) {
@@ -184,11 +184,11 @@ class AdvancedCodeFormatter {
                 }
                 $previousWasOpenTag = false;
             } elseif(preg_match('/^<[^>]*\/>/', $token)) {
-                // Самозакрывающийся тег
+                // Self-closing tag
                 $result[] = $token;
                 $previousWasOpenTag = false;
             } else {
-                // Текстовое содержимое
+                // Text content
                 $result[] = $token;
                 $previousWasOpenTag = false;
             }
@@ -211,54 +211,54 @@ class AdvancedCodeFormatter {
             if(empty($token)) continue;
             
             if(preg_match('/^<([^\/\s>]+)/', $token, $tagMatches)) {
-                // Открывающий тег
+                // Opening tag
                 $tagName = strtolower($tagMatches[1]);
                 
                 if(!in_array($tagName, $this->inlineTags)) {
-                    // Добавляем текущую строку если есть
+                    // Append current line if any
                     if(!empty($currentLine)) {
                         $formatted[] = str_repeat(' ', $indentLevel * $this->indentSize) . $currentLine;
                         $currentLine = '';
                     }
                     
-                    // Добавляем тег на новой строке
+                    // Add tag on a new line
                     $formatted[] = str_repeat(' ', $indentLevel * $this->indentSize) . $token;
                     
-                    // Увеличиваем отступ если это не самозакрывающийся тег
+                    // Increase indent if not a self-closing tag
                     if(!in_array($tagName, $this->voidTags) && !preg_match('/\/>$/', $token)) {
                         $indentLevel++;
                     }
                 } else {
-                    // Инлайн тег добавляем к текущей строке
+                    // Inline tag — append to current line
                     $currentLine .= $token;
                 }
             } elseif(preg_match('/^<\/([^>]+)>/', $token, $tagMatches)) {
-                // Закрывающий тег
+                // Closing tag
                 $tagName = strtolower($tagMatches[1]);
                 
                 if(!in_array($tagName, $this->inlineTags)) {
-                    // Добавляем текущую строку если есть
+                    // Append current line if any
                     if(!empty($currentLine)) {
                         $formatted[] = str_repeat(' ', $indentLevel * $this->indentSize) . $currentLine;
                         $currentLine = '';
                     }
                     
-                    // Уменьшаем отступ
+                    // Decrease indent
                     $indentLevel = max(0, $indentLevel - 1);
                     
-                    // Добавляем закрывающий тег
+                    // Add closing tag
                     $formatted[] = str_repeat(' ', $indentLevel * $this->indentSize) . $token;
                 } else {
-                    // Инлайн закрывающий тег
+                    // Inline closing tag
                     $currentLine .= $token;
                 }
             } else {
-                // Текстовое содержимое
+                // Text content
                 $currentLine .= $token;
             }
         }
         
-        // Добавляем последнюю строку если есть
+        // Append the last line if any
         if(!empty($currentLine)) {
             $formatted[] = str_repeat(' ', $indentLevel * $this->indentSize) . $currentLine;
         }
@@ -267,10 +267,10 @@ class AdvancedCodeFormatter {
     }
     
     private function formatC($code) {
-        // Нормализуем пробелы
+        // Normalize whitespace
         $code = $this->normalizeWhitespace($code);
         
-        // Обрабатываем C структуры
+        // Handle C structures
         $code = $this->processCStructures($code);
         
         // Add line breaks
@@ -281,43 +281,43 @@ class AdvancedCodeFormatter {
     }
     
     private function processCStructures($code) {
-        // Обрабатываем включения
+        // Handle includes
         $code = preg_replace('/#include\s*<([^>]+)>/', "#include <$1>", $code);
         $code = preg_replace('/#include\s*"([^"]+)"/', '#include "$1"', $code);
         
         // Handle functions
         $code = preg_replace('/\b(int|void|char|float|double)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/', "$1 $2(", $code);
         
-        // Handle loops и условия
+        // Handle loops and conditionals
         $code = preg_replace('/\bif\s*\(/', "if(", $code);
         $code = preg_replace('/\bfor\s*\(/', "for(", $code);
         $code = preg_replace('/\bwhile\s*\(/', "while(", $code);
         $code = preg_replace('/\}\s*else\s*\{/', "} else {", $code);
         
-        // Обрабатываем структуры
+        // Handle structures
         $code = preg_replace('/\bstruct\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\{/', "struct $1 {", $code);
         
         return $code;
     }
     
     private function addCLineBreaks($code) {
-        // Добавляем переносы после препроцессорных директив
+        // Add line breaks after preprocessor directives
         $code = preg_replace('/(#[^\n]*)/m', "$1\n", $code);
         
-        // Добавляем переносы для функций
+        // Add line breaks for functions
         $code = preg_replace('/\b(int|void|char|float|double)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*\{/', "$1 $2() {\n", $code);
         
-        // Добавляем переносы для основных конструкций
+        // Add line breaks for main constructs
         $code = str_replace('{', "{\n", $code);
         $code = str_replace('}', "\n}", $code);
         
         // Add line breaks after semicolons
         $code = preg_replace('/;(?!\s*\n)/', ";\n", $code);
         
-        // Обрабатываем return
+        // Handle return
         $code = preg_replace('/\breturn\s/', "\nreturn ", $code);
         
-        // Исправляем else
+        // Fix else
         $code = preg_replace('/\n\s*}\s*else\s*\{\n/', "\n} else {\n", $code);
         
         return $code;
@@ -332,13 +332,13 @@ class AdvancedCodeFormatter {
             $trimmed = trim($line);
             if($trimmed === '') continue;
             
-            // Препроцессорные директивы не имеют отступов
+            // Preprocessor directives have no indentation
             if(preg_match('/^#/', $trimmed)) {
                 $formatted[] = $trimmed;
                 continue;
             }
             
-            // Определяем уровень отступа
+            // Determine indent level
             if(preg_match('/^}/', $trimmed)) {
                 $indentLevel = max(0, $indentLevel - 1);
             }
@@ -347,7 +347,7 @@ class AdvancedCodeFormatter {
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             
-            // Увеличиваем отступ после открывающих скобок
+            // Increase indent after opening braces
             if(preg_match('/\{$/', $trimmed)) {
                 $indentLevel++;
             }
@@ -357,10 +357,10 @@ class AdvancedCodeFormatter {
     }
     
     private function formatPython($code) {
-        // Нормализуем пробелы
+        // Normalize whitespace
         $code = $this->normalizeWhitespace($code);
         
-        // Обрабатываем Python структуры
+        // Handle Python structures
         $code = $this->processPythonStructures($code);
         
         // Add line breaks
@@ -371,7 +371,7 @@ class AdvancedCodeFormatter {
     }
     
     private function processPythonStructures($code) {
-        // Обрабатываем импорты
+        // Handle imports
         $code = preg_replace('/\bimport\s+([a-zA-Z_][a-zA-Z0-9_.]*)/', "import $1", $code);
         $code = preg_replace('/\bfrom\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import/', "from $1 import", $code);
         
@@ -382,7 +382,7 @@ class AdvancedCodeFormatter {
         $code = preg_replace('/\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*:/', "class $1:", $code);
         $code = preg_replace('/\bclass\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\([^)]*\)\s*:/', "class $1():", $code);
         
-        // Обрабатываем условия и циклы
+        // Handle conditionals and loops
         $code = preg_replace('/\bif\s+/', "if ", $code);
         $code = preg_replace('/\belif\s+/', "elif ", $code);
         $code = preg_replace('/\belse\s*:/', "else:", $code);
@@ -393,7 +393,7 @@ class AdvancedCodeFormatter {
     }
     
     private function addPythonLineBreaks($code) {
-        // Разбиваем на токены, учитывая ключевые слова Python
+        // Tokenize, accounting for Python keywords
         $keywords = implode('|', $this->keywords['python']);
         $pattern = '/(\b(?:' . $keywords . ')\b|:|\bclass\b|\bdef\b)/';
         
@@ -439,14 +439,14 @@ class AdvancedCodeFormatter {
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             
-            // Увеличиваем отступ после двоеточия
+            // Increase indent after colon
             if(preg_match('/:$/', $trimmed)) {
                 $indentLevel++;
             }
             
-            // Уменьшаем отступ для определенных ключевых слов на том же уровне
+            // Decrease indent for certain keywords at the same level
             if(preg_match('/^(else:|elif\s|except\s|finally:)/', $trimmed) && $indentLevel > 0) {
-                // Корректируем отступ для текущей строки
+                // Adjust indent for the current line
                 $formatted[count($formatted) - 1] = str_repeat(' ', max(0, ($indentLevel - 1) * $this->indentSize)) . $trimmed;
             }
         }
@@ -455,10 +455,10 @@ class AdvancedCodeFormatter {
     }
     
     private function formatPowerShell($code) {
-        // Нормализуем пробелы
+        // Normalize whitespace
         $code = $this->normalizeWhitespace($code);
         
-        // Обрабатываем PowerShell структуры
+        // Handle PowerShell structures
         $code = $this->processPowerShellStructures($code);
         
         // Add line breaks
@@ -469,33 +469,33 @@ class AdvancedCodeFormatter {
     }
     
     private function processPowerShellStructures($code) {
-        // Обрабатываем командлеты
+        // Handle cmdlets
         $code = preg_replace('/\b([A-Z][a-z]+-[A-Z][a-zA-Z]*)\b/', "$1", $code);
         
         // Handle functions
         $code = preg_replace('/\bfunction\s+([a-zA-Z_][a-zA-Z0-9_-]*)\s*\{/', "function $1 {", $code);
         
-        // Обрабатываем условия и циклы
+        // Handle conditionals and loops
         $code = preg_replace('/\bif\s*\(/', "if(", $code);
         $code = preg_replace('/\bwhile\s*\(/', "while(", $code);
         $code = preg_replace('/\bfor\s*\(/', "for(", $code);
         $code = preg_replace('/\bforeach\s*\(/', "foreach(", $code);
         
-        // Обрабатываем пайплайны
+        // Handle pipelines
         $code = preg_replace('/\s*\|\s*/', " | ", $code);
         
         return $code;
     }
     
     private function addPowerShellLineBreaks($code) {
-        // Добавляем переносы для основных конструкций
+        // Add line breaks for main constructs
         $code = str_replace('{', "{\n", $code);
         $code = str_replace('}', "\n}", $code);
         
-        // Добавляем переносы для пайплайнов
+        // Add line breaks for pipelines
         $code = preg_replace('/\s*\|\s*/', "\n| ", $code);
         
-        // Обрабатываем else
+        // Handle else
         $code = preg_replace('/\n\s*}\s*else\s*\{\n/', "\n} else {\n", $code);
         
         return $code;
@@ -510,7 +510,7 @@ class AdvancedCodeFormatter {
             $trimmed = trim($line);
             if($trimmed === '') continue;
             
-            // Уменьшаем отступ перед закрывающими скобками
+            // Decrease indent before closing braces
             if(preg_match('/^}/', $trimmed)) {
                 $indentLevel = max(0, $indentLevel - 1);
             }
@@ -519,7 +519,7 @@ class AdvancedCodeFormatter {
             $indent = str_repeat(' ', $indentLevel * $this->indentSize);
             $formatted[] = $indent . $trimmed;
             
-            // Увеличиваем отступ после открывающих скобок
+            // Increase indent after opening braces
             if(preg_match('/\{$/', $trimmed)) {
                 $indentLevel++;
             }
@@ -562,11 +562,11 @@ class AdvancedCodeFormatter {
     }
     
     private function normalizeWhitespace($code) {
-        // Заменяем множественные пробелы одинарными, но сохраняем переносы строк
+        // Replace multiple spaces with single, preserving line breaks
         $code = preg_replace('/[ \t]+/', ' ', $code);
-        // Удаляем пробелы в начале и конце строк
+        // Trim leading/trailing whitespace from lines
         $code = preg_replace('/^ +| +$/m', '', $code);
-        // Удаляем множественные переносы строк
+        // Remove multiple blank lines
         $code = preg_replace('/\n+/', "\n", $code);
         
         return trim($code);
@@ -577,7 +577,7 @@ function formatCode($code, $language) {
     return $formatter->formatCode($code, $language);
 }
 
-// Если файл запущен напрямую - возвращаем JSON API
+// If the file is invoked directly, return JSON API
 if (isset($_POST['action']) && $_POST['action'] === 'format') {
     header('Content-Type: application/json');
     

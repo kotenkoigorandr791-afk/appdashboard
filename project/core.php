@@ -1900,20 +1900,20 @@ function buildAuthEmailBody(string $eyebrow,string $title,string $message,string
 </body>
 </html>";
 }
-// Функция для определения фактической темы для отображения
+// Function to determine the actual theme for display
 function getActualDisplayTheme($configTheme) {
     if($configTheme === 'auto') {
-        // Определяем тему браузера через JavaScript (будет установлена в куки)
-        // По умолчанию используем светлую, пока JS не установит куку
+                // Determine the browser theme via JavaScript (will be set in a cookie)
+                // Use light by default until JS sets the cookie
         return isset($_COOKIE['browser_theme']) ? $_COOKIE['browser_theme'] : 'light';
     }
     return $configTheme;
 }
 
-// Функция для получения темы для ссылок (всегда конкретная тема, не auto)
+// Function to get the theme for links (always a concrete theme, not auto)
 function getThemeForLinks($configTheme) {
     if($configTheme === 'auto') {
-        // Для ссылок всегда передаем фактическую тему
+                // Always pass the actual theme for links
         return getActualDisplayTheme($configTheme);
     }
     return $configTheme;

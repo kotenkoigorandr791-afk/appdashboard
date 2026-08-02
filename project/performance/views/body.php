@@ -1,9 +1,37 @@
 </head>
 
-<body class="<?= $theme ?>">
+<body class="<?= $theme ?><?= $embedMode ? ' admin-embed' : '' ?>">
 
 <canvas id="constellation-bg"></canvas>
 
+<?php if ($embedMode): ?>
+<div class="admin-monitor-topbar">
+    <div class="admin-monitor-title"><?= htmlspecialchars($t['title']) ?></div>
+    <div class="admin-monitor-tabs">
+        <button class="admin-monitor-tab active" type="button" data-section-target="graphs"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
+        <button class="admin-monitor-tab" type="button" data-section-target="uptime"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime') ?></button>
+        <button class="admin-monitor-tab" type="button" data-section-target="disk"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><?= htmlspecialchars($t['disk']) ?></button>
+        <button class="admin-monitor-tab" type="button" data-section-target="nginx"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M9 9v6"/><path d="m9 9 6 6"/><path d="M15 9v6"/></svg><?= htmlspecialchars($t['nginx_modules']) ?></button>
+        <button class="admin-monitor-tab" type="button" data-section-target="php"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
+        <a class="admin-monitor-tab" href="monitor_stats.php?lang=<?= urlencode($lang) ?>&theme=<?= urlencode($theme) ?>&color=<?= urlencode($color) ?>"><svg viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 4-4 3 3 5-6"/></svg>Monitoring Charts</a>
+    </div>
+    <div class="admin-monitor-actions">
+        <?php if ($showPhpInfoButton): ?>
+        <button class="btn-secondary icon-button" type="button" onclick="openPhpInfo()"><svg viewBox="0 0 24 24"><path d="M12 8v8"/><path d="M8 12h8"/><circle cx="12" cy="12" r="10"/></svg><?= htmlspecialchars($t['phpinfo_button']) ?></button>
+        <div id="autoZoomToggle" class="auto-zoom-toggle" onclick="toggleAutoZoom()" title="<?= htmlspecialchars($t['auto_zoom']) ?>">
+            <svg class="zoom-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
+            <span class="toggle-label"><?= htmlspecialchars($t['auto_zoom']) ?></span>
+            <div class="switch-track"><div class="switch-thumb"></div></div>
+        </div>
+        <?php endif; ?>
+        <button class="btn-secondary icon-button" type="button" onclick="refreshData()"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['refresh']) ?></button>
+    </div>
+</div>
+<div id="connectionStatus" class="connection-status" style="display: none;">
+    <span id="statusText"></span>
+    <span id="retryCount"></span>
+</div>
+<?php else: ?>
 <div id="sideMenuBackdrop" class="side-menu-backdrop" onclick="closeSideMenu()"></div>
 <aside id="sideMenu" class="side-menu" aria-hidden="true">
     <div class="side-menu-header">
@@ -72,6 +100,7 @@
         </div>
     </header>
 </div>
+<?php endif; ?>
 
 <div class="container scrollable-content">
 
@@ -234,9 +263,9 @@
 </div>
 
 <div id="graphModal" class="modal">
-    <span class="modal-close" onclick="closeGraphModal()">&times;</span>
     <div class="modal-content graph-modal-content">
         <div class="graph-container">
+            <span class="modal-close" onclick="closeGraphModal()">&times;</span>
             <div id="graphTitle" class="graph-title"></div>
             <div class="graph-canvas-container">
                 <canvas id="graphChart"></canvas>

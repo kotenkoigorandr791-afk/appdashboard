@@ -3,8 +3,8 @@
 $audioPath = $_GET['path'] ?? '';
 $user = $_GET['user'] ?? 'default';
 $root = $_GET['root'] ?? 'main';
-$lang = $_GET['lang'] ?? 'en'; // Язык интерфейса
-$transcriptionLang = $_GET['transcription_lang'] ?? 'pl'; // Язык для транскрипции (по умолчанию Polish)
+$lang = $_GET['lang'] ?? 'en'; // Interface language
+$transcriptionLang = $_GET['transcription_lang'] ?? 'pl'; // Transcription language (default Polish)
 $theme = $_GET['theme'] ?? 'dark';
 $color = $_GET['color'] ?? '%2385b503';
 $transcriptionApiUrl = cloud_url('transcription_api.php');
@@ -101,7 +101,7 @@ $apiAudioPath = ($root !== 'main' && isset($rootMap[$root]) && strpos(ltrim($aud
 $sourcePath = resolve_user_file_path($user, $audioPath, $root) ?: '';
 $accessRole = get_transcription_editor_access_role();
 $canViewDebugLog = ($accessRole === 2);
-$audioMimeType = 'audio/mpeg'; // По умолчанию MP3
+$audioMimeType = 'audio/mpeg'; // Default MP3
 if ($sourcePath) {
     $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
     if ($extension === 'm4a' || $extension === 'mp4') $audioMimeType = 'audio/mp4';

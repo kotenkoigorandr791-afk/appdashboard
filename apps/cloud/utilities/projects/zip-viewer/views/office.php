@@ -15,7 +15,7 @@
                 padding: 0;
                 height: 100%;
                 width: 100%;
-                overflow: hidden; /* Запрещаем прокрутку на уровне body */
+                overflow: hidden; /* Disable scrolling at the body level */
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
                 background-color: <?php echo $currentTheme['backgroundColor']; ?>;
                 display: flex;
@@ -30,7 +30,7 @@
                 background: <?php echo ($theme === 'light') ? '#ffffff' : '#252526'; ?>;
                 border-bottom: 1px solid <?php echo ($theme === 'light') ? '#d4d4d4' : '#3c3c3c'; ?>;
                 height: 36px;
-                flex-shrink: 0; /* Запрещаем сжатие шапки */
+                flex-shrink: 0; /* Prevent the header from shrinking */
                 box-sizing: border-box;
             }
             
@@ -78,13 +78,13 @@
             }
             
             #office-editor {
-                flex: 1; /* Занимает всё оставшееся место */
+                flex: 1; /* Take all remaining space */
                 width: 100%;
-                min-height: 0; /* Важно для flex-контейнера */
-                height: calc(100vh - 36px); /* Резервный вариант */
+                min-height: 0; /* Important for the flex container */
+                height: calc(100vh - 36px); /* Fallback option */
             }
             
-            /* Контейнер для всего содержимого */
+            /* Container for all content */
             .office-container {
                 display: flex;
                 flex-direction: column;

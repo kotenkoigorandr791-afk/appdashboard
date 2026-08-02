@@ -3,24 +3,24 @@ require_once __DIR__ . '/../../../project/core.php';
 require_once __DIR__ . '/../../../lib/app_db.php';
 require_once __DIR__ . '/../models/StepsModel.php';
 
-// Проверка авторизации
+// Auth check
 if (!isUserLoggedIn()) {
     header('Location: /');
     exit;
 }
 
-// Загрузка переводов
+// Load translations
 $translations = loadTranslations($language, 'steps');
 
-// Загрузка данных пользователя
+// Load user data
 $userDb = getUserDatabase($currentUser);
 $userSettings = getUserSettings($currentUser);
 
-// Получение статистики
+// Get statistics
 $yearlyDistribution = getYearlyStepDistribution($userDb);
 $monthlyIntensity = getMonthlyStepIntensityCurrentYear($userDb);
 
-// Если нет данных, редирект на основную страницу
+// If no data, redirect to main page
 if (empty($yearlyDistribution)) {
     header('Location: /steps');
     exit;
@@ -50,7 +50,7 @@ if (empty($yearlyDistribution)) {
 </div>
 
 <script>
-    // Передача данных для графиков
+    // Pass data for charts
     const statsData = {
         yearlyDistribution: <?php echo json_encode($yearlyDistribution); ?>,
         monthlyIntensity: <?php echo json_encode($monthlyIntensity); ?>,

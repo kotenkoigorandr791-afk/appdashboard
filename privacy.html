@@ -402,15 +402,15 @@ const translations = {
 const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}, pl: {light: "Jasny", dark: "Ciemny"}, cs: {light: "Světlý", dark: "Tmavý"}};
 const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), themeLabel = document.getElementById("themeLabel"), themeDot = document.getElementById("themeDot"), backHomeBtn = document.getElementById("backHomeBtn");
 
-// Функция проверки валидности цвета
+// Function to validate a color
 function isValidColor(color) {
     if (!color) return false;
-    // Проверка HEX цвета (#RGB или #RRGGBB)
+    // HEX color check (#RGB or #RRGGBB)
     const hexPattern = /^#([A-Fa-f0-9]{3}){1,2}$/;
     return hexPattern.test(color);
 }
 
-// Функция получения параметров из URL
+// Function to get parameters from the URL
 function getUrlParams() {
     const params = new URLSearchParams(window.location.search);
     return {
@@ -421,7 +421,7 @@ function getUrlParams() {
     };
 }
 
-// Функция определения языка (приоритет: URL > localStorage > default)
+// Function to detect language (priority: URL > localStorage > default)
 function getInitialLanguage(urlLang) {
     if (urlLang && ['en', 'ru', 'uk', 'be', 'pl', 'cs'].includes(urlLang)) {
         localStorage.setItem("doc_lang", urlLang);
@@ -430,7 +430,7 @@ function getInitialLanguage(urlLang) {
     return localStorage.getItem("doc_lang") || "en";
 }
 
-// Функция определения темы (приоритет: URL > localStorage > default)
+// Function to detect theme (priority: URL > localStorage > default)
 function getInitialTheme(urlTheme) {
     if (urlTheme && ['light', 'dark'].includes(urlTheme)) {
         localStorage.setItem("doc_theme", urlTheme);
@@ -439,7 +439,7 @@ function getInitialTheme(urlTheme) {
     return localStorage.getItem("doc_theme") || "light";
 }
 
-// Функция определения цвета (приоритет: URL > localStorage)
+// Function to detect color (priority: URL > localStorage)
 function getInitialColor(urlColor) {
     if (urlColor && isValidColor(urlColor)) {
         localStorage.setItem("doc_color", urlColor);
@@ -448,14 +448,14 @@ function getInitialColor(urlColor) {
     return localStorage.getItem("doc_color") || "#007bff";
 }
 
-// Функция применения цвета
+// Function to apply the color
 function applyColor(color) {
     document.documentElement.style.setProperty('--accent', color);
-    // Обновляем цвет в feature-list background (rgba версия)
+    // Update the color in the feature-list background (rgba version)
     const rgb = hexToRgb(color);
     if (rgb) {
         document.documentElement.style.setProperty('--accent-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
-        // Обновляем background для feature-list если нужно
+        // Update the background for feature-list if needed
         const featureLists = document.querySelectorAll('.feature-list');
         featureLists.forEach(el => {
             el.style.backgroundColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.05)`;
@@ -463,7 +463,7 @@ function applyColor(color) {
     }
 }
 
-// Функция конвертации HEX в RGB
+// HEX to RGB conversion function
 function hexToRgb(hex) {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result ? {
@@ -473,7 +473,7 @@ function hexToRgb(hex) {
     } : null;
 }
 
-// Функция обновления URL с текущими параметрами
+// Function to update the URL with current parameters
 function updateUrlParams(lang, theme, color) {
     const url = new URL(window.location);
     url.searchParams.set('lang', lang);
@@ -484,7 +484,7 @@ function updateUrlParams(lang, theme, color) {
     window.history.replaceState({}, '', url);
 }
 
-// Обновленная функция загрузки настроек
+// Updated settings loading function
 function loadSettings() {
     const urlParams = getUrlParams();
     const initialLang = getInitialLanguage(urlParams.lang);
@@ -500,13 +500,13 @@ function loadSettings() {
     themeDot.style.backgroundColor = initialTheme === "dark" ? "#ffd54f" : "#222222";
     applyColor(initialColor);
     
-    // Обновляем URL, если параметры не совпадают или отсутствуют
+    // Update the URL if parameters do not match or are missing
     if (urlParams.lang !== initialLang || urlParams.theme !== initialTheme || urlParams.color !== initialColor) {
         updateUrlParams(initialLang, initialTheme, initialColor);
     }
 }
 
-// Функции переводов
+// Translation functions
 function applyTranslations(lang) {
     const dict = translations[lang] || translations.en;
     document.querySelectorAll("[data-i18n]").forEach(el => {
@@ -520,7 +520,7 @@ function applyThemeLabel(lang, theme) {
     themeLabel.textContent = labels[theme];
 }
 
-// Обработчик языка
+// Language handler
 languageSelect.addEventListener("change", () => {
     const lang = languageSelect.value;
     const currentTheme = document.documentElement.getAttribute("data-theme") || "light";
@@ -533,7 +533,7 @@ languageSelect.addEventListener("change", () => {
     updateUrlParams(lang, currentTheme, currentColor);
 });
 
-// Обработчик темы
+// Theme handler
 themeToggle.addEventListener("click", () => {
     const current = document.documentElement.getAttribute("data-theme") || "light";
     const next = current === "light" ? "dark" : "light";

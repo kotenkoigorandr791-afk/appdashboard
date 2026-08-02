@@ -13,7 +13,7 @@
             overflow: hidden; 
         }
         
-        /* Переменные темы от родителя */
+        /* Theme variables from parent */
         :root[data-theme="light"] {
             --bg: #808080;
             --toolbar-bg: rgba(0,0,0,0.8);
@@ -66,7 +66,7 @@
         .viewer-navbar, .viewer-title { display: none !important; }
         .viewer-toolbar > .viewer-toolbar-group:not(:first-child) { display: none !important; }
         
-        /* Toolbar всегда сверху и видимый */
+        /* Toolbar always on top and visible */
         .viewer-toolbar {
             opacity: 0.9 !important; 
             position: fixed !important; 
@@ -80,7 +80,7 @@
             transition: opacity 0.3s ease;
         }
         
-        /* Навигационные кнопки */
+        /* Navigation buttons */
         .nav-buttons {
             position: fixed;
             top: 50%;
@@ -127,7 +127,7 @@
             pointer-events: none;
         }
 
-        /* Мини-карта для локации */
+        /* Mini map for location */
         .location-map {
             position: fixed;
             bottom: 20px;
@@ -148,7 +148,7 @@
             border: none;
         }
         
-        /* Индикатор текущей позиции */
+        /* Current position indicator */
         .position-indicator {
             position: fixed;
             bottom: 20px;
@@ -164,7 +164,7 @@
             border: 1px solid var(--counter-border);
         }
         
-        /* Счетчик изображений - в правом верхнем углу */
+        /* Image counter - in the top right corner */
         .image-counter {
             position: fixed;
             top: 20px;
@@ -183,13 +183,13 @@
             transition: all 0.3s ease;
         }
         
-        /* Специфичные стили для темной темы */
+        /* Dark theme specific styles */
         body[data-theme="dark"] .nav-btn {
             color: #ffffff;
             border-color: rgba(255,255,255,0.3);
         }
         
-        /* Специфичные стили для светлой темы */
+        /* Light theme specific styles */
         body[data-theme="light"] .nav-btn {
             color: #333333;
             border-color: rgba(0,0,0,0.2);
@@ -202,13 +202,13 @@
             border: 1px solid rgba(0,0,0,0.2);
         }
         
-        /* Показ toolbar при hover/zoom */
+        /* Show toolbar on hover/zoom */
         .viewer-container:hover .viewer-toolbar,
         .viewer-zooming .viewer-toolbar,
         .viewer-moving .viewer-canvas .viewer-toolbar {
             opacity: 0.95 !important;
         }
-        /* Явные стили для счётчика в зависимости от темы */
+        /* Explicit counter styles depending on theme */
         body[data-theme="dark"] .image-counter {
             color: #ffffff !important;
             background: rgba(0, 0, 0, 0.7) !important;
@@ -219,7 +219,7 @@
             background: rgba(255, 255, 255, 0.9) !important;
         }
 
-        /* Аналогично для индикатора позиции */
+        /* Same for the position indicator */
         body[data-theme="dark"] .position-indicator {
             color: #ffffff !important;
             background: rgba(0, 0, 0, 0.7) !important;
@@ -254,23 +254,23 @@
         <img id="image" alt="Image" data-initial-src="<?= htmlspecialchars($apiUrl) ?>?action=raw&path=<?= urlencode($apiPath) ?>&root=<?= urlencode($root) ?>">
     </div>
     
-    <!-- Навигационные кнопки -->
+    <!-- Navigation buttons -->
     <div class="nav-buttons<?= count($images) <= 1 ? ' is-hidden' : '' ?>">
         <button class="nav-btn prev-btn" <?= $currentIndex <= 0 ? 'disabled' : '' ?>>←</button>
         <button class="nav-btn next-btn" <?= $currentIndex >= count($images) - 1 ? 'disabled' : '' ?>>→</button>
     </div>
     
-    <!-- Индикатор позиции -->
+    <!-- Position indicator -->
     <div class="position-indicator">
         <?= htmlspecialchars($currentFileName) ?>
     </div>
     
-    <!-- Счетчик изображений -->
+    <!-- Image counter -->
     <div class="image-counter">
         <?= ($currentIndex + 1) ?> / <?= count($images) ?>
     </div>
 
-    <!-- Мини-карта локации -->
+    <!-- Location mini map -->
     <div class="location-map" id="locationMap"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js"></script>

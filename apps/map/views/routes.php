@@ -33,30 +33,30 @@ function renderMainPage($pagination) {
             .view-mode a { 
                 text-decoration: none; 
                 color: var(--text-color); 
-                padding: 0.5rem 1rem; /* Увеличил горизонтальные отступы */
+                padding: 0.5rem 1rem; /* Increased horizontal padding */
                 border-radius: 4px; 
                 font-size: 0.9rem;
-                display: inline-flex; /* Изменено с block на inline-flex */
-                align-items: center; /* Центрирование по вертикали */
-                justify-content: center; /* Центрирование по горизонтали */
-                min-width: 80px; /* Минимальная ширина для одинакового размера */
+                display: inline-flex; /* Changed from block to inline-flex */
+                align-items: center; /* Vertical centering */
+                justify-content: center; /* Horizontal centering */
+                min-width: 80px; /* Minimum width for equal size */
                 text-align: center;
-                line-height: 1.2; /* Для лучшего вертикального выравнивания */
+                line-height: 1.2; /* For better vertical alignment */
             }
             .view-mode a.active { background-color: var(--primary-color); color: white; }
             .display-mode { display: flex; gap: 0.5rem; margin-left: 1rem; }
             .display-mode a {
                 text-decoration: none;
                 color: var(--text-color);
-                padding: 0.5rem 1rem; /* Увеличил горизонтальный padding */
+                padding: 0.5rem 1rem; /* Increased horizontal padding */
                 border-radius: 4px;
                 font-size: 0.9rem;
                 display: flex;
-                align-items: center; /* Центрирование по вертикали */
-                justify-content: center; /* Центрирование по горизонтали */
+                align-items: center; /* Vertical centering */
+                justify-content: center; /* Horizontal centering */
                 gap: 0.3rem;
                 text-align: center;
-                min-width: 80px; /* Минимальная ширина для одинакового размера */
+                min-width: 80px; /* Minimum width for equal size */
             }
             .display-mode a.active { background-color: var(--primary-color); color: white; }
             .display-mode svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
@@ -152,7 +152,7 @@ function renderMainPage($pagination) {
             .stats-label { font-size: 0.88rem; opacity: 0.7; white-space: nowrap; }
             .stats-value { font-size: 0.92rem; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
             .pagination { display: flex; justify-content: center; gap: 0.5rem; padding: 1rem; }
-            /* Стили для кнопок пагинации */
+            /* Styles for pagination buttons */
             .pagination {
                 display: flex;
                 justify-content: center;
@@ -245,7 +245,7 @@ function renderMainPage($pagination) {
                 opacity: 0.5;
                 cursor: not-allowed;
                 pointer-events: none;
-                background-color: #8c8c8c2d; /* Опционально: измените цвет фона */
+                background-color: #8c8c8c2d; /* Optional: change the background color */
             }
             .btn.disabled:hover {
                 opacity: 0.5;
@@ -293,7 +293,7 @@ function renderMainPage($pagination) {
             }
             [data-theme="dark"] { --bg-color: #1a1a1a; --text-color: #ffffff; --card-bg: #2d2d2d; --scrollbar-bg: #2d2d2d; --scrollbar-thumb: #555; }
             [data-theme="light"] { --bg-color: #ffffff; --text-color: #000000; --card-bg: #f5f5f5; --scrollbar-bg: #f5f5f5; --scrollbar-thumb: #ccc; }
-            /* Стили для полей ввода в модальном окне */
+            /* Styles for input fields in the modal */
             .modal-content input[type="number"],
             .modal-content input[type="text"],
             .modal-content select {
@@ -316,9 +316,9 @@ function renderMainPage($pagination) {
                 box-shadow: 0 0 0 3px <?= $color ?>20;
             }
 
-            /* Специфические стили для спиннера (стрелочек) */
+            /* Specific styles for the spinner (arrows) */
             .modal-content input[type="number"] {
-                -moz-appearance: textfield; /* Убирает стандартные стрелки в Firefox */
+                -moz-appearance: textfield; /* Removes the standard arrows in Firefox */
                 appearance: textfield;
             }
 
@@ -337,7 +337,7 @@ function renderMainPage($pagination) {
                 opacity: 1;
             }
 
-            /* Стили для группы полей ввода */
+            /* Styles for the input field group */
             .modal-content .form-group {
                 margin-bottom: 1.5rem;
             }
@@ -350,7 +350,7 @@ function renderMainPage($pagination) {
                 font-size: 0.95rem;
             }
 
-            /* Стили для кнопок в модальном окне */
+            /* Styles for buttons in the modal */
             .modal-content .form-group .btn {
                 padding: 0.75rem 1.5rem;
                 font-size: 1rem;
@@ -1693,30 +1693,30 @@ function renderTablePage($pagination) {
             .view-mode a { 
                 text-decoration: none; 
                 color: var(--text-color); 
-                padding: 0.5rem 1rem; /* Увеличил горизонтальные отступы */
+                padding: 0.5rem 1rem; /* Increased horizontal padding */
                 border-radius: 4px; 
                 font-size: 0.9rem;
-                display: inline-flex; /* Изменено с block на inline-flex */
-                align-items: center; /* Центрирование по вертикали */
-                justify-content: center; /* Центрирование по горизонтали */
-                min-width: 80px; /* Минимальная ширина для одинакового размера */
+                display: inline-flex; /* Changed from block to inline-flex */
+                align-items: center; /* Vertical centering */
+                justify-content: center; /* Horizontal centering */
+                min-width: 80px; /* Minimum width for equal size */
                 text-align: center;
-                line-height: 1.2; /* Для лучшего вертикального выравнивания */
+                line-height: 1.2; /* For better vertical alignment */
             }
             .view-mode a.active { background-color: var(--primary-color); color: white; }
             .display-mode { display: flex; gap: 0.5rem; margin-left: 1rem; }
             .display-mode a {
                 text-decoration: none;
                 color: var(--text-color);
-                padding: 0.5rem 1rem; /* Увеличил горизонтальный padding */
+                padding: 0.5rem 1rem; /* Increased horizontal padding */
                 border-radius: 4px;
                 font-size: 0.9rem;
                 display: flex;
-                align-items: center; /* Центрирование по вертикали */
-                justify-content: center; /* Центрирование по горизонтали */
+                align-items: center; /* Vertical centering */
+                justify-content: center; /* Horizontal centering */
                 gap: 0.3rem;
                 text-align: center;
-                min-width: 80px; /* Минимальная ширина для одинакового размера */
+                min-width: 80px; /* Minimum width for equal size */
             }
             .display-mode a.active { background-color: var(--primary-color); color: white; }
             .display-mode svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
@@ -1738,7 +1738,7 @@ function renderTablePage($pagination) {
                 opacity: 0.5;
                 cursor: not-allowed;
                 pointer-events: none;
-                background-color: #8c8c8c2d; /* Опционально: измените цвет фона */
+                background-color: #8c8c8c2d; /* Optional: change the background color */
             }
             .btn.disabled:hover {
                 opacity: 0.5;
@@ -1814,7 +1814,7 @@ function renderTablePage($pagination) {
             .download-menu:hover .download-options { display: none;}
             .bulk-actions { display: flex; gap: 1rem; margin-bottom: 1rem; padding: 0 1rem; }
             .pagination { display: flex; justify-content: center; gap: 0.5rem; padding: 1rem; }
-            /* Стили для кнопок пагинации */
+            /* Styles for pagination buttons */
             .pagination {
                 display: flex;
                 justify-content: center;
@@ -1935,7 +1935,7 @@ function renderTablePage($pagination) {
             }
             [data-theme="dark"] { --bg-color: #1a1a1a; --text-color: #ffffff; --card-bg: #2d2d2d; --scrollbar-bg: #2d2d2d; --scrollbar-thumb: #555; --border-color: #444; --hover-color: #3a3a3a; }
             [data-theme="light"] { --bg-color: #ffffff; --text-color: #000000; --card-bg: #f5f5f5; --scrollbar-bg: #f5f5f5; --scrollbar-thumb: #ccc; --border-color: #ddd; --hover-color: #eaeaea; }
-                    /* Стили для полей ввода в модальном окне */
+                    /* Styles for input fields in the modal */
             .modal-content input[type="number"],
             .modal-content input[type="text"],
             .modal-content select {
@@ -1958,9 +1958,9 @@ function renderTablePage($pagination) {
                 box-shadow: 0 0 0 3px <?= $color ?>20;
             }
 
-            /* Специфические стили для спиннера (стрелочек) */
+            /* Specific styles for the spinner (arrows) */
             .modal-content input[type="number"] {
-                -moz-appearance: textfield; /* Убирает стандартные стрелки в Firefox */
+                -moz-appearance: textfield; /* Removes the standard arrows in Firefox */
                 appearance: textfield;
             }
 
@@ -1979,7 +1979,7 @@ function renderTablePage($pagination) {
                 opacity: 1;
             }
 
-            /* Стили для группы полей ввода */
+            /* Styles for the input field group */
             .modal-content .form-group {
                 margin-bottom: 1.5rem;
             }
@@ -1992,7 +1992,7 @@ function renderTablePage($pagination) {
                 font-size: 0.95rem;
             }
 
-            /* Стили для кнопок в модальном окне */
+            /* Styles for buttons in the modal */
             .modal-content .form-group .btn {
                 padding: 0.75rem 1.5rem;
                 font-size: 1rem;

@@ -1,11 +1,11 @@
 <div class="pdf-viewer-container" id="pdf-viewer-container">
-                <!-- Прогресс загрузки -->
+                <!-- Loading progress -->
                 <div class="progress-container" id="pdf-progress-container">
                     <div class="progress-bar" id="pdf-progress-bar"></div>
                 </div>
                 <div class="progress-text" id="pdf-progress-text">0%</div>
                 
-                <!-- Панель управления PDF -->
+                <!-- PDF control panel -->
                 <div class="pdf-controls" id="pdf-controls">
                     <div class="toolbar-group">
                         <button class="control-btn" id="pdf-prev" title="Previous Page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
@@ -42,10 +42,10 @@
                     </div>
                 </div>
                 
-                <!-- Контейнер для страниц PDF -->
+                <!-- Container for PDF pages -->
                 <div class="pdf-viewer" id="pdf-viewer"></div>
                 
-                <!-- Индикатор загрузки -->
+                <!-- Loading indicator -->
                 <div class="pdf-loading" id="pdf-loading">
                     <div class="spinner"></div>
                     <p><?php echo htmlspecialchars($translations['binary_file'] ?? 'Loading PDF...'); ?></p>
