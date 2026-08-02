@@ -346,7 +346,7 @@ function buildGroupedDatasets(groups, allLabels) {
             borderColor: palette[index % palette.length],
             backgroundColor: palette[index % palette.length] + '22',
             borderWidth: 2,
-            tension: .35,
+            tension: .5,
             pointRadius: 1.5,
             spanGaps: true
         };
@@ -365,7 +365,7 @@ function makeSingleDatasetChart(canvas, name, points, yTitle, index) {
                 borderColor: color,
                 backgroundColor: color + '22',
                 borderWidth: 2,
-                tension: .2,
+                tension: .5,
                 pointRadius: 0,
                 pointHoverRadius: 3,
                 fill: true

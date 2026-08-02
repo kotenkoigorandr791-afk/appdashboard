@@ -14,14 +14,41 @@ function getDB(): AppDatabase {
         $db->enableExceptions(true);
         $schemaStamp = '/opt/AppDashboard/data/.schema_init_stamp';
         $schemaKey = hash_file('sha256', __FILE__) . ':' . (is_file(__DIR__ . '/lib/pg_foreign_keys.php') ? hash_file('sha256', __DIR__ . '/lib/pg_foreign_keys.php') : '');
-        if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey) {
+        if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey || !app_db_schema_ready($db)) {
             initDB($db);
             @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
         }
     }
     return $db;
 }
+function app_db_schema_ready(AppDatabase $db): bool {
+    try {
+        if (app_db_is_pgsql()) {
+            return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='config' LIMIT 1");
+        }
+        return (bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='config' LIMIT 1");
+    } catch (Throwable $e) {
+        return false;
+    }
+}
 
+function app_db_ensure_unique_index(AppDatabase $db, string $table, array $columns, string $indexName): void {
+    $columnList = implode(',', $columns);
+    try {
+        if (app_db_is_pgsql()) {
+            $partition = implode(', ', $columns);
+            $db->exec("DELETE FROM $table t USING (SELECT ctid, ROW_NUMBER() OVER (PARTITION BY $partition ORDER BY ctid) AS rn FROM $table) d WHERE t.ctid = d.ctid AND d.rn > 1");
+        } else {
+            $db->exec("DELETE FROM $table WHERE rowid NOT IN (SELECT MIN(rowid) FROM $table GROUP BY $columnList)");
+        }
+    } catch (Throwable $e) {
+    }
+    try {
+        $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS $indexName ON $table($columnList)");
+    } catch (Throwable $e) {
+    }
+}
+ 
 function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_encryption_consents (
         email         TEXT NOT NULL PRIMARY KEY,
@@ -30,6 +57,7 @@ function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
         updated_at    BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
+    app_db_ensure_unique_index($db, 'cloud_encryption_consents', ['email'], 'idx_cloud_encryption_consents_email_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_encryption_consents_email ON cloud_encryption_consents(email)");
 }
 function ensureSupportChatSchema(AppDatabase $db): void {
@@ -360,7 +388,6 @@ function initDB(AppDatabase $db): void {
         ensureVerificationTokensSchema($db);
         require_once __DIR__ . '/lib/pg_foreign_keys.php';
         ensure_pg_foreign_keys($db);
-        return;
     }
     
     // Enable foreign key support
@@ -380,6 +407,7 @@ function initDB(AppDatabase $db): void {
         trusted_devices TEXT NOT NULL DEFAULT '[]',
         created_at      TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
+    app_db_ensure_unique_index($db, 'users', ['email'], 'idx_users_email_unique');
 
     // Backfill trusted_devices column for existing databases
     try { $db->exec("ALTER TABLE users ADD COLUMN trusted_devices TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
@@ -428,6 +456,7 @@ function initDB(AppDatabase $db): void {
         visits  INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (app_id, stat_date)
     )");
+    app_db_ensure_unique_index($db, 'visit_stats', ['app_id', 'stat_date'], 'idx_visit_stats_app_date_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_stats_date ON visit_stats(stat_date)");
 
     // ── Shared files ─────────────────────────────────────────────────────────
@@ -473,6 +502,7 @@ function initDB(AppDatabase $db): void {
         email   TEXT NOT NULL,
         expires INTEGER NOT NULL
     )");
+    app_db_ensure_unique_index($db, 'verification_tokens', ['token'], 'idx_verification_tokens_token_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)");
 
     // ── Auth/SMTP configuration ──────────────────────────────────────────────
@@ -480,6 +510,7 @@ function initDB(AppDatabase $db): void {
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL DEFAULT ''
     )");
+    app_db_ensure_unique_index($db, 'config', ['key'], 'idx_config_key_unique');
     
     $defaults = [
         'google_client_id'     => '',
@@ -546,6 +577,7 @@ function initDB(AppDatabase $db): void {
         key   TEXT PRIMARY KEY,
         value TEXT NOT NULL DEFAULT ''
     )");
+    app_db_ensure_unique_index($db, 'app_meta', ['key'], 'idx_app_meta_key_unique');
 
      // ── Cloud user settings (quota and session limits) ────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_user_settings (
@@ -560,6 +592,7 @@ function initDB(AppDatabase $db): void {
         updated_at       INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
+    app_db_ensure_unique_index($db, 'cloud_user_settings', ['email'], 'idx_cloud_user_settings_email_unique');
     
     // ── Cloud folder state (expanded/collapsed folders) ──────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_folder_state (
@@ -593,6 +626,7 @@ function initDB(AppDatabase $db): void {
         updated_at   INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         PRIMARY KEY (consent_key, device_id)
     )");
+    app_db_ensure_unique_index($db, 'site_cookie_consents', ['consent_key', 'device_id'], 'idx_site_cookie_consents_key_device_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_site_cookie_consents_email ON site_cookie_consents(email)");
 
     ensure_cloud_encryption_consents_schema($db);
@@ -622,6 +656,7 @@ function initDB(AppDatabase $db): void {
         last_attempt INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         PRIMARY KEY (ip, lock_type)
     )");
+    app_db_ensure_unique_index($db, 'ip_lockouts', ['ip', 'lock_type'], 'idx_ip_lockouts_ip_type_unique');
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash   TEXT PRIMARY KEY,
         email        TEXT NOT NULL,
@@ -649,6 +684,7 @@ function initDB(AppDatabase $db): void {
         UNIQUE(device_token_hash),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
+    app_db_ensure_unique_index($db, 'trusted_devices', ['email', 'fingerprint'], 'idx_trusted_devices_email_fingerprint_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_email ON trusted_devices(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_fingerprint ON trusted_devices(fingerprint)");
 
@@ -776,6 +812,7 @@ function initDB(AppDatabase $db): void {
         created_at      INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         updated_at      INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
+    app_db_ensure_unique_index($db, 'monitor_alert_rules', ['name'], 'idx_monitor_alert_rules_name_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_alert_rules_metric ON monitor_alert_rules(metric, enabled)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS monitor_alerts (
@@ -832,8 +869,11 @@ function initDB(AppDatabase $db): void {
     ];
     $ruleStmt = $db->prepare("INSERT INTO monitor_alert_rules
         (name, metric, operator, threshold, duration_sec, severity, notify_channels)
-        VALUES(:name, :metric, :operator, :threshold, :duration_sec, :severity, '[]') ON CONFLICT (name) DO NOTHING");
+        VALUES(:name, :metric, :operator, :threshold, :duration_sec, :severity, '[]')");
     foreach ($defaultRules as $rule) {
+        if ((int)$db->querySingle("SELECT COUNT(*) FROM monitor_alert_rules WHERE name = '" . AppDatabase::escapeString($rule[0]) . "'") > 0) {
+            continue;
+        }
         $ruleStmt->bindValue(':name', $rule[0], PDO::PARAM_STR);
         $ruleStmt->bindValue(':metric', $rule[1], PDO::PARAM_STR);
         $ruleStmt->bindValue(':operator', $rule[2], PDO::PARAM_STR);
@@ -879,7 +919,7 @@ function initDB(AppDatabase $db): void {
         $db->exec("ALTER TABLE verification_tokens_tmp RENAME TO verification_tokens");
 
         $db->exec("SELECT 1");
-        $db->exec("INSERT INTO app_meta(key,value) VALUES('fk_drop_pending_vt_v1','1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorRetentionSetMeta($db, 'fk_drop_pending_vt_v1', '1');
     }
     $cloudSettingsV2 = $db->querySingle("SELECT value FROM app_meta WHERE key='cloud_user_settings_v2'");
     if (!$cloudSettingsV2) {
@@ -893,7 +933,7 @@ function initDB(AppDatabase $db): void {
         if (!in_array('sync_mode', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'mtime_size'");
         if (!in_array('sync_enabled', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0");
         if (!in_array('last_sync_at', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN last_sync_at INTEGER NOT NULL DEFAULT 0");
-        $db->exec("INSERT INTO app_meta(key,value) VALUES('cloud_user_settings_v2','1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorRetentionSetMeta($db, 'cloud_user_settings_v2', '1');
     }
 
     $db->exec("CREATE TABLE IF NOT EXISTS smart_app_logs (
@@ -948,7 +988,7 @@ function initDB(AppDatabase $db): void {
                 }
             }
         }
-        $db->exec("INSERT INTO app_meta(key, value) VALUES('trusted_devices_v2_migrated', '1') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorRetentionSetMeta($db, 'trusted_devices_v2_migrated', '1');
     }
 
 }
@@ -2353,9 +2393,7 @@ function getLastActiveUser(): ?string {
 
 function setLastActiveUser(string $email): void {
     $db   = getDB();
-    $stmt = $db->prepare("INSERT INTO app_meta(key,value) VALUES('last_active_user',:e) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
-    $stmt->bindValue(':e', $email);
-    $stmt->execute();
+    monitorRetentionSetMeta($db, 'last_active_user', $email);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -3702,7 +3740,35 @@ function monitorRecordError(string $message, string $level = 'error', string $fi
     }
 }
 
-function monitorRetentionCleanup(int $rawDays = 365, int $retentionDays = 365, int $eventDays = 90): void {
+function monitorRetentionTableExists(AppDatabase $db, string $table): bool {
+    try {
+        if (app_db_is_pgsql()) {
+            return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='" . AppDatabase::escapeString($table) . "' LIMIT 1");
+        }
+        return (bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='" . AppDatabase::escapeString($table) . "' LIMIT 1");
+    } catch (Exception $e) {
+        return false;
+    }
+}
+
+function monitorRetentionExec(AppDatabase $db, string $sql): void {
+    try {
+        $db->exec($sql);
+    } catch (Exception $e) {
+    }
+}
+
+function monitorRetentionSetMeta(AppDatabase $db, string $key, string $value): void {
+    $stmt = $db->prepare('DELETE FROM app_meta WHERE key = :key');
+    $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+    $stmt->execute();
+    $stmt = $db->prepare('INSERT INTO app_meta(key, value) VALUES(:key, :value)');
+    $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+    $stmt->bindValue(':value', $value, PDO::PARAM_STR);
+    $stmt->execute();
+}
+
+function monitorRetentionCleanup(int $rawDays = 30, int $retentionDays = 30, int $eventDays = 30): void {
     try {
         $db = getDB();
         $now = time();
@@ -3715,46 +3781,77 @@ function monitorRetentionCleanup(int $rawDays = 365, int $retentionDays = 365, i
         $retentionCutoff = $now - ($retentionDays * 86400);
         $eventCutoff = $now - ($eventDays * 86400);
 
-        $metrics = [
-            'cpu_percent' => 'system.cpu_percent',
-            'memory_percent' => 'system.memory_percent',
-            'swap_percent' => 'system.swap_percent',
-            'disk_io_percent' => 'system.disk_io_percent',
-            'network_recv_bytes_per_sec' => 'system.network_recv_bytes_per_sec',
-            'network_sent_bytes_per_sec' => 'system.network_sent_bytes_per_sec',
-        ];
-        foreach ($metrics as $column => $metricName) {
-            $sql = "SELECT (created_at / 3600) * 3600 AS metric_hour,
-                           MIN($column) AS min_value,
-                           AVG($column) AS avg_value,
-                           MAX($column) AS max_value,
-                           COUNT(*) AS sample_count
-                    FROM monitor_system_snapshots
-                    WHERE created_at < $rawCutoff
-                    GROUP BY metric_hour";
-            $res = $db->query($sql);
-            $stmt = $db->prepare("INSERT INTO monitor_metric_hourly
-                (metric_hour, metric, app_id, min_value, avg_value, max_value, sample_count, updated_at)
-                VALUES(:metric_hour, :metric, '', :min_value, :avg_value, :max_value, :sample_count, :updated_at)");
-            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-                $stmt->bindValue(':metric_hour', (int)$row['metric_hour'], PDO::PARAM_INT);
-                $stmt->bindValue(':metric', $metricName, PDO::PARAM_STR);
-                $stmt->bindValue(':min_value', (float)$row['min_value'], PDO::PARAM_STR);
-                $stmt->bindValue(':avg_value', (float)$row['avg_value'], PDO::PARAM_STR);
-                $stmt->bindValue(':max_value', (float)$row['max_value'], PDO::PARAM_STR);
-                $stmt->bindValue(':sample_count', (int)$row['sample_count'], PDO::PARAM_INT);
-                $stmt->bindValue(':updated_at', $now, PDO::PARAM_INT);
-                $stmt->execute();
+        if ($retentionDays > $rawDays) {
+            $metrics = [
+                'cpu_percent' => 'system.cpu_percent',
+                'memory_percent' => 'system.memory_percent',
+                'swap_percent' => 'system.swap_percent',
+                'disk_io_percent' => 'system.disk_io_percent',
+                'network_recv_bytes_per_sec' => 'system.network_recv_bytes_per_sec',
+                'network_sent_bytes_per_sec' => 'system.network_sent_bytes_per_sec',
+            ];
+            foreach ($metrics as $column => $metricName) {
+                $sql = "SELECT (created_at / 3600) * 3600 AS metric_hour,
+                               MIN($column) AS min_value,
+                               AVG($column) AS avg_value,
+                               MAX($column) AS max_value,
+                               COUNT(*) AS sample_count
+                        FROM monitor_system_snapshots
+                        WHERE created_at < $rawCutoff
+                        GROUP BY metric_hour";
+                $res = $db->query($sql);
+                $insertStmt = $db->prepare("INSERT INTO monitor_metric_hourly
+                    (metric_hour, metric, app_id, min_value, avg_value, max_value, sample_count, updated_at)
+                    VALUES(:metric_hour, :metric, '', :min_value, :avg_value, :max_value, :sample_count, :updated_at)");
+                $updateStmt = $db->prepare("UPDATE monitor_metric_hourly SET
+                    min_value = :min_value,
+                    avg_value = :avg_value,
+                    max_value = :max_value,
+                    sample_count = :sample_count,
+                    updated_at = :updated_at
+                    WHERE metric_hour = :metric_hour AND metric = :metric AND app_id = ''");
+                while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+                    $metricHour = (int)$row['metric_hour'];
+                    $existing = $db->querySingle("SELECT min_value, avg_value, max_value, sample_count FROM monitor_metric_hourly WHERE metric_hour = $metricHour AND metric = '" . AppDatabase::escapeString($metricName) . "' AND app_id = '' LIMIT 1", true);
+                    $sampleCount = (int)$row['sample_count'];
+                    $minValue = (float)$row['min_value'];
+                    $avgValue = (float)$row['avg_value'];
+                    $maxValue = (float)$row['max_value'];
+                    $stmt = $insertStmt;
+                    if (is_array($existing)) {
+                        $existingSamples = (int)($existing['sample_count'] ?? 0);
+                        $totalSamples = max(1, $existingSamples + $sampleCount);
+                        $minValue = min((float)($existing['min_value'] ?? $minValue), $minValue);
+                        $maxValue = max((float)($existing['max_value'] ?? $maxValue), $maxValue);
+                        $avgValue = (((float)($existing['avg_value'] ?? 0) * $existingSamples) + ($avgValue * $sampleCount)) / $totalSamples;
+                        $sampleCount = $totalSamples;
+                        $stmt = $updateStmt;
+                    }
+                    $stmt->bindValue(':metric_hour', $metricHour, PDO::PARAM_INT);
+                    $stmt->bindValue(':metric', $metricName, PDO::PARAM_STR);
+                    $stmt->bindValue(':min_value', $minValue, PDO::PARAM_STR);
+                    $stmt->bindValue(':avg_value', $avgValue, PDO::PARAM_STR);
+                    $stmt->bindValue(':max_value', $maxValue, PDO::PARAM_STR);
+                    $stmt->bindValue(':sample_count', $sampleCount, PDO::PARAM_INT);
+                    $stmt->bindValue(':updated_at', $now, PDO::PARAM_INT);
+                    $stmt->execute();
+                }
             }
         }
 
-        $db->exec("DELETE FROM monitor_system_snapshots WHERE created_at < $rawCutoff");
-        $db->exec("DELETE FROM monitor_metric_hourly WHERE metric_hour < $retentionCutoff");
-        $db->exec("DELETE FROM monitor_smart_snapshots WHERE created_at < $retentionCutoff");
-        $db->exec("DELETE FROM monitor_app_events WHERE created_at < $eventCutoff");
-        $db->exec("DELETE FROM monitor_http_requests WHERE created_at < $eventCutoff");
-        $db->exec("DELETE FROM monitor_errors WHERE created_at < $eventCutoff AND resolved = 1");
-        $db->exec("INSERT INTO app_meta(key, value) VALUES('monitor_retention_last_cleanup', '$now') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorRetentionExec($db, "DELETE FROM monitor_disk_snapshots WHERE snapshot_id IN (SELECT id FROM monitor_system_snapshots WHERE created_at < $rawCutoff)");
+        monitorRetentionExec($db, "DELETE FROM monitor_system_snapshots WHERE created_at < $rawCutoff");
+        monitorRetentionExec($db, "DELETE FROM monitor_metric_hourly WHERE metric_hour < $retentionCutoff");
+        monitorRetentionExec($db, "DELETE FROM monitor_app_events WHERE created_at < $eventCutoff");
+        monitorRetentionExec($db, "DELETE FROM monitor_http_requests WHERE created_at < $eventCutoff");
+        monitorRetentionExec($db, "DELETE FROM monitor_errors WHERE created_at < $eventCutoff AND resolved = 1");
+        monitorRetentionExec($db, "DELETE FROM monitor_uptime_results WHERE checked_at < $retentionCutoff");
+        monitorRetentionExec($db, "DELETE FROM monitor_uptime_logs WHERE started_at < $retentionCutoff");
+        monitorRetentionExec($db, "DELETE FROM monitor_docker_snapshots WHERE created_at < $retentionCutoff");
+        if (monitorRetentionTableExists($db, 'monitor_smart_snapshots')) {
+            monitorRetentionExec($db, "DELETE FROM monitor_smart_snapshots WHERE created_at < $retentionCutoff");
+        }
+        monitorRetentionSetMeta($db, 'monitor_retention_last_cleanup', (string)$now);
     } catch (Exception $e) {
         error_log('monitorRetentionCleanup failed: ' . $e->getMessage());
     }

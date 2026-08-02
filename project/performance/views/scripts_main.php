@@ -1322,7 +1322,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: '#4CAF50',
                     backgroundColor: 'rgba(76,175,80,.12)',
                     borderWidth: 2,
-                    tension: .35,
+                    tension: .5,
                     pointRadius: 0,
                     yAxisID: 'percent'
                 },
@@ -1332,7 +1332,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: primaryColor,
                     backgroundColor: 'rgba(33,150,243,.1)',
                     borderWidth: 2,
-                    tension: .35,
+                    tension: .5,
                     pointRadius: 0,
                     yAxisID: 'percent'
                 },
@@ -1342,7 +1342,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: '#FF9800',
                     backgroundColor: 'rgba(255,152,0,.1)',
                     borderWidth: 2,
-                    tension: .35,
+                    tension: .5,
                     pointRadius: 0,
                     yAxisID: 'pids'
                 }
@@ -1605,7 +1605,18 @@ function closePhpInfo() {
 
 function prepareChartData(data, type, label) {
     const filteredData = data.filter(item => !item.isBreak);
-    const numericData = filteredData.map(item => item.y);
+    const rawData = filteredData.map(item => item.y);
+    const windowSize = rawData.length > 120 ? 5 : (rawData.length > 60 ? 3 : 1);
+    const numericData = windowSize > 1 ? rawData.map((value, index) => {
+        let sum = 0;
+        let count = 0;
+        const half = Math.floor(windowSize / 2);
+        for (let i = Math.max(0, index - half); i <= Math.min(rawData.length - 1, index + half); i++) {
+            sum += Number(rawData[i] || 0);
+            count++;
+        }
+        return count > 0 ? sum / count : value;
+    }) : rawData;
     const labels = filteredData.map(item => item.x);
     
     const breakIndices = [];
@@ -1623,7 +1634,7 @@ function prepareChartData(data, type, label) {
         backgroundColor: themeClass === 'dark' ? 'rgba(133, 181, 3, 0.2)' : 'rgba(133, 181, 3, 0.1)',
         borderWidth: 2,
         fill: true,
-        tension: 0.4,
+        tension: 0.5,
         pointRadius: 2,
         pointHoverRadius: 5
     }];
@@ -1832,7 +1843,7 @@ async function openGraphModal(type) {
                 },
                 elements: {
                     line: {
-                        tension: 0.4
+                        tension: 0.5
                     }
                 },
                 animation: {
@@ -2031,6 +2042,7 @@ function handleBeforeUnload() {
 function openSideMenu() {
     const menu = document.getElementById('sideMenu');
     const backdrop = document.getElementById('sideMenuBackdrop');
+    if (!menu || !backdrop) return;
     menu.classList.add('open');
     backdrop.classList.add('open');
     menu.setAttribute('aria-hidden', 'false');
@@ -2040,6 +2052,7 @@ function openSideMenu() {
 function closeSideMenu() {
     const menu = document.getElementById('sideMenu');
     const backdrop = document.getElementById('sideMenuBackdrop');
+    if (!menu || !backdrop) return;
     menu.classList.remove('open');
     backdrop.classList.remove('open');
     menu.setAttribute('aria-hidden', 'true');

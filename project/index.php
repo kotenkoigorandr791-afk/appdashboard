@@ -16,6 +16,17 @@ if ($__pathLower === '/webdav' || str_starts_with($__pathLower, '/webdav/') || $
     require APP_ROOT . '/apps/cloud/webdav.php';
     exit;
 }
+$__performancePhp = [
+    '/project/performance/index.php' => APP_ROOT . '/project/performance/index.php',
+    '/project/performance/server_monitor.php' => APP_ROOT . '/project/performance/server_monitor.php',
+    '/project/performance/monitor_stats.php' => APP_ROOT . '/project/performance/monitor_stats.php',
+];
+if (isset($__performancePhp[$__pathLower])) {
+    $_SERVER['SCRIPT_NAME'] = $__pathLower;
+    $_SERVER['PHP_SELF'] = $__path;
+    require $__performancePhp[$__pathLower];
+    exit;
+}
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
     if ($__path === '/' || $__path === '' || $__pathLower === '/news') {
         header('Content-Type: text/html; charset=UTF-8');
@@ -44,12 +55,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             exit;
         }
     }
-    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/icon')) {
+    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/icon')) {
         $__relative = ltrim(rawurldecode($__path), '/');
         $__target = realpath(APP_ROOT . '/' . $__relative);
         $__root = realpath(APP_ROOT);
         if ($__target && $__root && str_starts_with($__target, $__root . DIRECTORY_SEPARATOR) && is_file($__target)) {
             $__ext = strtolower(pathinfo($__target, PATHINFO_EXTENSION));
+            if (str_starts_with($__pathLower, '/project/performance/') && !in_array($__ext, ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico', 'js', 'css', 'ttf', 'woff', 'woff2', 'json', 'map'], true)) {
+                http_response_code(404);
+                exit;
+            }
             $__types = [
                 'png' => 'image/png',
                 'jpg' => 'image/jpeg',

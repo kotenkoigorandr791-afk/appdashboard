@@ -878,6 +878,16 @@ function monitorCollectModulesLists(): array {
     return ['nginx_modules' => $nginxModules, 'php_modules' => $phpModules, 'last_modified' => time()];
 }
 
+function monitorSetAppMeta($db, string $key, string $value): void {
+    $stmt = $db->prepare('DELETE FROM app_meta WHERE key = :key');
+    $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+    $stmt->execute();
+    $stmt = $db->prepare('INSERT INTO app_meta(key, value) VALUES(:key, :value)');
+    $stmt->bindValue(':key', $key, PDO::PARAM_STR);
+    $stmt->bindValue(':value', $value, PDO::PARAM_STR);
+    $stmt->execute();
+}
+
 function monitorSaveModulesToDb(): void {
     try {
         $db = getDB();
@@ -886,10 +896,8 @@ function monitorSaveModulesToDb(): void {
         }
         $payload = monitorCollectModulesLists();
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-        $stmt = $db->prepare("INSERT INTO app_meta(key, value) VALUES('performance_monitor_modules', :value) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
-        $stmt->bindValue(':value', json_encode($payload, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-        $stmt->execute();
-        $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_modules_last', '" . time() . "') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorSetAppMeta($db, 'performance_monitor_modules', json_encode($payload, JSON_UNESCAPED_UNICODE));
+        monitorSetAppMeta($db, 'performance_monitor_modules_last', (string)time());
     } catch (Exception $e) {
         error_log('monitorSaveModulesToDb failed: ' . $e->getMessage());
     }
@@ -900,10 +908,8 @@ function monitorSaveDrivesToDb(array $drives): void {
         $db = getDB();
         if (!$db) return;
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-        $stmt = $db->prepare("INSERT INTO app_meta(key, value) VALUES('performance_monitor_drives', :value) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
-        $stmt->bindValue(':value', json_encode(['drives' => $drives, 'updated_at' => time()], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-        $stmt->execute();
-        $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_drives_last', '" . time() . "') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorSetAppMeta($db, 'performance_monitor_drives', json_encode(['drives' => $drives, 'updated_at' => time()], JSON_UNESCAPED_UNICODE));
+        monitorSetAppMeta($db, 'performance_monitor_drives_last', (string)time());
     } catch (Exception $e) {
         error_log('monitorSaveDrivesToDb failed: ' . $e->getMessage());
     }
@@ -927,10 +933,8 @@ function monitorSaveSmartToDb(array $smart): void {
         $db = getDB();
         if (!$db) return;
         $db->exec("CREATE TABLE IF NOT EXISTS app_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
-        $stmt = $db->prepare("INSERT INTO app_meta(key, value) VALUES('performance_monitor_smart', :value) ON CONFLICT (key) DO UPDATE SET value=excluded.value");
-        $stmt->bindValue(':value', json_encode($smart, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-        $stmt->execute();
-        $db->exec("INSERT INTO app_meta(key, value) VALUES('performance_monitor_smart_last', '" . time() . "') ON CONFLICT (key) DO UPDATE SET value=excluded.value");
+        monitorSetAppMeta($db, 'performance_monitor_smart', json_encode($smart, JSON_UNESCAPED_UNICODE));
+        monitorSetAppMeta($db, 'performance_monitor_smart_last', (string)time());
     } catch (Exception $e) {
         error_log('monitorSaveSmartToDb failed: ' . $e->getMessage());
     }
@@ -1241,6 +1245,7 @@ function monitorEnsureUptimeSchema(): void {
         monitorEnsureColumn($db, 'monitor_docker_snapshots', 'block_io', "TEXT NOT NULL DEFAULT ''");
         monitorEnsureColumn($db, 'monitor_docker_snapshots', 'pids', 'INTEGER NOT NULL DEFAULT 0');
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_docker_snapshots_container_time ON monitor_docker_snapshots(container_id, created_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_docker_snapshots_created ON monitor_docker_snapshots(created_at)");
     } catch (Exception $e) {
         error_log('monitorEnsureUptimeSchema failed: ' . $e->getMessage());
     }
@@ -1829,15 +1834,20 @@ function monitorFetchDockerHistory(string $containerId, string $period = '24h'):
         '30d' => 2592000,
     ][$period] ?? 86400;
     $since = time() - $periodSeconds;
-    $limit = max(120, min(3000, (int)ceil($periodSeconds / 60) + 60));
-    $stmt = $db->prepare("SELECT created_at, cpu_percent, memory_percent, pids, state, health
+    $bucketSeconds = max(60, (int)ceil(($periodSeconds / 240) / 60) * 60);
+    $bucketExpr = "(created_at / $bucketSeconds) * $bucketSeconds";
+    $stmt = $db->prepare("SELECT $bucketExpr AS created_at,
+            AVG(cpu_percent) AS cpu_percent,
+            AVG(memory_percent) AS memory_percent,
+            AVG(pids) AS pids,
+            MAX(state) AS state,
+            MAX(health) AS health
         FROM monitor_docker_snapshots
         WHERE container_id = :container_id AND created_at >= :since
-        ORDER BY created_at DESC
-        LIMIT :limit");
+        GROUP BY $bucketExpr
+        ORDER BY created_at ASC");
     $stmt->bindValue(':container_id', $containerId, PDO::PARAM_STR);
     $stmt->bindValue(':since', $since, PDO::PARAM_INT);
-    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
     $res = $stmt->execute();
     $points = [];
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
@@ -1850,7 +1860,23 @@ function monitorFetchDockerHistory(string $containerId, string $period = '24h'):
             'health' => (string)($row['health'] ?? ''),
         ];
     }
-    return ['points' => array_reverse($points), 'period' => $period];
+    if ($periodSeconds >= 86400 && count($points) >= 3) {
+        $window = $periodSeconds >= 604800 ? 5 : 3;
+        $half = intdiv($window, 2);
+        $count = count($points);
+        foreach (['cpu_percent', 'memory_percent', 'pids'] as $key) {
+            for ($i = 0; $i < $count; $i++) {
+                $sum = 0.0;
+                $samples = 0;
+                for ($j = max(0, $i - $half); $j <= min($count - 1, $i + $half); $j++) {
+                    $sum += (float)$points[$j][$key];
+                    $samples++;
+                }
+                $points[$i][$key] = $key === 'pids' ? (int)round($sum / max(1, $samples)) : round($sum / max(1, $samples), 2);
+            }
+        }
+    }
+    return ['points' => $points, 'period' => $period, 'bucket_seconds' => $bucketSeconds];
 }
 
 function monitorSaveUptimeCheckFromInput(array $input): array {
@@ -1933,7 +1959,7 @@ function monitorCollectMetricsPayload(bool $includeSmart = false, bool $includeD
         'uptime_monitoring' => monitorFetchUptimePayloadForContainers($dockerContainers),
         'status' => 'ok',
         'context' => [
-            'source' => 'apps/performance/bin/monitor_collector.php',
+            'source' => 'project/performance/bin/monitor_collector.php',
             'drives' => $drives,
             'smart' => $smartDiagnostics,
             'docker_containers' => $dockerContainers,

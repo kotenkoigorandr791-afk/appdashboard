@@ -5470,6 +5470,7 @@ var T=<?php echo json_encode([
 #ap-content:has(#ap-backup.active),
 #ap-content:has(#ap-docs.active),
 #ap-content:has(#ap-db.active),
+#ap-content:has(#ap-performance.active),
 #ap-content:has(#ap-omniroute.active) {
     padding: 0;
 }
@@ -5495,6 +5496,7 @@ var T=<?php echo json_encode([
 #ap-backup.active,
 #ap-docs.active,
 #ap-db.active,
+#ap-performance.active,
 #ap-omniroute.active,
 #ap-ssh.active { display: flex; position: relative; flex: 1; min-height: 0; height: 100%; width: 100%; }
 #ap-ssh.ap-panel.active {
@@ -6389,6 +6391,43 @@ var T=<?php echo json_encode([
     padding: 0 !important;
 }
 
+#ap-performance.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+#ap-performance > div {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+}
+#ap-performance iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    border-radius: 0;
+    background: var(--bg-color);
+}
+#ap-content:has(#ap-performance.active) {
+    padding: 0 !important;
+    overflow: hidden;
+}
+#ap-performance.active {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
 /* OmniRoute panel – same embedded styles */
 #ap-omniroute.ap-panel.active {
     display: flex;
@@ -6502,8 +6541,8 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
     return window.__apMonacoPromise;
 };
 
-var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
+var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
 function injectOmniRouteTheme(){
