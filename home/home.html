@@ -70,11 +70,11 @@
       <h2 data-i18n="hero_title">Secure Cloud Shell Access</h2>
       <p data-i18n="hero_desc1">ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.</p>
       <p data-i18n="hero_desc2">We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources.</p>
-      <div class="buttons">
-        <a href="/login" class="btn-primary" id="loginLink"><span data-i18n="signin">Sign in</span></a>
-        <a href="/register" class="btn-secondary" id="registerLink"><span data-i18n="register">Register</span></a>
-        <a href="/one-time-pin" class="btn-secondary" id="otpLink"><span data-i18n="otp_button">One Time PIN</span></a>
-      </div>
+<div class="buttons">
+         <a href="/login" class="btn-primary" id="loginLink"><span data-i18n="signin">Sign in</span></a>
+         <a href="/register" class="btn-secondary" id="registerLink" data-i18n-tooltip="register_tooltip"><span data-i18n="register">Register</span></a>
+         <a href="/one-time-pin" class="btn-secondary" id="otpLink"><span data-i18n="otp_button">One Time PIN</span></a>
+       </div>
     </section>
 
     <section class="apps-section" id="appsSection">
@@ -125,7 +125,7 @@
     </nav>
     <div class="nav-drawer-auth">
       <a href="/login" class="btn-primary" id="drawerLoginLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span data-i18n="signin">Sign in</span></a>
-      <a href="/register" class="btn-secondary" id="drawerRegisterLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg><span data-i18n="register">Register</span></a>
+      <a href="/register" class="btn-secondary" id="drawerRegisterLink" data-i18n-tooltip="register_tooltip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg><span data-i18n="register">Register</span></a>
       <a href="/one-time-pin" class="btn-secondary" id="drawerOtpLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1"/></svg><span data-i18n="otp_button">One Time PIN</span></a>
     </div>
   </aside>

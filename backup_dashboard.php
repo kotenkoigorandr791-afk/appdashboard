@@ -108,6 +108,27 @@ function dupBackupNormalizeHost(string $host): string {
     $h = preg_replace('/^\xEF\xBB\xBF/', '', $h) ?? $h;
     return rtrim($h, '/');
 }
+function dupBackupProxyHostCandidates(string $host): array {
+    $host = dupBackupNormalizeHost($host);
+    $candidates = [$host];
+    $parts = parse_url($host);
+    $name = strtolower((string)($parts['host'] ?? ''));
+    if (in_array($name, ['localhost', '127.0.0.1', '::1'], true)) {
+        $fallbacks = ['host.docker.internal'];
+        $gateway = trim((string)@shell_exec("ip route 2>/dev/null | awk '/default/ {print $3; exit}'"));
+        if ($gateway !== '') {
+            $fallbacks[] = $gateway;
+        }
+        $fallbacks[] = '172.17.0.1';
+        foreach ($fallbacks as $fallback) {
+            $candidate = preg_replace('#^(https?://)(\[[^\]]+\]|[^/:]+)#i', '${1}' . $fallback, $host);
+            if (is_string($candidate) && $candidate !== '') {
+                $candidates[] = $candidate;
+            }
+        }
+    }
+    return array_values(array_unique($candidates));
+}
 function dupBackupNormalizeToken(string $token): string {
     $t = trim((string)preg_replace('/^\xEF\xBB\xBF/', '', $token));
     while ($t !== '' && preg_match('/^(authorization\s*:\s*)?bearer\s+/i', $t)) {
@@ -538,34 +559,42 @@ if (isset($_GET['proxy'])) {
         $token = $creds['token'];
     }
     $proxyHost = $creds['host'];
-    $url       = rtrim($proxyHost, '/') . '/api/v1/' . ltrim($endpoint, '/');
     $cookieFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'dup_sess_' . md5(session_id()) . '.txt';
     session_write_close();
-    $ch  = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL            => $url,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_TIMEOUT        => 30,
-        CURLOPT_CUSTOMREQUEST  => $method,
-        CURLOPT_HTTPHEADER     => [
-            dupBackupBuildAuthHeader($token),
-            'Content-Type: application/json',
-            'Accept: application/json',
-        ],
-        CURLOPT_COOKIEFILE     => $cookieFile,
-        CURLOPT_COOKIEJAR      => $cookieFile,
-    ]);
-    if (in_array($method, ['POST','PUT','PATCH'])) {
-        $body = ($data !== null) ? json_encode($data) : '{}';
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+    $response = false;
+    $httpCode = 0;
+    $curlError = '';
+    foreach (dupBackupProxyHostCandidates($proxyHost) as $candidateHost) {
+        $url = rtrim($candidateHost, '/') . '/api/v1/' . ltrim($endpoint, '/');
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL            => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_HTTPHEADER     => [
+                dupBackupBuildAuthHeader($token),
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+            CURLOPT_COOKIEFILE     => $cookieFile,
+            CURLOPT_COOKIEJAR      => $cookieFile,
+        ]);
+        if (in_array($method, ['POST','PUT','PATCH'])) {
+            $body = ($data !== null) ? json_encode($data) : '{}';
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
+        }
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+        if ($curlError === '') {
+            break;
+        }
     }
-    $response  = curl_exec($ch);
-    $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $curlError = curl_error($ch);
-    curl_close($ch);
     if ($curlError) { http_response_code(502); echo json_encode(['error'=>'Cannot reach Duplicati at ' . $proxyHost . ': ' . $curlError], JSON_UNESCAPED_UNICODE); }
     else            { http_response_code($httpCode); echo $response ?: '{}'; }
     exit;

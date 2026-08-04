@@ -4426,10 +4426,11 @@ var T=<?php echo json_encode([
             }, 4000);
         }
         (function(){
-            const btn=document.getElementById('notifications-btn');
+            const notificationButtons=Array.from(document.querySelectorAll('#notifications-btn'));
+            const btn=notificationButtons.find(function(el){return el.offsetParent!==null;})||notificationButtons[0]||null;
             const panel=document.getElementById('notifications-panel');
             const list=document.getElementById('notifications-list');
-            const badge=document.getElementById('notifications-unread-badge');
+            const badges=Array.from(document.querySelectorAll('#notifications-unread-badge'));
             const enableBtn=document.getElementById('notifications-enable-btn');
             const readBtn=document.getElementById('notifications-mark-read-btn');
             // Delegate click on copy buttons inside the notifications list
@@ -4461,7 +4462,7 @@ var T=<?php echo json_encode([
                 function isOpen(){return !!(target&&target.classList.contains('open'));}
                 if(trigger&&target){
                     document.addEventListener('click',function(e){
-                        if(isOpen()&&!target.contains(e.target)&&!trigger.contains(e.target))close();
+                        if(isOpen()&&!target.contains(e.target)&&!notificationButtons.some(function(button){return button.contains(e.target);}))close();
                     });
                     window.addEventListener('resize',close);
                     document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
@@ -4478,9 +4479,10 @@ var T=<?php echo json_encode([
                 if(enableBtnText)enableBtnText.textContent=granted?'Enabled':enableBtnLabel;
             }
             function setBadge(count){
-                if(!badge)return;
-                if(count>0){badge.textContent=count>99?'99+':String(count);badge.style.display='block';}
-                else{badge.style.display='none';}
+                badges.forEach(function(badge){
+                    if(count>0){badge.textContent=count>99?'99+':String(count);badge.style.display='block';}
+                    else{badge.style.display='none';}
+                });
             }
             const copySvg='<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
             function rowHtml(n){
@@ -4515,12 +4517,14 @@ var T=<?php echo json_encode([
                     if(newest)lastSeenId=Math.max(lastSeenId,Number(newest.id)||0);
                 }catch(e){}
             }
-            if(btn&&panel){
-                btn.addEventListener('click',function(e){
+            if(notificationButtons.length&&panel){
+                notificationButtons.forEach(function(button){
+                    button.addEventListener('click',function(e){
                     e.stopPropagation();
                     notificationPopover.toggle();
                     syncEnableButton();
                     loadNotifications(false);
+                    });
                 });
             }
             if(readBtn){
@@ -6525,18 +6529,22 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
     window.__apMonacoPromise = new Promise(function(resolve,reject){
+        var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
         function loadEditor(){
             try{
-                require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});
+                require.config({paths:{vs:cdnVs}});
                 require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
             }catch(e){reject(e);}
         }
+        function loadScript(src){
+            var existing=document.querySelector('script[src="'+src+'"]');
+            var s=existing||document.createElement('script');
+            s.addEventListener('load',loadEditor,{once:true});
+            s.addEventListener('error',reject,{once:true});
+            if(!existing){s.src=src;document.head.appendChild(s);}
+        }
         if(typeof require==='function'){loadEditor();return;}
-        var existing=document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
-        var s=existing||document.createElement('script');
-        s.addEventListener('load',loadEditor,{once:true});
-        s.addEventListener('error',reject,{once:true});
-        if(!existing){s.src='/project/assets/monaco-0.45.0/vs/loader.js';document.head.appendChild(s);}
+        loadScript(cdnVs+'/loader.js');
     });
     return window.__apMonacoPromise;
 };

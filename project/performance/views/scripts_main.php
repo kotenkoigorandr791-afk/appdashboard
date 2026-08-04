@@ -24,6 +24,18 @@ const translations = {
     echo json_encode($jsUi, JSON_UNESCAPED_UNICODE);
     ?>
 };
+const monitorChartsLabels = <?= json_encode([
+    'title' => $monitorChartsTitle,
+    'system' => $t['system_metrics'] ?? 'System Metrics',
+    'disk' => $t['disk_usage'] ?? 'Disk Usage',
+    'hourly' => $t['app_metrics'] ?? 'Application Metrics',
+    'loading' => $t['loading'] ?? 'Loading',
+    'empty' => $t['no_data_available'] ?? 'No data available',
+    'delete' => $t['delete'] ?? 'Delete',
+    'confirm_delete' => $t['cleanup_device_confirm'] ?? 'Delete all monitoring data for this device?',
+    'deleted' => $t['cleanup_success'] ?? 'Data deleted successfully',
+    'error' => $t['cleanup_error'] ?? 'Error deleting data',
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
 
 const STORAGE_KEY = 'server_monitor_chart_data_v3';
 const DATA_MAX_AGE = 3 * 60 * 60 * 1000;
@@ -87,6 +99,9 @@ let expandedDockerChecks = {};
 let dockerChartPeriods = {};
 let dockerMetricCharts = {};
 let uptimeGroupCollapsed = { docker: false, other: false };
+let monitorChartsLoaded = false;
+let monitorChartsPeriod = '24h';
+let monitorCharts = {};
 
 // Auto-zoom state (only for admins)
 let autoZoomEnabled = userRole >= 2;
@@ -871,6 +886,8 @@ function buildSmartDeviceCard(device) {
             <div class="smart-test-meta">${formatSmartHours(test.lifetime_hours)}${test.remaining_percent !== null && test.remaining_percent !== undefined ? ` • ${test.remaining_percent}% remaining` : ''}</div>
         </div>`).join('') : `<p class="no-data"><?= htmlspecialchars($t['smart_no_tests']) ?></p>`;
 
+    const cleanupButton = <?= $userRole >= 2 ? 'true' : 'false' ?> ? `<button class="smart-cleanup-btn" type="button" onclick="cleanupSmartDevice('${escapeHtml(device.device || '')}')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
+
     return `
         <div class="smart-card">
             <div class="smart-hero">
@@ -879,7 +896,10 @@ function buildSmartDeviceCard(device) {
                     <div class="smart-subtitle">${escapeHtml(device.device || '')}</div>
                     <div class="smart-subtitle"><?= htmlspecialchars($t['smart_serial']) ?>: ${escapeHtml(device.serial || '—')} • <?= htmlspecialchars($t['smart_firmware']) ?>: ${escapeHtml(device.firmware || '—')}</div>
                 </div>
-                <span class="smart-badge ${escapeHtml(device.status || 'unknown')}">${smartStatusText(device.status)}</span>
+                <div class="smart-hero-actions">
+                    <span class="smart-badge ${escapeHtml(device.status || 'unknown')}">${smartStatusText(device.status)}</span>
+                    ${cleanupButton}
+                </div>
             </div>
             <div class="smart-updated"><?= htmlspecialchars($t['smart_last_updated']) ?>: ${formatSmartDate(device.updated_at)}</div>
             <div class="smart-metrics">
@@ -1697,8 +1717,15 @@ async function openGraphModal(type) {
 
     const m = document.getElementById('graphModal');
     const title = document.getElementById('graphTitle');
+    const cleanupBtn = document.getElementById('graphCleanupBtn');
     m.style.display = 'block';
     document.body.classList.add('modal-open');
+    if (cleanupBtn) {
+        cleanupBtn.onclick = event => {
+            event.stopPropagation();
+            cleanupMetricData(type);
+        };
+    }
 
     const payload = await getGraphPayload(type);
     if (!payload) {
@@ -1901,6 +1928,172 @@ async function getGraphPayload(type) {
     return { data, label, yLabel };
 }
 
+function monitorChartMetricName(group, key) {
+    const names = {
+        cpu_percent: 'CPU %',
+        memory_percent: 'Memory %',
+        swap_percent: 'Swap %',
+        disk_io_percent: 'Disk I/O %',
+        network_recv_kbps: 'Network RX KB/s',
+        network_sent_kbps: 'Network TX KB/s'
+    };
+    if (group === 'system' && names[key]) return names[key];
+    if (group === 'disk') return '<?= htmlspecialchars($t['disk'] ?? 'Disk') ?> ' + String(key).replace(':', '').toUpperCase() + ':';
+    return String(key).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function destroyMonitorCharts() {
+    Object.values(monitorCharts).forEach(chart => {
+        if (chart) chart.destroy();
+    });
+    monitorCharts = {};
+}
+
+function monitorChartOptions() {
+    const textColor = themeClass === 'dark' ? '#f0f0f0' : '#333';
+    const gridColor = themeClass === 'dark' ? 'rgba(255,255,255,.12)' : 'rgba(0,0,0,.1)';
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+            x: { ticks: { color: textColor, maxTicksLimit: 10, maxRotation: 45, minRotation: 30 }, grid: { color: gridColor } },
+            y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }
+        },
+        plugins: {
+            legend: { labels: { color: textColor, usePointStyle: true } },
+            tooltip: {
+                backgroundColor: themeClass === 'dark' ? 'rgba(45,45,45,.96)' : 'rgba(255,255,255,.96)',
+                titleColor: textColor,
+                bodyColor: textColor,
+                borderColor: primaryColor,
+                borderWidth: 1
+            }
+        }
+    };
+}
+
+function renderMonitorChart(container, group, key, points, index) {
+    if (!points || points.length === 0) return;
+    const panel = document.createElement('article');
+    panel.className = 'monitor-chart-panel';
+    const head = document.createElement('div');
+    head.className = 'monitor-chart-head';
+    const title = document.createElement('h3');
+    title.textContent = monitorChartMetricName(group, key);
+    head.appendChild(title);
+    if (userRole >= 2) {
+        const cleanupBtn = document.createElement('button');
+        cleanupBtn.className = 'monitor-chart-cleanup';
+        cleanupBtn.type = 'button';
+        cleanupBtn.title = monitorChartsLabels.delete;
+        cleanupBtn.setAttribute('aria-label', monitorChartsLabels.delete);
+        cleanupBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>';
+        cleanupBtn.onclick = () => cleanupMonitorChartData(group, key);
+        head.appendChild(cleanupBtn);
+    }
+    const wrap = document.createElement('div');
+    wrap.className = 'monitor-chart-wrap';
+    const canvas = document.createElement('canvas');
+    wrap.appendChild(canvas);
+    panel.appendChild(head);
+    panel.appendChild(wrap);
+    container.appendChild(panel);
+    const palette = [primaryColor, '#2196f3', '#ff9800', '#9c27b0', '#00a676', '#f44336', '#607d8b'];
+    const color = palette[index % palette.length];
+    monitorCharts[group + ':' + key] = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: points.map(point => point.x),
+            datasets: [{
+                label: monitorChartMetricName(group, key),
+                data: points.map(point => point.y),
+                borderColor: color,
+                backgroundColor: color + '22',
+                borderWidth: 2,
+                tension: .5,
+                pointRadius: 0,
+                pointHoverRadius: 3,
+                fill: true
+            }]
+        },
+        options: monitorChartOptions()
+    });
+}
+
+function systemMonitorGroups(system) {
+    return {
+        cpu_percent: system.cpu_percent || [],
+        memory_percent: system.memory_percent || [],
+        swap_percent: system.swap_percent || [],
+        disk_io_percent: system.disk_io_percent || [],
+        network_recv_kbps: system.network_recv_kbps || [],
+        network_sent_kbps: system.network_sent_kbps || []
+    };
+}
+
+function renderMonitorCharts(data) {
+    destroyMonitorCharts();
+    const groups = [
+        ['monitorSystemCharts', 'system', systemMonitorGroups(data.system || {})],
+        ['monitorDiskCharts', 'disk', data.disk || {}],
+        ['monitorHourlyCharts', 'hourly', data.hourly || {}]
+    ];
+    let rendered = 0;
+    groups.forEach(([containerId, group, charts]) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        Object.entries(charts).filter(([, points]) => points && points.length > 0).forEach(([key, points], index) => {
+            renderMonitorChart(container, group, key, points, index);
+            rendered++;
+        });
+    });
+    const status = document.getElementById('monitorChartsStatus');
+    if (!status) return;
+    status.classList.remove('error');
+    status.style.display = rendered > 0 ? 'none' : 'block';
+    status.textContent = rendered > 0 ? '' : monitorChartsLabels.empty;
+}
+
+function loadMonitorCharts() {
+    const status = document.getElementById('monitorChartsStatus');
+    if (status) {
+        status.classList.remove('error');
+        status.style.display = 'block';
+        status.textContent = monitorChartsLabels.loading;
+    }
+    fetch('index.php?monitor_stats=1&period=' + encodeURIComponent(monitorChartsPeriod) + '&t=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' }, cache: 'no-store', credentials: 'same-origin' })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
+            renderMonitorCharts(data);
+            monitorChartsLoaded = true;
+        })
+        .catch(error => {
+            if (!status) return;
+            status.classList.add('error');
+            status.style.display = 'block';
+            status.textContent = monitorChartsLabels.error + ': ' + error.message;
+        });
+}
+
+function cleanupMonitorChartData(group, key) {
+    if (!confirm(monitorChartsLabels.confirm_delete)) return;
+    const formData = new FormData();
+    formData.append('cleanup_chart_data', '1');
+    formData.append('chart_group', group);
+    formData.append('chart_key', key);
+    fetch(window.location.pathname + window.location.search, { method: 'POST', body: formData, credentials: 'same-origin' })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
+            alert(monitorChartsLabels.deleted);
+            loadMonitorCharts();
+        })
+        .catch(error => alert(monitorChartsLabels.error + ': ' + error.message));
+}
+
 function createHoverPreview() {
     if (hoverPreviewEl) return;
     hoverPreviewEl = document.createElement('div');
@@ -2001,10 +2194,19 @@ function setActiveMonitorSection(sectionId) {
     try {
         localStorage.setItem(SECTION_STORAGE_KEY, resolved);
     } catch (e) {}
+    if (resolved === 'monitorCharts' && !monitorChartsLoaded) {
+        loadMonitorCharts();
+    }
 }
 
 function restoreActiveMonitorSection() {
     let sectionId = 'graphs';
+    const params = new URLSearchParams(window.location.search);
+    const requestedSection = params.get('section');
+    if (requestedSection) {
+        setActiveMonitorSection(requestedSection);
+        return;
+    }
     try {
         const saved = localStorage.getItem(SECTION_STORAGE_KEY);
         if (saved) {
@@ -2014,23 +2216,163 @@ function restoreActiveMonitorSection() {
     setActiveMonitorSection(sectionId);
 }
 
+function cleanupSmartDevice(devicePath) {
+    if (!devicePath || !confirm(translations.ui[lang].cleanup_device_confirm || 'Delete all monitoring data for this device?')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('cleanup_smart_device', '1');
+    formData.append('device_path', devicePath);
+
+    fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            alert(translations.ui[lang].cleanup_success || 'Data deleted successfully');
+            refreshData();
+        } else {
+            alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+        }
+    })
+    .catch(error => {
+        console.error('Cleanup error:', error);
+        alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+    });
+}
+
+function cleanupMetricData(metricType) {
+    const metricNames = {
+        'cpu': 'CPU',
+        'memory': '<?= htmlspecialchars($t['memory_usage'] ?? 'Memory') ?>',
+        'disk': '<?= htmlspecialchars($t['disk_usage'] ?? 'Disk') ?>',
+        'network': '<?= htmlspecialchars($t['network_usage'] ?? 'Network') ?>',
+        'swap': 'Swap'
+    };
+
+    const metricName = metricNames[metricType] || metricType;
+    if (!confirm((translations.ui[lang].cleanup_device_confirm || 'Delete all monitoring data for this device?').replace('device', metricName))) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('cleanup_metric_data', '1');
+    formData.append('metric_type', metricType);
+
+    fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            alert(translations.ui[lang].cleanup_success || 'Data deleted successfully');
+            // Clear local data arrays
+            if (metricType === 'cpu') cpuData = [];
+            else if (metricType === 'memory') memoryData = [];
+            else if (metricType === 'disk') diskData = [];
+            else if (metricType === 'network') networkData = [];
+            else if (metricType === 'swap') swapData = [];
+
+            saveStoredData();
+            refreshData();
+        } else {
+            alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+        }
+    })
+    .catch(error => {
+        console.error('Cleanup error:', error);
+        alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+    });
+}
+
+function openCleanupTimePeriodModal() {
+    const modal = document.getElementById('cleanupTimePeriodModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+}
+
+function closeCleanupTimePeriodModal() {
+    const modal = document.getElementById('cleanupTimePeriodModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.getElementById('cleanupStartTime').value = '';
+        document.getElementById('cleanupEndTime').value = '';
+    }
+}
+
+function submitCleanupTimePeriod(event) {
+    event.preventDefault();
+
+    const startTimeStr = document.getElementById('cleanupStartTime').value;
+    const endTimeStr = document.getElementById('cleanupEndTime').value;
+
+    if (!startTimeStr || !endTimeStr) {
+        alert(translations.ui[lang].select_time_period || 'Select time period');
+        return;
+    }
+
+    const startTime = Math.floor(new Date(startTimeStr).getTime() / 1000);
+    const endTime = Math.floor(new Date(endTimeStr).getTime() / 1000);
+
+    if (startTime >= endTime) {
+        alert('Invalid time range');
+        return;
+    }
+
+    if (!confirm(translations.ui[lang].cleanup_time_confirm || 'Delete all monitoring data for the selected period?')) {
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('cleanup_time_period', '1');
+    formData.append('start_time', startTime);
+    formData.append('end_time', endTime);
+
+    fetch(window.location.pathname + window.location.search, {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.ok) {
+            alert(translations.ui[lang].cleanup_success || 'Data deleted successfully');
+            closeCleanupTimePeriodModal();
+            refreshData();
+        } else {
+            alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+        }
+    })
+    .catch(error => {
+        console.error('Cleanup error:', error);
+        alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+    });
+}
+
 function refreshData() {
     // Reset retry counter
     retryCount = 0;
-    
+
     // Remove manual refresh button if present
     const manualBtn = document.getElementById('manualRetryBtn');
     if (manualBtn) {
         manualBtn.remove();
     }
-    
+
     // Show refresh indicator
     const statusEl = document.getElementById('connectionStatus');
     const textEl = document.getElementById('statusText');
     statusEl.style.display = 'block';
     statusEl.className = 'connection-status warning';
     textEl.textContent = translations.ui[lang].refreshing || 'Refreshing...';
-    
+
     // Load data
     loadData(true);
 }
@@ -2039,38 +2381,12 @@ function handleBeforeUnload() {
     saveStoredData();
 }
 
-function openSideMenu() {
-    const menu = document.getElementById('sideMenu');
-    const backdrop = document.getElementById('sideMenuBackdrop');
-    if (!menu || !backdrop) return;
-    menu.classList.add('open');
-    backdrop.classList.add('open');
-    menu.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('side-menu-open');
-}
-
-function closeSideMenu() {
-    const menu = document.getElementById('sideMenu');
-    const backdrop = document.getElementById('sideMenuBackdrop');
-    if (!menu || !backdrop) return;
-    menu.classList.remove('open');
-    backdrop.classList.remove('open');
-    menu.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('side-menu-open');
-}
-
 document.getElementById('phpinfoModal').addEventListener('click', e => {
     if (e.target.id === 'phpinfoModal') closePhpInfo();
 });
 
 document.getElementById('graphModal').addEventListener('click', e => {
     if (e.target.id === 'graphModal') closeGraphModal();
-});
-
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        closeSideMenu();
-    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2083,6 +2399,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-section-target]').forEach(button => {
         button.addEventListener('click', () => setActiveMonitorSection(button.getAttribute('data-section-target')));
     });
+    const monitorChartsPeriodEl = document.getElementById('monitorChartsPeriod');
+    if (monitorChartsPeriodEl) {
+        monitorChartsPeriodEl.addEventListener('change', event => {
+            monitorChartsPeriod = event.target.value;
+            monitorChartsLoaded = false;
+            loadMonitorCharts();
+        });
+    }
     restoreActiveMonitorSection();
 
     // Load auto-zoom preference from localStorage
@@ -2126,9 +2450,19 @@ document.addEventListener('DOMContentLoaded', () => {
     loadData();
     
     const intervalId = setInterval(loadData, UPDATE_INTERVAL);
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handleBeforeUnload);
+
+    <?php if ($userRole >= 2): ?>
+    window.cleanupSmartDevice = cleanupSmartDevice;
+    window.cleanupMetricData = cleanupMetricData;
+    window.cleanupMonitorChartData = cleanupMonitorChartData;
+    window.deleteUptimeCheck = deleteUptimeCheck;
+    window.openCleanupTimePeriodModal = openCleanupTimePeriodModal;
+    window.closeCleanupTimePeriodModal = closeCleanupTimePeriodModal;
+    window.submitCleanupTimePeriod = submitCleanupTimePeriod;
+    <?php endif; ?>
     
     let lastDataCount = {
         cpu: cpuData.length,

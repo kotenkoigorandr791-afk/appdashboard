@@ -5509,25 +5509,37 @@ var monacoInjected = false;
 window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
-    window.__apMonacoPromise = new Promise(function(resolve,reject){
-        function loadEditor(){
+    var localVs='/project/assets/monaco-0.45.0/vs';
+    var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
+    function loadScript(src){
+        return new Promise(function(resolve,reject){
+            var existing=document.querySelector('script[src="'+src+'"]');
+            var s=existing||document.createElement('script');
+            s.addEventListener('load',function(){s.dataset.apLoaded='1';resolve();},{once:true});
+            s.addEventListener('error',function(){reject(new Error('Failed to load '+src));},{once:true});
+            if(existing&&existing.dataset.apLoaded==='1') setTimeout(resolve,0);
+            else if(existing&&existing.readyState==='complete') setTimeout(resolve,0);
+            else if(!existing){s.src=src;s.async=false;document.head.appendChild(s);}
+        });
+    }
+    function loadEditor(vsPath){
+        return new Promise(function(resolve,reject){
             try{
-                require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});
+                require.config({paths:{vs:vsPath}});
                 require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
             }catch(e){reject(e);}
-        }
-        if(typeof require==='function'){loadEditor();return;}
-        var existing=document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
-        var s=existing||document.createElement('script');
-        s.addEventListener('load',loadEditor,{once:true});
-        s.addEventListener('error',reject,{once:true});
-        if(!existing){s.src='/project/assets/monaco-0.45.0/vs/loader.js';document.head.appendChild(s);}
-    });
+        });
+    }
+    function tryLoad(vsPath){
+        var ready=typeof require==='function'?Promise.resolve():loadScript(vsPath+'/loader.js');
+        return ready.then(function(){return loadEditor(vsPath);});
+    }
+    window.__apMonacoPromise = tryLoad(localVs).catch(function(){return tryLoad(cdnVs);});
     return window.__apMonacoPromise;
 };
 
-var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-docker':'docker','ap-docker-manager':'dockermanager','ap-performance':'performance'};
+var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','docker':'ap-docker','dockermanager':'ap-docker-manager','performance':'ap-performance'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function loadOmniRouteIframe(){
     var frame=document.getElementById('ap-omniroute-frame');

@@ -128,5 +128,16 @@
     "timeout_sec": "Timeout, s",
     "enabled": "Povoleno",
     "save": "Uložit",
-    "cancel": "Zrušit"
+    "cancel": "Zrušit",
+    "cleanup_device_data": "Smazat data zařízení",
+    "cleanup_time_period": "Smazat podle časového období",
+    "cleanup_device_confirm": "Smazat všechna monitorovací data pro toto zařízení?",
+    "cleanup_time_confirm": "Smazat všechna monitorovací data pro vybrané období?",
+    "cleanup_success": "Data byla úspěšně smazána",
+    "cleanup_error": "Chyba při mazání dat",
+    "select_time_period": "Vyberte časové období",
+    "from": "Od",
+    "to": "Do",
+    "delete": "Smazat",
+    "close": "Zavřít"
 }

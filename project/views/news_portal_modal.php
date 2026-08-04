@@ -9,6 +9,7 @@ let hasChanges = false;
 let originalTitle = '';
 let originalBody = '';
 let originalPhoto = '';
+let originalDate = '';
 
 // Load AI models from server config
 async function loadAiModels() {
@@ -112,6 +113,7 @@ function resetChanges() {
     originalTitle = document.getElementById('npo-edit-title').value.trim();
     originalBody = (window.getBodyValue ? window.getBodyValue() : document.getElementById('npo-edit-body').value).trim();
     originalPhoto = document.getElementById('npo-photo-url')?.value.trim() || '';
+    originalDate = document.getElementById('npo-edit-date')?.value || '';
     
     const saveBtn = document.getElementById('npo-save-btn');
     if (saveBtn) saveBtn.style.display = 'none';
@@ -122,8 +124,9 @@ function checkChanges() {
     const currentTitle = document.getElementById('npo-edit-title').value.trim();
     const currentBody = (window.getBodyValue ? window.getBodyValue() : document.getElementById('npo-edit-body').value).trim();
     const currentPhoto = document.getElementById('npo-photo-url')?.value.trim() || '';
+    const currentDate = document.getElementById('npo-edit-date')?.value || '';
     
-    if (currentTitle !== originalTitle || currentBody !== originalBody || currentPhoto !== originalPhoto) {
+    if (currentTitle !== originalTitle || currentBody !== originalBody || currentPhoto !== originalPhoto || currentDate !== originalDate) {
         markAsChanged();
     }
 }
@@ -133,6 +136,7 @@ function initNewsEditor() {
     const titleEl = document.getElementById('npo-edit-title');
     const bodyEl = document.getElementById('npo-edit-body');
     const photoEl = document.getElementById('npo-photo-url');
+    const dateEl = document.getElementById('npo-edit-date');
     const saveBtn = document.getElementById('npo-save-btn');
 
     if (!titleEl || !bodyEl || !saveBtn) {
@@ -144,6 +148,7 @@ function initNewsEditor() {
     originalTitle = titleEl.value.trim();
     originalBody = (window.getBodyValue ? window.getBodyValue() : bodyEl.value).trim();
     originalPhoto = photoEl ? photoEl.value.trim() : '';
+    originalDate = dateEl ? dateEl.value : '';
     
     // Hide save button initially
     saveBtn.style.display = 'none';
@@ -152,6 +157,7 @@ function initNewsEditor() {
     titleEl.addEventListener('input', checkChanges);
     bodyEl.addEventListener('input', checkChanges);
     if (photoEl) photoEl.addEventListener('change', markAsChanged);
+    if (dateEl) dateEl.addEventListener('change', checkChanges);
 }
 
 // Initialize when news portal modal is opened
@@ -466,6 +472,10 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             </div>
             <input type="hidden" id="npo-photo-url">
           </div>
+          <div class="npo-field">
+            <label><?php echo my_htmlspecialchars($translations['news_publication_date'] ?? 'Дата публикации'); ?></label>
+            <input type="date" id="npo-edit-date">
+          </div>
           <label class="npo-toggle">
             <input type="checkbox" id="npo-published">
             <?php echo my_htmlspecialchars($translations['news_published'] ?? 'Published (visible to all)'); ?>
@@ -668,6 +678,20 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     if (!ts) return '';
     return new Date(ts * 1000).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
   }
+  function dateInputValue(ts) {
+    if (!ts) return '';
+    const d = new Date(ts * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function dateInputTimestamp(value) {
+    if (!value) return 0;
+    const d = new Date(value + 'T00:00:00');
+    const ts = Math.floor(d.getTime() / 1000);
+    return Number.isFinite(ts) ? ts : 0;
+  }
 
   // ── Sidebar list ───────────────────────────────────────────────────────────
   function renderList() {
@@ -716,6 +740,7 @@ ${item.photo
     if (bodyMonaco) bodyMonaco.setValue(item ? (item.body || '') : '');
     document.getElementById('npo-published').checked = item ? !!item.published : false;
     document.getElementById('npo-photo-url').value = item ? (item.photo || '') : '';
+    document.getElementById('npo-edit-date').value = item ? dateInputValue(item.created_at) : '';
     document.getElementById('npo-status').textContent = '';
     const pp = document.getElementById('npo-photo-preview');
     const ppw = document.getElementById('npo-photo-preview-wrap');
@@ -741,6 +766,7 @@ ${item.photo
     bodyToggleBtns.forEach(b => b.classList.remove('active'));
     bodyToolbar?.querySelector('[data-view="code"]')?.classList.add('active');
     if (bodyMonaco) bodyMonaco.layout();
+    resetChanges();
     document.getElementById('npo-edit-title').focus();
   }
 
@@ -794,14 +820,18 @@ ${item.photo
     const body = getBodyValue().trim();
     const published = document.getElementById('npo-published').checked;
     const photo = document.getElementById('npo-photo-url').value.trim();
+    const editDate = document.getElementById('npo-edit-date').value;
     if (!title) { setStatus('<?php echo my_htmlspecialchars($translations['news_title_required'] ?? 'Title is required'); ?>'); return; }
     setSaving(true);
     setStatus('<?php echo my_htmlspecialchars($translations['saving'] ?? 'Saving...'); ?>');
     try {
+      const payload = { id, title, body, published, photo };
+      const createdAt = dateInputTimestamp(editDate);
+      if (createdAt > 0) payload.created_at = createdAt;
       const res = await fetch('/main?api=news&action=save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify({ id, title, body, published, photo })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (data.ok) {
@@ -1239,26 +1269,30 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
       if (window.monaco) return Promise.resolve(window.monaco);
       if (window.__apMonacoPromise) return window.__apMonacoPromise;
       window.__apMonacoPromise = new Promise((resolve, reject) => {
+        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
         const loadEditor = () => {
           try {
-            require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
+            require.config({ paths: { vs: cdnVs } });
             require(['vs/editor/editor.main'], () => resolve(window.monaco), reject);
           } catch (e) {
             reject(e);
+          }
+        };
+        const loadScript = (src) => {
+          const existing = document.querySelector('script[src="' + src + '"]');
+          const script = existing || document.createElement('script');
+          script.addEventListener('load', loadEditor, { once: true });
+          script.addEventListener('error', reject, { once: true });
+          if (!existing) {
+            script.src = src;
+            document.head.appendChild(script);
           }
         };
         if (typeof require === 'function') {
           loadEditor();
           return;
         }
-        const existing = document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
-        const script = existing || document.createElement('script');
-        script.addEventListener('load', loadEditor, { once: true });
-        script.addEventListener('error', reject, { once: true });
-        if (!existing) {
-          script.src = '/project/assets/monaco-0.45.0/vs/loader.js';
-          document.head.appendChild(script);
-        }
+        loadScript(cdnVs + '/loader.js');
       });
       return window.__apMonacoPromise;
     };

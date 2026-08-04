@@ -10,10 +10,17 @@ $lang = isset($_GET['lang']) && isset($translations[$_GET['lang']]) ? $_GET['lan
 $themeRaw = isset($_GET['theme']) ? strtolower($_GET['theme']) : 'light';
 $theme = $themeRaw === 'dark' ? 'dark' : 'light';
 $color = isset($_GET['color']) ? htmlspecialchars($_GET['color']) : '#85b503';
-$embedMode = isset($_GET['embed']) && $_GET['embed'] === '1';
 
 $t = $translations[$lang];
 $GLOBALS['_t_i18n'] = $t;
+$monitorChartsTitle = [
+    'en' => 'Monitoring Charts',
+    'ru' => 'Графики мониторинга',
+    'uk' => 'Графіки моніторингу',
+    'be' => 'Графікі маніторынгу',
+    'pl' => 'Wykresy monitoringu',
+    'cs' => 'Grafy monitorování',
+][$lang] ?? 'Monitoring Charts';
 $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
 $serverMonitorEndpoint = rtrim($scriptDir === '/' ? '' : $scriptDir, '/') . '/server_monitor.php';
 
@@ -58,6 +65,5 @@ require __DIR__ . '/controllers/PhpInfoController.php';
 <?php include __DIR__ . '/views/head.php'; ?>
 <?php include __DIR__ . '/views/body.php'; ?>
 <?php include __DIR__ . '/views/scripts_main.php'; ?>
-<?php include __DIR__ . '/views/scripts_extra.php'; ?>
 </body>
 </html>

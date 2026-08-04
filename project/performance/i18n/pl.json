@@ -128,5 +128,16 @@
     "timeout_sec": "Limit czasu, s",
     "enabled": "Włączone",
     "save": "Zapisz",
-    "cancel": "Anuluj"
+    "cancel": "Anuluj",
+    "cleanup_device_data": "Usuń dane urządzenia",
+    "cleanup_time_period": "Usuń według okresu czasu",
+    "cleanup_device_confirm": "Usunąć wszystkie dane monitorowania dla tego urządzenia?",
+    "cleanup_time_confirm": "Usunąć wszystkie dane monitorowania dla wybranego okresu?",
+    "cleanup_success": "Dane zostały pomyślnie usunięte",
+    "cleanup_error": "Błąd usuwania danych",
+    "select_time_period": "Wybierz okres czasu",
+    "from": "Od",
+    "to": "Do",
+    "delete": "Usuń",
+    "close": "Zamknij"
 }

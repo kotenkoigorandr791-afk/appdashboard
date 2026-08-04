@@ -128,5 +128,16 @@
     "timeout_sec": "Timeout, sec",
     "enabled": "Enabled",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "cleanup_device_data": "Delete device data",
+    "cleanup_time_period": "Delete by time period",
+    "cleanup_device_confirm": "Delete all monitoring data for this device?",
+    "cleanup_time_confirm": "Delete all monitoring data for the selected period?",
+    "cleanup_success": "Data deleted successfully",
+    "cleanup_error": "Error deleting data",
+    "select_time_period": "Select time period",
+    "from": "From",
+    "to": "To",
+    "delete": "Delete",
+    "close": "Close"
 }
