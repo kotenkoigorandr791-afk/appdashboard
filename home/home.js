@@ -1,6 +1,6 @@
 (function () {
   const I18N = {
-    en: {
+en: {
       hero_title: 'Secure Cloud Shell Access',
       hero_desc1: 'ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.',
       hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, media galleries, interactive maps, server monitoring, recipe management, expense tracking, health tracking, and network utilities — all accessible through a single account.',
@@ -16,10 +16,11 @@
       news_section_title: 'News', news_layout_edit: 'Edit layout', news_layout_done: 'Done',
       waiting_btn: 'Waiting...', loading_btn: 'Loading...', logging_out: 'Logging out...', news_toast_label: 'New', news_more_btn: 'View more news', news_read_more: 'Read full news',       news_empty: 'No news yet.',       cal_less: 'Less', cal_more: 'More', cal_title: 'News Calendar',
       explore_title: 'Explore more capabilities', explore_subtitle: 'Open any app to get started',
-      apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', films: 'Movie manager – collection, comments', map: 'Map viewer, KML, GPS, favorites', media_viewer: 'Media gallery with albums', performance: 'Server performance monitor', recipes: 'Custom recipes manager', spends: 'Expense tracker with charts', steps: 'Health & activity tracker', tft_generator: 'TFT screen code generator', viewer: 'Local network device viewer' },
+      register_tooltip: 'This is easy',
+      apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', films: 'Movie manager – collection, comments', map: 'Map viewer, KML, GPS, favorites', media_viewer: 'Media gallery with albums', performance: 'Server performance monitor', recipes: 'Custom recipes manager', spends: 'Expense tracker with charts', steps: 'Health & activity tracker', tft_generator: 'TFT display code generator', viewer: 'Network device monitoring' },
       app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', map: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', media_viewer: 'Media gallery with automatic album creation, previews for images/videos, and sharing options.', performance: 'Real-time server monitor: CPU load, memory usage, disk I/O, Apache module status. Historical graphs.', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.', tft_generator: 'Generate TFT screen code from canvas drawings. Convert sketches into display-ready code.', viewer: 'Discover and monitor local network devices (routers, smart devices) with dashboard view.' }
     },
-    uk: {
+uk: {
       hero_title: 'Безпечний доступ до хмарної консолі',
       hero_desc1: 'ServerKherson — це веб-застосунок для безпечного доступу та керування серверами.',
       hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю. Платформа пропонує різноманітні застосунки: хмарне керування файлами, медіа-галереї, інтерактивні мапи, моніторинг сервера, рецепти, облік витрат, трекер активності та мережеві утиліти — все доступне через єдиний обліковий запис.',
@@ -35,6 +36,7 @@
       news_section_title: 'Новини', news_layout_edit: 'Редагувати макет', news_layout_done: 'Готово',
       waiting_btn: 'Очікування...', loading_btn: 'Завантаження...', logging_out: 'Вихід з акаунту...', news_toast_label: 'Нове', news_more_btn: 'Дивитись більше новин', news_read_more: 'Розгорнути новину',       news_empty: 'Новин ще немає.',       cal_less: 'Менше', cal_more: 'Більше', cal_title: 'Календар новин',
       explore_title: 'Дослідіть більше можливостей', explore_subtitle: 'Відкрийте будь-який додаток',
+      register_tooltip: 'Це легко',
       apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', films: 'Менеджер фільмів – колекція, коментарі', map: 'Перегляд мап, KML, GPS, обране', media_viewer: 'Медіа галерея з альбомами', performance: 'Моніторинг сервера', recipes: 'Менеджер рецептів', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності', tft_generator: 'Генератор коду TFT екрана', viewer: 'Переглядач пристроїв мережі' },
       app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', map: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', media_viewer: 'Медіа галерея з автогенерацією альбомів, попереднім переглядом фото/відео.', performance: 'Моніторинг сервера в реальному часі: CPU, пам\'ять, Apache, графіки.', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.', tft_generator: 'Генерація коду для TFT екрану з малюнків на полотні.', viewer: 'Виявлення пристроїв у локальній мережі (роутери, смарт-пристрої).' }
     },
@@ -54,6 +56,7 @@
       news_section_title: 'Новости', news_layout_edit: 'Редактировать макет', news_layout_done: 'Готово',
       waiting_btn: 'Ожидание...', loading_btn: 'Загрузка...', logging_out: 'Выход из аккаунта...', news_toast_label: 'Новое', news_more_btn: 'Посмотреть больше новостей', news_read_more: 'Раскрыть новость',       news_empty: 'Новостей пока нет.',       cal_less: 'Меньше', cal_more: 'Больше', cal_title: 'Календарь новостей',
       explore_title: 'Исследуйте возможности', explore_subtitle: 'Откройте любое приложение',
+      register_tooltip: 'Это легко',
       apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', films: 'Менеджер фильмов – коллекция, комментарии', map: 'Карты, KML, GPS, избранное', media_viewer: 'Медиа галерея с альбомами', performance: 'Мониторинг сервера', recipes: 'Менеджер рецептов', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности', tft_generator: 'Генератор кода TFT экрана', viewer: 'Просмотр устройств сети' },
       app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', films: 'База фильмов с комментариями, списком просмотра, категориями.', map: 'Карты с поддержкой KML, GPS. Избранное, маршруты.', media_viewer: 'Медиа галерея с альбомами и предпросмотром.', performance: 'Мониторинг сервера: CPU, память, модули Apache, графики.', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.', tft_generator: 'Генерация кода для TFT экрана из рисунков на холсте.', viewer: 'Поиск устройств в локальной сети (роутеры, умные устройства).' }
     },
@@ -751,53 +754,111 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     });
   }
 
-  let tooltipTimer = null;
-  let appTooltip = null;
+let tooltipTimer = null;
+let appTooltip = null;
+let registerTooltip = null;
 
-  function handleAppMouseEnter(e, card, name, desc) {
-    if (tooltipTimer) clearTimeout(tooltipTimer);
-    tooltipTimer = setTimeout(() => {
-      showAppTooltip(card, name, desc);
-    }, 3000);
-  }
+function handleAppMouseEnter(e, card, name, desc) {
+     if (tooltipTimer) clearTimeout(tooltipTimer);
+     tooltipTimer = setTimeout(() => {
+         showAppTooltip(card, name, desc);
+     }, 3000);
+ }
 
-  function hideAppTooltip() {
-    if (tooltipTimer) {
-      clearTimeout(tooltipTimer);
-      tooltipTimer = null;
-    }
-    if (appTooltip) {
-      appTooltip.classList.remove('visible');
-      appTooltip = null;
-    }
-  }
+ function hideAppTooltip() {
+     if (tooltipTimer) {
+         clearTimeout(tooltipTimer);
+         tooltipTimer = null;
+     }
+     if (appTooltip) {
+         appTooltip.classList.remove('visible');
+         appTooltip.remove();
+         appTooltip = null;
+     }
+ }
 
-  function showAppTooltip(card, name, desc) {
-    hideAppTooltip();
-    appTooltip = document.createElement('div');
-    appTooltip.className = 'app-tooltip';
-    appTooltip.textContent = `${name}${desc ? ' — ' + desc : ''}`;
-    document.body.appendChild(appTooltip);
-    updateTooltipPosition(null, card);
-    appTooltip.classList.add('visible');
-  }
+ function showAppTooltip(card, name, desc) {
+     hideRegisterTooltip();
+     hideAppTooltip();
+     appTooltip = document.createElement('div');
+     appTooltip.className = 'app-tooltip';
+     appTooltip.textContent = `${name}${desc ? ' — ' + desc : ''}`;
+     document.body.appendChild(appTooltip);
+     updateTooltipPosition(null, card);
+     appTooltip.classList.add('visible');
+ }
+
 
   function updateTooltipPosition(e, card) {
-    if (!appTooltip) return;
-    const cardRect = card.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const tooltipWidth = appTooltip.offsetWidth || 200;
-    const midpoint = cardRect.left + cardRect.width / 2;
-    const isRightSide = midpoint > viewportWidth / 2;
-    const sideClass = isRightSide ? 'right-side' : 'left-side';
-    appTooltip.classList.remove('left-side', 'right-side');
-    appTooltip.classList.add(sideClass);
-    if (isRightSide) {
-      appTooltip.style.left = `${cardRect.right + 10}px`;
-    } else {
-      appTooltip.style.left = `${cardRect.left - tooltipWidth - 10}px`;
-    }
-    appTooltip.style.top = `${cardRect.top + cardRect.height / 2 - appTooltip.offsetHeight / 2}px`;
+      if (!appTooltip) return;
+      const cardRect = card.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const tooltipWidth = appTooltip.offsetWidth || 200;
+      const midpoint = cardRect.left + cardRect.width / 2;
+      const isRightSide = midpoint > viewportWidth / 2;
+      const sideClass = isRightSide ? 'right-side' : 'left-side';
+      appTooltip.classList.remove('left-side', 'right-side');
+      appTooltip.classList.add(sideClass);
+      if (isRightSide) {
+          appTooltip.style.left = `${cardRect.right + 10}px`;
+      } else {
+          appTooltip.style.left = `${cardRect.left - tooltipWidth - 10}px`;
+      }
+      appTooltip.style.top = `${cardRect.top + cardRect.height / 2 - appTooltip.offsetHeight / 2}px`;
+  }
+
+  // Tooltip for register link
+  let registerTooltipTimer = null;
+
+  function handleRegisterMouseEnter(e) {
+      if (registerTooltipTimer) clearTimeout(registerTooltipTimer);
+      const link = e.currentTarget;
+      registerTooltipTimer = setTimeout(() => {
+          showRegisterTooltip(link);
+      }, 3000);
+  }
+
+  function hideRegisterTooltip() {
+      if (registerTooltipTimer) {
+          clearTimeout(registerTooltipTimer);
+          registerTooltipTimer = null;
+      }
+      if (registerTooltip) {
+          registerTooltip.classList.remove('visible');
+          registerTooltip.remove();
+          registerTooltip = null;
+      }
+  }
+
+  function showRegisterTooltip(linkElement) {
+      if (!linkElement) return;
+      hideAppTooltip();
+      hideRegisterTooltip();
+      registerTooltip = document.createElement('div');
+      registerTooltip.className = 'app-tooltip';
+      const t = I18N[lang] || I18N.en;
+      registerTooltip.textContent = t.register_tooltip || 'It\'s easy';
+      document.body.appendChild(registerTooltip);
+      updateRegisterTooltipPosition(null, linkElement);
+      registerTooltip.classList.add('visible');
+  }
+
+  function updateRegisterTooltipPosition(e, linkElement) {
+      if (!registerTooltip || !linkElement) return;
+      const linkRect = linkElement.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const tooltipWidth = registerTooltip.offsetWidth || 200;
+      const midpoint = linkRect.left + linkRect.width / 2;
+      const isRightSide = midpoint > viewportWidth / 2;
+      const sideClass = isRightSide ? 'right-side' : 'left-side';
+      registerTooltip.classList.remove('left-side', 'right-side');
+      registerTooltip.classList.add(sideClass);
+      if (isRightSide) {
+          registerTooltip.style.left = `${linkRect.right + 10}px`;
+      } else {
+          registerTooltip.style.left = `${linkRect.left - tooltipWidth - 10}px`;
+      }
+      registerTooltip.style.top = `${linkRect.top + linkRect.height / 2 - registerTooltip.offsetHeight / 2}px`;
   }
 
   function showModal(id, l) {
@@ -901,21 +962,27 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     overlay.textContent = t; document.body.appendChild(overlay);
   }
 
-  function bindAuthLink(el) {
-    if (!el) return;
-    el.addEventListener('click', e => {
-      e.preventDefault();
-      const t = I18N[lang] || I18N.en;
-      el.textContent = t.waiting_btn || 'Waiting...';
-      el.style.pointerEvents = 'none';
-      el.style.opacity = '0.7';
-      const timer = setTimeout(() => loadingOverlay(t.loading_app || 'Opening app...'), 500);
-      const url = new URL(el.href, location.origin);
-      url.searchParams.set('lang', lang);
-      url.searchParams.set('theme', theme);
-      location.href = url.toString();
-    });
-  }
+function bindAuthLink(el) {
+     if (!el) return;
+     el.addEventListener('click', e => {
+         e.preventDefault();
+         const t = I18N[lang] || I18N.en;
+         el.textContent = t.waiting_btn || 'Waiting...';
+         el.style.pointerEvents = 'none';
+         el.style.opacity = '0.7';
+         const timer = setTimeout(() => loadingOverlay(t.loading_app || 'Opening app...'), 500);
+         const url = new URL(el.href, location.origin);
+         url.searchParams.set('lang', lang);
+         url.searchParams.set('theme', theme);
+         location.href = url.toString();
+     });
+     
+     // Add tooltip for register link
+     if (el.id === 'registerLink' || el.id === 'drawerRegisterLink') {
+         el.addEventListener('mouseenter', handleRegisterMouseEnter);
+         el.addEventListener('mouseleave', hideRegisterTooltip);
+     }
+ }
 
   function scheduleRuNotify() {
     if (ruNotifyTimer) clearTimeout(ruNotifyTimer);
