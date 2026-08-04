@@ -1239,26 +1239,30 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
       if (window.monaco) return Promise.resolve(window.monaco);
       if (window.__apMonacoPromise) return window.__apMonacoPromise;
       window.__apMonacoPromise = new Promise((resolve, reject) => {
+        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
         const loadEditor = () => {
           try {
-            require.config({ paths: { vs: '/project/assets/monaco-0.45.0/vs' } });
+            require.config({ paths: { vs: cdnVs } });
             require(['vs/editor/editor.main'], () => resolve(window.monaco), reject);
           } catch (e) {
             reject(e);
+          }
+        };
+        const loadScript = (src) => {
+          const existing = document.querySelector('script[src="' + src + '"]');
+          const script = existing || document.createElement('script');
+          script.addEventListener('load', loadEditor, { once: true });
+          script.addEventListener('error', reject, { once: true });
+          if (!existing) {
+            script.src = src;
+            document.head.appendChild(script);
           }
         };
         if (typeof require === 'function') {
           loadEditor();
           return;
         }
-        const existing = document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
-        const script = existing || document.createElement('script');
-        script.addEventListener('load', loadEditor, { once: true });
-        script.addEventListener('error', reject, { once: true });
-        if (!existing) {
-          script.src = '/project/assets/monaco-0.45.0/vs/loader.js';
-          document.head.appendChild(script);
-        }
+        loadScript(cdnVs + '/loader.js');
       });
       return window.__apMonacoPromise;
     };

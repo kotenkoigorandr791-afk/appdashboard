@@ -2,18 +2,16 @@
 
 <body class="<?= $theme ?><?= $embedMode ? ' admin-embed' : '' ?>">
 
-<canvas id="constellation-bg"></canvas>
-
 <?php if ($embedMode): ?>
 <div class="admin-monitor-topbar">
     <div class="admin-monitor-title"><?= htmlspecialchars($t['title']) ?></div>
     <div class="admin-monitor-tabs">
         <button class="admin-monitor-tab active" type="button" data-section-target="graphs"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
+        <button class="admin-monitor-tab" type="button" data-section-target="monitorCharts"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg><?= htmlspecialchars($monitorChartsTitle) ?></button>
         <button class="admin-monitor-tab" type="button" data-section-target="uptime"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime') ?></button>
         <button class="admin-monitor-tab" type="button" data-section-target="disk"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><?= htmlspecialchars($t['disk']) ?></button>
         <button class="admin-monitor-tab" type="button" data-section-target="nginx"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M9 9v6"/><path d="m9 9 6 6"/><path d="M15 9v6"/></svg><?= htmlspecialchars($t['nginx_modules']) ?></button>
         <button class="admin-monitor-tab" type="button" data-section-target="php"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
-        <a class="admin-monitor-tab" href="monitor_stats.php?lang=<?= urlencode($lang) ?>&theme=<?= urlencode($theme) ?>&color=<?= urlencode($color) ?>"><svg viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="m7 14 4-4 3 3 5-6"/></svg>Monitoring Charts</a>
     </div>
     <div class="admin-monitor-actions">
         <?php if ($showPhpInfoButton): ?>
@@ -47,6 +45,7 @@
     </div>
     <div class="side-menu-section-buttons">
         <button class="side-menu-section-button active" type="button" data-section-target="graphs" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
+        <button class="side-menu-section-button" type="button" data-section-target="monitorCharts" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg><?= htmlspecialchars($monitorChartsTitle) ?></button>
         <button class="side-menu-section-button" type="button" data-section-target="uptime" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg><?= htmlspecialchars($t['uptime_monitoring'] ?? 'Uptime') ?></button>
         <button class="side-menu-section-button" type="button" data-section-target="disk" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg><?= htmlspecialchars($t['disk']) ?></button>
         <button class="side-menu-section-button" type="button" data-section-target="nginx" onclick="closeSideMenu()"><svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7z"/><path d="M9 9v6"/><path d="m9 9 6 6"/><path d="M15 9v6"/></svg><?= htmlspecialchars($t['nginx_modules']) ?></button>
@@ -54,7 +53,6 @@
     </div>
     <div class="side-menu-divider"></div>
     <div class="side-menu-actions">
-        <a class="side-menu-link" href="monitor_stats.php?lang=<?= urlencode($lang) ?>&theme=<?= urlencode($theme) ?>&color=<?= urlencode($color) ?>">Monitoring Charts</a>
         <?php if ($showPhpInfoButton): ?>
         <button class="btn-primary" type="button" onclick="openPhpInfo(); closeSideMenu();"><?= htmlspecialchars($t['phpinfo_button']) ?></button>
         <div id="autoZoomToggle" class="auto-zoom-toggle" onclick="toggleAutoZoom()" title="<?= htmlspecialchars($t['auto_zoom']) ?>">
@@ -112,30 +110,45 @@
                     <canvas id="cpuChart" width="150" height="150" onclick="openGraphModal('cpu')"></canvas>
                     <div id="cpuVal" class="stat-val">0%</div>
                     <div id="cpuError" class="stat-error" style="display: none;"></div>
+                    <?php if ($userRole >= 2): ?>
+                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('cpu')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['memory_usage']) ?></h3>
                     <canvas id="memChart" width="150" height="150" onclick="openGraphModal('memory')"></canvas>
                     <div id="memVal" class="stat-val">0%</div>
                     <div id="memError" class="stat-error" style="display: none;"></div>
+                    <?php if ($userRole >= 2): ?>
+                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('memory')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['disk_usage']) ?></h3>
                     <canvas id="diskChart" width="150" height="150" onclick="openGraphModal('disk')"></canvas>
                     <div id="diskVal" class="stat-val">0%</div>
                     <div id="diskError" class="stat-error" style="display: none;"></div>
+                    <?php if ($userRole >= 2): ?>
+                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('disk')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['network_usage']) ?></h3>
                     <canvas id="networkChart" width="150" height="150" onclick="openGraphModal('network')"></canvas>
                     <div id="networkVal" class="stat-val">0 KB/s</div>
                     <div id="networkError" class="stat-error" style="display: none;"></div>
+                    <?php if ($userRole >= 2): ?>
+                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('network')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['swap_usage']) ?></h3>
                     <canvas id="swapChart" width="150" height="150" onclick="openGraphModal('swap')"></canvas>
                     <div id="swapVal" class="stat-val">0%</div>
                     <div id="swapError" class="stat-error" style="display: none;"></div>
+                    <?php if ($userRole >= 2): ?>
+                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('swap')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <?php endif; ?>
                 </div>
                 <div class="stat-card uptime-card">
                     <h3><?= htmlspecialchars($t['uptime']) ?></h3>
@@ -149,6 +162,27 @@
                 <div id="networkGrid" class="network-grid">
                     <div class="loading-placeholder"><?= htmlspecialchars($t['loading']) ?></div>
                 </div>
+            </section>
+        </div>
+    </section>
+
+    <section id="monitorSection-monitorCharts" class="monitor-section" data-section-panel="monitorCharts">
+        <div class="section-cluster">
+            <section>
+                <div class="monitor-charts-toolbar">
+                    <h2><?= htmlspecialchars($monitorChartsTitle) ?></h2>
+                    <select id="monitorChartsPeriod" class="monitor-charts-period">
+                        <option value="1h">1h</option>
+                        <option value="6h">6h</option>
+                        <option value="24h" selected>24h</option>
+                        <option value="7d">7d</option>
+                        <option value="30d">30d</option>
+                    </select>
+                </div>
+                <div id="monitorChartsStatus" class="stats-status"><?= htmlspecialchars($t['loading']) ?></div>
+                <div id="monitorSystemCharts" class="monitor-charts-grid"></div>
+                <div id="monitorDiskCharts" class="monitor-charts-grid"></div>
+                <div id="monitorHourlyCharts" class="monitor-charts-grid"></div>
             </section>
         </div>
     </section>
@@ -192,7 +226,12 @@
             </section>
 
             <section>
-                <h2><?= htmlspecialchars($t['smart_diagnostics']) ?></h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="margin: 0;"><?= htmlspecialchars($t['smart_diagnostics']) ?></h2>
+                    <?php if ($userRole >= 2): ?>
+                    <button class="btn-secondary icon-button" type="button" onclick="openCleanupTimePeriodModal()"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><?= htmlspecialchars($t['cleanup_time_period'] ?? 'Delete by time period') ?></button>
+                    <?php endif; ?>
+                </div>
                 <div id="smartGrid" class="smart-grid">
                     <div class="loading-placeholder"><?= htmlspecialchars($t['loading']) ?></div>
                 </div>
@@ -255,6 +294,23 @@
         </div>
     </div>
 </div>
+
+<div id="cleanupTimePeriodModal" class="modal uptime-check-modal">
+    <span class="modal-close" onclick="closeCleanupTimePeriodModal()">&times;</span>
+    <div class="modal-content uptime-modal-content">
+        <div class="uptime-form-panel">
+            <h2><?= htmlspecialchars($t['cleanup_time_period'] ?? 'Delete by time period') ?></h2>
+            <form id="cleanupTimePeriodForm" class="uptime-check-form" onsubmit="submitCleanupTimePeriod(event)">
+                <label><span><?= htmlspecialchars($t['from'] ?? 'From') ?></span><input id="cleanupStartTime" type="datetime-local" required></label>
+                <label><span><?= htmlspecialchars($t['to'] ?? 'To') ?></span><input id="cleanupEndTime" type="datetime-local" required></label>
+                <div class="uptime-form-actions">
+                    <button class="btn-primary" type="submit"><?= htmlspecialchars($t['delete'] ?? 'Delete') ?></button>
+                    <button class="btn-secondary" type="button" onclick="closeCleanupTimePeriodModal()"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 <?php endif; ?>
 
 <div id="phpinfoModal" class="modal">
@@ -267,6 +323,9 @@
         <div class="graph-container">
             <span class="modal-close" onclick="closeGraphModal()">&times;</span>
             <div id="graphTitle" class="graph-title"></div>
+            <?php if ($userRole >= 2): ?>
+            <button id="graphCleanupBtn" class="graph-cleanup-btn" type="button"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+            <?php endif; ?>
             <div class="graph-canvas-container">
                 <canvas id="graphChart"></canvas>
             </div>

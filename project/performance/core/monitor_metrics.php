@@ -2095,3 +2095,190 @@ function monitorFetchDisplayPayloadFromDb(): array {
         return monitorEmptyDisplayPayload();
     }
 }
+
+function monitorCleanupSmartDevice(string $devicePath): array {
+    if ($devicePath === '') {
+        return ['ok' => false, 'error' => 'device_path_required'];
+    }
+    try {
+        monitorEnsureSmartTable();
+        $db = monitorGetDbSafe();
+        if (!$db) {
+            return ['ok' => false, 'error' => 'db_unavailable'];
+        }
+        $stmt = $db->prepare('DELETE FROM monitor_smart_snapshots WHERE device_path = :device_path');
+        $stmt->bindValue(':device_path', $devicePath, PDO::PARAM_STR);
+        $stmt->execute();
+        $deleted = $stmt->rowCount();
+        return ['ok' => true, 'deleted' => $deleted];
+    } catch (Exception $e) {
+        error_log('monitorCleanupSmartDevice failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function monitorCleanupMetricData(string $metricType): array {
+    if ($metricType === '') {
+        return ['ok' => false, 'error' => 'metric_type_required'];
+    }
+
+    $metricColumnMap = [
+        'cpu' => 'cpu_percent',
+        'memory' => 'memory_percent',
+        'disk' => 'disk_io_percent',
+        'network' => ['network_recv_bytes_per_sec', 'network_sent_bytes_per_sec'],
+        'swap' => 'swap_percent',
+    ];
+
+    if (!isset($metricColumnMap[$metricType])) {
+        return ['ok' => false, 'error' => 'invalid_metric_type'];
+    }
+
+    try {
+        monitorEnsureBaseSchema();
+        $db = monitorGetDbSafe();
+        if (!$db) {
+            return ['ok' => false, 'error' => 'db_unavailable'];
+        }
+
+        $columns = is_array($metricColumnMap[$metricType]) ? $metricColumnMap[$metricType] : [$metricColumnMap[$metricType]];
+
+        $setClauses = [];
+        foreach ($columns as $col) {
+            $setClauses[] = "$col = 0";
+        }
+        $setClause = implode(', ', $setClauses);
+
+        $stmt = $db->prepare("UPDATE monitor_system_snapshots SET $setClause");
+        $stmt->execute();
+        $updated = $stmt->rowCount();
+
+        if ($metricType === 'network') {
+            $db->exec("DELETE FROM monitor_metric_hourly WHERE metric IN ('network_recv_kbps', 'network_sent_kbps')");
+        } else {
+            $metricName = $metricColumnMap[$metricType];
+            $stmt = $db->prepare("DELETE FROM monitor_metric_hourly WHERE metric = :metric");
+            $stmt->bindValue(':metric', $metricName, PDO::PARAM_STR);
+            $stmt->execute();
+        }
+
+        return ['ok' => true, 'updated' => $updated];
+    } catch (Exception $e) {
+        error_log('monitorCleanupMetricData failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function monitorCleanupDiskDriveData(string $driveLetter): array {
+    if ($driveLetter === '') {
+        return ['ok' => false, 'error' => 'drive_required'];
+    }
+    try {
+        monitorEnsureBaseSchema();
+        $db = monitorGetDbSafe();
+        if (!$db) {
+            return ['ok' => false, 'error' => 'db_unavailable'];
+        }
+        $stmt = $db->prepare('DELETE FROM monitor_disk_snapshots WHERE drive_letter = :drive_letter');
+        $stmt->bindValue(':drive_letter', $driveLetter, PDO::PARAM_STR);
+        $stmt->execute();
+        return ['ok' => true, 'deleted' => $stmt->rowCount()];
+    } catch (Exception $e) {
+        error_log('monitorCleanupDiskDriveData failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function monitorCleanupHourlyMetricData(string $metric): array {
+    if ($metric === '') {
+        return ['ok' => false, 'error' => 'metric_required'];
+    }
+    try {
+        monitorEnsureBaseSchema();
+        $db = monitorGetDbSafe();
+        if (!$db) {
+            return ['ok' => false, 'error' => 'db_unavailable'];
+        }
+        $stmt = $db->prepare('DELETE FROM monitor_metric_hourly WHERE metric = :metric');
+        $stmt->bindValue(':metric', $metric, PDO::PARAM_STR);
+        $stmt->execute();
+        return ['ok' => true, 'deleted' => $stmt->rowCount()];
+    } catch (Exception $e) {
+        error_log('monitorCleanupHourlyMetricData failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+}
+
+function monitorCleanupChartData(string $chartGroup, string $chartKey): array {
+    if ($chartGroup === 'disk') {
+        return monitorCleanupDiskDriveData($chartKey);
+    }
+    if ($chartGroup === 'hourly') {
+        return monitorCleanupHourlyMetricData($chartKey);
+    }
+    if ($chartGroup === 'system') {
+        $metricMap = [
+            'cpu_percent' => ['columns' => ['cpu_percent'], 'hourly' => ['cpu_percent']],
+            'memory_percent' => ['columns' => ['memory_percent'], 'hourly' => ['memory_percent']],
+            'swap_percent' => ['columns' => ['swap_percent'], 'hourly' => ['swap_percent']],
+            'disk_io_percent' => ['columns' => ['disk_io_percent'], 'hourly' => ['disk_io_percent']],
+            'network_recv_kbps' => ['columns' => ['network_recv_bytes_per_sec'], 'hourly' => ['network_recv_kbps']],
+            'network_sent_kbps' => ['columns' => ['network_sent_bytes_per_sec'], 'hourly' => ['network_sent_kbps']],
+        ];
+        if (!isset($metricMap[$chartKey])) {
+            return ['ok' => false, 'error' => 'invalid_chart_key'];
+        }
+        try {
+            monitorEnsureBaseSchema();
+            $db = monitorGetDbSafe();
+            if (!$db) {
+                return ['ok' => false, 'error' => 'db_unavailable'];
+            }
+            $setClause = implode(', ', array_map(static fn($col) => "$col = 0", $metricMap[$chartKey]['columns']));
+            $stmt = $db->prepare("UPDATE monitor_system_snapshots SET $setClause");
+            $stmt->execute();
+            $updated = $stmt->rowCount();
+            $deleted = 0;
+            foreach ($metricMap[$chartKey]['hourly'] as $metric) {
+                $stmt = $db->prepare('DELETE FROM monitor_metric_hourly WHERE metric = :metric');
+                $stmt->bindValue(':metric', $metric, PDO::PARAM_STR);
+                $stmt->execute();
+                $deleted += $stmt->rowCount();
+            }
+            return ['ok' => true, 'updated' => $updated, 'deleted' => $deleted];
+        } catch (Exception $e) {
+            error_log('monitorCleanupChartData failed: ' . $e->getMessage());
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+    return ['ok' => false, 'error' => 'invalid_chart_group'];
+}
+
+function monitorCleanupByTimePeriod(int $startTime, int $endTime): array {
+    if ($startTime <= 0 || $endTime <= 0 || $startTime >= $endTime) {
+        return ['ok' => false, 'error' => 'invalid_time_range'];
+    }
+    try {
+        monitorEnsureBaseSchema();
+        monitorEnsureSmartTable();
+        $db = monitorGetDbSafe();
+        if (!$db) {
+            return ['ok' => false, 'error' => 'db_unavailable'];
+        }
+        $deletedCounts = [];
+        $stmt = $db->prepare('DELETE FROM monitor_smart_snapshots WHERE created_at >= :start AND created_at <= :end');
+        $stmt->bindValue(':start', $startTime, PDO::PARAM_INT);
+        $stmt->bindValue(':end', $endTime, PDO::PARAM_INT);
+        $stmt->execute();
+        $deletedCounts['smart_snapshots'] = $stmt->rowCount();
+        $stmt = $db->prepare('DELETE FROM monitor_system_snapshots WHERE created_at >= :start AND created_at <= :end');
+        $stmt->bindValue(':start', $startTime, PDO::PARAM_INT);
+        $stmt->bindValue(':end', $endTime, PDO::PARAM_INT);
+        $stmt->execute();
+        $deletedCounts['system_snapshots'] = $stmt->rowCount();
+        return ['ok' => true, 'deleted' => $deletedCounts];
+    } catch (Exception $e) {
+        error_log('monitorCleanupByTimePeriod failed: ' . $e->getMessage());
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
+}

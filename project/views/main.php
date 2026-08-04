@@ -6525,18 +6525,22 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
     window.__apMonacoPromise = new Promise(function(resolve,reject){
+        var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
         function loadEditor(){
             try{
-                require.config({paths:{vs:'/project/assets/monaco-0.45.0/vs'}});
+                require.config({paths:{vs:cdnVs}});
                 require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
             }catch(e){reject(e);}
         }
+        function loadScript(src){
+            var existing=document.querySelector('script[src="'+src+'"]');
+            var s=existing||document.createElement('script');
+            s.addEventListener('load',loadEditor,{once:true});
+            s.addEventListener('error',reject,{once:true});
+            if(!existing){s.src=src;document.head.appendChild(s);}
+        }
         if(typeof require==='function'){loadEditor();return;}
-        var existing=document.querySelector('script[src="/project/assets/monaco-0.45.0/vs/loader.js"]');
-        var s=existing||document.createElement('script');
-        s.addEventListener('load',loadEditor,{once:true});
-        s.addEventListener('error',reject,{once:true});
-        if(!existing){s.src='/project/assets/monaco-0.45.0/vs/loader.js';document.head.appendChild(s);}
+        loadScript(cdnVs+'/loader.js');
     });
     return window.__apMonacoPromise;
 };
