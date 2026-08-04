@@ -5509,24 +5509,32 @@ var monacoInjected = false;
 window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
-    window.__apMonacoPromise = new Promise(function(resolve,reject){
-        var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
-        function loadEditor(){
-            try{
-                require.config({paths:{vs:cdnVs}});
-                require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
-            }catch(e){reject(e);}
-        }
-        function loadScript(src){
+    var localVs='/project/assets/monaco-0.45.0/vs';
+    var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
+    function loadScript(src){
+        return new Promise(function(resolve,reject){
             var existing=document.querySelector('script[src="'+src+'"]');
             var s=existing||document.createElement('script');
-            s.addEventListener('load',loadEditor,{once:true});
-            s.addEventListener('error',reject,{once:true});
-            if(!existing){s.src=src;document.head.appendChild(s);}
-        }
-        if(typeof require==='function'){loadEditor();return;}
-        loadScript(cdnVs+'/loader.js');
-    });
+            s.addEventListener('load',function(){s.dataset.apLoaded='1';resolve();},{once:true});
+            s.addEventListener('error',function(){reject(new Error('Failed to load '+src));},{once:true});
+            if(existing&&existing.dataset.apLoaded==='1') setTimeout(resolve,0);
+            else if(existing&&existing.readyState==='complete') setTimeout(resolve,0);
+            else if(!existing){s.src=src;s.async=false;document.head.appendChild(s);}
+        });
+    }
+    function loadEditor(vsPath){
+        return new Promise(function(resolve,reject){
+            try{
+                require.config({paths:{vs:vsPath}});
+                require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
+            }catch(e){reject(e);}
+        });
+    }
+    function tryLoad(vsPath){
+        var ready=typeof require==='function'?Promise.resolve():loadScript(vsPath+'/loader.js');
+        return ready.then(function(){return loadEditor(vsPath);});
+    }
+    window.__apMonacoPromise = tryLoad(localVs).catch(function(){return tryLoad(cdnVs);});
     return window.__apMonacoPromise;
 };
 

@@ -988,7 +988,9 @@ function monitorGetDbSafe() {
 
 function monitorTableColumns($db, string $table): array {
     $columns = [];
-    $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name=$table");
+    $stmt = $db->prepare("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name = :table");
+    $stmt->bindValue(':table', $table, PDO::PARAM_STR);
+    $res = $stmt->execute();
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $columns[(string)$row['name']] = true;
     }
@@ -2109,7 +2111,7 @@ function monitorCleanupSmartDevice(string $devicePath): array {
         $stmt = $db->prepare('DELETE FROM monitor_smart_snapshots WHERE device_path = :device_path');
         $stmt->bindValue(':device_path', $devicePath, PDO::PARAM_STR);
         $stmt->execute();
-        $deleted = $stmt->rowCount();
+        $deleted = $db->changes();
         return ['ok' => true, 'deleted' => $deleted];
     } catch (Exception $e) {
         error_log('monitorCleanupSmartDevice failed: ' . $e->getMessage());
@@ -2151,7 +2153,7 @@ function monitorCleanupMetricData(string $metricType): array {
 
         $stmt = $db->prepare("UPDATE monitor_system_snapshots SET $setClause");
         $stmt->execute();
-        $updated = $stmt->rowCount();
+        $updated = $db->changes();
 
         if ($metricType === 'network') {
             $db->exec("DELETE FROM monitor_metric_hourly WHERE metric IN ('network_recv_kbps', 'network_sent_kbps')");
@@ -2182,7 +2184,7 @@ function monitorCleanupDiskDriveData(string $driveLetter): array {
         $stmt = $db->prepare('DELETE FROM monitor_disk_snapshots WHERE drive_letter = :drive_letter');
         $stmt->bindValue(':drive_letter', $driveLetter, PDO::PARAM_STR);
         $stmt->execute();
-        return ['ok' => true, 'deleted' => $stmt->rowCount()];
+        return ['ok' => true, 'deleted' => $db->changes()];
     } catch (Exception $e) {
         error_log('monitorCleanupDiskDriveData failed: ' . $e->getMessage());
         return ['ok' => false, 'error' => $e->getMessage()];
@@ -2202,7 +2204,7 @@ function monitorCleanupHourlyMetricData(string $metric): array {
         $stmt = $db->prepare('DELETE FROM monitor_metric_hourly WHERE metric = :metric');
         $stmt->bindValue(':metric', $metric, PDO::PARAM_STR);
         $stmt->execute();
-        return ['ok' => true, 'deleted' => $stmt->rowCount()];
+        return ['ok' => true, 'deleted' => $db->changes()];
     } catch (Exception $e) {
         error_log('monitorCleanupHourlyMetricData failed: ' . $e->getMessage());
         return ['ok' => false, 'error' => $e->getMessage()];
@@ -2237,13 +2239,13 @@ function monitorCleanupChartData(string $chartGroup, string $chartKey): array {
             $setClause = implode(', ', array_map(static fn($col) => "$col = 0", $metricMap[$chartKey]['columns']));
             $stmt = $db->prepare("UPDATE monitor_system_snapshots SET $setClause");
             $stmt->execute();
-            $updated = $stmt->rowCount();
+            $updated = $db->changes();
             $deleted = 0;
             foreach ($metricMap[$chartKey]['hourly'] as $metric) {
                 $stmt = $db->prepare('DELETE FROM monitor_metric_hourly WHERE metric = :metric');
                 $stmt->bindValue(':metric', $metric, PDO::PARAM_STR);
                 $stmt->execute();
-                $deleted += $stmt->rowCount();
+                $deleted += $db->changes();
             }
             return ['ok' => true, 'updated' => $updated, 'deleted' => $deleted];
         } catch (Exception $e) {
@@ -2266,16 +2268,21 @@ function monitorCleanupByTimePeriod(int $startTime, int $endTime): array {
             return ['ok' => false, 'error' => 'db_unavailable'];
         }
         $deletedCounts = [];
+        $stmt = $db->prepare('DELETE FROM monitor_disk_snapshots WHERE snapshot_id IN (SELECT id FROM monitor_system_snapshots WHERE created_at >= :start AND created_at <= :end)');
+        $stmt->bindValue(':start', $startTime, PDO::PARAM_INT);
+        $stmt->bindValue(':end', $endTime, PDO::PARAM_INT);
+        $stmt->execute();
+        $deletedCounts['disk_snapshots'] = $db->changes();
         $stmt = $db->prepare('DELETE FROM monitor_smart_snapshots WHERE created_at >= :start AND created_at <= :end');
         $stmt->bindValue(':start', $startTime, PDO::PARAM_INT);
         $stmt->bindValue(':end', $endTime, PDO::PARAM_INT);
         $stmt->execute();
-        $deletedCounts['smart_snapshots'] = $stmt->rowCount();
+        $deletedCounts['smart_snapshots'] = $db->changes();
         $stmt = $db->prepare('DELETE FROM monitor_system_snapshots WHERE created_at >= :start AND created_at <= :end');
         $stmt->bindValue(':start', $startTime, PDO::PARAM_INT);
         $stmt->bindValue(':end', $endTime, PDO::PARAM_INT);
         $stmt->execute();
-        $deletedCounts['system_snapshots'] = $stmt->rowCount();
+        $deletedCounts['system_snapshots'] = $db->changes();
         return ['ok' => true, 'deleted' => $deletedCounts];
     } catch (Exception $e) {
         error_log('monitorCleanupByTimePeriod failed: ' . $e->getMessage());

@@ -2084,7 +2084,7 @@ function cleanupMonitorChartData(group, key) {
     formData.append('cleanup_chart_data', '1');
     formData.append('chart_group', group);
     formData.append('chart_key', key);
-    fetch('', { method: 'POST', body: formData, credentials: 'same-origin' })
+    fetch(window.location.pathname + window.location.search, { method: 'POST', body: formData, credentials: 'same-origin' })
         .then(response => response.json())
         .then(data => {
             if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
@@ -2225,9 +2225,10 @@ function cleanupSmartDevice(devicePath) {
     formData.append('cleanup_smart_device', '1');
     formData.append('device_path', devicePath);
 
-    fetch('', {
+    fetch(window.location.pathname + window.location.search, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'same-origin'
     })
     .then(response => response.json())
     .then(data => {
@@ -2262,9 +2263,10 @@ function cleanupMetricData(metricType) {
     formData.append('cleanup_metric_data', '1');
     formData.append('metric_type', metricType);
 
-    fetch('', {
+    fetch(window.location.pathname + window.location.search, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'same-origin'
     })
     .then(response => response.json())
     .then(data => {
@@ -2333,9 +2335,10 @@ function submitCleanupTimePeriod(event) {
     formData.append('start_time', startTime);
     formData.append('end_time', endTime);
 
-    fetch('', {
+    fetch(window.location.pathname + window.location.search, {
         method: 'POST',
-        body: formData
+        body: formData,
+        credentials: 'same-origin'
     })
     .then(response => response.json())
     .then(data => {
@@ -2378,38 +2381,12 @@ function handleBeforeUnload() {
     saveStoredData();
 }
 
-function openSideMenu() {
-    const menu = document.getElementById('sideMenu');
-    const backdrop = document.getElementById('sideMenuBackdrop');
-    if (!menu || !backdrop) return;
-    menu.classList.add('open');
-    backdrop.classList.add('open');
-    menu.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('side-menu-open');
-}
-
-function closeSideMenu() {
-    const menu = document.getElementById('sideMenu');
-    const backdrop = document.getElementById('sideMenuBackdrop');
-    if (!menu || !backdrop) return;
-    menu.classList.remove('open');
-    backdrop.classList.remove('open');
-    menu.setAttribute('aria-hidden', 'true');
-    document.body.classList.remove('side-menu-open');
-}
-
 document.getElementById('phpinfoModal').addEventListener('click', e => {
     if (e.target.id === 'phpinfoModal') closePhpInfo();
 });
 
 document.getElementById('graphModal').addEventListener('click', e => {
     if (e.target.id === 'graphModal') closeGraphModal();
-});
-
-document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
-        closeSideMenu();
-    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -2480,7 +2457,11 @@ document.addEventListener('DOMContentLoaded', () => {
     <?php if ($userRole >= 2): ?>
     window.cleanupSmartDevice = cleanupSmartDevice;
     window.cleanupMetricData = cleanupMetricData;
+    window.cleanupMonitorChartData = cleanupMonitorChartData;
+    window.deleteUptimeCheck = deleteUptimeCheck;
     window.openCleanupTimePeriodModal = openCleanupTimePeriodModal;
+    window.closeCleanupTimePeriodModal = closeCleanupTimePeriodModal;
+    window.submitCleanupTimePeriod = submitCleanupTimePeriod;
     <?php endif; ?>
     
     let lastDataCount = {

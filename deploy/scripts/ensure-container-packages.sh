@@ -1,5 +1,12 @@
 #!/bin/sh
 set -e
+if [ "${RUN_CONTAINER_PACKAGE_ENSURE:-0}" != "1" ]; then
+mkdir -p /var/www/AppDashboard/apps/cloud/tts_output/.cache
+chmod 0777 /var/www/AppDashboard/apps/cloud/tts_output /var/www/AppDashboard/apps/cloud/tts_output/.cache 2>/dev/null || true
+mkdir -p /var/www/AppDashboard/apps/cloud/transcription_uploads/.cache
+chmod 0777 /var/www/AppDashboard/apps/cloud/transcription_uploads /var/www/AppDashboard/apps/cloud/transcription_uploads/.cache 2>/dev/null || true
+exit 0
+fi
 
 # Ensure system packages
 need=""
