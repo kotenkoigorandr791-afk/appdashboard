@@ -701,14 +701,22 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     toast.querySelector('.news-toast-inner').addEventListener('click', e => {
       if (e.target.closest('#newsToastClose')) return;
       toast.style.display = 'none';
+      setTimeout(updateToastPositions, 50);
       showNewsSection();
       $('newsSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     toast.querySelector('#newsToastClose').addEventListener('click', e => {
       e.stopPropagation();
       toast.style.display = 'none';
+      setTimeout(updateToastPositions, 50);
     });
-    setTimeout(() => { if (toast) toast.style.display = 'none'; }, 14000);
+    setTimeout(() => {
+      if (toast) {
+        toast.style.display = 'none';
+        setTimeout(updateToastPositions, 50);
+      }
+    }, 14000);
+    setTimeout(updateToastPositions, 100);
   }
 
   // ── App cards ────────────────────────────────────────────────────────────────
@@ -932,6 +940,22 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     el.querySelector('.engagement-toast-cta').textContent = t.promo_cta;
   }
 
+  function updateToastPositions() {
+    const newsToast = $('newsToast');
+    const engToast = $('engagementToast');
+    if (!newsToast && !engToast) return;
+    const newsVisible = newsToast && newsToast.style.display !== 'none';
+    const engVisible = engToast;
+    if (newsVisible && engVisible) {
+      const newsHeight = newsToast.offsetHeight;
+      engToast.style.transform = `translateY(-${newsHeight + 14}px)`;
+      newsToast.style.transform = 'translateY(0)';
+    } else {
+      if (newsToast) newsToast.style.transform = 'translateY(0)';
+      if (engToast) engToast.style.transform = 'translateY(0)';
+    }
+  }
+
   function showEngagementPromo() {
     if ($('engagementToast')) return;
     try { if (sessionStorage.getItem(PROMO_KEY) === '1') return; } catch (e) { return; }
@@ -953,7 +977,9 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     toast.querySelector('.engagement-toast-close').addEventListener('click', () => {
       try { sessionStorage.setItem(PROMO_KEY, '1'); } catch (e) {}
       toast.remove();
+      setTimeout(updateToastPositions, 50);
     });
+    setTimeout(updateToastPositions, 100);
   }
 
   function hasAuthCookies() {

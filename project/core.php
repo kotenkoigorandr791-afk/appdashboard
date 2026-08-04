@@ -2935,6 +2935,8 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         $body = trim((string)($input['body'] ?? ''));
         $published = !empty($input['published']);
         $photo = trim((string)($input['photo'] ?? ''));
+        $hasCreatedAt = array_key_exists('created_at', $input);
+        $createdAt = (int)($input['created_at'] ?? 0);
         if ($title === '') { echo json_encode(['ok' => false, 'error' => 'title_required']); exit; }
         $now = time();
         if ($id === '') {
@@ -2945,17 +2947,19 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
             $stmt->bindValue(':body', $body, PDO::PARAM_STR);
             $stmt->bindValue(':photo', $photo, PDO::PARAM_STR);
             $stmt->bindValue(':published', $published ? 1 : 0, PDO::PARAM_INT);
-            $stmt->bindValue(':created_at', $now, PDO::PARAM_INT);
+            $stmt->bindValue(':created_at', $createdAt > 0 ? $createdAt : $now, PDO::PARAM_INT);
             $stmt->bindValue(':author', $userEmail !== '' ? $userEmail : 'external-ai', PDO::PARAM_STR);
             $stmt->execute();
         } else {
-            $stmt = $db->prepare("UPDATE app_news SET title = :title, body = :body, photo = :photo, published = :published, updated_at = :updated_at WHERE id = :id");
+            $createdAtSql = $hasCreatedAt && $createdAt > 0 ? ", created_at = :created_at" : "";
+            $stmt = $db->prepare("UPDATE app_news SET title = :title, body = :body, photo = :photo, published = :published, updated_at = :updated_at{$createdAtSql} WHERE id = :id");
             $stmt->bindValue(':id', $id, PDO::PARAM_STR);
             $stmt->bindValue(':title', $title, PDO::PARAM_STR);
             $stmt->bindValue(':body', $body, PDO::PARAM_STR);
             $stmt->bindValue(':photo', $photo, PDO::PARAM_STR);
             $stmt->bindValue(':published', $published ? 1 : 0, PDO::PARAM_INT);
             $stmt->bindValue(':updated_at', $now, PDO::PARAM_INT);
+            if ($hasCreatedAt && $createdAt > 0) $stmt->bindValue(':created_at', $createdAt, PDO::PARAM_INT);
             $stmt->execute();
         }
         echo json_encode(['ok' => true, 'id' => $id]);
