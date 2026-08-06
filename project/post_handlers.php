@@ -1661,7 +1661,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-2h2v7h-2v-7zm4 4h2v3h-2v-3z"/></svg>
                     <?php echo my_htmlspecialchars($translations['stats_graph']??'Chart Preview'); ?>
                     <!-- Range controls -->
-                    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-weight:400;text-transform:none;letter-spacing:0;">
+                    <div id="ap-stats-range-controls" style="margin-left:auto;display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;letter-spacing:0;">
                         <button type="button" id="ap-chart-range-7"   class="ap-btn ap-btn-secondary ap-chart-range-btn" data-range="7"   style="padding:3px 9px;font-size:11px;">7d</button>
                         <button type="button" id="ap-chart-range-30"  class="ap-btn ap-btn-secondary ap-chart-range-btn" data-range="30"  style="padding:3px 9px;font-size:11px;">30d</button>
                         <button type="button" id="ap-chart-range-90"  class="ap-btn ap-btn-secondary ap-chart-range-btn" data-range="90"  style="padding:3px 9px;font-size:11px;">90d</button>

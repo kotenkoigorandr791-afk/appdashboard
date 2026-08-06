@@ -11,6 +11,16 @@ let originalBody = '';
 let originalPhoto = '';
 let originalDate = '';
 
+// Convert a unix timestamp to YYYY-MM-DD for the date input
+function dateInputValue(ts) {
+    if (!ts) return '';
+    const d = new Date(ts * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 // Load AI models from server config
 async function loadAiModels() {
     const modelSelects = document.querySelectorAll('#npo-ai-model, #npo-settings-ai-model');
@@ -90,6 +100,8 @@ async function generateWithAi() {
             document.getElementById('npo-edit-title').value = data.title || currentTitle;
             if (window.setBodyValue) window.setBodyValue(data.body || currentBody);
             else document.getElementById('npo-edit-body').value = data.body || currentBody;
+            const npoDate = document.getElementById('npo-edit-date');
+            if (data.created_at && npoDate) npoDate.value = dateInputValue(data.created_at);
             statusEl.textContent = 'Generated successfully!';
             markAsChanged();
         } else {
@@ -231,6 +243,10 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 .npo-list-status.published{background:rgba(34,197,94,.18);color:#16a34a;}
 .npo-list-status.draft{background:rgba(148,163,184,.15);color:#94a3b8;}
 .npo-list-date{font-size:10px;opacity:.45;}
+.npo-date-divider{display:flex;align-items:center;gap:12px;margin:14px 2px 6px;user-select:none;}
+.npo-date-divider:first-child{margin-top:2px;}
+.npo-date-line{flex:1;height:1px;background:var(--border-color);opacity:.55;}
+.npo-date-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.6;white-space:nowrap;color:color-mix(in srgb,var(--text-color) 80%,var(--primary-color));}
 /* Main panel */
 #npo-main{flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;}
 /* Tab panes */
@@ -361,7 +377,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
       </div>
       <div class="npo-settings-field" style="margin-bottom:0;">
         <label><?php echo my_htmlspecialchars($translations['system_prompt'] ?? 'System prompt'); ?></label>
-        <textarea id="npo-system-prompt">You are a news article writer. Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.</textarea>
+        <textarea id="npo-system-prompt">You are a news article writer. Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"...","created_at":<optional publication date as a unix timestamp in seconds>}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.</textarea>
       </div>
     </div>
     <?php endif; ?>
@@ -473,7 +489,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             <input type="hidden" id="npo-photo-url">
           </div>
           <div class="npo-field">
-            <label><?php echo my_htmlspecialchars($translations['news_publication_date'] ?? 'Дата публикации'); ?></label>
+            <label><?php echo my_htmlspecialchars($translations['news_publication_date'] ?? 'Publication date'); ?></label>
             <input type="date" id="npo-edit-date">
           </div>
           <label class="npo-toggle">
@@ -621,7 +637,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
   function startAutoRefresh() {
     stopAutoRefresh();
     refreshTimer = setInterval(() => {
-      if (overlay.classList.contains('active')) loadNews();
+      if (overlay.classList.contains('active') && listEl.scrollTop < 80) loadNews();
     }, 20000);
   }
   function stopAutoRefresh() {
@@ -631,6 +647,12 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
 
   document.getElementById('npo-back').addEventListener('click', closeNewsPortal);
   refreshListBtn?.addEventListener('click', () => loadNews());
+  // Load more news when scrolled near the bottom of the list
+  listEl.addEventListener('scroll', () => {
+    if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 160) {
+      if (hasMore && !loadingMore) loadNews(false);
+    }
+  });
   settingsBtn?.addEventListener('click', e => {
     e.stopPropagation();
     settingsPopover?.classList.toggle('open');
@@ -655,22 +677,57 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     });
   });
 
-  // ── Load news ──────────────────────────────────────────────────────────────
-  function loadNews() {
+  // ── Load news (paginated) ──────────────────────────────────────────────────
+  let listOffset = 0;
+  let hasMore = true;
+  let loadingMore = false;
+  let lastGroupKey = null;
+  const LIST_PAGE_SIZE = 20;
+
+  function dateDividerLabel(ts) {
+    if (!ts) return '';
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const dayStart = new Date(ts * 1000);
+    dayStart.setHours(0, 0, 0, 0);
+    const diff = Math.round((todayStart - dayStart.getTime()) / 86400000);
+    if (diff === 0) return '<?php echo my_htmlspecialchars($translations['news_today'] ?? 'Today'); ?>';
+    if (diff === 1) return '<?php echo my_htmlspecialchars($translations['news_yesterday'] ?? 'Yesterday'); ?>';
+    return fmtDate(ts);
+  }
+
+  function loadNews(reset = true) {
+    if (reset) {
+      listOffset = 0;
+      hasMore = true;
+      lastGroupKey = null;
+    }
+    if (!hasMore || loadingMore) return;
+    loadingMore = true;
     refreshListBtn?.classList.add('loading');
-    fetch('/main?api=news&action=list')
+    fetch('/main?api=news&action=list&limit=' + LIST_PAGE_SIZE + '&offset=' + listOffset)
       .then(r => r.json())
       .then(data => {
         if (!data.ok) return;
-        newsItems = data.items || [];
+        const more = data.items || [];
         newsLayout = data.layout || {};
-        renderList();
-        if (selectedId) {
+        hasMore = !!data.has_more;
+        listOffset += more.length;
+        if (reset) {
+          newsItems = more;
+          renderList();
+        } else {
+          const existing = new Set(newsItems.map(n => n.id));
+          const fresh = more.filter(n => !existing.has(n.id));
+          newsItems = newsItems.concat(fresh);
+          appendListItems(fresh);
+        }
+        if (reset && selectedId) {
           const item = newsItems.find(n => n.id === selectedId);
           if (item) openEditor(item); else closeEditor();
         }
       })
-      .finally(() => refreshListBtn?.classList.remove('loading'));
+      .finally(() => { loadingMore = false; refreshListBtn?.classList.remove('loading'); });
   }
 
   function escH(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -686,6 +743,13 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
+  function todayDateString() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
   function dateInputTimestamp(value) {
     if (!value) return 0;
     const d = new Date(value + 'T00:00:00');
@@ -693,18 +757,12 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     return Number.isFinite(ts) ? ts : 0;
   }
 
-  // ── Sidebar list ───────────────────────────────────────────────────────────
-  function renderList() {
-    if (!newsItems.length) {
-      listEl.innerHTML = '<div style="padding:24px;text-align:center;opacity:.45;font-size:13px;"><?php echo my_htmlspecialchars($translations['news_empty'] ?? 'No news yet.'); ?></div>';
-      return;
-    }
-    listEl.innerHTML = '';
-    newsItems.forEach(item => {
-      const el = document.createElement('div');
-      el.className = 'npo-list-item' + (item.id === selectedId ? ' selected' : '');
-      el.dataset.id = item.id;
-      el.innerHTML = `
+  // ── Sidebar list (grouped by day) ─────────────────────────────────────────
+  function buildListItem(item) {
+    const el = document.createElement('div');
+    el.className = 'npo-list-item' + (item.id === selectedId ? ' selected' : '');
+    el.dataset.id = item.id;
+    el.innerHTML = `
 ${item.photo
   ? `<img class="npo-list-thumb" src="/${escH(item.photo)}" alt="" loading="lazy">`
   : `<div class="npo-list-thumb-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`}
@@ -715,9 +773,33 @@ ${item.photo
     <span class="npo-list-date">${fmtDate(item.created_at)}</span>
   </div>
 </div>`;
-      el.addEventListener('click', () => { openEditor(item); switchToEditorTab(); });
-      listEl.appendChild(el);
+    el.addEventListener('click', () => { openEditor(item); switchToEditorTab(); });
+    return el;
+  }
+
+  function appendListItems(items) {
+    items.forEach(item => {
+      const key = dateInputValue(item.created_at);
+      if (key !== lastGroupKey) {
+        lastGroupKey = key;
+        const div = document.createElement('div');
+        div.className = 'npo-date-divider';
+        div.innerHTML = `<div class="npo-date-line"></div><div class="npo-date-label">${escH(dateDividerLabel(item.created_at))}</div><div class="npo-date-line"></div>`;
+        listEl.appendChild(div);
+      }
+      listEl.appendChild(buildListItem(item));
     });
+  }
+
+  function renderList() {
+    if (!newsItems.length) {
+      listEl.innerHTML = '<div style="padding:24px;text-align:center;opacity:.45;font-size:13px;"><?php echo my_htmlspecialchars($translations['news_empty'] ?? 'No news yet.'); ?></div>';
+      lastGroupKey = null;
+      return;
+    }
+    listEl.innerHTML = '';
+    lastGroupKey = null;
+    appendListItems(newsItems);
   }
 
   function switchToEditorTab() {
@@ -740,7 +822,7 @@ ${item.photo
     if (bodyMonaco) bodyMonaco.setValue(item ? (item.body || '') : '');
     document.getElementById('npo-published').checked = item ? !!item.published : false;
     document.getElementById('npo-photo-url').value = item ? (item.photo || '') : '';
-    document.getElementById('npo-edit-date').value = item ? dateInputValue(item.created_at) : '';
+    document.getElementById('npo-edit-date').value = item ? dateInputValue(item.created_at) : todayDateString();
     document.getElementById('npo-status').textContent = '';
     const pp = document.getElementById('npo-photo-preview');
     const ppw = document.getElementById('npo-photo-preview-wrap');
@@ -883,6 +965,8 @@ ${item.photo
       if (data.ok) {
         if (data.title) document.getElementById('npo-edit-title').value = data.title;
         if (data.body) setBodyValue(data.body);
+        if (data.created_at) document.getElementById('npo-edit-date').value = dateInputValue(data.created_at);
+        markAsChanged();
         aiStatus.textContent = '<?php echo my_htmlspecialchars($translations['done'] ?? 'Done!'); ?>';
       } else {
         aiStatus.textContent = data.error || 'AI error';
@@ -1269,19 +1353,19 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
       if (window.monaco) return Promise.resolve(window.monaco);
       if (window.__apMonacoPromise) return window.__apMonacoPromise;
       window.__apMonacoPromise = new Promise((resolve, reject) => {
-        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
-        const loadEditor = () => {
+        const localVs = '/project/assets/monaco-0.45.0/vs';
+        const loadEditor = (vsPath) => {
           try {
-            require.config({ paths: { vs: cdnVs } });
+            require.config({ paths: { vs: vsPath } });
             require(['vs/editor/editor.main'], () => resolve(window.monaco), reject);
           } catch (e) {
             reject(e);
           }
         };
-        const loadScript = (src) => {
+        const loadScript = (src, vsPath) => {
           const existing = document.querySelector('script[src="' + src + '"]');
           const script = existing || document.createElement('script');
-          script.addEventListener('load', loadEditor, { once: true });
+          script.addEventListener('load', () => loadEditor(vsPath), { once: true });
           script.addEventListener('error', reject, { once: true });
           if (!existing) {
             script.src = src;
@@ -1289,10 +1373,10 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
           }
         };
         if (typeof require === 'function') {
-          loadEditor();
+          loadEditor(localVs);
           return;
         }
-        loadScript(cdnVs + '/loader.js');
+        loadScript(localVs + '/loader.js', localVs);
       });
       return window.__apMonacoPromise;
     };
