@@ -747,8 +747,10 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
         showModal(app.id, l);
         clearTimeout(timer);
       });
-      card.addEventListener('mouseenter', (e) => handleAppMouseEnter(e, card, app.name, t.apps[app.id] || ''));
-      card.addEventListener('mouseleave', hideAppTooltip);
+      card.addEventListener('pointerenter', (e) => handleAppMouseEnter(e, card, app.name, t.apps[app.id] || ''));
+      card.addEventListener('focusin', (e) => handleAppMouseEnter(e, card, app.name, t.apps[app.id] || ''));
+      card.addEventListener('pointerleave', hideAppTooltip);
+      card.addEventListener('focusout', hideAppTooltip);
       card.addEventListener('mousemove', (e) => updateTooltipPosition(e, card));
       grid.appendChild(card);
     });
@@ -762,7 +764,7 @@ function handleAppMouseEnter(e, card, name, desc) {
      if (tooltipTimer) clearTimeout(tooltipTimer);
      tooltipTimer = setTimeout(() => {
          showAppTooltip(card, name, desc);
-     }, 3000);
+     }, 150);
  }
 
  function hideAppTooltip() {
@@ -791,20 +793,7 @@ function handleAppMouseEnter(e, card, name, desc) {
 
   function updateTooltipPosition(e, card) {
       if (!appTooltip) return;
-      const cardRect = card.getBoundingClientRect();
-      const viewportWidth = window.innerWidth;
-      const tooltipWidth = appTooltip.offsetWidth || 200;
-      const midpoint = cardRect.left + cardRect.width / 2;
-      const isRightSide = midpoint > viewportWidth / 2;
-      const sideClass = isRightSide ? 'right-side' : 'left-side';
-      appTooltip.classList.remove('left-side', 'right-side');
-      appTooltip.classList.add(sideClass);
-      if (isRightSide) {
-          appTooltip.style.left = `${cardRect.right + 10}px`;
-      } else {
-          appTooltip.style.left = `${cardRect.left - tooltipWidth - 10}px`;
-      }
-      appTooltip.style.top = `${cardRect.top + cardRect.height / 2 - appTooltip.offsetHeight / 2}px`;
+      positionTooltip(appTooltip, card);
   }
 
   // Tooltip for register link
@@ -815,7 +804,7 @@ function handleAppMouseEnter(e, card, name, desc) {
       const link = e.currentTarget;
       registerTooltipTimer = setTimeout(() => {
           showRegisterTooltip(link);
-      }, 3000);
+      }, 150);
   }
 
   function hideRegisterTooltip() {
@@ -845,20 +834,25 @@ function handleAppMouseEnter(e, card, name, desc) {
 
   function updateRegisterTooltipPosition(e, linkElement) {
       if (!registerTooltip || !linkElement) return;
-      const linkRect = linkElement.getBoundingClientRect();
+      positionTooltip(registerTooltip, linkElement);
+  }
+
+  function positionTooltip(tooltip, anchor) {
+      const linkRect = anchor.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
-      const tooltipWidth = registerTooltip.offsetWidth || 200;
+      const viewportHeight = window.innerHeight;
+      const tooltipWidth = tooltip.offsetWidth || 200;
+      const tooltipHeight = tooltip.offsetHeight || 40;
       const midpoint = linkRect.left + linkRect.width / 2;
-      const isRightSide = midpoint > viewportWidth / 2;
-      const sideClass = isRightSide ? 'right-side' : 'left-side';
-      registerTooltip.classList.remove('left-side', 'right-side');
-      registerTooltip.classList.add(sideClass);
-      if (isRightSide) {
-          registerTooltip.style.left = `${linkRect.right + 10}px`;
+      const sideClass = midpoint > viewportWidth / 2 ? 'left-side' : 'right-side';
+      tooltip.classList.remove('left-side', 'right-side');
+      tooltip.classList.add(sideClass);
+      if (sideClass === 'right-side') {
+          tooltip.style.left = `${Math.min(linkRect.right + 10, viewportWidth - tooltipWidth - 8)}px`;
       } else {
-          registerTooltip.style.left = `${linkRect.left - tooltipWidth - 10}px`;
+          tooltip.style.left = `${Math.max(linkRect.left - tooltipWidth - 10, 8)}px`;
       }
-      registerTooltip.style.top = `${linkRect.top + linkRect.height / 2 - registerTooltip.offsetHeight / 2}px`;
+      tooltip.style.top = `${Math.max(8, Math.min(linkRect.top + linkRect.height / 2 - tooltipHeight / 2, viewportHeight - tooltipHeight - 8))}px`;
   }
 
   function showModal(id, l) {
@@ -979,8 +973,10 @@ function bindAuthLink(el) {
      
      // Add tooltip for register link
      if (el.id === 'registerLink' || el.id === 'drawerRegisterLink') {
-         el.addEventListener('mouseenter', handleRegisterMouseEnter);
-         el.addEventListener('mouseleave', hideRegisterTooltip);
+         el.addEventListener('pointerenter', handleRegisterMouseEnter);
+         el.addEventListener('focusin', handleRegisterMouseEnter);
+         el.addEventListener('pointerleave', hideRegisterTooltip);
+         el.addEventListener('focusout', hideRegisterTooltip);
      }
  }
 
@@ -1008,24 +1004,17 @@ function bindAuthLink(el) {
   }
 
   function updateToastPositions() {
-    const newsToast = $('newsToast');
-    const engToast = $('engagementToast');
-    if (!newsToast && !engToast) return;
-    const newsVisible = newsToast && newsToast.style.display !== 'none';
-    const engVisible = engToast;
-    if (newsVisible && engVisible) {
-      const newsHeight = newsToast.offsetHeight;
-      engToast.style.transform = `translateY(-${newsHeight + 14}px)`;
-      newsToast.style.transform = 'translateY(0)';
-    } else {
-      if (newsToast) newsToast.style.transform = 'translateY(0)';
-      if (engToast) engToast.style.transform = 'translateY(0)';
-    }
+    const stack = [$('newsToast'), $('engagementToast'), $('exploreWidget')]
+      .filter(el => el && el.style.display !== 'none');
+    let offset = 0;
+    stack.forEach(el => {
+      el.style.bottom = (22 + offset) + 'px';
+      offset += el.offsetHeight + 14;
+    });
   }
 
   function showEngagementPromo() {
     if ($('engagementToast')) return;
-    try { if (sessionStorage.getItem(PROMO_KEY) === '1') return; } catch (e) { return; }
     const t = I18N[lang] || I18N.en;
     const toast = document.createElement('div');
     toast.id = 'engagementToast'; toast.className = 'engagement-toast'; toast.setAttribute('role', 'status');
@@ -1049,20 +1038,10 @@ function bindAuthLink(el) {
     setTimeout(updateToastPositions, 100);
   }
 
-  function hasAuthCookies() {
-    try {
-      const c = document.cookie;
-      return c.indexOf('trusted_device_hint=') !== -1
-        || c.indexOf('sk_user_has_account=') !== -1;
-    } catch { return false; }
-  }
-
   function scheduleEngagement() {
-    try { if (sessionStorage.getItem(PROMO_KEY) === '1') return; } catch (e) { return; }
-    if (hasAuthCookies()) return;
     if (engagementScheduled) return;
     engagementScheduled = true;
-    setTimeout(showEngagementPromo, 30000 + Math.random() * 90000);
+    setTimeout(showEngagementPromo, 2500);
   }
 
   const EXPLORE_KEY = 'sk_explore_dismissed';
@@ -1071,9 +1050,8 @@ function bindAuthLink(el) {
   function scheduleExploreWidget() {
     if (isNewsRoute) return;
     if (exploreWidgetShown) return;
-    try { if (sessionStorage.getItem(EXPLORE_KEY) === '1') return; } catch (e) { return; }
     exploreWidgetShown = true;
-    setTimeout(showExploreWidget, 45000 + Math.random() * 30000);
+    setTimeout(showExploreWidget, 5000);
   }
 
   function showExploreWidget() {
@@ -1104,6 +1082,7 @@ function bindAuthLink(el) {
       item.innerHTML = `<div class="explore-app-icon">${app.icon}</div><div><div class="explore-app-name">${escH(app.name)}</div><div class="explore-app-desc">${escH(app.desc)}</div></div>`;
       item.addEventListener('click', () => {
         widget.remove();
+        setTimeout(updateToastPositions, 50);
         showModal(app.id, lang);
       });
       list.appendChild(item);
@@ -1111,7 +1090,9 @@ function bindAuthLink(el) {
     widget.querySelector('.explore-widget-close').addEventListener('click', () => {
       try { sessionStorage.setItem(EXPLORE_KEY, '1'); } catch (e) {}
       widget.remove();
+      setTimeout(updateToastPositions, 50);
     });
+    setTimeout(updateToastPositions, 100);
   }
 
   function openNav() {
@@ -1175,6 +1156,7 @@ function bindAuthLink(el) {
   });
 
   initLanguageMenu();
+  window.addEventListener('resize', updateToastPositions);
   document.querySelectorAll('#themeToggle button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.theme)));
 
   ['loginLink', 'registerLink', 'otpLink', 'drawerLoginLink', 'drawerRegisterLink', 'drawerOtpLink'].forEach(id => bindAuthLink($(id)));

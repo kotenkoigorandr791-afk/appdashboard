@@ -2771,10 +2771,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
             $stmt->execute();
         }
     }
-    function newsLoadAllDb(AppDatabase $db, bool $canEdit): array {
+    function newsLoadAllDb(AppDatabase $db, bool $canEdit, int $limit = 0, int $offset = 0): array {
         $sql = "SELECT id, title, body, photo, published, created_at, updated_at, author FROM app_news";
         if (!$canEdit) $sql .= " WHERE published = 1";
         $sql .= " ORDER BY created_at DESC";
+        if ($limit > 0) $sql .= " LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
         $res = $db->query($sql);
         $items = [];
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
@@ -2815,9 +2816,12 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
     header('Content-Type: application/json; charset=utf-8');
 
     if ($action === 'list') {
-        $items = newsLoadAllDb($db, $canEdit);
+        $listLimit = max(1, min(200, (int)($_GET['limit'] ?? 20)));
+        $listOffset = max(0, (int)($_GET['offset'] ?? 0));
+        $items = newsLoadAllDb($db, $canEdit, $listLimit, $listOffset);
+        $total = (int)$db->querySingle("SELECT COUNT(*) FROM app_news" . ($canEdit ? '' : " WHERE published = 1"));
         $layout = is_file($layoutFile) ? (json_decode(file_get_contents($layoutFile), true) ?: []) : [];
-        echo json_encode(['ok' => true, 'items' => $items, 'can_edit' => $canEdit, 'layout' => $layout]);
+        echo json_encode(['ok' => true, 'items' => $items, 'can_edit' => $canEdit, 'layout' => $layout, 'total' => $total, 'has_more' => ($listOffset + count($items)) < $total]);
         exit;
     }
 
@@ -2862,7 +2866,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         if ($currentTitle || $currentBody) {
             $systemMsg .= 'The user is editing an existing article. Current title: "' . $currentTitle . '". Current content: "' . $currentBody . '". ';
         }
-        $systemMsg .= 'Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"..."}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.';
+        $systemMsg .= 'Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"...","created_at":<optional publication date as a unix timestamp in seconds>}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.';
             $selectedModel = trim((string)($input['model'] ?? ''));
             $model = cloud_ai_normalize_model_id(
                 in_array($selectedModel, $aiCfg['models']) ? $selectedModel : 
@@ -2898,7 +2902,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
             }
             $parsed = json_decode($text, true);
             if (isset($parsed['title'], $parsed['body'])) {
-                echo json_encode(['ok' => true, 'title' => (string)$parsed['title'], 'body' => (string)$parsed['body']]);
+                echo json_encode(['ok' => true, 'title' => (string)$parsed['title'], 'body' => (string)$parsed['body'], 'created_at' => isset($parsed['created_at']) ? (int)$parsed['created_at'] : 0]);
             } else {
                 echo json_encode(['ok' => true, 'title' => '', 'body' => $text]);
             }
@@ -3059,10 +3063,10 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         $previousArticles = '';
         $newsItems = [];
         try {
-            $newsItems = newsLoadAllDb($db, $canEdit);
+            $newsItems = newsLoadAllDb($db, $canEdit, 5);
             if (!empty($newsItems)) {
                 // Take the 5 most recent published articles
-                $recentNews = array_slice($newsItems, 0, 5);
+                $recentNews = $newsItems;
                 $lines = [];
                 foreach ($recentNews as $ni) {
                     $pub = !empty($ni['published']) ? 'Published' : 'Draft';
@@ -3115,15 +3119,19 @@ curl -sS -X POST '{$apiUrl}' \
 {
   "title": "Your News Title Here",
   "body": "Your markdown article body here...",
-  "published": true
+  "published": true,
+  "created_at": 1710000000
 }
 JSON
 ```
 
 The request body must be valid JSON:
 ```json
-{"title": "Your News Title Here", "body": "Your markdown article body here...", "published": true}
+{"title": "Your News Title Here", "body": "Your markdown article body here...", "published": true, "created_at": 1710000000}
 ```
+
+## Publication Date
+Set the publication date by adding "created_at" to the request body as a Unix timestamp in seconds (e.g. "created_at": 1710000000). Omit it to use the current date/time. You can backdate an article with a past timestamp or schedule one for a future date. To change the date of an existing article, include its "id" in the request together with the new "created_at".
 
 The API response is JSON. A successful response looks like:
 ```json

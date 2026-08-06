@@ -4397,8 +4397,6 @@ var T=<?php echo json_encode([
         function formatBytesJS(bytes){ if(bytes===0)return'0 B';const u=['B','KB','MB','GB','TB'];const e=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),u.length-1);return(bytes/Math.pow(1024,e)).toFixed(2)+' '+u[e]; }
         function refreshSessionsList(){const refreshButton=document.getElementById('refresh-sessions');const originalHTML=refreshButton.innerHTML;refreshButton.innerHTML='<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>';refreshButton.style.opacity='0.7';refreshButton.disabled=true;setTimeout(()=>{showTempNotification(T.session_refreshed,'success');refreshButton.innerHTML=originalHTML;refreshButton.style.opacity='1';refreshButton.disabled=false;},1000);}
         function showTempNotification(message,type='info'){
-            const existingNotification=document.querySelector('.temp-notification');
-            if(existingNotification){existingNotification.remove();}
             const notification=document.createElement('div');
             notification.className=`notification temp-notification ${type}`;
             const iconPath = type==='success'
@@ -4417,13 +4415,21 @@ var T=<?php echo json_encode([
             const closeBtn = notification.querySelector('.notification-close');
             closeBtn.addEventListener('click', () => {
                 notification.classList.remove('show');
-                setTimeout(() => notification.remove(), 250);
+                setTimeout(() => { notification.remove(); updateTempNotificationStack(); }, 250);
             });
+            updateTempNotificationStack();
             setTimeout(() => { notification.classList.add('show'); }, 50);
             setTimeout(() => {
                 notification.classList.remove('show');
-                setTimeout(() => { if(notification.parentNode) notification.remove(); }, 250);
+                setTimeout(() => { if(notification.parentNode) notification.remove(); updateTempNotificationStack(); }, 250);
             }, 4000);
+        }
+        function updateTempNotificationStack(){
+            let offset=0;
+            Array.from(document.querySelectorAll('.temp-notification')).reverse().forEach(function(el){
+                el.style.bottom=(24+offset)+'px';
+                offset+=el.offsetHeight+10;
+            });
         }
         (function(){
             const notificationButtons=Array.from(document.querySelectorAll('#notifications-btn'));
@@ -4991,7 +4997,7 @@ var T=<?php echo json_encode([
                 if(tile&&grid.contains(tile)){
                     if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
                     if(showTimer){clearTimeout(showTimer);}
-                    showTimer=setTimeout(function(){show(tile);},3000);
+                    showTimer=setTimeout(function(){show(tile);},150);
                     return;
                 }
                 hidePop();
@@ -5636,6 +5642,12 @@ var T=<?php echo json_encode([
     opacity: .85;
 }
 .ap-card-title svg { color: var(--primary-color); }
+#ap-stats-range-controls { flex-wrap: wrap; }
+#ap-stats-range-controls > * { white-space: nowrap; flex-shrink: 0; }
+#ap-stats-range-controls input[type="date"] { flex-shrink: 1; }
+@media (min-width: 1200px) {
+    #ap-stats-range-controls { flex-wrap: nowrap; }
+}
 
 /* Settings tabs */
 .ap-settings-tabs {
@@ -6137,7 +6149,8 @@ var T=<?php echo json_encode([
 
 /* Handsontable light theme (default) */
 #ap-stats-hot-table .handsontable th,
-#ap-stats-hot-table .handsontable td {
+#ap-stats-hot-table .handsontable td,
+#ap-stats-hot-table .handsontable [role="rowgroup"] {
     background-color: var(--bg-color) !important;
     color: var(--text-color) !important;
     border-color: var(--border-color) !important;
@@ -6149,7 +6162,35 @@ var T=<?php echo json_encode([
 #ap-stats-hot-table .handsontable tr:hover td {
     background-color: var(--group-block-bg) !important;
 }
-#ap-stats-hot-table .handsontable .htCore thead tr:first-child th {
+#ap-stats-hot-table .handsontable .htCore thead,
+#ap-stats-hot-table .handsontable .htCore thead tr,
+#ap-stats-hot-table .handsontable .htCore thead tr:first-child th,
+#ap-stats-hot-table .handsontable.ht_clone_top,
+#ap-stats-hot-table .handsontable.ht_clone_top .wtHolder,
+#ap-stats-hot-table .handsontable.ht_clone_top .wtHider,
+#ap-stats-hot-table .handsontable.ht_clone_top .wtSpreader,
+#ap-stats-hot-table .handsontable.ht_clone_top_left_corner,
+#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .wtHolder,
+#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .wtHider,
+#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .wtSpreader,
+#ap-stats-hot-table .handsontable .ht_clone_top,
+#ap-stats-hot-table .handsontable .ht_clone_top .wtHolder,
+#ap-stats-hot-table .handsontable .ht_clone_top .wtHider,
+#ap-stats-hot-table .handsontable .ht_clone_top .wtSpreader,
+#ap-stats-hot-table .handsontable .ht_clone_top_left_corner,
+#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .wtHolder,
+#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .wtHider,
+#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .wtSpreader,
+#ap-stats-hot-table .handsontable [role="rowgroup"],
+#ap-stats-hot-table .handsontable [role="rowgroup"] tr,
+#ap-stats-hot-table .handsontable [role="rowgroup"] th {
+    background-color: var(--table-header-bg) !important;
+    color: var(--text-color) !important;
+}
+#ap-stats-hot-table .handsontable.ht_clone_top .htCore,
+#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .htCore,
+#ap-stats-hot-table .handsontable .ht_clone_top .htCore,
+#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .htCore {
     background-color: var(--table-header-bg) !important;
 }
 /* Custom selection color — uses CSS variable set by JS */
@@ -6528,24 +6569,32 @@ var monacoInjected = false;
 window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
-    window.__apMonacoPromise = new Promise(function(resolve,reject){
-        var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
-        function loadEditor(){
-            try{
-                require.config({paths:{vs:cdnVs}});
-                require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
-            }catch(e){reject(e);}
-        }
-        function loadScript(src){
+    var localVs='/project/assets/monaco-0.45.0/vs';
+    var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
+    function loadScript(src){
+        return new Promise(function(resolve,reject){
             var existing=document.querySelector('script[src="'+src+'"]');
             var s=existing||document.createElement('script');
-            s.addEventListener('load',loadEditor,{once:true});
-            s.addEventListener('error',reject,{once:true});
-            if(!existing){s.src=src;document.head.appendChild(s);}
-        }
-        if(typeof require==='function'){loadEditor();return;}
-        loadScript(cdnVs+'/loader.js');
-    });
+            s.addEventListener('load',function(){s.dataset.apLoaded='1';resolve();},{once:true});
+            s.addEventListener('error',function(){reject(new Error('Failed to load '+src));},{once:true});
+            if(existing&&existing.dataset.apLoaded==='1') setTimeout(resolve,0);
+            else if(existing&&existing.readyState==='complete') setTimeout(resolve,0);
+            else if(!existing){s.src=src;s.async=false;document.head.appendChild(s);}
+        });
+    }
+    function loadEditor(vsPath){
+        return new Promise(function(resolve,reject){
+            try{
+                require.config({paths:{vs:vsPath}});
+                require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
+            }catch(e){reject(e);}
+        });
+    }
+    function tryLoad(vsPath){
+        var ready=typeof require==='function'?Promise.resolve():loadScript(vsPath+'/loader.js');
+        return ready.then(function(){return loadEditor(vsPath);});
+    }
+    window.__apMonacoPromise = tryLoad(localVs).catch(function(){return tryLoad(cdnVs);});
     return window.__apMonacoPromise;
 };
 
