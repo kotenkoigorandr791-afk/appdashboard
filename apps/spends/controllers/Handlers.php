@@ -22,16 +22,16 @@ if (isset($_GET['get_ocr_stats'])) {
     $daily = [];
     $monthly = [];
     if ($storeFilter === '__all__') {
-        $dr = $udb->query("SELECT date,store,ROUND(SUM(amount),2) AS amount FROM expenses WHERE amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC,store ASC");
+        $dr = $udb->query("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC,store ASC");
         while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-        $mr = $udb->query("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount),2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC,store ASC");
+        $mr = $udb->query("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC,store ASC");
         while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
     } else {
-        $st = $udb->prepare("SELECT date,store,ROUND(SUM(amount),2) AS amount FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC");
+        $st = $udb->prepare("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC");
         $st->bindValue(':s', $storeFilter);
         $dr = $st->execute();
         while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-        $st2 = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount),2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC");
+        $st2 = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC");
         $st2->bindValue(':s', $storeFilter);
         $mr = $st2->execute();
         while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;

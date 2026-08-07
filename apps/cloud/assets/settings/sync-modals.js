@@ -628,6 +628,7 @@ if command -v mount.davfs >/dev/null 2>&1; then
     $SUDO_CMD grep -vF "$WEBDAV_URL" /etc/davfs2/secrets > "$ROOT_SECRETS_TMP" || true
     printf '%s %s %s\\n' "$WEBDAV_URL" "$WEBDAV_USER" "$WEBDAV_TOKEN" >> "$ROOT_SECRETS_TMP"
     $SUDO_CMD mv "$ROOT_SECRETS_TMP" /etc/davfs2/secrets
+    $SUDO_CMD chown root:root /etc/davfs2/secrets
     $SUDO_CMD chmod 600 /etc/davfs2/secrets
   fi
   if mount_is_healthy; then

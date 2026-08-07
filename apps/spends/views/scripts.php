@@ -1,14 +1,15 @@
 <script>
-const translations = <?= json_encode($translations) ?>;
-const currentLang = <?= json_encode($language) ?>;
+<?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
+const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;
+const currentLang = <?= json_encode($language, $jsonFlags) ?: '"en"' ?>;
 const ocrI18n={en:{waiting:'Waiting for OCR start...',done:'OCR completed',recognized:'recognized',unresolved:'unresolved',warning:'Warning',autoAdded:'Auto-added to database',manualAdded:'Added after manual mapping',dbAdded:'OCR data added to database',jobCreated:'Job created',baseCurrency:'Accounting currency',statusError:'Status error',ocrError:'OCR error',startError:'Start error'},ru:{waiting:'Ожидание запуска OCR...',done:'OCR завершен',recognized:'распознано',unresolved:'нераспознано',warning:'Предупреждение',autoAdded:'Автоматически добавлено в базу',manualAdded:'Добавлено после ручного сопоставления',dbAdded:'OCR данные добавлены в базу',jobCreated:'Задача создана',baseCurrency:'Валюта учета',statusError:'Ошибка статуса',ocrError:'Ошибка OCR',startError:'Ошибка запуска'},uk:{waiting:'Очікування запуску OCR...',done:'OCR завершено',recognized:'розпізнано',unresolved:'нерозпізнано',warning:'Попередження',autoAdded:'Автоматично додано в базу',manualAdded:'Додано після ручного зіставлення',dbAdded:'OCR дані додано в базу',jobCreated:'Задачу створено',baseCurrency:'Валюта обліку',statusError:'Помилка статусу',ocrError:'Помилка OCR',startError:'Помилка запуску'}};
 const ocrT=ocrI18n[currentLang]||ocrI18n.en;
-let expensesData = <?= json_encode($allStoresExpenses) ?>;
-let incomesData  = <?= json_encode($allIncomes ?? []) ?>;
-let allDates     = <?= json_encode($allDates) ?>;
-let userSettings = <?= json_encode($userSettings) ?>;
-let currentUser  = <?= json_encode($currentUser) ?>;
-const currentUserFolder = <?= json_encode($currentUserFolder) ?>;
+let expensesData = <?= json_encode($allStoresExpenses ?? [], $jsonFlags) ?: '{}' ?>;
+let incomesData  = <?= json_encode($allIncomes ?? [], $jsonFlags) ?: '{}' ?>;
+let allDates     = <?= json_encode($allDates ?? [], $jsonFlags) ?: '[]' ?>;
+let userSettings = <?= json_encode($userSettings, $jsonFlags) ?: '{}' ?>;
+let currentUser  = <?= json_encode($currentUser, $jsonFlags) ?: '""' ?>;
+const currentUserFolder = <?= json_encode($currentUserFolder, $jsonFlags) ?: '""' ?>;
 let currentChartYear = <?= date('Y') ?>;
 let chartMode    = 'total';
 let chart;
@@ -19,7 +20,7 @@ let cropper;
 let currentCropType = '';
 let currentCropId   = '';
 let saveTimeout;
-let tableSettings = <?= json_encode($tableSettings) ?>;
+let tableSettings = <?= json_encode($tableSettings, $jsonFlags) ?: '{}' ?>;
 let currentPage   = 1;
 let searchTerm    = '';
 let pendingDelete = { type:'', id:'', name:'' };
@@ -29,7 +30,7 @@ let rateChart     = null;
 let currentRates  = {};
 
 const storeColors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','rgba(6,127,0,1)','#C9CBCF','#4BC0C0','#FFCD56','#C9CBCF','#FF6384'];
-const monthNames  = <?= json_encode(($monthNames[$language] ?? $monthNames['en'])) ?>;
+const monthNames  = <?= json_encode(($monthNames[$language] ?? $monthNames['en']), $jsonFlags) ?: '[]' ?>;
 const t=(key,fallback='')=>translations[key]||fallback;
 
 // ══ Modal helpers ═══════════════════════════════════════════════════════════
@@ -74,7 +75,7 @@ function loadPage(page) {
 
         const byDate = {};
         const incomeByDate = {};
-        data.rows.forEach(row=>{
+        (data.rows||[]).forEach(row=>{
             if (!byDate[row.date]) byDate[row.date] = {};
             byDate[row.date][row.store] = parseFloat(row.amount)||0;
         });
@@ -191,6 +192,8 @@ function scheduleSave(input) {
 }
 
 function saveExpense(input) {
+    expensesData = (expensesData && typeof expensesData === 'object') ? expensesData : {};
+    incomesData  = (incomesData  && typeof incomesData  === 'object') ? incomesData  : {};
     const date  = input.getAttribute('data-date');
     const store = input.getAttribute('data-store');
     const isIncome = input.getAttribute('data-income')==='1';
@@ -427,6 +430,11 @@ function linearRegression(values){
 
 function updateChart() {
     const ctx = document.getElementById('expenses-chart').getContext('2d');
+    // Guard against null/undefined data (fixes "can't convert null to object" on load)
+    expensesData = (expensesData && typeof expensesData === 'object') ? expensesData : {};
+    incomesData  = (incomesData  && typeof incomesData  === 'object') ? incomesData  : {};
+    userSettings = (userSettings && typeof userSettings === 'object') ? userSettings : {};
+    userSettings.stores = Array.isArray(userSettings.stores) ? userSettings.stores : [];
     const allMonths = Array.from({length:12},(_,i)=>String(i+1).padStart(2,'0'));
     const yearDates = Object.keys(expensesData).filter(d=>d.startsWith(currentChartYear.toString()));
     const monthly={};
@@ -533,9 +541,9 @@ function changeChartYear(d) {
         .then(r=>r.json())
         .then(data=>{
             if(data.status==='success') {
-                expensesData = data.expenses;
-                incomesData = data.incomes||{};
-                allDates = data.dates;
+                expensesData = data.expenses || {};
+                incomesData = data.incomes || {};
+                allDates = Array.isArray(data.dates) ? data.dates : [];
                 updateChart();
             }
         })
@@ -714,6 +722,8 @@ function changeDateValue(field,delta) {
 }
 
 function addNewDate(date=null, colIdx=0) {
+    expensesData = (expensesData && typeof expensesData === 'object') ? expensesData : {};
+    incomesData  = (incomesData  && typeof incomesData  === 'object') ? incomesData  : {};
     if (!date) {
         const yr=document.getElementById('date-year').value;
         const mo=String(document.getElementById('date-month').value).padStart(2,'0');
@@ -881,7 +891,7 @@ function cropStorePhoto(){
 }
 function rekeyExpensesDataStore(oldN,newN){
     if (!oldN || oldN === newN) return;
-    Object.keys(expensesData).forEach(d => {
+    Object.keys(expensesData||{}).forEach(d => {
         const o = expensesData[d];
         if (o && Object.prototype.hasOwnProperty.call(o, oldN)) {
             o[newN] = o[oldN];
@@ -1039,7 +1049,7 @@ function deleteStore(id,name){
         if(d.status!=='success'){ showNotification(d.message||t('error_generic','Error'),'error'); return; }
         const idS=String(id);
         userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);
-        Object.keys(expensesData).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name)) delete expensesData[dt][name];});
+        Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name)) delete expensesData[dt][name];});
         const row=document.querySelector('#store-list .store-item[data-store-id="'+idS+'"]');
         if(row) row.remove();
         const vb=document.querySelector('.store-visibility-table .visibility-toggle[data-store-id="'+idS+'"]');
