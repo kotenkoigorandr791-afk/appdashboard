@@ -39,3 +39,4 @@ jobs:
           docker exec appdashboard nginx -t
           docker restart appdashboard
           sh /opt/docker/appdashboard/code/deploy/scripts/restart-container-workers.sh
+          sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-performance-monitor-service.sh

@@ -1399,7 +1399,10 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
         const loadEditor = (vsPath) => {
           try {
             require.config({ paths: { vs: vsPath } });
-            require(['vs/editor/editor.main'], () => resolve(window.monaco), reject);
+            require(['vs/editor/editor.main'], () => {
+              if (typeof define === 'function' && (!require.defined || !require.defined('vs/editor/editor.api'))) define('vs/editor/editor.api', [], () => window.monaco);
+              resolve(window.monaco);
+            }, reject);
           } catch (e) {
             reject(e);
           }

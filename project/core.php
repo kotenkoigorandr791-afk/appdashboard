@@ -991,6 +991,22 @@ if (isset($_GET['api']) && $_GET['api'] === 'notifications') { try {
     json_out(['ok' => false, 'error' => $e->getMessage()], 500);
 }}
 
+// ── Onboarding API ───────────────────────────────────────────────────────────
+if (isset($_GET['api']) && $_GET['api'] === 'onboarding') { try {
+    $sessionOk = isset($_SESSION['user']['email'], $_SESSION['auth_time']) && getUserFromActiveSessions(session_id()) !== null;
+    if (!$sessionOk) json_out(['ok' => false, 'error' => 'not_authenticated'], 401);
+    $input = json_decode((string)file_get_contents('php://input'), true);
+    if (!is_array($input)) $input = $_POST;
+    $action = (string)($input['action'] ?? $_GET['action'] ?? '');
+    if ($action === 'done') {
+        if (isset($_SESSION['user'])) $_SESSION['user']['onboarding_done'] = true;
+        json_out(['ok' => true]);
+    }
+    json_out(['ok' => false, 'error' => 'unknown_action'], 400);
+} catch (Throwable $e) {
+    json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+}}
+
 // ── Support Chat API ─────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     $sessionOk = isset($_SESSION['user']['email'], $_SESSION['auth_time']) && getUserFromActiveSessions(session_id()) !== null;
@@ -1637,6 +1653,7 @@ $defaultTranslations=['search_placeholder'=>'Search apps...','settings_title'=>'
     'ap_settings_subtitle'=>'Configure email, Telegram bot, OnlyOffice, Docker, Backup, AI Assistant, and Pull via GitHub integrations.',
     'docker_manager_subtitle'=>'Manage Docker containers, images, and services.'];
 $defaultTranslations['keyboard_shortcuts'] = 'Keyboard Shortcuts';
+$defaultTranslations['guide_reopen'] = 'Watch guide';
 $defaultTranslations['keyboard_shortcuts_desc'] = 'Hotkeys available on the home screen with app tiles.';
 $defaultTranslations['keyboard_shortcuts_hint'] = 'View hotkeys';
 $defaultTranslations['keyboard_shortcuts_open'] = 'Open shortcuts help';

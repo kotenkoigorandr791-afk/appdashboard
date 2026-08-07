@@ -592,7 +592,7 @@
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:nowrap;min-width:fit-content;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
         .settings-button-wrapper{position:relative;overflow:visible;flex-shrink:0;}
         .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;pointer-events:none;z-index:2147483647;}
         body>.tooltip{background:var(--group-block-bg);color:var(--text-color);padding:6px 12px;border-radius:8px;font-size:13px;border:1px solid var(--border-color);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3);pointer-events:none;}
@@ -1295,6 +1295,11 @@
     </style>
 </head>
 <?php
+$_guideCfg = require __DIR__ . '/../onboarding/config.php';
+$_guideEnabled = !empty($_guideCfg['enabled'])
+    && $path === '/main'
+    && $isHomeDashboard
+    && isset($_SESSION['user']);
 $_wp = $savedWallpaper ?? ($config['wallpaper'] ?? 'default');
 $_wpUrl = ap_wallpaper_asset_url($_wp);
 $_bodyClasses = [];
@@ -2425,6 +2430,9 @@ endif; // showOtpPage
         <button id="close-shortcuts" type="button">&times;</button>
         <h2 style="margin:0 0 12px 0;"><?php echo my_htmlspecialchars($translations['keyboard_shortcuts'] ?? 'Keyboard Shortcuts'); ?></h2>
         <p style="margin:0 0 12px 0;opacity:.75;"><?php echo my_htmlspecialchars($translations['keyboard_shortcuts_desc'] ?? 'Hotkeys available on the home screen with app tiles.'); ?></p>
+        <?php if (!empty($_guideEnabled)): ?>
+        <button id="guide-reopen-btn" type="button" onclick="window.startOnboardingTour&&window.startOnboardingTour()" style="display:flex;align-items:center;gap:8px;margin:0 0 14px 0;padding:9px 16px;border-radius:12px;border:1px solid color-mix(in srgb,var(--primary-color) 45%,transparent);background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-color);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg><?php echo my_htmlspecialchars($translations['guide_reopen'] ?? 'Watch guide'); ?></button>
+        <?php endif; ?>
         <table class="shortcuts-table">
             <thead>
                 <tr>
@@ -6586,7 +6594,10 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
         return new Promise(function(resolve,reject){
             try{
                 require.config({paths:{vs:vsPath}});
-                require(['vs/editor/editor.main'],function(){resolve(window.monaco);},reject);
+                require(['vs/editor/editor.main'],function(){
+                    if(typeof define==='function'&&(!require.defined||!require.defined('vs/editor/editor.api'))) define('vs/editor/editor.api',[],function(){return window.monaco;});
+                    resolve(window.monaco);
+                },reject);
             }catch(e){reject(e);}
         });
     }
@@ -12881,5 +12892,20 @@ window.toggleWindChart = toggleWindChart;
     }
 })();
 </script>
+<?php
+if ($_guideEnabled):
+    require_once __DIR__ . '/../onboarding/guide_lang.php';
+    $_guideStrings = onboarding_strings($language);
+    if (!empty($_guideCfg['dev_force_start'])) {
+        $_guideAuto = true;
+    } else {
+        $_guideAuto = (int)($_SESSION['user']['role'] ?? 0) < 2
+            && (!empty($_SESSION['user']['onboarding_pending']) && empty($_SESSION['user']['onboarding_done']));
+    }
+?>
+<link rel="stylesheet" href="/project/onboarding/guide.css?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide.css'); ?>">
+<script>window.__guideData = <?php echo json_encode($_guideStrings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;window.__guideForce = <?php echo empty($_guideCfg['dev_force_start']) ? 'false' : 'true'; ?>;window.__guideAuto = <?php echo $_guideAuto ? 'true' : 'false'; ?>;</script>
+<script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script>
+<?php endif; ?>
 </body>
 </html>
