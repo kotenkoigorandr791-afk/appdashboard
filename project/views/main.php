@@ -554,8 +554,9 @@
         #close-shared-files{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-shared-files:hover{color:#cc0000;}
         #shared-files-search{width:100%;padding:10px;margin-bottom:0;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);box-sizing:border-box;height:40px;padding-left:34px;}
+        .shared-files-search-container .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.65;pointer-events:none;}
         .shared-files-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:nowrap;gap:10px;}
-        .shared-files-search-container{position:relative;flex:1 1 auto;min-width:140px;height:40px;}
+        .shared-files-search-container{position:relative;flex:1 1 auto;min-width:140px;height:40px;display:flex;align-items:center;}
         #shared-files-search{padding-right:35px;}
         #shared-files-clear-search{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#ff4444;font-size:18px;cursor:pointer;display:none;width:20px;height:20px;align-items:center;justify-content:center;border-radius:50%;}
         #shared-files-clear-search:hover{background-color:rgba(255,68,68,0.1);}
@@ -711,7 +712,7 @@
             .users-table th,.users-table td,.sessions-table th,.sessions-table td,.trusted-devices-table th,.trusted-devices-table td{padding:6px;}
             #shared-files-content,#sessions-content,#users-content{width:95%;height:90%;padding:20px 10px;margin:5% auto;}
             .shared-files-header{flex-wrap:wrap;align-items:stretch;}
-            .shared-files-search-container{flex:1 1 100%;min-width:0;}
+            .shared-files-search-container{flex:1 1 100%;min-width:0;display:flex;align-items:center;}
             .shared-files-actions{flex:1 1 100%;flex-wrap:wrap;}
             .shared-files-actions select{width:100%;}
             .terminate-btn,.delete-user-btn{padding:4px 8px;font-size:11px;}
@@ -756,10 +757,11 @@
         input[type="color"]:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 5px var(--primary-color);}
         #close-settings,#close-stats,#close-edit-stats{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-settings:hover,#close-stats:hover,#close-edit-stats:hover{color:#cc0000;}
-        .app-icon-wrap{width:187px;height:187px;border-radius:var(--casa-tile-radius);background:var(--icon-bg-color);padding:18px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;order:1;border:1px solid var(--border-color);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);box-shadow:0 10px 28px rgba(0,0,0,0.14);transition:transform .2s ease,box-shadow .2s ease;}
-        @media (hover: hover) and (pointer: fine){.app-tile-link:hover .app-icon-wrap{transform:scale(1.08) translateY(-5px);box-shadow:0 0 0 2px rgba(255,255,255,0.55),0 0 36px color-mix(in srgb,var(--primary-color) 58%,transparent),0 26px 56px rgba(0,0,0,0.32);background:color-mix(in srgb,var(--icon-bg-color) 65%,var(--primary-color) 35%);filter:brightness(1.1) saturate(1.08);}}
-        .app-icon{width:100%;height:100%;object-fit:contain;display:block;}
-        .app-icon-wrap object.app-icon{width:100%;height:100%;pointer-events:none;display:block;}
+.app-icon-wrap{width:187px;height:187px;border-radius:var(--casa-tile-radius);background:var(--icon-bg-color);padding:18px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;order:1;border:1px solid var(--border-color);backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);box-shadow:0 10px 28px rgba(0,0,0,0.14);transition:transform .2s ease,box-shadow .2s ease;overflow:hidden;}
+@media (hover: hover) and (pointer: fine){.app-tile-link:hover .app-icon-wrap{transform:scale(1.08) translateY(-5px);box-shadow:0 0 0 2px rgba(255,255,255,0.55),0 0 36px color-mix(in srgb,var(--primary-color) 58%,transparent),0 26px 56px rgba(0,0,0,0.32);background:color-mix(in srgb,var(--icon-bg-color) 65%,var(--primary-color) 35%);filter:brightness(1.1) saturate(1.08);overflow:hidden;}}
+.app-icon{width:100%;height:100%;object-fit:contain;display:block;overflow:hidden;}
+.app-icon-wrap object.app-icon{width:100%;height:100%;pointer-events:none;display:block;overflow:hidden;}
+.app-icon-wrap span.app-icon-svg{overflow:hidden;}
         .sidebar-app-icon-wrap object.sidebar-app-icon{width:18px;height:18px;pointer-events:none;display:block;}
         .app-icon-wrap object.app-icon,
         .app-icon-wrap img.app-icon[src$=".svg"]{filter:brightness(0.72) contrast(1.18) saturate(1.22);}
@@ -923,9 +925,65 @@
             .weather-widget .weather-temp{font-size:12px;}
             .weather-widget .weather-location{max-width:60px;font-size:11px;}
             .weather-widget .weather-location-sep{font-size:12px;}
-            .weather-widget{gap:3px;}
-        }
-    </style>
+.weather-widget{gap:3px;}
+     }
+     .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      position: absolute;
+      opacity: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid currentColor;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .checkbox-box svg {
+      width: 14px;
+      height: 11px;
+    }
+
+    .checkbox-box svg path {
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      transition: stroke-dashoffset 0.4s ease 0.05s;
+    }
+
+    .checkbox:checked ~ .checkbox-box {
+      background: #22c55e;
+      border-color: #22c55e;
+      transform: scale(1.05);
+    }
+
+    .checkbox:checked ~ .checkbox-box svg path {
+      stroke-dashoffset: 0;
+    }
+
+    .checkbox:active ~ .checkbox-box {
+      transform: scale(0.9);
+    }
+ </style>
 
 <style>
         /* ── Weather Forecast Modal ── */
@@ -1953,10 +2011,11 @@ endif; // showOtpPage
                         <span class="total-size-badge" id="delete-user-total-size"></span>
                     </div>
                     <div class="delete-user-files-list" id="delete-user-files-list"></div>
-                    <label class="delete-files-toggle">
-                        <input type="checkbox" id="delete-files-checkbox">
-                        <span><?php echo my_htmlspecialchars($translations['delete_user_files_also'] ?? 'Also delete all user files listed above'); ?></span>
-                    </label>
+<label class="delete-files-toggle check-label">
+                         <input type="checkbox" id="delete-files-checkbox" class="checkbox">
+                         <span class="checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#111113" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
+                         <span><?php echo my_htmlspecialchars($translations['delete_user_files_also'] ?? 'Also delete all user files listed above'); ?></span>
+                     </label>
                     <!-- Slider section (shown only when checkbox is checked) -->
                     <div id="delete-slider-section" style="display:none;">
                         <div class="confirm-slider-wrapper">
@@ -2141,7 +2200,7 @@ endif; // showOtpPage
         <?php if(isset($sharedFilesSuccess)):?><div class="auth-success" style="flex-shrink:0;"><?php echo my_htmlspecialchars($sharedFilesSuccess); ?></div><?php endif;?>
         <div class="shared-files-header" style="flex-shrink:0;">
             <div class="shared-files-search-container">
-                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+                <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
                 <input type="text" id="shared-files-search" placeholder="<?php echo my_htmlspecialchars($translations['search_files']); ?>">
                 <button id="shared-files-clear-search" type="button">&times;</button>
             </div>
@@ -2215,7 +2274,6 @@ endif; // showOtpPage
                                             <option value="<?php echo my_htmlspecialchars($_sfOptionValue); ?>" <?php echo $_sfExpiresOption === $_sfOptionValue ? 'selected' : ''; ?>><?php echo my_htmlspecialchars($_sfOptionLabel); ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <div style="margin-top:4px;font-size:11px;opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="<?php echo my_htmlspecialchars($_sfExpiryText); ?>"><?php echo my_htmlspecialchars($_sfExpiryText); ?></div>
                                 </td>
                                 <td style="padding:6px 10px;white-space:nowrap;"><button type="button" class="terminate-btn sf-delete-btn" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="padding:4px 10px;font-size:12px;"><?php echo my_htmlspecialchars($translations['delete_file']); ?></button></td>
                             </tr>
@@ -3865,11 +3923,11 @@ var T=<?php echo json_encode([
                     currentGroup = userEmail;
                     rows += '<tr><td colspan="5" style="padding:8px 10px;background:var(--table-header-bg);font-size:12px;font-weight:700;">' + sharedFileText(userEmail || 'Unknown user') + '</td></tr>';
                 }
-                rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sharedFileText(url) + '" data-shareid="' + sharedFileText(shareId) + '" style="border-bottom:1px solid var(--border-color);">'
-                    + '<td style="padding:8px 10px;font-size:11px;font-family:\'Courier New\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><label style="display:flex;gap:8px;align-items:center;"><input class="sf-row-check" type="checkbox" value="' + sharedFileText(shareId) + '"><span>' + sharedFileText(shareId.substring(0,10)) + '…' + userName + '</span></label></td>'
+rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sharedFileText(url) + '" data-shareid="' + sharedFileText(shareId) + '" style="border-bottom:1px solid var(--border-color);">'
+                     + '<td style="padding:8px 10px;font-size:11px;font-family:\'Courier New\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><label class="check-label" style="display:flex;gap:8px;align-items:center;"><input class="sf-row-check checkbox" type="checkbox" value="' + sharedFileText(shareId) + '"><span class="checkbox-box"><svg width="14" height="11" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#111113" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span><span>' + sharedFileText(shareId.substring(0,10)) + '…' + userName + '</span></label></td>'
                     + '<td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (fname ? sharedFileText(fname) : '<em style="opacity:.4">—</em>') + '</td>'
                     + '<td style="padding:8px 10px;font-size:11px;font-family:\'Courier New\',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="' + sharedFileText(url) + '">' + sharedFileText(pathDisplay) + '</td>'
-                    + '<td style="padding:8px 10px;white-space:normal;">' + buildShareExpirySelect(expiresOption, shareId) + '<div style="margin-top:6px;font-size:11px;opacity:.7;">' + sharedFileText(expiresAt) + '</div></td>'
+                    + '<td style="padding:8px 10px;white-space:normal;">' + buildShareExpirySelect(expiresOption, shareId) + '</td>'
                     + '<td style="padding:6px 10px;white-space:nowrap;"><button type="button" class="terminate-btn sf-delete-btn" data-shareid="' + sharedFileText(shareId) + '" style="padding:4px 10px;font-size:12px;">' + sharedFileText(SHARED_FILE_DELETE_TEXT) + '</button></td>'
                     + '</tr>';
             });
@@ -9547,8 +9605,8 @@ document.addEventListener('DOMContentLoaded', function(){
 </div>
 
 <!-- ══ OTP Generator Modal ══════════════════════════════════════════════════ -->
-<div id="otp-gen-modal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.7);align-items:center;justify-content:center;">
-  <div style="background:var(--modal-bg);padding:30px;border-radius:12px;width:90%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative;text-align:center;max-height:90vh;overflow-y:auto;">
+<div id="otp-gen-modal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(6,10,16,0.28);align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);">
+  <div id="otp-gen-content" style="background:var(--modal-bg);padding:30px;border-radius:12px;width:90%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative;text-align:center;max-height:90vh;overflow-y:auto;">
     <button onclick="closeOtpGeneratorModal()" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#ff4444;font-size:22px;cursor:pointer;line-height:1;padding:4px;">&times;</button>
 
     <!-- Title -->

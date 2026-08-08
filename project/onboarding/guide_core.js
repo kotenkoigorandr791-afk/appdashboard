@@ -119,10 +119,53 @@
         profile_off: function () {
             var m = byId('profile-modal');
             if (m) m.style.display = 'none';
+        },
+        otp_gen_on: function () {
+            var m = byId('otp-gen-modal');
+            if (m && m.style.display !== 'flex') {
+                if (typeof window.openOtpGeneratorModal === 'function') window.openOtpGeneratorModal();
+                else m.style.display = 'flex';
+            }
+        },
+        otp_gen_off: function () {
+            var m = byId('otp-gen-modal');
+            if (m) m.style.display = 'none';
+        },
+        search_on: function () {
+            var c = document.querySelector('.search-container');
+            if (!c || !c.parentElement) return;
+            var bar = c.parentElement;
+            var actions = bar.querySelector('.bottom-bar-actions');
+            var gap = parseFloat(window.getComputedStyle(bar).gap) || 0;
+            var barRect = bar.getBoundingClientRect();
+            var cRect = c.getBoundingClientRect();
+            var avail = barRect.right - cRect.left;
+            if (actions) {
+                var aRect = actions.getBoundingClientRect();
+                avail = aRect.left - cRect.left - gap;
+            }
+            avail = Math.max(36, Math.min(avail, barRect.width - 8));
+            c.style.width = avail + 'px';
+            c.classList.add('open');
+        },
+        search_off: function () {
+            var c = document.querySelector('.search-container');
+            if (c) {
+                c.classList.remove('open');
+                c.style.width = '';
+            }
+        },
+        trusted_on: function () {
+            var c = byId('add-trusted-device-container');
+            if (c && !byId('add-trusted-device-btn')) c.style.minHeight = '48px';
+        },
+        trusted_off: function () {
+            var c = byId('add-trusted-device-container');
+            if (c) c.style.minHeight = '';
         }
     };
 
-    var ALL_OFF = ['weather_off', 'notif_off', 'chat_off', 'sidebar_off', 'settings_off', 'shortcuts_off', 'sessions_off', 'shared_files_off', 'qr_off', 'profile_off'];
+    var ALL_OFF = ['weather_off', 'notif_off', 'chat_off', 'sidebar_off', 'settings_off', 'shortcuts_off', 'sessions_off', 'shared_files_off', 'qr_off', 'profile_off', 'otp_gen_off', 'search_off', 'trusted_off'];
 
     var idx = 0;
     var running = false;
@@ -135,7 +178,7 @@
 
     var elLayer, elDims, elHole, elTip, elTitle, elText, elPage, elPrev, elNext, elMin, elFab;
 
-    var MIN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    var MIN_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 20 5-5 5 5"/><path d="m7 4 5 5 5-5"/></svg>';
     var FAB_ICON = '<svg class="guide-fab-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 
     function byId(id) { return document.getElementById(id); }
@@ -210,8 +253,14 @@
         if (parent && parent !== document.scrollingElement && parent !== document.documentElement && parent !== document.body) {
             var r = el.getBoundingClientRect();
             var pr = parent.getBoundingClientRect();
-            if (r.top < pr.top || r.bottom > pr.bottom) parent.scrollTop += r.top - pr.top - (pr.height - r.height) / 2;
-            if (r.left < pr.left || r.right > pr.right) parent.scrollLeft += r.left - pr.left - (pr.width - r.width) / 2;
+            if (r.top < pr.top || r.bottom > pr.bottom) {
+                if (r.height <= pr.height) parent.scrollTop += r.top - pr.top - (pr.height - r.height) / 2;
+                else parent.scrollTop = 0;
+            }
+            if (r.left < pr.left || r.right > pr.right) {
+                if (r.width <= pr.width) parent.scrollLeft += r.left - pr.left - (pr.width - r.width) / 2;
+                else parent.scrollLeft = 0;
+            }
         }
     }
 
@@ -233,6 +282,7 @@
         elTip = document.createElement('div');
         elTip.id = 'guide-tip';
         elTip.innerHTML =
+            '<span class="guide-tip-arrow" aria-hidden="true"></span>' +
             '<div class="guide-tip-head">' +
                 '<div class="guide-tip-title"></div>' +
                 '<button type="button" class="guide-minimize" title="' + esc(ui.minimize || 'Minimize') + '">' + MIN_ICON + '</button>' +
@@ -258,10 +308,10 @@
         elPrev.textContent = ui.prev || 'Back';
         elPrev.addEventListener('click', function () { go(idx - 1); });
         elNext.addEventListener('click', function () {
-            if (idx >= steps.length - 1) end();
+            if (idx >= steps.length - 1) end(true);
             else go(idx + 1);
         });
-        elMin.addEventListener('click', collapse);
+        elMin.addEventListener('click', function(e) { e.stopPropagation(); collapse(); });
         elHole.addEventListener('click', function (e) {
             if (!running || collapsed || !steps[idx] || steps[idx].advance !== 'click') return;
             var target = visibleFirst(steps[idx].target);
@@ -280,7 +330,10 @@
 
     function onTipPointerDown(e) {
         var t = e.target;
-        if (t && t.classList && (t.classList.contains('guide-minimize') || t.classList.contains('guide-btn'))) return;
+        if (t) {
+            var interactive = t.closest ? (t.closest('.guide-minimize') || t.closest('.guide-btn')) : (t.classList && (t.classList.contains('guide-minimize') || t.classList.contains('guide-btn')));
+            if (interactive) return;
+        }
         if (e.button !== undefined && e.button !== 0) return;
         dragState = {
             startX: e.clientX,
@@ -321,20 +374,25 @@
         elTip.style.top = '-9999px';
         var tw = elTip.offsetWidth;
         var th = elTip.offsetHeight;
-        var top, left;
+        var top, left, place = 'fallback';
         if (r.bottom + 12 + th <= vh - 8) {
+            place = 'bottom';
             top = r.bottom + 12;
             left = r.left + (r.width || 0) / 2 - tw / 2;
         } else if (r.top - th - 12 >= 8) {
+            place = 'top';
             top = r.top - th - 12;
             left = r.left + (r.width || 0) / 2 - tw / 2;
         } else if (vw - r.right - 12 >= tw + 8) {
+            place = 'right';
             top = r.top + (r.height || 0) / 2 - th / 2;
             left = r.right + 12;
         } else if (r.left - tw - 12 >= 8) {
+            place = 'left';
             top = r.top + (r.height || 0) / 2 - th / 2;
             left = r.left - tw - 12;
         } else {
+            place = 'fallback';
             top = vh - th - 12;
             left = (vw - tw) / 2;
         }
@@ -342,7 +400,35 @@
         left = Math.max(8, Math.min(left, vw - tw - 8));
         elTip.style.top = top + 'px';
         elTip.style.left = left + 'px';
+        setTipArrow(place, r, left, top, tw, th);
         elTip.style.visibility = 'visible';
+    }
+
+    function setTipArrow(place, r, tipLeft, tipTop, tipW, tipH) {
+        var arrow = elTip.querySelector('.guide-tip-arrow');
+        if (!arrow) return;
+        elTip.className = String(elTip.className || '').replace(/\bguide-pos-\S+/g, '').trim();
+        if (place === 'fallback') {
+            elTip.classList.add('guide-pos-fallback');
+            return;
+        }
+        elTip.classList.add('guide-pos-' + place);
+        arrow.style.left = '';
+        arrow.style.top = '';
+        arrow.style.right = '';
+        arrow.style.bottom = '';
+        var size = 12;
+        var gap = 20;
+        var off;
+        if (place === 'bottom' || place === 'top') {
+            off = r.left + (r.width || 0) / 2 - tipLeft - size / 2;
+            off = Math.max(size / 2 + gap, Math.min(off, tipW - size / 2 - gap));
+            arrow.style.left = off + 'px';
+        } else {
+            off = r.top + (r.height || 0) / 2 - tipTop - size / 2;
+            off = Math.max(size / 2 + gap, Math.min(off, tipH - size / 2 - gap));
+            arrow.style.top = off + 'px';
+        }
     }
 
     function positionTipBottom() {
@@ -359,6 +445,7 @@
         left = Math.max(12, Math.min(left, vw - tw - 12));
         elTip.style.top = top + 'px';
         elTip.style.left = left + 'px';
+        setTipArrow('fallback', null, 0, 0, 0, 0);
         elTip.style.visibility = 'visible';
     }
 
@@ -556,7 +643,6 @@
         if (collapsed || !running) return;
         collapsed = true;
         detachClick();
-        runActions(ALL_OFF);
         if (elLayer) {
             elLayer.classList.add('guide-collapsing');
             setTimeout(function () {
@@ -602,7 +688,7 @@
         }
     }
 
-    function end() {
+    function end(finish) {
         if (!running) return;
         running = false;
         collapsed = false;
@@ -612,8 +698,11 @@
         window.removeEventListener('scroll', onViewport, true);
         document.removeEventListener('keydown', onKey, true);
         runActions(ALL_OFF);
-        if (elLayer && elLayer.parentNode) elLayer.parentNode.removeChild(elLayer);
-        elLayer = elDims = elHole = elTip = elTitle = elText = elPage = elPrev = elNext = elMin = null;
+        if (finish) launchConfetti();
+        setTimeout(function () {
+            if (elLayer && elLayer.parentNode) elLayer.parentNode.removeChild(elLayer);
+            elLayer = elDims = elHole = elTip = elTitle = elText = elPage = elPrev = elNext = elMin = null;
+        }, 800);
         if (!FORCE) {
             try { localStorage.setItem('ap_onboarding_done', '1'); } catch (e) {}
             try {
@@ -624,6 +713,75 @@
                 });
             } catch (e) {}
         }
+    }
+
+    function launchConfetti() {
+        var rect = elTip ? elTip.getBoundingClientRect() : null;
+        var x = rect ? rect.left + rect.width / 2 : innerWidth / 2;
+        var y = rect ? rect.top + rect.height / 2 : innerHeight * 0.62;
+        var canvas = document.createElement('canvas');
+        canvas.id = 'guide-confetti';
+        canvas.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2147483003;';
+        document.body.appendChild(canvas);
+        var ctx = canvas.getContext('2d');
+        var particles = [];
+        var animationId = null;
+        var dpr = window.devicePixelRatio || 1;
+
+        function resize() {
+            canvas.width = innerWidth * dpr;
+            canvas.height = innerHeight * dpr;
+            canvas.style.width = innerWidth + 'px';
+            canvas.style.height = innerHeight + 'px';
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        for (var i = 0; i < 180; i++) {
+            var angle = Math.random() * Math.PI * 2;
+            var speed = 6 + Math.random() * 10;
+            particles.push({
+                x: x, y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 5,
+                size: 5 + Math.random() * 7,
+                rotation: Math.random() * Math.PI,
+                rotationSpeed: (Math.random() - 0.5) * 0.25,
+                gravity: 0.18 + Math.random() * 0.08,
+                life: 1,
+                color: 'hsl(' + (Math.random() * 360) + ', 90%, 60%)'
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, innerWidth, innerHeight);
+            particles = particles.filter(function (p) { return p.life > 0; });
+            for (var j = 0; j < particles.length; j++) {
+                var p = particles[j];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += p.gravity;
+                p.vx *= 0.99;
+                p.rotation += p.rotationSpeed;
+                p.life -= 0.008;
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rotation);
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+                ctx.restore();
+            }
+            if (particles.length) {
+                animationId = requestAnimationFrame(animate);
+            } else {
+                animationId = null;
+                window.removeEventListener('resize', resize);
+                if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+            }
+        }
+        animate();
     }
 
     function start() {

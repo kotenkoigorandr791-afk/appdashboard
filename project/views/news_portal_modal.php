@@ -351,8 +351,63 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
   #npo-body{flex-direction:column;}
   .npo-pane{padding:18px 14px;}
   #npo-prompt-modal > div{width:100vw !important;max-width:100vw !important;border-radius:0 !important;height:100vh;max-height:100vh;margin:0;box-shadow:none;}
-  #npo-prompt-modal{padding:0;align-items:flex-start;justify-content:flex-start;}
-}
+  }
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      position: absolute;
+      opacity: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid currentColor;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .checkbox-box svg {
+      width: 14px;
+      height: 11px;
+    }
+
+    .checkbox-box svg path {
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      transition: stroke-dashoffset 0.4s ease 0.05s;
+    }
+
+    .checkbox:checked ~ .checkbox-box {
+      background: #22c55e;
+      border-color: #22c55e;
+      transform: scale(1.05);
+    }
+
+    .checkbox:checked ~ .checkbox-box svg path {
+      stroke-dashoffset: 0;
+    }
+
+    .checkbox:active ~ .checkbox-box {
+      transform: scale(0.9);
+    }
 </style>
 
 <div id="news-portal-overlay">
@@ -505,8 +560,9 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             <label><?php echo my_htmlspecialchars($translations['news_publication_date'] ?? 'Publication date'); ?></label>
             <input type="date" id="npo-edit-date">
           </div>
-          <label class="npo-toggle">
-            <input type="checkbox" id="npo-published">
+          <label class="npo-toggle check-label">
+            <input type="checkbox" id="npo-published" class="checkbox">
+            <span class="checkbox-box"><svg width="14" height="11" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#111113" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
             <?php echo my_htmlspecialchars($translations['news_published'] ?? 'Published (visible to all)'); ?>
           </label>
           <div class="npo-actions">
