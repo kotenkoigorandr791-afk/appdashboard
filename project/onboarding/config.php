@@ -2,5 +2,5 @@
 
 return [
     'enabled' => true,
-    'dev_force_start' => true,
+    'dev_force_start' => false,
 ];

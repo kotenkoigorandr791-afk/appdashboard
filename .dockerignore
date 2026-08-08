@@ -1,0 +1,13 @@
+.git/
+data/
+uploads/
+graphify-out/
+node_modules/
+**/node_modules/
+**/.venv/
+vendor/
+webssh/vendor/
+apps/cloud/vendor/
+apps/steps/utils/.venv/
+bot/.venv/
+*.bak-*
