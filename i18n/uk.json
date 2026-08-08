@@ -291,6 +291,7 @@
     "google_client_secret": "Google Client Secret",
     "google_user_not_found": "Цей акаунт Google ще не зареєстрований. Встановіть пароль для завершення реєстрації.",
     "guest": "Гість",
+    "guide_reopen": "Переглянути гайд",
     "home": "Головна",
     "home_tooltip": "Повернутися на головну сторінку",
     "icon_sort": "Порядок іконок",

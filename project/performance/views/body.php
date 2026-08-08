@@ -1,6 +1,64 @@
 </head>
 
 <body class="<?= $theme ?> admin-embed">
+<style>
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      position: absolute;
+      opacity: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid currentColor;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .checkbox-box svg {
+      width: 14px;
+      height: 11px;
+    }
+
+    .checkbox-box svg path {
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      transition: stroke-dashoffset 0.4s ease 0.05s;
+    }
+
+    .checkbox:checked ~ .checkbox-box {
+      background: #22c55e;
+      border-color: #22c55e;
+      transform: scale(1.05);
+    }
+
+    .checkbox:checked ~ .checkbox-box svg path {
+      stroke-dashoffset: 0;
+    }
+
+    .checkbox:active ~ .checkbox-box {
+      transform: scale(0.9);
+    }
+</style>
 
 <div class="admin-monitor-topbar">
     <div class="admin-monitor-title"><?= htmlspecialchars($t['title']) ?></div>
@@ -214,7 +272,7 @@
                 <label><span><?= htmlspecialchars($t['keyword'] ?? 'Keyword') ?></span><input name="keyword" type="text"></label>
                 <label><span><?= htmlspecialchars($t['interval_sec'] ?? 'Interval, sec') ?></span><input name="interval_sec" type="number" min="10" value="60"></label>
                 <label><span><?= htmlspecialchars($t['timeout_sec'] ?? 'Timeout, sec') ?></span><input name="timeout_sec" type="number" min="1" value="10"></label>
-                <label class="uptime-enabled"><input name="enabled" type="checkbox" checked><span><?= htmlspecialchars($t['enabled'] ?? 'Enabled') ?></span></label>
+                <label class="uptime-enabled check-label"><input name="enabled" type="checkbox" class="checkbox" checked><span class="checkbox-box"><svg width="14" height="11" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#111113" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span><span><?= htmlspecialchars($t['enabled'] ?? 'Enabled') ?></span></label>
                 <div class="uptime-form-actions">
                     <button class="btn-primary" type="submit"><?= htmlspecialchars($t['save'] ?? 'Save') ?></button>
                     <button class="btn-secondary" type="button" onclick="closeUptimeCheckModal()"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>

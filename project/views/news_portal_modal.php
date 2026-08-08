@@ -207,8 +207,9 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 .npo-tab.active{opacity:1;border-bottom-color:var(--primary-color,#38bdf8);}
 #npo-add-btn{display:flex;align-items:center;gap:7px;margin:0 12px 0 16px;padding:8px 18px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:20px;cursor:pointer;font-weight:600;font-size:13px;transition:opacity .15s;white-space:nowrap;flex-shrink:0;}
 #npo-add-btn:hover{opacity:.88;}
-#npo-settings-btn,#npo-prompt-btn{width:34px;height:34px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
-#npo-settings-btn:hover,#npo-prompt-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
+#npo-settings-btn,#npo-prompt-btn,#npo-menu-btn{width:34px;height:34px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s,border-color .15s;}
+#npo-menu-btn{display:none;}
+#npo-settings-btn:hover,#npo-prompt-btn:hover,#npo-menu-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
 #npo-settings-popover{display:none;position:absolute;right:58px;top:48px;width:min(420px,calc(100vw - 24px));padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--modal-bg);box-shadow:0 16px 48px rgba(0,0,0,.28);z-index:12002;}
 #npo-settings-popover.open{display:block;}
 .npo-settings-field{margin-bottom:12px;}
@@ -225,6 +226,7 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 #npo-sidebar{width:320px;flex-shrink:0;border-right:1px solid var(--border-color);display:flex;flex-direction:column;overflow:hidden;background:color-mix(in srgb,var(--modal-bg) 88%,var(--primary-color) 12%);}
 #npo-sidebar-header{padding:10px 12px;border-bottom:1px solid var(--border-color);display:flex;align-items:center;gap:8px;}
 #npo-sidebar-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.55;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#npo-news-count{font-size:11px;font-weight:700;opacity:.55;flex-shrink:0;white-space:nowrap;}
 #npo-refresh-list-btn{width:30px;height:30px;border:1px solid var(--border-color);border-radius:50%;background:var(--modal-bg);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s,border-color .15s,transform .15s;}
 #npo-refresh-list-btn:hover{background:var(--app-item-bg);border-color:var(--primary-color,#38bdf8);}
 #npo-refresh-list-btn.loading{transform:rotate(90deg);opacity:.65;}
@@ -341,14 +343,78 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
 #npo-prompt-preview img{max-width:100%;border-radius:8px;margin:8px 0;}
 /* Responsive */
 @media(max-width:760px){
-  #npo-sidebar{width:100%;max-height:200px;border-right:none;border-bottom:1px solid var(--border-color);}
+  #npo-menu-btn{display:flex;}
+  #npo-sidebar{position:fixed;top:56px;left:0;bottom:0;width:280px;max-width:85vw;max-height:none;height:auto;border-right:1px solid var(--border-color);border-bottom:none;transform:translateX(-100%);transition:transform .25s ease;z-index:12001;box-shadow:0 0 24px rgba(0,0,0,.3);}
+  #npo-sidebar.open{transform:translateX(0);}
+  #npo-sidebar-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:12000;opacity:0;transition:opacity .2s;}
+  #npo-sidebar-backdrop.open{display:block;opacity:1;}
   #npo-body{flex-direction:column;}
   .npo-pane{padding:18px 14px;}
-}
+  #npo-prompt-modal > div{width:100vw !important;max-width:100vw !important;border-radius:0 !important;height:100vh;max-height:100vh;margin:0;box-shadow:none;}
+  }
+    .check-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .checkbox {
+      width: 20px;
+      height: 20px;
+      position: absolute;
+      opacity: 0;
+      margin: 0;
+      cursor: pointer;
+    }
+
+    .checkbox-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid currentColor;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    .checkbox-box svg {
+      width: 14px;
+      height: 11px;
+    }
+
+    .checkbox-box svg path {
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      transition: stroke-dashoffset 0.4s ease 0.05s;
+    }
+
+    .checkbox:checked ~ .checkbox-box {
+      background: #22c55e;
+      border-color: #22c55e;
+      transform: scale(1.05);
+    }
+
+    .checkbox:checked ~ .checkbox-box svg path {
+      stroke-dashoffset: 0;
+    }
+
+    .checkbox:active ~ .checkbox-box {
+      transform: scale(0.9);
+    }
 </style>
 
 <div id="news-portal-overlay">
   <div id="npo-header">
+    <button id="npo-menu-btn" type="button" aria-label="<?php echo my_htmlspecialchars($translations['menu'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['menu'] ?? 'Menu'); ?>">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
     <div id="npo-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></div>
     <?php if ($newsCanEdit): ?>
     <button id="npo-add-btn" type="button">
@@ -382,10 +448,12 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     </div>
     <?php endif; ?>
   </div>
+  <div id="npo-sidebar-backdrop" aria-hidden="true"></div>
   <div id="npo-body">
     <div id="npo-sidebar">
       <div id="npo-sidebar-header">
         <div id="npo-sidebar-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'Articles'); ?></div>
+        <span id="npo-news-count" aria-hidden="true"></span>
         <button id="npo-refresh-list-btn" type="button" title="<?php echo my_htmlspecialchars($translations['refresh'] ?? 'Refresh'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['refresh'] ?? 'Refresh'); ?>">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
         </button>
@@ -492,8 +560,9 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             <label><?php echo my_htmlspecialchars($translations['news_publication_date'] ?? 'Publication date'); ?></label>
             <input type="date" id="npo-edit-date">
           </div>
-          <label class="npo-toggle">
-            <input type="checkbox" id="npo-published">
+          <label class="npo-toggle check-label">
+            <input type="checkbox" id="npo-published" class="checkbox">
+            <span class="checkbox-box"><svg width="14" height="11" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#111113" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span>
             <?php echo my_htmlspecialchars($translations['news_published'] ?? 'Published (visible to all)'); ?>
           </label>
           <div class="npo-actions">
@@ -529,11 +598,11 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     </div>
     <div id="npo-prompt-toolbar" style="padding:12px 20px 0;flex-shrink:0;">
       <div class="npo-prompt-toggle">
-        <button type="button" class="npo-prompt-toggle-btn active" data-view="code">
+        <button type="button" class="npo-prompt-toggle-btn" data-view="code">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
           Code
         </button>
-        <button type="button" class="npo-prompt-toggle-btn" data-view="preview">
+        <button type="button" class="npo-prompt-toggle-btn active" data-view="preview">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           Preview
         </button>
@@ -545,7 +614,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
         <?php echo my_htmlspecialchars($translations['loading'] ?? 'Loading...'); ?>
       </div>
       <div id="npo-prompt-code-wrap" style="display:none;"><pre><code id="npo-prompt-code" class="hljs" style="white-space:pre-wrap;word-wrap:break-word;"></code></pre></div>
-      <div id="npo-prompt-preview"></div>
+      <div id="npo-prompt-preview" style="display:block;"></div>
     </div>
     <div id="npo-prompt-status" style="padding:6px 20px 10px;font-size:12px;min-height:16px;opacity:.6;"></div>
   </div>
@@ -608,6 +677,9 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
   const settingsPopover = document.getElementById('npo-settings-popover');
   const systemPromptEl = document.getElementById('npo-system-prompt');
   const refreshListBtn = document.getElementById('npo-refresh-list-btn');
+  const menuBtn = document.getElementById('npo-menu-btn');
+  const sidebar = document.getElementById('npo-sidebar');
+  const sidebarBackdrop = document.getElementById('npo-sidebar-backdrop');
 
   let newsItems = [];
   let newsLayout = {};
@@ -663,6 +735,30 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     }
   });
 
+  // ── Mobile sidebar drawer ────────────────────────────────────────────────────
+  function closeSidebar() {
+    sidebar?.classList.remove('open');
+    sidebarBackdrop?.classList.remove('open');
+  }
+  function openSidebar() {
+    sidebar?.classList.add('open');
+    sidebarBackdrop?.classList.add('open');
+  }
+  function toggleSidebar() {
+    if (sidebar?.classList.contains('open')) closeSidebar(); else openSidebar();
+  }
+  menuBtn?.addEventListener('click', toggleSidebar);
+  sidebarBackdrop?.addEventListener('click', closeSidebar);
+  // Close sidebar when an article is selected on mobile
+  listEl?.addEventListener('click', e => {
+    const item = e.target.closest('.npo-list-item');
+    if (item && window.innerWidth <= 760) closeSidebar();
+  });
+  // Close sidebar on resize to desktop
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 760) closeSidebar();
+  });
+
   // ── Tabs ───────────────────────────────────────────────────────────────────
   document.querySelectorAll('.npo-tab').forEach(tab => {
     tab.addEventListener('click', () => {
@@ -710,6 +806,8 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
       .then(data => {
         if (!data.ok) return;
         const more = data.items || [];
+        const countEl = document.getElementById('npo-news-count');
+        if (countEl && typeof data.total === 'number') countEl.textContent = String(data.total);
         newsLayout = data.layout || {};
         hasMore = !!data.has_more;
         listOffset += more.length;
@@ -1259,7 +1357,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
         promptRawText = data.prompt || '';
         promptLoading.style.display = 'none';
         const activeView = document.querySelector('.npo-prompt-toggle-btn.active');
-        updatePromptView(activeView ? activeView.dataset.view : 'code');
+        updatePromptView(activeView ? activeView.dataset.view : 'preview');
         promptStatus.textContent = 'Token expires in ' + Math.round(data.token_expires_in / 60) + ' min. API: ' + data.api_url;
       } else {
         promptStatus.textContent = 'Failed to load prompt: ' + (data.error || 'unknown error');
@@ -1273,9 +1371,9 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
 
   promptBtn?.addEventListener('click', () => {
     promptModal.style.display = 'flex';
-    // Reset to code view
+    // Default to preview view
     promptToggleBtns.forEach(b => b.classList.remove('active'));
-    document.querySelector('.npo-prompt-toggle-btn[data-view="code"]')?.classList.add('active');
+    document.querySelector('.npo-prompt-toggle-btn[data-view="preview"]')?.classList.add('active');
     loadWritingPrompt();
   });
 
@@ -1357,7 +1455,10 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
         const loadEditor = (vsPath) => {
           try {
             require.config({ paths: { vs: vsPath } });
-            require(['vs/editor/editor.main'], () => resolve(window.monaco), reject);
+            require(['vs/editor/editor.main'], () => {
+              if (typeof define === 'function' && (!require.defined || !require.defined('vs/editor/editor.api'))) define('vs/editor/editor.api', [], () => window.monaco);
+              resolve(window.monaco);
+            }, reject);
           } catch (e) {
             reject(e);
           }

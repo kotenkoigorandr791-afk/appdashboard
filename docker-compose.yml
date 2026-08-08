@@ -1,0 +1,65 @@
+services:
+  appdashboard-db:
+    image: postgres:16
+    container_name: appdashboard-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: appdashboard
+      POSTGRES_USER: appdashboard
+      POSTGRES_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - appdashboard-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appdashboard -d appdashboard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  appdashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: appdashboard:latest
+    container_name: appdashboard
+    restart: unless-stopped
+    privileged: true
+    depends_on:
+      appdashboard-db:
+        condition: service_healthy
+    environment:
+      APP_ENV: "${APP_ENV:-local}"
+      APP_DEBUG: "${APP_DEBUG:-1}"
+      APP_DB_CONFIG: /opt/AppDashboard/data/db.env
+      APP_DB_SKIP_SESSION_INIT: "1"
+      APPDATA_BASE_DIR: /opt/ApplicationData
+      DB_HOST: appdashboard-db
+      DB_PORT: "5432"
+      DB_NAME: appdashboard
+      DB_USER: appdashboard
+      DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+      RUN_STARTUP_DEPS: "1"
+      SSH_WS_PORT: "8765"
+      SSH_WS_BIND: 127.0.0.1
+      SMART_HOME_WS_PORT: "8766"
+      SMART_HOME_WS_BIND: 127.0.0.1
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www/AppDashboard
+      - appdashboard-code-data:/var/www/AppDashboard/data
+      - appdashboard-uploads:/var/www/AppDashboard/uploads
+      - appdashboard-data:/opt/AppDashboard/data
+      - appdashboard-appdata:/opt/ApplicationData
+      - appdashboard-logs:/var/log/nginx
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  appdashboard-logs:
+  appdashboard-code-data:
+  appdashboard-uploads:
+  appdashboard-data:
+  appdashboard-appdata:
+  appdashboard-db-data:

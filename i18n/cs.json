@@ -292,6 +292,7 @@
     "google_client_secret": "Tajný klíč Google",
     "google_user_not_found": "Tento Google účet není ještě zaregistrován. Nastavte heslo pro dokončení registrace.",
     "guest": "Host",
+    "guide_reopen": "Zobrazit průvodce",
     "home": "Domů",
     "home_tooltip": "Návrat na hlavní stránku",
     "icon_sort": "Řazení ikon",

@@ -369,4 +369,10 @@ $menuSafeWidth = (int)($menuButton['left'] ?? 16) + (int)($menuButton['width'] ?
         *::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:8px;}
         *::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover);}
     </style>
+    <script>
+    function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
+    function showModal(id){var el=document.getElementById(id);if(el){el.style.display='flex';syncModalBodyState();}}
+    function closeModal(id){var el=document.getElementById(id);if(el){el.style.display='none';syncModalBodyState();}}
+    function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');if(typeof updateYearButtons==='function')updateYearButtons();if(typeof loadOCRAnalytics==='function')loadOCRAnalytics();}
+    </script>
 </head>

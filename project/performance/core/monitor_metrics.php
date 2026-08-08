@@ -16,6 +16,10 @@ function isIgnoredDriveDeviceType($type): bool {
     return in_array(strtolower((string)$type), ['loop', 'rom'], true);
 }
 
+function isIgnoredPhysicalDevicePath(string $path): bool {
+    return (bool)preg_match('#^/dev/(nbd\d+|loop\d+|zram\d+|fd\d+|sr\d+|dm-\d+)$#', $path);
+}
+
 function isNetworkDriveFsType($fsType) {
     static $network = [
         'cifs', 'davfs', 'davfs2', 'fuse.sshfs', 'fuse.rclone', 'glusterfs', 'nfs', 'nfs4',
@@ -53,6 +57,91 @@ function classifyBlockDriveTypeLabel(array $device, ?array $parent = null): stri
         return 'System Disk';
     }
     return 'Block Device';
+}
+
+function monitorFindMountedBlockChild(array $device): ?array {
+    $best = null;
+    $walk = null;
+    $walk = static function(array $item) use (&$walk, &$best) {
+        $mounts = array_values(array_filter((array)($item['mountpoints'] ?? []), static fn($m) => is_string($m) && $m !== ''));
+        if ($mounts !== [] && isset($item['fsused'], $item['fsavail']) && is_numeric($item['fsused']) && is_numeric($item['fsavail'])) {
+            if (in_array('/', $mounts, true)) {
+                $best = $item;
+                return;
+            }
+            if ($best === null) {
+                $best = $item;
+            }
+        }
+        foreach (($item['children'] ?? []) as $child) {
+            if ($best !== null && in_array('/', (array)($best['mountpoints'] ?? []), true)) {
+                return;
+            }
+            if (is_array($child)) {
+                $walk($child);
+            }
+        }
+    };
+    $walk($device);
+    return $best;
+}
+
+function monitorCollectPhysicalDriveEntries(): array {
+    $json = @shell_exec('lsblk -J -b -o NAME,PATH,TYPE,SIZE,FSTYPE,LABEL,UUID,MOUNTPOINTS,RM,HOTPLUG,TRAN,MODEL,SERIAL,FSAVAIL,FSUSED 2>/dev/null');
+    if (!is_string($json) || trim($json) === '') {
+        return [];
+    }
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $drives = [];
+    foreach (($decoded['blockdevices'] ?? []) as $device) {
+        if (!is_array($device) || ($device['type'] ?? '') !== 'disk' || isIgnoredDriveDeviceType($device['type'] ?? '')) {
+            continue;
+        }
+        $path = (string)($device['path'] ?? '');
+        if ($path === '' || !str_starts_with($path, '/dev/') || isIgnoredPhysicalDevicePath($path)) {
+            continue;
+        }
+        $mounted = monitorFindMountedBlockChild($device);
+        if ($mounted === null) {
+            continue;
+        }
+        $source = $mounted !== null ? (string)($mounted['path'] ?? $path) : $path;
+        $mounts = $mounted !== null ? array_values(array_filter((array)($mounted['mountpoints'] ?? []), static fn($m) => is_string($m) && $m !== '')) : [];
+        $mount = $mounts[0] ?? '';
+        $fsType = $mounted !== null ? (string)($mounted['fstype'] ?? '') : (string)($device['fstype'] ?? '');
+        if ($fsType !== '' && isIgnoredDriveFsType($fsType)) {
+            continue;
+        }
+        $used = $mounted !== null && isset($mounted['fsused']) && is_numeric($mounted['fsused']) ? (float)$mounted['fsused'] : 0.0;
+        $free = $mounted !== null && isset($mounted['fsavail']) && is_numeric($mounted['fsavail']) ? (float)$mounted['fsavail'] : 0.0;
+        $total = $used + $free;
+        if ($total <= 0) {
+            $total = isset($device['size']) && is_numeric($device['size']) ? (float)$device['size'] : 0.0;
+            $free = max(0.0, $total - $used);
+        }
+        $drives[] = [
+            'letter' => $path,
+            'source' => $source,
+            'mount' => $mount,
+            'fs_type' => $fsType,
+            'filesystem' => $fsType,
+            'is_network' => false,
+            'type' => $mount === '/' ? 'System Disk' : classifyBlockDriveTypeLabel($device),
+            'total_space' => $total,
+            'used_space' => $used,
+            'free_space' => $free,
+            'usage_percent' => $total > 0 ? round(($used / $total) * 100, 1) : 0.0,
+            'mounted' => $mounted !== null,
+            'label' => (string)($device['label'] ?? ''),
+            'uuid' => (string)($device['uuid'] ?? ''),
+            'model' => (string)($device['model'] ?? ''),
+            'serial' => (string)($device['serial'] ?? ''),
+        ];
+    }
+    return $drives;
 }
 
 function driveSortOrder($mount, $isNetwork) {
@@ -201,6 +290,7 @@ function smartNormalizeStatus(array $smart): string {
 
 function smartCollectPhysicalDisks(): array {
     $devices = [];
+    $physicalPaths = [];
     $scan = @shell_exec('sudo -n /usr/sbin/smartctl --scan-open 2>/dev/null');
     if (!is_string($scan) || trim($scan) === '') {
         $scan = @shell_exec('/usr/sbin/smartctl --scan-open 2>/dev/null');
@@ -221,11 +311,12 @@ function smartCollectPhysicalDisks(): array {
         $decoded = json_decode($json, true);
         if (is_array($decoded)) {
             $walk = null;
-            $walk = static function(array $items) use (&$walk, &$devices) {
+            $walk = static function(array $items) use (&$walk, &$devices, &$physicalPaths) {
                 foreach ($items as $device) {
                     if (($device['type'] ?? '') === 'disk') {
                         $path = $device['path'] ?? '';
-                        if ($path !== '' && str_starts_with($path, '/dev/')) {
+                        if ($path !== '' && str_starts_with($path, '/dev/') && !isIgnoredPhysicalDevicePath($path)) {
+                            $physicalPaths[$path] = true;
                             $devices[$path . '|'] = ['path' => $path, 'type' => ''];
                         }
                     }
@@ -241,7 +332,10 @@ function smartCollectPhysicalDisks(): array {
     $deduped = [];
     foreach ($devices as $device) {
         $path = (string)($device['path'] ?? '');
-        if ($path === '') {
+        if ($path === '' || isIgnoredPhysicalDevicePath($path)) {
+            continue;
+        }
+        if ($physicalPaths !== [] && !isset($physicalPaths[$path])) {
             continue;
         }
         if (!isset($deduped[$path]) || (($deduped[$path]['type'] ?? '') === '' && ($device['type'] ?? '') !== '')) {
@@ -282,6 +376,12 @@ function smartParseSmartctlOutput($device): ?array {
     foreach (($decoded['smartctl']['messages'] ?? []) as $message) {
         if (!is_array($message)) continue;
         $messages[] = (string)($message['string'] ?? '');
+    }
+    $unsupported = false;
+    foreach ($messages as $message) {
+        if (stripos($message, 'Unable to detect device type') !== false || stripos($message, 'Unknown USB bridge') !== false) {
+            $unsupported = true;
+        }
     }
 
     // Try ATA attributes first, then NVMe
@@ -356,6 +456,9 @@ function smartParseSmartctlOutput($device): ?array {
     }
 
     $smart['status'] = smartNormalizeStatus($smart);
+    if ($unsupported && $smart['model'] === '' && $smart['serial'] === '' && $smart['capacity_bytes'] === null && $smart['health_passed'] === null && $smart['temperature_c'] === null) {
+        return null;
+    }
     return $smart;
 }
 
@@ -566,6 +669,11 @@ function getSwapUsage() {
  * Get drive information using wmic command
  */
 function getDrives() {
+    $drives = monitorCollectPhysicalDriveEntries();
+    if ($drives !== []) {
+        usort($drives, static fn($a, $b) => strcmp((string)($a['letter'] ?? ''), (string)($b['letter'] ?? '')));
+        return $drives;
+    }
     $drives = [];
     $blockMeta = monitorCollectBlockDeviceMeta();
     $output = @shell_exec('findmnt -rn -b -o TARGET,SOURCE,FSTYPE,SIZE,USED,AVAIL 2>/dev/null');
@@ -975,6 +1083,26 @@ function monitorLoadModulesFromDb(): array {
         error_log('monitorLoadModulesFromDb failed: ' . $e->getMessage());
         return monitorCollectModulesLists();
     }
+}
+
+function monitorDrivesLookContainerLocal(array $drives): bool {
+    if ($drives === []) {
+        return false;
+    }
+    foreach ($drives as $drive) {
+        if (!is_array($drive)) {
+            return false;
+        }
+        $letter = (string)($drive['letter'] ?? '');
+        $mount = (string)($drive['mount'] ?? '');
+        if (!preg_match('#^/dev/vd[a-z]#', $letter)) {
+            return false;
+        }
+        if ($mount !== '' && !str_starts_with($mount, '/var/www/AppDashboard') && !str_starts_with($mount, '/opt/')) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function monitorGetDbSafe() {
@@ -1931,6 +2059,18 @@ function monitorCollectMetricsPayload(bool $includeSmart = false, bool $includeD
     $diskIO = getDiskIO();
     $smartDiagnostics = $includeSmart ? getSmartDiagnostics() : monitorLoadSmartFromDb();
     $drives = $includeDrives ? getDrives() : monitorLoadDrivesFromDb();
+    if ($includeSmart && empty($smartDiagnostics['devices'])) {
+        $cachedSmart = monitorLoadSmartFromDb();
+        if (!empty($cachedSmart['devices'])) {
+            $smartDiagnostics = $cachedSmart;
+        }
+    }
+    if ($includeDrives && monitorDrivesLookContainerLocal($drives)) {
+        $cachedDrives = monitorLoadDrivesFromDb();
+        if ($cachedDrives !== [] && !monitorDrivesLookContainerLocal($cachedDrives)) {
+            $drives = $cachedDrives;
+        }
+    }
     $dockerContainers = monitorCollectDockerContainers();
     $dockerStats = monitorDockerApiStats($dockerContainers);
     if ($dockerStats === []) {
@@ -1940,7 +2080,7 @@ function monitorCollectMetricsPayload(bool $includeSmart = false, bool $includeD
         $container['stats'] = $dockerStats[$container['id']] ?? null;
     }
     unset($container);
-    if ($includeSmart) {
+    if ($includeSmart && !empty($smartDiagnostics['devices'])) {
         monitorSaveSmartToDb($smartDiagnostics);
     }
     if ($includeDrives) {

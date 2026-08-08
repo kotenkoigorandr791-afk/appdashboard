@@ -292,6 +292,7 @@
     "google_client_secret": "Tajny klucz Google",
     "google_user_not_found": "To konto Google nie jest jeszcze zarejestrowane. Ustaw hasło, aby dokończyć rejestrację.",
     "guest": "Gość",
+    "guide_reopen": "Zobacz przewodnik",
     "home": "Strona główna",
     "home_tooltip": "Powrót do strony głównej",
     "icon_sort": "Kolejność ikon",

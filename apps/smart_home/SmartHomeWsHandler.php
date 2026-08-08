@@ -7,6 +7,8 @@ class SmartHomeWsHandler implements MessageComponentInterface
 {
     private string $appDir;
     private \SplObjectStorage $clients;
+    private bool $startupReconcileDone = false;
+    private float $lastReconcileAt = 0.0;
 
     public function __construct(string $appDir)
     {
@@ -30,6 +32,24 @@ class SmartHomeWsHandler implements MessageComponentInterface
         )");
         $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_results (
             id TEXT PRIMARY KEY, result_json TEXT NOT NULL, updated_at REAL NOT NULL
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_monitor_logs (
+            id BIGSERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL,
+            device_id TEXT,
+            event_type TEXT NOT NULL,
+            event_data TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_errors (
+            id BIGSERIAL PRIMARY KEY,
+            user_email TEXT NOT NULL DEFAULT '',
+            device_id TEXT NOT NULL DEFAULT '',
+            device_name TEXT NOT NULL DEFAULT '',
+            source TEXT NOT NULL DEFAULT '',
+            message TEXT NOT NULL,
+            context_json TEXT NOT NULL DEFAULT '{}',
+            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
         )");
         return $db;
     }
@@ -190,11 +210,29 @@ class SmartHomeWsHandler implements MessageComponentInterface
         return ((string)($device['type'] ?? '')) === 'pending';
     }
 
+    private function monitorPurge(AppDatabase $db): void
+    {
+        try {
+            $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
+        } catch (\Throwable $e) {
+            error_log('WS monitorPurge logs: ' . $e->getMessage());
+        }
+    }
+
+    private function errorPurge(AppDatabase $db): void
+    {
+        try {
+            $db->exec("DELETE FROM smarthome_errors WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
+        } catch (\Throwable $e) {
+            error_log('WS monitorPurge errors: ' . $e->getMessage());
+        }
+    }
+
     private function monitorLog(string $email, ?string $deviceId, string $eventType, array $data): void
     {
         try {
             $db = $this->db();
-            $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
+            $this->monitorPurge($db);
             if ($deviceId && empty($data['device_name'])) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -218,7 +256,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
     {
         try {
             $db = $this->db();
-            $db->exec("DELETE FROM smarthome_errors WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
+            $this->errorPurge($db);
             if ($deviceName === '' && $deviceId) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -247,7 +285,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
             'user_email' => null,
             'device_id' => null,
             'device_token' => null,
-            'connected_at' => time(),
+            'connected_at' => microtime(true),
         ]);
     }
 
@@ -303,15 +341,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         }
         $state = $this->clients[$conn];
         if (($state['role'] ?? null) === 'device' && !empty($state['user_email']) && !empty($state['device_id'])) {
-            $device = $this->loadDevice((string)$state['user_email'], (string)$state['device_id']);
-            if ($device !== null) {
-                $device['status'] = 'offline';
-                $this->persistDevice($device);
-                $this->broadcastToDashboards((string)$state['user_email'], (string)$state['device_id'], [
-                    'type' => 'state_update',
-                    'device' => $device,
-                ]);
-            }
+            $this->setDeviceTunnelStatus((string)$state['user_email'], (string)$state['device_id'], false);
         }
         $this->clients->detach($conn);
     }
@@ -330,6 +360,12 @@ class SmartHomeWsHandler implements MessageComponentInterface
             $db->exec('DELETE FROM smarthome_control_queue WHERE expires_at < ' . microtime(true));
             $this->processControlQueue();
             $this->heartbeatTick();
+            if (!$this->startupReconcileDone) {
+                $this->startupReconcileDone = true;
+                $this->reconcileTunnelStatus(true);
+            } else {
+                $this->reconcileTunnelStatus(false);
+            }
         } catch (\Throwable $e) {
             error_log('WS tick: ' . $e->getMessage());
         }
@@ -361,6 +397,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
             $cs = $this->clients[$c] ?? null;
             if ($cs && ($cs['role'] ?? null) === 'device' && !empty($cs['device_id'])) {
                 $this->logError((string)($cs['user_email'] ?? ''), (string)$cs['device_id'], '', 'tunnel', 'Connection timed out (no traffic in 90s), closing', []);
+                $this->setDeviceTunnelStatus((string)($cs['user_email'] ?? ''), (string)$cs['device_id'], false);
             }
             try { $c->close(); } catch (\Throwable $e) {}
         }
@@ -427,14 +464,13 @@ class SmartHomeWsHandler implements MessageComponentInterface
         if (!empty($payload['definition']) && is_array($payload['definition'])) {
             $device = $this->applyDeviceDefinition($device, $payload['definition']);
         }
-        $device['status'] = 'online';
         if (!empty($payload['name'])) {
             $device['name'] = trim((string)$payload['name']);
         }
         if (!empty($payload['local_url'])) {
             $device['local_url'] = trim((string)$payload['local_url']);
         }
-        $this->persistDevice($device);
+        $device = $this->setDeviceTunnelStatus($userEmail, $deviceId, true, $device);
         $this->sendJson($conn, array_merge([
             'type' => 'connected',
             'device_id' => $deviceId,
@@ -488,7 +524,6 @@ class SmartHomeWsHandler implements MessageComponentInterface
         if (!empty($payload['definition']) && is_array($payload['definition'])) {
             $device = $this->applyDeviceDefinition($device, $payload['definition']);
         }
-        $device['status'] = 'online';
         if (!empty($payload['local_url'])) {
             $device['local_url'] = trim((string)$payload['local_url']);
         }
@@ -507,6 +542,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         }
         if (!empty($payload['telemetry']) && is_array($payload['telemetry'])) {
             foreach ($device['params'] as &$param) {
+                if ((string)($param['id'] ?? '') === 'ws') continue;
                 if (array_key_exists($param['id'], $payload['telemetry'])) {
                     $param['value'] = (string)$payload['telemetry'][$param['id']];
                 }
@@ -530,6 +566,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
                 ]);
             }
         }
+        $device = $this->applyTunnelStatusToDevice($device, true);
         $this->persistDevice($device);
         $this->broadcastToDashboards((string)$state['user_email'], (string)$state['device_id'], [
             'type' => 'state_update',
@@ -665,6 +702,89 @@ class SmartHomeWsHandler implements MessageComponentInterface
         } catch (\Throwable $e) {
             error_log('WS loadDevice: ' . $e->getMessage());
             return null;
+        }
+    }
+
+    private function applyTunnelStatusToDevice(array $device, bool $online): array
+    {
+        $value = $online ? 'online' : 'offline';
+        $device['status'] = $value;
+        $found = false;
+        foreach ($device['params'] as &$param) {
+            if ((string)($param['id'] ?? '') === 'ws') {
+                $param['value'] = $value;
+                $found = true;
+            }
+        }
+        unset($param);
+        if (!$found) {
+            $device['params'][] = ['id' => 'ws', 'label' => 'Tunnel', 'value' => $value];
+        }
+        return $device;
+    }
+
+    private function deviceHasWsOnline(array $params): bool
+    {
+        foreach ($params as $param) {
+            if ((string)($param['id'] ?? '') !== 'ws') continue;
+            $value = strtolower(trim((string)($param['value'] ?? '')));
+            return $value === 'online' || $value === '1' || $value === 'true';
+        }
+        return false;
+    }
+
+    /** @return array<string, true> */
+    private function connectedDeviceKeys(): array
+    {
+        $keys = [];
+        foreach ($this->clients as $client) {
+            $state = $this->clients[$client];
+            if (($state['role'] ?? null) !== 'device' || empty($state['device_id'])) continue;
+            $keys[(string)$state['user_email'] . "\0" . (string)$state['device_id']] = true;
+        }
+        return $keys;
+    }
+
+    private function setDeviceTunnelStatus(string $userEmail, string $deviceId, bool $online, ?array $device = null): array
+    {
+        if ($device === null) {
+            $device = $this->loadDevice($userEmail, $deviceId);
+        }
+        if ($device === null) {
+            return [];
+        }
+        $device = $this->applyTunnelStatusToDevice($device, $online);
+        $this->persistDevice($device);
+        $this->broadcastToDashboards($userEmail, $deviceId, [
+            'type' => 'state_update',
+            'device' => $device,
+        ]);
+        return $device;
+    }
+
+    private function reconcileTunnelStatus(bool $force): void
+    {
+        $now = microtime(true);
+        if (!$force && ($now - $this->lastReconcileAt) < 30.0) {
+            return;
+        }
+        $this->lastReconcileAt = $now;
+        $connected = $this->connectedDeviceKeys();
+        try {
+            $db = $this->db();
+            $res = $db->query("SELECT id, user_email, status, params FROM smarthome_devices");
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+                $userEmail = (string)($row['user_email'] ?? '');
+                $deviceId = (string)($row['id'] ?? '');
+                if ($userEmail === '' || $deviceId === '') continue;
+                $params = json_decode($row['params'] ?: '[]', true) ?: [];
+                if (!$this->deviceHasWsOnline($params)) continue;
+                $key = $userEmail . "\0" . $deviceId;
+                if (isset($connected[$key])) continue;
+                $this->setDeviceTunnelStatus($userEmail, $deviceId, false);
+            }
+        } catch (\Throwable $e) {
+            error_log('WS reconcileTunnelStatus: ' . $e->getMessage());
         }
     }
 

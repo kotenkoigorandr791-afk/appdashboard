@@ -274,6 +274,7 @@ function sh_resolve_home_context(AppDatabase $db, string $userEmail, array $sett
 }
 
 function sh_fetch_scoped_devices(AppDatabase $db, string $userEmail, array $ctx): array {
+    sh_persist_stale_devices($db);
     $devices = [];
     $seen = [];
     if (($ctx['scope'] ?? 'own') === 'group' && !empty($ctx['group_id'])) {
@@ -434,7 +435,54 @@ function sh_device_row_decode(array $row): array {
         }
         unset($displayed);
     }
+    return sh_apply_stale_device_status($row);
+}
+
+function sh_device_stale_seconds(): int {
+    return 180;
+}
+
+function sh_apply_stale_device_status(array $row): array {
+    if (($row['status'] ?? '') !== 'online') return $row;
+    $updatedRaw = trim((string)($row['updated_at'] ?? ''));
+    if ($updatedRaw === '') return $row;
+    $updated = strtotime($updatedRaw);
+    if ($updated === false) return $row;
+    if (time() - $updated <= sh_device_stale_seconds()) return $row;
+    $row['status'] = 'offline';
+    foreach ($row['params'] as &$param) {
+        if ((string)($param['id'] ?? '') === 'ws') {
+            $param['value'] = 'offline';
+        }
+    }
+    unset($param);
     return $row;
+}
+
+function sh_persist_stale_devices(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
+    try {
+        $stmt = $db->prepare("SELECT id, params FROM smarthome_devices WHERE status = 'online' AND updated_at::timestamptz < CURRENT_TIMESTAMP - (:sec || ' seconds')::interval");
+        $stmt->bindValue(':sec', (string)sh_device_stale_seconds(), PDO::PARAM_STR);
+        $res = $stmt->execute();
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+            $params = sh_json_field($row['params'] ?? '[]');
+            foreach ($params as &$param) {
+                if ((string)($param['id'] ?? '') === 'ws') {
+                    $param['value'] = 'offline';
+                }
+            }
+            unset($param);
+            $upd = $db->prepare("UPDATE smarthome_devices SET status = 'offline', params = :params, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+            $upd->bindValue(':params', json_encode($params, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+            $upd->bindValue(':id', (string)$row['id'], PDO::PARAM_STR);
+            $upd->execute();
+        }
+    } catch (Throwable $e) {
+        error_log('sh_persist_stale_devices: ' . $e->getMessage());
+    }
 }
 
 function sh_normalize_control_value(array $control, mixed $value): mixed {
@@ -1600,7 +1648,7 @@ if ($action !== '') {
                 $homeGroupId = '';
             }
             $homeView = (($payload['home_view'] ?? $cur['home_view'] ?? 'tiles') === 'map') ? 'map' : 'tiles';
-            $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain, home_scope, home_group_id, home_view, updated_at) VALUES (:em, :sd, :ad, :hs, :hg, :hv, datetime(\'now\',\'localtime\'))');
+            $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain, home_scope, home_group_id, home_view, updated_at) VALUES (:em, :sd, :ad, :hs, :hg, :hv, CURRENT_TIMESTAMP)');
             $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $stmt->bindValue(':sd', $sd, PDO::PARAM_STR);
             $stmt->bindValue(':ad', $ad, PDO::PARAM_STR);
@@ -1719,7 +1767,7 @@ if ($action !== '') {
                 }
                 // Update token index if token changed
                 if (!empty($payload['device_token'])) {
-                    $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, datetime(\'now\',\'localtime\'))');
+                    $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, CURRENT_TIMESTAMP)');
                     $ti->bindValue(':tok', trim((string)$payload['device_token']), PDO::PARAM_STR);
                     $ti->bindValue(':em', $userEmail, PDO::PARAM_STR);
                     $ti->bindValue(':did', $deviceId, PDO::PARAM_STR);
@@ -1873,6 +1921,7 @@ if ($action !== '') {
             if (!empty($payload['telemetry']) && is_array($payload['telemetry'])) {
                 $params = json_decode($device['params'] ?: '[]', true) ?: [];
                 foreach ($params as &$p) {
+                    if ((string)($p['id'] ?? '') === 'ws') continue;
                     if (array_key_exists($p['id'], $payload['telemetry'])) {
                         $p['value'] = (string)$payload['telemetry'][$p['id']];
                     }
@@ -1897,7 +1946,7 @@ if ($action !== '') {
                 }
                 unset($c);
                 if ($changed) {
-                    $cupd = $db->prepare('UPDATE smarthome_devices SET controls=:ctrls, updated_at=datetime(\'now\',\'localtime\') WHERE id=:id');
+                    $cupd = $db->prepare('UPDATE smarthome_devices SET controls=:ctrls, updated_at=CURRENT_TIMESTAMP WHERE id=:id');
                     $cupd->bindValue(':ctrls', json_encode($controls, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
                     $cupd->bindValue(':id', $deviceId, PDO::PARAM_STR);
                     $cupd->execute();
@@ -2060,7 +2109,7 @@ if ($action !== '') {
             }
             // Get recent events
             $events = [];
-            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 200");
+            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 200");
             $estmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $estmt->bindValue(':period', $period, PDO::PARAM_STR);
             $eres = $estmt->execute();
@@ -2073,7 +2122,7 @@ if ($action !== '') {
             // Get param history for devices
             $paramHistory = [];
             foreach ($devices as $d) {
-                $ph = $db->prepare("SELECT * FROM smarthome_params_history WHERE device_id = :did AND recorded_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY recorded_at DESC LIMIT 100");
+                $ph = $db->prepare("SELECT * FROM smarthome_params_history WHERE device_id = :did AND recorded_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY recorded_at DESC LIMIT 100");
                 $ph->bindValue(':did', $d['id'], PDO::PARAM_STR);
                 $ph->bindValue(':period', $period, PDO::PARAM_STR);
                 $phres = $ph->execute();
@@ -2088,7 +2137,7 @@ if ($action !== '') {
             if ($period < 1) $period = 168;
             if ($period > 720) $period = 720;
             $errors = [];
-            $stmt = $db->prepare("SELECT * FROM smarthome_errors WHERE user_email = :em AND created_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 300");
+            $stmt = $db->prepare("SELECT * FROM smarthome_errors WHERE user_email = :em AND created_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 300");
             $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $stmt->bindValue(':period', $period, PDO::PARAM_STR);
             $res = $stmt->execute();
@@ -2124,8 +2173,8 @@ if ($action !== '') {
 function sh_monitor_purge(): void {
     try {
         $db = sh_db();
-        $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
-        $db->exec("DELETE FROM smarthome_errors WHERE created_at < CURRENT_TIMESTAMP - interval '30 days'");
+        $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
+        $db->exec("DELETE FROM smarthome_errors WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
     } catch (Throwable $e) {
         error_log('sh_monitor_purge: ' . $e->getMessage());
     }
@@ -2295,13 +2344,16 @@ function sh_migrate_from_json(): void {
                 $stmt->bindValue(':local', $d['local_url'] ?? '', PDO::PARAM_STR);
                 $stmt->bindValue(':sd', $d['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
                 $stmt->bindValue(':ad', $d['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
-                $stmt->bindValue(':mqtt', $d['mqtt_topic'] ?? sh_auto_mqtt($d['name']??'', $id), PDO::PARAM_STR);
+                $stmt->bindValue(':mqtt', $d['mqtt_topic'] ?? sh_auto_mqtt($d['name'] ?? '', $id), PDO::PARAM_STR);
                 $stmt->bindValue(':tok', $d['device_token'] ?? '', PDO::PARAM_STR);
                 $stmt->bindValue(':notes', $d['notes'] ?? '', PDO::PARAM_STR);
-                $stmt->bindValue(':icon', (sh_templates())[$d['type']??'']['icon'] ?? 'smart-device', PDO::PARAM_STR);
-                $stmt->bindValue(':ctrls', json_encode($d['controls']??[], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-                $stmt->bindValue(':params', json_encode($d['params']??[], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-                $stmt->bindValue(':files', json_encode($d['files']??[], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $migrateType = (string)($d['type'] ?? '');
+                $migrateTemplates = sh_templates();
+                $migrateIcon = $migrateTemplates[$migrateType]['icon'] ?? 'smart-device';
+                $stmt->bindValue(':icon', $migrateIcon, PDO::PARAM_STR);
+                $stmt->bindValue(':ctrls', json_encode($d['controls'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':params', json_encode($d['params'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+                $stmt->bindValue(':files', json_encode($d['files'] ?? [], JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
                 $stmt->bindValue(':ca', $d['created_at'] ?? gmdate('c'), PDO::PARAM_STR);
                 $stmt->bindValue(':ua', $d['updated_at'] ?? gmdate('c'), PDO::PARAM_STR);
                 $stmt->execute();

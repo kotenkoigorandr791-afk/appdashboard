@@ -1,21 +1,17 @@
 [Unit]
 Description=AppDashboard performance metrics collector
-After=network-online.target
+After=docker.service network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=www-data
-Group=www-data
-SupplementaryGroups=docker
-WorkingDirectory=/var/www/AppDashboard/project/performance
-ExecStart=/usr/bin/php /var/www/AppDashboard/project/performance/bin/monitor_collector.php --loop
+ExecStartPre=/bin/sh -c "for i in 1 2 3 4 5 6 7 8 9 10; do /usr/bin/docker inspect --format=\"{{.State.Running}}\" appdashboard 2>/dev/null | /bin/grep -qx true && exit 0; /bin/sleep 3; done; exit 1"
+ExecStart=/usr/bin/docker exec -u www-data -w /var/www/AppDashboard appdashboard php project/performance/bin/monitor_collector.php --loop
 Restart=always
 RestartSec=30
 Nice=19
 IOSchedulingClass=idle
 CPUSchedulingPolicy=idle
-NoNewPrivileges=true
 
 [Install]
 WantedBy=multi-user.target

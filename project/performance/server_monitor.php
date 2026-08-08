@@ -75,7 +75,10 @@ if ($action !== '') {
     }
 }
 
-$result = monitorFetchDisplayPayloadFromDb();
+$forceRefresh = isset($_GET['force_refresh']) && (string)$_GET['force_refresh'] === '1';
+$result = $forceRefresh && $_userRole >= 2
+    ? monitorCollectMetricsPayload(true, true)
+    : monitorFetchDisplayPayloadFromDb();
 
 $requestedEndpoint = isset($_GET['endpoint']) ? strtolower(trim((string)$_GET['endpoint'])) : '';
 if ($requestedEndpoint !== '') {

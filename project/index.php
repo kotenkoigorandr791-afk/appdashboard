@@ -55,13 +55,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             exit;
         }
     }
-    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/icon')) {
+    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/onboarding/') || str_starts_with($__pathLower, '/project/icon')) {
         $__relative = ltrim(rawurldecode($__path), '/');
         $__target = realpath(APP_ROOT . '/' . $__relative);
         $__root = realpath(APP_ROOT);
         if ($__target && $__root && str_starts_with($__target, $__root . DIRECTORY_SEPARATOR) && is_file($__target)) {
             $__ext = strtolower(pathinfo($__target, PATHINFO_EXTENSION));
             if (str_starts_with($__pathLower, '/project/performance/') && !in_array($__ext, ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico', 'js', 'css', 'ttf', 'woff', 'woff2', 'json', 'map'], true)) {
+                http_response_code(404);
+                exit;
+            }
+            if (str_starts_with($__pathLower, '/project/onboarding/') && !in_array($__ext, ['js', 'css'], true)) {
                 http_response_code(404);
                 exit;
             }
