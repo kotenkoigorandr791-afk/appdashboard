@@ -1,9 +1,10 @@
 #!/bin/sh
 set -e
 CONTAINER="${APPDASHBOARD_CONTAINER:-appdashboard}"
-for _ in 1 2 3 4 5 6 7 8 9 10; do
-  if docker exec "$CONTAINER" supervisorctl status smart-home-ws >/dev/null 2>&1; then
-    docker exec "$CONTAINER" supervisorctl restart php-fpm smart-home-ws
+SUPERVISORCTL="supervisorctl -c /etc/supervisor/supervisord.conf"
+for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+  if docker exec "$CONTAINER" sh -c "$SUPERVISORCTL status smart-home-ws" >/dev/null 2>&1; then
+    docker exec "$CONTAINER" sh -c "$SUPERVISORCTL restart php-fpm smart-home-ws"
     exit 0
   fi
   sleep 2
