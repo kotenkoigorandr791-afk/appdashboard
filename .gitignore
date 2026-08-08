@@ -49,6 +49,7 @@ graphify-out/
 /apps/steps/users/
 /apps/steps/upload_sessions/
 /uploads/
+/tmp/
 /.cache/
 /.cursor/
 /.Trash-1000/

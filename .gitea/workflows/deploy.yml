@@ -17,9 +17,9 @@ jobs:
             git checkout main
           fi
           git reset --hard origin/main
-          if [ -n "$(git status --porcelain)" ]; then
-            git status --short
-            echo "Working tree is dirty; commit or stash server changes before deploy."
+          if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+            git status --short --untracked-files=no
+            echo "Working tree has uncommitted changes to tracked files; commit or stash server changes before deploy."
             exit 1
           fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
