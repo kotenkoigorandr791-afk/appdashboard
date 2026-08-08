@@ -8,8 +8,8 @@ Requires=docker.service
 
 [Service]
 Type=simple
-ExecStartPre=/opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
-ExecStart=/bin/sh -c 'docker events --filter container=immich_server --filter event=start --format "{{.Time}}" | while read -r _; do /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh; done'
+ExecStartPre=/bin/sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
+ExecStart=/bin/sh -c 'docker events --filter container=immich_server --filter event=start --format "{{.Time}}" | while read -r _; do /bin/sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh; done'
 Restart=always
 RestartSec=5
 
