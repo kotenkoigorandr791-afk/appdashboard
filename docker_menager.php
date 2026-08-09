@@ -1382,6 +1382,7 @@ function ico($n) {
             justify-content: center;
             padding: 22px;
             background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(8px);
             z-index: 500;
         }
         .docker-modal.active { display: flex; }

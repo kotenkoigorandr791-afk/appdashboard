@@ -152,6 +152,10 @@ body::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
 .uptime-enabled { justify-content: flex-end; flex-direction: row !important; align-items: center; }
 .uptime-enabled input { width: auto; }
 .uptime-form-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+.uptime-modal-content .app-dialog { width: min(480px, 100%); }
+.app-dialog h2 { margin: 0 0 12px; font-size: 1.2rem; color: var(--text-color); }
+.app-dialog p { margin: 0 0 20px; color: var(--text-secondary); line-height: 1.5; overflow-wrap: anywhere; }
+.app-dialog .uptime-form-actions { justify-content: flex-end; }
 
 /* ---------- UPTIME ADD DROPDOWN ---------- */
 .uptime-add-dropdown { position: relative; display: inline-flex; }

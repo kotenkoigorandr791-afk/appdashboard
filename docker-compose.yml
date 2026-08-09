@@ -51,7 +51,7 @@ services:
       - appdashboard-code-data:/var/www/AppDashboard/data
       - appdashboard-uploads:/var/www/AppDashboard/uploads
       - appdashboard-data:/opt/AppDashboard/data
-      - appdashboard-appdata:/opt/ApplicationData
+      - /opt/ApplicationData:/opt/ApplicationData
       - appdashboard-logs:/var/log/nginx
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -61,5 +61,4 @@ volumes:
   appdashboard-code-data:
   appdashboard-uploads:
   appdashboard-data:
-  appdashboard-appdata:
   appdashboard-db-data:

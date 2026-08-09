@@ -23,7 +23,21 @@ function shb_token(int $len = 18): string {
 }
 
 function shb_store_dashboard_token(string $userEmail, string $deviceId): string {
-    $file = __DIR__ . '/data/global/ws_tokens.json';
+    $helper = dirname(__DIR__, 2) . '/storage_helper.php';
+    $base = null;
+    if (is_file($helper)) {
+        require_once $helper;
+        try {
+            $base = rtrim(appdata_app_base_dir('smart_home'), '/') . '/data';
+        } catch (Throwable $e) {
+            $base = null;
+        }
+    }
+    if ($base === null) {
+        $link = __DIR__ . '/data';
+        $base = (is_link($link) && realpath($link)) ? realpath($link) : $link;
+    }
+    $file = rtrim($base, '/') . '/global/ws_tokens.json';
     $dir = dirname($file);
     if (!is_dir($dir)) {
         mkdir($dir, 0775, true);
