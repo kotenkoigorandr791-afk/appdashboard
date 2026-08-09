@@ -43,18 +43,40 @@ function isUserRoot(): bool {
 
 function logError(string $msg): void { error_log("[StepsApp] $msg"); }
 
-function checkDirectory(string $dir): void {
+function steps_appdata_dir(string $subdir = ''): ?string {
+    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    if (!is_file($helper)) return null;
+    require_once $helper;
+    try {
+        $base = appdata_app_base_dir('steps');
+    } catch (Throwable $e) {
+        return null;
+    }
+    $dir = $subdir === '' ? rtrim($base, '/') : (rtrim($base, '/') . '/' . $subdir);
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    @chmod($dir, 0775);
+    return is_dir($dir) ? $dir : null;
+}
+
+function checkDirectory(string $dir): bool {
     if (is_link($dir) && !file_exists($dir)) {
         @unlink($dir);
     }
-    if (!is_dir($dir) && !mkdir($dir, 0755, true) && !is_dir($dir)) {
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+        $fallback = steps_appdata_dir('');
+        if ($fallback && is_writable($fallback)) {
+            logError("Failed to create directory $dir; using appdata $fallback");
+            return true;
+        }
         logError("Failed to create directory $dir");
-        header('Content-Type: application/json');
-        exit(json_encode(['status' => 'error', 'message' => 'Failed to create directory']));
+        return false;
+    }
+    if (!is_writable($dir)) {
+        @chmod($dir, 0775);
     }
     if (!is_writable($dir)) {
         logError("Directory not writable: $dir");
-        header('Content-Type: application/json');
-        exit(json_encode(['status' => 'error', 'message' => 'Directory is not writable']));
+        return false;
     }
+    return true;
 }

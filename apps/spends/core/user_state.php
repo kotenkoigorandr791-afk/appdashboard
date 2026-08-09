@@ -116,8 +116,10 @@ if ($db && $currentUserEmail !== 'default_user') {
 $visibleStores = array_filter($userSettings['stores'], fn($s) => $s['visible'] ?? true);
 
 function getUserBackupDir($userEmail) {
+    global $backupBaseDir;
     $safe = getSafeFolderName($userEmail);
-    $dir  = __DIR__ . '/../backups/' . $safe;
+    $base = isset($backupBaseDir) && $backupBaseDir !== '' ? $backupBaseDir : rtrim(spends_runtime_dir('backups'), '/');
+    $dir  = rtrim($base, '/') . '/' . $safe;
     if (!file_exists($dir)) mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true);
     @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     return $dir;

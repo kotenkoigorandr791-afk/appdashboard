@@ -84,8 +84,16 @@ function migrateExistingFiles($userEmail, $udb) {
         dbSetSetting($udb, 'monthly_budget', 100);
         dbSetSetting($udb, 'currency', 'USD');
     }
-    $gsFile = __DIR__ . '/../global_settings.json';
-    if (file_exists($gsFile)) {
+    $gsFile = null;
+    if (function_exists('spends_appdata_subdir')) {
+        $gsDir = spends_appdata_subdir('');
+        if ($gsDir) $gsFile = rtrim($gsDir, '/') . '/global_settings.json';
+    }
+    if ($gsFile === null || !is_file($gsFile)) {
+        $gsLink = __DIR__ . '/../global_settings.json';
+        $gsFile = is_file($gsLink) ? $gsLink : null;
+    }
+    if ($gsFile && file_exists($gsFile)) {
         $gs = json_decode(file_get_contents($gsFile), true) ?: [];
         $ts = $gs['table_settings'][$safe] ?? $gs['table_settings'][$userEmail] ?? [];
         if (!empty($ts)) {

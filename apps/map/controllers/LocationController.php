@@ -133,7 +133,7 @@ function handleLocationAPI() {
         $photoPath = null;
         // Handle photo upload
         if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = __DIR__ . '/location_photos/';
+            $uploadDir = dirname(__DIR__) . '/location_photos/';
             if (!file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }

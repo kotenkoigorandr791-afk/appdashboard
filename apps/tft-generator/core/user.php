@@ -3,7 +3,22 @@ require_once __DIR__ . '/../../../lib/app_db.php';
 require_once __DIR__ . '/../../../lib/user_schema_pg.php';
 require_once __DIR__ . '/db.php';
 if (!defined('USER_DATA_BASE_DIR')) {
-    define('USER_DATA_BASE_DIR', __DIR__ . '/../users');
+    $tftHelper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $tftData = null;
+    if (is_file($tftHelper)) {
+        require_once $tftHelper;
+        try {
+            $tftData = rtrim(appdata_app_base_dir('tft-generator'), '/') . '/userdata';
+        } catch (Throwable $e) {
+            $tftData = null;
+        }
+    }
+    if ($tftData === null) {
+        $tftLink = __DIR__ . '/../userdata';
+        $tftData = (is_link($tftLink) && realpath($tftLink)) ? realpath($tftLink) : $tftLink;
+    }
+    if (!is_dir($tftData)) @mkdir($tftData, 0775, true);
+    define('USER_DATA_BASE_DIR', $tftData);
 }
 function getCurrentUserEmail(): string {
     $db = getDB();

@@ -40,11 +40,11 @@ chown -R www-data:www-data /var/www/AppDashboard/data /var/www/AppDashboard/uplo
 chmod -R u+rwX,g+rwX /var/www/AppDashboard/uploads 2>/dev/null || true
 chown www-data:www-data /opt/ApplicationData 2>/dev/null || true
 chmod 750 /opt/AppDashboard/data 2>/dev/null || true
-for d in /var/www/AppDashboard/apps/spends/users /var/www/AppDashboard/apps/spends/backups /var/www/AppDashboard/apps/spends/upload_sessions /var/www/AppDashboard/apps/spends/utils /var/www/AppDashboard/apps/spends/utils/results /var/www/AppDashboard/apps/spends/utils/ocr_jobs; do
-  mkdir -p "$d"
-  chown -R www-data:www-data "$d" 2>/dev/null || true
-  chmod -R u+rwX,g+rwX "$d" 2>/dev/null || true
-done
+if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
+  sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard || true
+elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
+  sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
+fi
 git config --system --add safe.directory /var/www/AppDashboard 2>/dev/null || true
 if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   (

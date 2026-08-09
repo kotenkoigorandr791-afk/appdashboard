@@ -345,17 +345,19 @@ function isUserRoot(): bool {
 
 function logError(string $msg): void { error_log("[StepsApp] $msg"); }
 
-function checkDirectory(string $dir): void {
-    if (!file_exists($dir) && !mkdir($dir, 0755, true)) {
+function checkDirectory(string $dir): bool {
+    if (!file_exists($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
         logError("Failed to create directory $dir");
-        header('Content-Type: application/json');
-        exit(json_encode(['status' => 'error', 'message' => 'Failed to create directory']));
+        return false;
+    }
+    if (!is_writable($dir)) {
+        @chmod($dir, 0775);
     }
     if (!is_writable($dir)) {
         logError("Directory not writable: $dir");
-        header('Content-Type: application/json');
-        exit(json_encode(['status' => 'error', 'message' => 'Directory is not writable']));
+        return false;
     }
+    return true;
 }
 
 // Initialization
