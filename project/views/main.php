@@ -416,7 +416,7 @@
         .custom-select-flag.flag-ru::after{content:"";position:absolute;left:-3px;top:6px;width:26px;height:3px;background:#111;border:1px solid #fff;transform:rotate(-35deg);transform-origin:center;box-sizing:border-box;}
         #icon-sort-dropdown .custom-select-option{gap:4px;padding-right:8px;white-space:nowrap;}
         #icon-sort-dropdown .custom-select-badge{max-width:64px;min-width:0;overflow:hidden;text-overflow:ellipsis;padding:1px 4px;margin-left:2px;border-radius:6px;font-size:9px;line-height:1.3;flex:0 1 auto;}
-        
+
         #wallpaper-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:100090;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #wallpaper-modal-content{background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));width:min(720px,calc(100vw - 32px));max-height:min(85vh,720px);overflow:hidden;display:flex;flex-direction:column;position:relative;}
         #wallpaper-modal-content .modal-scroll-body{padding:48px 20px 20px;}
@@ -767,7 +767,7 @@
         .app-icon-wrap img.app-icon[src$=".svg"]{filter:brightness(0.72) contrast(1.18) saturate(1.22);}
         .sidebar-app-icon-wrap object.sidebar-app-icon,
         .sidebar-app-icon-wrap img.sidebar-app-icon[src$=".svg"]{filter:brightness(0.72) contrast(1.18) saturate(1.22);}
-        
+
         .app-icon-svg{display:block;width:100%;height:100%;background:radial-gradient(circle at var(--g-hx,28%) var(--g-hy,22%),color-mix(in srgb,var(--primary-color) var(--g-light,32%),white) 0%,transparent var(--g-fade,56%)),linear-gradient(var(--g-angle,135deg),color-mix(in srgb,var(--primary-color) var(--g-start,55%),white) 0%,var(--primary-color) var(--g-mid,48%),color-mix(in srgb,var(--primary-color) var(--g-end,58%),black) 100%);-webkit-mask-image:var(--icon-src);mask-image:var(--icon-src);-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;-webkit-mask-size:contain;mask-size:contain;}
         #stats-canvas-container{flex:1;position:relative;min-height:400px;width:100%;margin-top:10px;overflow:hidden;}
         #stats-canvas{width:100%!important;height:100%!important;display:block;min-height:400px;}
@@ -1011,12 +1011,13 @@
             width: 92%;
             max-width: 680px;
             max-height: 90vh;
-            overflow-y: auto;
+            overflow: hidden;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
-            padding: 0 0 24px;
             color: var(--text-color);
+            display: flex;
+            flex-direction: column;
         }
         .weather-modal-close {
             position: absolute;
@@ -1039,7 +1040,8 @@
         .weather-modal-close:hover {
             background: var(--border-color);
         }
-        .weather-wind-chart-btn {
+        .weather-wind-chart-btn,
+        .weather-settings-btn {
             position: absolute;
             top: 24px;
             right: 60px;
@@ -1056,12 +1058,380 @@
             transition: background 0.2s;
             z-index: 10;
         }
-        .weather-wind-chart-btn:hover {
+        .weather-settings-btn {
+            right: 104px;
+        }
+        .weather-wind-chart-btn:hover,
+        .weather-settings-btn:hover {
             background: var(--border-color);
         }
-        .weather-wind-chart-btn svg {
+        .weather-wind-chart-btn svg,
+        .weather-settings-btn svg {
             width: 18px;
             height: 18px;
+        }
+        .weather-modal-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 24px 56px 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: linear-gradient(180deg, color-mix(in srgb, var(--group-block-bg) 85%, transparent), transparent);
+        }
+        .weather-modal-body {
+            padding: 20px 24px;
+            flex: 1;
+            overflow-y: auto;
+        }
+        .weather-settings-modal {
+            position: relative;
+            width: 92%;
+            max-width: 720px;
+            max-height: 90vh;
+            overflow: hidden;
+            background: var(--modal-bg);
+            border-radius: 22px;
+            padding: 0;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+        }
+        #weatherSettingsModalContent {
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        .weather-settings-header {
+            padding: 24px 72px 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            background: color-mix(in srgb, var(--group-block-bg) 58%, transparent);
+        }
+        .weather-settings-header h3 {
+            margin: 0 0 18px 0;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+        .location-switch {
+            position: relative;
+            display: flex;
+            width: min(100%, 430px);
+            padding: 4px;
+            background: color-mix(in srgb, var(--text-color) 8%, transparent);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            margin: 0;
+            box-sizing: border-box;
+        }
+        .location-switch .slider {
+            position: absolute;
+            top: 4px;
+            bottom: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            background: var(--modal-bg);
+            border-radius: 9px;
+            box-shadow: 0 1px 8px rgba(0,0,0,.14);
+            transition: transform .25s ease;
+        }
+        .location-switch.city .slider {
+            transform: translateX(100%);
+        }
+        .location-switch button {
+            position: relative;
+            z-index: 1;
+            width: 50%;
+            padding: 12px 14px;
+            border: 0;
+            background: transparent;
+            border-radius: 9px;
+            color: color-mix(in srgb, var(--text-color) 55%, transparent);
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            line-height: 1.25;
+            cursor: pointer;
+            transition: color .2s;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .location-switch button svg {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            stroke: currentColor;
+        }
+        .location-switch button.active {
+            color: var(--primary-color);
+        }
+        #weatherCitySelection {
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            padding: 18px 24px 0;
+        }
+        .weather-location-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .weather-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            position: relative;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--group-block-bg) 62%, transparent);
+            transition: border-color .2s ease, background .2s ease, opacity .2s ease;
+        }
+        .weather-step.active {
+            border-color: color-mix(in srgb, var(--primary-color) 42%, var(--border-color));
+            background: color-mix(in srgb, var(--primary-color) 7%, var(--group-block-bg));
+        }
+        .weather-step-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        .weather-step-dot {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: var(--modal-bg);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: color-mix(in srgb, var(--text-color) 58%, transparent);
+            transition: background .25s ease, border-color .25s ease, color .25s ease, transform .25s ease;
+            cursor: pointer;
+        }
+        .weather-step-dot svg {
+            width: 19px;
+            height: 19px;
+            stroke: currentColor;
+        }
+        .weather-step-line {
+            width: 1px;
+            min-height: 44px;
+            margin: 8px 0 0;
+            background: var(--border-color);
+            transition: background .25s ease;
+        }
+        .weather-step.active .weather-step-dot {
+            background: color-mix(in srgb, var(--primary-color) 12%, var(--modal-bg));
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
+        .weather-step.done .weather-step-dot {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: #fff;
+        }
+        .weather-step.done .weather-step-line {
+            background: var(--primary-color);
+        }
+        .weather-step-content {
+            flex: 1;
+            min-width: 0;
+            transition: opacity .22s ease;
+        }
+        .weather-step:not(.active):not(.done) .weather-step-content {
+            opacity: .55;
+        }
+        .weather-step-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text-color);
+            margin: 0 0 12px;
+        }
+        .weather-search-container {
+            position: relative;
+        }
+        .weather-search-input {
+            width: 100%;
+            padding: 13px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--modal-bg);
+            color: var(--text-color);
+            font-size: 14px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+        .weather-search-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 16%, transparent);
+        }
+        .weather-selected-country {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+            border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+            font-size: 14px;
+            color: var(--text-color);
+        }
+        .weather-selected-country .flag {
+            width: 24px;
+            height: 16px;
+            object-fit: cover;
+            border-radius: 2px;
+        }
+        .weather-selected-country button {
+            margin-left: auto;
+            border: 0;
+            background: transparent;
+            color: var(--primary-color);
+            font: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 4px 0;
+        }
+        .weather-selection-list {
+            max-height: min(34vh, 300px);
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--modal-bg);
+            margin: 0;
+            transition: opacity .2s ease, transform .2s ease;
+        }
+        .weather-selection-item {
+            width: 100%;
+            padding: 13px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-color);
+            background: transparent;
+            border-left: 0;
+            border-right: 0;
+            border-top: 0;
+            font: inherit;
+            text-align: left;
+        }
+        .weather-selection-item span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .weather-selection-item:last-child {
+            border-bottom: none;
+        }
+        .weather-selection-item:hover, .weather-selection-item.active {
+            background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+        }
+        .weather-selection-item.selected {
+            background: var(--primary-color);
+            color: white;
+        }
+        .weather-selection-item small {
+            margin-left: auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            opacity: 0.62;
+            font-size: 12px;
+        }
+        .weather-selection-empty {
+            padding: 18px 14px;
+            text-align: center;
+            color: var(--text-color);
+            opacity: 0.62;
+            font-size: 13px;
+        }
+        .weather-selection-item .flag {
+            width: 24px;
+            height: 18px;
+            margin-right: 12px;
+            border: 1px solid rgba(0,0,0,0.1);
+            object-fit: cover;
+            object-position: center;
+            flex-shrink: 0;
+        }
+        .weather-back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: color-mix(in srgb, var(--text-color) 7%, transparent);
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            color: var(--primary-color);
+            cursor: pointer;
+            padding: 8px 10px;
+            margin-bottom: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .weather-back-btn:hover {
+            background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+            border-color: color-mix(in srgb, var(--primary-color) 32%, var(--border-color));
+        }
+        .weather-settings-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 18px 24px 24px;
+            border-top: 1px solid var(--border-color);
+            background: color-mix(in srgb, var(--group-block-bg) 42%, transparent);
+        }
+        .weather-settings-cancel, .weather-settings-save {
+            padding: 11px 18px;
+            border-radius: 9px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+            min-width: 104px;
+        }
+        .weather-settings-cancel {
+            background: var(--group-block-bg);
+            color: var(--text-color);
+        }
+        .weather-settings-cancel:hover {
+            background: var(--border-color);
+        }
+        .weather-settings-save {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        .weather-settings-save:hover {
+            opacity: 0.9;
+        }
+        .weather-geo-prompt {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 18px;
+            text-align: center;
+            padding: 42px 24px;
+            opacity: 0.86;
+        }
+        .weather-loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--text-color);
+            opacity: 0.7;
         }
         @media (max-width: 480px) {
             .weather-modal-close {
@@ -1076,8 +1446,49 @@
                 width: 34px;
                 height: 34px;
             }
+            .weather-settings-btn {
+                top: 20px;
+                right: 92px;
+                width: 34px;
+                height: 34px;
+            }
             .weather-modal-header {
                 padding: 56px 16px 16px;
+            }
+            .weather-settings-modal {
+                width: 95%;
+            }
+            .weather-settings-header {
+                padding: 58px 16px 16px;
+            }
+            .location-switch {
+                width: 100%;
+            }
+            #weatherCitySelection {
+                padding: 14px 16px 0;
+            }
+            .weather-step {
+                padding: 14px;
+                gap: 12px;
+            }
+            .weather-step-dot {
+                width: 36px;
+                height: 36px;
+                border-radius: 10px;
+            }
+            .weather-selection-list {
+                max-height: 260px;
+            }
+            .weather-settings-actions {
+                flex-direction: column-reverse;
+                padding: 14px 16px 16px;
+            }
+            .location-switch button {
+                font-size: 12px;
+                gap: 6px;
+            }
+            .weather-settings-cancel, .weather-settings-save {
+                width: 100%;
             }
         }
         .weather-modal-header {
@@ -1275,8 +1686,8 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
-            margin-top: 18px;
-            padding: 10px 14px;
+            margin-top: 0;
+            padding: 11px 16px;
             border: 1px solid var(--border-color);
             border-radius: 10px;
             background: var(--primary-color);
@@ -1984,7 +2395,7 @@ endif; // showOtpPage
 
             <div id="delete-user-files-section">
                 <div class="scanning-msg" id="delete-user-scanning"><?php echo my_htmlspecialchars($translations['scanning_files'] ?? 'Scanning user files...'); ?></div>
-                
+
                 <!-- Progress bar for scanning -->
                 <div id="delete-user-scan-progress" style="display:none;margin-top:16px;">
                     <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;">
@@ -2003,7 +2414,7 @@ endif; // showOtpPage
                         <span id="scan-speed"></span>
                     </div>
                 </div>
-                
+
                 <div id="delete-user-files-loaded" style="display:none;">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                         <strong><?php echo my_htmlspecialchars($translations['user_files'] ?? 'User files'); ?>:</strong>
@@ -2479,7 +2890,7 @@ endif; // showOtpPage
         </div>
         <input type="hidden" name="current_app" value="<?php echo my_htmlspecialchars($selectedApp); ?>">
         <input type="submit" name="settings" value="<?php echo my_htmlspecialchars($translations['save']); ?>">
-    
+
         </div><!-- /.modal-scroll-body -->
 </form>
 </div>
@@ -3132,7 +3543,7 @@ var T=<?php echo json_encode([
         applyThemeRuntime(<?php echo $showLogin ? ($themeFromUrl ? json_encode($config['theme']) : 'browserTheme') : 'getSelectedThemeValue()'; ?>);
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyAutoTheme);
         showNotification();
-        
+
         const trustedPromptKey='trusted_device_prompt_due';
         function scheduleTrustedPrompt(delayMs){
             const due=Date.now()+Math.max(0,delayMs);
@@ -3152,7 +3563,7 @@ var T=<?php echo json_encode([
             }
         }catch(e){}
         <?php endif; ?>
-        
+
         const menuButton=document.getElementById('menu-button');
         const sidebar=document.getElementById('sidebar');
         function bindAppModalMenuLayer(){
@@ -3442,7 +3853,7 @@ var T=<?php echo json_encode([
             usersSearch.addEventListener('input', function() {
                 const query = this.value.toLowerCase();
                 usersClearSearch.style.display = query ? 'flex' : 'none';
-                
+
                 userRows.forEach(row => {
                     const email = row.getAttribute('data-email').toLowerCase();
                     const name = row.getAttribute('data-name').toLowerCase();
@@ -3453,7 +3864,7 @@ var T=<?php echo json_encode([
                     }
                 });
             });
-            
+
             usersClearSearch.addEventListener('click', function() {
                 usersSearch.value = '';
                 usersSearch.dispatchEvent(new Event('input'));
@@ -3465,10 +3876,10 @@ var T=<?php echo json_encode([
             sharedFilesSearch.addEventListener('input', function() {
                 const query = this.value.toLowerCase();
                 sharedFilesClearSearch.style.display = query ? 'flex' : 'none';
-                
+
                 const rows = sharedFilesTable.querySelectorAll('tbody tr');
                 currentFilteredFileIds = [];
-                
+
                 rows.forEach(row => {
                     const fileName = row.querySelector('.file-name')?.textContent.toLowerCase() || '';
                     if(fileName.includes(query)) {
@@ -3479,7 +3890,7 @@ var T=<?php echo json_encode([
                         row.style.display = 'none';
                     }
                 });
-                
+
                 if(deleteFilteredBtn) {
                     if(query && currentFilteredFileIds.length > 0) {
                         deleteFilteredBtn.style.display = 'inline-flex';
@@ -3489,12 +3900,12 @@ var T=<?php echo json_encode([
                     }
                 }
             });
-            
+
             sharedFilesClearSearch.addEventListener('click', function() {
                 sharedFilesSearch.value = '';
                 sharedFilesSearch.dispatchEvent(new Event('input'));
             });
-            
+
             if(deleteFilteredBtn) {
                 deleteFilteredBtn.addEventListener('click', function() {
                     if(currentFilteredFileIds.length === 0) return;
@@ -3668,10 +4079,10 @@ var T=<?php echo json_encode([
             document.getElementById('trusted-ok-btn').onclick = function(){ overlay.remove(); callback(true); };
             overlay.addEventListener('click', function(e){ if(e.target===overlay){ overlay.remove(); } });
         }
-        
+
         // Simple encryption/decryption for localStorage (uses server key)
         const TRUSTED_DEVICE_STORAGE_KEY = 'trusted_device_token';
-        
+
         function saveTrustedDeviceToken(encryptedToken) {
             try {
                 localStorage.setItem(TRUSTED_DEVICE_STORAGE_KEY, encryptedToken);
@@ -3681,7 +4092,7 @@ var T=<?php echo json_encode([
                 return false;
             }
         }
-        
+
         function getTrustedDeviceToken() {
             try {
                 return localStorage.getItem(TRUSTED_DEVICE_STORAGE_KEY);
@@ -3690,7 +4101,7 @@ var T=<?php echo json_encode([
                 return null;
             }
         }
-        
+
         function clearTrustedDeviceToken() {
             try {
                 localStorage.removeItem(TRUSTED_DEVICE_STORAGE_KEY);
@@ -3709,7 +4120,7 @@ var T=<?php echo json_encode([
             }
             return saved;
         }
-        
+
         function removeTrustedDeviceByToken(encryptedToken, callback) {
             fetch('/main?api=client_auth&action=remove_trusted_device', {
                 method: 'POST',
@@ -3735,7 +4146,7 @@ var T=<?php echo json_encode([
                 if (callback) callback(false, null);
             });
         }
-        
+
         function addCurrentDeviceToTrusted(){
             showTrustedConfirm(T.add_trusted_device_confirm||'Add this device to your trusted list? You will stay logged in even after the session timeout.', function(ok){
                 if(!ok) return;
@@ -3757,7 +4168,7 @@ var T=<?php echo json_encode([
         bindAddTrustedDeviceButton();
         const refreshTrustedBtn=document.getElementById('refresh-trusted');
         if(refreshTrustedBtn){refreshTrustedBtn.addEventListener('click',function(){refreshTrustedDevices();});}
-        
+
         // Use event delegation for remove buttons (fixes the issue with dynamically created buttons)
         document.addEventListener('click', function(e) {
             const removeBtn = e.target.closest('.remove-trusted-btn');
@@ -3788,7 +4199,7 @@ var T=<?php echo json_encode([
                 }, T.delete_label || 'Delete');
             }
         });
-        
+
         function refreshTrustedDevices(){
             fetch('/main?api=client_auth&action=list_trusted_devices')
             .then(r=>r.json()).then(data=>{
@@ -3857,7 +4268,7 @@ var T=<?php echo json_encode([
                     loadSharedFilesList();
                 }
             });
-            
+
             if(closeSharedFiles){
                 closeSharedFiles.addEventListener('click',function(){
                     if(sharedFilesModal){
@@ -3865,7 +4276,7 @@ var T=<?php echo json_encode([
                     }
                 });
             }
-            
+
             if(sharedFilesModal){
                 sharedFilesModal.addEventListener('click',function(e){
                     if(e.target===sharedFilesModal){
@@ -4218,14 +4629,14 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             const startTime = Date.now();
             let progressInterval;
             const totalEstimate = 3000; // Estimate 3 seconds for scanning
-            
+
             progressInterval = setInterval(() => {
                 const elapsed = Date.now() - startTime;
                 const progress = Math.min((elapsed / totalEstimate) * 100, 95); // Cap at 95% until complete
-                
+
                 if(progressBar) progressBar.style.width = progress + '%';
                 if(progressPercent) progressPercent.textContent = Math.round(progress) + '%';
-                
+
                 // Calculate estimated time remaining
                 const remaining = Math.max(0, Math.ceil((totalEstimate - elapsed) / 1000));
                 if(timeRemaining) {
@@ -4235,11 +4646,11 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                         timeRemaining.textContent = '<?php echo my_htmlspecialchars($translations['almost_done'] ?? 'Almost done...'); ?>';
                     }
                 }
-                
+
                 // Show files being scanned (simulated)
                 const scannedCount = Math.floor((progress / 100) * 100); // Simulated count
                 if(progressFiles) progressFiles.textContent = '<?php echo my_htmlspecialchars($translations['scanning_progress'] ?? 'Scanning'); ?>... ' + scannedCount + ' files';
-                
+
                 // Show scan speed
                 if(scanSpeed) {
                     const filesPerSec = (scannedCount / (elapsed / 1000)).toFixed(0);
@@ -4257,12 +4668,12 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 .then(data => {
                     // Stop progress animation
                     clearInterval(progressInterval);
-                    
+
                     // Set to 100%
                     if(progressBar) progressBar.style.width = '100%';
                     if(progressPercent) progressPercent.textContent = '100%';
                     if(timeRemaining) timeRemaining.textContent = '<?php echo my_htmlspecialchars($translations['complete'] ?? 'Complete'); ?>!';
-                    
+
                     // Small delay to show completion
                     setTimeout(() => {
                         if(scanning) scanning.style.display = 'none';
@@ -4647,7 +5058,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             setInterval(function(){loadNotifications(true);},45000);
             document.addEventListener('visibilitychange',function(){if(!document.hidden)loadNotifications(false);});
         })();
-        
+
         function showNewDeviceNotification(){
             // Check if already has a notification showing
             const existingNotification=document.querySelector('.temp-notification');
@@ -4655,21 +5066,21 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
 
             const notification=document.createElement('div');
             notification.className='notification temp-notification info';
-            
+
             // Function to update z-index based on modal state
             function updateNotificationZIndex() {
                 const anyModalOpen = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"], #auth-modal[style*="display: flex"], #auth-modal[style*="display:flex"], #profile-modal[style*="display: flex"], #profile-modal[style*="display:flex"], #settings-modal[style*="display: flex"], #settings-modal[style*="display:flex"], #email-modal[style*="display: flex"], #email-modal[style*="display:flex"], #users-modal[style*="display: flex"], #users-modal[style*="display:flex"], #sessions-modal[style*="display: flex"], #sessions-modal[style*="display:flex"], #qr-modal[style*="display: flex"], #qr-modal[style*="display:flex"], #shared-files-modal[style*="display: flex"], #shared-files-modal[style*="display:flex"], #news-portal-overlay.active');
                 notification.style.zIndex = anyModalOpen ? '9999' : '15000';
             }
-            
+
             // Initial z-index check
             updateNotificationZIndex();
-            
+
             // Observe modal display changes
             const modalObserver = new MutationObserver(() => {
                 updateNotificationZIndex();
             });
-            
+
             // Watch all modals for display changes
             const modalIds = ['auth-modal', 'profile-modal', 'settings-modal', 'email-modal', 'users-modal', 'sessions-modal', 'qr-modal', 'shared-files-modal'];
             modalIds.forEach(id => {
@@ -4731,7 +5142,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             });
 
             setTimeout(() => { notification.classList.add('show'); }, 50);
-            
+
             // Auto-hide after 15 seconds with swipe animation
             setTimeout(() => {
                 clearInterval(countdownInterval);
@@ -4741,7 +5152,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 setTimeout(() => { if(notification.parentNode) notification.remove(); }, 400);
             }, 15000);
         }
-        
+
         if(userProfile){userProfile.addEventListener('click',()=>{closeAllModals();if(profileModal){profileModal.style.display='flex';}});}
         function resetPasswordChangeForm(){
             currentPasswordVerified=false;
@@ -5654,7 +6065,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
     overflow-y: auto !important;
 }
 
-  
+
 
 
 /* Typography */
@@ -6905,8 +7316,8 @@ function closeAdminPanel(){overlay.classList.remove('ap-edge-omniroute');overlay
 
 /* ── AJAX load ── */
 function loadPanel(target, year){
-    var fd=new FormData(); 
-    fd.append('get_admin_panel','1'); 
+    var fd=new FormData();
+    fd.append('get_admin_panel','1');
     fd.append('ajax','1');
     if(year) fd.append('stats_year', year);
     var msgEl=document.getElementById('ap-loading-msg');
@@ -7596,16 +8007,16 @@ function wireSshPanel(){
                 btn.style.cssText = 'padding:5px 10px;background:#4CAF50;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;transition:background .15s;';
                 btn.textContent = cmd.name;
                 btn.title = cmd.command + (cmd.directory ? ' (in ' + cmd.directory + ')' : '');
-                
+
                 btn.addEventListener('mouseenter', function(){ this.style.background = '#45a049'; });
                 btn.addEventListener('mouseleave', function(){ this.style.background = '#4CAF50'; });
-                
+
                 btn.addEventListener('click', function(){
                     var command = this.getAttribute('data-cmd-command');
                     var directory = this.getAttribute('data-cmd-directory');
                     executeQuickCommand(command, directory);
                 });
-                
+
                 // Insert before manage button
                 qcBar.insertBefore(btn, qcManageBtn);
             });
@@ -7888,7 +8299,7 @@ function wireEvents(){
     /* Analysis mode & year selector */
     apPopulateYearSelector();
     apWireAnalysisButton();
-    
+
     /* pwd eyes (skip for SSH decrypt-eye handled inside SSH panel) */
     dynRoot.querySelectorAll('.ap-pwd-eye').forEach(function(b){b.addEventListener('click',function(){
         if(this.dataset.sshDecrypt==='1'){ return; }
@@ -8319,24 +8730,24 @@ window.apOpenDeleteUser=function(email,name){
     var ps=document.getElementById('delete-user-scan-progress'),pb=document.getElementById('scan-progress-bar');
     var pp=document.getElementById('scan-progress-percent'),pf=document.getElementById('scan-progress-files');
     var tr=document.getElementById('scan-time-remaining'),sp=document.getElementById('scan-speed');
-    
+
     if(t)t.textContent='Delete: '+name;if(ed)ed.textContent=email;if(te)te.value=email;
     if(dob)dob.disabled=true;if(dfc)dfc.checked=false;if(dss)dss.style.display='none';if(cs)cs.value=0;
     if(sm)sm.style.display='none';
     if(ps)ps.style.display='block';
     if(fl)fl.style.display='none';
     dm.style.display='flex';
-    
+
     // Start progress animation
     var startTime=Date.now();
     var totalEstimate=3000;
     var progressInterval=setInterval(function(){
         var elapsed=Date.now()-startTime;
         var progress=Math.min((elapsed/totalEstimate)*100,95);
-        
+
         if(pb)pb.style.width=progress+'%';
         if(pp)pp.textContent=Math.round(progress)+'%';
-        
+
         var remaining=Math.max(0,Math.ceil((totalEstimate-elapsed)/1000));
         if(tr){
             if(remaining>0){
@@ -8345,24 +8756,24 @@ window.apOpenDeleteUser=function(email,name){
                 tr.textContent='<?php echo my_htmlspecialchars($translations['almost_done'] ?? 'Almost done...'); ?>';
             }
         }
-        
+
         var scannedCount=Math.floor((progress/100)*100);
         if(pf)pf.textContent='<?php echo my_htmlspecialchars($translations['scanning_progress'] ?? 'Scanning'); ?>... '+scannedCount+' files';
-        
+
         if(sp){
             var filesPerSec=(scannedCount/(elapsed/1000)).toFixed(0);
             sp.textContent='<?php echo my_htmlspecialchars($translations['scan_speed'] ?? 'Speed'); ?>: ~'+filesPerSec+' files/sec';
         }
     },100);
-    
+
     var fd=new FormData();fd.append('scan_user_files','1');fd.append('ajax','1');fd.append('user_email',email);
     fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(data){
         clearInterval(progressInterval);
-        
+
         if(pb)pb.style.width='100%';
         if(pp)pp.textContent='100%';
         if(tr)tr.textContent='<?php echo my_htmlspecialchars($translations['complete'] ?? 'Complete'); ?>!';
-        
+
         setTimeout(function(){
             if(sm)sm.style.display='none';
             if(ps)ps.style.display='none';
@@ -8654,7 +9065,7 @@ function initApChartRangePicker(){
         var sorted=Array.from(allDates).sort();
         if(sorted.length && fromEl && !fromEl.value) fromEl.value = sorted[0];
         if(sorted.length && toEl   && !toEl.value)   toEl.value   = sorted[sorted.length-1];
-        
+
         // Initialize: year mode is default, no day buttons active
         if(apChartRange === 'year'){
             dynRoot.querySelectorAll('.ap-chart-range-btn').forEach(function(b){b.classList.remove('active');});
@@ -8724,14 +9135,14 @@ var apAvailableYears = []; // Store available years from backend
 function apPopulateYearSelector(){
     var sel = dynRoot && dynRoot.querySelector('#ap-chart-year-select');
     if(!sel) return;
-    
+
     // Use available years from backend (not from stats data)
     var years = apAvailableYears.slice().sort().reverse();
     var currentYear = new Date().getFullYear().toString();
-    
+
     // Clear and add options - NO "All" option, only specific years
     sel.innerHTML = '';
-    
+
     years.forEach(function(y){
         var opt = document.createElement('option');
         opt.value = y;
@@ -8739,7 +9150,7 @@ function apPopulateYearSelector(){
         if(y === currentYear) opt.selected = true;
         sel.appendChild(opt);
     });
-    
+
     // Set default to current year if available, otherwise most recent year
     if(years.length > 0){
         // Preserve currently selected year if it's still available, otherwise use current year or most recent
@@ -8757,7 +9168,7 @@ function apPopulateYearSelector(){
         // Auto-filter on load
         apFilterByYear();
     }
-    
+
     // Wire change event
     if(!sel._apYearWire){
         sel._apYearWire = true;
@@ -8804,16 +9215,16 @@ function apToggleAnalysis(){
     var analysisEl = dynRoot && dynRoot.querySelector('#ap-stats-analysis');
     var toggleBtn = dynRoot && dynRoot.querySelector('#ap-toggle-analysis');
     if(!analysisEl || !toggleBtn) return;
-    
+
     apAnalysisVisible = !apAnalysisVisible;
     analysisEl.style.display = apAnalysisVisible ? '' : 'none';
-    
+
     // Update button text with SVG icon
     var svgIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><path d="M11 13H7"/><path d="M19 9h-4"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><rect x="15" y="5" width="4" height="12" rx="1"/><rect x="7" y="8" width="4" height="9" rx="1"/></svg>';
-    toggleBtn.innerHTML = apAnalysisVisible ? 
-        svgIcon + (T.stats_hide_analysis || 'Hide Analysis') : 
+    toggleBtn.innerHTML = apAnalysisVisible ?
+        svgIcon + (T.stats_hide_analysis || 'Hide Analysis') :
         svgIcon + (T.stats_show_analysis || 'Show Analysis');
-    
+
     if(apAnalysisVisible){
         apFilterByYear();
         renderApAnalysis();
@@ -8824,12 +9235,12 @@ function renderApAnalysis(){
     var data = apGetFilteredData();
     var summaryEl = dynRoot && dynRoot.querySelector('#ap-analysis-summary');
     if(!summaryEl) return;
-    
+
     // Calculate totals per app
     var appTotals = {};
     var allDates = new Set();
     var dailyTotals = {};
-    
+
     Object.keys(data).forEach(function(id){
         appTotals[id] = 0;
         Object.keys(data[id]||{}).forEach(function(d){
@@ -8838,11 +9249,11 @@ function renderApAnalysis(){
             dailyTotals[d] = (dailyTotals[d] || 0) + (data[id][d] || 0);
         });
     });
-    
+
     var totalVisits = Object.values(appTotals).reduce(function(a,b){ return a+b; }, 0);
     var uniqueDays = allDates.size;
     var avgDaily = uniqueDays > 0 ? Math.round(totalVisits / uniqueDays) : 0;
-    
+
     // Find peak day
     var peakDay = null;
     var peakDayVisits = 0;
@@ -8852,7 +9263,7 @@ function renderApAnalysis(){
             peakDay = d;
         }
     });
-    
+
     // Summary cards
     summaryEl.innerHTML = '' +
         '<div style="background:var(--group-block-bg);border-radius:8px;padding:14px;border:1px solid var(--border-color);text-align:center;">' +
@@ -8872,13 +9283,13 @@ function renderApAnalysis(){
             '<div style="font-size:11px;opacity:.6;margin-bottom:4px;">Active Days</div>' +
             '<div style="font-size:24px;font-weight:700;">' + uniqueDays.toLocaleString() + '</div>' +
         '</div>';
-    
+
     // Render pie chart
     renderApPieChart(appTotals, totalVisits);
-    
+
     // Render popular apps
     renderApPopularApps(appTotals, totalVisits);
-    
+
     // Render peak days
     renderApPeakDays(dailyTotals);
 }
@@ -8886,21 +9297,21 @@ function renderApAnalysis(){
 function renderApPieChart(appTotals, totalVisits){
     var canvas = dynRoot && dynRoot.querySelector('#ap-pie-canvas');
     if(!canvas) return;
-    
+
     if(typeof window.Chart === 'undefined'){
         apEnsureStatsDeps().then(function(){renderApPieChart(appTotals,totalVisits);}).catch(function(e){console.error('[AdminPanel]',e);});
         return;
     }
-    
+
     var sorted = Object.entries(appTotals)
         .filter(function(e){ return e[1] > 0; })
         .sort(function(a,b){ return b[1] - a[1]; });
-    
+
     // Group small apps into "Other"
     var threshold = totalVisits * 0.02; // 2% threshold
     var mainApps = [];
     var otherCount = 0;
-    
+
     sorted.forEach(function(entry){
         if(entry[1] >= threshold || mainApps.length < 6){
             mainApps.push(entry);
@@ -8908,15 +9319,15 @@ function renderApPieChart(appTotals, totalVisits){
             otherCount += entry[1];
         }
     });
-    
+
     if(otherCount > 0) mainApps.push(['Other', otherCount]);
-    
+
     var labels = mainApps.map(function(e){ return e[0]; });
     var values = mainApps.map(function(e){ return e[1]; });
     var colors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','#E74C3C','#2ECC71','#1ABC9C','#F39C12'];
-    
+
     if(apPieChart){ apPieChart.destroy(); apPieChart = null; }
-    
+
     var tc = getApThemeColors();
     apPieChart = new window.Chart(canvas, {
         type: 'pie',
@@ -8954,19 +9365,19 @@ function renderApPieChart(appTotals, totalVisits){
 function renderApPopularApps(appTotals, totalVisits){
     var container = dynRoot && dynRoot.querySelector('#ap-popular-apps');
     if(!container) return;
-    
+
     var sorted = Object.entries(appTotals)
         .filter(function(e){ return e[1] > 0; })
         .sort(function(a,b){ return b[1] - a[1]; });
-    
+
     var top5 = sorted.slice(0, 5);
     var bottom5 = sorted.slice(-5).reverse();
-    
+
     var colors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF'];
-    
+
     var html = '<div style="margin-bottom:12px;">';
     html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#2ecc71;">✓ Top 5</div>';
-    
+
     if(top5.length === 0){
         html += '<div style="font-size:11px;opacity:.5;">' + (T.stats_no_data || 'No data available') + '</div>';
     } else {
@@ -8980,11 +9391,11 @@ function renderApPopularApps(appTotals, totalVisits){
             '</div>';
         });
     }
-    
+
     html += '</div>';
     html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);">';
     html += '<div style="font-size:12px;font-weight:600;margin-bottom:6px;color:#e74c3c;">✗ Least Popular</div>';
-    
+
     if(bottom5.length === 0){
         html += '<div style="font-size:11px;opacity:.5;">' + (T.stats_no_data || 'No data available') + '</div>';
     } else {
@@ -8998,7 +9409,7 @@ function renderApPopularApps(appTotals, totalVisits){
             '</div>';
         });
     }
-    
+
     html += '</div>';
     container.innerHTML = html;
 }
@@ -9006,25 +9417,25 @@ function renderApPopularApps(appTotals, totalVisits){
 function renderApPeakDays(dailyTotals){
     var container = dynRoot && dynRoot.querySelector('#ap-peak-days');
     if(!container) return;
-    
+
     var sorted = Object.entries(dailyTotals)
         .sort(function(a,b){ return b[1] - a[1]; })
         .slice(0, 10);
-    
+
     if(sorted.length === 0){
         container.innerHTML = '<div style="font-size:11px;opacity:.5;">' + (T.stats_no_data || 'No data available') + '</div>';
         return;
     }
-    
+
     var maxVisits = sorted[0][1];
-    
+
     var html = '';
     sorted.forEach(function(entry, i){
         var date = entry[0];
         var visits = entry[1];
         var pct = maxVisits > 0 ? ((visits / maxVisits) * 100) : 0;
         var dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-        
+
         html += '<div style="margin-bottom:8px;">' +
             '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">' +
                 '<span style="font-size:12px;font-weight:500;">' + dayName + '</span>' +
@@ -9035,7 +9446,7 @@ function renderApPeakDays(dailyTotals){
             '</div>' +
         '</div>';
     });
-    
+
     container.innerHTML = html;
 }
 
@@ -12246,12 +12657,14 @@ else injectAppMobileChrome();
 })();
 </script>
 
-<!-- Weather Widget Forecast Modal -->
 <div id="weatherModalOverlay" class="weather-modal-overlay" onclick="closeWeatherModal(event)">
     <div class="weather-modal" onclick="event.stopPropagation()">
         <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
         <button type="button" class="weather-wind-chart-btn" id="weatherWindChartBtn" onclick="toggleWindChart()" title="<?php echo my_htmlspecialchars($translations['weather_wind_chart_btn'] ?? 'Show wind chart'); ?>" style="display:none;">
             <svg id="weatherWindChartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
+        </button>
+        <button type="button" class="weather-settings-btn" id="weatherSettingsBtn" onclick="openWeatherSettings()" title="<?php echo my_htmlspecialchars($translations['weather_settings'] ?? 'Settings'); ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
         <div id="weatherModalContent">
             <div class="weather-loading" style="display:flex;justify-content:center;padding:40px 0;">
@@ -12262,10 +12675,78 @@ else injectAppMobileChrome();
     </div>
 </div>
 
+<div id="weatherSettingsModalOverlay" class="weather-modal-overlay" onclick="closeWeatherSettingsModal(event)" style="display: none;">
+    <div class="weather-modal weather-settings-modal" onclick="event.stopPropagation()">
+        <button type="button" class="weather-modal-close" onclick="closeWeatherSettingsModal()" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
+        <div id="weatherSettingsModalContent">
+            <div class="weather-settings-header">
+                <h3><?php echo my_htmlspecialchars($translations['weather_location_settings'] ?? 'Location settings'); ?></h3>
+                <div class="location-switch" id="weatherLocationSwitch">
+                    <div class="slider"></div>
+                    <button class="active" onclick="setWeatherLocationType('current')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/><circle cx="12" cy="12" r="4"/></svg>
+                        <?php echo my_htmlspecialchars($translations['weather_use_current_location'] ?? 'Use current location'); ?>
+                    </button>
+                    <button onclick="setWeatherLocationType('city')">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+                        <?php echo my_htmlspecialchars($translations['weather_use_selected_city'] ?? 'Use selected city'); ?>
+                    </button>
+                </div>
+            </div>
+            <div id="weatherCitySelection" style="display: none;">
+                <div class="weather-location-steps">
+                    <div class="weather-step active" id="weatherCountryStepWrap">
+                        <div class="weather-step-indicator">
+                            <div class="weather-step-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg></div>
+                            <div class="weather-step-line"></div>
+                        </div>
+                        <div class="weather-step-content">
+                            <div class="weather-step-title"><?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?></div>
+                            <div class="weather-search-container">
+                                <input type="text" id="weatherCountrySearch" class="weather-search-input" placeholder="<?php echo my_htmlspecialchars($translations['weather_search'] ?? 'Search'); ?>..." oninput="searchCountries(this.value)" onkeydown="handleCountryKeyDown(event)">
+                            </div>
+                            <div class="weather-selection-list" id="weatherCountryList">
+                                <div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">
+                                    <div class="weather-loading-spinner"></div>
+                                    <span><?php echo my_htmlspecialchars($translations['weather_loading'] ?? 'Loading...'); ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="weather-step" id="weatherCityStep">
+                        <div class="weather-step-indicator">
+                            <div class="weather-step-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></div>
+                        </div>
+                        <div class="weather-step-content">
+                            <div class="weather-step-title"><?php echo my_htmlspecialchars($translations['weather_select_city'] ?? 'Select city'); ?></div>
+                            <button type="button" class="weather-back-btn" onclick="goBackToCountries()">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+                                <?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?>
+                            </button>
+                            <div class="weather-search-container">
+                                <input type="text" id="weatherCitySearch" class="weather-search-input" placeholder="<?php echo my_htmlspecialchars($translations['weather_search'] ?? 'Search'); ?>..." oninput="searchCities(this.value)" onkeydown="handleCityKeyDown(event)">
+                            </div>
+                            <div class="weather-selection-list" id="weatherCityList">
+                                <div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">
+                                    <div class="weather-loading-spinner"></div>
+                                    <span><?php echo my_htmlspecialchars($translations['weather_loading'] ?? 'Loading...'); ?></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="weather-settings-actions">
+                <button type="button" class="weather-settings-cancel" onclick="closeWeatherSettingsModal()"><?php echo my_htmlspecialchars($translations['weather_cancel'] ?? 'Cancel'); ?></button>
+                <button type="button" class="weather-settings-save" onclick="saveWeatherSettings()"><?php echo my_htmlspecialchars($translations['weather_save'] ?? 'Save'); ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-/* ── Enhanced Weather Widget with 7-Day Forecast Modal ── */
 (function(){
-var weatherStore = { city: '', lat: 0, lon: 0, current: null, daily: null };
+var weatherStore = { city: '', lat: null, lon: null, current: null, daily: null };
 var windChartVisible = false;
 var WT = (typeof T !== 'undefined') ? T : {};
 
@@ -12338,14 +12819,499 @@ var modalOverlay = document.getElementById('weatherModalOverlay');
 var modalContent = document.getElementById('weatherModalContent');
 var weatherGeoNoticeShown = false;
 
+window.openWeatherSettings = openWeatherSettings;
+window.closeWeatherSettingsModal = closeWeatherSettingsModal;
+window.setWeatherLocationType = setWeatherLocationType;
+window.saveWeatherSettings = saveWeatherSettings;
+window.searchCountries = searchCountries;
+window.searchCities = searchCities;
+window.selectCountry = selectCountry;
+window.selectCity = selectCity;
+window.goBackToCountries = goBackToCountries;
+window.handleCountryKeyDown = handleCountryKeyDown;
+window.handleCityKeyDown = handleCityKeyDown;
+
+var settingsModalOverlay = document.getElementById('weatherSettingsModalOverlay');
+var settingsModalContent = document.getElementById('weatherSettingsModalContent');
+var weatherLocationSwitch = document.getElementById('weatherLocationSwitch');
+var weatherCitySelection = document.getElementById('weatherCitySelection');
+var weatherCountryList = document.getElementById('weatherCountryList');
+var weatherCityList = document.getElementById('weatherCityList');
+var weatherCountrySearch = document.getElementById('weatherCountrySearch');
+var weatherCitySearch = document.getElementById('weatherCitySearch');
+var weatherCountryStepWrap = document.getElementById('weatherCountryStepWrap');
+var weatherCityStep = document.getElementById('weatherCityStep');
+
+var weatherSettings = {
+    use_current_location: true,
+    selected_country: null,
+    selected_country_code: null,
+    selected_region: null,
+    selected_city: null,
+    selected_city_label: null,
+    selected_lat: null,
+    selected_lon: null,
+    countries: [],
+    country_results: [],
+    cities: [],
+    current_step: 'country',
+    country_search: '',
+    city_search: ''
+};
+var weatherCitySearchTimer = null;
+var weatherCountriesLoading = false;
+var weatherCountriesLoaded = false;
+
+function ensureCountriesLoaded() {
+    if (weatherCountriesLoaded || weatherCountriesLoading) return;
+    loadCountries();
+}
+
+function restoreSavedCitySelection() {
+    if (!weatherSettings.selected_city || weatherSettings.selected_lat == null || weatherSettings.selected_lon == null) return;
+    weatherSettings.cities = [{
+        name: weatherSettings.selected_city,
+        admin1: weatherSettings.selected_region || '',
+        country: weatherSettings.selected_country || '',
+        country_code: weatherSettings.selected_country_code || '',
+        lat: weatherSettings.selected_lat,
+        lon: weatherSettings.selected_lon,
+        label: weatherSettings.selected_city_label || weatherSettings.selected_city
+    }];
+    renderCities();
+}
+
+function setWeatherLocationType(type) {
+    const switcher = document.getElementById('weatherLocationSwitch');
+    const buttons = switcher.querySelectorAll('button');
+
+    switcher.classList.toggle('city', type === 'city');
+    weatherSettings.use_current_location = type === 'current';
+
+    buttons.forEach((button, index) => {
+        button.classList.toggle(
+            'active',
+            type === 'current' ? index === 0 : index === 1
+        );
+    });
+
+    weatherCitySelection.style.display = type === 'city' ? 'block' : 'none';
+    if (type === 'city') {
+        ensureCountriesLoaded();
+        updateWeatherStepState(weatherSettings.current_step);
+        if (weatherCountriesLoaded) renderCountryPanel();
+        renderCities();
+    }
+}
+
+function updateWeatherStepState(step) {
+    if (!weatherCountryStepWrap || !weatherCityStep) return;
+    weatherSettings.current_step = step;
+    const countryDone = !!weatherSettings.selected_country;
+    const cityDone = !!weatherSettings.selected_city;
+    weatherCountryStepWrap.classList.toggle('active', step === 'country');
+    weatherCountryStepWrap.classList.toggle('done', countryDone);
+    weatherCityStep.classList.toggle('active', step === 'city');
+    weatherCityStep.classList.toggle('done', cityDone);
+    weatherCityStep.style.display = 'flex';
+    weatherCountryStepWrap.style.display = 'flex';
+}
+
+function weatherFetchJson(url, options) {
+    return fetch(url, options).then(response => {
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response.json();
+    });
+}
+
+function openWeatherSettings() {
+    if (!settingsModalOverlay) return;
+
+    weatherFetchJson('/project/weather_settings.php')
+        .then(data => {
+            weatherSettings.use_current_location = data.use_current_location !== false;
+            weatherSettings.selected_country = data.selected_country;
+            weatherSettings.selected_country_code = data.selected_country_code;
+            weatherSettings.selected_region = data.selected_region;
+            weatherSettings.selected_city = data.selected_city;
+            weatherSettings.selected_lat = data.lat;
+            weatherSettings.selected_lon = data.lon;
+            weatherSettings.current_step = weatherSettings.selected_country ? 'city' : 'country';
+
+            setWeatherLocationType(weatherSettings.use_current_location ? 'current' : 'city');
+            if (!weatherSettings.use_current_location) {
+                restoreSavedCitySelection();
+            }
+        })
+        .catch(() => {
+            weatherSettings.current_step = 'country';
+            setWeatherLocationType('city');
+        });
+
+    settingsModalOverlay.style.display = 'flex';
+    settingsModalOverlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeWeatherSettingsModal(e) {
+    if (e && e.target !== settingsModalOverlay && e.target !== e.currentTarget) return;
+    if (settingsModalOverlay) {
+        settingsModalOverlay.style.display = 'none';
+        settingsModalOverlay.classList.remove('active');
+        document.body.style.overflow = '';
+    }
+}
+
+function saveWeatherSettings() {
+    if (!weatherSettings.use_current_location && (!weatherSettings.selected_city || weatherSettings.selected_lat == null || weatherSettings.selected_lon == null)) {
+        if (weatherCitySearch) weatherCitySearch.focus();
+        if (typeof showTempNotification === 'function') showTempNotification(wt('weather_select_city', 'Select city'), 'info');
+        return;
+    }
+    const settings = {
+        use_current_location: weatherSettings.use_current_location,
+        selected_country: weatherSettings.selected_country,
+        selected_country_code: weatherSettings.selected_country_code,
+        selected_region: null,
+        selected_city: weatherSettings.selected_city,
+        lat: weatherSettings.selected_lat,
+        lon: weatherSettings.selected_lon
+    };
+
+    weatherFetchJson('/project/weather_settings.php', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(data => {
+        if (data.success) {
+            closeWeatherSettingsModal();
+            if (!weatherSettings.use_current_location && weatherSettings.selected_city) {
+                weatherStore.lat = data.lat;
+                weatherStore.lon = data.lon;
+                weatherStore.city = weatherSettings.selected_city;
+                window.apWeatherRefresh(weatherStore.lat, weatherStore.lon, weatherSettings.selected_city);
+            } else if (weatherSettings.use_current_location) {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(pos) {
+                        weatherStore.lat = pos.coords.latitude;
+                        weatherStore.lon = pos.coords.longitude;
+                        window.apWeatherRefresh(weatherStore.lat, weatherStore.lon, null, true);
+                    }, function() {
+                        if (window.apWeatherShowPermError) window.apWeatherShowPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+                    }, { enableHighAccuracy: false, timeout: 10000 });
+                }
+            }
+        }
+    })
+    .catch(() => {
+        closeWeatherSettingsModal();
+    });
+}
+
+function loadCountries() {
+    if (weatherCountriesLoading) return;
+    weatherCountriesLoading = true;
+    weatherCountryList.innerHTML = '<div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">'
+        + '<div class="weather-loading-spinner"></div>'
+        + '<span>' + escHtml(wt('weather_loading', 'Loading...')) + '</span>'
+        + '</div>';
+
+    weatherFetchJson('/project/weather_settings.php?action=countries')
+        .then(data => {
+            if (data.countries && data.countries.length) {
+                weatherSettings.countries = data.countries;
+                weatherCountriesLoaded = true;
+                renderCountryPanel();
+            } else {
+                throw new Error('No countries');
+            }
+        })
+        .catch(() => {
+            weatherCountryList.innerHTML = '<div class="weather-selection-empty">'
+                + escHtml(wt('weather_fetch_error', 'Failed to load countries'))
+                + '</div>';
+        })
+        .finally(() => {
+            weatherCountriesLoading = false;
+        });
+}
+
+function searchCountries(query) {
+    weatherSettings.country_search = query.toLowerCase();
+    renderCountries();
+}
+
+function renderCountryPanel() {
+    const countrySearchWrap = weatherCountrySearch ? weatherCountrySearch.closest('.weather-search-container') : null;
+    const collapsed = weatherSettings.selected_country && weatherSettings.current_step === 'city';
+    if (countrySearchWrap) countrySearchWrap.style.display = collapsed ? 'none' : '';
+    if (collapsed) {
+        const country = weatherSettings.countries.find(c => c.name === weatherSettings.selected_country)
+            || { name: weatherSettings.selected_country, iso2: weatherSettings.selected_country_code, flag: 'https://flagcdn.com/w40/' + (weatherSettings.selected_country_code || 'xx') + '.png' };
+        const flagUrl = escHtml(country.flag || '');
+        weatherCountryList.innerHTML = '<div class="weather-selected-country">'
+            + '<img src="' + flagUrl + '" alt="" class="flag" onerror="this.style.visibility=\'hidden\';">'
+            + '<span>' + escHtml(country.name) + '</span>'
+            + '<button type="button" onclick="goBackToCountries()">' + escHtml(wt('weather_change', 'Change')) + '</button>'
+            + '</div>';
+        return;
+    }
+    renderCountries();
+}
+
+function renderCountries() {
+    let filtered = weatherSettings.countries;
+    if (weatherSettings.country_search) {
+        filtered = weatherSettings.countries.filter(country =>
+            country.name.toLowerCase().includes(weatherSettings.country_search)
+        );
+    }
+
+    if (filtered.length === 0) {
+        weatherSettings.country_results = [];
+        weatherCountryList.innerHTML = '<div class="weather-selection-item">'
+            + escHtml(wt('weather_no_results', 'No results found'))
+            + '</div>';
+        return;
+    }
+
+    weatherSettings.country_results = filtered;
+    let html = '';
+    filtered.forEach((country, index) => {
+        const isSelected = weatherSettings.selected_country === country.name;
+        const flagUrl = escHtml(country.flag || '');
+
+        html += '<button type="button" class="weather-selection-item' + (isSelected ? ' selected' : '') + '" data-country-index="' + index + '">'
+            + '<img src="' + flagUrl + '" alt="' + escHtml(country.iso2.toUpperCase()) + '" class="flag" '
+            + 'onerror="this.style.visibility=\'hidden\';">'
+            + '<span>' + escHtml(country.name) + '</span>'
+            + '</button>';
+    });
+    weatherCountryList.innerHTML = html;
+}
+
+function selectCountry(name, iso2) {
+    weatherSettings.selected_country = name;
+    weatherSettings.selected_country_code = String(iso2 || '').toLowerCase();
+    weatherSettings.selected_region = null;
+    weatherSettings.selected_city = null;
+    weatherSettings.selected_city_label = null;
+    weatherSettings.selected_lat = null;
+    weatherSettings.selected_lon = null;
+    weatherSettings.current_step = 'city';
+    weatherSettings.cities = [];
+    weatherSettings.city_search = '';
+    if (weatherCitySearch) {
+        weatherCitySearch.value = '';
+        weatherCitySearch.placeholder = (wt('weather_city_search_hint', 'Search city (English or local name)')) + '...';
+    }
+    updateWeatherStepState('city');
+    renderCountryPanel();
+    renderCities();
+    if (weatherCitySearch) weatherCitySearch.focus();
+    if (weatherCityStep) {
+        setTimeout(function() {
+            weatherCityStep.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }, 60);
+    }
+}
+
+function goBackToCountries() {
+    weatherSettings.current_step = 'country';
+    updateWeatherStepState('country');
+    renderCountryPanel();
+    if (weatherCountrySearch) weatherCountrySearch.focus();
+}
+
+function loadCities(query) {
+    if (!weatherSettings.selected_country_code) {
+        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
+            + escHtml(wt('weather_select_country', 'Select country'))
+            + '</div>';
+        return;
+    }
+    weatherCityList.innerHTML = '<div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">'
+        + '<div class="weather-loading-spinner"></div>'
+        + '<span>' + escHtml(wt('weather_loading', 'Loading...')) + '</span>'
+        + '</div>';
+    weatherFetchJson('/project/weather_settings.php?action=city_search&country=' + encodeURIComponent(weatherSettings.selected_country || '') + '&country_code=' + encodeURIComponent(String(weatherSettings.selected_country_code || '').toUpperCase()) + '&q=' + encodeURIComponent(query))
+    .then(data => {
+        if (data.cities) {
+            weatherSettings.cities = data.cities;
+            renderCities();
+        } else {
+            throw new Error('No cities');
+        }
+    })
+    .catch(() => {
+        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
+            + escHtml(wt('weather_fetch_error', 'Failed to load cities'))
+            + '</div>';
+    });
+}
+
+function searchCities(query) {
+    weatherSettings.city_search = query.trim();
+    clearTimeout(weatherCitySearchTimer);
+    if (weatherSettings.city_search.length < 2) {
+        weatherSettings.cities = [];
+        renderCities();
+        return;
+    }
+    weatherCitySearchTimer = setTimeout(function() {
+        loadCities(weatherSettings.city_search);
+    }, 250);
+}
+
+function renderCities() {
+    if (!weatherSettings.selected_country_code) {
+        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
+            + escHtml(wt('weather_select_country', 'Select country'))
+            + '</div>';
+        return;
+    }
+    let filtered = weatherSettings.cities;
+    if (filtered.length === 0) {
+        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
+            + escHtml(weatherSettings.city_search.length < 2
+                ? wt('weather_city_search_hint', 'Enter at least 2 characters (English or local name)')
+                : wt('weather_no_results', 'No results found'))
+            + '</div>';
+        return;
+    }
+
+    let html = '';
+    filtered.forEach((city, index) => {
+        const isSelected = weatherSettings.selected_lat === city.lat && weatherSettings.selected_lon === city.lon;
+        html += '<button type="button" class="weather-selection-item' + (isSelected ? ' selected' : '') + '" data-city-index="' + index + '">'
+            + '<span>' + escHtml(city.name) + '</span>'
+            + '<small>' + escHtml([city.admin1, city.country].filter(Boolean).join(', ')) + '</small>'
+            + '</button>';
+    });
+    weatherCityList.innerHTML = html;
+}
+
+function selectCity(city) {
+    if (typeof city === 'string') {
+        city = weatherSettings.cities.find(item => item.name === city) || null;
+    }
+    if (!city) return;
+    weatherSettings.selected_city = city.name;
+    weatherSettings.selected_city_label = city.label || city.name;
+    weatherSettings.selected_country = city.country || weatherSettings.selected_country;
+    weatherSettings.selected_country_code = city.country_code || weatherSettings.selected_country_code;
+    weatherSettings.selected_lat = city.lat;
+    weatherSettings.selected_lon = city.lon;
+    updateWeatherStepState('city');
+    renderCities();
+}
+
+function fetchCityCoordinates(country, city) {
+    weatherFetchJson('/project/weather_settings.php?action=coords&city=' + encodeURIComponent(city) + '&country=' + encodeURIComponent(country || '') + '&country_code=' + encodeURIComponent(weatherSettings.selected_country_code || ''))
+        .then(data => {
+            if (data && data.lat != null && data.lon != null) {
+                selectCity(data);
+            }
+        })
+        .catch(() => {});
+}
+
+function getActiveIndex(listEl) {
+    const items = listEl.querySelectorAll('.weather-selection-item');
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].classList.contains('active')) return i;
+    }
+    return -1;
+}
+
+function moveKeyboardNav(listEl, delta) {
+    const items = listEl.querySelectorAll('.weather-selection-item');
+    if (items.length === 0) return;
+    let idx = getActiveIndex(listEl);
+    if (idx < 0) idx = delta > 0 ? -1 : 0;
+    idx = Math.max(0, Math.min(items.length - 1, idx + delta));
+    for (let i = 0; i < items.length; i++) {
+        items[i].classList.toggle('active', i === idx);
+    }
+    if (items[idx] && typeof items[idx].scrollIntoView === 'function') {
+        items[idx].scrollIntoView({ block: 'nearest' });
+    }
+    return items[idx];
+}
+
+function handleCountryKeyDown(e) {
+    if (e.key === 'Enter') {
+        const firstItem = weatherCountryList.querySelector('.weather-selection-item.active')
+            || weatherCountryList.querySelector('.weather-selection-item');
+        if (firstItem) {
+            const countryName = firstItem.textContent.trim();
+            const country = weatherSettings.countries.find(c => c.name === countryName);
+            if (country) {
+                selectCountry(country.name, country.iso2);
+            }
+        }
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        moveKeyboardNav(weatherCountryList, e.key === 'ArrowDown' ? 1 : -1);
+    }
+}
+
+function handleCityKeyDown(e) {
+    if (e.key === 'Enter') {
+        const firstItem = weatherCityList.querySelector('.weather-selection-item.active')
+            || weatherCityList.querySelector('.weather-selection-item');
+        if (firstItem) {
+            selectCity(weatherSettings.cities[parseInt(firstItem.getAttribute('data-city-index'), 10)]);
+        }
+    }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        moveKeyboardNav(weatherCityList, e.key === 'ArrowDown' ? 1 : -1);
+    }
+}
+
 function renderWeatherGeoPrompt(message) {
-    modalContent.innerHTML = '<div style="text-align:center;padding:42px 24px;opacity:0.86">' +
+    modalContent.innerHTML = '<div class="weather-geo-prompt">' +
         '<div>' + escHtml(message || wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather')) + '</div>' +
         '<button type="button" class="weather-location-enable" onclick="window.apRequestWeatherLocationFromModal()">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>' +
             '<span>' + escHtml(wt('weather_allow_location', 'Allow location')) + '</span>' +
         '</button>' +
     '</div>';
+}
+
+if (weatherCountryList) {
+    weatherCountryList.addEventListener('click', function(e) {
+        const item = e.target.closest('[data-country-index]');
+        if (!item) return;
+        const country = weatherSettings.country_results[parseInt(item.getAttribute('data-country-index'), 10)];
+        if (country) selectCountry(country.name, country.iso2);
+    });
+}
+if (weatherCountryStepWrap) {
+    const countryDot = weatherCountryStepWrap.querySelector('.weather-step-dot');
+    if (countryDot) countryDot.addEventListener('click', goBackToCountries);
+}
+if (weatherCityStep) {
+    const cityDot = weatherCityStep.querySelector('.weather-step-dot');
+    if (cityDot) cityDot.addEventListener('click', function() {
+        if (weatherSettings.selected_country) {
+            updateWeatherStepState('city');
+            renderCountryPanel();
+            if (weatherCitySearch) weatherCitySearch.focus();
+        }
+    });
+}
+if (weatherCityList) {
+    weatherCityList.addEventListener('click', function(e) {
+        const item = e.target.closest('[data-city-index]');
+        if (!item) return;
+        selectCity(weatherSettings.cities[parseInt(item.getAttribute('data-city-index'), 10)]);
+    });
 }
 
 function notifyWeatherGeoUnavailable(message) {
@@ -12376,14 +13342,14 @@ window.apRequestWeatherLocationFromModal = function() {
 function showWeatherModal() {
     if(!modalOverlay) return;
     if(weatherStore.daily && weatherStore.daily.time) {
-        if(!getDailyWindSeries(weatherStore.daily) && weatherStore.lat && weatherStore.lon) {
+        if(!getDailyWindSeries(weatherStore.daily) && weatherStore.lat != null && weatherStore.lon != null) {
             weatherStore.daily = null;
         } else {
             showModalWithData();
             return;
         }
     }
-    if(!weatherStore.lat || !weatherStore.lon) {
+    if(weatherStore.lat == null || weatherStore.lon == null) {
         modalOverlay.style.display = 'flex';
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -12433,8 +13399,13 @@ window.closeWeatherModal = function(e) {
 };
 
 document.addEventListener('keydown', function(e) {
-    if(e.key === 'Escape' && modalOverlay && modalOverlay.classList.contains('active')) {
-        window.closeWeatherModal();
+    if(e.key === 'Escape') {
+        if(modalOverlay && modalOverlay.classList.contains('active')) {
+            window.closeWeatherModal();
+        }
+        if(settingsModalOverlay && settingsModalOverlay.classList.contains('active')) {
+            window.closeWeatherSettingsModal();
+        }
     }
 });
 
@@ -12795,8 +13766,7 @@ window.toggleWindChart = toggleWindChart;
     function initWeather() {
         var widgets = document.querySelectorAll('.weather-widget-instance');
         if (widgets.length === 0) return;
-        
-        /* Add click handler for forecast modal */
+
         widgets.forEach(function(w) {
             w.style.cursor = 'pointer';
             w.title = wt('weather_click_forecast', 'Click to see 7-day forecast');
@@ -12805,8 +13775,46 @@ window.toggleWindChart = toggleWindChart;
             });
         });
 
-        // ---- localStorage cache: reuse data for 1 hour ----
+        fetch('/project/weather_settings.php')
+            .then(response => response.json())
+            .then(settings => {
+                if (!settings.use_current_location && settings.selected_city) {
+                    weatherStore.city = settings.selected_city;
+                    if (settings.lat != null && settings.lon != null) {
+                        weatherStore.lat = settings.lat;
+                        weatherStore.lon = settings.lon;
+                        fetchWeather(weatherStore.lat, weatherStore.lon);
+                        applyToWidgets(null, null, settings.selected_city, null);
+                    }
+                } else {
+                    if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
+                    } else {
+                        showPermError(wt('weather_no_geo', 'Geolocation not supported'));
+                    }
+                }
+            })
+            .catch(() => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
+                } else {
+                    showPermError(wt('weather_no_geo', 'Geolocation not supported'));
+                }
+            });
+
         var cacheKey = 'ap_weather_data';
+        window.apWeatherShowPermError = showPermError;
+        window.apWeatherRefresh = function(lat, lng, city, resolveCity) {
+            if (lat == null || lng == null) return;
+            weatherStore.lat = lat;
+            weatherStore.lon = lng;
+            if (city !== null) {
+                weatherStore.city = city || '';
+                applyToWidgets(null, null, weatherStore.city, null);
+            }
+            fetchWeather(lat, lng);
+            if (resolveCity) fetchCity(lat, lng);
+        };
         try {
             var cached = JSON.parse(localStorage.getItem(cacheKey));
             if (cached && cached.ts && Date.now() - cached.ts < 3600000) {
@@ -12822,10 +13830,9 @@ window.toggleWindChart = toggleWindChart;
                     wind_speed_10m: cached.wind
                 };
                 applyToWidgets(weatherSvg(cached.code), (cached.temp || '--') + '\u00b0C', cached.city || '', cached.wind != null ? cached.wind + ' km/h' : null);
-                return; // use cached data, do not call APIs again
+                return;
             }
         } catch(e) {}
-        // -----------------------------------------------------
 
         function applyToWidgets(iconHtml, tempStr, locStr, windStr) {
             widgets.forEach(function(widget) {
@@ -12833,21 +13840,33 @@ window.toggleWindChart = toggleWindChart;
                 var tempEl = widget.querySelector('.weather-temp');
                 var locEl = widget.querySelector('.weather-location');
                 var windEl = widget.querySelector('.weather-wind');
-                
+
                 if(iconEl && iconHtml !== null) iconEl.innerHTML = iconHtml;
                 if(tempEl && tempStr !== null) tempEl.textContent = tempStr;
                 if(locEl && locStr !== null) locEl.textContent = locStr;
                 if(windEl && windStr !== null) windEl.textContent = windStr;
             });
         }
-        
+
         function showPermError(message) {
             widgets.forEach(function(widget) {
                 var permEl = widget.querySelector('.weather-perm');
-                if(permEl) permEl.style.display = 'inline';
+                var iconEl = widget.querySelector('.weather-icon');
+                var tempEl = widget.querySelector('.weather-temp');
+                var locSepEl = widget.querySelector('.weather-location-sep');
+                var locEl = widget.querySelector('.weather-location');
+                var windEl = widget.querySelector('.weather-wind');
+
+                if(permEl) {
+                    permEl.style.display = 'block';
+                    permEl.textContent = message;
+                }
+                if(iconEl) iconEl.style.display = 'none';
+                if(tempEl) tempEl.style.display = 'none';
+                if(locSepEl) locSepEl.style.display = 'none';
+                if(locEl) locEl.style.display = 'none';
+                if(windEl) windEl.style.display = 'none';
             });
-            applyToWidgets(weatherSvg(-1), '--\u00b0C', '', '');
-            notifyWeatherGeoUnavailable(message);
         }
 
         if (!navigator.geolocation) {
@@ -12884,11 +13903,10 @@ window.toggleWindChart = toggleWindChart;
 
                     applyToWidgets(weatherSvg(code), temp + '\u00b0C', null, wind + ' km/h');
 
-                    // get loc from one of the widgets
                     var locStr = '';
                     var sampleLoc = widgets[0].querySelector('.weather-location');
                     if(sampleLoc) locStr = sampleLoc.textContent;
-                    
+
                     saveToCache(temp, code, wind, locStr, lat, lng, data.daily || null);
                 })
                 .catch(function() {
@@ -12904,7 +13922,6 @@ window.toggleWindChart = toggleWindChart;
                     var city = data.city || data.locality || data.principalSubdivision || '';
                     applyToWidgets(null, null, city, null);
                     weatherStore.city = city;
-                    // update cache with city name (temp/code/wind may already be cached)
                     try {
                         var cur = JSON.parse(localStorage.getItem(cacheKey));
                         if (cur && cur.ts) {
@@ -12918,7 +13935,6 @@ window.toggleWindChart = toggleWindChart;
                     applyToWidgets(null, null, '', null);
                 });
         }
-
         function success(pos) {
             var lat = pos.coords.latitude;
             var lng = pos.coords.longitude;
@@ -12926,6 +13942,19 @@ window.toggleWindChart = toggleWindChart;
             weatherStore.lon = lng;
             fetchWeather(lat, lng);
             fetchCity(lat, lng);
+
+            fetch('/project/weather_settings.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    use_current_location: true,
+                    selected_country: null,
+                    selected_region: null,
+                    selected_city: null
+                })
+            }).catch(() => {});
         }
 
         function error(err) {

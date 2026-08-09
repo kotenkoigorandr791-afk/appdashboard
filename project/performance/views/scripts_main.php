@@ -12,7 +12,9 @@ const translations = {
         'max_retries_reached', 'retry', 'no_data_available', 'access_denied',
         'error_loading_phpinfo', 'unknown_interface', 'download', 'upload',
         'total', 'speed', 'session_break', 'usage', 'network_speed',
-        'time', 'loading_ellipsis', 'error_loading_data', 'unknown'
+        'time', 'loading_ellipsis', 'error_loading_data', 'unknown',
+        'cleanup_device_confirm', 'cleanup_time_confirm', 'cleanup_success', 'cleanup_error',
+        'select_time_period', 'delete', 'cancel', 'close'
     ];
     $jsUi = [];
     foreach ($translations as $langCode => $langData) {
@@ -2078,20 +2080,71 @@ function loadMonitorCharts() {
         });
 }
 
+let appConfirmCallback = null;
+
+function openAppConfirmDialog(message, onConfirm, options = {}) {
+    const modal = document.getElementById('appConfirmModal');
+    const titleEl = document.getElementById('appConfirmTitle');
+    const msgEl = document.getElementById('appConfirmMessage');
+    const okBtn = document.getElementById('appConfirmOkBtn');
+    const cancelBtn = document.getElementById('appConfirmCancelBtn');
+    if (!modal || !msgEl) return;
+    const isAlert = options.alert === true;
+    msgEl.textContent = message;
+    titleEl.textContent = options.title || (isAlert ? '' : t('delete'));
+    titleEl.style.display = titleEl.textContent ? '' : 'none';
+    okBtn.textContent = options.okText || (isAlert ? t('close') : t('delete'));
+    cancelBtn.style.display = isAlert ? 'none' : '';
+    appConfirmCallback = isAlert ? null : (typeof onConfirm === 'function' ? onConfirm : null);
+    modal.style.display = 'block';
+    document.body.classList.add('modal-open');
+    okBtn.focus();
+}
+
+function closeAppConfirmDialog() {
+    const modal = document.getElementById('appConfirmModal');
+    if (modal) modal.style.display = 'none';
+    document.body.classList.remove('modal-open');
+    appConfirmCallback = null;
+}
+
+function appConfirmOk() {
+    const cb = appConfirmCallback;
+    closeAppConfirmDialog();
+    if (typeof cb === 'function') cb();
+}
+
+function appConfirmCancel() {
+    closeAppConfirmDialog();
+}
+
+document.addEventListener('keydown', event => {
+    const modal = document.getElementById('appConfirmModal');
+    if (!modal || modal.style.display !== 'block') return;
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        appConfirmCancel();
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        appConfirmOk();
+    }
+});
+
 function cleanupMonitorChartData(group, key) {
-    if (!confirm(monitorChartsLabels.confirm_delete)) return;
-    const formData = new FormData();
-    formData.append('cleanup_chart_data', '1');
-    formData.append('chart_group', group);
-    formData.append('chart_key', key);
-    fetch(window.location.pathname + window.location.search, { method: 'POST', body: formData, credentials: 'same-origin' })
-        .then(response => response.json())
-        .then(data => {
-            if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
-            alert(monitorChartsLabels.deleted);
-            loadMonitorCharts();
-        })
-        .catch(error => alert(monitorChartsLabels.error + ': ' + error.message));
+    openAppConfirmDialog(monitorChartsLabels.confirm_delete, () => {
+        const formData = new FormData();
+        formData.append('cleanup_chart_data', '1');
+        formData.append('chart_group', group);
+        formData.append('chart_key', key);
+        fetch(window.location.pathname + window.location.search, { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
+                openAppConfirmDialog(monitorChartsLabels.deleted, null, { alert: true });
+                loadMonitorCharts();
+            })
+            .catch(error => openAppConfirmDialog(monitorChartsLabels.error + ': ' + error.message, null, { alert: true }));
+    });
 }
 
 function createHoverPreview() {
@@ -2217,31 +2270,31 @@ function restoreActiveMonitorSection() {
 }
 
 function cleanupSmartDevice(devicePath) {
-    if (!devicePath || !confirm(translations.ui[lang].cleanup_device_confirm || 'Delete all monitoring data for this device?')) {
-        return;
-    }
+    if (!devicePath) return;
 
-    const formData = new FormData();
-    formData.append('cleanup_smart_device', '1');
-    formData.append('device_path', devicePath);
+    openAppConfirmDialog(translations.ui[lang].cleanup_device_confirm || 'Delete all monitoring data for this device?', () => {
+        const formData = new FormData();
+        formData.append('cleanup_smart_device', '1');
+        formData.append('device_path', devicePath);
 
-    fetch(window.location.pathname + window.location.search, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.ok) {
-            alert(translations.ui[lang].cleanup_success || 'Data deleted successfully');
-            refreshData();
-        } else {
-            alert(translations.ui[lang].cleanup_error || 'Error deleting data');
-        }
-    })
-    .catch(error => {
-        console.error('Cleanup error:', error);
-        alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+        fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                openAppConfirmDialog(translations.ui[lang].cleanup_success || 'Data deleted successfully', null, { alert: true });
+                refreshData();
+            } else {
+                openAppConfirmDialog(translations.ui[lang].cleanup_error || 'Error deleting data', null, { alert: true });
+            }
+        })
+        .catch(error => {
+            console.error('Cleanup error:', error);
+            openAppConfirmDialog(translations.ui[lang].cleanup_error || 'Error deleting data', null, { alert: true });
+        });
     });
 }
 
@@ -2255,39 +2308,38 @@ function cleanupMetricData(metricType) {
     };
 
     const metricName = metricNames[metricType] || metricType;
-    if (!confirm((translations.ui[lang].cleanup_device_confirm || 'Delete all monitoring data for this device?').replace('device', metricName))) {
-        return;
-    }
 
-    const formData = new FormData();
-    formData.append('cleanup_metric_data', '1');
-    formData.append('metric_type', metricType);
+    openAppConfirmDialog((translations.ui[lang].cleanup_device_confirm || 'Delete all monitoring data for this device?').replace('device', metricName), () => {
+        const formData = new FormData();
+        formData.append('cleanup_metric_data', '1');
+        formData.append('metric_type', metricType);
 
-    fetch(window.location.pathname + window.location.search, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.ok) {
-            alert(translations.ui[lang].cleanup_success || 'Data deleted successfully');
-            // Clear local data arrays
-            if (metricType === 'cpu') cpuData = [];
-            else if (metricType === 'memory') memoryData = [];
-            else if (metricType === 'disk') diskData = [];
-            else if (metricType === 'network') networkData = [];
-            else if (metricType === 'swap') swapData = [];
+        fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                openAppConfirmDialog(translations.ui[lang].cleanup_success || 'Data deleted successfully', null, { alert: true });
+                // Clear local data arrays
+                if (metricType === 'cpu') cpuData = [];
+                else if (metricType === 'memory') memoryData = [];
+                else if (metricType === 'disk') diskData = [];
+                else if (metricType === 'network') networkData = [];
+                else if (metricType === 'swap') swapData = [];
 
-            saveStoredData();
-            refreshData();
-        } else {
-            alert(translations.ui[lang].cleanup_error || 'Error deleting data');
-        }
-    })
-    .catch(error => {
-        console.error('Cleanup error:', error);
-        alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+                saveStoredData();
+                refreshData();
+            } else {
+                openAppConfirmDialog(translations.ui[lang].cleanup_error || 'Error deleting data', null, { alert: true });
+            }
+        })
+        .catch(error => {
+            console.error('Cleanup error:', error);
+            openAppConfirmDialog(translations.ui[lang].cleanup_error || 'Error deleting data', null, { alert: true });
+        });
     });
 }
 
@@ -2314,7 +2366,7 @@ function submitCleanupTimePeriod(event) {
     const endTimeStr = document.getElementById('cleanupEndTime').value;
 
     if (!startTimeStr || !endTimeStr) {
-        alert(translations.ui[lang].select_time_period || 'Select time period');
+        openAppConfirmDialog(translations.ui[lang].select_time_period || 'Select time period', null, { alert: true });
         return;
     }
 
@@ -2322,37 +2374,35 @@ function submitCleanupTimePeriod(event) {
     const endTime = Math.floor(new Date(endTimeStr).getTime() / 1000);
 
     if (startTime >= endTime) {
-        alert('Invalid time range');
+        openAppConfirmDialog('Invalid time range', null, { alert: true });
         return;
     }
 
-    if (!confirm(translations.ui[lang].cleanup_time_confirm || 'Delete all monitoring data for the selected period?')) {
-        return;
-    }
+    openAppConfirmDialog(translations.ui[lang].cleanup_time_confirm || 'Delete all monitoring data for the selected period?', () => {
+        const formData = new FormData();
+        formData.append('cleanup_time_period', '1');
+        formData.append('start_time', startTime);
+        formData.append('end_time', endTime);
 
-    const formData = new FormData();
-    formData.append('cleanup_time_period', '1');
-    formData.append('start_time', startTime);
-    formData.append('end_time', endTime);
-
-    fetch(window.location.pathname + window.location.search, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.ok) {
-            alert(translations.ui[lang].cleanup_success || 'Data deleted successfully');
-            closeCleanupTimePeriodModal();
-            refreshData();
-        } else {
-            alert(translations.ui[lang].cleanup_error || 'Error deleting data');
-        }
-    })
-    .catch(error => {
-        console.error('Cleanup error:', error);
-        alert(translations.ui[lang].cleanup_error || 'Error deleting data');
+        fetch(window.location.pathname + window.location.search, {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.ok) {
+                openAppConfirmDialog(translations.ui[lang].cleanup_success || 'Data deleted successfully', null, { alert: true });
+                closeCleanupTimePeriodModal();
+                refreshData();
+            } else {
+                openAppConfirmDialog(translations.ui[lang].cleanup_error || 'Error deleting data', null, { alert: true });
+            }
+        })
+        .catch(error => {
+            console.error('Cleanup error:', error);
+            openAppConfirmDialog(translations.ui[lang].cleanup_error || 'Error deleting data', null, { alert: true });
+        });
     });
 }
 

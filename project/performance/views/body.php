@@ -319,3 +319,16 @@
         </div>
     </div>
 </div>
+
+<div id="appConfirmModal" class="modal uptime-check-modal">
+    <div class="modal-content uptime-modal-content">
+        <div class="uptime-form-panel app-dialog">
+            <h2 id="appConfirmTitle"></h2>
+            <p id="appConfirmMessage"></p>
+            <div class="uptime-form-actions">
+                <button class="btn-primary" type="button" onclick="appConfirmOk()" id="appConfirmOkBtn"></button>
+                <button class="btn-secondary" type="button" onclick="appConfirmCancel()" id="appConfirmCancelBtn"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
+            </div>
+        </div>
+    </div>
+</div>

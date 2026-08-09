@@ -1771,6 +1771,17 @@ $defaultTranslations['weather_wind_chart_title'] = 'Wind speed';
 $defaultTranslations['weather_wind_chart_btn'] = 'Show wind chart';
 $defaultTranslations['weather_wind_chart_back'] = 'Back to forecast';
 $defaultTranslations['weather_wind_speed_unit'] = 'km/h';
+$defaultTranslations['weather_settings'] = 'Settings';
+$defaultTranslations['weather_use_current_location'] = 'Use current location';
+$defaultTranslations['weather_use_selected_city'] = 'Use selected city';
+$defaultTranslations['weather_select_country'] = 'Select country';
+$defaultTranslations['weather_select_region'] = 'Select region';
+$defaultTranslations['weather_select_city'] = 'Select city';
+$defaultTranslations['weather_search'] = 'Search';
+$defaultTranslations['weather_no_results'] = 'No results found';
+$defaultTranslations['weather_location_settings'] = 'Location settings';
+$defaultTranslations['weather_save'] = 'Save';
+$defaultTranslations['weather_cancel'] = 'Cancel';
 $language = ap_i18n_lang_exists($config['language']) ? $config['language'] : 'en';
 $translations = ap_merge_i18n($defaultTranslations, $language);
 
@@ -1952,7 +1963,7 @@ if (!function_exists('detectDeviceAndBrowser')) {
     function detectDeviceAndBrowser($userAgent){
         $device='unknown_device';
         $browser='unknown_browser';
-        
+
         if(preg_match('/android/i',$userAgent)){
             $device='android';
         }
@@ -1968,7 +1979,7 @@ if (!function_exists('detectDeviceAndBrowser')) {
         elseif(preg_match('/macintosh|mac os x/i',$userAgent)){
             $device='macos';
         }
-        
+
         if(preg_match('/chrome/i',$userAgent)&&!preg_match('/edg/i',$userAgent)){$browser='chrome';}
         elseif(preg_match('/firefox/i',$userAgent)){$browser='firefox';}
         elseif(preg_match('/safari/i',$userAgent)&&!preg_match('/chrome/i',$userAgent)){$browser='safari';}
@@ -2616,7 +2627,7 @@ function scanUserFilesProgressive($email, $name, $appPaths, $progressCallback = 
     $totalFolders = 0;
     $totalFilesCount = 0;
     $targets = collectUserStorageTargets($email, $name, $appPaths);
-    
+
     // First, count total files and folders for progress calculation
     foreach($targets as $target){
         $totalFolders++;
@@ -2627,7 +2638,7 @@ function scanUserFilesProgressive($email, $name, $appPaths, $progressCallback = 
             }
         }
     }
-    
+
     $scannedFiles = 0;
     foreach($targets as $target){
         $files = scanFilesRecursive($target['folder']);
@@ -2642,7 +2653,7 @@ function scanUserFilesProgressive($email, $name, $appPaths, $progressCallback = 
             ];
             $scannedFiles++;
         }
-        
+
         // Report progress if callback provided
         if($progressCallback && $totalFilesCount > 0){
             $progressPercent = ($scannedFiles / $totalFilesCount) * 100;
@@ -2877,7 +2888,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
             }
             $currentTitle = trim((string)($input['current_title'] ?? ''));
         $currentBody = trim((string)($input['current_body'] ?? ''));
-        
+
         $customSystemPrompt = trim((string)($input['system_prompt'] ?? ''));
         $systemMsg = $customSystemPrompt !== '' ? $customSystemPrompt . ' ' : 'You are a news article writer. ';
         if ($currentTitle || $currentBody) {
@@ -2886,10 +2897,10 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         $systemMsg .= 'Given a topic or prompt, improve or rewrite the article. Respond with valid JSON only: {"title":"...","body":"...","created_at":<optional publication date as a unix timestamp in seconds>}. The body should be written in Markdown format. Use headings, lists, bold, italic, code blocks, and other Markdown syntax as appropriate for the content.';
             $selectedModel = trim((string)($input['model'] ?? ''));
             $model = cloud_ai_normalize_model_id(
-                in_array($selectedModel, $aiCfg['models']) ? $selectedModel : 
+                in_array($selectedModel, $aiCfg['models']) ? $selectedModel :
                 (string)($aiCfg['default_model'] ?: ($aiCfg['models'][0] ?? ''))
             );
-            
+
             $payload = [
                 'model' => $model,
                 'messages' => [
@@ -3019,28 +3030,28 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
 
     if ($action === 'get_writing_prompt') {
         if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        
+
         $tokenDir = APP_ROOT . '/data';
         if (!is_dir($tokenDir)) {
             @mkdir($tokenDir, 0775, true);
         }
         $tokenFile = $tokenDir . '/news_writing_token.json';
-        
+
         $now = time();
         $tokenData = [];
         if (is_file($tokenFile)) {
             $tokenData = json_decode((string)file_get_contents($tokenFile), true) ?: [];
         }
-        
+
         $token = (string)($tokenData['token'] ?? '');
         $createdAt = (int)($tokenData['created_at'] ?? 0);
         $lastUsedAt = (int)($tokenData['last_used_at'] ?? 0);
-        
+
         // Token rotation: valid for 1 hour from creation, extended 5 min after last use
         $tokenExpired = ($now - $createdAt) >= 3600;
         $graceExpired = ($now - $lastUsedAt) >= 300;
         $needsNewToken = $token === '' || ($tokenExpired && $graceExpired);
-        
+
         if ($needsNewToken) {
             $token = bin2hex(random_bytes(32));
             $createdAt = $now;
@@ -3059,7 +3070,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
                 'last_used_at' => $lastUsedAt,
             ], JSON_PRETTY_PRINT), LOCK_EX);
         }
-        
+
         // Build API URL from current request
         $scheme = 'http';
         $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
@@ -3071,11 +3082,11 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         }
         $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
         $apiUrl = $scheme . '://' . $host . '/main?api=news&action=save';
-        
+
         $tokenExpiresIn = max(0, 3600 - ($now - $createdAt));
         $graceExpiresIn = max(0, 300 - ($now - $lastUsedAt));
         $effectiveExpires = max($tokenExpiresIn, $graceExpiresIn);
-        
+
         // ── Load recent published articles for context ──
         $previousArticles = '';
         $newsItems = [];
@@ -3099,7 +3110,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
             // Ignore errors when loading previous articles
             $previousArticles = '';
         }
-        
+
         $prompt = <<<PROMPT
 You are a professional news writer for an app dashboard project. Your task is to create a news article based on recent git changes in the repository.
 
@@ -3160,7 +3171,7 @@ The API response is JSON. A successful response looks like:
 - API Token: {$token}
 - Token expires in: {$effectiveExpires} seconds
 PROMPT;
-        
+
         echo json_encode([
             'ok' => true,
             'prompt' => $prompt,
@@ -3178,7 +3189,7 @@ PROMPT;
         ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
-    
+
     echo json_encode(['ok' => false, 'error' => 'unknown_action']);
     exit;
 }
