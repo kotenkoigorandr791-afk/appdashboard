@@ -1044,7 +1044,6 @@
         .weather-settings-btn {
             position: absolute;
             top: 24px;
-            right: 60px;
             width: 36px;
             height: 36px;
             border-radius: 50%;
@@ -1059,6 +1058,9 @@
             z-index: 10;
         }
         .weather-settings-btn {
+            right: 60px;
+        }
+        .weather-wind-chart-btn {
             right: 104px;
         }
         .weather-wind-chart-btn:hover,
@@ -1074,7 +1076,7 @@
             display: flex;
             align-items: center;
             gap: 16px;
-            padding: 24px 56px 20px 24px;
+            padding: 24px 148px 20px 24px;
             border-bottom: 1px solid var(--border-color);
             background: linear-gradient(180deg, color-mix(in srgb, var(--group-block-bg) 85%, transparent), transparent);
         }
@@ -1108,7 +1110,7 @@
             border-radius: 30px;
             padding: 0;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-            border: 1px solid var(--border-color);
+            border: 0;
             color: var(--text-color);
         }
         #weatherSettingsModalContent {
@@ -1119,8 +1121,8 @@
         }
         .weather-settings-header {
             padding: 24px 72px 20px 24px;
-            border-bottom: 1px solid var(--border-color);
-            background: color-mix(in srgb, var(--group-block-bg) 58%, transparent);
+            border-bottom: 0;
+            background: var(--modal-bg);
         }
         .weather-settings-header h3 {
             margin: 0 0 18px 0;
@@ -1133,9 +1135,9 @@
             display: flex;
             width: min(100%, 430px);
             padding: 4px;
-            background: color-mix(in srgb, var(--text-color) 8%, transparent);
+            background: var(--modal-bg);
             border: 1px solid var(--border-color);
-            border-radius: 12px;
+            border-radius: 20px;
             margin: 0;
             box-sizing: border-box;
         }
@@ -1146,7 +1148,7 @@
             left: 4px;
             width: calc(50% - 4px);
             background: var(--modal-bg);
-            border-radius: 9px;
+            border-radius: 16px;
             box-shadow: 0 1px 8px rgba(0,0,0,.14);
             transition: transform .25s ease;
         }
@@ -1159,8 +1161,8 @@
             width: 50%;
             padding: 12px 14px;
             border: 0;
-            background: transparent;
-            border-radius: 9px;
+            background: var(--modal-bg);
+            border-radius: 16px;
             color: color-mix(in srgb, var(--text-color) 55%, transparent);
             font: inherit;
             font-size: 13px;
@@ -1188,6 +1190,7 @@
             min-height: 0;
             overflow-y: auto;
             padding: 22px 24px 0;
+            background: var(--modal-bg);
         }
         .weather-location-selectors {
             display: flex;
@@ -1199,7 +1202,8 @@
             display: flex;
             flex-direction: column;
             gap: 0;
-            width: min(100%, 520px);
+            width: min(100%, 560px);
+            margin: 0 auto;
         }
         .weather-selector-title {
             display: none;
@@ -1212,7 +1216,7 @@
             min-height: 50px;
             padding: 12px 18px;
             border: 1px solid var(--border-color);
-            border-radius: 999px;
+            border-radius: 24px;
             background: var(--modal-bg);
             color: var(--text-color);
             cursor: pointer;
@@ -1252,7 +1256,7 @@
             background: var(--modal-bg);
             box-shadow: 0 16px 40px rgba(0,0,0,.22);
             z-index: 100200;
-            width: min(520px, calc(100vw - 32px));
+            width: min(560px, calc(100vw - 32px));
         }
         .weather-selector .custom-select-options.show {
             display: block;
@@ -1312,8 +1316,8 @@
             padding: 12px 14px;
             margin-bottom: 12px;
             border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
-            border-radius: 10px;
-            background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+            border-radius: 20px;
+            background: var(--modal-bg);
             font-size: 14px;
             color: var(--text-color);
         }
@@ -1476,18 +1480,18 @@
             }
             .weather-wind-chart-btn {
                 top: 20px;
-                right: 54px;
+                right: 92px;
                 width: 34px;
                 height: 34px;
             }
             .weather-settings-btn {
                 top: 20px;
-                right: 92px;
+                right: 54px;
                 width: 34px;
                 height: 34px;
             }
             .weather-modal-header {
-                padding: 56px 16px 16px;
+                padding: 56px 132px 16px 16px;
             }
             .weather-settings-modal {
                 width: 95%;

@@ -745,18 +745,35 @@
         .weather-modal-overlay.active {
             display: flex;
         }
-        .weather-modal {
-            background: var(--bg-color);
-            border-radius: 24px;
-            width: 92%;
-            max-width: 680px;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: 0 24px 80px rgba(0,0,0,0.5);
-            animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            padding: 28px 24px 24px;
-        }
+         .weather-modal {
+             background: var(--bg-color);
+             border-radius: 24px;
+             width: 92%;
+             max-width: 680px;
+             max-height: 90vh;
+             overflow-y: auto;
+             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+             animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+             position: relative;
+             padding: 28px 24px 24px;
+         }
+         .weather-settings-modal {
+             background: color-mix(in srgb, var(--modal-bg) 85%, transparent);
+             backdrop-filter: blur(12px);
+             -webkit-backdrop-filter: blur(12px);
+         }
+         .weather-settings-modal .location-selector,
+         .weather-settings-modal .location-dropdown {
+             background: color-mix(in srgb, var(--modal-bg) 90%, transparent);
+             backdrop-filter: blur(10px);
+             -webkit-backdrop-filter: blur(10px);
+             border: 1px solid var(--border-color);
+         }
+         .custom-select-option.active {
+             background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+             backdrop-filter: blur(8px);
+             -webkit-backdrop-filter: blur(8px);
+         }
         .weather-modal-close {
             position: absolute;
             top: 16px;
@@ -778,10 +795,10 @@
         .weather-modal-close:hover {
             background: var(--border-color);
         }
-        .weather-wind-chart-btn {
+        .weather-wind-chart-btn,
+        .weather-settings-btn {
             position: absolute;
             top: 16px;
-            right: 60px;
             width: 36px;
             height: 36px;
             border-radius: 50%;
@@ -795,10 +812,18 @@
             transition: background 0.2s;
             z-index: 10;
         }
-        .weather-wind-chart-btn:hover {
+        .weather-wind-chart-btn {
+            right: 104px;
+        }
+        .weather-settings-btn {
+            right: 60px;
+        }
+        .weather-wind-chart-btn:hover,
+        .weather-settings-btn:hover {
             background: var(--border-color);
         }
-        .weather-wind-chart-btn svg {
+        .weather-wind-chart-btn svg,
+        .weather-settings-btn svg {
             width: 18px;
             height: 18px;
         }
@@ -11111,6 +11136,9 @@ else injectAppMobileChrome();
 <div id="weatherModalOverlay" class="weather-modal-overlay" onclick="closeWeatherModal(event)">
     <div class="weather-modal" onclick="event.stopPropagation()">
         <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="Close">&times;</button>
+        <button type="button" class="weather-settings-btn" id="weatherSettingsBtn" onclick="openWeatherSettings()" title="Settings" style="display:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.54 3.46a10 10 0 0 1 7.92 12.54"/><path d="M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20z"/><path d="M2 12h20"/><path d="M4.93 4.93l14.14 14.14"/></svg>
+        </button>
         <button type="button" class="weather-wind-chart-btn" id="weatherWindChartBtn" onclick="toggleWindChart()" title="Show wind chart" style="display:none;">
             <svg id="weatherWindChartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
         </button>
@@ -11351,8 +11379,12 @@ function showModalWithData() {
     document.body.style.overflow = 'hidden';
     windChartVisible = false;
     var windBtn = document.getElementById('weatherWindChartBtn');
+    var settingsBtn = document.getElementById('weatherSettingsBtn');
     if (windBtn) {
         windBtn.style.display = (weatherStore.daily && weatherStore.daily.windspeed_10m_max) ? 'flex' : 'none';
+    }
+    if (settingsBtn) {
+        settingsBtn.style.display = 'flex';
     }
     renderWeeklyForecast();
 }
@@ -11603,6 +11635,13 @@ function drawTemperatureChart(daily) {
     }
     drawPoints(lows, '#3b82f6');
     drawPoints(highs, '#ef4444');
+}
+
+/* ── Open weather settings ── */
+function openWeatherSettings() {
+    console.log('Weather settings clicked');
+    // TODO: Implement settings modal or redirect
+    alert('Weather settings will be implemented here');
 }
 
 /* ── Wind chart toggle & draw ── */

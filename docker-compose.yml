@@ -48,10 +48,11 @@ services:
       - "80:80"
     volumes:
       - .:/var/www/AppDashboard
+      - ./nginx/appdashboard.conf:/etc/nginx/sites-available/appdashboard.conf:ro
       - appdashboard-code-data:/var/www/AppDashboard/data
       - appdashboard-uploads:/var/www/AppDashboard/uploads
       - appdashboard-data:/opt/AppDashboard/data
-      - /opt/ApplicationData:/opt/ApplicationData
+      - appdashboard-appdata:/opt/ApplicationData
       - appdashboard-logs:/var/log/nginx
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -61,4 +62,5 @@ volumes:
   appdashboard-code-data:
   appdashboard-uploads:
   appdashboard-data:
+  appdashboard-appdata:
   appdashboard-db-data:
