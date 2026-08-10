@@ -737,5 +737,12 @@
     "welcome_user": "Vítejte, ",
     "windows": "Windows",
     "wrong_current_password": "Nesprávné současné heslo",
-    "year_view": "Rok"
+    "year_view": "Rok",
+    "weather_use_current_location": "Použít aktuální polohu",
+    "weather_use_selected_city": "Použít vybrané město",
+    "weather_select_country": "Vyberte zemi",
+    "weather_select_city": "Vyberte město",
+    "weather_location_settings": "Nastavení polohy",
+    "weather_save": "Uložit",
+    "weather_cancel": "Zrušit"
 }

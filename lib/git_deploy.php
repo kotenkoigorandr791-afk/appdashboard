@@ -80,6 +80,23 @@ function gitDeployEnsureContainerPackages(): array {
     return ['success' => true, 'output' => $out];
 }
 
+function gitDeployApplyEntrypoint(): array {
+    $codeDir = gitDeployCodeDir();
+    $src = $codeDir . '/docker-entrypoint.sh';
+    if (!is_file($src)) {
+        return ['success' => true, 'output' => 'entrypoint missing, skipped'];
+    }
+    $copyOut = gitDeployRun('docker cp ' . escapeshellarg($src) . ' appdashboard:/usr/local/bin/docker-entrypoint.sh');
+    if (preg_match('/\b(fatal:|error:|Error response)\b/i', $copyOut)) {
+        return ['success' => false, 'error' => $copyOut];
+    }
+    $chmodOut = gitDeployRun('docker exec appdashboard chmod +x /usr/local/bin/docker-entrypoint.sh');
+    if (preg_match('/\b(fatal:|error:|Error response)\b/i', $chmodOut)) {
+        return ['success' => false, 'error' => $chmodOut];
+    }
+    return ['success' => true, 'output' => trim($copyOut . "\n" . $chmodOut)];
+}
+
 function gitDeployRestartContainer(): array {
     $sock = '/var/run/docker.sock';
     if (!is_readable($sock)) {
@@ -129,19 +146,24 @@ function gitDeployPullAndRestart(): array {
         if (empty($packagesOut['success'])) {
             return ['success' => false, 'error' => $packagesOut['error'] ?? 'Container packages update failed'];
         }
+        $entrypointOut = gitDeployApplyEntrypoint();
+        if (empty($entrypointOut['success'])) {
+            return ['success' => false, 'error' => $entrypointOut['error'] ?? 'Entrypoint update failed', 'packages_output' => $packagesOut['output'] ?? ''];
+        }
         $nginxOut = gitDeployApplyNginxConfig();
         if (empty($nginxOut['success'])) {
-            return ['success' => false, 'error' => $nginxOut['error'] ?? 'Nginx config update failed'];
+            return ['success' => false, 'error' => $nginxOut['error'] ?? 'Nginx config update failed', 'packages_output' => $packagesOut['output'] ?? '', 'entrypoint_output' => $entrypointOut['output'] ?? ''];
         }
         $restartOut = gitDeployRestartContainer();
         if (empty($restartOut['success'])) {
-            return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'nginx_output' => $nginxOut['output'] ?? '', 'packages_output' => $packagesOut['output'] ?? ''];
+            return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'nginx_output' => $nginxOut['output'] ?? '', 'packages_output' => $packagesOut['output'] ?? '', 'entrypoint_output' => $entrypointOut['output'] ?? ''];
         }
         return [
             'success' => true,
             'message' => 'Already up to date; config reapplied and container restarted',
             'nginx_output' => $nginxOut['output'] ?? '',
             'packages_output' => $packagesOut['output'] ?? '',
+            'entrypoint_output' => $entrypointOut['output'] ?? '',
             'restarted' => true,
             'up_to_date' => true,
             'local_head' => $status['local_head'] ?? '',
@@ -157,13 +179,17 @@ function gitDeployPullAndRestart(): array {
     if (empty($packagesOut['success'])) {
         return ['success' => false, 'error' => $packagesOut['error'] ?? 'Container packages update failed', 'merge_output' => $mergeOut];
     }
+    $entrypointOut = gitDeployApplyEntrypoint();
+    if (empty($entrypointOut['success'])) {
+        return ['success' => false, 'error' => $entrypointOut['error'] ?? 'Entrypoint update failed', 'merge_output' => $mergeOut, 'packages_output' => $packagesOut['output'] ?? ''];
+    }
     $nginxOut = gitDeployApplyNginxConfig();
     if (empty($nginxOut['success'])) {
-        return ['success' => false, 'error' => $nginxOut['error'] ?? 'Nginx config update failed', 'merge_output' => $mergeOut, 'packages_output' => $packagesOut['output'] ?? ''];
+        return ['success' => false, 'error' => $nginxOut['error'] ?? 'Nginx config update failed', 'merge_output' => $mergeOut, 'packages_output' => $packagesOut['output'] ?? '', 'entrypoint_output' => $entrypointOut['output'] ?? ''];
     }
     $restartOut = gitDeployRestartContainer();
     if (empty($restartOut['success'])) {
-        return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'merge_output' => $mergeOut, 'nginx_output' => $nginxOut['output'] ?? '', 'packages_output' => $packagesOut['output'] ?? ''];
+        return ['success' => false, 'error' => $restartOut['error'] ?? 'Container restart failed', 'merge_output' => $mergeOut, 'nginx_output' => $nginxOut['output'] ?? '', 'packages_output' => $packagesOut['output'] ?? '', 'entrypoint_output' => $entrypointOut['output'] ?? ''];
     }
     return [
         'success' => true,
@@ -171,6 +197,7 @@ function gitDeployPullAndRestart(): array {
         'merge_output' => $mergeOut,
         'nginx_output' => $nginxOut['output'] ?? '',
         'packages_output' => $packagesOut['output'] ?? '',
+        'entrypoint_output' => $entrypointOut['output'] ?? '',
         'restarted' => true,
         'local_head' => trim(gitDeployRun('cd ' . escapeshellarg($codeDir) . ' && ' . gitDeployGitBin($codeDir) . ' rev-parse --short HEAD 2>/dev/null') ?: ''),
     ];

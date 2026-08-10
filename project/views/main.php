@@ -1007,11 +1007,11 @@
         }
         .weather-modal {
             background: var(--modal-bg);
-            border-radius: 24px;
+            border-radius: 30px;
             width: 92%;
             max-width: 680px;
             max-height: 90vh;
-            overflow: hidden;
+            overflow: auto;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -1082,15 +1082,30 @@
             padding: 20px 24px;
             flex: 1;
             overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-color) var(--modal-bg);
+        }
+        .weather-modal-body::-webkit-scrollbar {
+            width: 8px;
+        }
+        .weather-modal-body::-webkit-scrollbar-track {
+            background: var(--modal-bg);
+        }
+        .weather-modal-body::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        .weather-modal-body::-webkit-scrollbar-thumb:hover {
+            background: color-mix(in srgb, var(--border-color) 70%, var(--text-color));
         }
         .weather-settings-modal {
             position: relative;
             width: 92%;
             max-width: 720px;
             max-height: 90vh;
-            overflow: hidden;
+            overflow: auto;
             background: var(--modal-bg);
-            border-radius: 22px;
+            border-radius: 30px;
             padding: 0;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             border: 1px solid var(--border-color);
@@ -1172,85 +1187,104 @@
             flex: 1;
             min-height: 0;
             overflow-y: auto;
-            padding: 18px 24px 0;
+            padding: 22px 24px 0;
         }
-        .weather-location-steps {
+        .weather-location-selectors {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-        }
-        .weather-step {
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            position: relative;
-            padding: 16px;
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            background: color-mix(in srgb, var(--group-block-bg) 62%, transparent);
-            transition: border-color .2s ease, background .2s ease, opacity .2s ease;
-        }
-        .weather-step.active {
-            border-color: color-mix(in srgb, var(--primary-color) 42%, var(--border-color));
-            background: color-mix(in srgb, var(--primary-color) 7%, var(--group-block-bg));
-        }
-        .weather-step-indicator {
-            display: flex;
-            flex-direction: column;
+            gap: 14px;
             align-items: center;
+        }
+        .weather-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            width: min(100%, 520px);
+        }
+        .weather-selector-title {
+            display: none;
+        }
+        .weather-selector .custom-select {
+            position: relative;
+            width: 100%;
+        }
+        .weather-selector .custom-select-selected {
+            min-height: 50px;
+            padding: 12px 18px;
+            border: 1px solid var(--border-color);
+            border-radius: 999px;
+            background: var(--modal-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-sizing: border-box;
+            box-shadow: none;
+        }
+        .weather-selector .custom-select-selected:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 16%, transparent);
+        }
+        .weather-selector .custom-select-selected span {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+        }
+        .weather-selector .custom-select-selected::after {
+            content: "▼";
+            font-size: 10px;
+            margin-left: 10px;
+            opacity: .55;
             flex-shrink: 0;
         }
-        .weather-step-dot {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: var(--modal-bg);
+        .weather-selector .custom-select-options {
+            display: none;
+            position: fixed;
+            max-height: min(280px, 36vh);
+            overflow-y: auto;
             border: 1px solid var(--border-color);
+            border-radius: 24px;
+            background: var(--modal-bg);
+            box-shadow: 0 16px 40px rgba(0,0,0,.22);
+            z-index: 100200;
+            width: min(520px, calc(100vw - 32px));
+        }
+        .weather-selector .custom-select-options.show {
+            display: block;
+        }
+        .weather-selector .custom-select-option {
+            padding: 11px 14px;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            justify-content: center;
-            color: color-mix(in srgb, var(--text-color) 58%, transparent);
-            transition: background .25s ease, border-color .25s ease, color .25s ease, transform .25s ease;
-            cursor: pointer;
-        }
-        .weather-step-dot svg {
-            width: 19px;
-            height: 19px;
-            stroke: currentColor;
-        }
-        .weather-step-line {
-            width: 1px;
-            min-height: 44px;
-            margin: 8px 0 0;
-            background: var(--border-color);
-            transition: background .25s ease;
-        }
-        .weather-step.active .weather-step-dot {
-            background: color-mix(in srgb, var(--primary-color) 12%, var(--modal-bg));
-            border-color: var(--primary-color);
-            color: var(--primary-color);
-        }
-        .weather-step.done .weather-step-dot {
-            background: var(--primary-color);
-            border-color: var(--primary-color);
-            color: #fff;
-        }
-        .weather-step.done .weather-step-line {
-            background: var(--primary-color);
-        }
-        .weather-step-content {
-            flex: 1;
-            min-width: 0;
-            transition: opacity .22s ease;
-        }
-        .weather-step:not(.active):not(.done) .weather-step-content {
-            opacity: .55;
-        }
-        .weather-step-title {
-            font-size: 15px;
-            font-weight: 700;
             color: var(--text-color);
-            margin: 0 0 12px;
+        }
+        .weather-selector .custom-select-option:hover,
+        .weather-selector .custom-select-option.active {
+            background: var(--group-block-bg);
+        }
+        .weather-selector .custom-select-option img {
+            width: 20px;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+        .weather-selection-list {
+            max-height: 280px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: var(--modal-bg);
+        }
+        .weather-selection-empty {
+            padding: 16px;
+            text-align: center;
+            color: color-mix(in srgb, var(--text-color) 60%, transparent);
+            font-size: 14px;
         }
         .weather-search-container {
             position: relative;
@@ -1721,7 +1755,7 @@
         }
         @media (max-width: 500px) {
             .weather-modal {
-                border-radius: 20px;
+                border-radius: 26px;
             }
             .weather-modal-header {
                 padding: 18px 52px 16px 16px;
@@ -12660,11 +12694,11 @@ else injectAppMobileChrome();
 <div id="weatherModalOverlay" class="weather-modal-overlay" onclick="closeWeatherModal(event)">
     <div class="weather-modal" onclick="event.stopPropagation()">
         <button type="button" class="weather-modal-close" onclick="closeWeatherModal()" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
-        <button type="button" class="weather-wind-chart-btn" id="weatherWindChartBtn" onclick="toggleWindChart()" title="<?php echo my_htmlspecialchars($translations['weather_wind_chart_btn'] ?? 'Show wind chart'); ?>" style="display:none;">
-            <svg id="weatherWindChartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
-        </button>
         <button type="button" class="weather-settings-btn" id="weatherSettingsBtn" onclick="openWeatherSettings()" title="<?php echo my_htmlspecialchars($translations['weather_settings'] ?? 'Settings'); ?>">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings-icon lucide-settings"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+        <button type="button" class="weather-wind-chart-btn" id="weatherWindChartBtn" onclick="toggleWindChart()" title="<?php echo my_htmlspecialchars($translations['weather_wind_chart_btn'] ?? 'Show wind chart'); ?>" style="display:none;">
+            <svg id="weatherWindChartIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
         </button>
         <div id="weatherModalContent">
             <div class="weather-loading" style="display:flex;justify-content:center;padding:40px 0;">
@@ -12693,49 +12727,42 @@ else injectAppMobileChrome();
                     </button>
                 </div>
             </div>
-            <div id="weatherCitySelection" style="display: none;">
-                <div class="weather-location-steps">
-                    <div class="weather-step active" id="weatherCountryStepWrap">
-                        <div class="weather-step-indicator">
-                            <div class="weather-step-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 0 20"/><path d="M12 2a15.3 15.3 0 0 0 0 20"/></svg></div>
-                            <div class="weather-step-line"></div>
-                        </div>
-                        <div class="weather-step-content">
-                            <div class="weather-step-title"><?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?></div>
-                            <div class="weather-search-container">
-                                <input type="text" id="weatherCountrySearch" class="weather-search-input" placeholder="<?php echo my_htmlspecialchars($translations['weather_search'] ?? 'Search'); ?>..." oninput="searchCountries(this.value)" onkeydown="handleCountryKeyDown(event)">
-                            </div>
-                            <div class="weather-selection-list" id="weatherCountryList">
-                                <div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">
-                                    <div class="weather-loading-spinner"></div>
-                                    <span><?php echo my_htmlspecialchars($translations['weather_loading'] ?? 'Loading...'); ?></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="weather-step" id="weatherCityStep">
-                        <div class="weather-step-indicator">
-                            <div class="weather-step-dot"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg></div>
-                        </div>
-                        <div class="weather-step-content">
-                            <div class="weather-step-title"><?php echo my_htmlspecialchars($translations['weather_select_city'] ?? 'Select city'); ?></div>
-                            <button type="button" class="weather-back-btn" onclick="goBackToCountries()">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                                <?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?>
-                            </button>
-                            <div class="weather-search-container">
-                                <input type="text" id="weatherCitySearch" class="weather-search-input" placeholder="<?php echo my_htmlspecialchars($translations['weather_search'] ?? 'Search'); ?>..." oninput="searchCities(this.value)" onkeydown="handleCityKeyDown(event)">
-                            </div>
-                            <div class="weather-selection-list" id="weatherCityList">
-                                <div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">
-                                    <div class="weather-loading-spinner"></div>
-                                    <span><?php echo my_htmlspecialchars($translations['weather_loading'] ?? 'Loading...'); ?></span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+         <div id="weatherCitySelection" style="display: none;">
+             <div class="weather-location-selectors">
+                 <div class="weather-selector">
+                     <div class="weather-selector-title"><?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?></div>
+                     <div class="custom-select">
+                         <div class="custom-select-selected" tabindex="0" role="combobox" aria-expanded="false" onclick="toggleCustomSelect('weatherCountryCustomSelect')" onkeydown="handleCustomSelectKey(event, 'weatherCountryCustomSelect', 'weatherCountrySelect')">
+                             <span><?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?></span>
+                         </div>
+                         <div id="weatherCountryCustomSelect" class="custom-select-options">
+                             <div class="custom-select-option" data-value="" onclick="selectCustomOption(this, 'weatherCountryCustomSelect', 'weatherCountrySelect')">
+                                 <?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?>
+                             </div>
+                         </div>
+                     </div>
+                     <select id="weatherCountrySelect" class="weather-select-hidden">
+                         <option value=""><?php echo my_htmlspecialchars($translations['weather_select_country'] ?? 'Select country'); ?></option>
+                     </select>
+                 </div>
+                 <div class="weather-selector">
+                     <div class="weather-selector-title"><?php echo my_htmlspecialchars($translations['weather_select_city'] ?? 'Select city'); ?></div>
+                     <div class="custom-select">
+                         <div class="custom-select-selected" tabindex="0" role="combobox" aria-expanded="false" onclick="toggleCustomSelect('weatherCityCustomSelect')" onkeydown="handleCustomSelectKey(event, 'weatherCityCustomSelect', 'weatherCitySelect')">
+                             <span><?php echo my_htmlspecialchars($translations['weather_select_city'] ?? 'Select city'); ?></span>
+                         </div>
+                         <div id="weatherCityCustomSelect" class="custom-select-options">
+                             <div class="custom-select-option" data-value="" onclick="selectCustomOption(this, 'weatherCityCustomSelect', 'weatherCitySelect')">
+                                 <?php echo my_htmlspecialchars($translations['weather_select_city'] ?? 'Select city'); ?>
+                             </div>
+                         </div>
+                     </div>
+                     <select id="weatherCitySelect" class="weather-select-hidden" disabled>
+                         <option value=""><?php echo my_htmlspecialchars($translations['weather_select_city'] ?? 'Select city'); ?></option>
+                     </select>
+                 </div>
+             </div>
+         </div>
             <div class="weather-settings-actions">
                 <button type="button" class="weather-settings-cancel" onclick="closeWeatherSettingsModal()"><?php echo my_htmlspecialchars($translations['weather_cancel'] ?? 'Cancel'); ?></button>
                 <button type="button" class="weather-settings-save" onclick="saveWeatherSettings()"><?php echo my_htmlspecialchars($translations['weather_save'] ?? 'Save'); ?></button>
@@ -12823,24 +12850,19 @@ window.openWeatherSettings = openWeatherSettings;
 window.closeWeatherSettingsModal = closeWeatherSettingsModal;
 window.setWeatherLocationType = setWeatherLocationType;
 window.saveWeatherSettings = saveWeatherSettings;
-window.searchCountries = searchCountries;
-window.searchCities = searchCities;
-window.selectCountry = selectCountry;
-window.selectCity = selectCity;
-window.goBackToCountries = goBackToCountries;
-window.handleCountryKeyDown = handleCountryKeyDown;
-window.handleCityKeyDown = handleCityKeyDown;
+window.toggleWindChart = toggleWindChart;
+window.onCountryChange = onCountryChangeCustom;
+window.onCityChange = onCityChangeCustom;
+window.onCountryChangeCustom = onCountryChangeCustom;
+window.onCityChangeCustom = onCityChangeCustom;
+window.toggleCustomSelect = toggleCustomSelect;
+window.selectCustomOption = selectCustomOption;
+window.handleCustomSelectKey = handleCustomSelectKey;
 
 var settingsModalOverlay = document.getElementById('weatherSettingsModalOverlay');
 var settingsModalContent = document.getElementById('weatherSettingsModalContent');
 var weatherLocationSwitch = document.getElementById('weatherLocationSwitch');
 var weatherCitySelection = document.getElementById('weatherCitySelection');
-var weatherCountryList = document.getElementById('weatherCountryList');
-var weatherCityList = document.getElementById('weatherCityList');
-var weatherCountrySearch = document.getElementById('weatherCountrySearch');
-var weatherCitySearch = document.getElementById('weatherCitySearch');
-var weatherCountryStepWrap = document.getElementById('weatherCountryStepWrap');
-var weatherCityStep = document.getElementById('weatherCityStep');
 
 var weatherSettings = {
     use_current_location: true,
@@ -12852,39 +12874,16 @@ var weatherSettings = {
     selected_lat: null,
     selected_lon: null,
     countries: [],
-    country_results: [],
     cities: [],
-    current_step: 'country',
-    country_search: '',
-    city_search: ''
+    current_step: 'country'
 };
-var weatherCitySearchTimer = null;
 var weatherCountriesLoading = false;
 var weatherCountriesLoaded = false;
-
-function ensureCountriesLoaded() {
-    if (weatherCountriesLoaded || weatherCountriesLoading) return;
-    loadCountries();
-}
-
-function restoreSavedCitySelection() {
-    if (!weatherSettings.selected_city || weatherSettings.selected_lat == null || weatherSettings.selected_lon == null) return;
-    weatherSettings.cities = [{
-        name: weatherSettings.selected_city,
-        admin1: weatherSettings.selected_region || '',
-        country: weatherSettings.selected_country || '',
-        country_code: weatherSettings.selected_country_code || '',
-        lat: weatherSettings.selected_lat,
-        lon: weatherSettings.selected_lon,
-        label: weatherSettings.selected_city_label || weatherSettings.selected_city
-    }];
-    renderCities();
-}
+var customSelectTypeahead = { id: null, text: '', ts: 0 };
 
 function setWeatherLocationType(type) {
     const switcher = document.getElementById('weatherLocationSwitch');
     const buttons = switcher.querySelectorAll('button');
-
     switcher.classList.toggle('city', type === 'city');
     weatherSettings.use_current_location = type === 'current';
 
@@ -12897,31 +12896,232 @@ function setWeatherLocationType(type) {
 
     weatherCitySelection.style.display = type === 'city' ? 'block' : 'none';
     if (type === 'city') {
-        ensureCountriesLoaded();
-        updateWeatherStepState(weatherSettings.current_step);
-        if (weatherCountriesLoaded) renderCountryPanel();
-        renderCities();
+        if (weatherCountriesLoaded) renderCountriesForSelect();
+        else loadCountriesForSelect();
     }
 }
 
-function updateWeatherStepState(step) {
-    if (!weatherCountryStepWrap || !weatherCityStep) return;
-    weatherSettings.current_step = step;
-    const countryDone = !!weatherSettings.selected_country;
-    const cityDone = !!weatherSettings.selected_city;
-    weatherCountryStepWrap.classList.toggle('active', step === 'country');
-    weatherCountryStepWrap.classList.toggle('done', countryDone);
-    weatherCityStep.classList.toggle('active', step === 'city');
-    weatherCityStep.classList.toggle('done', cityDone);
-    weatherCityStep.style.display = 'flex';
-    weatherCountryStepWrap.style.display = 'flex';
-}
+
 
 function weatherFetchJson(url, options) {
     return fetch(url, options).then(response => {
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.json();
     });
+}
+
+function customSelectLabel(selectId) {
+    const options = document.getElementById(selectId);
+    const wrap = options ? options.closest('.custom-select') : null;
+    return wrap ? wrap.querySelector('.custom-select-selected span') : null;
+}
+
+function customSelectTrigger(selectId) {
+    const options = document.getElementById(selectId);
+    const wrap = options ? options.closest('.custom-select') : null;
+    return wrap ? wrap.querySelector('.custom-select-selected') : null;
+}
+
+function positionCustomSelect(selectId) {
+    const options = document.getElementById(selectId);
+    const trigger = customSelectTrigger(selectId);
+    if (!options || !trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    const gap = 8;
+    const width = Math.min(rect.width, window.innerWidth - 32);
+    options.style.width = width + 'px';
+    options.style.left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16)) + 'px';
+    options.style.top = Math.min(rect.bottom + gap, window.innerHeight - 80) + 'px';
+}
+
+function setCustomSelectOpen(selectId, open) {
+    const options = document.getElementById(selectId);
+    const trigger = customSelectTrigger(selectId);
+    if (!options) return;
+    if (open) {
+        positionCustomSelect(selectId);
+        options.classList.add('show');
+        if (trigger) trigger.setAttribute('aria-expanded', 'true');
+        setActiveCustomOption(selectId, currentCustomOptionIndex(selectId));
+    } else {
+        options.classList.remove('show');
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    }
+}
+
+function customSelectableOptions(selectId) {
+    const options = document.getElementById(selectId);
+    return options ? Array.from(options.querySelectorAll('.custom-select-option')) : [];
+}
+
+function currentCustomOptionIndex(selectId) {
+    const items = customSelectableOptions(selectId);
+    const selected = items.findIndex(item => item.dataset.value === (document.getElementById(selectId === 'weatherCountryCustomSelect' ? 'weatherCountrySelect' : 'weatherCitySelect') || {}).value);
+    return selected >= 0 ? selected : 0;
+}
+
+function setActiveCustomOption(selectId, index) {
+    const items = customSelectableOptions(selectId);
+    if (!items.length) return;
+    const next = Math.max(0, Math.min(index, items.length - 1));
+    items.forEach((item, i) => item.classList.toggle('active', i === next));
+    items[next].scrollIntoView({ block: 'nearest' });
+}
+
+function activeCustomOption(selectId) {
+    const items = customSelectableOptions(selectId);
+    return items.find(item => item.classList.contains('active')) || items[currentCustomOptionIndex(selectId)] || null;
+}
+
+function loadCountriesForSelect() {
+    if (weatherCountriesLoading) return;
+    const countrySelect = document.getElementById('weatherCountrySelect');
+    if (!countrySelect) return;
+    weatherCountriesLoading = true;
+    countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
+    countrySelect.disabled = true;
+    weatherFetchJson('/project/weather_settings.php?action=countries')
+        .then(data => {
+            if (!data.countries || !data.countries.length) throw new Error('No countries');
+            weatherSettings.countries = data.countries;
+            weatherCountriesLoaded = true;
+            renderCountriesForSelect();
+        })
+        .catch(() => {
+            countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_fetch_error', 'Failed to load countries')) + '</option>';
+        })
+        .finally(() => {
+            weatherCountriesLoading = false;
+            countrySelect.disabled = false;
+        });
+}
+
+function renderCountriesForSelect() {
+    const countrySelect = document.getElementById('weatherCountrySelect');
+    const customSelectOptions = document.getElementById('weatherCountryCustomSelect');
+    if (!countrySelect || !customSelectOptions) return;
+    countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_country', 'Select country')) + '</option>';
+    customSelectOptions.innerHTML = '<div class="custom-select-option" data-value="" onclick="selectCustomOption(this, \'weatherCountryCustomSelect\', \'weatherCountrySelect\')">' + escHtml(wt('weather_select_country', 'Select country')) + '</div>';
+    
+    weatherSettings.countries.forEach(country => {
+        const option = document.createElement('option');
+        option.value = country.iso2;
+        option.dataset.name = country.name;
+        option.selected = weatherSettings.selected_country_code === country.iso2;
+        option.innerHTML = `<img src="${country.flag}" alt="${country.iso2.toUpperCase()} flag" style="width: 20px; margin-right: 8px;" /> ${country.name}`;
+        countrySelect.appendChild(option);
+        
+        const customOption = document.createElement('div');
+        customOption.className = 'custom-select-option';
+        customOption.dataset.value = country.iso2;
+        customOption.innerHTML = `<img src="${country.flag}" alt="${country.iso2.toUpperCase()} flag" style="width: 20px; margin-right: 8px;" /> ${country.name}`;
+        customOption.onclick = function() { selectCustomOption(this, 'weatherCountryCustomSelect', 'weatherCountrySelect'); };
+        customSelectOptions.appendChild(customOption);
+    });
+    
+    const selectedCountry = countrySelect.querySelector('option:checked');
+    if (selectedCountry && selectedCountry.value) {
+        const customSelected = document.querySelector('#weatherCountryCustomSelect .custom-select-option[data-value="' + selectedCountry.value + '"]');
+        if (customSelected) {
+            const label = customSelectLabel('weatherCountryCustomSelect');
+            if (label) label.innerHTML = customSelected.innerHTML;
+        }
+    }
+    
+    loadCitiesForSelect();
+}
+
+function onCountryChangeCustom(select) {
+    const option = select.options[select.selectedIndex];
+    weatherSettings.selected_country = option.dataset.name || null;
+    weatherSettings.selected_country_code = select.value || null;
+    weatherSettings.selected_city = null;
+    weatherSettings.selected_city_label = null;
+    weatherSettings.selected_lat = null;
+    weatherSettings.selected_lon = null;
+    
+    const customSelected = document.querySelector('#weatherCountryCustomSelect .custom-select-option[data-value="' + select.value + '"]');
+    const countryLabel = customSelectLabel('weatherCountryCustomSelect');
+    if (customSelected) {
+        if (countryLabel) countryLabel.innerHTML = customSelected.innerHTML;
+    } else if (countryLabel) {
+        countryLabel.textContent = option ? option.textContent : wt('weather_select_country', 'Select country');
+    }
+    
+    loadCitiesForSelect();
+}
+
+function loadCitiesForSelect() {
+    const citySelect = document.getElementById('weatherCitySelect');
+    const customSelectOptions = document.getElementById('weatherCityCustomSelect');
+    const cityLabel = customSelectLabel('weatherCityCustomSelect');
+    if (!citySelect) return;
+    citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
+    if (customSelectOptions) customSelectOptions.innerHTML = '<div class="custom-select-option" data-value="" onclick="selectCustomOption(this, \'weatherCityCustomSelect\', \'weatherCitySelect\')">' + escHtml(wt('weather_select_city', 'Select city')) + '</div>';
+    if (cityLabel) cityLabel.textContent = wt('weather_select_city', 'Select city');
+    citySelect.disabled = !weatherSettings.selected_country_code;
+    if (!weatherSettings.selected_country_code) return;
+    citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
+    weatherFetchJson('/project/weather_settings.php?action=country_cities&country=' + encodeURIComponent(weatherSettings.selected_country))
+        .then(data => {
+            citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
+            (data.cities || []).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                option.selected = name === weatherSettings.selected_city;
+                citySelect.appendChild(option);
+                if (customSelectOptions) {
+                    const customOption = document.createElement('div');
+                    customOption.className = 'custom-select-option';
+                    customOption.dataset.value = name;
+                    customOption.textContent = name;
+                    customOption.onclick = function() { selectCustomOption(this, 'weatherCityCustomSelect', 'weatherCitySelect'); };
+                    customSelectOptions.appendChild(customOption);
+                }
+            });
+            if (weatherSettings.selected_city && cityLabel) cityLabel.textContent = weatherSettings.selected_city_label || weatherSettings.selected_city;
+            citySelect.disabled = false;
+        })
+        .catch(() => {
+            citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_fetch_error', 'Failed to load cities')) + '</option>';
+        });
+}
+
+function onCityChangeCustom(select) {
+    const option = select.options[select.selectedIndex];
+    if (!option || !option.value) {
+        weatherSettings.selected_city = null;
+        weatherSettings.selected_city_label = null;
+        weatherSettings.selected_lat = null;
+        weatherSettings.selected_lon = null;
+        const label = customSelectLabel('weatherCityCustomSelect');
+        if (label) label.textContent = wt('weather_select_city', 'Select city');
+        return;
+    }
+    select.disabled = true;
+    
+    const customSelected = document.querySelector('#weatherCityCustomSelect .custom-select-option[data-value="' + option.value + '"]');
+    if (customSelected) {
+        const label = customSelectLabel('weatherCityCustomSelect');
+        if (label) label.textContent = customSelected.textContent;
+    }
+    
+    weatherFetchJson('/project/weather_settings.php?action=coords&city=' + encodeURIComponent(option.value.split('|')[0]) + '&country=' + encodeURIComponent(weatherSettings.selected_country) + '&country_code=' + encodeURIComponent(weatherSettings.selected_country_code))
+        .then(city => {
+            weatherSettings.selected_city = city.name;
+            weatherSettings.selected_city_label = city.label || city.name;
+            weatherSettings.selected_country = city.country || weatherSettings.selected_country;
+            weatherSettings.selected_country_code = city.country_code || weatherSettings.selected_country_code;
+            weatherSettings.selected_lat = city.lat;
+            weatherSettings.selected_lon = city.lon;
+        })
+        .catch(() => {
+            select.value = '';
+        })
+        .finally(() => {
+            select.disabled = false;
+        });
 }
 
 function openWeatherSettings() {
@@ -12936,12 +13136,8 @@ function openWeatherSettings() {
             weatherSettings.selected_city = data.selected_city;
             weatherSettings.selected_lat = data.lat;
             weatherSettings.selected_lon = data.lon;
-            weatherSettings.current_step = weatherSettings.selected_country ? 'city' : 'country';
 
             setWeatherLocationType(weatherSettings.use_current_location ? 'current' : 'city');
-            if (!weatherSettings.use_current_location) {
-                restoreSavedCitySelection();
-            }
         })
         .catch(() => {
             weatherSettings.current_step = 'country';
@@ -12952,6 +13148,95 @@ function openWeatherSettings() {
     settingsModalOverlay.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
+
+function toggleCustomSelect(selectId) {
+    const options = document.getElementById(selectId);
+    if (!options) return;
+    const open = !options.classList.contains('show');
+    document.querySelectorAll('.custom-select-options').forEach(el => {
+        if (el.id !== selectId) {
+            setCustomSelectOpen(el.id, false);
+        }
+    });
+    setCustomSelectOpen(selectId, open);
+}
+
+function selectCustomOption(option, selectId, hiddenSelectId) {
+    const select = document.getElementById(selectId);
+    const hiddenSelect = document.getElementById(hiddenSelectId);
+    if (!select || !hiddenSelect) return;
+    
+    hiddenSelect.value = option.dataset.value;
+    if (hiddenSelectId === 'weatherCountrySelect') {
+        onCountryChangeCustom(hiddenSelect);
+    } else if (hiddenSelectId === 'weatherCitySelect') {
+        onCityChangeCustom(hiddenSelect);
+    }
+    const selectedDisplay = customSelectLabel(selectId);
+    if (selectedDisplay) {
+        selectedDisplay.innerHTML = option.innerHTML;
+    }
+    setCustomSelectOpen(selectId, false);
+}
+
+function handleCustomSelectKey(e, selectId, hiddenSelectId) {
+    const options = document.getElementById(selectId);
+    if (!options) return;
+    const isOpen = options.classList.contains('show');
+    const items = customSelectableOptions(selectId);
+    const activeIndex = Math.max(0, items.findIndex(item => item.classList.contains('active')));
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!isOpen) {
+            setCustomSelectOpen(selectId, true);
+            return;
+        }
+        setActiveCustomOption(selectId, activeIndex + (e.key === 'ArrowDown' ? 1 : -1));
+        return;
+    }
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (!isOpen) {
+            setCustomSelectOpen(selectId, true);
+            return;
+        }
+        const active = activeCustomOption(selectId);
+        if (active) selectCustomOption(active, selectId, hiddenSelectId);
+        return;
+    }
+    if (e.key === 'Escape') {
+        setCustomSelectOpen(selectId, false);
+        return;
+    }
+    if (e.key && e.key.length === 1) {
+        const now = Date.now();
+        customSelectTypeahead.text = customSelectTypeahead.id === selectId && now - customSelectTypeahead.ts < 800 ? customSelectTypeahead.text + e.key.toLowerCase() : e.key.toLowerCase();
+        customSelectTypeahead.id = selectId;
+        customSelectTypeahead.ts = now;
+        const query = customSelectTypeahead.text;
+        const start = isOpen ? activeIndex + 1 : 0;
+        if (!isOpen) setCustomSelectOpen(selectId, true);
+        const ordered = items.slice(start).concat(items.slice(0, start));
+        const found = ordered.find(item => item.textContent.trim().toLowerCase().startsWith(query));
+        if (found) setActiveCustomOption(selectId, items.indexOf(found));
+    }
+}
+
+window.addEventListener('click', function(e) {
+    if (!e.target.closest || !e.target.closest('.custom-select')) {
+        document.querySelectorAll('.custom-select-options').forEach(el => {
+            setCustomSelectOpen(el.id, false);
+        });
+    }
+});
+
+window.addEventListener('resize', function() {
+    document.querySelectorAll('.custom-select-options.show').forEach(el => positionCustomSelect(el.id));
+});
+
+window.addEventListener('scroll', function() {
+    document.querySelectorAll('.custom-select-options.show').forEach(el => positionCustomSelect(el.id));
+}, true);
 
 function closeWeatherSettingsModal(e) {
     if (e && e.target !== settingsModalOverlay && e.target !== e.currentTarget) return;
@@ -12964,12 +13249,21 @@ function closeWeatherSettingsModal(e) {
 
 function saveWeatherSettings() {
     if (!weatherSettings.use_current_location && (!weatherSettings.selected_city || weatherSettings.selected_lat == null || weatherSettings.selected_lon == null)) {
-        if (weatherCitySearch) weatherCitySearch.focus();
+        const citySelect = document.getElementById('weatherCitySelect');
+        if (citySelect) citySelect.focus();
         if (typeof showTempNotification === 'function') showTempNotification(wt('weather_select_city', 'Select city'), 'info');
         return;
     }
-    const settings = {
-        use_current_location: weatherSettings.use_current_location,
+    const settings = weatherSettings.use_current_location ? {
+        use_current_location: true,
+        selected_country: null,
+        selected_country_code: null,
+        selected_region: null,
+        selected_city: null,
+        lat: null,
+        lon: null
+    } : {
+        use_current_location: false,
         selected_country: weatherSettings.selected_country,
         selected_country_code: weatherSettings.selected_country_code,
         selected_region: null,
@@ -12993,6 +13287,19 @@ function saveWeatherSettings() {
                 weatherStore.lon = data.lon;
                 weatherStore.city = weatherSettings.selected_city;
                 window.apWeatherRefresh(weatherStore.lat, weatherStore.lon, weatherSettings.selected_city);
+                // Сохраняем настройки в localStorage, чтобы при перезагрузке страницы они не сбрасывались
+                try {
+                    localStorage.setItem('ap_weather_data', JSON.stringify({
+                        ts: Date.now(),
+                        lat: data.lat,
+                        lon: data.lon,
+                        city: weatherSettings.selected_city,
+                        temp: weatherStore.current?.temperature_2m,
+                        code: weatherStore.current?.weather_code,
+                        wind: weatherStore.current?.wind_speed_10m,
+                        daily: weatherStore.daily
+                    }));
+                } catch(e) {}
             } else if (weatherSettings.use_current_location) {
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(function(pos) {
@@ -13011,268 +13318,29 @@ function saveWeatherSettings() {
     });
 }
 
-function loadCountries() {
-    if (weatherCountriesLoading) return;
-    weatherCountriesLoading = true;
-    weatherCountryList.innerHTML = '<div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">'
-        + '<div class="weather-loading-spinner"></div>'
-        + '<span>' + escHtml(wt('weather_loading', 'Loading...')) + '</span>'
-        + '</div>';
 
-    weatherFetchJson('/project/weather_settings.php?action=countries')
-        .then(data => {
-            if (data.countries && data.countries.length) {
-                weatherSettings.countries = data.countries;
-                weatherCountriesLoaded = true;
-                renderCountryPanel();
-            } else {
-                throw new Error('No countries');
-            }
-        })
-        .catch(() => {
-            weatherCountryList.innerHTML = '<div class="weather-selection-empty">'
-                + escHtml(wt('weather_fetch_error', 'Failed to load countries'))
-                + '</div>';
-        })
-        .finally(() => {
-            weatherCountriesLoading = false;
-        });
-}
 
-function searchCountries(query) {
-    weatherSettings.country_search = query.toLowerCase();
-    renderCountries();
-}
 
-function renderCountryPanel() {
-    const countrySearchWrap = weatherCountrySearch ? weatherCountrySearch.closest('.weather-search-container') : null;
-    const collapsed = weatherSettings.selected_country && weatherSettings.current_step === 'city';
-    if (countrySearchWrap) countrySearchWrap.style.display = collapsed ? 'none' : '';
-    if (collapsed) {
-        const country = weatherSettings.countries.find(c => c.name === weatherSettings.selected_country)
-            || { name: weatherSettings.selected_country, iso2: weatherSettings.selected_country_code, flag: 'https://flagcdn.com/w40/' + (weatherSettings.selected_country_code || 'xx') + '.png' };
-        const flagUrl = escHtml(country.flag || '');
-        weatherCountryList.innerHTML = '<div class="weather-selected-country">'
-            + '<img src="' + flagUrl + '" alt="" class="flag" onerror="this.style.visibility=\'hidden\';">'
-            + '<span>' + escHtml(country.name) + '</span>'
-            + '<button type="button" onclick="goBackToCountries()">' + escHtml(wt('weather_change', 'Change')) + '</button>'
-            + '</div>';
-        return;
-    }
-    renderCountries();
-}
 
-function renderCountries() {
-    let filtered = weatherSettings.countries;
-    if (weatherSettings.country_search) {
-        filtered = weatherSettings.countries.filter(country =>
-            country.name.toLowerCase().includes(weatherSettings.country_search)
-        );
-    }
 
-    if (filtered.length === 0) {
-        weatherSettings.country_results = [];
-        weatherCountryList.innerHTML = '<div class="weather-selection-item">'
-            + escHtml(wt('weather_no_results', 'No results found'))
-            + '</div>';
-        return;
-    }
 
-    weatherSettings.country_results = filtered;
-    let html = '';
-    filtered.forEach((country, index) => {
-        const isSelected = weatherSettings.selected_country === country.name;
-        const flagUrl = escHtml(country.flag || '');
 
-        html += '<button type="button" class="weather-selection-item' + (isSelected ? ' selected' : '') + '" data-country-index="' + index + '">'
-            + '<img src="' + flagUrl + '" alt="' + escHtml(country.iso2.toUpperCase()) + '" class="flag" '
-            + 'onerror="this.style.visibility=\'hidden\';">'
-            + '<span>' + escHtml(country.name) + '</span>'
-            + '</button>';
-    });
-    weatherCountryList.innerHTML = html;
-}
 
-function selectCountry(name, iso2) {
-    weatherSettings.selected_country = name;
-    weatherSettings.selected_country_code = String(iso2 || '').toLowerCase();
-    weatherSettings.selected_region = null;
-    weatherSettings.selected_city = null;
-    weatherSettings.selected_city_label = null;
-    weatherSettings.selected_lat = null;
-    weatherSettings.selected_lon = null;
-    weatherSettings.current_step = 'city';
-    weatherSettings.cities = [];
-    weatherSettings.city_search = '';
-    if (weatherCitySearch) {
-        weatherCitySearch.value = '';
-        weatherCitySearch.placeholder = (wt('weather_city_search_hint', 'Search city (English or local name)')) + '...';
-    }
-    updateWeatherStepState('city');
-    renderCountryPanel();
-    renderCities();
-    if (weatherCitySearch) weatherCitySearch.focus();
-    if (weatherCityStep) {
-        setTimeout(function() {
-            weatherCityStep.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }, 60);
-    }
-}
 
-function goBackToCountries() {
-    weatherSettings.current_step = 'country';
-    updateWeatherStepState('country');
-    renderCountryPanel();
-    if (weatherCountrySearch) weatherCountrySearch.focus();
-}
 
-function loadCities(query) {
-    if (!weatherSettings.selected_country_code) {
-        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
-            + escHtml(wt('weather_select_country', 'Select country'))
-            + '</div>';
-        return;
-    }
-    weatherCityList.innerHTML = '<div class="weather-loading" style="display:flex;justify-content:center;padding:20px 0;">'
-        + '<div class="weather-loading-spinner"></div>'
-        + '<span>' + escHtml(wt('weather_loading', 'Loading...')) + '</span>'
-        + '</div>';
-    weatherFetchJson('/project/weather_settings.php?action=city_search&country=' + encodeURIComponent(weatherSettings.selected_country || '') + '&country_code=' + encodeURIComponent(String(weatherSettings.selected_country_code || '').toUpperCase()) + '&q=' + encodeURIComponent(query))
-    .then(data => {
-        if (data.cities) {
-            weatherSettings.cities = data.cities;
-            renderCities();
-        } else {
-            throw new Error('No cities');
-        }
-    })
-    .catch(() => {
-        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
-            + escHtml(wt('weather_fetch_error', 'Failed to load cities'))
-            + '</div>';
-    });
-}
 
-function searchCities(query) {
-    weatherSettings.city_search = query.trim();
-    clearTimeout(weatherCitySearchTimer);
-    if (weatherSettings.city_search.length < 2) {
-        weatherSettings.cities = [];
-        renderCities();
-        return;
-    }
-    weatherCitySearchTimer = setTimeout(function() {
-        loadCities(weatherSettings.city_search);
-    }, 250);
-}
 
-function renderCities() {
-    if (!weatherSettings.selected_country_code) {
-        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
-            + escHtml(wt('weather_select_country', 'Select country'))
-            + '</div>';
-        return;
-    }
-    let filtered = weatherSettings.cities;
-    if (filtered.length === 0) {
-        weatherCityList.innerHTML = '<div class="weather-selection-empty">'
-            + escHtml(weatherSettings.city_search.length < 2
-                ? wt('weather_city_search_hint', 'Enter at least 2 characters (English or local name)')
-                : wt('weather_no_results', 'No results found'))
-            + '</div>';
-        return;
-    }
 
-    let html = '';
-    filtered.forEach((city, index) => {
-        const isSelected = weatherSettings.selected_lat === city.lat && weatherSettings.selected_lon === city.lon;
-        html += '<button type="button" class="weather-selection-item' + (isSelected ? ' selected' : '') + '" data-city-index="' + index + '">'
-            + '<span>' + escHtml(city.name) + '</span>'
-            + '<small>' + escHtml([city.admin1, city.country].filter(Boolean).join(', ')) + '</small>'
-            + '</button>';
-    });
-    weatherCityList.innerHTML = html;
-}
 
-function selectCity(city) {
-    if (typeof city === 'string') {
-        city = weatherSettings.cities.find(item => item.name === city) || null;
-    }
-    if (!city) return;
-    weatherSettings.selected_city = city.name;
-    weatherSettings.selected_city_label = city.label || city.name;
-    weatherSettings.selected_country = city.country || weatherSettings.selected_country;
-    weatherSettings.selected_country_code = city.country_code || weatherSettings.selected_country_code;
-    weatherSettings.selected_lat = city.lat;
-    weatherSettings.selected_lon = city.lon;
-    updateWeatherStepState('city');
-    renderCities();
-}
 
-function fetchCityCoordinates(country, city) {
-    weatherFetchJson('/project/weather_settings.php?action=coords&city=' + encodeURIComponent(city) + '&country=' + encodeURIComponent(country || '') + '&country_code=' + encodeURIComponent(weatherSettings.selected_country_code || ''))
-        .then(data => {
-            if (data && data.lat != null && data.lon != null) {
-                selectCity(data);
-            }
-        })
-        .catch(() => {});
-}
 
-function getActiveIndex(listEl) {
-    const items = listEl.querySelectorAll('.weather-selection-item');
-    for (let i = 0; i < items.length; i++) {
-        if (items[i].classList.contains('active')) return i;
-    }
-    return -1;
-}
 
-function moveKeyboardNav(listEl, delta) {
-    const items = listEl.querySelectorAll('.weather-selection-item');
-    if (items.length === 0) return;
-    let idx = getActiveIndex(listEl);
-    if (idx < 0) idx = delta > 0 ? -1 : 0;
-    idx = Math.max(0, Math.min(items.length - 1, idx + delta));
-    for (let i = 0; i < items.length; i++) {
-        items[i].classList.toggle('active', i === idx);
-    }
-    if (items[idx] && typeof items[idx].scrollIntoView === 'function') {
-        items[idx].scrollIntoView({ block: 'nearest' });
-    }
-    return items[idx];
-}
 
-function handleCountryKeyDown(e) {
-    if (e.key === 'Enter') {
-        const firstItem = weatherCountryList.querySelector('.weather-selection-item.active')
-            || weatherCountryList.querySelector('.weather-selection-item');
-        if (firstItem) {
-            const countryName = firstItem.textContent.trim();
-            const country = weatherSettings.countries.find(c => c.name === countryName);
-            if (country) {
-                selectCountry(country.name, country.iso2);
-            }
-        }
-    }
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        moveKeyboardNav(weatherCountryList, e.key === 'ArrowDown' ? 1 : -1);
-    }
-}
 
-function handleCityKeyDown(e) {
-    if (e.key === 'Enter') {
-        const firstItem = weatherCityList.querySelector('.weather-selection-item.active')
-            || weatherCityList.querySelector('.weather-selection-item');
-        if (firstItem) {
-            selectCity(weatherSettings.cities[parseInt(firstItem.getAttribute('data-city-index'), 10)]);
-        }
-    }
-    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        moveKeyboardNav(weatherCityList, e.key === 'ArrowDown' ? 1 : -1);
-    }
-}
+
+
+
+
 
 function renderWeatherGeoPrompt(message) {
     modalContent.innerHTML = '<div class="weather-geo-prompt">' +
@@ -13282,36 +13350,6 @@ function renderWeatherGeoPrompt(message) {
             '<span>' + escHtml(wt('weather_allow_location', 'Allow location')) + '</span>' +
         '</button>' +
     '</div>';
-}
-
-if (weatherCountryList) {
-    weatherCountryList.addEventListener('click', function(e) {
-        const item = e.target.closest('[data-country-index]');
-        if (!item) return;
-        const country = weatherSettings.country_results[parseInt(item.getAttribute('data-country-index'), 10)];
-        if (country) selectCountry(country.name, country.iso2);
-    });
-}
-if (weatherCountryStepWrap) {
-    const countryDot = weatherCountryStepWrap.querySelector('.weather-step-dot');
-    if (countryDot) countryDot.addEventListener('click', goBackToCountries);
-}
-if (weatherCityStep) {
-    const cityDot = weatherCityStep.querySelector('.weather-step-dot');
-    if (cityDot) cityDot.addEventListener('click', function() {
-        if (weatherSettings.selected_country) {
-            updateWeatherStepState('city');
-            renderCountryPanel();
-            if (weatherCitySearch) weatherCitySearch.focus();
-        }
-    });
-}
-if (weatherCityList) {
-    weatherCityList.addEventListener('click', function(e) {
-        const item = e.target.closest('[data-city-index]');
-        if (!item) return;
-        selectCity(weatherSettings.cities[parseInt(item.getAttribute('data-city-index'), 10)]);
-    });
 }
 
 function notifyWeatherGeoUnavailable(message) {
@@ -13778,15 +13816,31 @@ window.toggleWindChart = toggleWindChart;
         fetch('/project/weather_settings.php')
             .then(response => response.json())
             .then(settings => {
-                if (!settings.use_current_location && settings.selected_city) {
+                if (!settings.use_current_location && settings.selected_city && settings.lat != null && settings.lon != null) {
                     weatherStore.city = settings.selected_city;
-                    if (settings.lat != null && settings.lon != null) {
-                        weatherStore.lat = settings.lat;
-                        weatherStore.lon = settings.lon;
-                        fetchWeather(weatherStore.lat, weatherStore.lon);
-                        applyToWidgets(null, null, settings.selected_city, null);
-                    }
+                    weatherStore.lat = settings.lat;
+                    weatherStore.lon = settings.lon;
+                    fetchWeather(weatherStore.lat, weatherStore.lon);
+                    applyToWidgets(null, null, settings.selected_city, null);
                 } else {
+                    // Пытаемся загрузить из кэша
+                    try {
+                        var cached = JSON.parse(localStorage.getItem('ap_weather_data'));
+                        if (cached && cached.ts && Date.now() - cached.ts < 3600000 && cached.lat != null && cached.lon != null) {
+                            weatherStore.lat = cached.lat;
+                            weatherStore.lon = cached.lon;
+                            weatherStore.city = cached.city;
+                            if (cached.daily && cached.daily.time) weatherStore.daily = cached.daily;
+                            weatherStore.current = {
+                                temperature_2m: cached.temp,
+                                weather_code: cached.code,
+                                wind_speed_10m: cached.wind
+                            };
+                            applyToWidgets(weatherSvg(cached.code), (cached.temp || '--') + '\u00b0C', cached.city || '', cached.wind != null ? cached.wind + ' km/h' : null);
+                            return;
+                        }
+                    } catch(e) {}
+                    // Если нет кэша или настройки на текущую геолокацию — используем геолокацию
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
                     } else {
@@ -13951,8 +14005,11 @@ window.toggleWindChart = toggleWindChart;
                 body: JSON.stringify({
                     use_current_location: true,
                     selected_country: null,
+                    selected_country_code: null,
                     selected_region: null,
-                    selected_city: null
+                    selected_city: null,
+                    lat: null,
+                    lon: null
                 })
             }).catch(() => {});
         }
@@ -13991,8 +14048,142 @@ if ($_guideEnabled):
     }
 ?>
 <link rel="stylesheet" href="/project/onboarding/guide.css?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide.css'); ?>">
+<link rel="stylesheet" href="/project/assets/weather.css">
 <script>window.__guideData = <?php echo json_encode($_guideStrings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;window.__guideForce = <?php echo empty($_guideCfg['dev_force_start']) ? 'false' : 'true'; ?>;window.__guideAuto = <?php echo $_guideAuto ? 'true' : 'false'; ?>;</script>
-<script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script>
+<script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script><!--
+    if (weatherCountriesLoading) return;
+    weatherCountriesLoading = true;
+    const countrySelect = document.getElementById('weatherCountrySelect');
+    countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
+    countrySelect.disabled = true;
+
+    weatherFetchJson('/project/weather_settings.php?action=countries')
+        .then(data => {
+            if (data.countries && data.countries.length) {
+                weatherSettings.countries = data.countries;
+                weatherCountriesLoaded = true;
+                renderCountriesForSelect();
+            } else {
+                throw new Error('No countries');
+            }
+        })
+        .catch(() => {
+            countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_fetch_error', 'Failed to load countries')) + '</option>';
+        })
+        .finally(() => {
+            weatherCountriesLoading = false;
+            countrySelect.disabled = false;
+        });
+}
+
+function renderCountriesForSelect() {
+    const countrySelect = document.getElementById('weatherCountrySelect');
+    countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_country', 'Select country')) + '</option>';
+
+    weatherSettings.countries.forEach(country => {
+        const option = document.createElement('option');
+        option.value = country.iso2;
+        option.textContent = country.name;
+        option.dataset.name = country.name;
+        if (weatherSettings.selected_country_code === country.iso2) {
+            option.selected = true;
+        }
+        countrySelect.appendChild(option);
+    });
+
+    if (weatherSettings.selected_country_code) {
+        loadCitiesForSelect('');
+    }
+}
+
+
+
+    if (countryCode) {
+        loadCitiesForSelect('');
+    }
+}
+
+function loadCitiesForSelect(query) {
+    if (!weatherSettings.selected_country_code) {
+        const citySelect = document.getElementById('weatherCitySelect');
+        citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
+        citySelect.disabled = true;
+        return;
+    }
+
+    const citySelect = document.getElementById('weatherCitySelect');
+    citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
+    citySelect.disabled = true;
+
+    weatherFetchJson('/project/weather_settings.php?action=city_search&country=' + encodeURIComponent(weatherSettings.selected_country || '') + '&country_code=' + encodeURIComponent(String(weatherSettings.selected_country_code || '').toUpperCase()) + '&q=' + encodeURIComponent(query))
+    .then(data => {
+        if (data.cities) {
+            weatherSettings.cities = data.cities;
+            renderCitiesForSelect();
+        } else {
+            throw new Error('No cities');
+        }
+    })
+    .catch(() => {
+        citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_fetch_error', 'Failed to load cities')) + '</option>';
+    });
+}
+
+function renderCitiesForSelect() {
+    const citySelect = document.getElementById('weatherCitySelect');
+    const customSelectOptions = document.getElementById('weatherCityCustomSelect');
+    if (!citySelect || !customSelectOptions) return;
+    
+    citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
+    customSelectOptions.innerHTML = '<div class="custom-select-option" data-value="" onclick="selectCustomOption(this, \'weatherCityCustomSelect\', \'weatherCitySelect\')">' + escHtml(wt('weather_select_city', 'Select city')) + '</div>';
+
+    weatherSettings.cities.forEach(city => {
+        const option = document.createElement('option');
+        option.value = city.name + '|' + city.lat + '|' + city.lon;
+        option.dataset.city = JSON.stringify(city);
+        if (weatherSettings.selected_city === city.name && weatherSettings.selected_lat === city.lat && weatherSettings.selected_lon === city.lon) {
+            option.selected = true;
+        }
+        option.textContent = city.name + (city.admin1 ? ', ' + city.admin1 : '') + ', ' + city.country;
+        citySelect.appendChild(option);
+        
+        const customOption = document.createElement('div');
+        customOption.className = 'custom-select-option';
+        customOption.dataset.value = city.name + '|' + city.lat + '|' + city.lon;
+        customOption.textContent = city.name + (city.admin1 ? ', ' + city.admin1 : '') + ', ' + city.country;
+        customOption.onclick = function() { selectCustomOption(this, 'weatherCityCustomSelect', 'weatherCitySelect'); };
+        customSelectOptions.appendChild(customOption);
+    });
+
+    // Update selected value in custom select
+    const selectedCity = citySelect.querySelector('option:checked');
+    if (selectedCity && selectedCity.value) {
+        const customSelected = document.querySelector('#weatherCityCustomSelect .custom-select-option[data-value="' + selectedCity.value + '"]');
+        if (customSelected) {
+            document.querySelector('#weatherCityCustomSelect + .custom-select-selected span').textContent = customSelected.textContent;
+        }
+    }
+
+    citySelect.disabled = false;
+}
+
+
+
+function restoreSavedCitySelection() {
+    if (!weatherSettings.selected_city || weatherSettings.selected_lat == null || weatherSettings.selected_lon == null) return;
+
+    const countrySelect = document.getElementById('weatherCountrySelect');
+    if (countrySelect && weatherSettings.selected_country_code) {
+        for (let i = 0; i < countrySelect.options.length; i++) {
+            if (countrySelect.options[i].value === weatherSettings.selected_country_code) {
+                countrySelect.selectedIndex = i;
+                 onCountryChangeCustom(countrySelect);
+                break;
+            }
+        }
+    }
+}
+</script>-->
 <?php endif; ?>
 </body>
 </html>

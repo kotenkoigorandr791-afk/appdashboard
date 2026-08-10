@@ -107,13 +107,13 @@ function app_set_weather_settings(string $email, array $settings): void {
         app_weather_ensure($db);
 
         $existing = app_get_weather_settings($email);
-        $use_current = $settings['use_current_location'] ?? $existing['use_current_location'];
-        $country = $settings['selected_country'] ?? $existing['selected_country'];
-        $countryCode = $settings['selected_country_code'] ?? $existing['selected_country_code'] ?? null;
-        $region = $settings['selected_region'] ?? $existing['selected_region'];
-        $city = $settings['selected_city'] ?? $existing['selected_city'];
-        $lat = $settings['lat'] ?? $existing['lat'];
-        $lon = $settings['lon'] ?? $existing['lon'];
+        $use_current = array_key_exists('use_current_location', $settings) ? $settings['use_current_location'] : $existing['use_current_location'];
+        $country = array_key_exists('selected_country', $settings) ? $settings['selected_country'] : $existing['selected_country'];
+        $countryCode = array_key_exists('selected_country_code', $settings) ? $settings['selected_country_code'] : ($existing['selected_country_code'] ?? null);
+        $region = array_key_exists('selected_region', $settings) ? $settings['selected_region'] : $existing['selected_region'];
+        $city = array_key_exists('selected_city', $settings) ? $settings['selected_city'] : $existing['selected_city'];
+        $lat = array_key_exists('lat', $settings) ? $settings['lat'] : $existing['lat'];
+        $lon = array_key_exists('lon', $settings) ? $settings['lon'] : $existing['lon'];
 
         $st = $db->prepare("INSERT INTO app_weather_settings (user_email, use_current_location, selected_country, selected_country_code, selected_region, selected_city, lat, lon, updated_at)
                           VALUES (:email, :use_current, :country, :country_code, :region, :city, :lat, :lon, :updated_at)
@@ -128,12 +128,12 @@ function app_set_weather_settings(string $email, array $settings): void {
                               updated_at = EXCLUDED.updated_at");
         $st->bindValue(':email', $email, PDO::PARAM_STR);
         $st->bindValue(':use_current', $use_current ? 1 : 0, PDO::PARAM_BOOL);
-        $st->bindValue(':country', $country, PDO::PARAM_STR);
-        $st->bindValue(':country_code', $countryCode, PDO::PARAM_STR);
-        $st->bindValue(':region', $region, PDO::PARAM_STR);
-        $st->bindValue(':city', $city, PDO::PARAM_STR);
-        $st->bindValue(':lat', $lat, PDO::PARAM_STR);
-        $st->bindValue(':lon', $lon, PDO::PARAM_STR);
+        $st->bindValue(':country', $country, $country === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $st->bindValue(':country_code', $countryCode, $countryCode === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $st->bindValue(':region', $region, $region === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $st->bindValue(':city', $city, $city === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $st->bindValue(':lat', $lat, $lat === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+        $st->bindValue(':lon', $lon, $lon === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
         $st->bindValue(':updated_at', time(), PDO::PARAM_INT);
         $st->execute();
     } catch (Throwable $e) {

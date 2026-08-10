@@ -737,5 +737,12 @@
     "welcome_user": "Witaj, ",
     "windows": "Windows",
     "wrong_current_password": "Nieprawidłowe obecne hasło",
-    "year_view": "Rok"
+    "year_view": "Rok",
+    "weather_use_current_location": "Użyj bieżącej lokalizacji",
+    "weather_use_selected_city": "Użyj wybranego miasta",
+    "weather_select_country": "Wybierz kraj",
+    "weather_select_city": "Wybierz miasto",
+    "weather_location_settings": "Ustawienia lokalizacji",
+    "weather_save": "Zapisz",
+    "weather_cancel": "Anuluj"
 }

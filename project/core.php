@@ -1782,6 +1782,9 @@ $defaultTranslations['weather_no_results'] = 'No results found';
 $defaultTranslations['weather_location_settings'] = 'Location settings';
 $defaultTranslations['weather_save'] = 'Save';
 $defaultTranslations['weather_cancel'] = 'Cancel';
+$defaultTranslations['weather_select_country_first'] = 'Select country first';
+$defaultTranslations['weather_change_country'] = 'Change country';
+$defaultTranslations['weather_change_city'] = 'Change city';
 $language = ap_i18n_lang_exists($config['language']) ? $config['language'] : 'en';
 $translations = ap_merge_i18n($defaultTranslations, $language);
 
