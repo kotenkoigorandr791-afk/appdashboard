@@ -3172,6 +3172,14 @@ function updateToolbarForTab(tab) {
         redoBtn?.classList.toggle('hidden', !showMonacoHistory);
         updateMonacoUndoRedoToolbar();
     }
+    
+    // Show/hide compile button based on file type
+    const compileMenuItem = document.getElementById('code-action-compile');
+    if (compileMenuItem) {
+        const fileExt = tab.path.split('.').pop().toLowerCase();
+        const supportedLangs = ['java', 'c', 'cpp', 'py', 'm'];
+        compileMenuItem.style.display = (tab.editMode && supportedLangs.includes(fileExt)) ? 'flex' : 'none';
+    }
 }
 
 function updateMonacoUndoRedoToolbar() {
@@ -5315,6 +5323,17 @@ function toggleCodeActionsMenu(e) {
     e.stopPropagation();
     const menu = document.getElementById('code-actions-menu');
     if (!menu) return;
+    
+    // Check if current file supports compilation
+    const viewer = document.getElementById('viewer');
+    const path = viewer?.dataset?.path;
+    const compileMenuItem = document.getElementById('code-action-compile');
+    if (compileMenuItem && path) {
+        const ext = path.split('.').pop().toLowerCase();
+        const supportedLangs = ['java', 'c', 'cpp', 'py', 'm'];
+        compileMenuItem.style.display = supportedLangs.includes(ext) ? 'flex' : 'none';
+    }
+    
     const isHidden = menu.classList.contains('hidden');
     closeAllDropdowns(); // First close all
     if (isHidden) {

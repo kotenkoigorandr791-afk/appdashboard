@@ -32,14 +32,14 @@ body[data-theme="dark"] .CodeMirror-hints::-webkit-scrollbar-thumb:hover{backgro
 .title{font-size:16px}
 .actions{display:flex;align-items:center;gap:8px;position:relative}
 .icon{width:24px;height:24px}
-.btn,.icon-btn{border:1px solid var(--ui-border);background:color-mix(in srgb,var(--panel) 40%,transparent);color:var(--fg);padding:8px 10px;border-radius:8px;cursor:pointer;transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease,transform .12s ease,color .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.btn,.icon-btn{border:1px solid var(--ui-border);background:color-mix(in srgb,var(--panel) 40%,transparent);color:var(--fg);padding:8px 10px;border-radius:999px;cursor:pointer;transition:background-color .12s ease,border-color .12s ease,box-shadow .12s ease,transform .12s ease,color .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:white}
 .btn.secondary{background:transparent}
 .btn.small{padding:6px 8px;font-size:12px}
 .btn.danger{background:var(--danger);border-color:var(--danger);color:white}
 .btn.hidden{display:none}
 .icon-btn{padding:6px 8px;font-size:14px;display:flex;align-items:center}
-.icon-btn.close-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:4px}
+.icon-btn.close-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:999px}
 .success-check-active{color:#22c55e!important;border-color:#22c55e!important;background:color-mix(in srgb,#22c55e 16%,var(--bg))!important;transition:all .2s ease}
 .success-check-icon{color:#22c55e;animation:successCheckPop .28s ease}
 @keyframes successCheckPop{0%{transform:scale(.6);opacity:.4}100%{transform:scale(1);opacity:1}}
@@ -59,6 +59,10 @@ body[data-theme="dark"] .CodeMirror-hints::-webkit-scrollbar-thumb:hover{backgro
 .icon-btn:focus-visible,.btn:focus-visible{background:color-mix(in srgb,var(--accent) 10%,var(--bg));border-color:color-mix(in srgb,var(--accent) 45%,var(--border));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 .icon-btn:active,.btn:active,.icon-btn.is-pressed,.btn.is-pressed{transform:translateY(1px)}
 .icon-btn:focus-visible,.btn:focus-visible{outline:none}
+button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scroll-btn):not(.search-clear):not(.file-toolbar *):not(#desktop-root-toolbar-footer *):not(#btn-sort-filter){border-radius:999px!important}
+.topbar .btn,.topbar .icon-btn,.file-toolbar .btn,.file-toolbar .icon-btn,#btn-sort-filter,#desktop-root-toolbar-footer button{border-radius:8px!important}
+.topbar #btn-advanced-search,.topbar .search-clear{border-radius:50%!important}
+.topbar #btn-toggle-sidebar{border-radius:0 10px 10px 0!important}
 #btn-toggle-sidebar{display:flex;padding:3px 5px;width:28px;height:28px}
 #btn-toggle-sidebar svg{width:16px;height:16px}
 .settings-avatar-btn{padding:0;width:36px;height:32px;overflow:hidden;display:flex;align-items:center;justify-content:center;line-height:0}
@@ -79,7 +83,7 @@ body[data-theme="dark"] .CodeMirror-hints::-webkit-scrollbar-thumb:hover{backgro
 .settings-group:last-child{border-bottom:none}
 .settings-group-title{margin:0;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
 .settings-actions{display:grid;gap:8px}
-.settings-action-btn{width:100%;min-height:38px;display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--fg);font:inherit;font-size:13px;cursor:pointer;text-align:left;transition:background-color .12s ease,border-color .12s ease,color .12s ease,box-shadow .12s ease,transform .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.settings-action-btn{width:100%;min-height:38px;display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:9px 12px;border:1px solid var(--border);border-radius:999px;background:var(--bg);color:var(--fg);font:inherit;font-size:13px;cursor:pointer;text-align:left;transition:background-color .12s ease,border-color .12s ease,color .12s ease,box-shadow .12s ease,transform .12s ease;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .settings-action-btn:hover,.settings-action-btn.is-pressed,.settings-action-btn:focus-visible{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--bg));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 .settings-action-btn:active,.settings-action-btn.is-pressed{transform:translateY(1px)}
 .settings-action-btn:focus-visible{outline:none}
@@ -452,7 +456,7 @@ body[data-theme="dark"] .preview-container embed,body[data-theme="dark"] .previe
 .ai-copy-btn svg{width:14px;height:14px;stroke:currentColor}
 .ai-input{display:flex;padding:20px;border-top:1px solid var(--border);gap:10px;align-items:flex-end}
 .ai-input textarea{flex:1;padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--fg);resize:vertical;min-height:60px;max-height:120px;font-family:inherit}
-#btn-ai-send{align-self:flex-end;padding:10px 12px;border-radius:8px;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
+#btn-ai-send{align-self:flex-end;padding:10px 12px;border-radius:999px;width:40px;height:40px;display:flex;align-items:center;justify-content:center}
 #btn-ai-send svg{width:18px;height:18px;stroke:currentColor}
 .minimized-draggable{cursor:move!important;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
 .minimized-draggable .modal-header{cursor:move}
@@ -751,7 +755,7 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 .think-block.open .think-content{max-height:360px;padding:0 14px 14px;overflow-y:auto}
 .ai-chat .code-block{position:relative;margin:16px 0;border:1px solid var(--border);border-radius:6px;overflow:hidden}
 .ai-chat .code-header{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:var(--panel);border-bottom:1px solid var(--border);font-size:11px;color:var(--muted)}
-.ai-chat .code-header button{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:4px 10px;color:var(--fg);font-size:10px;font-family:inherit;cursor:pointer;transition:all 0.2s ease}
+.ai-chat .code-header button{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border);border-radius:999px;padding:4px 10px;color:var(--fg);font-size:10px;font-family:inherit;cursor:pointer;transition:all 0.2s ease}
 .ai-chat .code-header button:hover{background:var(--panel);border-color:var(--accent)}
 .ai-chat .code-header button.copied{background:#1e4a2a;border-color:#2a6b3a;color:#fff}
 .ai-chat .code-block pre{margin:0;padding:16px;background:var(--bg);overflow-x:auto;font-family:'JetBrains Mono','Menlo',monospace;font-size:12px;color:var(--fg);white-space:pre-wrap}
@@ -1587,7 +1591,7 @@ body.group-chat-open .layout{padding-right:0}
 .group-chat-file-ref:hover{background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .group-chat-compose-row.group-chat-tree-drop-active{outline:2px dashed var(--accent);outline-offset:2px;border-radius:12px}
 .group-chat-context-menu{position:fixed;z-index:2000;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.2);min-width:120px}
-.group-chat-context-menu button{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:transparent;color:var(--fg);cursor:pointer;border-radius:6px;font-size:13px}
+.group-chat-context-menu button{display:block;width:100%;text-align:left;padding:8px 12px;border:none;background:transparent;color:var(--fg);cursor:pointer;border-radius:999px;font-size:13px}
 .group-chat-context-menu button:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
 .group-chat-lightbox{position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:16px}
 .group-chat-lightbox.hidden{display:none!important}
