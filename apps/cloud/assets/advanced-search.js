@@ -49,7 +49,6 @@ const COMMON_FILE_EXTENSIONS = [
     'tex', 'latex', 'log', 'ini', 'env'
 ];
 
-let
 const extensionSuggestState = {
     activeIndex: -1,
     items: []
@@ -106,6 +105,7 @@ function renderExtensionSuggestions(rawValue) {
     }).join('');
 
     list.classList.remove('hidden');
+    list.style.zIndex = '1000';
 }
 
 function moveExtensionSuggestionSelection(delta) {
@@ -1021,4 +1021,4 @@ window.advancedSearch = {
     init: window.initAdvancedSearch,
     reset: resetAdvancedSearchForm,
     start: startAdvancedSearch
-};
+}

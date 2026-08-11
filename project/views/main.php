@@ -13291,7 +13291,7 @@ function saveWeatherSettings() {
                 weatherStore.lon = data.lon;
                 weatherStore.city = weatherSettings.selected_city;
                 window.apWeatherRefresh(weatherStore.lat, weatherStore.lon, weatherSettings.selected_city);
-                // Сохраняем настройки в localStorage, чтобы при перезагрузке страницы они не сбрасывались
+                // Save settings to localStorage so they don't reset on page reload
                 try {
                     localStorage.setItem('ap_weather_data', JSON.stringify({
                         ts: Date.now(),
@@ -13827,7 +13827,7 @@ window.toggleWindChart = toggleWindChart;
                     fetchWeather(weatherStore.lat, weatherStore.lon);
                     applyToWidgets(null, null, settings.selected_city, null);
                 } else {
-                    // Пытаемся загрузить из кэша
+                    // Try to load from cache
                     try {
                         var cached = JSON.parse(localStorage.getItem('ap_weather_data'));
                         if (cached && cached.ts && Date.now() - cached.ts < 3600000 && cached.lat != null && cached.lon != null) {
@@ -13844,7 +13844,7 @@ window.toggleWindChart = toggleWindChart;
                             return;
                         }
                     } catch(e) {}
-                    // Если нет кэша или настройки на текущую геолокацию — используем геолокацию
+                    // If no cache or settings for current geolocation — use geolocation
                     if (navigator.geolocation) {
                         navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
                     } else {

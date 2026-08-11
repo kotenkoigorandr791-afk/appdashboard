@@ -3,6 +3,15 @@ set -e
 if [ "${RUN_ENSURE_CONTAINER_PACKAGES:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh || true
 fi
+if [ "${PHP_OPCACHE_ENABLE:-1}" = "0" ]; then
+  {
+    printf 'opcache.enable=0\n'
+    printf 'opcache.enable_cli=0\n'
+    printf 'opcache.validate_timestamps=1\n'
+    printf 'opcache.revalidate_freq=0\n'
+    printf 'opcache.file_update_protection=0\n'
+  } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
+fi
 mkdir -p /var/www/AppDashboard/data /var/www/AppDashboard/uploads/avatars /var/www/AppDashboard/uploads/support_chat /opt/AppDashboard/data /opt/ApplicationData
 if [ ! -f /opt/AppDashboard/data/db.env ]; then
   {
