@@ -3172,6 +3172,14 @@ function updateToolbarForTab(tab) {
         redoBtn?.classList.toggle('hidden', !showMonacoHistory);
         updateMonacoUndoRedoToolbar();
     }
+    
+    // Show/hide compile button based on file type
+    const compileMenuItem = document.getElementById('code-action-compile');
+    if (compileMenuItem) {
+        const fileExt = tab.path.split('.').pop().toLowerCase();
+        const supportedLangs = ['java', 'c', 'cpp', 'py', 'm'];
+        compileMenuItem.style.display = (tab.editMode && supportedLangs.includes(fileExt)) ? 'flex' : 'none';
+    }
 }
 
 function updateMonacoUndoRedoToolbar() {
@@ -5315,6 +5323,17 @@ function toggleCodeActionsMenu(e) {
     e.stopPropagation();
     const menu = document.getElementById('code-actions-menu');
     if (!menu) return;
+    
+    // Check if current file supports compilation
+    const viewer = document.getElementById('viewer');
+    const path = viewer?.dataset?.path;
+    const compileMenuItem = document.getElementById('code-action-compile');
+    if (compileMenuItem && path) {
+        const ext = path.split('.').pop().toLowerCase();
+        const supportedLangs = ['java', 'c', 'cpp', 'py', 'm'];
+        compileMenuItem.style.display = supportedLangs.includes(ext) ? 'flex' : 'none';
+    }
+    
     const isHidden = menu.classList.contains('hidden');
     closeAllDropdowns(); // First close all
     if (isHidden) {
@@ -5561,7 +5580,9 @@ function showConfirmModal(title, message) {
             <div class="modal-content" style="max-width: 450px;">
                 <div class="modal-header">
                     <h3>${title}</h3>
-                    <button class="icon-btn close-btn">&times;</button>
+                    <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <p style="margin: 20px 0;">${message}</p>
@@ -7459,7 +7480,9 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h3>${permanent ? t(i18n, 'deletePermanently') : t(i18n, 'confirmDelete')}</h3>
-                <button class="icon-btn close-btn">&times;</button>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <div style="text-align: center; padding: 20px;">
@@ -7840,12 +7863,15 @@ function showArchiveOptionsModal(defaultName = '') {
             const value = typeof t === 'function' ? t(window.i18n || {}, key) : '';
             return value && value !== key ? value : fallback;
         };
-        const safeName = escapeHtml(defaultName || `selected_${Date.now()}.zip`);
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const safeName = escapeHtml(defaultName || `selected_${timestamp}.zip`);
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 460px;">
                 <div class="modal-header">
                     <h3>${escapeHtml(label('createArchive', 'Create archive'))}</h3>
-                    <button class="icon-btn close-btn">&times;</button>
+                    <button class="icon-btn close-btn" aria-label="${escapeHtml(label('close', 'Close'))}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <style>
@@ -7872,10 +7898,10 @@ function showArchiveOptionsModal(defaultName = '') {
                             <option value="tar.gz">TAR.GZ</option>
                         </select>
                     </div>
-                    <label class="animated-check-label">
-                        <input id="archive-options-encrypt" type="checkbox" class="animated-checkbox"/>
-                        <span class="animated-checkbox-box">
-                          <svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    <label class="animated-check-label" style="margin-top:12px;">
+                        <input id="archive-options-encrypt" type="checkbox" class="animated-checkbox" style="width:32px;height:32px;"/>
+                        <span class="animated-checkbox-box" style="width:20px;height:20px;">
+                          <svg width="20" height="15" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
                         </span>
                         <span>${escapeHtml(label('encryptArchive', 'Encrypt archive'))}</span>
                     </label>
@@ -7968,7 +7994,8 @@ async function downloadSelectedItems() {
         flashStatus(t(window.i18n, 'noItemsSelected'));
         return;
     }
-    const options = await showArchiveOptionsModal(`selected_${Date.now()}.zip`);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const options = await showArchiveOptionsModal(`selected_${timestamp}.zip`);
     if (!options) return;
 
     try {
@@ -8014,7 +8041,9 @@ function showMoveDialogForMultiple(selectedPaths) {
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h3>${t(i18n, 'moveSelectedItems')}</h3>
-                <button class="icon-btn close-btn">&times;</button>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <p>${t(i18n, 'movingItemsCount', { count: selectedPaths.length })}</p>
@@ -9944,7 +9973,9 @@ function showUploadWarningDialog(fileName, forbiddenExtensions) {
           </svg>
           ${t(i18n, 'securityWarning')}
         </h3>
-        <button class="icon-btn close-btn">&times;</button>
+        <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
       </div>
       <div class="modal-body">
         <div style="margin-bottom: 15px;">

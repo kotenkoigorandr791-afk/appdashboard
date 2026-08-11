@@ -523,7 +523,9 @@ function showTransferDialog(sourcePath, sourceType, mode = 'move') {
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h3>${sourceType === 'dir' ? t(i18n, isCopy ? 'copyFolder' : 'moveFolder') : t(i18n, isCopy ? 'copyFileItem' : 'moveFile')}</h3>
-                <button class="icon-btn close-btn">&times;</button>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <p>${t(i18n, isCopy ? 'copying' : 'moving')} <strong>${sourcePath}</strong></p>
@@ -590,7 +592,9 @@ function showDestinationFolderDialog(options = {}) {
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h3>${title}</h3>
-                <button class="icon-btn close-btn">&times;</button>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <div class="folder-selector">

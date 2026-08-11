@@ -62,6 +62,7 @@ function hideExtensionSuggestions() {
     const list = document.getElementById('search-extension-suggestions');
     if (!list) return;
     list.classList.add('hidden');
+    list.classList.remove('visible');
     list.innerHTML = '';
     extensionSuggestState.activeIndex = -1;
     extensionSuggestState.items = [];
@@ -104,8 +105,32 @@ function renderExtensionSuggestions(rawValue) {
     `;
     }).join('');
 
+    positionExtensionSuggestions();
+
     list.classList.remove('hidden');
-    list.style.zIndex = '1000';
+    list.classList.add('visible');
+    list.style.zIndex = '1000001';
+}
+
+function positionExtensionSuggestions() {
+    const input = document.getElementById('search-extension');
+    const list = document.getElementById('search-extension-suggestions');
+    if (!input || !list) return;
+
+    list.style.left = '0';
+    list.style.top = 'calc(100% + 6px)';
+    list.style.width = '100%';
+}
+
+let scrollHandlerAttached = false;
+
+function attachScrollHandler() {
+    if (scrollHandlerAttached) return;
+    const modalBody = document.querySelector('#advanced-search-modal .modal-body');
+    if (modalBody) {
+        modalBody.addEventListener('scroll', positionExtensionSuggestions, { passive: true });
+        scrollHandlerAttached = true;
+    }
 }
 
 function moveExtensionSuggestionSelection(delta) {
@@ -129,6 +154,12 @@ function initExtensionSuggestions() {
     const input = document.getElementById('search-extension');
     const list = document.getElementById('search-extension-suggestions');
     if (!input || !list) return;
+
+    // Attach scroll handler for modal body to reposition dropdown on scroll
+    attachScrollHandler();
+
+    // Also handle window resize
+    window.addEventListener('resize', positionExtensionSuggestions, { passive: true });
 
     input.addEventListener('input', () => {
         renderExtensionSuggestions(input.value);

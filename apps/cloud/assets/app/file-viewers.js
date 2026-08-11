@@ -34,6 +34,15 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         const filePath = path;
         saveBtn.classList.toggle('hidden', !editMode);
         codeActionsBtn.classList.toggle('hidden', !editMode);
+        
+        // Show/hide compile button based on file type
+        const compileMenuItem = document.getElementById('code-action-compile');
+        if (compileMenuItem) {
+            const fileExt = path.split('.').pop().toLowerCase();
+            const supportedLangs = ['java', 'c', 'cpp', 'py', 'm'];
+            compileMenuItem.style.display = (editMode && supportedLangs.includes(fileExt)) ? 'flex' : 'none';
+        }
+        
         if (window.innerWidth <= 768) {
             document.querySelector('.sidebar').classList.remove('active');
             localStorage.setItem('sidebarVisible', 'false');
@@ -1024,6 +1033,12 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         const codeActionsBtn = document.getElementById('btn-code-actions');
         saveBtn.classList.add('hidden');
         codeActionsBtn.classList.add('hidden');
+        
+        // Hide compile button
+        const compileMenuItem = document.getElementById('code-action-compile');
+        if (compileMenuItem) {
+            compileMenuItem.style.display = 'none';
+        }
         
         const errTabId = tabsState.activeTabId;
         const errContainer = typeof getOrCreateFileContainer === 'function'
