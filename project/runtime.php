@@ -143,7 +143,7 @@ if(is_dir($appsFsDir)){
                 $iconMasked=false;
             }
             $totalVisits=$visitStatsTotals[$folder]??0;
-            $appRailApps=['gitea','immich','plane','x','X'];
+            $appRailApps=['gitea','immich','plane','dawarich','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
             $descFile=$subdir.'/description.json';
             $description='';
