@@ -105,6 +105,7 @@ function renderExtensionSuggestions(rawValue) {
     }).join('');
 
     list.classList.remove('hidden');
+    list.style.zIndex = '1000';
 }
 
 function moveExtensionSuggestionSelection(delta) {
@@ -1020,4 +1021,4 @@ window.advancedSearch = {
     init: window.initAdvancedSearch,
     reset: resetAdvancedSearchForm,
     start: startAdvancedSearch
-};
+}

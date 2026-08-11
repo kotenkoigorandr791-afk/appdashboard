@@ -1,3 +1,5 @@
+name: appdashboard
+
 services:
   appdashboard-db:
     image: postgres:16
@@ -23,6 +25,8 @@ services:
       dockerfile: Dockerfile
     image: appdashboard:latest
     container_name: appdashboard
+    entrypoint: ["/var/www/AppDashboard/docker-entrypoint.sh"]
+    command: ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
     restart: unless-stopped
     privileged: true
     depends_on:
@@ -40,6 +44,7 @@ services:
       DB_USER: appdashboard
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
       RUN_STARTUP_DEPS: "1"
+      PHP_OPCACHE_ENABLE: "0"
       SSH_WS_PORT: "8765"
       SSH_WS_BIND: 127.0.0.1
       SMART_HOME_WS_PORT: "8766"
@@ -48,17 +53,15 @@ services:
       - "80:80"
     volumes:
       - .:/var/www/AppDashboard
-      - appdashboard-code-data:/var/www/AppDashboard/data
-      - appdashboard-uploads:/var/www/AppDashboard/uploads
+      - ./nginx/appdashboard.conf:/etc/nginx/sites-available/appdashboard.conf:ro
       - appdashboard-data:/opt/AppDashboard/data
-      - /opt/ApplicationData:/opt/ApplicationData
+      - appdashboard-appdata:/opt/ApplicationData
       - appdashboard-logs:/var/log/nginx
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
 volumes:
   appdashboard-logs:
-  appdashboard-code-data:
-  appdashboard-uploads:
   appdashboard-data:
+  appdashboard-appdata:
   appdashboard-db-data:

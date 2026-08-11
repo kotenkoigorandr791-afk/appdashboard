@@ -1,8 +1,9 @@
 <?php
 
+require_once __DIR__ . '/core.php';
 
-$requestUri=$_SERVER['REQUEST_URI'];
-$path=oauthRequestPath($requestUri);
+$requestUri = $_SERVER['REQUEST_URI'];
+$path = oauthRequestPath($requestUri);
 
 if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     try {

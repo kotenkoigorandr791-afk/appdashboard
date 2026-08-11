@@ -672,5 +672,12 @@
     "welcome_message": "Ласкаво просимо до оболонки. Оберіть додаток з меню.",
     "welcome_user": "Ласкаво просимо, ",
     "windows": "Windows",
-    "wrong_current_password": "Невірний поточний пароль"
+    "wrong_current_password": "Невірний поточний пароль",
+    "weather_use_current_location": "Використовувати поточне місцезнаходження",
+    "weather_use_selected_city": "Використовувати обране місто",
+    "weather_select_country": "Оберіть країну",
+    "weather_select_city": "Оберіть місто",
+    "weather_location_settings": "Налаштування місцезнаходження",
+    "weather_save": "Зберегти",
+    "weather_cancel": "Скасувати"
 }

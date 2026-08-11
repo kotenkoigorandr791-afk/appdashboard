@@ -672,5 +672,12 @@
     "welcome_message": "Вітаем у абалонцы. Аберыце прыкладанне з меню.",
     "welcome_user": "Вітаем, ",
     "windows": "Windows",
-    "wrong_current_password": "Няправільны бягучы пароль"
+    "wrong_current_password": "Няправільны бягучы пароль",
+    "weather_use_current_location": "Выкарыстоўваць бягучае месцазнаходжанне",
+    "weather_use_selected_city": "Выкарыстоўваць абраны горад",
+    "weather_select_country": "Абярыце краіну",
+    "weather_select_city": "Абярыце горад",
+    "weather_location_settings": "Налады месцазнаходжання",
+    "weather_save": "Захаваць",
+    "weather_cancel": "Скасаваць"
 }

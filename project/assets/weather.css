@@ -1,0 +1,103 @@
+.weather-selector {
+    margin-bottom: 15px;
+}
+
+.weather-selector-title {
+    font-size: 14px;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+body.dark-theme .weather-selector-title {
+    color: #ccc;
+}
+
+/* Custom Select */
+.custom-select {
+    width: 100%;
+    max-width: 300px;
+    position: relative;
+    margin-bottom: 10px;
+}
+
+.custom-select-selected {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+body.light-theme .custom-select-selected {
+    background: white;
+    color: #333;
+}
+
+body.dark-theme .custom-select-selected {
+    background: #444;
+    color: white;
+    border-color: #666;
+}
+
+.custom-select-selected::after {
+    content: "▼";
+    font-size: 10px;
+    margin-left: 8px;
+}
+
+.custom-select-options {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: white;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    margin-top: 2px;
+}
+
+body.light-theme .custom-select-options {
+    background: white;
+    color: #333;
+}
+
+body.dark-theme .custom-select-options {
+    background: #444;
+    color: white;
+    border-color: #666;
+}
+
+.custom-select-options.show {
+    display: block;
+}
+
+.custom-select-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.custom-select-option:hover {
+    background: #f0f0f0;
+}
+
+body.dark-theme .custom-select-option:hover {
+    background: #555;
+}
+
+.weather-select-hidden {
+    display: none;
+}
+
+.custom-select-option img {
+    width: 20px;
+    margin-right: 8px;
+}

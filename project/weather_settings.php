@@ -254,6 +254,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
 
+    if ($action === 'country_cities') {
+        $country = trim((string)($_GET['country'] ?? ''));
+        if ($country === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Missing country', 'cities' => []]);
+            exit;
+        }
+        $data = weather_http_post('https://countriesnow.space/api/v0.1/countries/cities', ['country' => $country]);
+        if ($data === null) {
+            http_response_code(502);
+            echo json_encode(['error' => 'Upstream unavailable', 'cities' => []]);
+            exit;
+        }
+        $decoded = json_decode($data, true);
+        $cities = isset($decoded['data']) && is_array($decoded['data'])
+            ? array_values(array_filter($decoded['data'], static fn($city) => is_string($city) && $city !== ''))
+            : [];
+        sort($cities, SORT_NATURAL | SORT_FLAG_CASE);
+        echo json_encode(['cities' => $cities]);
+        exit;
+    }
+
     $settings = app_get_weather_settings($email);
     echo json_encode($settings);
     exit;
