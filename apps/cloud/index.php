@@ -1044,11 +1044,11 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
     </div>
     <div class="modal-body" style="text-align: center; padding: 20px; position:relative;">
       <div id="share-modal-actions" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:nowrap; margin-top:14px;">
-        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2-icon lucide-settings-2"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2-icon lucide-settings-2"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
           <span>Link settings</span>
         </button>
-        <button id="btn-copy-share-link" class="btn secondary" style="display:inline-flex; align-items:center; gap:8px;">
+        <button id="btn-copy-share-link" class="btn secondary" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
         <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
             <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"></path>
             <path d="M16 3h5v5"></path>

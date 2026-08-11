@@ -8,6 +8,19 @@ if (getcwd() !== APP_ROOT) {
     chdir(APP_ROOT);
 }
 
+// Handle sharedFile parameter (lightweight entry for public shared-file links).
+// Load the same bootstrap chain as the normal flow so routes.php has access
+// to db.php helpers (parseTrustedDeviceHintCookie, getConfig, ...), the session,
+// and the OAuth helpers (oauthRequestPath, oauthStartUrl, oauth_dispatch).
+if (isset($_GET['sharedFile'])) {
+    require __DIR__ . '/bootstrap.php';
+    require __DIR__ . '/core.php';
+    require __DIR__ . '/oauth.php';
+    require __DIR__ . '/oauth_login.php';
+    require __DIR__ . '/routes.php';
+    exit;
+}
+
 $__path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $__pathLower = strtolower($__path);
 if ($__pathLower === '/webdav' || str_starts_with($__pathLower, '/webdav/') || $__pathLower === '/apps/cloud/webdav.php' || str_starts_with($__pathLower, '/apps/cloud/webdav.php/')) {

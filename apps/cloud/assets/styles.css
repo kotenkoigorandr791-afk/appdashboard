@@ -579,6 +579,7 @@ body[data-theme="light"] .lang-switcher .lang-option.active {
 #share-modal .modal-content{display:flex;flex-direction:column;align-items:center;padding:24px}
 #qrcode-container{margin:16px 0}
 #btn-copy-share-link{min-width:200px;justify-content:center}
+#btn-share-settings{min-width:200px;justify-content:center}
 #btn-refresh-tree{width:28px;height:28px;padding:0;margin:0;display:flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:6px;cursor:pointer;flex-shrink:0;transition:all 0.2s ease}
 #btn-refresh-tree:hover{background:color-mix(in srgb,var(--accent) 10%,var(--bg));color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 #btn-refresh-tree:active{transform:scale(0.92)}

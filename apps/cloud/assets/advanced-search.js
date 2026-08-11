@@ -49,6 +49,7 @@ const COMMON_FILE_EXTENSIONS = [
     'tex', 'latex', 'log', 'ini', 'env'
 ];
 
+let
 const extensionSuggestState = {
     activeIndex: -1,
     items: []
