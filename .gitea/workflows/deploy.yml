@@ -34,7 +34,7 @@ jobs:
           docker exec appdashboard composer install --no-dev --prefer-dist --no-interaction --working-dir=/var/www/AppDashboard/apps/cloud
           docker exec appdashboard php -l /var/www/AppDashboard/apps/smart_home/core/app.php
           docker exec appdashboard php -l /var/www/AppDashboard/apps/smart_home/SmartHomeWsHandler.php
-          docker cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf appdashboard:/etc/nginx/sites-available/appdashboard.conf
+          sudo cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf /opt/docker/appdashboard/nginx/sites-available-runtime.conf
           sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh
           sh /opt/docker/appdashboard/code/deploy/scripts/patch-immich-theme-bridge.sh
           docker exec appdashboard nginx -t
