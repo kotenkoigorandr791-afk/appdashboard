@@ -122,18 +122,20 @@ function gitDeployRestartContainer(): array {
 function gitDeployApplyNginxConfig(): array {
     $codeDir = gitDeployCodeDir();
     $src = $codeDir . '/deploy/nginx/appdashboard.conf';
+    $dst = '/opt/docker/appdashboard/nginx/sites-available-runtime.conf';
     if (!is_file($src)) {
         return ['success' => false, 'error' => 'Nginx config not found: ' . $src];
     }
-    $copyOut = gitDeployRun('docker cp ' . escapeshellarg($src) . ' appdashboard:/etc/nginx/sites-available/appdashboard.conf');
-    if (preg_match('/\b(fatal:|error:|Error response)\b/i', $copyOut)) {
-        return ['success' => false, 'error' => $copyOut];
+    $copyOut = gitDeployRun('sudo cp ' . escapeshellarg($src) . ' ' . escapeshellarg($dst));
+    if (preg_match('/(fatal:|error:|Error response|Permission denied)/i', $copyOut)) {
+        return ['success' => false, 'error' => $copyOut !== '' ? $copyOut : 'Failed to update nginx runtime config'];
     }
     $testOut = gitDeployRun('docker exec appdashboard nginx -t');
     if (!preg_match('/test is successful/i', $testOut)) {
         return ['success' => false, 'error' => $testOut];
     }
-    return ['success' => true, 'output' => trim($copyOut . "\n" . $testOut)];
+    return ['success' => true, 'output' => trim($copyOut . "
+" . $testOut)];
 }
 
 function gitDeployPullAndRestart(): array {
