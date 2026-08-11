@@ -2862,10 +2862,6 @@ function ensureTrustedDevicesSchema(AppDatabase $db): void {
 // ── Trusted Device Persistent Cookies ───────────────────────────────────────
 
 function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
-    if (app_db_is_pgsql()) {
-        try { $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_trusted_device_cookies_email_fp ON trusted_device_cookies(email, fingerprint)"); } catch (Throwable $e) {}
-        return;
-    }
     $db->exec("CREATE TABLE IF NOT EXISTS trusted_device_cookies (
         cookie_hash  TEXT    PRIMARY KEY,
         email        TEXT    NOT NULL,

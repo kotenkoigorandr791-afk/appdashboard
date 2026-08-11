@@ -1,3 +1,5 @@
+name: appdashboard
+
 services:
   appdashboard-db:
     image: postgres:16
@@ -24,6 +26,7 @@ services:
     image: appdashboard:latest
     container_name: appdashboard
     entrypoint: ["/var/www/AppDashboard/docker-entrypoint.sh"]
+    command: ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
     restart: unless-stopped
     privileged: true
     depends_on:
