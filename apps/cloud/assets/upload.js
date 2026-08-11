@@ -1019,7 +1019,9 @@ async function initUploadHandlers(modal, basePath) {
                                 </svg>
                                 ${window.i18n?.insufficientSpace || 'Insufficient Space'}
                             </h3>
-                            <button class="icon-btn close-btn">&times;</button>
+                            <button class="icon-btn close-btn" aria-label="${window.i18n?.close || 'Close'}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                            </button>
                         </div>
                         <div class="modal-body">
                             <p>${(window.i18n?.insufficientSpaceMessage || 'Required {required}, available {available}').replace('{required}', requiredSize).replace('{available}', availableSize)}</p>
@@ -1233,7 +1235,7 @@ async function initUploadHandlers(modal, basePath) {
               </svg>
               ${title || (window.i18n?.confirm || 'Confirm')}
             </h3>
-            <button class="icon-btn close-btn">
+            <button class="icon-btn close-btn" aria-label="${window.i18n?.close || 'Close'}">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>
@@ -1294,7 +1296,7 @@ async function initUploadHandlers(modal, basePath) {
               </svg>
               ${window.i18n?.fileConflictsFound || 'File conflicts found'}
             </h3>
-            <button class="icon-btn close-btn">
+            <button class="icon-btn close-btn" aria-label="${window.i18n?.close || 'Close'}">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>

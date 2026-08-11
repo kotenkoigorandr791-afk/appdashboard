@@ -218,11 +218,8 @@ function showPropertiesErrorModal(errorMessage) {
                     </svg>
                     ${t(window.i18n, 'propertiesLoadError')}
                 </h3>
-                <button class="icon-btn close-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="icon-btn close-btn" aria-label="${t(window.i18n, 'close') || 'Close'}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
             <div class="modal-body" style="padding: 25px; text-align: center;">
@@ -336,11 +333,8 @@ function showFilePropertiesModal(properties, filePath) {
                     </svg>
                     ${t(window.i18n, 'fileProperties')}: ${fileName}
                 </h3>
-                <button class="icon-btn close-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="icon-btn close-btn" aria-label="${t(window.i18n, 'close') || 'Close'}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
             <div class="modal-body properties-body">
@@ -430,11 +424,8 @@ function showFolderPropertiesModal(properties, folderPath) {
                     </svg>
                     ${t(window.i18n, 'folderProperties')}: ${folderName}
                 </h3>
-                <button class="icon-btn close-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="icon-btn close-btn" aria-label="${t(window.i18n, 'close') || 'Close'}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
             <div class="modal-body properties-body">

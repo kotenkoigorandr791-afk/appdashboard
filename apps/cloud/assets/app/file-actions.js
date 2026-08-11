@@ -151,7 +151,9 @@ function ensureVideoModal() {
             <p>AI composition → HyperFrames → MP4</p>
           </div>
         </div>
-        <button class="icon-btn close-btn">&times;</button>
+        <button class="icon-btn close-btn" aria-label="${escapeHtml(t(window.i18n, 'close') || 'Close')}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    </button>
       </div>
       <div class="video-modal-scroll">
       <div class="video-grid">
@@ -1183,7 +1185,9 @@ function showExtractDialog(filePath) {
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
                 <h3>${t(i18n, 'selectExtractDestination')}</h3>
-                <button class="icon-btn close-btn">&times;</button>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
             <div class="modal-body">
                 <p>${t(i18n, 'extractingArchive')} <strong>${filePath}</strong></p>
@@ -1369,8 +1373,9 @@ async function archiveFolder(folderPath) {
     flashStatus(t(i18n, 'selectFolderToArchive'));
     return;
   }
+  const timestamp = formatTimestampForFilename();
   const options = typeof window.showArchiveOptionsModal === 'function'
-    ? await window.showArchiveOptionsModal(`${folderPath.split('/').pop()}_${Date.now()}.zip`)
+    ? await window.showArchiveOptionsModal(`${folderPath.split('/').pop()}_${timestamp}.zip`)
     : { archiveName: '', format: 'zip', password: '' };
   if (!options) return;
   try {
@@ -1418,7 +1423,9 @@ function showArchiveResultDialog(result, originalFolderPath) {
           </svg>
           ${t(i18n, 'archiveCreated')}
         </h3>
-        <button class="icon-btn close-btn">&times;</button>
+        <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
       </div>
       <div class="modal-body">
         <div style="text-align: center; margin-bottom: 20px;">
@@ -1617,7 +1624,9 @@ function showPropertiesModal(properties, filePath) {
                     </svg>
                     ${t(i18n, 'properties')}: ${fileName}
                 </h3>
-                <button class="icon-btn close-btn">&times;</button>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
             </div>
             <div class="modal-body properties-body">
                 <div class="properties-block">
@@ -1730,6 +1739,16 @@ function formatFileSize(bytes) {
 function formatDate(dateString) {
     const date = new Date(dateString);
     return date.toLocaleString();
+}
+function formatTimestampForFilename() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}_${hh}-${mi}-${ss}`;
 }
 function formatDuration(seconds) {
     const hours = Math.floor(seconds / 3600);
@@ -1910,11 +1929,8 @@ function showConvertDialog(filePath) {
                     </svg>
                     ${t(i18n, 'convertFile')}: ${filePath.split('/').pop()}
                 </h3>
-                <button class="icon-btn close-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
             <div class="modal-body">

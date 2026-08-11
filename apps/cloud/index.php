@@ -1071,7 +1071,6 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
       <button id="btn-close-share-settings" class="icon-btn">
         <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
-      </div>
     </div>
     <div class="modal-body" style="padding:18px;">
       <div style="display:grid; gap:10px;">
@@ -1097,7 +1096,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         <label style="display:block; font-size:13px;">
           <span style="display:block; margin:4px 0 6px;">Password</span>
           <div style="position:relative;">
-            <input id="share-password" type="password" placeholder="Optional password" style="width:100%;padding-right:44px;">
+             <input id="share-password" type="password" placeholder="Optional password" autocomplete="new-password" style="width:100%;padding-right:44px;">
             <button id="btn-toggle-share-password" type="button" class="icon-btn" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;">
               <svg id="share-password-eye-open" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
               <svg id="share-password-eye-closed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="m3 3 18 18"/><path d="M10.58 10.58a2 2 0 1 0 2.83 2.83"/><path d="M16.68 16.67A10.94 10.94 0 0 1 12 17.75c-5 0-9.27-3.11-11-7.5a11.8 11.8 0 0 1 5.17-5.94"/><path d="M9.88 5.09A10.94 10.94 0 0 1 12 4.75c5 0 9.27 3.11 11 7.5a11.8 11.8 0 0 1-1.39 2.5"/></svg>
