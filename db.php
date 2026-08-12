@@ -1150,6 +1150,15 @@ function upsertUser(string $email, array $fields): void {
     $stmt->bindValue(':created_at', $merged['created_at']);
     $stmt->execute();
     oauthConsumePendingLink($email);
+    if (!empty($merged['verified']) || $email === 'root@root') {
+        if (!function_exists('oauth_provision_user_services')) {
+            $oauthFile = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__)) . '/project/oauth.php';
+            if (is_readable($oauthFile)) require_once $oauthFile;
+        }
+        if (function_exists('oauth_provision_user_services')) {
+            oauth_provision_user_services($email, $merged);
+        }
+    }
 }
 
 function deleteUser(string $email): void {

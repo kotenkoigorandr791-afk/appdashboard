@@ -20,8 +20,10 @@ if (!$isLoggedIn) {
     exit;
 }
 if ($currentHost === 'serverkherson.xyz') {
+    $email = (string)($_SESSION['user']['email'] ?? '');
+    oauth_provision_user_services($email, $_SESSION['user'] ?? []);
     if ($theme !== '') {
-        dawarich_sync_user_theme((string)($_SESSION['user']['email'] ?? ''), $theme);
+        dawarich_sync_user_theme($email, $theme);
         dawarich_sync_all_user_themes($theme);
     }
     $u = 'https://dawarich.serverkherson.xyz/users/sign_in';

@@ -782,6 +782,19 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $stmt->bindValue(':v',$ver,PDO::PARAM_INT);$stmt->bindValue(':l',$lang2);
         $stmt->bindValue(':t',$thm);$stmt->bindValue(':c',$clr);
         $stmt->execute();
+        if (!function_exists('oauth_provision_user_services')) {
+            $oauthFile = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__)) . '/project/oauth.php';
+            if (is_readable($oauthFile)) require_once $oauthFile;
+        }
+        if (function_exists('oauth_provision_user_services') && $ver) {
+            oauth_provision_user_services($email, [
+                'name' => $name ?: explode('@', $email)[0],
+                'role' => $role,
+                'theme' => $thm,
+                'photo' => 'default_avatar.png',
+                'verified' => true,
+            ]);
+        }
         jsonOut(['success'=>true,'message'=>t('user_created')]);
     }
 
