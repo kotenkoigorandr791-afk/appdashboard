@@ -1,20 +1,14 @@
 {
-    "en": "Dawarich",
-    "ru": "Dawarich",
-    "uk": "Dawarich",
-    "be": "Dawarich",
-    "pl": "Dawarich",
-    "cs": "Dawarich",
+    "en": "Maps",
+    "ru": "Карта",
+    "uk": "Карта",
+    "be": "Карта",
     "menu_button": {
-        "left": 7,
-        "top": 12,
-        "width": 36,
-        "height": 36
+        "left": 4,
+        "top": 23,
+        "width": 40,
+        "height": 40
     },
-    "menu_button_mobile": {
-        "left": 8,
-        "top": 6,
-        "width": 36,
-        "height": 36
-    }
+    "pl": "Mapy",
+    "cs": "Mapy"
 }
