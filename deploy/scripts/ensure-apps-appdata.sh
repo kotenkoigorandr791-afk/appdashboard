@@ -40,6 +40,10 @@ ensure_link() {
   link="$1"
   target="$2"
   kind="${3:-dir}"
+  parent="$(dirname "$link")"
+  if [ ! -d "$parent" ]; then
+    return 0
+  fi
   if [ "$kind" = "dir" ]; then
     ensure_dir "$target"
   else
@@ -90,12 +94,6 @@ ensure_link "$ROOT/apps/films/storage" "$APPDATA_BASE/films" dir
 ensure_link "$ROOT/apps/films/comments" "$APPDATA_BASE/films/comments" dir
 ensure_link "$ROOT/apps/films/uploads" "$APPDATA_BASE/films/uploads" dir
 
-# map
-ensure_dir "$APPDATA_BASE/map"
-ensure_link "$ROOT/apps/map/user_data" "$APPDATA_BASE/map/user_data" dir
-ensure_link "$ROOT/apps/map/uploads" "$APPDATA_BASE/map/uploads" dir
-ensure_link "$ROOT/apps/map/location_photos" "$APPDATA_BASE/map/location_photos" dir
-
 # media_viewer
 ensure_dir "$APPDATA_BASE/media_viewer"
 ensure_link "$ROOT/apps/media_viewer/data" "$APPDATA_BASE/media_viewer/data" dir
@@ -131,8 +129,10 @@ if [ -f "$ROOT/deploy/scripts/ensure-spends-appdata.sh" ]; then
   sh "$ROOT/deploy/scripts/ensure-spends-appdata.sh" "$ROOT/apps/spends" || true
 fi
 
-for app in cloud films map media_viewer recipes spends steps tft-generator smart_home viewer; do
-  strip_junk "$ROOT/apps/$app"
+for app in cloud films media_viewer recipes spends steps tft-generator smart_home viewer; do
+  if [ -d "$ROOT/apps/$app" ]; then
+    strip_junk "$ROOT/apps/$app"
+  fi
 done
 
 chown -R www-data:www-data "$APPDATA_BASE" 2>/dev/null || true
