@@ -1,6 +1,15 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const baseURL = process.env.TEST_BASE_URL || 'http://localhost';
+const hasAuthUser = !!process.env.E2E_USER_EMAIL && !!process.env.E2E_USER_PASSWORD;
+const webkitProjects = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1'
+  ? [
+      { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
+      { name: 'mobile-safari-iphone-12', use: { ...devices['iPhone 12'] } },
+      { name: 'mobile-safari-iphone-se', use: { ...devices['iPhone SE'] } },
+      { name: 'tablet-ipad-pro', use: { ...devices['iPad Pro 11'] } }
+    ]
+  : [];
 
 export default defineConfig({
   testDir: '../e2e',
@@ -8,7 +17,7 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  workers: hasAuthUser ? 1 : (process.env.CI ? 2 : undefined),
   timeout: 60000,
   expect: { timeout: 10000 },
   reporter: [
@@ -33,11 +42,8 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'], viewport: { width: 1440, height: 900 } } },
-    { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
     { name: 'mobile-chrome-pixel-5', use: { ...devices['Pixel 5'] } },
-    { name: 'mobile-safari-iphone-12', use: { ...devices['iPhone 12'] } },
-    { name: 'mobile-safari-iphone-se', use: { ...devices['iPhone SE'] } },
-    { name: 'tablet-ipad-pro', use: { ...devices['iPad Pro 11'] } }
+    ...webkitProjects
   ],
   webServer: process.env.PLAYWRIGHT_START_SERVER === '1'
     ? {

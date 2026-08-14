@@ -24,9 +24,9 @@
         #auth-modal{display:flex;position:fixed;top:0;left:0;width:100%;height:100%;justify-content:center;align-items:center;z-index:10050;background:rgba(6,10,16,0.28);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #auth-modal .gradient-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at 20% 20%, color-mix(in srgb,var(--primary-color) 35%,transparent) 0%, transparent 50%),radial-gradient(ellipse at 80% 80%, color-mix(in srgb,var(--primary-color) 22%,transparent) 0%, transparent 48%),linear-gradient(160deg, color-mix(in srgb,var(--bg-color) 70%,transparent) 0%, color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);opacity:1;z-index:0;pointer-events:none;}
         #auth-form{background:var(--modal-bg);padding:30px;border-radius:var(--casa-radius);color:var(--text-color);width:90%;max-width:400px;box-shadow:var(--glass-shadow);max-height:90vh;overflow-y:auto;position:relative;z-index:1;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);}
-        #auth-form .back-button{position:static;margin:20px auto 0;background:var(--primary-color);color:white;border:none;padding:12px 20px;border-radius:24px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;transition:all 0.3s ease;width:auto;min-width:200px;}
+        #auth-form .back-button{position:static;margin:20px auto 0;background:var(--primary-color);color:#fff!important;border:none;padding:12px 20px;border-radius:24px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:600;transition:all 0.3s ease;width:auto;min-width:200px;}
         #auth-form .back-button:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.2);}
-        #auth-form .back-button svg{width:20px;height:20px;fill:white;}
+        #auth-form .back-button svg,#auth-form .back-button path{width:20px;height:20px;color:#fff!important;fill:#fff!important;}
         .auth-tabs{display:flex;margin-bottom:20px;border-bottom:1px solid var(--border-color);}
         .auth-tab{flex:1;padding:12px;text-align:center;background:none;border:none;color:var(--text-color);cursor:pointer;border-bottom:2px solid transparent;}
         .auth-tab.active{border-bottom-color:var(--primary-color);color:var(--primary-color);}
@@ -56,7 +56,8 @@
         .oauth-provider-btn{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;border:1px solid var(--border-color);background:var(--group-block-bg);text-decoration:none;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;box-shadow:0 4px 14px rgba(0,0,0,.08);}
         .oauth-provider-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.14);}
         .oauth-provider-btn svg{width:24px;height:24px;display:block;}
-        .oauth-provider-btn.oauth-github{color:#fff;background:#24292f;border-color:#24292f;}
+        .oauth-provider-btn.oauth-github{color:<?php echo $config['theme']==='dark'?'#fff':'#24292f';?>!important;background:<?php echo $config['theme']==='dark'?'#24292f':'transparent';?>;border-color:<?php echo $config['theme']==='dark'?'#24292f':'var(--border-color)';?>;}
+        .oauth-provider-btn.oauth-github svg,.oauth-provider-btn.oauth-github path{color:<?php echo $config['theme']==='dark'?'#fff':'#24292f';?>!important;fill:<?php echo $config['theme']==='dark'?'#fff':'#24292f';?>!important;}
         .oauth-provider-btn.oauth-google{background:transparent;border-color:var(--border-color);}
         <?php endif; ?>
         .oauth-accounts-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;}
@@ -5535,10 +5536,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             return modals.some(modal => modal && modal.style.display === 'flex') || (np && np.classList.contains('active'));
         }
         function openShortcutsModal(){
-            if(settingsModal && settingsModal.style.display !== 'flex'){
-                closeAllModals();
-                settingsModal.style.display = 'flex';
-            }
+            closeAllModals();
             if(shortcutsModal){
                 shortcutsModal.style.display = 'flex';
             }

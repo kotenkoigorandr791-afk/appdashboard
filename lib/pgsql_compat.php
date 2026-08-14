@@ -21,12 +21,16 @@ final class AppDatabaseStatement {
     private PDO $pdo;
     private PDOStatement $stmt;
     private AppDatabase $db;
+    private string $sql;
+    private array $bindings = [];
     public function __construct(AppDatabase $db, PDO $pdo, string $sql) {
         $this->db = $db;
         $this->pdo = $pdo;
+        $this->sql = $sql;
         $this->stmt = $pdo->prepare($sql);
     }
     public function bindValue(string|int $name, mixed $value, int $type = PDO::PARAM_STR): bool {
+        $this->bindings[$name] = [$value, $type];
         if ($type === PDO::PARAM_NULL || $value === null) {
             $this->stmt->bindValue($name, null, PDO::PARAM_NULL);
             return true;
@@ -38,8 +42,22 @@ final class AppDatabaseStatement {
         $this->stmt->bindValue($name, $value, $type);
         return true;
     }
+    private function reprepare(): void {
+        $this->db->reconnect();
+        $this->pdo = $this->db->getPdo();
+        $this->stmt = $this->pdo->prepare($this->sql);
+        foreach ($this->bindings as $name => [$value, $type]) {
+            $this->bindValue($name, $value, $type);
+        }
+    }
     public function execute(): AppDatabaseResult {
-        $this->stmt->execute();
+        try {
+            $this->stmt->execute();
+        } catch (PDOException $e) {
+            if (!app_db_is_transient_connection_error($e)) throw $e;
+            $this->reprepare();
+            $this->stmt->execute();
+        }
         $this->db->setLastChanges($this->stmt->rowCount());
         return new AppDatabaseResult($this->stmt);
     }
@@ -49,16 +67,29 @@ final class AppDatabase {
     /** @var array<string,self> */
     private static array $userInstances = [];
     private PDO $pdo;
+    private ?string $schemaSql;
     private int $lastChanges = 0;
     private bool $exceptions = true;
-    private function __construct(PDO $pdo) {
+    private function __construct(PDO $pdo, ?string $schemaSql = null) {
         $this->pdo = $pdo;
+        $this->schemaSql = $schemaSql;
+    }
+    public function reconnect(): void {
+        $this->pdo = app_pdo_connect(true);
+        if ($this->schemaSql !== null) {
+            $this->pdo->exec('SET search_path TO ' . $this->schemaSql . ', public');
+        }
     }
     public static function connect(): self {
         if (self::$instance === null) {
             self::$instance = new self(app_pdo_connect(false));
         } else {
-            self::$instance->pdo->exec('SET search_path TO public');
+            try {
+                self::$instance->pdo->exec('SET search_path TO public');
+            } catch (PDOException $e) {
+                if (!app_db_is_transient_connection_error($e)) throw $e;
+                self::$instance->reconnect();
+            }
         }
         return self::$instance;
     }
@@ -66,7 +97,7 @@ final class AppDatabase {
         if (!isset(self::$userInstances[$schemaSql])) {
             $pdo = app_pdo_connect(true);
             $pdo->exec('SET search_path TO ' . $schemaSql . ', public');
-            self::$userInstances[$schemaSql] = new self($pdo);
+            self::$userInstances[$schemaSql] = new self($pdo, $schemaSql);
         }
         return self::$userInstances[$schemaSql];
     }
@@ -82,6 +113,11 @@ final class AppDatabase {
             try {
                 $this->lastChanges = $this->pdo->exec($part) ?: 0;
             } catch (PDOException $e) {
+                if (app_db_is_transient_connection_error($e)) {
+                    $this->reconnect();
+                    $this->lastChanges = $this->pdo->exec($part) ?: 0;
+                    continue;
+                }
                 if ($this->exceptions) throw $e;
                 return false;
             }
@@ -89,10 +125,22 @@ final class AppDatabase {
         return true;
     }
     public function prepare(string $sql): AppDatabaseStatement {
-        return new AppDatabaseStatement($this, $this->pdo, $sql);
+        try {
+            return new AppDatabaseStatement($this, $this->pdo, $sql);
+        } catch (PDOException $e) {
+            if (!app_db_is_transient_connection_error($e)) throw $e;
+            $this->reconnect();
+            return new AppDatabaseStatement($this, $this->pdo, $sql);
+        }
     }
     public function query(string $sql): AppDatabaseResult {
-        $stmt = $this->pdo->query($sql);
+        try {
+            $stmt = $this->pdo->query($sql);
+        } catch (PDOException $e) {
+            if (!app_db_is_transient_connection_error($e)) throw $e;
+            $this->reconnect();
+            $stmt = $this->pdo->query($sql);
+        }
         return new AppDatabaseResult($stmt ?: null);
     }
     public function querySingle(string $sql, bool $entireRow = false): mixed {
