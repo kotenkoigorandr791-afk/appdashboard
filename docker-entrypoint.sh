@@ -45,7 +45,7 @@ if [ -S "$docker_sock" ]; then
   fi
 fi
 done
-chown -R www-data:www-data /var/www/AppDashboard/data /var/www/AppDashboard/uploads /opt/AppDashboard/data 2>/dev/null || true
+chown -R www-data:www-data /var/www/AppDashboard/data /var/www/AppDashboard/uploads /opt/AppDashboard/data /var/www/AppDashboard/bot 2>/dev/null || true
 chmod -R u+rwX,g+rwX /var/www/AppDashboard/uploads 2>/dev/null || true
 chown www-data:www-data /opt/ApplicationData 2>/dev/null || true
 chmod 750 /opt/AppDashboard/data 2>/dev/null || true
