@@ -9,25 +9,8 @@ if ($__APP_DEBUG) {
     ini_set('error_log', 'php://stderr');
 }
 error_reporting($__APP_DEBUG ? E_ALL : 0);
-require_once APP_ROOT . '/lib/redis.php';
-app_redis_configure_php_sessions();
-$__cookieSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-    || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-    || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
-if (PHP_SESSION_NONE === session_status()) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path' => '/',
-        'secure' => $__cookieSecure,
-        'httponly' => true,
-        'samesite' => 'Lax',
-    ]);
-    if (function_exists('ini_set')) {
-        ini_set('session.use_strict_mode', '1');
-        ini_set('session.use_only_cookies', '1');
-    }
-}
-session_start();
+require_once APP_ROOT . '/lib/app_session.php';
+app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/bot/tg_mini_auth.php';
 if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {

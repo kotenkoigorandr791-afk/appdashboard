@@ -1,6 +1,7 @@
 <?php
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
-session_start();
+require_once dirname(__DIR__, 3) . '/lib/app_session.php';
+app_session_start();
 
 // Configuration
 define('BIN_PATH', __DIR__ . '/bin/');

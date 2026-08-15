@@ -1,13 +1,8 @@
 <?php
 declare(strict_types=1);
 define('APP_ROOT', dirname(__DIR__, 2));
-$__cookieSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-    || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-    || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
-if (PHP_SESSION_NONE === session_status()) {
-    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $__cookieSecure, 'httponly' => true, 'samesite' => 'Lax']);
-    session_start();
-}
+require_once APP_ROOT . '/lib/app_session.php';
+app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
 $isLoggedIn = isset($_SESSION['user']['email']) && getUserFromActiveSessions(session_id()) !== null;

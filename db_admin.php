@@ -698,7 +698,10 @@ function redisKeys(Redis $redis): array {
     $keys = [];
     $it = null;
     while (($batch = $redis->scan($it, '*', 200)) !== false) {
-        foreach ($batch as $key) $keys[] = (string)$key;
+        foreach ($batch as $key) {
+            $key = (string)$key;
+            if (str_starts_with($key, app_redis_config()['prefix']) || str_starts_with($key, 'PHPREDIS_SESSION:')) $keys[] = $key;
+        }
         if ($it === 0) break;
     }
     sort($keys, SORT_NATURAL);
@@ -1019,6 +1022,35 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
 
 // ── Export report (GET) ───────────────────────────────────────────────────────
 if (isset($_GET['export_report'])) {
+    if ((string)($_GET['db_source'] ?? 'postgres') === 'redis') {
+        $redis = app_redis();
+        header('Content-Type: text/plain; charset=utf-8');
+        if (!$redis) {
+            echo "Redis unavailable\n";
+            exit;
+        }
+        $keys = redisKeys($redis);
+        $info = $redis->info();
+        $lines = [];
+        $lines[] = '================================================================================';
+        $lines[] = ' Redis AppDashboard Report';
+        $lines[] = ' Generated: ' . date('Y-m-d H:i:s');
+        $lines[] = ' Keys: ' . count($keys);
+        $lines[] = ' Used memory: ' . formatBytes((int)($info['used_memory'] ?? 0));
+        $lines[] = '================================================================================';
+        $lines[] = '';
+        foreach ($keys as $key) {
+            $value = redisValuePreview($redis, $key);
+            if (mb_strlen($value) > 1000) $value = mb_substr($value, 0, 1000) . '…';
+            $lines[] = $key;
+            $lines[] = '  type: ' . redisTypeName($redis->type($key));
+            $lines[] = '  ttl: ' . $redis->ttl($key);
+            $lines[] = '  value: ' . $value;
+            $lines[] = '';
+        }
+        echo implode("\n", $lines);
+        exit;
+    }
     $objects = getReportSchemaObjects();
     $tableCount = count(array_filter($objects, fn($o) => $o['kind'] === 'table'));
     $viewCount = count($objects) - $tableCount;
@@ -1322,6 +1354,8 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size
 .btn.flash-success{animation:btn-flash-green .8s ease-out both;transition:none!important}
 @keyframes export-tb-flash{0%{box-shadow:0 0 0 2px var(--green);background:var(--green-dim);color:var(--green)}100%{box-shadow:none;background:none;color:var(--text)}}
 .export-tb-btn.flash-success{animation:export-tb-flash .75s ease-out both;transition:none!important}
+.tb-select{height:32px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg2);color:var(--text);font-size:12px;padding:0 28px 0 10px;font-family:var(--font-ui);outline:none}
+.tb-select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-dim)}
 /* Refresh animation */
 @keyframes btn-flash-refresh{0%{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 0 8px var(--green-dim)}100%{background:var(--bg3);border-color:var(--border);color:var(--text-dim);box-shadow:none}}
 .btn.flash-refresh{animation:btn-flash-refresh .8s ease-out}
@@ -1744,6 +1778,10 @@ body.embed-mode thead th,body.embed-mode tbody td{padding:6px 8px}
     <span class="tb-badge" id="db-source-badge">PostgreSQL · appdashboard</span>
   </div>
   <div class="tb-spacer"></div>
+  <select class="tb-select" id="db-source-select" title="Database">
+    <option value="postgres">PostgreSQL</option>
+    <option value="redis">Redis</option>
+  </select>
   <button class="tb-btn" id="export-btn" title="<?= t('export_report') ?>">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 2V5h2v6h1.17L12 13.17 9.83 11H11zm-6 7h14v2H5z"/></svg>
     <span><?= t('export_report') ?></span>
@@ -3990,7 +4028,7 @@ async function showExportModal() {
   if (!modal) return;
   modal.classList.add('open');
   try {
-    const response = await fetch('db_admin.php?export_report=1&lang=<?= urlencode($lang) ?>');
+    const response = await fetch('db_admin.php?export_report=1&lang=<?= urlencode($lang) ?>&db_source=' + encodeURIComponent(currentDbSource || 'postgres'));
     exportContent = await response.text();
     exportFilename = 'db_schema_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'_').slice(0,-1).replace(/-/g,'').replace(/_/g,'') + '.log';
     const wrap = document.getElementById('export-monaco-wrap');
@@ -4135,16 +4173,22 @@ initSQLEditor();
 initExportModal();
 document.querySelectorAll('[data-db-source]').forEach(btn => {
   btn.addEventListener('click', async () => {
-    currentDbSource = btn.dataset.dbSource || 'postgres';
-    const badge = document.getElementById('db-source-badge');
-    if (badge) badge.textContent = currentDbSource === 'redis' ? 'Redis' : 'PostgreSQL · appdashboard';
-    document.getElementById('db-choice')?.remove();
-    S.tables = []; S.cur = null; S.page = 1;
-    document.getElementById('table-list').innerHTML = '<div class="empty" style="height:60px;font-size:11px;"><span class="spin"></span></div>';
-    await loadTables();
-    await loadSchemaForAutocomplete();
-    if (currentDbSource === 'redis') showView('view-stats');
+    await switchDbSource(btn.dataset.dbSource || 'postgres');
   });
-});</script>
+});
+async function switchDbSource(source) {
+  currentDbSource = source === 'redis' ? 'redis' : 'postgres';
+  const select = document.getElementById('db-source-select');
+  if (select) select.value = currentDbSource;
+  const badge = document.getElementById('db-source-badge');
+  if (badge) badge.textContent = currentDbSource === 'redis' ? 'Redis' : 'PostgreSQL · appdashboard';
+  document.getElementById('db-choice')?.remove();
+  S.tables = []; S.cur = null; S.page = 1;
+  document.getElementById('table-list').innerHTML = '<div class="empty" style="height:60px;font-size:11px;"><span class="spin"></span></div>';
+  await loadTables();
+  await loadSchemaForAutocomplete();
+  if (currentDbSource === 'redis') showView('view-stats');
+}
+document.getElementById('db-source-select')?.addEventListener('change', e => switchDbSource(e.target.value));</script>
 </body>
 </html>

@@ -20,6 +20,8 @@ if (!function_exists('getDB')) {
     }
 }
 function get_current_user_email(): ?string {
+    $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
+    if (is_string($sessionEmail) && $sessionEmail !== '') return $sessionEmail;
     $db = getDB();
     if (!$db) {
         return null;

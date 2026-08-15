@@ -4,7 +4,8 @@ ini_set('log_errors', 1);
 
 ob_start();
 if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
+    require_once dirname(__DIR__, 3) . '/lib/app_session.php';
+    app_session_start();
 }
 require_once __DIR__ . '/../auth_common.php';
 require_once __DIR__ . '/../video_job_sqlite.php';
