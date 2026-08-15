@@ -9,6 +9,7 @@ require_once __DIR__ . '/core/db.php';
 require_once __DIR__ . '/core/session.php';
 require_once __DIR__ . '/core/helpers.php';
 require_once __DIR__ . '/core/upload_errors.php';
+require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/models/MovieModel.php';
 
 $user_data = get_current_user_data();
@@ -16,22 +17,19 @@ $current_user = $user_data['username'];
 $user_access_level = $user_data['role'];
 $user_photo = $user_data['photo'];
 
-define('MOVIES_FILE', 'movies.json');
-define('CONFIG_FILE', 'config.json');
+define('MOVIES_FILE', appdata_app_base_dir('films') . '/movies.json');
+define('CONFIG_FILE', appdata_app_base_dir('films') . '/config.json');
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 define('COMMENTS_DIR', __DIR__ . '/comments/');
 define('CHUNK_SIZE', 1024 * 1024);
-$filmsHelper = dirname(__DIR__, 2) . '/storage_helper.php';
-if (is_file($filmsHelper)) {
-    require_once $filmsHelper;
-    try {
-        $filmsData = rtrim(appdata_app_base_dir('films'), '/');
-        foreach (['uploads' => UPLOAD_DIR, 'comments' => COMMENTS_DIR] as $filmsName => $filmsLink) {
-            $filmsTarget = $filmsData . '/' . $filmsName;
-            if (!is_dir($filmsTarget)) @mkdir($filmsTarget, 0777, true);
-            if (is_link($filmsLink) || !file_exists($filmsLink)) @symlink($filmsTarget, $filmsLink);
-        }
-    } catch (Throwable $e) {}
+try {
+    $filmsData = rtrim(appdata_app_base_dir('films'), '/');
+    foreach (['uploads' => UPLOAD_DIR, 'comments' => COMMENTS_DIR] as $filmsName => $filmsLink) {
+        $filmsTarget = $filmsData . '/' . $filmsName;
+        if (!is_dir($filmsTarget)) @mkdir($filmsTarget, 0777, true);
+        if (is_link($filmsLink) || !file_exists($filmsLink)) @symlink($filmsTarget, $filmsLink);
+    }
+} catch (Throwable $e) {
 }
 if (!file_exists(UPLOAD_DIR)) { mkdir(UPLOAD_DIR, 0777, true); }
 if (!file_exists(COMMENTS_DIR)) { mkdir(COMMENTS_DIR, 0777, true); }

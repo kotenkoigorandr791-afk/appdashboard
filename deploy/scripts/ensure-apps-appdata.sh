@@ -48,6 +48,9 @@ ensure_link() {
     ensure_dir "$target"
   else
     ensure_dir "$(dirname "$target")"
+    if [ ! -L "$link" ] && [ -f "$link" ]; then
+      migrate_file_to_target "$link" "$target"
+    fi
     if [ ! -e "$target" ]; then
       if [ "$kind" = "json" ]; then
         printf '%s\n' '{}' > "$target"
@@ -91,6 +94,8 @@ done
 # films
 ensure_dir "$APPDATA_BASE/films"
 ensure_link "$ROOT/apps/films/storage" "$APPDATA_BASE/films" dir
+ensure_link "$ROOT/apps/films/movies.json" "$APPDATA_BASE/films/movies.json" json
+ensure_link "$ROOT/apps/films/config.json" "$APPDATA_BASE/films/config.json" json
 ensure_link "$ROOT/apps/films/comments" "$APPDATA_BASE/films/comments" dir
 ensure_link "$ROOT/apps/films/uploads" "$APPDATA_BASE/films/uploads" dir
 
