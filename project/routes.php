@@ -383,7 +383,7 @@ if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path
         exit;
     }
 }elseif($path==='/'||$path===''){
-    include 'home/home.html';
+    include __DIR__ . '/views/home.html';
     exit;
 }else{
     $showLogin=false;

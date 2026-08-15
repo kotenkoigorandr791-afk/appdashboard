@@ -43,7 +43,7 @@ if (isset($__performancePhp[$__pathLower])) {
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
     if ($__path === '/' || $__path === '' || $__pathLower === '/news') {
         header('Content-Type: text/html; charset=UTF-8');
-        $__homeHtml = file_get_contents(APP_ROOT . '/home/home.html');
+        $__homeHtml = file_get_contents(APP_ROOT . '/project/views/home.html');
         if ($__homeHtml !== false) {
             $__cssVersion = is_file(APP_ROOT . '/home/home.css') ? (string)filemtime(APP_ROOT . '/home/home.css') : '1';
             $__jsVersion = is_file(APP_ROOT . '/home/home.js') ? (string)filemtime(APP_ROOT . '/home/home.js') : '1';
