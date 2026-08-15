@@ -19,6 +19,8 @@ if (session_status() === PHP_SESSION_NONE) {
     ]);
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
+    require_once __DIR__ . '/lib/redis.php';
+    app_redis_configure_php_sessions();
     session_start();
 }
 require_once __DIR__ . '/db.php';
@@ -673,10 +675,83 @@ function getSchemaForAutocomplete(): array {
     }
     return $schema;
 }
+function redisValuePreview(Redis $redis, string $key): string {
+    $type = $redis->type($key);
+    if ($type === Redis::REDIS_STRING) return (string)$redis->get($key);
+    if ($type === Redis::REDIS_HASH) return json_encode($redis->hGetAll($key), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?: '{}';
+    if ($type === Redis::REDIS_LIST) return json_encode($redis->lRange($key, 0, 100), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?: '[]';
+    if ($type === Redis::REDIS_SET) return json_encode($redis->sMembers($key), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?: '[]';
+    if ($type === Redis::REDIS_ZSET) return json_encode($redis->zRange($key, 0, 100, true), JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?: '[]';
+    return '';
+}
+function redisTypeName(int $type): string {
+    return match ($type) {
+        Redis::REDIS_STRING => 'string',
+        Redis::REDIS_SET => 'set',
+        Redis::REDIS_LIST => 'list',
+        Redis::REDIS_ZSET => 'zset',
+        Redis::REDIS_HASH => 'hash',
+        default => 'unknown',
+    };
+}
+function redisKeys(Redis $redis): array {
+    $keys = [];
+    $it = null;
+    while (($batch = $redis->scan($it, '*', 200)) !== false) {
+        foreach ($batch as $key) $keys[] = (string)$key;
+        if ($it === 0) break;
+    }
+    sort($keys, SORT_NATURAL);
+    return $keys;
+}
 
 // ── AJAX ──────────────────────────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     $action = $_POST['action'];
+    $dbSource = (string)($_POST['db_source'] ?? 'postgres');
+    if ($dbSource === 'redis') {
+        $redis = app_redis();
+        if (!$redis) jsonOut(['success'=>false,'error'=>'Redis unavailable']);
+        if ($action==='list_tables') {
+            $out = [];
+            foreach (redisKeys($redis) as $key) $out[] = ['name'=>$key,'count'=>1];
+            jsonOut(['success'=>true,'tables'=>$out]);
+        }
+        if ($action==='table_info') {
+            $key = (string)($_POST['table'] ?? '');
+            if ($key === '' || !$redis->exists($key)) jsonOut(['success'=>false,'error'=>'Key not found']);
+            jsonOut(['success'=>true,'info'=>['columns'=>[
+                ['name'=>'key','type'=>'TEXT','pk'=>1],
+                ['name'=>'type','type'=>'TEXT','pk'=>0],
+                ['name'=>'ttl','type'=>'INTEGER','pk'=>0],
+                ['name'=>'value','type'=>'TEXT','pk'=>0],
+            ],'count'=>1,'indexes'=>[],'fks'=>[]]]);
+        }
+        if ($action==='table_data') {
+            $key = (string)($_POST['table'] ?? '');
+            if ($key === '' || !$redis->exists($key)) jsonOut(['success'=>false,'error'=>'Key not found']);
+            $row = ['key'=>$key,'type'=>redisTypeName($redis->type($key)),'ttl'=>$redis->ttl($key),'value'=>redisValuePreview($redis, $key)];
+            jsonOut(['success'=>true,'columns'=>array_keys($row),'rows'=>[$row],'total'=>1,'page'=>1,'pages'=>1]);
+        }
+        if ($action==='update_cell') {
+            $key = (string)($_POST['pk_val'] ?? $_POST['table'] ?? '');
+            if ($key === '' || (string)($_POST['col'] ?? '') !== 'value') jsonOut(['success'=>false,'error'=>'Only value editing is supported']);
+            $redis->set($key, (string)($_POST['val'] ?? ''));
+            jsonOut(['success'=>true,'changed'=>1]);
+        }
+        if ($action==='delete_row' || $action==='delete_table') {
+            $key = (string)($_POST['pk_val'] ?? $_POST['table_name'] ?? $_POST['table'] ?? '');
+            if ($key === '') jsonOut(['success'=>false,'error'=>'No key']);
+            jsonOut(['success'=>true,'changed'=>$redis->del($key)]);
+        }
+        if ($action==='db_stats') {
+            $info = $redis->info();
+            $keys = redisKeys($redis);
+            jsonOut(['success'=>true,'file_size'=>(int)($info['used_memory'] ?? 0),'file_modified'=>time(),'page_count'=>0,'page_size'=>0,'free_pages'=>0,'table_counts'=>array_fill_keys($keys, 1),'engine'=>'redis','db_label'=>'redis']);
+        }
+        if (in_array($action, ['schema','relations','table_sizes','index_usage','db_integrity','quick_check','get_schema'], true)) jsonOut(['success'=>true,'schema'=>[],'relations'=>[],'table_sizes'=>[],'index_usage'=>[],'quick_check'=>'ok','integrity'=>'ok']);
+        jsonOut(['success'=>false,'error'=>'Unsupported Redis action']);
+    }
 
     if ($action==='list_tables') {
         $out = [];
@@ -775,7 +850,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $clr=$_POST['color']??'#007bff'; $ver=(int)($_POST['verified']??1);
         if (!$email||!$pass) jsonOut(['success'=>false,'error'=>t('email_pwd_req')]);
         if (getUserByEmail($email)) jsonOut(['success'=>false,'error'=>t('user_exists')]);
-        $hash=password_hash($pass,PASSWORD_DEFAULT);
+        $hash=appPasswordHash($pass);
         $stmt=$db->prepare("INSERT INTO users(email,name,password,photo,role,verified,language,theme,color) VALUES(:e,:n,:p,'default_avatar.png',:r,:v,:l,:t,:c)");
         $stmt->bindValue(':e',$email);$stmt->bindValue(':n',$name?:explode('@',$email)[0]);
         $stmt->bindValue(':p',$hash);$stmt->bindValue(':r',$role,PDO::PARAM_INT);
@@ -1627,6 +1702,15 @@ table.dt tbody tr:hover{background:var(--bg3)}
 .ntf.info{border-color:var(--accent)}
 .ntf-ico{font-size:14px;flex-shrink:0}
 .ntf-txt{flex:1;color:var(--text);line-height:1.4}
+.db-choice{position:fixed;inset:0;background:var(--bg);z-index:100004;display:flex;align-items:center;justify-content:center;padding:20px}
+.db-choice-box{width:min(520px,100%);display:grid;gap:12px}
+.db-choice-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px}
+.db-choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.db-choice-btn{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);color:var(--text);padding:18px;text-align:left;cursor:pointer}
+.db-choice-btn:hover{border-color:var(--accent)}
+.db-choice-name{font-size:15px;font-weight:700;margin-bottom:6px}
+.db-choice-desc{font-size:12px;color:var(--text-muted)}
+@media (max-width: 560px){.db-choice-grid{grid-template-columns:1fr}}
 
 /* Embed mode - for admin panel integration */
 body.embed-mode{overflow:hidden;min-height:100vh;max-height:100vh;height:100vh;-webkit-overflow-scrolling:touch}
@@ -1640,6 +1724,15 @@ body.embed-mode thead th,body.embed-mode tbody td{padding:6px 8px}
 </head>
 <body style="background:<?= $isDark ? '#0f1419' : '#f8f9fc' ?>" class="<?= $embedMode ? 'embed-mode' : '' ?>">
 <div id="app">
+<div class="db-choice" id="db-choice">
+  <div class="db-choice-box">
+    <div class="db-choice-title">Select database</div>
+    <div class="db-choice-grid">
+      <button type="button" class="db-choice-btn" data-db-source="postgres"><div class="db-choice-name">PostgreSQL</div><div class="db-choice-desc">Tables, SQL console, schema, stats</div></button>
+      <button type="button" class="db-choice-btn" data-db-source="redis"><div class="db-choice-name">Redis</div><div class="db-choice-desc">Keys, session and trusted device storage</div></button>
+    </div>
+  </div>
+</div>
 
 <div id="topbar">
   <button class="tb-btn" id="sidebar-toggle" title="<?= t('show_sidebar') ?>">
@@ -1648,7 +1741,7 @@ body.embed-mode thead th,body.embed-mode tbody td{padding:6px 8px}
   <div class="tb-brand">
     <div class="tb-brand-icon">🗄</div>
     <?= t('title') ?>
-    <span class="tb-badge">PostgreSQL · appdashboard</span>
+    <span class="tb-badge" id="db-source-badge">PostgreSQL · appdashboard</span>
   </div>
   <div class="tb-spacer"></div>
   <button class="tb-btn" id="export-btn" title="<?= t('export_report') ?>">
@@ -2131,14 +2224,15 @@ document.getElementById('clear-history-modal-btn')?.addEventListener('click', ()
 });
 
 // ── Schema for autocomplete ───────────────────────────────────────────────────
+let currentDbSource = '';
 let dbSchema = {};
 async function loadSchemaForAutocomplete() {
+  if (!currentDbSource) return;
   try {
     const r = await api('get_schema');
     if (r.success) dbSchema = r.schema;
   } catch(e) { console.error('Failed to load schema', e); }
 }
-loadSchemaForAutocomplete();
 
 // ── CodeMirror SQL Editor ─────────────────────────────────────────────────────
 let sqlEditor = null;
@@ -2277,6 +2371,7 @@ window.addEventListener('resize', () => {
 // ── API ───────────────────────────────────────────────────────────────────────
 async function api(action, extra={}) {
   const fd = new FormData(); fd.append('action', action);
+  fd.append('db_source', currentDbSource || 'postgres');
   Object.entries(extra).forEach(([k,v]) => fd.append(k, String(v)));
   const r = await fetch(location.href, { method:'POST', body:fd });
   return r.json();
@@ -4036,8 +4131,20 @@ function initExportModal() {
 // Initialize
 loadSQLHistory();
 syncTableViewToggle();
-loadTables();
 initSQLEditor();
-initExportModal();</script>
+initExportModal();
+document.querySelectorAll('[data-db-source]').forEach(btn => {
+  btn.addEventListener('click', async () => {
+    currentDbSource = btn.dataset.dbSource || 'postgres';
+    const badge = document.getElementById('db-source-badge');
+    if (badge) badge.textContent = currentDbSource === 'redis' ? 'Redis' : 'PostgreSQL · appdashboard';
+    document.getElementById('db-choice')?.remove();
+    S.tables = []; S.cur = null; S.page = 1;
+    document.getElementById('table-list').innerHTML = '<div class="empty" style="height:60px;font-size:11px;"><span class="spin"></span></div>';
+    await loadTables();
+    await loadSchemaForAutocomplete();
+    if (currentDbSource === 'redis') showView('view-stats');
+  });
+});</script>
 </body>
 </html>

@@ -1,10 +1,12 @@
 <?php
 require_once __DIR__ . '/../lib/app_db.php';
 require_once __DIR__ . '/../lib/db_auth_security.php';
+require_once __DIR__ . '/../lib/redis.php';
 
 header('Content-Type: application/json');
 
 if (session_status() !== PHP_SESSION_ACTIVE) {
+    app_redis_configure_php_sessions();
     session_start();
 }
 

@@ -168,7 +168,7 @@ function oauth_upsert_client(string $clientId, string $clientSecret, string $nam
     ensureOAuthProviderSchema($db);
     $stmt = $db->prepare("INSERT INTO oauth_clients(client_id,client_secret_hash,name,redirect_uris) VALUES(:c,:h,:n,:r)");
     $stmt->bindValue(':c', $clientId);
-    $stmt->bindValue(':h', password_hash($clientSecret, PASSWORD_DEFAULT));
+    $stmt->bindValue(':h', appPasswordHash($clientSecret));
     $stmt->bindValue(':n', $name);
     $stmt->bindValue(':r', implode("\n", $redirectUris));
     $stmt->execute();
@@ -383,7 +383,7 @@ function oauth_route_token(): void {
     ensureOAuthProviderSchema($db);
     [$clientId, $clientSecret] = oauth_extract_client_credentials();
     $client = oauth_find_client($db, $clientId);
-    if (!$client || !password_verify($clientSecret, (string)$client['client_secret_hash'])) {
+    if (!$client || !appPasswordVerify($clientSecret, (string)$client['client_secret_hash'])) {
         http_response_code(401);
         echo json_encode(['error' => 'invalid_client']);
         exit;

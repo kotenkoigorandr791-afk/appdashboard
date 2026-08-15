@@ -101,7 +101,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=sprintf($translations['login_ip_locked']??'Too many failed attempts. Try again in %d seconds.',$loginLockedSec);
         }else{
             $users=loadUsers();
-            if(isset($users[$email])&&password_verify($password,$users[$email]['password'])){
+            if(isset($users[$email])&&appPasswordVerify($password, $users[$email]['password'])){
+                if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
+                    $users[$email]['password'] = appPasswordHash($password);
+                    upsertUser($email, $users[$email]);
+                }
                 if($email!=='root@root'&&empty($users[$email]['verified'])){
                     $authError=$translations['email_not_verified'];
                     $showReVerifyForm=true;
@@ -110,6 +114,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     resetFailedAttempts($clientIp,'login');
                     clearTrustedDeviceLogoutSuppression();
                     if($email==='root@root'){$users[$email]['role']=2;$users[$email]['verified']=true;upsertUser('root@root',$users[$email]);}
+                    appClearPendingPasswordFlow();
                     $_SESSION['user']=$users[$email];
                     $_SESSION['user']['email']=$email;
                     $_SESSION['auth_time']=time();
@@ -180,7 +185,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }else{
             $users=loadUsers();
             if(isset($users[$email])&&userNeedsPasswordSet($users[$email])&&!empty($users[$email]['verified'])){
-                $users[$email]['password']=password_hash($password,PASSWORD_DEFAULT);
+                $users[$email]['password']=appPasswordHash($password);
                 upsertUser($email,$users[$email]);
                 unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
                 resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
@@ -207,7 +212,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $pendingUsers = loadPendingUsers();
                 $alreadyPending = isset($pendingUsers[$email]);
                 $pendingUsers[$email] = [
-                    'password'   => password_hash($password, PASSWORD_DEFAULT),
+                    'password'   => appPasswordHash($password),
                     'name'       => $name,
                     'photo'      => $photo,
                     'created_at' => $pendingUsers[$email]['created_at'] ?? date('Y-m-d H:i:s'),
@@ -445,7 +450,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $showResetForm=true;
                 $resetEmail=$email;
             }else{
-                $users[$email]['password']=password_hash($newPassword,PASSWORD_DEFAULT);
+                $users[$email]['password']=appPasswordHash($newPassword);
                 saveUsers($users);
                 unset($codes[$email]);
                 saveResetCodes($codes);
@@ -469,7 +474,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $email=$_SESSION['user']['email'];
         $currentPassword=$_POST['current_password']??'';
         $users=loadUsers();
-        $valid=isset($users[$email])&&password_verify($currentPassword,$users[$email]['password']);
+        $valid=isset($users[$email])&&appPasswordVerify($currentPassword, $users[$email]['password']);
         while(ob_get_level()>1)ob_end_clean();
         header('Content-Type: application/json');
         echo json_encode(['success'=>$valid,'error'=>$valid?null:($translations['wrong_current_password']??'Wrong current password')]);
@@ -481,14 +486,14 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $newPassword=$_POST['new_password']??'';
         $confirmPassword=$_POST['confirm_password']??'';
         $users=loadUsers();
-        if(!isset($users[$email])||!password_verify($currentPassword,$users[$email]['password'])){
+        if(!isset($users[$email])||!appPasswordVerify($currentPassword, $users[$email]['password'])){
             $profileError=$translations['wrong_current_password'];
         }elseif($newPassword !== $confirmPassword){
             $profileError=$translations['password_mismatch'];
         }elseif(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
             $profileError=$translations[$passwordErrorKey];
         }else{
-            $users[$email]['password']=password_hash($newPassword,PASSWORD_DEFAULT);
+            $users[$email]['password']=appPasswordHash($newPassword);
             saveUsers($users);
             $_SESSION['user']=$users[$email];
             $_SESSION['user']['email']=$email;
@@ -2094,13 +2099,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $newPassword = $_POST['new_password'] ?? '';
         $currentUserEmail = $_SESSION['user']['email'] ?? '';
         $response = ['success' => false, 'message' => ''];
-        if($emailToReset && $emailToReset !== $currentUserEmail){
+        if($emailToReset){
             $users = loadUsers();
             if(isset($users[$emailToReset])){
                 if(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
                     $response['message'] = $translations[$passwordErrorKey] ?? $passwordErrorKey;
                 }else{
-                    $users[$emailToReset]['password'] = password_hash($newPassword, PASSWORD_DEFAULT);
+                    $users[$emailToReset]['password'] = appPasswordHash($newPassword);
                     saveUsers($users);
                     if($emailToReset === $currentUserEmail){
                         $_SESSION['user'] = $users[$emailToReset];

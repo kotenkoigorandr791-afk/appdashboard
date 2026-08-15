@@ -318,6 +318,7 @@ function takePostLoginRedirect(string $fallback = '/main'): string {
 }
 function loginUserSession(string $email, array $users): bool {
     if (!isset($users[$email])) return false;
+    appClearPendingPasswordFlow();
     $_SESSION['user'] = $users[$email];
     $_SESSION['user']['email'] = $email;
     $_SESSION['auth_time'] = time();
@@ -408,6 +409,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
                 $users = loadUsers();
                 if(isset($users[$userEmail])){
                     session_regenerate_id(true);
+                    appClearPendingPasswordFlow();
                     $_SESSION['user'] = $users[$userEmail];
                     $_SESSION['user']['email'] = $userEmail;
                     $_SESSION['auth_time'] = time();
@@ -441,6 +443,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
                     $users = loadUsers();
                     if(isset($users[$autoEmail])){
                         session_regenerate_id(true);
+                        appClearPendingPasswordFlow();
                         $_SESSION['user'] = $users[$autoEmail];
                         $_SESSION['user']['email'] = $autoEmail;
                         $_SESSION['auth_time'] = time();
@@ -625,7 +628,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $platform = trim((string)($input['platform'] ?? ''));
         if ($email === '' || $password === '') json_out(['ok' => false, 'error' => 'missing_credentials'], 400);
         $users = loadUsers();
-        if (!isset($users[$email]) || !password_verify($password, $users[$email]['password'])) json_out(['ok' => false, 'error' => 'invalid_credentials'], 401);
+        if (!isset($users[$email]) || !appPasswordVerify($password, $users[$email]['password'])) json_out(['ok' => false, 'error' => 'invalid_credentials'], 401);
+        if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
+            $users[$email]['password'] = appPasswordHash($password);
+            upsertUser($email, $users[$email]);
+        }
         if ($email !== 'root@root' && empty($users[$email]['verified'])) json_out(['ok' => false, 'error' => 'email_not_verified'], 403);
         if (!loginUserSession($email, $users)) json_out(['ok' => false, 'error' => 'login_failed'], 500);
         $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform);

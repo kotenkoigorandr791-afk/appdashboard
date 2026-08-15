@@ -6,7 +6,28 @@
 require_once __DIR__ . '/lib/db_config.php';
 require_once __DIR__ . '/lib/pgsql_compat.php';
 require_once __DIR__ . '/lib/db_auth_security.php';
+require_once __DIR__ . '/lib/redis.php';
 define('DB_PATH', '/opt/AppDashboard/data/db.env');
+function appPasswordHash(string $password): string {
+    return password_hash($password, PASSWORD_ARGON2ID, [
+        'memory_cost' => PASSWORD_ARGON2_DEFAULT_MEMORY_COST,
+        'time_cost' => PASSWORD_ARGON2_DEFAULT_TIME_COST,
+        'threads' => PASSWORD_ARGON2_DEFAULT_THREADS,
+    ]);
+}
+function appPasswordVerify(string $password, string $hash): bool {
+    return $hash !== '' && password_verify($password, $hash);
+}
+function appPasswordNeedsRehash(string $hash): bool {
+    return $hash === '' || password_needs_rehash($hash, PASSWORD_ARGON2ID, [
+        'memory_cost' => PASSWORD_ARGON2_DEFAULT_MEMORY_COST,
+        'time_cost' => PASSWORD_ARGON2_DEFAULT_TIME_COST,
+        'threads' => PASSWORD_ARGON2_DEFAULT_THREADS,
+    ]);
+}
+function appClearPendingPasswordFlow(): void {
+    unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'], $_SESSION['pending_set_password_only']);
+}
 function getDB(): AppDatabase {
     static $db = null;
     if ($db === null) {
@@ -1007,7 +1028,7 @@ function loadUsers(): array {
     }
     // Ensure root@root always exists
     if (!isset($users['root@root']) || userNeedsPasswordSet($users['root@root'])) {
-        $rootPw = password_hash('root', PASSWORD_DEFAULT);
+        $rootPw = appPasswordHash('root');
         upsertUser('root@root', [
             'email'      => 'root@root',
             'name'       => 'Root Administrator',
@@ -1089,7 +1110,8 @@ function userNeedsPasswordSet(?array $user): bool {
     if (!$user) return false;
     $hash = trim((string)($user['password'] ?? ''));
     if ($hash === '') return true;
-    return (int)(password_get_info($hash)['algo'] ?? 0) === 0;
+    $info = password_get_info($hash);
+    return (($info['algoName'] ?? 'unknown') === 'unknown');
 }
 
 function getUserByEmail(string $email): ?array {
@@ -1223,6 +1245,22 @@ function deletePendingUser(string $email): void {
 // ACTIVE SESSIONS
 // ─────────────────────────────────────────────────────────────────────────────
 function loadActiveSessions(): array {
+    if ($redis = app_redis()) {
+        $out = [];
+        $it = null;
+        $prefix = app_redis_key('active_session:');
+        while (($keys = $redis->scan($it, $prefix . '*', 100)) !== false) {
+            foreach ($keys as $key) {
+                $raw = $redis->get((string)$key);
+                $row = $raw ? json_decode((string)$raw, true) : null;
+                if (!is_array($row)) continue;
+                $sid = (string)($row['session_id'] ?? substr((string)$key, strlen($prefix)));
+                $out[$sid] = $row;
+            }
+            if ($it === 0) break;
+        }
+        return $out;
+    }
     $db          = getDB();
     $authTimeout = 8 * 3600;
     $cutoff      = time() - $authTimeout;
@@ -1242,6 +1280,17 @@ function loadActiveSessions(): array {
 }
 
 function saveActiveSessions(array $sessions): void {
+    if ($redis = app_redis()) {
+        foreach ($sessions as $sid => $s) {
+            if (!is_array($s)) continue;
+            $email = (string)($s['email'] ?? '');
+            if ($email === '') continue;
+            $s['session_id'] = (string)$sid;
+            $redis->setex(app_redis_key('active_session:' . (string)$sid), 12 * 3600, json_encode($s, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $redis->sAdd(app_redis_key('active_sessions_by_email:' . strtolower($email)), (string)$sid);
+        }
+        return;
+    }
     $db = getDB();
     // Full replace: clear then write — only called from legacy paths
     $db->exec("DELETE FROM active_sessions");
@@ -1329,7 +1378,6 @@ if (!function_exists('detectDeviceAndBrowser')) {
 }
 
 function addUserToActiveSessions(string $email, string $sessionId, array $userData): void {
-    $db     = getDB();
     $user   = getUserByEmail($email);
     $actual = $user ?? $userData;
     if ($email === 'root@root') { $actual['role'] = 2; $actual['verified'] = true; }
@@ -1340,26 +1388,39 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
               ?? $_SERVER['REMOTE_ADDR']
               ?? 'Unknown';
     $now = time();
-    
-    // Check if this session already exists
+    $row = [
+        'session_id' => $sessionId,
+        'email' => $email,
+        'user_data' => $actual,
+        'login_time' => $now,
+        'last_activity' => $now,
+        'ip_address' => $ip,
+        'user_agent' => $ua,
+        'device' => $detection['device'],
+        'browser' => $detection['browser'],
+    ];
+    if ($redis = app_redis()) {
+        $ttl = 12 * 3600;
+        $redis->setex(app_redis_key('active_session:' . $sessionId), $ttl, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $redis->sAdd(app_redis_key('active_sessions_by_email:' . strtolower($email)), $sessionId);
+        $redis->expire(app_redis_key('active_sessions_by_email:' . strtolower($email)), $ttl);
+        return;
+    }
+    $db = getDB();
     $checkStmt = $db->prepare("SELECT session_id FROM active_sessions WHERE session_id = :sid");
     $checkStmt->bindValue(':sid', $sessionId);
     $exists = $checkStmt->execute()->fetch();
-    
     if ($exists) {
-        // Update existing session
-        $stmt = $db->prepare("UPDATE active_sessions 
+        $stmt = $db->prepare("UPDATE active_sessions
                               SET email = :email, user_data = :ud, login_time = :lt, 
                                   last_activity = :la, ip_address = :ip, user_agent = :ua, 
                                   device = :dev, browser = :br 
                               WHERE session_id = :sid");
     } else {
-        // Create new session (without deleting other sessions of this user)
         $stmt = $db->prepare("INSERT INTO active_sessions
             (session_id,email,user_data,login_time,last_activity,ip_address,user_agent,device,browser)
             VALUES(:sid,:email,:ud,:lt,:la,:ip,:ua,:dev,:br)");
     }
-    
     $stmt->bindValue(':sid',   $sessionId);
     $stmt->bindValue(':email', $email);
     $stmt->bindValue(':ud',    json_encode($actual));
@@ -1374,6 +1435,24 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
 
 /** Update last_activity without reading the whole table */
 function updateUserActivity(string $sessionId): ?array {
+    if ($redis = app_redis()) {
+        $key = app_redis_key('active_session:' . $sessionId);
+        $raw = $redis->get($key);
+        if (!$raw) return null;
+        $row = json_decode((string)$raw, true);
+        if (!is_array($row)) return null;
+        $email = (string)($row['email'] ?? '');
+        $freshUser = getUserByEmail($email) ?: [];
+        if ($email === 'root@root') {
+            $freshUser['role'] = 2;
+            $freshUser['verified'] = true;
+        }
+        $freshUser['email'] = $email;
+        $row['user_data'] = $freshUser;
+        $row['last_activity'] = time();
+        $redis->setex($key, 12 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        return $freshUser;
+    }
     $db = getDB();
     // Reload user_data from users table to keep it fresh
     $stmt = $db->prepare("SELECT email FROM active_sessions WHERE session_id=:sid LIMIT 1");
@@ -1400,6 +1479,19 @@ function updateUserActivity(string $sessionId): ?array {
 
 /** Remove session(s) for a user — optionally by specific session_id */
 function removeUserFromActiveSessions(string $email, ?string $sessionId = null): void {
+    if ($redis = app_redis()) {
+        if ($sessionId !== null) {
+            $redis->del(app_redis_key('active_session:' . $sessionId));
+            if ($email !== '') $redis->sRem(app_redis_key('active_sessions_by_email:' . strtolower($email)), $sessionId);
+            return;
+        }
+        $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
+        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
+            $redis->del(app_redis_key('active_session:' . (string)$sid));
+        }
+        $redis->del($setKey);
+        return;
+    }
     $db = getDB();
     if ($sessionId !== null) {
         $stmt = $db->prepare("DELETE FROM active_sessions WHERE session_id=:sid");
@@ -1412,6 +1504,21 @@ function removeUserFromActiveSessions(string $email, ?string $sessionId = null):
 }
 
 function getUserActiveSessions(string $email): array {
+    if ($redis = app_redis()) {
+        $out = [];
+        $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
+        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
+            $raw = $redis->get(app_redis_key('active_session:' . (string)$sid));
+            if (!$raw) {
+                $redis->sRem($setKey, $sid);
+                continue;
+            }
+            $row = json_decode((string)$raw, true);
+            if (!is_array($row)) continue;
+            $out[(string)$sid] = $row;
+        }
+        return $out;
+    }
     $db   = getDB();
     $stmt = $db->prepare("SELECT * FROM active_sessions WHERE email=:e");
     $stmt->bindValue(':e', $email);
@@ -1429,6 +1536,17 @@ function getUserActiveSessions(string $email): array {
  * Returns number of deleted rows.
  */
 function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 60): int {
+    if ($redis = app_redis()) {
+        $deleted = 0;
+        $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
+        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
+            if (!$redis->exists(app_redis_key('active_session:' . (string)$sid))) {
+                $redis->sRem($setKey, $sid);
+                $deleted++;
+            }
+        }
+        return $deleted;
+    }
     $db = getDB();
     $cutoff = time() - $authTimeout;
     $stmt = $db->prepare("DELETE FROM active_sessions WHERE email = :email AND last_activity < :cutoff");
@@ -1440,6 +1558,12 @@ function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 
 
 /** Fetch a single session row — fast single-row lookup */
 function getUserFromActiveSessions(string $sessionId): ?array {
+    if ($redis = app_redis()) {
+        $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
+        if (!$raw) return null;
+        $row = json_decode((string)$raw, true);
+        return is_array($row) ? $row : null;
+    }
     $db          = getDB();
     $authTimeout = 8 * 3600;
     $stmt        = $db->prepare("SELECT * FROM active_sessions WHERE session_id=:sid LIMIT 1");
@@ -2719,6 +2843,21 @@ function getDeviceFingerprint(): string {
  * Returns the user's trusted devices from the dedicated table.
  */
 function getUserTrustedDevices(string $email): array {
+    if ($redis = app_redis()) {
+        $devices = [];
+        $setKey = app_redis_key('trusted_devices_by_email:' . strtolower($email));
+        foreach ($redis->sMembers($setKey) ?: [] as $fingerprint) {
+            $raw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . (string)$fingerprint));
+            if (!$raw) {
+                $redis->sRem($setKey, $fingerprint);
+                continue;
+            }
+            $row = json_decode((string)$raw, true);
+            if (is_array($row)) $devices[] = $row;
+        }
+        usort($devices, fn($a, $b) => (int)($b['last_seen'] ?? 0) <=> (int)($a['last_seen'] ?? 0));
+        return $devices;
+    }
     $db = getDB();
     $stmt = $db->prepare("SELECT fingerprint, ip, device_name, device_token_hash, added_at, last_seen
         FROM trusted_devices
@@ -2744,6 +2883,22 @@ function getUserTrustedDevices(string $email): array {
  * Legacy compatibility helper. Rebuilds the dedicated table from the provided list.
  */
 function setUserTrustedDevices(string $email, array $devices): void {
+    if ($redis = app_redis()) {
+        $setKey = app_redis_key('trusted_devices_by_email:' . strtolower($email));
+        foreach ($redis->sMembers($setKey) ?: [] as $fingerprint) {
+            $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . (string)$fingerprint));
+        }
+        $redis->del($setKey);
+        foreach ($devices as $device) {
+            if (!is_array($device)) continue;
+            $fingerprint = trim((string)($device['fingerprint'] ?? ''));
+            if ($fingerprint === '') continue;
+            $device['email'] = $email;
+            $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $redis->sAdd($setKey, $fingerprint);
+        }
+        return;
+    }
     $db = getDB();
     $delete = $db->prepare("DELETE FROM trusted_devices WHERE email = :e");
     $delete->bindValue(':e', $email, PDO::PARAM_STR);
@@ -2773,6 +2928,9 @@ function setUserTrustedDevices(string $email, array $devices): void {
 
 function isTrustedDevice(string $email, string $fingerprint): bool {
     if ($fingerprint === '') return false;
+    if ($redis = app_redis()) {
+        return (bool)$redis->exists(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+    }
     $db = getDB();
     $stmt = $db->prepare("SELECT 1 FROM trusted_devices WHERE email = :e AND fingerprint = :f LIMIT 1");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
@@ -2814,6 +2972,23 @@ function decryptTrustedDeviceToken(string $encryptedData): ?string {
 function addTrustedDevice(string $email, string $ip, string $deviceName = '', string $fingerprint = ''): array {
     $deviceToken = bin2hex(random_bytes(32));
     $encryptedToken = encryptTrustedDeviceToken($deviceToken);
+    if ($redis = app_redis()) {
+        $now = time();
+        if ($fingerprint === '') $fingerprint = hash('sha256', $email . '|' . $ip . '|' . ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' . $now);
+        $row = [
+            'email' => $email,
+            'fingerprint' => $fingerprint,
+            'ip' => $ip,
+            'device_name' => $deviceName,
+            'device_token_hash' => hash('sha256', $encryptedToken),
+            'device_token' => $encryptedToken,
+            'added_at' => $now,
+            'last_seen' => $now,
+        ];
+        $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+        return ['token' => $deviceToken, 'encrypted_token' => $encryptedToken];
+    }
     $db = getDB();
     ensureTrustedDevicesSchema($db);
     $now = time();
@@ -2836,6 +3011,12 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
 }
 
 function removeTrustedDevice(string $email, string $fingerprint): void {
+    if ($redis = app_redis()) {
+        $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+        $redis->sRem(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+        removeTrustedDeviceCookies($email, $fingerprint);
+        return;
+    }
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM trusted_devices WHERE email = :e AND fingerprint = :f");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
@@ -2848,6 +3029,15 @@ function removeTrustedDevice(string $email, string $fingerprint): void {
  * Clears all trusted devices for a user.
  */
 function clearTrustedDevices(string $email): void {
+    if ($redis = app_redis()) {
+        $setKey = app_redis_key('trusted_devices_by_email:' . strtolower($email));
+        foreach ($redis->sMembers($setKey) ?: [] as $fingerprint) {
+            $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . (string)$fingerprint));
+            removeTrustedDeviceCookies($email, (string)$fingerprint);
+        }
+        $redis->del($setKey);
+        return;
+    }
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM trusted_devices WHERE email = :e");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
@@ -2904,6 +3094,18 @@ function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
     $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_trusted_device_cookies_email_fp ON trusted_device_cookies(email, fingerprint)");
 }
 function createTrustedDeviceCookie(string $email, string $fingerprint, string $deviceName = ''): string {
+    if ($redis = app_redis()) {
+        $rawCookie = bin2hex(random_bytes(32));
+        $cookieHash = hash('sha256', $rawCookie);
+        $now = time();
+        $expiresAt = $now + (365 * 24 * 3600);
+        $row = ['cookie_hash' => $cookieHash, 'email' => $email, 'ip' => getClientIp(), 'fingerprint' => $fingerprint, 'device_name' => $deviceName, 'created_at' => $now, 'last_used_at' => $now, 'expires_at' => $expiresAt];
+        $oldHash = (string)$redis->get(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint));
+        if ($oldHash !== '') $redis->del(app_redis_key('trusted_cookie:' . $oldHash));
+        $redis->setex(app_redis_key('trusted_cookie:' . $cookieHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $cookieHash);
+        return $rawCookie;
+    }
     $db = getDB();
     ensureTrustedDeviceCookiesSchema($db);
     $rawCookie = bin2hex(random_bytes(32));
@@ -2932,6 +3134,56 @@ function createTrustedDeviceCookie(string $email, string $fingerprint, string $d
 }
 
 function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
+    if ($redis = app_redis()) {
+        $cookieHash = hash('sha256', $rawCookie);
+        $raw = $redis->get(app_redis_key('trusted_cookie:' . $cookieHash));
+        if (!$raw) return null;
+        $row = json_decode((string)$raw, true);
+        if (!is_array($row) || (int)($row['expires_at'] ?? 0) < time()) {
+            $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
+            return null;
+        }
+        $email = (string)($row['email'] ?? '');
+        $fingerprint = (string)($row['fingerprint'] ?? '');
+        $currentFingerprint = getDeviceFingerprint();
+        if ($currentFingerprint !== '' && $currentFingerprint !== $fingerprint) {
+            $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+            if ($deviceRaw) {
+                $device = json_decode((string)$deviceRaw, true);
+                if (is_array($device)) {
+                    $device['fingerprint'] = $currentFingerprint;
+                    $device['last_seen'] = time();
+                    $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $currentFingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                    $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $currentFingerprint);
+                    $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+                    $redis->sRem(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+                }
+            }
+            $fingerprint = $currentFingerprint;
+        }
+        if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint)) {
+            $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
+            return null;
+        }
+        $newRawCookie = bin2hex(random_bytes(32));
+        $newHash = hash('sha256', $newRawCookie);
+        $now = time();
+        $row['cookie_hash'] = $newHash;
+        $row['fingerprint'] = $fingerprint;
+        $row['last_used_at'] = $now;
+        $row['expires_at'] = $now + (365 * 24 * 3600);
+        $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
+        $redis->setex(app_redis_key('trusted_cookie:' . $newHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $newHash);
+        $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+        $device = $deviceRaw ? json_decode((string)$deviceRaw, true) : null;
+        if (is_array($device)) {
+            $device['last_seen'] = $now;
+            $device['ip'] = getClientIp();
+            $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
+        return ['email' => $email, 'new_token' => $newRawCookie];
+    }
     $db = getDB();
     ensureTrustedDeviceCookiesSchema($db);
     $cookieHash = hash('sha256', $rawCookie);
@@ -2991,6 +3243,13 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
 }
 
 function removeTrustedDeviceCookies(string $email, string $fingerprint): void {
+    if ($redis = app_redis()) {
+        $mapKey = app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint);
+        $cookieHash = (string)$redis->get($mapKey);
+        if ($cookieHash !== '') $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
+        $redis->del($mapKey);
+        return;
+    }
     $db = getDB();
     ensureTrustedDeviceCookiesSchema($db);
     $stmt = $db->prepare("DELETE FROM trusted_device_cookies WHERE email = :e AND fingerprint = :f");
