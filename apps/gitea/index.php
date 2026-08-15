@@ -21,6 +21,7 @@ if (!$isLoggedIn) {
     exit;
 }
 if ($currentHost === 'serverkherson.xyz') {
+    oauth_provision_user_services((string)($_SESSION['user']['email'] ?? ''), $_SESSION['user'] ?? []);
     gitea_sync_user_avatar((string)($_SESSION['user']['email'] ?? ''), (string)($_SESSION['user']['photo'] ?? ''));
     gitea_sync_user_theme((string)($_SESSION['user']['email'] ?? ''), $giteaTheme);
     gitea_sync_all_user_themes($giteaTheme);

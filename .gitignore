@@ -1,5 +1,6 @@
 /vendor/
 /project/assets/monaco-0.45.0/
+/.playwright-mcp/
 /webssh/vendor/
 /apps/cloud/vendor/
 /node_modules/

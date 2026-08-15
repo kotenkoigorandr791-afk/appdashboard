@@ -18,6 +18,8 @@ if(isset($_SESSION['user']['email'])&&$path!=='/register'&&!isset($_GET['code'])
     $freshUserForPwd = getUserByEmail((string)$_SESSION['user']['email']);
     if($freshUserForPwd && userNeedsPasswordSet($freshUserForPwd)){
         apRedirectToSetPassword($freshUserForPwd);
+    }elseif($freshUserForPwd){
+        appClearPendingPasswordFlow();
     }
 }
 

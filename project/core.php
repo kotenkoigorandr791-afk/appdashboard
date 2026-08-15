@@ -318,6 +318,7 @@ function takePostLoginRedirect(string $fallback = '/main'): string {
 }
 function loginUserSession(string $email, array $users): bool {
     if (!isset($users[$email])) return false;
+    appClearPendingPasswordFlow();
     $_SESSION['user'] = $users[$email];
     $_SESSION['user']['email'] = $email;
     $_SESSION['auth_time'] = time();
@@ -408,6 +409,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
                 $users = loadUsers();
                 if(isset($users[$userEmail])){
                     session_regenerate_id(true);
+                    appClearPendingPasswordFlow();
                     $_SESSION['user'] = $users[$userEmail];
                     $_SESSION['user']['email'] = $userEmail;
                     $_SESSION['auth_time'] = time();
@@ -441,6 +443,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
                     $users = loadUsers();
                     if(isset($users[$autoEmail])){
                         session_regenerate_id(true);
+                        appClearPendingPasswordFlow();
                         $_SESSION['user'] = $users[$autoEmail];
                         $_SESSION['user']['email'] = $autoEmail;
                         $_SESSION['auth_time'] = time();
@@ -625,7 +628,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $platform = trim((string)($input['platform'] ?? ''));
         if ($email === '' || $password === '') json_out(['ok' => false, 'error' => 'missing_credentials'], 400);
         $users = loadUsers();
-        if (!isset($users[$email]) || !password_verify($password, $users[$email]['password'])) json_out(['ok' => false, 'error' => 'invalid_credentials'], 401);
+        if (!isset($users[$email]) || !appPasswordVerify($password, $users[$email]['password'])) json_out(['ok' => false, 'error' => 'invalid_credentials'], 401);
+        if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
+            $users[$email]['password'] = appPasswordHash($password);
+            upsertUser($email, $users[$email]);
+        }
         if ($email !== 'root@root' && empty($users[$email]['verified'])) json_out(['ok' => false, 'error' => 'email_not_verified'], 403);
         if (!loginUserSession($email, $users)) json_out(['ok' => false, 'error' => 'login_failed'], 500);
         $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform);
@@ -1466,7 +1473,7 @@ $themeFromUrl = $_GET['theme'] ?? null;
 $langFromUrl = $_GET['lang'] ?? null;
 $colorFromUrl = $_GET['color'] ?? null;
 $requestPathForConfig = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$isAuthConfigPage = in_array($requestPathForConfig, ['/login', '/register'], true) || (isset($_GET['code']) && strpos($requestPathForConfig, '/login') !== false);
+$isAuthConfigPage = in_array($requestPathForConfig, ['/login', '/register', '/one-time-pin'], true) || (isset($_GET['code']) && strpos($requestPathForConfig, '/login') !== false);
 
 $cookieConfig = ap_read_pref_cookies($defaultConfig);
 if($isAuthConfigPage&&!isset($_SESSION['user']['email'])){
@@ -1510,8 +1517,7 @@ if ($langFromUrl) $config['language'] = ap_normalize_pref_language((string)$lang
 if ($colorFromUrl) $config['color'] = $colorFromUrl;
 $config['color'] = ap_sanitize_hex_color((string)($config['color'] ?? '#007bff'));
 if($isAuthConfigPage){
-    $browserTheme = (string)($_COOKIE['browser_theme'] ?? '');
-    if (!$themeFromUrl) $config['theme'] = in_array($browserTheme, ['light', 'dark'], true) ? $browserTheme : 'light';
+    if (!$themeFromUrl) $config['theme'] = $defaultConfig['theme'];
     $config['wallpaper'] = 'default';
     $savedWallpaper = 'default';
 }
@@ -3193,6 +3199,5 @@ PROMPT;
         exit;
     }
 
-    echo json_encode(['ok' => false, 'error' => 'unknown_action']);
-    exit;
+    json_out(['ok' => false, 'error' => 'unknown_action'], 400);
 }

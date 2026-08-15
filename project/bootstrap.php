@@ -9,6 +9,8 @@ if ($__APP_DEBUG) {
     ini_set('error_log', 'php://stderr');
 }
 error_reporting($__APP_DEBUG ? E_ALL : 0);
+require_once APP_ROOT . '/lib/redis.php';
+app_redis_configure_php_sessions();
 $__cookieSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
     || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
     || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');

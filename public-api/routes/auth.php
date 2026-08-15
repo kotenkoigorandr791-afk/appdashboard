@@ -18,9 +18,13 @@ if ($action === 'login' && $method === 'POST') {
         // login only validates stored hash, not incoming password policy
     }
     $users = loadUsers();
-    if (!isset($users[$email]) || !password_verify($password, (string)($users[$email]['password'] ?? ''))) {
+    if (!isset($users[$email]) || !appPasswordVerify($password, (string)($users[$email]['password'] ?? ''))) {
         public_api_record_fail('login');
         public_api_json(['ok' => false, 'error' => 'invalid_credentials'], 401);
+    }
+    if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
+        $users[$email]['password'] = appPasswordHash($password);
+        upsertUser($email, $users[$email]);
     }
     if ($email !== 'root@root' && empty($users[$email]['verified'])) {
         public_api_json(['ok' => false, 'error' => 'email_not_verified'], 403);

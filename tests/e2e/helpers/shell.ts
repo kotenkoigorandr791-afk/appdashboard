@@ -25,10 +25,28 @@ export async function login(page: Page) {
 }
 
 export async function autoAcceptCookies(page: Page) {
+  const deviceId = '11111111111111111111111111111111';
+  await page.evaluate(() => {
+    document.cookie = 'ap_device_id=11111111111111111111111111111111; path=/; max-age=31536000; samesite=Lax';
+  }).catch(() => {});
+  await page.evaluate((id) => {
+    return fetch('/main?api=privacy&action=save_cookie_consent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Device-Id': id
+      },
+      body: JSON.stringify({ status: 'accepted' })
+    }).catch(() => null);
+  }, deviceId).catch(() => {});
   await page.addLocatorHandler(page.locator('#cookie-consent-overlay'), async () => {
     await page.locator('#cookie-consent-accept').click({ timeout: 5000 }).catch(() => {});
-    await page.locator('#cookie-consent-overlay').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+    await page.locator('#cookie-consent-overlay').evaluate(element => element.remove()).catch(() => {});
   });
+  if (await page.locator('#cookie-consent-overlay').isVisible().catch(() => false)) {
+    await page.locator('#cookie-consent-accept').click({ timeout: 5000 }).catch(() => {});
+    await page.locator('#cookie-consent-overlay').evaluate(element => element.remove()).catch(() => {});
+  }
 }
 
 export async function expectVisibleBox(locator: Locator) {

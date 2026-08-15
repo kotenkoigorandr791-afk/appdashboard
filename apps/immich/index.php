@@ -20,6 +20,7 @@ if (!$isLoggedIn) {
     exit;
 }
 if ($currentHost === 'serverkherson.xyz') {
+    oauth_provision_user_services((string)($_SESSION['user']['email'] ?? ''), $_SESSION['user'] ?? []);
     $params = ['autoLaunch' => '1'];
     if ($theme !== '') {
         $params['theme'] = $theme;

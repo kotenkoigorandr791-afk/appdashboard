@@ -20,6 +20,7 @@ if (!$isLoggedIn) {
     exit;
 }
 if ($currentHost === 'serverkherson.xyz') {
+    oauth_provision_user_services((string)($_SESSION['user']['email'] ?? ''), $_SESSION['user'] ?? []);
     oauth_sync_plane_admin((string)($_SESSION['user']['email'] ?? ''), (int)($_SESSION['user']['role'] ?? 0) >= 2, $theme);
     $params = ['next_path' => $theme !== '' ? '/?theme=' . $theme : '/'];
     if ($theme !== '') $params['theme'] = $theme;

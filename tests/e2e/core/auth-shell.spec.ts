@@ -13,6 +13,11 @@ test.describe('auth shell', () => {
     await expect(page.locator('#login-content input[name="email"]')).toBeVisible();
     await expect(page.locator('#login-password')).toBeVisible();
     await expect(page.locator('#login-content button[name="login"]')).toBeVisible();
+    const githubIcon = page.locator('.oauth-provider-btn.oauth-github svg').first();
+    if (await githubIcon.count()) {
+      await expect(page.locator('.oauth-provider-btn.oauth-github').first()).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+      await expect(githubIcon).toHaveCSS('fill', 'rgb(36, 41, 47)');
+    }
 
     await page.locator('.password-toggle[data-target="login-password"]').click();
     await expect(page.locator('#login-password')).toHaveAttribute('type', 'text');

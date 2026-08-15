@@ -19,6 +19,21 @@ services:
       timeout: 5s
       retries: 5
 
+  appdashboard-redis:
+    image: redis:7-alpine
+    container_name: appdashboard-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:16379:6379"
+    volumes:
+      - appdashboard-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   appdashboard:
     build:
       context: .
@@ -32,6 +47,8 @@ services:
     depends_on:
       appdashboard-db:
         condition: service_healthy
+      appdashboard-redis:
+        condition: service_healthy
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
@@ -43,6 +60,10 @@ services:
       DB_NAME: appdashboard
       DB_USER: appdashboard
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+      REDIS_HOST: appdashboard-redis
+      REDIS_PORT: "6379"
+      REDIS_DATABASE: "0"
+      REDIS_PREFIX: "appdashboard:"
       RUN_STARTUP_DEPS: "1"
       PHP_OPCACHE_ENABLE: "0"
       SSH_WS_PORT: "8765"
@@ -65,3 +86,4 @@ volumes:
   appdashboard-data:
   appdashboard-appdata:
   appdashboard-db-data:
+  appdashboard-redis-data:

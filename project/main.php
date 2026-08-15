@@ -475,6 +475,7 @@
         .qr-wrapper{position:relative;padding:16px;border-radius:var(--qr-radius);background:<?php echo $config['theme']==='dark'?'#111':'#f0f0f0';?>;overflow:hidden;margin:20px auto;width:300px;height:300px;display:flex;align-items:center;justify-content:center;}
         body,#auth-form,#settings-form,#email-form,#users-content,#stats-content,#qr-content,#sessions-content,#shared-files-content,#app-access-content,#profile-content,#edit-stats-content{color:var(--text-color)!important;}
         a,button,input,select,textarea{color:var(--text-color)!important;}
+        .oauth-provider-btn.oauth-github svg,.oauth-provider-btn.oauth-github path{color:#fff!important;fill:#fff!important;}
         .modal-content,.auth-content,.profile-section{color:var(--text-color)!important;}
         .users-table,.sessions-table,.trusted-devices-table{color:var(--text-color)!important;}
         .users-table th,.users-table td,.sessions-table th,.sessions-table td,.trusted-devices-table th,.trusted-devices-table td{color:var(--text-color)!important;border-color:var(--border-color)!important;}
