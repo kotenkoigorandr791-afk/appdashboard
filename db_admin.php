@@ -584,10 +584,12 @@ $I18N = [
     ],
 ];
 $T = $I18N[$lang] ?? $I18N['en'];
-function t($key, ...$args) {
-    global $T;
-    $s = $T[$key] ?? $key;
-    return $args ? vsprintf($s, $args) : $s;
+if (!function_exists('t')) {
+    function t($key, ...$args) {
+        global $T;
+        $s = $T[$key] ?? $key;
+        return $args ? vsprintf($s, $args) : $s;
+    }
 }
 
 // ── Theme from URL ────────────────────────────────────────────────────────────
