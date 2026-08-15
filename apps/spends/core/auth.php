@@ -1,5 +1,7 @@
 <?php
 function getCurrentUserFromActiveSessions() {
+    $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
+    if (is_string($sessionEmail) && $sessionEmail !== '') return $sessionEmail;
     $db = getDB();
     if (!$db) return null;
     $session_id = session_id();

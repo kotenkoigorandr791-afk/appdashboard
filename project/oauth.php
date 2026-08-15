@@ -1058,11 +1058,9 @@ function oauth_route_bridge(): void {
         exit;
     }
     if (PHP_SESSION_ACTIVE === session_status()) session_write_close();
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
-    session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Lax']);
     session_id($sessionId);
-    session_start();
+    require_once APP_ROOT . '/lib/app_session.php';
+    app_session_start();
     if (!isset($_SESSION['user']['email'])) {
         session_destroy();
         header('Location: /login');

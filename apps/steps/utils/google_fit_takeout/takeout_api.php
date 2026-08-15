@@ -2,7 +2,8 @@
 declare(strict_types=1);
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 
-session_start();
+require_once dirname(__DIR__, 4) . '/lib/app_session.php';
+app_session_start();
 header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../auth_common.php';
 require_once __DIR__ . '/fit_takeout_state.php';
