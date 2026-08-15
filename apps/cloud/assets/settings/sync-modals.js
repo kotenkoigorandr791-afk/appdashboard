@@ -484,6 +484,7 @@ TARGET_UID="\$(id -u "$TARGET_USER")"
 TARGET_GID="\$(id -g "$TARGET_USER")"
 [ -n "$TARGET_HOME" ] || TARGET_HOME="$HOME"
 if [ "$(id -u)" -eq 0 ]; then SUDO_CMD=""; else SUDO_CMD="sudo"; fi
+AUTOMOUNT="\${APPDASHBOARD_AUTOMOUNT:-0}"
 run_as_user() {
   if [ "$(id -u)" -eq "$TARGET_UID" ]; then "$@"; else sudo -u "$TARGET_USER" "$@"; fi
 }
@@ -499,8 +500,55 @@ RCLONE_CONFIG_FILE="$RCLONE_CONFIG_DIR/appdashboard-cloud.conf"
 RCLONE_REMOTE="appdashboard-cloud"
 RCLONE_LOG_FILE="$TARGET_HOME/.cache/appdashboard-rclone.log"
 LOG_FILE="\$(mktemp "\${TMPDIR:-/tmp}/appdashboard-webdav-mount.XXXXXX")"
+SCRIPT_PATH="$(readlink -f "$0" 2>/dev/null || printf '%s\\n' "$0")"
+AUTOSTART_DIR="$TARGET_HOME/.config/autostart"
+AUTOSTART_FILE="$AUTOSTART_DIR/appdashboard-cloud-mount.desktop"
+SYSTEMD_USER_DIR="$TARGET_HOME/.config/systemd/user"
+SYSTEMD_USER_SERVICE="$SYSTEMD_USER_DIR/appdashboard-cloud-mount.service"
 mount_is_healthy() {
   findmnt -rn -M "$MOUNT_DIR" >/dev/null 2>&1 && run_as_user ls "$MOUNT_DIR" >/dev/null 2>&1
+}
+fstab_escape() {
+  printf '%s' "$1" | sed 's/\\\\/\\\\\\\\/g; s/ /\\\\040/g; s/\t/\\\\011/g'
+}
+write_autostart() {
+  mkdir -p "$AUTOSTART_DIR" "$SYSTEMD_USER_DIR"
+  cat > "$AUTOSTART_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=AppDashboard Cloud Mount
+Exec=$SCRIPT_PATH --mount
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+EOF
+  cat > "$SYSTEMD_USER_SERVICE" <<EOF
+[Unit]
+Description=Mount AppDashboard Cloud
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=APPDASHBOARD_AUTOMOUNT=1
+ExecStart=$SCRIPT_PATH --mount
+
+[Install]
+WantedBy=default.target
+EOF
+  chmod 644 "$AUTOSTART_FILE" "$SYSTEMD_USER_SERVICE" 2>/dev/null || true
+  chown -R "$TARGET_UID:$TARGET_GID" "$AUTOSTART_DIR" "$SYSTEMD_USER_DIR" 2>/dev/null || true
+  if command -v systemctl >/dev/null 2>&1 && [ -n "\${XDG_RUNTIME_DIR:-}" ]; then
+    run_as_user systemctl --user daemon-reload >/dev/null 2>&1 || true
+    run_as_user systemctl --user enable appdashboard-cloud-mount.service >/dev/null 2>&1 || true
+  fi
+}
+write_fstab_entry() {
+  [ -z "$SUDO_CMD" ] || command -v sudo >/dev/null 2>&1 || return 0
+  FSTAB_TARGET="$(fstab_escape "$MOUNT_DIR")"
+  FSTAB_ENTRY="$WEBDAV_URL $FSTAB_TARGET davfs rw,user,noauto,x-systemd.automount,_netdev,nofail,uid=$TARGET_UID,gid=$TARGET_GID,file_mode=664,dir_mode=775 0 0"
+  $SUDO_CMD sh -c "grep -vF '$WEBDAV_URL' /etc/fstab > /etc/fstab.appdashboard.tmp && printf '%s\\n' '$FSTAB_ENTRY' >> /etc/fstab.appdashboard.tmp && cat /etc/fstab.appdashboard.tmp > /etc/fstab && rm -f /etc/fstab.appdashboard.tmp" || true
+  $SUDO_CMD systemctl daemon-reload >/dev/null 2>&1 || true
 }
 write_desktop_link() {
   [ -d "$USER_DESKTOP_DIR" ] || return 0
@@ -515,6 +563,7 @@ EOF
   chown "$TARGET_UID:$TARGET_GID" "$USER_DESKTOP_FILE" 2>/dev/null || true
 }
 install_package() {
+  [ "$AUTOMOUNT" = "1" ] && return 0
   pkg="$1"
   if command -v apt-get >/dev/null 2>&1; then ($SUDO_CMD apt-get update && $SUDO_CMD apt-get install -y "$pkg") || true
   elif command -v dnf >/dev/null 2>&1; then $SUDO_CMD dnf install -y "$pkg" || true
@@ -574,6 +623,7 @@ if ! run_as_user ls -ld "$MOUNT_DIR" >/dev/null 2>&1; then
   unmount_mount_dir
 fi
 mkdir -p "$MOUNT_DIR" "$ICON_DIR" "$DESKTOP_DIR" "$RCLONE_CONFIG_DIR" "$TARGET_HOME/.cache"
+write_autostart
 if ! findmnt -rn -M "$MOUNT_DIR" >/dev/null 2>&1; then
   rm -f "$MOUNT_DIR/.directory"
 fi
@@ -610,10 +660,17 @@ if command -v curl >/dev/null 2>&1; then
       ;;
   esac
 fi
+if [ "$AUTOMOUNT" = "1" ] && command -v mount.davfs >/dev/null 2>&1; then
+  mount "$MOUNT_DIR" 2>/dev/null || true
+  if mount_is_healthy; then
+    echo "Mounted: $MOUNT_DIR"
+    exit 0
+  fi
+fi
 if ! command -v mount.davfs >/dev/null 2>&1; then
   install_package davfs2
 fi
-if command -v mount.davfs >/dev/null 2>&1; then
+if command -v mount.davfs >/dev/null 2>&1 && { [ "$AUTOMOUNT" != "1" ] || [ -z "$SUDO_CMD" ]; }; then
   mkdir -p "$TARGET_HOME/.davfs2"
   touch "$TARGET_HOME/.davfs2/secrets"
   chmod 600 "$TARGET_HOME/.davfs2/secrets"
@@ -630,6 +687,7 @@ if command -v mount.davfs >/dev/null 2>&1; then
     $SUDO_CMD mv "$ROOT_SECRETS_TMP" /etc/davfs2/secrets
     $SUDO_CMD chown root:root /etc/davfs2/secrets
     $SUDO_CMD chmod 600 /etc/davfs2/secrets
+    write_fstab_entry
   fi
   if mount_is_healthy; then
     echo "Already mounted: $MOUNT_DIR"
@@ -679,6 +737,10 @@ EOF
   done
   cat "$RCLONE_LOG_FILE" 2>/dev/null || true
   unmount_mount_dir
+fi
+if [ "$AUTOMOUNT" = "1" ]; then
+  echo "Automatic mount failed: $MOUNT_DIR"
+  exit 1
 fi
 echo "Opening WebDAV location. For a permanent mounted folder install davfs2, then rerun this script."
 if command -v dolphin >/dev/null 2>&1; then run_as_user nohup dolphin "$WEBDAV_BROWSER_URL" >/dev/null 2>&1 &

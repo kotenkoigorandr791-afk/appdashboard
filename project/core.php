@@ -1466,7 +1466,7 @@ $themeFromUrl = $_GET['theme'] ?? null;
 $langFromUrl = $_GET['lang'] ?? null;
 $colorFromUrl = $_GET['color'] ?? null;
 $requestPathForConfig = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-$isAuthConfigPage = in_array($requestPathForConfig, ['/login', '/register'], true) || (isset($_GET['code']) && strpos($requestPathForConfig, '/login') !== false);
+$isAuthConfigPage = in_array($requestPathForConfig, ['/login', '/register', '/one-time-pin'], true) || (isset($_GET['code']) && strpos($requestPathForConfig, '/login') !== false);
 
 $cookieConfig = ap_read_pref_cookies($defaultConfig);
 if($isAuthConfigPage&&!isset($_SESSION['user']['email'])){
@@ -1510,8 +1510,7 @@ if ($langFromUrl) $config['language'] = ap_normalize_pref_language((string)$lang
 if ($colorFromUrl) $config['color'] = $colorFromUrl;
 $config['color'] = ap_sanitize_hex_color((string)($config['color'] ?? '#007bff'));
 if($isAuthConfigPage){
-    $browserTheme = (string)($_COOKIE['browser_theme'] ?? '');
-    if (!$themeFromUrl) $config['theme'] = in_array($browserTheme, ['light', 'dark'], true) ? $browserTheme : 'light';
+    if (!$themeFromUrl) $config['theme'] = $defaultConfig['theme'];
     $config['wallpaper'] = 'default';
     $savedWallpaper = 'default';
 }
@@ -3193,6 +3192,5 @@ PROMPT;
         exit;
     }
 
-    echo json_encode(['ok' => false, 'error' => 'unknown_action']);
-    exit;
+    json_out(['ok' => false, 'error' => 'unknown_action'], 400);
 }
