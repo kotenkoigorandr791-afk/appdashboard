@@ -29,10 +29,14 @@ smart_log_bootstrap('dashboard');
 (static function (): void {
     $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
     if (!in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) return;
-    $hosts = array_filter([
-        strtolower((string)($_SERVER['HTTP_HOST'] ?? '')),
-        strtolower((string)($_SERVER['SERVER_NAME'] ?? '')),
-    ]);
+    $hosts = [];
+    foreach ([($_SERVER['HTTP_HOST'] ?? ''), ($_SERVER['SERVER_NAME'] ?? '')] as $host) {
+        $host = strtolower((string)$host);
+        if ($host === '') continue;
+        $parsedHost = parse_url('http://' . $host, PHP_URL_HOST);
+        $hosts[] = strtolower((string)($parsedHost ?: $host));
+    }
+    $hosts = array_values(array_unique(array_filter($hosts)));
     if (empty($hosts)) return;
     $candidate = (string)($_SERVER['HTTP_ORIGIN'] ?? $_SERVER['HTTP_REFERER'] ?? '');
     if ($candidate === '') {
