@@ -10,15 +10,16 @@ $color = $_GET['color'] ?? '%2385b503';
 $transcriptionApiUrl = cloud_url('transcription_api.php');
 $apiUrl = cloud_url('api.php');
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
+require_once dirname(__DIR__, 4) . '/includes/session.php';
 
 if (!$audioPath) {
     die('No audio file specified');
 }
 function get_transcription_editor_access_role(): int {
     if (session_status() === PHP_SESSION_NONE) {
-        @session_start();
+        cloud_session_start();
     }
-    $email = (string)($_SESSION['email'] ?? '');
+    $email = (string)($_SESSION['user']['email'] ?? $_SESSION['email'] ?? '');
     if ($email === '') return 0;
     try {
         require_once dirname(CLOUD_APP_ROOT, 2) . '/lib/app_db.php';

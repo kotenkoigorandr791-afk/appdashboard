@@ -90,7 +90,8 @@ function transcription_safe_message(string $message): string {
 
 function get_session_email() {
     if (session_status() === PHP_SESSION_NONE) {
-        session_start();
+        require_once __DIR__ . '/includes/session.php';
+        cloud_session_start();
     }
     return $_SESSION['email'] ?? null;
 }

@@ -2,6 +2,7 @@
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 // api.php - Simple REST endpoints for users and files 
 require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/includes/session.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/cloud_group_chat.php';
@@ -40,7 +41,7 @@ if (PHP_SAPI === 'cli' && isset($argv[1])) {
     if (isset($argv[3])) $_POST['worker_token'] = (string)$argv[3];
 }
 if (!defined('CLOUD_SYNC_WS_BOOT') && !defined('CLOUD_WEBDAV_BOOT') && PHP_SAPI !== 'cli') {
-session_start();
+cloud_session_start();
 $__cloudOrigin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
 $__cloudAllowedOrigins = array_filter(array_map('trim', explode(',', (string)getenv('APP_CORS_ORIGINS'))));
 $__cloudHost = (string)($_SERVER['HTTP_HOST'] ?? '');
@@ -438,6 +439,10 @@ function get_current_user_from_sessions(): string {
     if ($ca !== null && $ca !== '') {
         return email_to_cloud_username($ca);
     }
+    $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
+    if (is_string($sessionEmail) && $sessionEmail !== '') {
+        return email_to_cloud_username($sessionEmail);
+    }
     $db = getDB();
     if (!$db) return 'guest';
 
@@ -480,6 +485,10 @@ function get_session_email(): ?string {
     $ca = get_email_from_client_auth_header();
     if ($ca !== null && $ca !== '') {
         return $ca;
+    }
+    $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
+    if (is_string($sessionEmail) && $sessionEmail !== '') {
+        return strtolower(trim($sessionEmail));
     }
     $db = getDB();
     if (!$db) return null;

@@ -26,7 +26,8 @@ function checkUserRole() {
         return false;
     }
     
-    session_start();
+    require_once __DIR__ . '/includes/session.php';
+    cloud_session_start();
     $session_id = session_id();
     
     $sessions_data = json_decode(file_get_contents($sessions_file), true);
