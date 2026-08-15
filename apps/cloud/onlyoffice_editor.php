@@ -1,9 +1,10 @@
 <?php
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 require_once __DIR__ . '/../../db.php';
+require_once __DIR__ . '/includes/session.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
+cloud_session_start();
 
 $DOC_SERV_URL = 'https://document.serverkherson.xyz';
 $JWT_SECRET = trim(getOnlyofficeJwtSecret());

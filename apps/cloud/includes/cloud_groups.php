@@ -126,8 +126,16 @@ function cloud_path_session_email(): ?string
         $email = get_session_email();
         if (is_string($email) && $email !== '') return strtolower(trim($email));
     }
-    if (session_status() === PHP_SESSION_NONE) @session_start();
-    $sessionEmail = $_SESSION['email'] ?? null;
+    if (session_status() === PHP_SESSION_NONE) {
+        $session = __DIR__ . '/session.php';
+        if (is_readable($session)) {
+            require_once $session;
+            cloud_session_start();
+        } else {
+            @session_start();
+        }
+    }
+    $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
     if (is_string($sessionEmail) && $sessionEmail !== '') return strtolower(trim($sessionEmail));
     $db = cloud_path_db();
     if (!$db) return null;

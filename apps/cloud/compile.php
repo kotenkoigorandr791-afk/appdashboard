@@ -10,7 +10,8 @@ error_reporting(0);
 ini_set('display_errors', 0);
 
 if (!defined('CLOUD_COMPILE_AS_LIB')) {
-session_start();
+require_once __DIR__ . '/includes/session.php';
+cloud_session_start();
 }
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'db.php';
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'smart_log.php';

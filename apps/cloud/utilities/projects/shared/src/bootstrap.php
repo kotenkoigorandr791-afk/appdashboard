@@ -42,9 +42,8 @@ if (!function_exists('cloud_projects_bootstrap')) {
 
         require_once __DIR__ . '/i18n.php';
 
-        if (session_status() === PHP_SESSION_NONE) {
-            @session_start();
-        }
+        require_once CLOUD_APP_ROOT . '/includes/session.php';
+        cloud_session_start();
 
         $booted = true;
     }

@@ -16,9 +16,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
     exit;
 }
 
-if (session_status() !== PHP_SESSION_ACTIVE) {
-    @session_start();
-}
+require_once __DIR__ . '/includes/session.php';
+cloud_session_start();
 
 require_once __DIR__ . '/includes/ai_config_store.php';
 require_once __DIR__ . '/includes/ai_proxy.php';
