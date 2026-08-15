@@ -29,13 +29,13 @@ if [ ! -f /opt/AppDashboard/data/db.env ]; then
   } > /opt/AppDashboard/data/db.env
 fi
 if [ -f /opt/AppDashboard/data/db.env ]; then
-  sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST:-127.0.0.1}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT:-15432}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME:-appdashboard}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  sed -i "s/^DB_USER=.*/DB_USER=${DB_USER:-appdashboard}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD:-appdashboard_dev_password}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  grep -q '^REDIS_HOST=' /opt/AppDashboard/data/db.env || printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-127.0.0.1}" >> /opt/AppDashboard/data/db.env
-  grep -q '^REDIS_PORT=' /opt/AppDashboard/data/db.env || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-16379}" >> /opt/AppDashboard/data/db.env
+  [ -n "${DB_HOST:-}" ] && sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
+  [ -n "${DB_PORT:-}" ] && sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
+  [ -n "${DB_NAME:-}" ] && sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
+  [ -n "${DB_USER:-}" ] && sed -i "s/^DB_USER=.*/DB_USER=${DB_USER}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
+  [ -n "${DB_PASSWORD:-}" ] && sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
+  grep -q '^REDIS_HOST=' /opt/AppDashboard/data/db.env || printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-appdashboard-redis}" >> /opt/AppDashboard/data/db.env
+  grep -q '^REDIS_PORT=' /opt/AppDashboard/data/db.env || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-6379}" >> /opt/AppDashboard/data/db.env
   grep -q '^REDIS_DATABASE=' /opt/AppDashboard/data/db.env || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> /opt/AppDashboard/data/db.env
   grep -q '^REDIS_PREFIX=' /opt/AppDashboard/data/db.env || printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}" >> /opt/AppDashboard/data/db.env
 fi
