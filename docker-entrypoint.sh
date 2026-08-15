@@ -22,6 +22,10 @@ if [ ! -f /opt/AppDashboard/data/db.env ]; then
     printf 'DB_USER=%s\n' "${DB_USER:-appdashboard}"
     printf 'DB_PASSWORD=%s\n' "${DB_PASSWORD:-appdashboard_dev_password}"
     printf 'DB_SSLMODE=%s\n' "${DB_SSLMODE:-prefer}"
+    printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-127.0.0.1}"
+    printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-16379}"
+    printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}"
+    printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}"
   } > /opt/AppDashboard/data/db.env
 fi
 if [ -f /opt/AppDashboard/data/db.env ]; then
@@ -30,6 +34,10 @@ if [ -f /opt/AppDashboard/data/db.env ]; then
   sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME:-appdashboard}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
   sed -i "s/^DB_USER=.*/DB_USER=${DB_USER:-appdashboard}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
   sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD:-appdashboard_dev_password}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
+  grep -q '^REDIS_HOST=' /opt/AppDashboard/data/db.env || printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-127.0.0.1}" >> /opt/AppDashboard/data/db.env
+  grep -q '^REDIS_PORT=' /opt/AppDashboard/data/db.env || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-16379}" >> /opt/AppDashboard/data/db.env
+  grep -q '^REDIS_DATABASE=' /opt/AppDashboard/data/db.env || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> /opt/AppDashboard/data/db.env
+  grep -q '^REDIS_PREFIX=' /opt/AppDashboard/data/db.env || printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}" >> /opt/AppDashboard/data/db.env
 fi
 for docker_sock in /var/run/docker.sock /run/docker-desktop.sock; do
 if [ -S "$docker_sock" ]; then
