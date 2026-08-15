@@ -81,6 +81,8 @@ function ap_i18n_t_warn(array $translations, string $key, array $params = []): s
  * Requires $GLOBALS['_t_i18n'] to be set to the current language's translations array.
  * Use t('key') in view files for translation with missing-key warning.
  */
-function t(string $key, array $params = []): string {
-    return ap_i18n_t_warn($GLOBALS['_t_i18n'] ?? [], $key, $params);
+if (!function_exists('t')) {
+    function t(string $key, array $params = []): string {
+        return ap_i18n_t_warn($GLOBALS['_t_i18n'] ?? [], $key, $params);
+    }
 }
