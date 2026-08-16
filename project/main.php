@@ -2056,7 +2056,8 @@ if($selectedApp){foreach($apps as $appData){if($appData['folder']===$selectedApp
 $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
-<?php $railTopApps=['immich','gitea','plane','dawarich']; ?>
+<?php $railTopApps=['immich','gitea','plane','dawarich','lopaka']; ?>
+<?php $edgeAppShellApps=['immich','gitea','plane','dawarich','x','X','lopaka']; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell<?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps))?' rail-top-on-mobile':''; ?>"<?php endif;?>>
     <?php if($showAppFrame):?>
         <?php if($showAppRail):?>
@@ -2067,7 +2068,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             </div>
         </div>
         <?php endif;?>
-        <iframe id="app-iframe" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/index.php?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
+        <iframe id="app-iframe" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
     <?php elseif($path==='/main'):?>
         <?php if(!$showTopBarTitle):?>
         <button type="button" id="support-chat-btn" class="support-chat-floating" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>" style="position:fixed;top:10px;right:16px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 28%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 14%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;">

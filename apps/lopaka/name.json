@@ -6,9 +6,15 @@
   "pl": "Lopaka",
   "cs": "Lopaka",
   "menu_button": {
+    "left": 7,
+    "top": 12,
+    "width": 36,
+    "height": 36
+  },
+  "menu_button_mobile": {
     "left": 8,
-    "top": 5,
-    "width": 38,
-    "height": 38
+    "top": 6,
+    "width": 36,
+    "height": 36
   }
 }
