@@ -10,10 +10,13 @@ jobs:
       - name: Deploy main
         run: |
           set -euo pipefail
-          cd /opt/docker/appdashboard/code
-          sudo chown -hR "$(id -u):$(id -g)" /opt/docker/appdashboard/code
-          git fetch origin main
-          if [ "$(git branch --show-current)" != "main" ]; then
+           cd /opt/docker/appdashboard/code
+           sudo chown -hR "$(id -u):$(id -g)" /opt/docker/appdashboard/code
+           git fetch origin main
+           if docker inspect appdashboard >/dev/null 2>&1; then
+             docker exec appdashboard sh -c 'mkdir -p /opt/ApplicationData/films; for name in movies.json config.json; do src="/var/www/AppDashboard/apps/films/$name"; target="/opt/ApplicationData/films/$name"; if [ -f "$src" ] && [ ! -f "$target" ]; then cp -a "$src" "$target"; fi; done'
+           fi
+           if [ "$(git branch --show-current)" != "main" ]; then
             git checkout main
           fi
           git reset --hard origin/main

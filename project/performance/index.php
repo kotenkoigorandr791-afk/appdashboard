@@ -31,22 +31,8 @@ $showPhpInfoButton = false;
 
 session_start();
 $currentUser = get_current_user_from_sessions();
-$userEmail = null;
-$db = getDB();
-if ($db && session_id()) {
-    try {
-        $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', session_id(), PDO::PARAM_STR);
-        $result = $stmt->execute();
-        $row = $result->fetch(PDO::FETCH_ASSOC);
-        if ($row && isset($row['email'])) {
-            $userEmail = $row['email'];
-        }
-    } catch (Exception $e) {
-        error_log("Failed to get user email: " . $e->getMessage());
-    }
-}
-$userRole = $userEmail ? getUserRoleByEmail($userEmail) : 0;
+$userEmail = monitor_current_user_email();
+$userRole = monitor_current_user_role($userEmail);
 
 if ($userRole >= 2) {
     $userRoleName = $t['role_admin'];

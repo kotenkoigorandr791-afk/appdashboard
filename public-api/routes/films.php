@@ -1,6 +1,7 @@
 <?php
-define('MOVIES_FILE', APP_ROOT . '/apps/films/movies.json');
-define('CONFIG_FILE', APP_ROOT . '/apps/films/config.json');
+require_once APP_ROOT . '/storage_helper.php';
+define('MOVIES_FILE', appdata_app_base_dir('films') . '/movies.json');
+define('CONFIG_FILE', appdata_app_base_dir('films') . '/config.json');
 define('UPLOAD_DIR', APP_ROOT . '/apps/films/uploads/');
 define('COMMENTS_DIR', APP_ROOT . '/apps/films/comments/');
 define('CHUNK_SIZE', 1024 * 1024);

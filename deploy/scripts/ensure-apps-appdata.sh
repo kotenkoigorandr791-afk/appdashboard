@@ -48,6 +48,9 @@ ensure_link() {
     ensure_dir "$target"
   else
     ensure_dir "$(dirname "$target")"
+    if [ ! -L "$link" ] && [ -f "$link" ]; then
+      migrate_file_to_target "$link" "$target"
+    fi
     if [ ! -e "$target" ]; then
       if [ "$kind" = "json" ]; then
         printf '%s\n' '{}' > "$target"
@@ -91,6 +94,8 @@ done
 # films
 ensure_dir "$APPDATA_BASE/films"
 ensure_link "$ROOT/apps/films/storage" "$APPDATA_BASE/films" dir
+ensure_link "$ROOT/apps/films/movies.json" "$APPDATA_BASE/films/movies.json" json
+ensure_link "$ROOT/apps/films/config.json" "$APPDATA_BASE/films/config.json" json
 ensure_link "$ROOT/apps/films/comments" "$APPDATA_BASE/films/comments" dir
 ensure_link "$ROOT/apps/films/uploads" "$APPDATA_BASE/films/uploads" dir
 
@@ -110,12 +115,6 @@ ensure_dir "$APPDATA_BASE/steps"
 ensure_link "$ROOT/apps/steps/users" "$APPDATA_BASE/steps" dir
 ensure_link "$ROOT/apps/steps/upload_sessions" "$APPDATA_BASE/steps/upload_sessions" dir
 
-# tft-generator
-ensure_dir "$APPDATA_BASE/tft-generator"
-ensure_link "$ROOT/apps/tft-generator/userdata" "$APPDATA_BASE/tft-generator/userdata" dir
-# legacy path used by older code
-ensure_link "$ROOT/apps/tft-generator/users" "$APPDATA_BASE/tft-generator/userdata" dir
-
 # smart_home
 ensure_dir "$APPDATA_BASE/smart_home"
 ensure_link "$ROOT/apps/smart_home/data" "$APPDATA_BASE/smart_home/data" dir
@@ -129,7 +128,7 @@ if [ -f "$ROOT/deploy/scripts/ensure-spends-appdata.sh" ]; then
   sh "$ROOT/deploy/scripts/ensure-spends-appdata.sh" "$ROOT/apps/spends" || true
 fi
 
-for app in cloud films media_viewer recipes spends steps tft-generator smart_home viewer; do
+for app in cloud films media_viewer recipes spends steps smart_home viewer; do
   if [ -d "$ROOT/apps/$app" ]; then
     strip_junk "$ROOT/apps/$app"
   fi

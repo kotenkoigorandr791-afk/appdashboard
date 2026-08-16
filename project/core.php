@@ -556,8 +556,11 @@ function apNotificationVisibleTo(array $row, string $userEmail, int $userRole, a
     if (in_array($appId, ['server','system','logs','docker','backup'], true) || str_starts_with($eventType, 'server_')) {
         return $userRole >= 1;
     }
-    if ($owner !== '' && strcasecmp($owner, $userEmail) !== 0) return false;
-    if ($appId === '') return $owner !== '' ? $userRole >= 1 : false;
+    if ($owner !== '') {
+        return strcasecmp($owner, $userEmail) === 0;
+    }
+    if ($userRole < 1) return false;
+    if ($appId === '') return true;
     return $userRole >= apNotificationAppMinRole($appId, $appAccessLevels);
 }
 

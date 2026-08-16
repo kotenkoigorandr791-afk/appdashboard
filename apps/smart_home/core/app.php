@@ -14,6 +14,7 @@ session_start();
 header('Content-Type: text/html; charset=UTF-8');
 define('SH_APP_DIR', dirname(__DIR__));
 require_once dirname(SH_APP_DIR, 2) . '/lib/app_db.php';
+require_once dirname(SH_APP_DIR, 2) . '/lib/redis.php';
 function sh_db(): AppDatabase {
     static $db = null;
     if ($db === null) {
@@ -149,24 +150,36 @@ function sh_ensure_column(AppDatabase $db, string $table, string $column, string
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 function sh_h(string $v): string { return htmlspecialchars($v, ENT_QUOTES|ENT_SUBSTITUTE, 'UTF-8'); }
 
+function sh_active_session(): ?array {
+    $ids = array_values(array_unique(array_filter([session_id(), (string)($_COOKIE['PHPSESSID'] ?? '')])));
+    foreach ($ids as $sid) {
+        if ($redis = app_redis()) {
+            $raw = $redis->get(app_redis_key('active_session:' . $sid));
+            $row = $raw ? json_decode((string)$raw, true) : null;
+            if (is_array($row)) return $row;
+        }
+        try {
+            $stmt = sh_db()->prepare('SELECT * FROM active_sessions WHERE session_id = :sid LIMIT 1');
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $row['user_data'] = json_decode((string)($row['user_data'] ?? ''), true) ?: [];
+                return $row;
+            }
+        } catch (Throwable $e) { error_log('sh session lookup: '.$e->getMessage()); }
+    }
+    return null;
+}
+
 function sh_user_email(): string {
-    // Check $_SESSION['email'] first (set by parent app login)
     if (isset($_SESSION['email']) && !empty($_SESSION['email'])) {
         return (string)$_SESSION['email'];
     }
-    // Check GET ?user= param for testing
     if (isset($_GET['user']) && !empty($_GET['user'])) {
         return (string)$_GET['user'];
     }
-    $sid = session_id();
-    if ($sid === '') return 'guest@local';
-    try {
-        $db = sh_db();
-        $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-        $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
-        $r = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($r && !empty($r['email'])) return (string)$r['email'];
-    } catch (Throwable $e) { error_log('sh user lookup: '.$e->getMessage()); }
+    $session = sh_active_session();
+    if ($session && !empty($session['email'])) return (string)$session['email'];
     return 'guest@local';
 }
 
@@ -175,6 +188,11 @@ function sh_user_service_role(): int {
     if ($cached !== null) return $cached;
     $email = sh_user_email();
     if ($email === 'guest@local') { $cached = 0; return 0; }
+    $session = sh_active_session();
+    if (isset($session['user_data']['role'])) {
+        $cached = (int)$session['user_data']['role'];
+        return $cached;
+    }
     try {
         $db = sh_db();
         $stmt = $db->prepare('SELECT role FROM users WHERE email = :em LIMIT 1');
