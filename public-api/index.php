@@ -18,7 +18,7 @@ if ($section === 'apps' && ($parts[1] ?? '') === '' && $method === 'GET') {
     exit;
 }
 $app = $section;
-$allowed = ['cloud','films','map','media_viewer','performance','recipes','smart_home','spends','steps','tft-generator','viewer'];
+$allowed = ['cloud','films','map','media_viewer','performance','recipes','smart_home','spends','steps','viewer'];
 if (!in_array($app, $allowed, true)) {
     public_api_json(['ok' => false, 'error' => 'unknown_app'], 404);
 }

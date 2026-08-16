@@ -115,12 +115,6 @@ ensure_dir "$APPDATA_BASE/steps"
 ensure_link "$ROOT/apps/steps/users" "$APPDATA_BASE/steps" dir
 ensure_link "$ROOT/apps/steps/upload_sessions" "$APPDATA_BASE/steps/upload_sessions" dir
 
-# tft-generator
-ensure_dir "$APPDATA_BASE/tft-generator"
-ensure_link "$ROOT/apps/tft-generator/userdata" "$APPDATA_BASE/tft-generator/userdata" dir
-# legacy path used by older code
-ensure_link "$ROOT/apps/tft-generator/users" "$APPDATA_BASE/tft-generator/userdata" dir
-
 # smart_home
 ensure_dir "$APPDATA_BASE/smart_home"
 ensure_link "$ROOT/apps/smart_home/data" "$APPDATA_BASE/smart_home/data" dir
@@ -134,7 +128,7 @@ if [ -f "$ROOT/deploy/scripts/ensure-spends-appdata.sh" ]; then
   sh "$ROOT/deploy/scripts/ensure-spends-appdata.sh" "$ROOT/apps/spends" || true
 fi
 
-for app in cloud films media_viewer recipes spends steps tft-generator smart_home viewer; do
+for app in cloud films media_viewer recipes spends steps smart_home viewer; do
   if [ -d "$ROOT/apps/$app" ]; then
     strip_junk "$ROOT/apps/$app"
   fi

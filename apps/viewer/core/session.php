@@ -1,8 +1,46 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../../../lib/redis.php';
+
+function viewerSessionIds(): array {
+    return array_values(array_unique(array_filter([session_id() ?: '', (string)($_COOKIE['PHPSESSID'] ?? '')])));
+}
+
+function viewerActiveSession(string $sessionId): ?array {
+    if ($sessionId === '') return null;
+    if ($redis = app_redis()) {
+        $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
+        $row = $raw ? json_decode((string)$raw, true) : null;
+        if (is_array($row)) return $row;
+    }
+    $db = getDB();
+    if (!$db) return null;
+    try {
+        $stmt = $db->prepare('SELECT * FROM active_sessions WHERE session_id = :session_id LIMIT 1');
+        $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            $row['user_data'] = json_decode((string)($row['user_data'] ?? ''), true) ?: [];
+            return $row;
+        }
+    } catch (Exception $e) {
+        error_log('Database query failed: ' . $e->getMessage());
+    }
+    return null;
+}
+
+function viewerCurrentActiveSession(): ?array {
+    foreach (viewerSessionIds() as $sessionId) {
+        $row = viewerActiveSession($sessionId);
+        if ($row) return $row;
+    }
+    return null;
+}
 
 function viewerFindEmail(AppDatabase $db, string $sessionId): ?string {
     if ($sessionId === '') return null;
+    $session = viewerActiveSession($sessionId);
+    if ($session && !empty($session['email'])) return (string)$session['email'];
     try {
         $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
         $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_STR);
@@ -17,6 +55,8 @@ function viewerFindEmail(AppDatabase $db, string $sessionId): ?string {
 
 function viewerFetchRoleBySession(AppDatabase $db, string $sessionId): ?int {
     if ($sessionId === '') return null;
+    $session = viewerActiveSession($sessionId);
+    if ($session && isset($session['user_data']['role'])) return (int)$session['user_data']['role'];
     try {
         $sql = "SELECT u.role FROM active_sessions s JOIN users u ON s.email = u.email WHERE s.session_id = :session_id";
         $stmt = $db->prepare($sql);
@@ -33,19 +73,20 @@ function viewerFetchRoleBySession(AppDatabase $db, string $sessionId): ?int {
 function getUserRole() {
     $db = getDB();
     if (!$db) return 0;
-    $role = viewerFetchRoleBySession($db, session_id() ?: '');
-    if ($role === null && isset($_COOKIE['PHPSESSID'])) {
-        $role = viewerFetchRoleBySession($db, $_COOKIE['PHPSESSID']);
+    foreach (viewerSessionIds() as $sessionId) {
+        $role = viewerFetchRoleBySession($db, $sessionId);
+        if ($role !== null) return $role;
     }
-    return $role ?? 0;
+    return 0;
 }
 
 function get_current_user_from_sessions(): string {
     $db = getDB();
     if (!$db) return 'default';
-    $email = viewerFindEmail($db, session_id() ?: '');
-    if (!$email && isset($_COOKIE['PHPSESSID'])) {
-        $email = viewerFindEmail($db, $_COOKIE['PHPSESSID']);
+    $email = null;
+    foreach (viewerSessionIds() as $sessionId) {
+        $email = viewerFindEmail($db, $sessionId);
+        if ($email) break;
     }
     if ($email) {
         $username = explode('@', $email)[0] ?? 'user';

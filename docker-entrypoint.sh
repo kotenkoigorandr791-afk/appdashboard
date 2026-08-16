@@ -62,6 +62,11 @@ if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
+if [ -d /usr/local/share/lopaka ]; then
+  rm -rf /var/www/AppDashboard/apps/lopaka
+  mkdir -p /var/www/AppDashboard/apps/lopaka
+  cp -a /usr/local/share/lopaka/. /var/www/AppDashboard/apps/lopaka/
+fi
 git config --system --add safe.directory /var/www/AppDashboard 2>/dev/null || true
 if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   (

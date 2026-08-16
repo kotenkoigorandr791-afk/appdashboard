@@ -61,9 +61,6 @@ graphify-out/
 /apps/steps/upload_sessions/
 /apps/recipes/products/
 /apps/recipes/recipes/
-/apps/tft-generator/userdata/
-/apps/tft-generator/users/
-/apps/tft-generator/php_errors.log
 /apps/smart_home/data/
 /apps/viewer/history.json
 /uploads/

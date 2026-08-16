@@ -1,3 +1,16 @@
+FROM node:22.3.0-alpine AS lopaka-build
+WORKDIR /src
+RUN apk add --no-cache git \
+    && npm install -g pnpm@10.30.3 \
+    && git init \
+    && git remote add origin https://github.com/sbrin/lopaka.git \
+    && git fetch --depth 1 origin dacfa70936a0f1eab456b09938eec36945cfd0cd \
+    && git checkout FETCH_HEAD \
+    && HUSKY=0 pnpm install --frozen-lockfile \
+    && sed -i "s|base: '/',|base: '/apps/lopaka/',|; s|sourcemap: true,|sourcemap: false,|; s|assetsInlineLimit: 0,|assetsInlineLimit: 0,\n        reportCompressedSize: false,|" vite.config.mts \
+    && NODE_OPTIONS="--max-old-space-size=16384" pnpm build \
+    && find dist -name '*.map' -type f -delete
+
 FROM php:8.3-fpm-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
@@ -33,6 +46,11 @@ RUN mkdir -p /run/php /var/log/supervisor /opt/AppDashboard/data /opt/Applicatio
 COPY nginx/appdashboard.conf /etc/nginx/sites-available/appdashboard.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY . /var/www/AppDashboard/
+RUN rm -rf /var/www/AppDashboard/apps/tft-generator \
+    && mkdir -p /var/www/AppDashboard/apps/lopaka
+COPY --from=lopaka-build /src/dist/ /var/www/AppDashboard/apps/lopaka/
+COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
+RUN cp -a /var/www/AppDashboard/apps/lopaka /usr/local/share/lopaka
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN ln -sf /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled/default \
     && rm -f /etc/nginx/sites-enabled/default.bak \
