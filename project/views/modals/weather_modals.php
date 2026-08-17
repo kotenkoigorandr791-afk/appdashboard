@@ -1018,11 +1018,11 @@ function drawWindChart(daily) {
     var maxP = Math.max.apply(null, precips);
     if (maxP <= 0) maxP = 1;
     var vw = 640, vh = 300;
-    var pad = { top: 40, right: 20, bottom: 70, left: 50 };
+    var pad = { top: 40, right: 20, bottom: 70, left: 60 };
     var cW = vw - pad.left - pad.right;
     var cH = vh - pad.top - pad.bottom;
     function yP(v) { return pad.top + cH - ((v - minW) / range) * cH; }
-    function xP(idx) { return n <= 1 ? pad.left + cW / 2 : pad.left + (idx / (n - 1)) * cW; }
+    function xP(idx) { var step = cW / n; return n <= 1 ? pad.left + cW / 2 : pad.left + step / 2 + idx * step; }
     var title = wt('weather_wind_chart_title', 'Wind speed');
     var unit = wt('weather_wind_speed_unit', 'km/h');
     var precipUnit = wt('weather_precip_mm', '%s mm').replace('%s', '');

@@ -26,7 +26,7 @@
         .auth-top-bar-left{display:flex;align-items:center;}
         .auth-brand-link{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:12px;border:2px solid <?php echo $config['theme']==='dark'?'#6b7280':'#3b82f6';?>;background:transparent;color:<?php echo $config['theme']==='dark'?'#6b7280':'#3b82f6';?>;transition:opacity .2s,transform .2s;}
         .auth-brand-link:hover{opacity:.9;transform:translateY(-1px);}
-        body.light-theme .auth-brand-link{color:#fff !important;}
+        body.light-theme .auth-brand-link{color:#1a2332 !important;}
         .auth-brand-link svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;}
         .auth-top-bar-right{display:flex;align-items:center;gap:12px;}
 
@@ -89,7 +89,7 @@
         body.light-theme{--auth-gradient:linear-gradient(135deg, #edf4fb, #d5eaf5, #c2dff0);}
         <?php endif; ?>
         .auth-input{width:100%;padding:12px;margin-bottom:15px;border:1px solid var(--border-color);border-radius:12px;background:color-mix(in srgb,var(--modal-bg) 70%,transparent);color:var(--text-color);box-sizing:border-box;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
-        .auth-button{width:100%;padding:12px;background:<?php echo $config['theme']==='dark'?'#374151':'#3b82f6';?>;color:white;border:none;border-radius:24px;cursor:pointer;margin-bottom:10px;}
+        .auth-button{width:100%;padding:12px;background:<?php echo $config['theme']==='dark'?'#374151':'#3b82f6';?>;color:white;border:none;border-radius:50px;cursor:pointer;margin-bottom:10px;}
         .auth-button:hover{opacity:0.9;}
         .auth-link{color:<?php echo $config['theme']==='dark'?'#9ca3af':'#2563eb';?>;cursor:pointer;text-decoration:underline;}
         .auth-error{color:#ff4444;margin-bottom:15px;text-align:center;}
@@ -345,7 +345,7 @@
         .tg-bot-field input:focus{outline:none;border-color:var(--primary-color);}
         .tg-bot-hint{font-size:12px;color:#888;margin-top:4px;line-height:1.4;}
         .tg-bot-actions{display:flex;gap:10px;margin-top:20px;}
-        .tg-save-btn{flex:1;padding:10px;background:var(--primary-color);color:#fff;border:none;border-radius:24px;cursor:pointer;font-size:14px;font-weight:bold;}
+        .tg-save-btn{flex:1;padding:10px;background:var(--primary-color);color:#fff;border:none;border-radius:50px;cursor:pointer;font-size:14px;font-weight:bold;}
         .tg-test-btn{padding:10px 18px;background:var(--group-block-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:24px;cursor:pointer;font-size:14px;}
         .tg-test-btn:hover{background:var(--app-item-bg);}
         .tg-status{margin-top:10px;font-size:13px;text-align:center;min-height:20px;}
@@ -593,6 +593,7 @@
 .app-name::after{content:'';position:absolute;inset:0;pointer-events:none;background:var(--app-item-bg);border-radius:12px;backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);mask:linear-gradient(90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%),linear-gradient(-90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%);-webkit-mask:linear-gradient(90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%),linear-gradient(-90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%);opacity:0.8;z-index:0;}
         .app-tile iframe{width:100%;height:150px;border:none;border-radius:4px;pointer-events:none;}
         button,input[type="submit"]{background-color:var(--primary-color);color:#fff;border:none;padding:10px;cursor:pointer;border-radius:4px;}
+        input.settings-save-btn{background-color:var(--primary-color);color:#fff;border:none;padding:12px 24px;cursor:pointer;border-radius:50px;font-weight:600;display:block;margin-left:auto;}
         button:hover,input[type="submit"]:hover{opacity:0.8;}
         .notification{position:fixed;bottom:24px;right:20px;padding:10px 14px 10px 16px;border-radius:8px;color:var(--text-color);font-weight:400;z-index:101200;opacity:0;transform:translateX(30px);transition:all 0.25s ease;max-width:320px;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,0.18);display:flex;align-items:flex-start;gap:10px;border-left:4px solid var(--primary-color);background:var(--modal-bg);}
         .notification.show{opacity:1;transform:translateX(0);}
@@ -660,7 +661,7 @@
         .settings-buttons-divider{width:1px;align-self:stretch;min-height:34px;background:var(--border-color);opacity:.75;flex:0 0 1px;}
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
-        @media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}}
+        @media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}.settings-buttons-divider{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shortcuts-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;max-width:640px;max-height:90vh;overflow:auto;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shortcuts{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -1500,7 +1501,7 @@
         }
         .weather-settings-cancel, .weather-settings-save {
             padding: 11px 18px;
-            border-radius: 9px;
+            border-radius: 50px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
@@ -3090,7 +3091,7 @@ endif; // showOtpPage
             </div>
         </div>
         <input type="hidden" name="current_app" value="<?php echo my_htmlspecialchars($selectedApp); ?>">
-        <input type="submit" name="settings" value="<?php echo my_htmlspecialchars($translations['save']); ?>">
+        <input type="submit" name="settings" value="<?php echo my_htmlspecialchars($translations['save']); ?>" class="settings-save-btn">
 
         </div><!-- /.modal-scroll-body -->
 </form>
