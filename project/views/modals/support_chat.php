@@ -115,7 +115,7 @@
             <span id="chat-text-editor-readonly-badge" style="display:none;padding:4px 10px;background:rgba(59,130,246,0.15);color:#3b82f6;border-radius:6px;font-size:12px;font-weight:600;">Read-only</span>
         </div>
         <div style="display:flex;gap:8px;">
-            <button type="button" id="chat-text-editor-save" style="display:none;padding:8px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,<?php echo $config['color']; ?> 0%,<?php echo $config['color']; ?>dd 100%);color:#fff;cursor:pointer;font-size:13px;font-weight:700;">Save Changes</button>
+            <button type="button" id="chat-text-editor-save" style="display:none;padding:8px 16px;border-radius:50px;border:none;background:linear-gradient(135deg,<?php echo $config['color']; ?> 0%,<?php echo $config['color']; ?>dd 100%);color:#fff;cursor:pointer;font-size:13px;font-weight:700;">Save Changes</button>
             <button type="button" id="chat-text-editor-close" style="padding:8px;border-radius:10px;border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);cursor:pointer;font-size:20px;line-height:1;width:36px;height:36px;display:flex;align-items:center;justify-content:center;">×</button>
         </div>
     </div>

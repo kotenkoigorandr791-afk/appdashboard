@@ -1,0 +1,204 @@
+- generic [ref=f1e5]:
+  - generic [ref=f1e6]:
+    - list
+  - generic [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - generic [ref=f1e10]: "Library:"
+        - combobox "Library:" [ref=f1e11]:
+          - option "TFT_eSPI, M5, Lovyan" [selected]
+          - option "U8g2"
+          - option "LVGL"
+          - option "AdafruitGFX Color"
+          - option "AdafruitGFX Mono"
+          - option "ArduinoGFX"
+          - option "ESPHome"
+          - option "Micropython"
+          - option "Flipper Zero, One"
+          - option "Inkplate"
+          - option "GxEPD2 (e-paper)"
+          - option "Uint32 Bitmap"
+          - option "Free Drawing"
+      - generic [ref=f1e13]:
+        - text: "Display:"
+        - combobox "Display:" [ref=f1e14]:
+          - option "Custom..."
+          - option "32×8"
+          - option "32×16"
+          - option "32×32"
+          - option "32×64"
+          - option "64×32"
+          - option "64×48"
+          - option "64×128"
+          - option "72×40"
+          - option "84×48"
+          - option "96×16"
+          - option "96×32"
+          - option "96×40"
+          - option "96×96"
+          - option "128×32"
+          - option "128×36"
+          - option "128×64" [selected]
+          - option "128×80"
+          - option "128×96"
+          - option "128×128"
+          - option "128×160"
+          - option "160×32"
+          - option "160×80"
+          - option "160×132"
+          - option "160×160"
+          - option "192×32"
+          - option "192×64"
+          - option "192×96"
+          - option "200×200"
+          - option "240×64"
+          - option "240×128"
+          - option "240×160"
+          - option "240×240"
+          - option "250×122"
+          - option "256×128"
+          - option "256×32"
+          - option "256×64"
+          - option "280×240"
+          - option "296×128"
+          - option "320×200"
+          - option "320×240"
+          - option "400×240"
+          - option "480×320"
+      - generic [ref=f1e16]:
+        - text: "Background:"
+        - textbox "Background:" [ref=f1e17] [cursor=pointer]: "#000000"
+    - generic [ref=f1e18]:
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]:
+          - generic [ref=f1e22]:
+            - text: Select
+            - button [ref=f1e23] [cursor=pointer]
+          - generic [ref=f1e27]:
+            - text: image
+            - button [ref=f1e28] [cursor=pointer]
+          - generic [ref=f1e32]:
+            - text: paint
+            - button [ref=f1e33] [cursor=pointer]
+          - generic [ref=f1e37]:
+            - text: string
+            - button [ref=f1e38] [cursor=pointer]
+          - generic [ref=f1e42]:
+            - text: Rectangle
+            - button [ref=f1e43] [cursor=pointer]
+          - generic [ref=f1e47]:
+            - text: ellipse
+            - button [ref=f1e48] [cursor=pointer]
+          - generic [ref=f1e52]:
+            - text: line
+            - button [ref=f1e53] [cursor=pointer]
+          - generic [ref=f1e57]:
+            - text: Triangle
+            - button [ref=f1e58] [cursor=pointer]
+          - generic [ref=f1e62]:
+            - text: polygon
+            - button [ref=f1e63] [cursor=pointer]
+        - generic [ref=f1e190] [cursor=pointer]:
+          - generic [ref=f1e191]: Mono
+          - checkbox "Mono RGB" [ref=f1e192]
+          - generic [ref=f1e193]: RGB
+      - generic [ref=f1e70]:
+        - text: 400%
+        - slider [ref=f1e71] [cursor=pointer]: "6"
+  - generic [ref=f1e194]:
+    - generic [ref=f1e195]: Layer 1
+    - generic [ref=f1e200]:
+      - generic [ref=f1e201]:
+        - text: Align left
+        - button [ref=f1e202] [cursor=pointer]
+      - generic [ref=f1e206]:
+        - text: Align horisontal centers
+        - button [ref=f1e207] [cursor=pointer]
+      - generic [ref=f1e211]:
+        - text: Align right
+        - button [ref=f1e212] [cursor=pointer]
+      - generic [ref=f1e216]:
+        - text: Align top
+        - button [ref=f1e217] [cursor=pointer]
+      - generic [ref=f1e221]:
+        - text: Align vertical centers
+        - button [ref=f1e222] [cursor=pointer]
+      - generic [ref=f1e226]:
+        - text: Align bottom
+        - button [ref=f1e227] [cursor=pointer]
+    - generic [ref=f1e231]:
+      - generic [ref=f1e233]:
+        - generic [ref=f1e234]: X
+        - spinbutton "X" [ref=f1e235]: "0"
+        - generic "Add variable" [ref=f1e237] [cursor=pointer]
+      - generic [ref=f1e242]:
+        - generic [ref=f1e243]: "Y"
+        - spinbutton "Y" [ref=f1e244]: "0"
+        - generic "Add variable" [ref=f1e246] [cursor=pointer]
+      - generic [ref=f1e251]:
+        - generic [ref=f1e252]: W
+        - spinbutton "W" [ref=f1e253]: "0"
+      - generic [ref=f1e255]:
+        - generic [ref=f1e256]: H
+        - spinbutton "H" [ref=f1e257]: "0"
+      - generic [ref=f1e259]:
+        - checkbox "Dim the layer and skip it from code generation Overlay" [ref=f1e260] [cursor=pointer]
+        - generic [ref=f1e261]: Dim the layer and skip it from code generation Overlay
+      - generic [ref=f1e262]:
+        - generic [ref=f1e263]:
+          - generic [ref=f1e264]: Fill
+          - generic "Add variable" [ref=f1e266] [cursor=pointer]
+        - textbox [ref=f1e272] [cursor=pointer]: "#ffffff"
+    - generic [ref=f1e273]:
+      - generic [ref=f1e275]:
+        - text: Flip horizontally
+        - button [ref=f1e276] [cursor=pointer]
+      - generic [ref=f1e280]:
+        - text: Flip vertically
+        - button [ref=f1e281] [cursor=pointer]
+      - generic [ref=f1e285]:
+        - text: Rotate clockwise
+        - button [ref=f1e286] [cursor=pointer]
+      - generic [ref=f1e290]:
+        - text: Invert colors
+        - button [ref=f1e291] [cursor=pointer]
+      - generic [ref=f1e297]:
+        - text: Remove blank padding
+        - button [ref=f1e298] [cursor=pointer]
+      - generic [ref=f1e302]:
+        - text: Download image
+        - button "Download" [ref=f1e303] [cursor=pointer]
+      - generic [ref=f1e305]:
+        - text: Add to Project assets
+        - button "Save" [ref=f1e306] [cursor=pointer]
+  - generic [ref=f1e144]:
+    - generic [ref=f1e145]:
+      - generic [ref=f1e146]:
+        - generic [ref=f1e147]:
+          - text: "Import code - Experimental: Works best with code generated in Lopaka"
+          - button [ref=f1e152]
+        - generic [ref=f1e153]:
+          - text: Copy source code
+          - button "Copy" [ref=f1e154] [cursor=pointer]
+      - generic [ref=f1e158]:
+        - textbox "Cursor at row 2" [ref=f1e159]
+        - generic [ref=f1e160]: tft.drawBitmap(0, 0, image_Layer_1_bits, 0, 0, 0xFFFF);
+    - generic [ref=f1e164]:
+      - generic [ref=f1e166] [cursor=pointer]:
+        - checkbox "Wrapper function" [ref=f1e167]
+        - generic [ref=f1e168]: Wrapper function
+      - generic [ref=f1e170] [cursor=pointer]:
+        - checkbox "Include fonts" [ref=f1e171]
+        - generic [ref=f1e172]: Include fonts
+      - generic [ref=f1e174] [cursor=pointer]:
+        - checkbox "Declare images" [ref=f1e175]
+        - generic [ref=f1e176]: Declare images
+      - generic [ref=f1e178] [cursor=pointer]:
+        - checkbox "Declare variables" [ref=f1e179]
+        - generic [ref=f1e180]: Declare variables
+      - generic [ref=f1e182] [cursor=pointer]:
+        - checkbox "Layer titles" [ref=f1e183]
+        - generic [ref=f1e184]: Layer titles
+      - generic [ref=f1e186] [cursor=pointer]:
+        - checkbox "Clear/Fill display" [ref=f1e187]
+        - generic [ref=f1e188]: Clear/Fill display

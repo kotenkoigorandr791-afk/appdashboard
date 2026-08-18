@@ -1,0 +1,38 @@
+# Normalize line endings to LF for files that run inside Linux containers.
+# Without this, git-for-Windows (core.autocrlf=true) checks out CRLF endings,
+# breaking docker-entrypoint.sh ("cannot execute: required file not found").
+* text=auto
+
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.py        text eol=lf
+*.php       text eol=lf
+*.conf      text eol=lf
+*.ini       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+Dockerfile  text eol=lf
+Makefile    text eol=lf
+*.md        text eol=lf
+*.json      text eol=lf
+*.js        text eol=lf
+*.ts        text eol=lf
+*.css       text eol=lf
+*.html      text eol=lf
+*.svg       text eol=lf
+*.txt       text eol=lf
+
+# Binary assets must never be touched
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
+*.eot       binary
+*.bin       binary
+*.traineddata binary
+*.pdf       binary

@@ -1,0 +1,230 @@
+- generic [ref=f1e5]:
+  - generic [ref=f1e6]:
+    - list
+  - generic [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e9]:
+        - generic [ref=f1e10]: "Library:"
+        - combobox "Library:" [ref=f1e11]:
+          - option "TFT_eSPI, M5, Lovyan" [selected]
+          - option "U8g2"
+          - option "LVGL"
+          - option "AdafruitGFX Color"
+          - option "AdafruitGFX Mono"
+          - option "ArduinoGFX"
+          - option "ESPHome"
+          - option "Micropython"
+          - option "Flipper Zero, One"
+          - option "Inkplate"
+          - option "GxEPD2 (e-paper)"
+          - option "Uint32 Bitmap"
+          - option "Free Drawing"
+      - generic [ref=f1e13]:
+        - text: "Display:"
+        - combobox "Display:" [ref=f1e14]:
+          - option "Custom..."
+          - option "32×8"
+          - option "32×16"
+          - option "32×32"
+          - option "32×64"
+          - option "64×32"
+          - option "64×48"
+          - option "64×128"
+          - option "72×40"
+          - option "84×48"
+          - option "96×16"
+          - option "96×32"
+          - option "96×40"
+          - option "96×96"
+          - option "128×32"
+          - option "128×36"
+          - option "128×64" [selected]
+          - option "128×80"
+          - option "128×96"
+          - option "128×128"
+          - option "128×160"
+          - option "160×32"
+          - option "160×80"
+          - option "160×132"
+          - option "160×160"
+          - option "192×32"
+          - option "192×64"
+          - option "192×96"
+          - option "200×200"
+          - option "240×64"
+          - option "240×128"
+          - option "240×160"
+          - option "240×240"
+          - option "250×122"
+          - option "256×128"
+          - option "256×32"
+          - option "256×64"
+          - option "280×240"
+          - option "296×128"
+          - option "320×200"
+          - option "320×240"
+          - option "400×240"
+          - option "480×320"
+      - generic [ref=f1e16]:
+        - text: "Background:"
+        - textbox "Background:" [ref=f1e17] [cursor=pointer]: "#000000"
+    - generic [ref=f1e18]:
+      - generic [ref=f1e20]:
+        - generic [ref=f1e22]:
+          - text: Select
+          - button [ref=f1e23] [cursor=pointer]
+        - generic [ref=f1e27]:
+          - text: image
+          - button [ref=f1e28] [cursor=pointer]
+        - generic [ref=f1e32]:
+          - text: paint
+          - button [ref=f1e33] [cursor=pointer]
+        - generic [ref=f1e37]:
+          - text: string
+          - button [ref=f1e38] [cursor=pointer]
+        - generic [ref=f1e42]:
+          - text: Rectangle
+          - button [ref=f1e43] [cursor=pointer]
+        - generic [ref=f1e47]:
+          - text: ellipse
+          - button [ref=f1e48] [cursor=pointer]
+        - generic [ref=f1e52]:
+          - text: line
+          - button [ref=f1e53] [cursor=pointer]
+        - generic [ref=f1e57]:
+          - text: Triangle
+          - button [ref=f1e58] [cursor=pointer]
+        - generic [ref=f1e62]:
+          - text: polygon
+          - button [ref=f1e63] [cursor=pointer]
+      - generic [ref=f1e70]:
+        - text: 400%
+        - slider [ref=f1e71] [cursor=pointer]: "6"
+  - generic [ref=f1e82]:
+    - generic [ref=f1e83]: Shortcuts
+    - generic [ref=f1e84]:
+      - paragraph [ref=f1e85]:
+        - generic [ref=f1e86]: SHIFT
+        - text: +
+        - generic [ref=f1e87]: ←
+        - generic [ref=f1e88]: →
+        - generic [ref=f1e89]: ↑
+        - generic [ref=f1e90]: ↓
+        - text: — move 10px
+      - paragraph [ref=f1e91]:
+        - generic [ref=f1e92]: CTRL
+        - text: +
+        - generic [ref=f1e93]: ↑
+        - generic [ref=f1e94]: ↓
+        - text: — reorder layers
+      - paragraph [ref=f1e95]:
+        - generic [ref=f1e96]: CTRL
+        - text: +
+        - generic [ref=f1e97]: C
+        - text: /
+        - generic [ref=f1e98]: V
+        - text: /
+        - generic [ref=f1e99]: X
+        - text: — copy/paste/cut
+      - paragraph [ref=f1e100]:
+        - generic [ref=f1e101]: CTRL
+        - text: +
+        - generic [ref=f1e102]: A
+        - text: — select all
+      - paragraph [ref=f1e103]:
+        - generic [ref=f1e104]: CTRL
+        - text: +
+        - generic [ref=f1e105]: Z
+        - text: — undo
+      - paragraph [ref=f1e106]:
+        - generic [ref=f1e107]: CTRL
+        - text: +
+        - generic [ref=f1e108]: SHIFT
+        - text: +
+        - generic [ref=f1e109]: Z
+        - text: — redo
+      - paragraph [ref=f1e110]:
+        - generic [ref=f1e111]: CTRL
+        - text: +
+        - generic [ref=f1e112]: +
+        - text: /
+        - generic [ref=f1e113]: "-"
+        - text: — zoom in/out
+      - paragraph [ref=f1e114]:
+        - generic [ref=f1e115]: SHIFT
+        - text: +
+        - generic [ref=f1e116]: CLICK
+        - text: — multi-select
+      - paragraph [ref=f1e117]:
+        - generic [ref=f1e118]: ESC
+        - text: — reset selection
+      - paragraph [ref=f1e119]:
+        - generic [ref=f1e120]: CTRL
+        - text: +
+        - generic [ref=f1e121]: G
+        - text: — group layers
+      - paragraph [ref=f1e122]:
+        - generic [ref=f1e123]: CTRL
+        - text: +
+        - generic [ref=f1e124]: SHIFT
+        - text: +
+        - generic [ref=f1e125]: G
+        - text: — ungroup
+      - generic [ref=f1e126]: Resizing
+      - paragraph [ref=f1e127]:
+        - text: Hold
+        - generic [ref=f1e128]: SHIFT
+        - text: to keep aspect ratio
+      - paragraph [ref=f1e129]:
+        - text: Hold
+        - generic [ref=f1e130]: ALT
+        - text: to resize from center
+      - generic [ref=f1e131]: Paint
+      - paragraph [ref=f1e132]:
+        - text: Hold
+        - generic [ref=f1e133]: SHIFT
+        - text: to draw a line
+      - paragraph [ref=f1e134]:
+        - generic [ref=f1e135]: RIGHT CLICK
+        - text: — eraser
+      - generic [ref=f1e136]: Polygon, Triangle
+      - paragraph [ref=f1e137]:
+        - generic [ref=f1e138]: CLICK
+        - text: — place vertices
+      - paragraph [ref=f1e139]:
+        - generic [ref=f1e140]: DOUBLE CLICK
+        - text: or
+        - generic [ref=f1e141]: ESC
+        - text: — finish
+      - paragraph [ref=f1e142]:
+        - generic [ref=f1e143]: DOUBLE CLICK
+        - text: — edit vertices
+  - generic [ref=f1e144]:
+    - generic [ref=f1e145]:
+      - generic [ref=f1e146]:
+        - generic [ref=f1e147]:
+          - text: "Import code - Experimental: Works best with code generated in Lopaka"
+          - button [ref=f1e152]
+        - generic [ref=f1e153]:
+          - text: Copy source code
+          - button "Copy" [ref=f1e154] [cursor=pointer]
+      - textbox "Cursor at row 2" [ref=f1e159]
+    - generic [ref=f1e164]:
+      - generic [ref=f1e166] [cursor=pointer]:
+        - checkbox "Wrapper function" [ref=f1e167]
+        - generic [ref=f1e168]: Wrapper function
+      - generic [ref=f1e170] [cursor=pointer]:
+        - checkbox "Include fonts" [ref=f1e171]
+        - generic [ref=f1e172]: Include fonts
+      - generic [ref=f1e174] [cursor=pointer]:
+        - checkbox "Declare images" [ref=f1e175]
+        - generic [ref=f1e176]: Declare images
+      - generic [ref=f1e178] [cursor=pointer]:
+        - checkbox "Declare variables" [ref=f1e179]
+        - generic [ref=f1e180]: Declare variables
+      - generic [ref=f1e182] [cursor=pointer]:
+        - checkbox "Layer titles" [ref=f1e183]
+        - generic [ref=f1e184]: Layer titles
+      - generic [ref=f1e186] [cursor=pointer]:
+        - checkbox "Clear/Fill display" [ref=f1e187]
+        - generic [ref=f1e188]: Clear/Fill display
