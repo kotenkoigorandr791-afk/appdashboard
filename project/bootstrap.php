@@ -255,6 +255,14 @@ if ($__APP_DEBUG) {
 if(isset($_SESSION['user'])&&isset($_SESSION['auth_time'])){
     $currentSession=getUserFromActiveSessions(session_id());
     if(!$currentSession){
+        if(!ensureAuthenticatedSession()){
+            session_destroy();
+            header('Location: '.$_SERVER['PHP_SELF']);
+            exit;
+        }
+        $currentSession=getUserFromActiveSessions(session_id());
+    }
+    if(!$currentSession){
         session_destroy();
         header('Location: '.$_SERVER['PHP_SELF']);
         exit;

@@ -30,7 +30,7 @@ if(isset($_SESSION['user'])&&!$needsAuth&&$path!=='/login'&&$path!=='/register')
         if(is_array($freshUser)&&!empty($freshUser['email'])){
             $_SESSION['user']=$freshUser;
         }
-    }else{
+    }elseif(!ensureAuthenticatedSession()){
         removeUserFromActiveSessions($_SESSION['user']['email'],session_id());
         session_destroy();
         $needsAuth=true;
@@ -61,7 +61,7 @@ if($needsAuth){
             exit;
         }
         $currentSession=getUserFromActiveSessions(session_id());
-        if(!$currentSession){
+        if(!$currentSession && !ensureAuthenticatedSession()){
             removeUserFromActiveSessions($_SESSION['user']['email'],session_id());
             session_destroy();
             header('Location: /login' . ($themeFromUrl ? '?theme=' . urlencode($themeFromUrl) : '') . ($langFromUrl ? '&lang=' . urlencode($langFromUrl) : '') . ($colorFromUrl ? '&color=' . urlencode($colorFromUrl) : ''));

@@ -1286,8 +1286,10 @@ function saveActiveSessions(array $sessions): void {
             $email = (string)($s['email'] ?? '');
             if ($email === '') continue;
             $s['session_id'] = (string)$sid;
-            $redis->setex(app_redis_key('active_session:' . (string)$sid), 12 * 3600, json_encode($s, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $ttl = activeSessionTtlSeconds($email);
+            $redis->setex(app_redis_key('active_session:' . (string)$sid), $ttl, json_encode($s, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
             $redis->sAdd(app_redis_key('active_sessions_by_email:' . strtolower($email)), (string)$sid);
+            $redis->expire(app_redis_key('active_sessions_by_email:' . strtolower($email)), $ttl);
         }
         return;
     }
@@ -1400,7 +1402,7 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
         'browser' => $detection['browser'],
     ];
     if ($redis = app_redis()) {
-        $ttl = 12 * 3600;
+        $ttl = activeSessionTtlSeconds($email);
         $redis->setex(app_redis_key('active_session:' . $sessionId), $ttl, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $redis->sAdd(app_redis_key('active_sessions_by_email:' . strtolower($email)), $sessionId);
         $redis->expire(app_redis_key('active_sessions_by_email:' . strtolower($email)), $ttl);
@@ -1450,7 +1452,7 @@ function updateUserActivity(string $sessionId): ?array {
         $freshUser['email'] = $email;
         $row['user_data'] = $freshUser;
         $row['last_activity'] = time();
-        $redis->setex($key, 12 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $redis->setex($key, activeSessionTtlSeconds($email), json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         return $freshUser;
     }
     $db = getDB();
@@ -1554,6 +1556,79 @@ function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 
     $stmt->bindValue(':cutoff', $cutoff, PDO::PARAM_INT);
     $stmt->execute();
     return $db->changes();
+}
+
+function activeSessionTtlSeconds(string $email): int {
+    $fp = getDeviceFingerprint();
+    if ($email !== '' && $fp !== '' && isTrustedDevice($email, $fp)) {
+        return 365 * 24 * 3600;
+    }
+    return 12 * 3600;
+}
+
+function restoreSessionViaTrustedDevice(?string $preferredEmail = null): ?array {
+    $hintEmail = $preferredEmail;
+    if ($hintEmail === null || $hintEmail === '') {
+        $hint = parseTrustedDeviceHintCookie((string)($_COOKIE['trusted_device_hint'] ?? ''));
+        $hintEmail = (string)($hint['email'] ?? '');
+    }
+    foreach (getTrustedDeviceCookieCandidates($hintEmail) as $candidate) {
+        $candidateToken = (string)($candidate['token'] ?? '');
+        if ($candidateToken === '') continue;
+        $rotated = verifyAndRotateTrustedDeviceCookie($candidateToken);
+        if ($rotated === null) continue;
+        $autoEmail = (string)($rotated['email'] ?? '');
+        if ($autoEmail === '') continue;
+        $users = loadUsers();
+        if (!isset($users[$autoEmail])) {
+            clearTrustedDeviceCookieForEmail($autoEmail);
+            forgetTrustedDeviceBrowserAccount($autoEmail);
+            if (!empty($candidate['legacy'])) clearTrustedDeviceCookie();
+            continue;
+        }
+        return [
+            'email' => $autoEmail,
+            'user' => $users[$autoEmail],
+            'new_token' => (string)($rotated['new_token'] ?? ''),
+            'legacy_cookie' => !empty($candidate['legacy']),
+        ];
+    }
+    return null;
+}
+
+function applyTrustedDeviceSessionRestore(array $restore): void {
+    $email = (string)($restore['email'] ?? '');
+    if ($email === '' || !is_array($restore['user'] ?? null)) return;
+    if (session_status() !== PHP_SESSION_ACTIVE) app_session_start();
+    session_regenerate_id(true);
+    appClearPendingPasswordFlow();
+    $_SESSION['user'] = $restore['user'];
+    $_SESSION['user']['email'] = $email;
+    $_SESSION['auth_time'] = time();
+    setLastActiveUser($email);
+    cleanupExpiredUserSessions($email);
+    addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    $newToken = (string)($restore['new_token'] ?? '');
+    if ($newToken !== '') setTrustedDeviceCookieForEmail($email, $newToken);
+    rememberTrustedDeviceBrowserAccount($email);
+    setTrustedDeviceHintCookie($email, getDeviceFingerprint());
+    if (!empty($restore['legacy_cookie'])) clearTrustedDeviceCookie();
+    clearTrustedDeviceLogoutSuppression();
+}
+
+function ensureAuthenticatedSession(): bool {
+    if (hasTrustedDeviceLogoutSuppression()) return false;
+    if (isset($_SESSION['user']['email'], $_SESSION['auth_time'])) {
+        if (getUserFromActiveSessions(session_id()) !== null) return true;
+        $restore = restoreSessionViaTrustedDevice((string)$_SESSION['user']['email']);
+        if ($restore === null || (string)($restore['email'] ?? '') !== (string)$_SESSION['user']['email']) return false;
+        applyTrustedDeviceSessionRestore($restore);
+        return getUserFromActiveSessions(session_id()) !== null;
+    }
+    $restore = restoreSessionViaTrustedDevice(null);
+    if ($restore === null) return false;
+    applyTrustedDeviceSessionRestore($restore);
+    return getUserFromActiveSessions(session_id()) !== null;
 }
 
 /** Fetch a single session row — fast single-row lookup */
@@ -2289,26 +2364,36 @@ function getUserBlockedApps(string $email): array {
 // ─────────────────────────────────────────────────────────────────────────────
 // APP ACCESS LEVELS (global min role per app; default 2 if no row)
 // ─────────────────────────────────────────────────────────────────────────────
+function invalidateAppAccessLevelsCache(): void {
+    if ($redis = app_redis()) {
+        $redis->del(app_redis_key('app_access_levels'));
+    }
+}
+
 function loadAppAccessLevels(): array {
+    if ($redis = app_redis()) {
+        $raw = $redis->get(app_redis_key('app_access_levels'));
+        if (is_string($raw) && $raw !== '') {
+            $cached = json_decode($raw, true);
+            if (is_array($cached)) return $cached;
+        }
+    }
     $db  = getDB();
     $res = $db->query("SELECT app_id, min_role FROM app_access_levels");
     $out = [];
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $out[$row['app_id']] = (int)$row['min_role'];
     }
+    if ($redis = app_redis()) {
+        $redis->setex(app_redis_key('app_access_levels'), 3600, json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
     return $out;
 }
 
 function getAppMinRole(string $appId): int {
-    $db   = getDB();
-    $stmt = $db->prepare("SELECT min_role FROM app_access_levels WHERE app_id=:a LIMIT 1");
-    $stmt->bindValue(':a', $appId);
-    $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    if (!$row) {
-        return 2;
-    }
-    $n = (int)$row['min_role'];
-    return max(0, min(2, $n));
+    $levels = loadAppAccessLevels();
+    if (!isset($levels[$appId])) return 2;
+    return max(0, min(2, (int)$levels[$appId]));
 }
 
 function userMeetsAppMinRole(int $userRole, string $appId): bool {
@@ -2328,6 +2413,7 @@ function saveAppAccessLevelsFromMap(array $levels): void {
         $stmt->bindValue(':r', $lvl, PDO::PARAM_INT);
         $stmt->execute();
     }
+    invalidateAppAccessLevelsCache();
 }
 function loadAppAccessSecurityConfig(): array {
     $countries = json_decode(getConfig('app_access_blocked_countries', '[]'), true);
@@ -3136,6 +3222,13 @@ function createTrustedDeviceCookie(string $email, string $fingerprint, string $d
 function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
     if ($redis = app_redis()) {
         $cookieHash = hash('sha256', $rawCookie);
+        $graceRaw = $redis->get(app_redis_key('trusted_cookie_grace:' . $cookieHash));
+        if (is_string($graceRaw) && $graceRaw !== '') {
+            $grace = json_decode($graceRaw, true);
+            if (is_array($grace) && (string)($grace['email'] ?? '') !== '' && (string)($grace['new_token'] ?? '') !== '') {
+                return ['email' => (string)$grace['email'], 'new_token' => (string)$grace['new_token']];
+            }
+        }
         $raw = $redis->get(app_redis_key('trusted_cookie:' . $cookieHash));
         if (!$raw) return null;
         $row = json_decode((string)$raw, true);
@@ -3172,7 +3265,8 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
         $row['fingerprint'] = $fingerprint;
         $row['last_used_at'] = $now;
         $row['expires_at'] = $now + (365 * 24 * 3600);
-        $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
+        $redis->expire(app_redis_key('trusted_cookie:' . $cookieHash), 120);
+        $redis->setex(app_redis_key('trusted_cookie_grace:' . $cookieHash), 120, json_encode(['email' => $email, 'new_token' => $newRawCookie], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $redis->setex(app_redis_key('trusted_cookie:' . $newHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $newHash);
         $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));

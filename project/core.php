@@ -301,7 +301,7 @@ function clientBrowserAuthMatches(string $plain, string $hash): bool {
     return $plain !== '' && $hash !== '' && hash_equals($hash, hash('sha256', $plain));
 }
 function clientAuthSessionOk(): bool {
-    return isset($_SESSION['user']['email'], $_SESSION['auth_time']) && getUserFromActiveSessions(session_id()) !== null;
+    return ensureAuthenticatedSession();
 }
 function setPostLoginRedirect(string $target): void {
     if ($target !== '' && str_starts_with($target, '/')) {
@@ -401,29 +401,8 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
         $timeSinceAuth=time()-$_SESSION['auth_time'];
         $currentSession=getUserFromActiveSessions(session_id());
         if($timeSinceAuth>$authTimeout||!$currentSession){
-            $userEmail = $_SESSION['user']['email'] ?? '';
-            $trustedCookie = $userEmail !== '' ? getTrustedDeviceCookieForEmail($userEmail) : '';
-            $rotatedTrustedCookie = $trustedCookie !== '' ? verifyAndRotateTrustedDeviceCookie($trustedCookie) : null;
-            $isTrusted = $userEmail !== '' && $rotatedTrustedCookie !== null && (string)($rotatedTrustedCookie['email'] ?? '') === $userEmail;
-            if($isTrusted){
-                $users = loadUsers();
-                if(isset($users[$userEmail])){
-                    session_regenerate_id(true);
-                    appClearPendingPasswordFlow();
-                    $_SESSION['user'] = $users[$userEmail];
-                    $_SESSION['user']['email'] = $userEmail;
-                    $_SESSION['auth_time'] = time();
-                    setLastActiveUser($userEmail);
-                    cleanupExpiredUserSessions($userEmail);
-                    addUserToActiveSessions($userEmail, session_id(), $_SESSION['user']);
-                    setTrustedDeviceCookieForEmail($userEmail, $rotatedTrustedCookie['new_token']);
-                    rememberTrustedDeviceBrowserAccount($userEmail);
-                    setTrustedDeviceHintCookie($userEmail, getDeviceFingerprint());
-                } else {
-                    removeUserFromActiveSessions($userEmail,session_id());
-                    session_destroy();
-                    $needsAuth=true;
-                }
+            if(!$trustedDeviceAutoLoginSuppressed && ensureAuthenticatedSession()){
+                $needsAuth=false;
             } else {
                 removeUserFromActiveSessions($_SESSION['user']['email'] ?? '',session_id());
                 session_destroy();
@@ -431,76 +410,12 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
             }
         }
     }elseif(!isset($_SESSION['user'])){
-        if(!$trustedDeviceAutoLoginSuppressed){
-            $trustedCookieCandidates = getTrustedDeviceCookieCandidates((string)($trustedDeviceHint['email'] ?? ''));
-            $autoLoginRestored = false;
-            foreach($trustedCookieCandidates as $candidate){
-                $candidateToken = (string)($candidate['token'] ?? '');
-                if($candidateToken === '') continue;
-                $rotated = verifyAndRotateTrustedDeviceCookie($candidateToken);
-                if($rotated !== null){
-                    $autoEmail = (string)($rotated['email'] ?? '');
-                    $users = loadUsers();
-                    if(isset($users[$autoEmail])){
-                        session_regenerate_id(true);
-                        appClearPendingPasswordFlow();
-                        $_SESSION['user'] = $users[$autoEmail];
-                        $_SESSION['user']['email'] = $autoEmail;
-                        $_SESSION['auth_time'] = time();
-                        setLastActiveUser($autoEmail);
-                        cleanupExpiredUserSessions($autoEmail);
-                        addUserToActiveSessions($autoEmail, session_id(), $_SESSION['user']);
-                        setTrustedDeviceCookieForEmail($autoEmail, $rotated['new_token']);
-                        rememberTrustedDeviceBrowserAccount($autoEmail);
-                        setTrustedDeviceHintCookie($autoEmail, getDeviceFingerprint());
-                        if(!empty($candidate['legacy'])){
-                            clearTrustedDeviceCookie();
-                        }
-                        $autoLoginRestored = true;
-                        break;
-                    } else {
-                        clearTrustedDeviceCookieForEmail($autoEmail);
-                        forgetTrustedDeviceBrowserAccount($autoEmail);
-                        if(!empty($candidate['legacy'])){
-                            clearTrustedDeviceCookie();
-                        }
-                    }
-                } else {
-                    $candidateEmail = trim((string)($candidate['email'] ?? ''));
-                    $cookieName = trim((string)($candidate['cookie_name'] ?? ''));
-                    if(!empty($candidate['legacy']) || $cookieName === 'trusted_device'){
-                        clearTrustedDeviceCookie();
-                    } else {
-                        if($candidateEmail !== ''){
-                            clearTrustedDeviceCookieForEmail($candidateEmail);
-                            forgetTrustedDeviceBrowserAccount($candidateEmail);
-                        } elseif($cookieName !== ''){
-                            setcookie($cookieName, '', [
-                                'expires' => time() - 3600,
-                                'path' => '/',
-                                'secure' => trustedDeviceCookieIsSecure(),
-                                'httponly' => true,
-                                'samesite' => 'Strict'
-                            ]);
-                            unset($_COOKIE[$cookieName]);
-                        }
-                    }
-                }
-            }
-            if(!$autoLoginRestored){
-                if ($trustedDeviceHint && trustedDeviceExistsForHint((string)$trustedDeviceHint['email'], (string)$trustedDeviceHint['fingerprint'])) {
-                    $trustedDeviceRestoreNotice = 'Saved session on this device could not be restored. Sign in again to renew it.';
-                } else {
-                    clearTrustedDeviceHintCookie();
-                }
-                $needsAuth=true;
-            } else {
-                $needsAuth=false;
-            }
+        if(!$trustedDeviceAutoLoginSuppressed && ensureAuthenticatedSession()){
+            $needsAuth=false;
         } else {
             if ($trustedDeviceHint && trustedDeviceExistsForHint((string)$trustedDeviceHint['email'], (string)$trustedDeviceHint['fingerprint'])) {
-                $needsAuth = true;
-            } elseif ($trustedDeviceHint) {
+                $trustedDeviceRestoreNotice = 'Saved session on this device could not be restored. Sign in again to renew it.';
+            } else {
                 clearTrustedDeviceHintCookie();
             }
             $needsAuth=true;
