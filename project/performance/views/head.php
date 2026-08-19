@@ -233,7 +233,7 @@
 .smart-hero { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .smart-meta { display: flex; flex-direction: column; gap: 6px; }
 .smart-subtitle { color: var(--text-muted, #777); font-size: 0.92rem; }
-.smart-badge { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.smart-badge { display: inline-flex; align-items: center; padding: 6px 10px; border-radius: 999px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
 .smart-badge.good { background: rgba(56, 142, 60, 0.14); color: #2e7d32; }
 .smart-badge.warning { background: rgba(245, 124, 0, 0.16); color: #ef6c00; }
 .smart-badge.critical { background: rgba(211, 47, 47, 0.14); color: #c62828; }

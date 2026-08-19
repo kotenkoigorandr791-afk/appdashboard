@@ -4781,27 +4781,6 @@ var T=<?php echo json_encode([
     text-overflow: ellipsis;
     min-width: 0;
 }
-.ap-gitea-icon {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    background-color: currentColor;
-    -webkit-mask-image: url('/apps/gitea/icon.svg');
-    mask-image: url('/apps/gitea/icon.svg');
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-}
-.ap-card-title .ap-gitea-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: 6px;
-    vertical-align: middle;
-}
 .ap-settings-tab:last-child { border-right: 0; }
 .ap-settings-tab:hover {
     background: color-mix(in srgb, var(--primary-color) 9%, transparent);
@@ -5646,13 +5625,6 @@ var T=<?php echo json_encode([
     'docker_saved'  =>$translations['docker_saved']??'Docker settings saved',
     'onlyoffice_saved'=>$translations['onlyoffice_saved']??'OnlyOffice token saved',
     'ai_config_saved'=>$translations['ai_config_saved']??'AI configuration saved',
-    'github_pull_settings'=>$translations['github_pull_settings']??'Pull через GitHub',
-    'github_update'=>$translations['github_update']??'Обновить',
-    'github_refresh'=>$translations['github_refresh']??'Refresh',
-    'github_pull_ok'=>$translations['github_pull_ok']??'Updated successfully',
-    'github_pull_up_to_date'=>$translations['github_pull_up_to_date']??'Already up to date',
-    'github_no_changes'=>$translations['github_no_changes']??'No pending changes',
-    'github_pull_confirm'=>$translations['github_pull_confirm']??'Pull changes from main and restart the container?',
     'apiKeysMatch'=>$translations['apiKeysMatch']??'API keys match',
     'apiKeysDoNotMatch'=>$translations['apiKeysDoNotMatch']??'API keys do not match',
     'apiKeysRequired'=>$translations['apiKeysRequired']??'Both API key fields are required when changing the key',
@@ -6848,7 +6820,6 @@ function wireEvents(){
             cards.forEach(function(card){
                 card.classList.toggle('active', card.dataset.settingsCard === name);
             });
-            if(name==='github'&&typeof window.apGithubLoadStatus==='function'){window.apGithubLoadStatus();}
         }
         tabs.forEach(function(tab){
             tab.addEventListener('click', function(){
@@ -7091,52 +7062,6 @@ function wireEvents(){
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
     });
-    (function(){
-        var ghSt=dynRoot.querySelector('#ap-github-pull-status'),ghRefresh=dynRoot.querySelector('#ap-github-refresh'),ghPull=dynRoot.querySelector('#ap-github-pull'),ghChanges=dynRoot.querySelector('#ap-github-changes'),ghLocal=dynRoot.querySelector('#ap-github-local-head'),ghRemote=dynRoot.querySelector('#ap-github-remote-head');
-        function renderGithubStatus(d){
-            if(!d||!d.success){setStatus(ghSt,'x '+(d&&d.error?d.error:T.error),'error');if(ghChanges&&d&&d.output)ghChanges.textContent=d.output;return;}
-            if(ghLocal)ghLocal.textContent=(d.branch||'main')+' @ '+(d.local_head||'—');
-            if(ghRemote)ghRemote.textContent='origin/main @ '+(d.remote_head||'—');
-            if(ghChanges){
-                if(d.up_to_date){ghChanges.textContent=T.github_no_changes||'No pending changes';}
-                else{
-                    var txt='';
-                    if(d.commits)txt+=d.commits+'\n\n';
-                    if(d.stat)txt+=d.stat;
-                    ghChanges.textContent=txt.trim()||('+'+(d.behind||0)+' commit(s)');
-                }
-            }
-            if(ghPull)ghPull.disabled=!!d.up_to_date;
-            setStatus(ghSt,d.up_to_date?(T.github_pull_up_to_date||'Up to date'):((d.behind||0)+' commit(s) available'),d.up_to_date?'success':'info');
-        }
-        window.apGithubLoadStatus=function(){
-            if(!ghChanges)return;
-            setStatus(ghSt,T.fm_loading||'Loading…','info');
-            var fd=new FormData();fd.append('git_pull_status','1');fd.append('ajax','1');
-            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(renderGithubStatus).catch(function(){setStatus(ghSt,'x '+T.error,'error');});
-        };
-        if(ghRefresh)ghRefresh.addEventListener('click',window.apGithubLoadStatus);
-        if(ghPull)ghPull.addEventListener('click',function(){
-            var msg=T.github_pull_confirm||'Pull changes from main and restart the container?';
-            if(typeof fmConfirm==='function'){fmConfirm(msg,function(){doGithubPull();});return;}
-            if(!confirm(msg))return;
-            doGithubPull();
-        });
-        function doGithubPull(){
-            setStatus(ghSt,T.saving,'info');if(ghPull)ghPull.disabled=true;if(ghRefresh)ghRefresh.disabled=true;
-            var fd=new FormData();fd.append('git_pull_update','1');fd.append('ajax','1');
-            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-                if(d.success){
-                    setStatus(ghSt,'+ '+(d.message||T.github_pull_ok||'Updated'),'success');
-                    if(typeof showTempNotification!=='undefined')showTempNotification(d.message||T.github_pull_ok||'Updated','success');
-                    if(d.restarted){setTimeout(function(){location.reload();},2500);}
-                    else if(typeof window.apGithubLoadStatus==='function')window.apGithubLoadStatus();
-                }else{
-                    setStatus(ghSt,'x '+(d.error||T.error),'error');
-                }
-            }).catch(function(){setStatus(ghSt,'x '+T.error,'error');}).finally(function(){if(ghRefresh)ghRefresh.disabled=false;if(ghPull)ghPull.disabled=false;});
-        }
-    })();
     if(bkSave)bkSave.addEventListener('click',function(){
         var host=(bkHost?bkHost.value:'').trim()||'http://127.0.0.1:8200';
         var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');

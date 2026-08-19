@@ -596,7 +596,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
       </button>
       <button type="button" id="npo-prompt-close" style="width:32px;height:32px;border:none;background:none;color:var(--text-color);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.55;">&times;</button>
     </div>
-    <div id="npo-prompt-toolbar" style="padding:12px 20px 0;flex-shrink:0;">
+    <div id="npo-prompt-toolbar" style="padding:12px 20px 10px;flex-shrink:0;">
       <div class="npo-prompt-toggle">
         <button type="button" class="npo-prompt-toggle-btn" data-view="code">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:13px;height:13px;flex-shrink:0"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -608,7 +608,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
         </button>
       </div>
     </div>
-    <div style="padding:12px 20px;flex:1;overflow-y:auto;min-height:200px;">
+    <div style="padding:20px 20px 12px;flex:1;overflow-y:auto;min-height:200px;">
       <div id="npo-prompt-loading" style="display:flex;align-items:center;justify-content:center;padding:48px;opacity:.5;">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite;margin-right:10px;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
         <?php echo my_htmlspecialchars($translations['loading'] ?? 'Loading...'); ?>

@@ -34,24 +34,57 @@ if ($db) {
 $userRole = 0; // Guest by default
 $currentUser = 'Guest';
 
-// Get user data from database instead of file
+if (!function_exists('recipes_getActiveSessionEmail')) {
+    function recipes_getActiveSessionEmail(?string $sessionId)
+    {
+        require_once __DIR__ . '/../../../lib/redis.php';
+        $sessionId = trim((string)$sessionId);
+        if ($sessionId === '') {
+            return null;
+        }
+        if (function_exists('app_redis')) {
+            try {
+                $redis = app_redis();
+                if ($redis) {
+                    $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
+                    if ($raw) {
+                        $row = json_decode((string)$raw, true);
+                        if (is_array($row) && !empty($row['email'])) {
+                            return (string)$row['email'];
+                        }
+                    }
+                }
+            } catch (Throwable $e) {
+            }
+        }
+        $db = getDB();
+        if (!$db) {
+            return null;
+        }
+        try {
+            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id LIMIT 1');
+            $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_STR);
+            $result = $stmt->execute();
+            $row = $result->fetch(PDO::FETCH_ASSOC);
+            if ($row && !empty($row['email'])) {
+                return (string)$row['email'];
+            }
+        } catch (Throwable $e) {
+        }
+        return null;
+    }
+}
+
+// Get user data from Redis-backed sessions (fallback to SQL)
 $db = getDB();
 $session_id = session_id();
 
 if ($db && $session_id) {
     try {
-        // Get email from active session
-        $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', $session_id, PDO::PARAM_STR);
-        $result = $stmt->execute();
-        $row = $result->fetch(PDO::FETCH_ASSOC);
-        
-        if ($row && isset($row['email'])) {
-            $email = $row['email'];
+        $email = recipes_getActiveSessionEmail($session_id);
+        if ($email) {
             $currentUser = explode('@', $email)[0] ?? 'user';
             $currentUser = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $currentUser);
-            
-            // Get user role
             $userRole = getUserRoleByEmail($email);
         }
     } catch (Exception $e) {
@@ -62,14 +95,9 @@ if ($db && $session_id) {
 // If still no user found, try with cookie session ID
 if ($userRole === 0 && $db && isset($_COOKIE['PHPSESSID'])) {
     try {
-        $cookie_session = $_COOKIE['PHPSESSID'];
-        $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-        $stmt->bindValue(':session_id', $cookie_session, PDO::PARAM_STR);
-        $result = $stmt->execute();
-        $row = $result->fetch(PDO::FETCH_ASSOC);
-        
-        if ($row && isset($row['email'])) {
-            $email = $row['email'];
+        $cookie_session = (string)$_COOKIE['PHPSESSID'];
+        $email = recipes_getActiveSessionEmail($cookie_session);
+        if ($email) {
             $currentUser = explode('@', $email)[0] ?? 'user';
             $currentUser = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $currentUser);
             $userRole = getUserRoleByEmail($email);

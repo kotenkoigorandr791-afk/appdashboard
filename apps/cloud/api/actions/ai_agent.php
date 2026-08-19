@@ -769,6 +769,47 @@ function cloud_ai_decode_search_url(string $url): string
     return $url;
 }
 
+function cloud_ai_searxng_base_url(): string
+{
+    require_once __DIR__ . '/../../../../db.php';
+    return rtrim(getConfig('search_engine_url', ''), '/');
+}
+
+function cloud_ai_searxng_query(string $baseUrl, array $params, int $timeout = 20): ?array
+{
+    $url = $baseUrl . '/search?' . http_build_query($params);
+    $body = '';
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_USERAGENT => 'AppDashboard/1.0',
+        ]);
+        $resp = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if (is_string($resp) && $code >= 200 && $code < 400) {
+            $body = $resp;
+        }
+    }
+    if ($body === '') {
+        $ctx = stream_context_create(['http' => [
+            'method' => 'GET', 'timeout' => $timeout,
+            'header' => "User-Agent: AppDashboard/1.0\r\nAccept: application/json\r\n",
+        ]]);
+        $resp = @file_get_contents($url, false, $ctx);
+        if (is_string($resp)) {
+            $body = $resp;
+        }
+    }
+    if ($body === '') return null;
+    $data = json_decode($body, true);
+    return is_array($data) ? $data : null;
+}
+
 function cloud_ai_web_search(string $query, int $maxResults = 5): array
 {
     $query = trim($query);
@@ -776,83 +817,28 @@ function cloud_ai_web_search(string $query, int $maxResults = 5): array
         return ['ok' => false, 'error' => 'query is required'];
     }
     $maxResults = max(1, min(10, $maxResults));
-    $url = 'https://html.duckduckgo.com/html/?q=' . rawurlencode($query);
-    $html = '';
-
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 20,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 CloudIDE-AI-Agent/1.0',
-        ]);
-        $body = curl_exec($ch);
-        if (is_string($body)) {
-            $html = $body;
-        }
-        curl_close($ch);
+    $baseUrl = cloud_ai_searxng_base_url();
+    if ($baseUrl === '') {
+        return ['ok' => false, 'error' => 'Search engine URL not configured'];
     }
-
-    if ($html === '') {
-        $ctx = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => 20,
-                'header' => "User-Agent: Mozilla/5.0 CloudIDE-AI-Agent/1.0\r\n",
-            ],
-        ]);
-        $body = @file_get_contents($url, false, $ctx);
-        if (is_string($body)) {
-            $html = $body;
-        }
-    }
-
-    if ($html === '') {
+    $data = cloud_ai_searxng_query($baseUrl, [
+        'q' => $query,
+        'format' => 'json',
+        'categories' => 'general',
+    ]);
+    if ($data === null) {
         return ['ok' => false, 'error' => 'Web search request failed'];
     }
-
     $results = [];
-    if (class_exists('DOMDocument')) {
-        $dom = new DOMDocument();
-        @$dom->loadHTML($html);
-        $xpath = new DOMXPath($dom);
-        foreach ($xpath->query("//div[contains(@class,'result')]") as $node) {
-            $linkNode = $xpath->query(".//a[contains(@class,'result__a')]", $node)->item(0);
-            if (!$linkNode) {
-                continue;
-            }
-            $title = trim(html_entity_decode($linkNode->textContent, ENT_QUOTES | ENT_HTML5));
-            $link = cloud_ai_decode_search_url((string)$linkNode->getAttribute('href'));
-            $snippetNode = $xpath->query(".//*[contains(@class,'result__snippet')]", $node)->item(0);
-            $snippet = $snippetNode ? trim(html_entity_decode($snippetNode->textContent, ENT_QUOTES | ENT_HTML5)) : '';
-            if ($title === '' || $link === '') {
-                continue;
-            }
-            $results[] = ['title' => $title, 'url' => $link, 'snippet' => mb_substr($snippet, 0, 300)];
-            if (count($results) >= $maxResults) {
-                break;
-            }
-        }
+    foreach (($data['results'] ?? []) as $row) {
+        if (!is_array($row)) continue;
+        $title = trim((string)($row['title'] ?? ''));
+        $link = trim((string)($row['url'] ?? ''));
+        $snippet = trim((string)($row['content'] ?? ''));
+        if ($title === '' || $link === '') continue;
+        $results[] = ['title' => $title, 'url' => $link, 'snippet' => mb_substr($snippet, 0, 300)];
+        if (count($results) >= $maxResults) break;
     }
-
-    if ($results === []) {
-        if (preg_match_all('~<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>~si', $html, $m, PREG_SET_ORDER)) {
-            foreach ($m as $row) {
-                $title = trim(strip_tags(html_entity_decode($row[2], ENT_QUOTES | ENT_HTML5)));
-                $link = cloud_ai_decode_search_url((string)$row[1]);
-                if ($title === '' || $link === '') {
-                    continue;
-                }
-                $results[] = ['title' => $title, 'url' => $link, 'snippet' => ''];
-                if (count($results) >= $maxResults) {
-                    break;
-                }
-            }
-        }
-    }
-
     return ['ok' => true, 'query' => $query, 'count' => count($results), 'results' => $results];
 }
 
@@ -863,26 +849,28 @@ function cloud_ai_image_search(string $query, int $maxResults = 8): array
         return ['ok' => false, 'error' => 'query is required'];
     }
     $maxResults = max(1, min(20, $maxResults));
-    $url = 'https://duckduckgo.com/?q=' . rawurlencode($query) . '&iax=images&ia=images';
-    $html = cloud_ai_fetch_url($url, 1048576);
-    if (!($html['ok'] ?? false)) {
+    $baseUrl = cloud_ai_searxng_base_url();
+    if ($baseUrl === '') {
+        return ['ok' => false, 'error' => 'Search engine URL not configured'];
+    }
+    $data = cloud_ai_searxng_query($baseUrl, [
+        'q' => $query,
+        'format' => 'json',
+        'categories' => 'images',
+    ]);
+    if ($data === null) {
         return ['ok' => false, 'error' => 'Image search request failed'];
     }
-    $body = (string)($html['body'] ?? '');
     $results = [];
-    if (preg_match('/vqd=["\']?([^"\'&]+)["\']?/i', $body, $m)) {
-        $apiUrl = 'https://duckduckgo.com/i.js?l=us-en&o=json&q=' . rawurlencode($query) . '&vqd=' . rawurlencode($m[1]);
-        $json = cloud_ai_fetch_url($apiUrl, 2097152);
-        $data = json_decode((string)($json['body'] ?? ''), true);
-        foreach (($data['results'] ?? []) as $row) {
-            if (!is_array($row)) continue;
-            $image = (string)($row['image'] ?? '');
-            $thumb = (string)($row['thumbnail'] ?? '');
-            $title = trim((string)($row['title'] ?? ''));
-            if ($image === '' && $thumb === '') continue;
-            $results[] = ['title' => $title, 'url' => $image ?: $thumb, 'thumbnail' => $thumb ?: $image, 'source' => (string)($row['url'] ?? '')];
-            if (count($results) >= $maxResults) break;
-        }
+    foreach (($data['results'] ?? []) as $row) {
+        if (!is_array($row)) continue;
+        $image = trim((string)($row['img_src'] ?? $row['url'] ?? ''));
+        $thumb = trim((string)($row['thumbnail_src'] ?? $row['thumbnail'] ?? ''));
+        $title = trim((string)($row['title'] ?? ''));
+        $source = trim((string)($row['source'] ?? $row['url'] ?? ''));
+        if ($image === '' && $thumb === '') continue;
+        $results[] = ['title' => $title, 'url' => $image ?: $thumb, 'thumbnail' => $thumb ?: $image, 'source' => $source];
+        if (count($results) >= $maxResults) break;
     }
     return ['ok' => true, 'query' => $query, 'count' => count($results), 'results' => $results];
 }

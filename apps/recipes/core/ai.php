@@ -26,30 +26,68 @@ function recipes_ai_json_out(array $payload, int $code = 200): void
     exit;
 }
 
+if (!function_exists('recipes_getActiveSessionEmail')) {
+    function recipes_getActiveSessionEmail($sessionId)
+    {
+        $sessionId = trim((string)$sessionId);
+        if ($sessionId === '') {
+            return null;
+        }
+        require_once __DIR__ . '/../../../lib/redis.php';
+        if (function_exists('app_redis')) {
+            try {
+                $redis = app_redis();
+                if ($redis) {
+                    $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
+                    if ($raw) {
+                        $row = json_decode((string)$raw, true);
+                        if (is_array($row) && !empty($row['email'])) {
+                            return (string)$row['email'];
+                        }
+                    }
+                }
+            } catch (Throwable $e) {
+            }
+        }
+        $db = getDB();
+        if (!$db) {
+            return null;
+        }
+        try {
+            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id LIMIT 1');
+            $stmt->bindValue(':session_id', $sessionId, PDO::PARAM_STR);
+            $result = $stmt->execute();
+            $row = $result->fetch(PDO::FETCH_ASSOC);
+            if ($row && !empty($row['email'])) {
+                return (string)$row['email'];
+            }
+        } catch (Throwable $e) {
+        }
+        return null;
+    }
+}
+
 function recipes_ai_require_role(int $minRole = 1): void
 {
     require_once __DIR__ . '/session.php';
     $db = getDB();
     $role = 0;
     $sid = session_id();
-    if ($db && $sid) {
+    if ($sid) {
         try {
-            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
-            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-            if ($row && !empty($row['email'])) {
-                $role = getUserRoleByEmail($row['email']);
+            $email = recipes_getActiveSessionEmail($sid);
+            if (!empty($email)) {
+                $role = getUserRoleByEmail($email);
             }
         } catch (Throwable $e) {
         }
     }
-    if ($role < $minRole && isset($_COOKIE['PHPSESSID']) && $db) {
+    if ($role < $minRole && isset($_COOKIE['PHPSESSID'])) {
         try {
-            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid LIMIT 1');
-            $stmt->bindValue(':sid', (string)$_COOKIE['PHPSESSID'], PDO::PARAM_STR);
-            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-            if ($row && !empty($row['email'])) {
-                $role = getUserRoleByEmail($row['email']);
+            $cookieSid = (string)$_COOKIE['PHPSESSID'];
+            $email = recipes_getActiveSessionEmail($cookieSid);
+            if (!empty($email)) {
+                $role = getUserRoleByEmail($email);
             }
         } catch (Throwable $e) {
         }
@@ -720,6 +758,12 @@ function recipes_ai_gather_image_options(string $label, string $query, string $l
             $scored[] = ['url' => $c['url'], 'title' => $c['title'] ?? '', '_score' => $score];
         }
     }
+    $searxngResults = recipes_ai_searxng_image($query . ' food photo', 6);
+    foreach ($searxngResults as $c) {
+        if (isset($seen[$c['url']])) continue;
+        $seen[$c['url']] = true;
+        $scored[] = ['url' => $c['url'], 'title' => $c['title'] ?? '', '_score' => 50];
+    }
     usort($scored, static fn($a, $b) => ($b['_score'] ?? 0) <=> ($a['_score'] ?? 0));
     $out = [];
     foreach (array_slice($scored, 0, max(1, $limit)) as $c) {
@@ -863,12 +907,71 @@ function recipes_ai_search_wikimedia_image(string $query): ?string
     return $result['url'] ?? null;
 }
 
+function recipes_ai_searxng_image(string $query, int $maxResults = 6): array
+{
+    require_once __DIR__ . '/../../../db.php';
+    $baseUrl = rtrim(getConfig('search_engine_url', ''), '/');
+    if ($baseUrl === '') {
+        return [];
+    }
+    $url = $baseUrl . '/search?' . http_build_query([
+        'q' => $query,
+        'format' => 'json',
+        'categories' => 'images',
+    ]);
+    $body = '';
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_USERAGENT => 'AppDashboard/1.0',
+        ]);
+        $resp = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        if (is_string($resp) && $code >= 200 && $code < 400) {
+            $body = $resp;
+        }
+    }
+    if ($body === '') return [];
+    $data = json_decode($body, true);
+    if (!is_array($data)) return [];
+    $results = [];
+    foreach (($data['results'] ?? []) as $row) {
+        if (!is_array($row)) continue;
+        $img = trim((string)($row['img_src'] ?? $row['url'] ?? ''));
+        $thumb = trim((string)($row['thumbnail_src'] ?? $row['thumbnail'] ?? ''));
+        if ($img === '' && $thumb === '') continue;
+        $results[] = [
+            'url' => $img ?: $thumb,
+            'title' => trim((string)($row['title'] ?? '')),
+            'description' => 'food',
+        ];
+        if (count($results) >= $maxResults) break;
+    }
+    return $results;
+}
+
 function recipes_ai_search_image(string $query, ?string $directUrl = null): ?string
 {
     if ($directUrl && recipes_ai_url_fetch_safe($directUrl)) {
         $dl = recipes_ai_download_image($directUrl);
         if ($dl) {
             return $directUrl;
+        }
+    }
+    $searxng = recipes_ai_searxng_image($query . ' food photo', 4);
+    if ($searxng !== []) {
+        foreach ($searxng as $c) {
+            if (!empty($c['url']) && recipes_ai_url_fetch_safe($c['url'])) {
+                $dl = recipes_ai_download_image($c['url']);
+                if ($dl) {
+                    return $c['url'];
+                }
+            }
         }
     }
     $result = recipes_ai_search_product_image($query, 'en');
