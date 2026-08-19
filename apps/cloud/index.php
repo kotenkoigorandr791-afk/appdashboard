@@ -60,7 +60,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <title data-i18n="appTitle">File Space</title>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=26" />
+  <link rel="stylesheet" href="assets/styles.css?v=27" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -223,7 +223,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=30"></script>
+<script defer src="assets/app.js?v=31"></script>
 <script defer src="assets/app/editors-and-tree.js?v=9"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
@@ -241,9 +241,9 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
-<script defer src="assets/ai-agent-skeleton.js?v=12"></script>
-<script defer src="assets/ai-assistant.js?v=33"></script>
-<script defer src="assets/monaco-editor.js?v=8"></script>
+<script defer src="assets/ai-agent-skeleton.js?v=15"></script>
+<script defer src="assets/ai-assistant.js?v=40"></script>
+<script defer src="assets/monaco-editor.js?v=10"></script>
 
 
 </head>

@@ -3736,6 +3736,28 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
     let folderExpandHoverTimer = null;
     let folderExpandHoverPath = '';
 
+    function isAiModalOpen() {
+        const modal = document.getElementById('ai-modal');
+        return !!(modal && !modal.classList.contains('hidden'));
+    }
+
+    function isPointerOverAiAssistantPanel(x, y) {
+        if (!isAiModalOpen()) return false;
+        const surface = document.querySelector('#ai-modal .ai-modal-content');
+        if (!surface) return false;
+        const r = surface.getBoundingClientRect();
+        return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }
+
+    function tryAttachTreeFileToAiAssistant(path, root) {
+        const normalized = String(path || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
+        if (!normalized || normalized.includes('..')) return false;
+        if (typeof window.aiAssistant?.attachMentionFromTree === 'function') {
+            return window.aiAssistant.attachMentionFromTree(normalized, root);
+        }
+        return false;
+    }
+
     function injectTreeUiStyles() {
         if (document.getElementById('cloud-tree-ui-styles')) return;
         const style = document.createElement('style');
@@ -4181,6 +4203,16 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
     async function onFileDragEnd(e) {
         if (!fileDragState || fileDragState.pointerId !== e.pointerId) return;
         const { active, path, node, sourceRoot, viewRoot, dropTargetDir, dropTargetRoot, hadValidDropTarget, dropOnRootToolbar } = fileDragState;
+        if (active && isPointerOverAiAssistantPanel(e.clientX, e.clientY) && tryAttachTreeFileToAiAssistant(path, sourceRoot)) {
+            fileDragState = null;
+            document.body.style.userSelect = '';
+            document.removeEventListener('pointermove', onFileDragMove);
+            document.removeEventListener('pointerup', onFileDragEnd);
+            document.removeEventListener('pointercancel', onFileDragEnd);
+            clearDragUi();
+            if (node?.isConnected) node.classList.remove('tree-drag-source');
+            return;
+        }
         let targetNode = dropTargetNode;
         if (!targetNode || !targetNode.isConnected) {
             targetNode = folderDropTargetAt(e.clientX, e.clientY);
@@ -4393,6 +4425,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         document.addEventListener('pointerdown', (e) => {
             if (e.button !== 0 || window.matchMedia(MOBILE_MQ).matches) return;
             if (typeof isTrashRoot === 'function' && isTrashRoot()) return;
+            if (isAiModalOpen()) return;
             const fileNode = e.target.closest('#tree .node[data-type="file"]');
             if (!fileNode || e.target.closest('.selection-checkbox') || e.target.closest('.toggle')) return;
             if (e.target.closest('.tree-rename-input')) return;

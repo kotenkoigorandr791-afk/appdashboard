@@ -52,30 +52,20 @@ function getUserPhoto($userEmail) {
     @chmod($userDir, SPENDS_RUNTIME_DIR_MODE);
     $db = getDB();
     if ($db) {
-        $sid = session_id();
-        foreach ([$sid, $_COOKIE['PHPSESSID'] ?? null] as $s) {
-            if (!$s) continue;
-            try {
-                $st = $db->prepare('SELECT user_data FROM active_sessions WHERE session_id = :s');
-                $st->bindValue(':s', $s, PDO::PARAM_STR);
-                $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
-                if ($r && isset($r['user_data'])) {
-                    $ud = json_decode($r['user_data'], true);
-                    if (!empty($ud['photo'])) {
-                        $web = dashboardPhotoWebPath($ud['photo']);
-                        if ($web !== '') {
-                            if (filter_var($web, FILTER_VALIDATE_URL)) {
-                                $pd = @file_get_contents($web);
-                                if ($pd !== false) { file_put_contents($photoPath, $pd); return "users/{$safe}/profile.jpg?t=" . filemtime($photoPath); }
-                            } else {
-                                $abs = DASHBOARD_ROOT . parse_url($web, PHP_URL_PATH);
-                                if ($abs && file_exists($abs) && @copy($abs, $photoPath)) return "users/{$safe}/profile.jpg?t=" . filemtime($photoPath);
-                                return $web;
-                            }
-                        }
-                    }
+        $sessionRow = function_exists('spendsActiveSessionRow') ? spendsActiveSessionRow() : null;
+        $ud = is_array($sessionRow['user_data'] ?? null) ? $sessionRow['user_data'] : [];
+        if (!empty($ud['photo'])) {
+            $web = dashboardPhotoWebPath($ud['photo']);
+            if ($web !== '') {
+                if (filter_var($web, FILTER_VALIDATE_URL)) {
+                    $pd = @file_get_contents($web);
+                    if ($pd !== false) { file_put_contents($photoPath, $pd); return "users/{$safe}/profile.jpg?t=" . filemtime($photoPath); }
+                } else {
+                    $abs = DASHBOARD_ROOT . parse_url($web, PHP_URL_PATH);
+                    if ($abs && file_exists($abs) && @copy($abs, $photoPath)) return "users/{$safe}/profile.jpg?t=" . filemtime($photoPath);
+                    return $web;
                 }
-            } catch (Exception $e) {}
+            }
         }
         if ($userEmail !== 'default_user') {
             try {

@@ -771,8 +771,19 @@ function cloud_ai_decode_search_url(string $url): string
 
 function cloud_ai_searxng_base_url(): string
 {
-    require_once __DIR__ . '/../../../../db.php';
-    return rtrim(getConfig('search_engine_url', ''), '/');
+    if (function_exists('getConfig')) {
+        return rtrim(getConfig('search_engine_url', ''), '/');
+    }
+    $db = function_exists('getDB') ? getDB() : null;
+    if (!$db) return '';
+    try {
+        $stmt = $db->prepare('SELECT value FROM config WHERE key = :k LIMIT 1');
+        $stmt->bindValue(':k', 'search_engine_url', PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        return rtrim((string)($row['value'] ?? ''), '/');
+    } catch (Throwable $e) {
+        return '';
+    }
 }
 
 function cloud_ai_searxng_query(string $baseUrl, array $params, int $timeout = 20): ?array

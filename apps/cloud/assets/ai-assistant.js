@@ -31,6 +31,7 @@
 
     const MAX_EXTERNAL_ATTACHMENTS = 4;
     let aiTreeDragFallbackPaths = [];
+    let aiTreeDropZoneBound = false;
     const AI_TEXT_FILE_ACCEPT =
         'text/plain,text/css,text/html,text/xml,text/csv,text/markdown,text/x-yaml,application/json,application/javascript,application/xml,.txt,.md,.markdown,.json,.csv,.xml,.html,.htm,.css,.js,.mjs,.cjs,.ts,.tsx,.jsx,.vue,.php,.py,.rb,.go,.java,.cs,.c,.cc,.cpp,.h,.hpp,.sh,.yaml,.yml,.sql,.log,.ini,.toml,.cfg,.env,.rst,.tex,.bat,.ps1,.properties,.gradle,.kt,.swift,.rs,.lua,.pl,.r,.dockerfile';
     /** Photos only (no SVG/heic/etc.); picker + runtime check via isAllowedImageFile */
@@ -878,7 +879,8 @@
                 gap: 6px !important;
                 padding: 6px 8px !important;
             }
-            .ai-input.ai-tree-drop-active {
+            .ai-input.ai-tree-drop-active,
+            .ai-modal-content.ai-tree-drop-active {
                 outline: 2px dashed var(--accent) !important;
                 outline-offset: 3px !important;
                 background: color-mix(in srgb, var(--accent) 10%, transparent) !important;
@@ -1021,6 +1023,9 @@
             #ai-modal:not(.hidden) {
                 opacity: 1 !important;
                 pointer-events: none !important;
+            }
+            #ai-modal:not(.hidden) .ai-modal-content {
+                pointer-events: auto !important;
             }
             #ai-modal .ai-modal-content {
                 position: relative !important;
@@ -3483,15 +3488,49 @@
         return added;
     }
 
+    function isAiModalOpen() {
+        return !!(elements.modal && !elements.modal.classList.contains('hidden'));
+    }
+
+    function getAiDropSurface() {
+        return elements.modal?.querySelector('.ai-modal-content') || null;
+    }
+
+    function isPointerOverAiDropZone(event) {
+        if (!isAiModalOpen()) return false;
+        const surface = getAiDropSurface();
+        if (!surface) return false;
+        if (event.target?.closest?.('#ai-modal .ai-modal-content, #ai-modal .ai-chat, #ai-modal .ai-input')) return true;
+        const x = event.clientX;
+        const y = event.clientY;
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+        const r = surface.getBoundingClientRect();
+        return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    }
+
+    function isAiDropEvent(event) {
+        return isPointerOverAiDropZone(event);
+    }
+
     function setupAiTreeDropZone() {
-        const dropTarget = elements.input?.closest('.ai-input') || elements.chat || elements.modal?.querySelector('.ai-modal-content');
-        if (!dropTarget || dropTarget.dataset.aiTreeDropBound === '1') return;
-        dropTarget.dataset.aiTreeDropBound = '1';
+        if (aiTreeDropZoneBound) return;
+        const modal = elements.modal;
+        const dropTarget = getAiDropSurface() || elements.input?.closest('.ai-input') || elements.chat;
+        if (!modal || !dropTarget) return;
+        aiTreeDropZoneBound = true;
 
         const clear = () => dropTarget.classList.remove('ai-tree-drop-active');
-        const isAiDrop = (event) => !!event.target?.closest?.('#ai-modal:not(.hidden)');
+        const canAcceptDrag = (event) => hasTreeFileDragEvent(event) || hasExternalFileDragEvent(event);
+        const allowDrop = (event) => {
+            if (!canAcceptDrag(event)) return false;
+            event.preventDefault();
+            event.stopPropagation();
+            if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+            dropTarget.classList.add('ai-tree-drop-active');
+            return true;
+        };
         const handleDrop = async (event) => {
-            if (!isAiDrop(event)) return false;
+            if (!isAiDropEvent(event)) return false;
             if (hasExternalFileDragEvent(event) && event.dataTransfer?.files?.length) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -3521,37 +3560,37 @@
             const type = String(node?.dataset?.type || 'file');
             const root = String(node?.dataset?.root || (typeof window.getCurrentCloudRoot === 'function' ? window.getCurrentCloudRoot() : getRootForFileContext()) || '').trim();
             aiTreeDragFallbackPaths = path && type === 'file' ? [path] : [];
-            if (event.dataTransfer && path && type === 'file' && root) {
-                event.dataTransfer.setData('application/x-cloud-source-root', root);
+            if (path && type === 'file' && typeof window.setTreeDragPayload === 'function') {
+                window.setTreeDragPayload(event, path, type, root || undefined);
+            } else if (event.dataTransfer && path && type === 'file') {
+                event.dataTransfer.setData('application/x-cloud-file-path', path);
+                event.dataTransfer.setData('application/x-cloud-file-paths', JSON.stringify([path]));
+                event.dataTransfer.setData('application/x-cloud-file-type', type);
+                event.dataTransfer.setData('text/plain', path);
+                if (root) event.dataTransfer.setData('application/x-cloud-source-root', root);
             }
         }, true);
-        document.addEventListener('dragend', () => { aiTreeDragFallbackPaths = []; }, true);
+        document.addEventListener('dragend', () => { aiTreeDragFallbackPaths = []; clear(); }, true);
         document.addEventListener('dragover', (event) => {
-            if (!isAiDrop(event) || (!hasTreeFileDragEvent(event) && !hasExternalFileDragEvent(event))) return;
-            event.preventDefault();
-            event.stopPropagation();
-            event.dataTransfer.dropEffect = 'copy';
-            dropTarget.classList.add('ai-tree-drop-active');
+            if (!isPointerOverAiDropZone(event) || !canAcceptDrag(event)) return;
+            allowDrop(event);
         }, true);
         document.addEventListener('drop', (event) => { void handleDrop(event); }, true);
-        dropTarget.addEventListener('dragenter', (event) => {
-            if (!hasTreeFileDragEvent(event) && !hasExternalFileDragEvent(event)) return;
-            event.preventDefault();
-            dropTarget.classList.add('ai-tree-drop-active');
-        });
-        dropTarget.addEventListener('dragover', (event) => {
-            if (!hasTreeFileDragEvent(event) && !hasExternalFileDragEvent(event)) return;
-            event.preventDefault();
-            event.dataTransfer.dropEffect = 'copy';
-            dropTarget.classList.add('ai-tree-drop-active');
-        });
-        dropTarget.addEventListener('dragleave', (event) => {
-            if (dropTarget.contains(event.relatedTarget)) return;
-            clear();
-        });
-        dropTarget.addEventListener('drop', (event) => {
-            void handleDrop(event);
-        }, true);
+        const bindDropSurface = (el) => {
+            if (!el || el.dataset.aiTreeDropSurfaceBound === '1') return;
+            el.dataset.aiTreeDropSurfaceBound = '1';
+            el.addEventListener('dragenter', (event) => { allowDrop(event); });
+            el.addEventListener('dragover', (event) => { allowDrop(event); });
+            el.addEventListener('dragleave', (event) => {
+                if (el.contains(event.relatedTarget)) return;
+                if (isPointerOverAiDropZone(event)) return;
+                clear();
+            });
+            el.addEventListener('drop', (event) => { void handleDrop(event); });
+        };
+        bindDropSurface(dropTarget);
+        bindDropSurface(elements.input);
+        bindDropSurface(elements.chat);
     }
 
     function renderMentionedAttachments() {
@@ -6241,6 +6280,7 @@
         }, 100);
         
         initDotField(elements.chat);
+        setupAiTreeDropZone();
 
         if (elements.chat && !elements.chat.querySelector('.message')) {
             resetChatPagination();
@@ -8243,6 +8283,21 @@
         if (!res.ok || !data.ok) throw new Error(data.error || 'Compile check failed');
         return data;
     }
+    async function openFileForAgent(pathArg) {
+        const path = String(pathArg || '').trim();
+        if (!path) return { success: false, error: 'No file path' };
+        const norm = normalizeTreePath(path);
+        const root = getRootForAgentPath(norm);
+        const opener = typeof window.openFileFromTree === 'function' ? window.openFileFromTree : typeof openFileInTab === 'function' ? openFileInTab : null;
+        if (!opener) return { success: false, error: 'File viewer is not available' };
+        try {
+            await opener(norm, root || null);
+        } catch (e) {
+            logAiError('openFileForAgent', e);
+            return { success: false, error: String(e?.message || e) };
+        }
+        return { success: true, path: norm, message: `Opened ${norm}` };
+    }
     async function exportMarkdownPdfForAgent(pathArg) {
         const activeTab = window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId);
         let path = String(pathArg || activeTab?.path || aiState.currentFileName || '').trim();
@@ -8429,6 +8484,7 @@
             },
             hooks: {
                 getOpenFile: async () => loadCurrentFileContent(),
+                openFileForUser: openFileForAgent,
                 resolveSearchPaths: resolveAgentSearchPaths
             }
         });
@@ -8555,6 +8611,7 @@
             hooks: {
                 getOpenFile: async () => loadCurrentFileContent(),
                 getStagedContent: getStagedAgentContent,
+                openFileForUser: openFileForAgent,
                 resolveSearchPaths: resolveAgentSearchPaths,
                 onFileStaged: (path, before, after, meta) => stageAgentFileChange(path, before, after, meta),
                 saveOpenDocument: async () => {
@@ -8593,7 +8650,19 @@
             if (!message || aiState.isGenerating) return;
             clearEditorHighlights();
             
-            await ensureDirectApiKeyLoaded();
+            try {
+                await ensureDirectApiKeyLoaded();
+            } catch (e) {
+                aiState.isGenerating = false;
+                setInputState(false);
+                setSendButtonGenerating(false);
+                const msg = String(e?.message || '').includes('authenticated')
+                    ? tr('aiNotAuthenticated', 'You are not authenticated. Please reload the page and log in.')
+                    : tr('aiConfigError', 'Failed to load AI configuration: {error}', { error: String(e?.message || e) });
+                flashStatus(msg);
+                logAiError('sendAIMessage ensureDirectApiKeyLoaded', e);
+                return;
+            }
             await ensureAiChatSessionForRequest();
 
         aiState.abortController = new AbortController();
@@ -9819,6 +9888,7 @@
         calculateData: calculateData,
         regenerate: regenerateResponse,
         attachFile: attachExternalFile,
+        attachMentionFromTree: (path, root) => addMentionedFileAttachment(path, null, root),
         refreshI18n: refreshAttachI18n,
         highlightNewFiles: highlightNewFilesInTree
     };

@@ -795,4 +795,14 @@
             else { document.querySelector('.preview-header').style.display = 'flex'; mobilePreviewActions.style.display = 'none'; }
         });
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && isFullscreen) toggleFullscreen(); });
+        previewContent.addEventListener('click', function(e) {
+            const link = e.target.closest('a[href]');
+            if (!link) return;
+            const href = link.getAttribute('href');
+            if (!href || href.startsWith('#')) return;
+            if (e.defaultPrevented || e.button !== 0) return;
+            if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+            e.preventDefault();
+            window.open(href, '_blank', 'noopener,noreferrer');
+        });
     

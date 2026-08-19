@@ -352,6 +352,12 @@ function getCurrentUserFromMainAPI() {
 }
 
 function getCurrentUserEmailFromMainAPI() {
+    // Primary: session data populated by the main auth flow (Redis-backed sessions)
+    $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
+    if (is_string($sessionEmail) && $sessionEmail !== '') {
+        return strtolower(trim($sessionEmail));
+    }
+
     // Read from SQLite database (current session storage)
     require_once __DIR__ . '/../../lib/app_db.php';
     

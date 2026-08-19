@@ -350,12 +350,12 @@
                                     <p id="zl-meta"></p>
                                     <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="zl-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
-                                <section class="va-segment takeout-guide-segment" id="zeep-guide-segment" data-step-section="1">
+                                <section class="va-segment takeout-guide-segment is-collapsed" id="zeep-guide-segment" data-step-section="1">
                                     <div class="takeout-guide-head">
                                         <span><i class="fas fa-map-signs"></i> <?php echo htmlspecialchars($translations['zeep_guide_title'] ?? 'How to export Zeep Life data'); ?></span>
                                         <div class="takeout-guide-actions">
                                             <button type="button" class="takeout-guide-expand" id="zeep-guide-expand" aria-label="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>" title="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>"><i class="fas fa-expand"></i></button>
-                                            <button type="button" class="takeout-guide-toggle" id="zeep-guide-toggle" aria-expanded="true" title="<?php echo htmlspecialchars($translations['hide'] ?? 'Hide'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                            <button type="button" class="takeout-guide-toggle" id="zeep-guide-toggle" aria-expanded="false" title="<?php echo htmlspecialchars($translations['show'] ?? 'Show'); ?>"><i class="fas fa-chevron-down"></i></button>
                                         </div>
                                     </div>
                                     <div class="takeout-guide-body">
@@ -425,12 +425,12 @@
                                     <p id="ft-meta"></p>
                                     <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
-                                <section class="va-segment takeout-guide-segment" id="takeout-guide-segment">
+                                <section class="va-segment takeout-guide-segment is-collapsed" id="takeout-guide-segment">
                                     <div class="takeout-guide-head">
                                         <span><i class="fas fa-map-signs"></i> <?php echo htmlspecialchars($translations['takeout_guide_title'] ?? 'How to create a Google Takeout archive'); ?></span>
                                         <div class="takeout-guide-actions">
                                             <button type="button" class="takeout-guide-expand" id="takeout-guide-expand" aria-label="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>" title="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>"><i class="fas fa-expand"></i></button>
-                                            <button type="button" class="takeout-guide-toggle" id="takeout-guide-toggle" aria-expanded="true" title="<?php echo htmlspecialchars($translations['hide'] ?? 'Hide'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                            <button type="button" class="takeout-guide-toggle" id="takeout-guide-toggle" aria-expanded="false" title="<?php echo htmlspecialchars($translations['show'] ?? 'Show'); ?>"><i class="fas fa-chevron-down"></i></button>
                                         </div>
                                     </div>
                                     <div class="takeout-guide-body">
