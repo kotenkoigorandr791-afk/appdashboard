@@ -12,7 +12,8 @@ for ($__n = 0; $__n < 16; $__n++) {
     }
     $__d = $__p;
 }
-session_start();
+require_once __DIR__ . '/../../lib/app_session.php';
+app_session_start();
 require_once __DIR__ . '/core/db.php';
 require_once __DIR__ . '/core/schema.php';
 require_once __DIR__ . '/core/image.php';

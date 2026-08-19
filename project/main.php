@@ -2925,6 +2925,7 @@ var T=<?php echo json_encode([
         function updateScrollbarStyles(theme){/* handled by CSS variables updated in updateCSSVariables */}        function applyAutoTheme(){const themeSelect=document.querySelector('select[name="theme"]');if(themeSelect&&themeSelect.value==='auto'){const prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;const systemTheme=prefersDark?'dark':'light';updateCSSVariables(systemTheme);updateScrollbarStyles(systemTheme);}}
         function updateAppIframeTheme(theme){const iframe=document.getElementById('app-iframe');if(iframe){const src=iframe.src;const newSrc=src.replace(/theme=[^&]*/,'theme='+theme);if(newSrc!==src){iframe.src=newSrc;}}}
         document.querySelectorAll('.password-toggle').forEach(button=>{button.addEventListener('click',function(){const targetId=this.getAttribute('data-target');const input=document.getElementById(targetId);const icon=this.querySelector('svg');if(input){if(input.type==='password'){input.type='text';icon.innerHTML='<path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>';}else{input.type='password';icon.innerHTML='<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>';}}});});
+        document.addEventListener('keydown',function(e){if(e.key==='ArrowDown'||e.key==='ArrowUp'){var ae=document.activeElement;if(!ae||ae.tagName!=='INPUT')return;var form=ae.closest('form');if(!form)return;var inputs=Array.from(form.querySelectorAll('input.auth-input[type="email"],input.auth-input[type="password"],input.auth-input[type="text"]:not([type="hidden"])'));var idx=inputs.indexOf(ae);if(idx===-1)return;var next=e.key==='ArrowDown'?idx+1:idx-1;if(next>=0&&next<inputs.length){e.preventDefault();inputs[next].focus();}}});
         const refreshSessionsButton=document.getElementById('refresh-sessions');
         if(refreshSessionsButton){refreshSessionsButton.addEventListener('click',function(){refreshSessionsList();});}
         // ── Trusted Devices JS ──
@@ -4781,27 +4782,6 @@ var T=<?php echo json_encode([
     text-overflow: ellipsis;
     min-width: 0;
 }
-.ap-gitea-icon {
-    display: inline-block;
-    width: 16px;
-    height: 16px;
-    flex: 0 0 auto;
-    background-color: currentColor;
-    -webkit-mask-image: url('/apps/gitea/icon.svg');
-    mask-image: url('/apps/gitea/icon.svg');
-    -webkit-mask-repeat: no-repeat;
-    mask-repeat: no-repeat;
-    -webkit-mask-position: center;
-    mask-position: center;
-    -webkit-mask-size: contain;
-    mask-size: contain;
-}
-.ap-card-title .ap-gitea-icon {
-    width: 20px;
-    height: 20px;
-    margin-right: 6px;
-    vertical-align: middle;
-}
 .ap-settings-tab:last-child { border-right: 0; }
 .ap-settings-tab:hover {
     background: color-mix(in srgb, var(--primary-color) 9%, transparent);
@@ -5646,13 +5626,6 @@ var T=<?php echo json_encode([
     'docker_saved'  =>$translations['docker_saved']??'Docker settings saved',
     'onlyoffice_saved'=>$translations['onlyoffice_saved']??'OnlyOffice token saved',
     'ai_config_saved'=>$translations['ai_config_saved']??'AI configuration saved',
-    'github_pull_settings'=>$translations['github_pull_settings']??'Pull через GitHub',
-    'github_update'=>$translations['github_update']??'Обновить',
-    'github_refresh'=>$translations['github_refresh']??'Refresh',
-    'github_pull_ok'=>$translations['github_pull_ok']??'Updated successfully',
-    'github_pull_up_to_date'=>$translations['github_pull_up_to_date']??'Already up to date',
-    'github_no_changes'=>$translations['github_no_changes']??'No pending changes',
-    'github_pull_confirm'=>$translations['github_pull_confirm']??'Pull changes from main and restart the container?',
     'apiKeysMatch'=>$translations['apiKeysMatch']??'API keys match',
     'apiKeysDoNotMatch'=>$translations['apiKeysDoNotMatch']??'API keys do not match',
     'apiKeysRequired'=>$translations['apiKeysRequired']??'Both API key fields are required when changing the key',
@@ -6848,7 +6821,6 @@ function wireEvents(){
             cards.forEach(function(card){
                 card.classList.toggle('active', card.dataset.settingsCard === name);
             });
-            if(name==='github'&&typeof window.apGithubLoadStatus==='function'){window.apGithubLoadStatus();}
         }
         tabs.forEach(function(tab){
             tab.addEventListener('click', function(){
@@ -7091,52 +7063,6 @@ function wireEvents(){
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
     });
-    (function(){
-        var ghSt=dynRoot.querySelector('#ap-github-pull-status'),ghRefresh=dynRoot.querySelector('#ap-github-refresh'),ghPull=dynRoot.querySelector('#ap-github-pull'),ghChanges=dynRoot.querySelector('#ap-github-changes'),ghLocal=dynRoot.querySelector('#ap-github-local-head'),ghRemote=dynRoot.querySelector('#ap-github-remote-head');
-        function renderGithubStatus(d){
-            if(!d||!d.success){setStatus(ghSt,'x '+(d&&d.error?d.error:T.error),'error');if(ghChanges&&d&&d.output)ghChanges.textContent=d.output;return;}
-            if(ghLocal)ghLocal.textContent=(d.branch||'main')+' @ '+(d.local_head||'—');
-            if(ghRemote)ghRemote.textContent='origin/main @ '+(d.remote_head||'—');
-            if(ghChanges){
-                if(d.up_to_date){ghChanges.textContent=T.github_no_changes||'No pending changes';}
-                else{
-                    var txt='';
-                    if(d.commits)txt+=d.commits+'\n\n';
-                    if(d.stat)txt+=d.stat;
-                    ghChanges.textContent=txt.trim()||('+'+(d.behind||0)+' commit(s)');
-                }
-            }
-            if(ghPull)ghPull.disabled=!!d.up_to_date;
-            setStatus(ghSt,d.up_to_date?(T.github_pull_up_to_date||'Up to date'):((d.behind||0)+' commit(s) available'),d.up_to_date?'success':'info');
-        }
-        window.apGithubLoadStatus=function(){
-            if(!ghChanges)return;
-            setStatus(ghSt,T.fm_loading||'Loading…','info');
-            var fd=new FormData();fd.append('git_pull_status','1');fd.append('ajax','1');
-            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(renderGithubStatus).catch(function(){setStatus(ghSt,'x '+T.error,'error');});
-        };
-        if(ghRefresh)ghRefresh.addEventListener('click',window.apGithubLoadStatus);
-        if(ghPull)ghPull.addEventListener('click',function(){
-            var msg=T.github_pull_confirm||'Pull changes from main and restart the container?';
-            if(typeof fmConfirm==='function'){fmConfirm(msg,function(){doGithubPull();});return;}
-            if(!confirm(msg))return;
-            doGithubPull();
-        });
-        function doGithubPull(){
-            setStatus(ghSt,T.saving,'info');if(ghPull)ghPull.disabled=true;if(ghRefresh)ghRefresh.disabled=true;
-            var fd=new FormData();fd.append('git_pull_update','1');fd.append('ajax','1');
-            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-                if(d.success){
-                    setStatus(ghSt,'+ '+(d.message||T.github_pull_ok||'Updated'),'success');
-                    if(typeof showTempNotification!=='undefined')showTempNotification(d.message||T.github_pull_ok||'Updated','success');
-                    if(d.restarted){setTimeout(function(){location.reload();},2500);}
-                    else if(typeof window.apGithubLoadStatus==='function')window.apGithubLoadStatus();
-                }else{
-                    setStatus(ghSt,'x '+(d.error||T.error),'error');
-                }
-            }).catch(function(){setStatus(ghSt,'x '+T.error,'error');}).finally(function(){if(ghRefresh)ghRefresh.disabled=false;if(ghPull)ghPull.disabled=false;});
-        }
-    })();
     if(bkSave)bkSave.addEventListener('click',function(){
         var host=(bkHost?bkHost.value:'').trim()||'http://127.0.0.1:8200';
         var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');

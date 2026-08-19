@@ -1,0 +1,120 @@
+- generic [active] [ref=f18e1]:
+  - generic [ref=f18e2]:
+    - generic [ref=f18e3]: Server Monitor
+    - generic:
+      - button "Graphs" [ref=f18e4] [cursor=pointer]
+      - button "Monitoring Charts" [ref=f18e7] [cursor=pointer]
+      - button "Uptime Monitoring" [ref=f18e11] [cursor=pointer]
+      - button "Disk" [pressed] [ref=f18e15] [cursor=pointer]
+      - button "Nginx Modules" [ref=f18e20] [cursor=pointer]
+      - button "PHP Extensions" [ref=f18e24] [cursor=pointer]:
+        - img [ref=f18e25]:
+          - generic [ref=f18e27]: PHP
+        - text: PHP Extensions
+    - generic [ref=f18e28]:
+      - button "PHP Info" [ref=f18e29] [cursor=pointer]
+      - generic "Auto Zoom" [ref=f18e32] [cursor=pointer]
+      - button "Refresh" [ref=f18e39] [cursor=pointer]
+  - generic [ref=f18e43]: Loading from cache...
+  - generic [ref=f18e44]:
+    - generic:
+      - generic:
+        - generic:
+          - heading "Connected Drives" [level=2]
+          - generic [ref=f18e45]:
+            - generic [ref=f18e46]:
+              - heading "/dev/vda" [level=3] [ref=f18e47]
+              - generic [ref=f18e48]: Block Device
+            - generic [ref=f18e49]:
+              - generic [ref=f18e50]:
+                - generic [ref=f18e51]: Filesystem
+                - generic [ref=f18e52]: —
+              - generic [ref=f18e53]:
+                - generic [ref=f18e54]: Source
+                - generic [ref=f18e55]: /dev/vda1
+              - generic [ref=f18e56]:
+                - generic [ref=f18e57]: Total Space
+                - generic [ref=f18e58]: 425.3 GB
+              - generic [ref=f18e59]:
+                - generic [ref=f18e60]: Free Space
+                - generic [ref=f18e61]: 349.8 GB
+            - paragraph [ref=f18e64]: "Used: 17.8%"
+        - generic:
+          - generic:
+            - heading "Disk Health Diagnostics" [level=2] [ref=f18e65]
+            - button "Delete by time period" [ref=f18e66] [cursor=pointer]
+          - generic [ref=f18e70]:
+            - generic [ref=f18e71]:
+              - generic [ref=f18e72]:
+                - heading "Samsung SSD 860 EVO 500GB" [level=3] [ref=f18e73]
+                - generic [ref=f18e74]: /dev/sda
+                - generic [ref=f18e75]: "Serial: S3YANB0K847374P • Firmware: RVT04B6Q"
+              - generic [ref=f18e76]:
+                - generic [ref=f18e77]: Attention
+                - button "Delete device data" [ref=f18e78] [cursor=pointer]
+            - generic [ref=f18e82]: "Updated: 8/8/2026, 12:38:30 PM"
+            - generic [ref=f18e83]:
+              - generic [ref=f18e84]:
+                - generic [ref=f18e85]: Health
+                - generic [ref=f18e86]: PASSED
+              - generic [ref=f18e87]:
+                - generic [ref=f18e88]: Wear Used
+                - generic [ref=f18e89]: 6%
+              - generic [ref=f18e90]:
+                - generic [ref=f18e91]: Life Left
+                - generic [ref=f18e92]: 94%
+              - generic [ref=f18e93]:
+                - generic [ref=f18e94]: Temperature
+                - generic [ref=f18e95]: 35°C
+              - generic [ref=f18e96]:
+                - generic [ref=f18e97]: Power-On Hours
+                - generic [ref=f18e98]: 532 d 8 h
+              - generic [ref=f18e99]:
+                - generic [ref=f18e100]: Power Cycles
+                - generic [ref=f18e101]: "6204"
+              - generic [ref=f18e102]:
+                - generic [ref=f18e103]: Data Written
+                - generic [ref=f18e104]: 31.6 TB
+              - generic [ref=f18e105]:
+                - generic [ref=f18e106]: CRC Errors
+                - generic [ref=f18e107]: "32"
+              - generic [ref=f18e108]:
+                - generic [ref=f18e109]: Error Log Entries
+                - generic [ref=f18e110]: "0"
+              - generic [ref=f18e111]:
+                - generic [ref=f18e112]: Reallocated Sectors
+                - generic [ref=f18e113]: "0"
+              - generic [ref=f18e114]:
+                - generic [ref=f18e115]: Used Reserved Blocks
+                - generic [ref=f18e116]: "0"
+              - generic [ref=f18e117]:
+                - generic [ref=f18e118]: Uncorrectable Errors
+                - generic [ref=f18e119]: "0"
+            - generic [ref=f18e120]: CRC errors usually point to SATA link or cable issues, not flash wear. (32)
+            - generic [ref=f18e122]:
+              - heading "Recent Self-Tests" [level=4] [ref=f18e123]
+              - generic [ref=f18e124]:
+                - generic [ref=f18e125]:
+                  - generic [ref=f18e126]: Offline
+                  - generic [ref=f18e127]: Completed without error
+                - generic [ref=f18e128]: 466 d 16 h
+              - generic [ref=f18e129]:
+                - generic [ref=f18e130]:
+                  - generic [ref=f18e131]: Extended offline
+                  - generic [ref=f18e132]: Aborted by host
+                - generic [ref=f18e133]: 466 d 16 h • 70% remaining
+              - generic [ref=f18e134]:
+                - generic [ref=f18e135]:
+                  - generic [ref=f18e136]: Short offline
+                  - generic [ref=f18e137]: Completed without error
+                - generic [ref=f18e138]: 466 d 14 h
+              - generic [ref=f18e139]:
+                - generic [ref=f18e140]:
+                  - generic [ref=f18e141]: Short offline
+                  - generic [ref=f18e142]: Completed without error
+                - generic [ref=f18e143]: 466 d 12 h
+              - generic [ref=f18e144]:
+                - generic [ref=f18e145]:
+                  - generic [ref=f18e146]: Short offline
+                  - generic [ref=f18e147]: Completed without error
+                - generic [ref=f18e148]: 206 d 19 h

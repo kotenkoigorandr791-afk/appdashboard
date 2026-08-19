@@ -1,28 +1,57 @@
 <?php
+require_once dirname(__DIR__, 3) . '/lib/redis.php';
+function spendsSessionIds(): array {
+    $ids = [];
+    foreach ([session_id(), $_COOKIE['PHPSESSID'] ?? null] as $sid) {
+        if (!is_string($sid) || $sid === '' || isset($ids[$sid])) continue;
+        $ids[$sid] = $sid;
+    }
+    return array_values($ids);
+}
+function spendsActiveSessionRowById(string $sid): ?array {
+    if ($sid === '') return null;
+    if ($redis = app_redis()) {
+        $raw = $redis->get(app_redis_key('active_session:' . $sid));
+        if ($raw) {
+            $row = json_decode((string)$raw, true);
+            if (is_array($row)) return $row;
+        }
+    }
+    $db = getDB();
+    if (!$db) return null;
+    try {
+        $st = $db->prepare('SELECT * FROM active_sessions WHERE session_id = :s LIMIT 1');
+        $st->bindValue(':s', $sid, PDO::PARAM_STR);
+        $row = $st->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            if (isset($row['user_data']) && is_string($row['user_data'])) {
+                $decoded = json_decode($row['user_data'], true);
+                $row['user_data'] = is_array($decoded) ? $decoded : [];
+            }
+            return $row;
+        }
+    } catch (Exception $e) {}
+    return null;
+}
+function spendsActiveSessionRow(): ?array {
+    foreach (spendsSessionIds() as $sid) {
+        $row = spendsActiveSessionRowById($sid);
+        if ($row) return $row;
+    }
+    return null;
+}
 function getCurrentUserFromActiveSessions() {
     $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
     if (is_string($sessionEmail) && $sessionEmail !== '') return $sessionEmail;
-    $db = getDB();
-    if (!$db) return null;
-    $session_id = session_id();
-    foreach ([$session_id, $_COOKIE['PHPSESSID'] ?? null] as $sid) {
-        if (!$sid) continue;
-        try {
-            $st = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :s');
-            $st->bindValue(':s', $sid, PDO::PARAM_STR);
-            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
-            if ($r && isset($r['email'])) return $r['email'];
-        } catch (Exception $e) {}
-    }
+    $row = spendsActiveSessionRow();
+    if (!empty($row['email']) && is_string($row['email'])) return $row['email'];
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
     return 'user_' . preg_replace('/[^a-zA-Z0-9]/', '_', $ip);
 }
-
 function getSafeFolderName($email) {
-    $n = str_replace(['@','.'], '_', $email);
+    $n = str_replace(['@', '.'], '_', $email);
     return preg_replace('/[^a-zA-Z0-9_\-]/', '_', $n);
 }
-
 function getUserRoleByEmail($email) {
     $db = getDB();
     if (!$db || !$email) return 0;
@@ -34,31 +63,19 @@ function getUserRoleByEmail($email) {
     } catch (Exception $e) {}
     return 0;
 }
-
 function isUserRoot() {
-    $db = getDB();
-    if (!$db) return false;
-    $session_id = session_id();
-    $sql = "SELECT u.role FROM active_sessions s JOIN users u ON s.email = u.email WHERE s.session_id = :s";
-    foreach ([$session_id, $_COOKIE['PHPSESSID'] ?? null] as $sid) {
-        if (!$sid) continue;
-        try {
-            $st = $db->prepare($sql);
-            $st->bindValue(':s', $sid, PDO::PARAM_STR);
-            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
-            if ($r && isset($r['role'])) return $r['role'] === 2;
-        } catch (Exception $e) {}
-    }
+    $row = spendsActiveSessionRow();
+    $sessionRole = $row['user_data']['role'] ?? null;
+    if ($sessionRole !== null) return (int)$sessionRole === 2;
+    $email = $row['email'] ?? getCurrentUserFromActiveSessions();
+    if (is_string($email) && $email !== '') return getUserRoleByEmail($email) === 2;
     return false;
 }
-
 define('SPENDS_RUNTIME_DIR_MODE', 02775);
 function logError($message) { error_log("[ExpenseApp] $message"); }
-
 function spends_storage_helper_path(): string {
     return dirname(__DIR__, 3) . '/storage_helper.php';
 }
-
 function spends_appdata_subdir(string $name): ?string {
     $helper = spends_storage_helper_path();
     if (!is_file($helper)) return null;
@@ -73,7 +90,6 @@ function spends_appdata_subdir(string $name): ?string {
     @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
     return is_dir($dir) ? $dir : null;
 }
-
 function spends_dir_writable(string $dir): bool {
     if ($dir === '' || !is_dir($dir)) return false;
     if (@is_writable($dir)) return true;
@@ -82,7 +98,6 @@ function spends_dir_writable(string $dir): bool {
     if ($ok) @unlink($probe);
     return $ok;
 }
-
 function spends_ensure_web_link(string $linkPath, string $targetPath): void {
     if ($targetPath === '' || !is_dir($targetPath)) return;
     if (is_link($linkPath)) {
@@ -94,7 +109,6 @@ function spends_ensure_web_link(string $linkPath, string $targetPath): void {
     if (file_exists($linkPath)) return;
     @symlink($targetPath, $linkPath);
 }
-
 function spends_runtime_dir(string $name): string {
     $legacy = __DIR__ . '/../' . $name;
     $appdata = spends_appdata_subdir($name);
@@ -113,7 +127,6 @@ function spends_runtime_dir(string $name): string {
     logError("APPDATA unavailable for spends/$name");
     return rtrim($legacy, '/') . '/';
 }
-
 function checkDirectory($dir) {
     if (!file_exists($dir)) {
         if (!@mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true) && !is_dir($dir)) {
@@ -128,7 +141,6 @@ function checkDirectory($dir) {
     }
     return true;
 }
-
 if (!defined('APPS_DATA_DIR')) {
     define('APPS_DATA_DIR', spends_runtime_dir('users'));
 }

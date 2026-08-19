@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
-
-session_start();
+require_once __DIR__ . '/../../lib/app_session.php';
+app_session_start();
 header('Content-Type: application/json; charset=utf-8');
 
 const RECIPES_IMAGE_FETCH_MAX_BYTES = 10485760;
 require_once __DIR__ . '/../../lib/app_db.php';
+require_once __DIR__ . '/../../lib/redis.php';
 function getDB(): ?AppDatabase {
     static $db = null;
     if ($db === null) {
@@ -42,29 +43,50 @@ function recipes_resolve_session_role(): int {
     if (!$db) {
         return 0;
     }
-    $sid = session_id();
-    if ($sid) {
+
+    $getEmail = static function (string $sid) use ($db): ?string {
+        $sid = trim($sid);
+        if ($sid === '') return null;
+        if (function_exists('app_redis')) {
+            try {
+                $redis = app_redis();
+                if ($redis) {
+                    $raw = $redis->get(app_redis_key('active_session:' . $sid));
+                    if ($raw) {
+                        $row = json_decode((string)$raw, true);
+                        if (is_array($row) && !empty($row['email'])) {
+                            return (string)$row['email'];
+                        }
+                    }
+                }
+            } catch (Throwable $e) {
+            }
+        }
         try {
-            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
+            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id LIMIT 1');
             $stmt->bindValue(':session_id', $sid, PDO::PARAM_STR);
             $result = $stmt->execute();
             $row = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
-                return getUserRoleByEmail($row['email']);
+                return (string)$row['email'];
             }
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
+        }
+        return null;
+    };
+
+    $sid = session_id();
+    if ($sid) {
+        $email = $getEmail((string)$sid);
+        if (!empty($email)) {
+            return getUserRoleByEmail($email);
         }
     }
     if (isset($_COOKIE['PHPSESSID'])) {
-        try {
-            $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :session_id');
-            $stmt->bindValue(':session_id', (string) $_COOKIE['PHPSESSID'], PDO::PARAM_STR);
-            $result = $stmt->execute();
-            $row = $result->fetch(PDO::FETCH_ASSOC);
-            if ($row && !empty($row['email'])) {
-                return getUserRoleByEmail($row['email']);
-            }
-        } catch (Exception $e) {
+        $cookieSid = (string)$_COOKIE['PHPSESSID'];
+        $email = $getEmail($cookieSid);
+        if (!empty($email)) {
+            return getUserRoleByEmail($email);
         }
     }
     return 0;

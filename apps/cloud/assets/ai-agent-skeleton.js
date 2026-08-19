@@ -10,14 +10,14 @@
         'generate_speech', 'get_speech_progress', 'transcribe_audio', 'get_transcription_progress'
     ]);
     const ROOT_ONLY_SERVER = new Set(['extract_document_text']);
-    const CLIENT_TOOLS = new Set(['get_open_file', 'apply_editor_patch', 'compile_open_document', 'save_open_document', 'export_markdown_pdf', 'export_latex_pdf', 'delegate_subagent', 'ask_user']);
+    const CLIENT_TOOLS = new Set(['get_open_file', 'apply_editor_patch', 'compile_open_document', 'save_open_document', 'export_markdown_pdf', 'export_latex_pdf', 'delegate_subagent', 'ask_user', 'open_file']);
     const EDIT_TOOLS = new Set(['write_file', 'create_file', 'search_replace', 'replace_by_regex', 'json_edit', 'apply_editor_patch']);
     const READ_SEARCH_TOOLS = new Set([
         'read_file', 'get_open_file', 'search_in_files', 'search_by_regex',
         'list_directory', 'stat_path', 'web_search', 'image_search', 'open_url_fetch',
         'extract_document_text', 'diff_file', 'csv_preview'
     ]);
-    const CHAT_CLIENT_TOOLS = new Set(['get_open_file']);
+    const CHAT_CLIENT_TOOLS = new Set(['get_open_file', 'open_file']);
     function isChatAllowedTool(name, ctx) {
         if (CHAT_CLIENT_TOOLS.has(name)) return true;
         if (!READ_SEARCH_TOOLS.has(name)) return false;
@@ -39,7 +39,7 @@
         return String(name || '').replace(/_/g, ' ');
     }
     const TOOL_ORDER = [
-        'read_file', 'get_open_file', 'write_file', 'create_file', 'make_directory', 'copy_file',
+        'read_file', 'get_open_file', 'open_file', 'write_file', 'create_file', 'make_directory', 'copy_file',
         'rename_file', 'move_path', 'delete_file', 'delete_directory', 'search_replace',
         'search_by_regex', 'replace_by_regex', 'apply_editor_patch', 'search_in_files',
         'web_search', 'image_search', 'open_url_fetch', 'download_file', 'diff_file', 'stat_path',
@@ -52,6 +52,7 @@
     const BASE_TOOL_DEFINITIONS = [
         { type: 'function', function: { name: 'read_file', description: 'Read part of a text file or extracted Markdown from PDF/Word/Excel/PowerPoint documents. Use offset_line and line_count for large files (do not read whole file at once).', parameters: { type: 'object', properties: { path: { type: 'string' }, offset_line: { type: 'integer', description: '1-based start line (default 1)' }, line_count: { type: 'integer', description: 'Lines to read (default 200, max 500)' }, max_chars: { type: 'integer', description: 'Max characters in response (default 32000)' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'get_open_file', description: 'Get open file path and content from the editor.', parameters: { type: 'object', properties: {} } } },
+        { type: 'function', function: { name: 'open_file', description: 'Open a file in the editor/viewer so the user can see its content. Use after editing or creating a file so the user sees the result.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'write_file', description: 'REQUIRED for new/changed file content. Stage full file content (preview in editor, saved after agent run). Use this to add sections, paragraphs, or rewrite the file.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] } } },
         { type: 'function', function: { name: 'create_file', description: 'Create a new file. Fails if the file already exists. Use for explicit file creation requests.', parameters: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string', description: 'Optional initial content' } }, required: ['path'] } } },
         { type: 'function', function: { name: 'make_directory', description: 'Create a directory, including parent directories when needed.', parameters: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } } },
@@ -255,9 +256,9 @@
     function parseXmlishToolCalls(text) {
         const out = [];
         const src = String(text || '');
-        const re = /<tool_call(?:\s+name=["']?([a-zA-Z0-9_:-]+)["']?)?\s*>([\s\S]*?)<\/tool_call>/gi;
+        const toolCallRe = /<tool_call(?:\s+name=["']?([a-zA-Z0-9_:-]+)["']?)?\s*>([\s\S]*?)<\/tool_call>/gi;
         let m;
-        while ((m = re.exec(src)) !== null) {
+        while ((m = toolCallRe.exec(src)) !== null) {
             const body = String(m[2] || '').trim();
             const firstLine = body.split(/\r?\n/, 1)[0].trim();
             const name = (m[1] || firstLine || '').replace(/[^a-zA-Z0-9_:-].*$/, '').trim();
@@ -271,10 +272,69 @@
             }
             out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name: normalizeToolName(name), args, synthetic: true });
         }
+        const invokeRe = /<tool>\s*<invoke(?:\s+name=["']?([a-zA-Z0-9_:-]+)["']?)?\s*>([\s\S]*?)<\/invoke>\s*<\/tool>/gi;
+        while ((m = invokeRe.exec(src)) !== null) {
+            const name = String(m[1] || '').trim();
+            if (!name) continue;
+            const args = {};
+            const paramRe = /<parameter(?:\s+name=["']?([^"'>]+)["']?)\s*>([\s\S]*?)<\/parameter>/gi;
+            let p;
+            while ((p = paramRe.exec(String(m[2] || ''))) !== null) {
+                const key = String(p[1] || '').trim();
+                if (key) args[key] = String(p[2] || '').trim();
+            }
+            out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name: normalizeToolName(name), args, synthetic: true });
+        }
+        const jsonToolRe = /<tool>\s*([\s\S]*?)\s*<\/tool>/gi;
+        while ((m = jsonToolRe.exec(src)) !== null) {
+            const body = String(m[1] || '').trim();
+            if (!body || /<invoke[\s>]/i.test(body)) continue;
+            let parsed = null;
+            try {
+                parsed = JSON.parse(body);
+            } catch (e) {
+                const jsonMatch = body.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    try { parsed = JSON.parse(jsonMatch[0]); } catch (e2) {}
+                }
+            }
+            if (!parsed || typeof parsed !== 'object') continue;
+            const name = parsed.name || parsed.function?.name || parsed.tool;
+            if (!name) continue;
+            const rawArgs = parsed.arguments ?? parsed.args ?? parsed.parameters ?? {};
+            const args = (rawArgs && typeof rawArgs === 'object') ? rawArgs : {};
+            out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name: normalizeToolName(String(name)), args, synthetic: true });
+        }
+        const openToolRe = /<tool>\s*([\s\S]+)$/gi;
+        while ((m = openToolRe.exec(src)) !== null) {
+            const body = String(m[1] || '').trim();
+            if (!body || /<\/tool>/i.test(body) || /<invoke[\s>]/i.test(body)) continue;
+            let parsed = null;
+            try {
+                parsed = JSON.parse(body);
+            } catch (e) {
+                const jsonMatch = body.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    try { parsed = JSON.parse(jsonMatch[0]); } catch (e2) {}
+                }
+            }
+            if (!parsed || typeof parsed !== 'object') continue;
+            const name = parsed.name || parsed.function?.name || parsed.tool;
+            if (!name) continue;
+            const rawArgs = parsed.arguments ?? parsed.args ?? parsed.parameters ?? {};
+            const args = (rawArgs && typeof rawArgs === 'object') ? rawArgs : {};
+            const sig = normalizeToolName(String(name)) + JSON.stringify(args);
+            if (out.some((tc) => normalizeToolName(tc.name) + JSON.stringify(tc.args) === sig)) continue;
+            out.push({ id: 'xml_' + out.length + '_' + Math.random().toString(36).slice(2, 10), name: normalizeToolName(String(name)), args, synthetic: true });
+        }
         return out;
     }
     function stripXmlishToolCalls(text) {
-        return String(text || '').replace(/<tool_call[\s\S]*?<\/tool_call>/gi, '').trim();
+        return String(text || '')
+            .replace(/<tool_call[\s\S]*?<\/tool_call>/gi, '')
+            .replace(/<tool>[\s\S]*?<\/tool>/gi, '')
+            .replace(/<tool>[\s\S]*$/gi, '')
+            .trim();
     }
     function collectToolCalls(message) {
         const out = [];
@@ -285,8 +345,11 @@
                 out.push({ id: tc.id || ('tc_' + out.length), name: normalizeToolName(tc.function.name), args: parseToolArgs(tc.function.arguments) });
             });
         }
-        if (out.length === 0 && typeof message.content === 'string') {
-            out.push(...parseXmlishToolCalls(message.content));
+        if (typeof message.content === 'string') {
+            parseXmlishToolCalls(message.content).forEach((tc) => {
+                const dup = out.some((existing) => existing.name === tc.name && JSON.stringify(existing.args) === JSON.stringify(tc.args));
+                if (!dup) out.push(tc);
+            });
         }
         return out;
     }
@@ -463,6 +526,17 @@
             const file = await hooks.getOpenFile();
             if (!file?.name) return { ok: true, message: agentTr(ctx, 'aiAgentNoFileOpen', 'No file open') };
             return { ok: true, path: file.name, content: file.content ?? '' };
+        }
+        if (name === 'open_file') {
+            const path = String(args.path || '').trim();
+            if (!path) {
+                return { ok: false, error: agentTr(ctx, 'aiAgentPathRequired', 'path is required') };
+            }
+            if (typeof hooks.openFileForUser !== 'function') {
+                return { ok: false, error: agentTr(ctx, 'aiAgentOpenFileUnavailable', 'open_file is not available in this session') };
+            }
+            const result = await hooks.openFileForUser(path);
+            return { ok: true, ...result };
         }
         if (name === 'apply_editor_patch') {
             const patches = Array.isArray(args.patches) ? args.patches : [];
@@ -679,7 +753,7 @@
             const hasNativeToolCalls = !!msg.tool_calls && !xmlToolMode;
             messages.push(hasNativeToolCalls ? {
                 role: 'assistant',
-                content: msg.content || null,
+                content: stripXmlishToolCalls(msg.content) || null,
                 tool_calls: msg.tool_calls
             } : {
                 role: 'assistant',

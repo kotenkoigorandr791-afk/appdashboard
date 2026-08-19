@@ -506,6 +506,8 @@ function setTreeDragPayload(event, path, type, root = getCurrentCloudRoot()) {
     event.dataTransfer.setData('text/plain', paths.join('\n'));
 }
 
+window.setTreeDragPayload = setTreeDragPayload;
+
 function getTreeDragPayload(event) {
     const dt = event?.dataTransfer;
     if (!dt) return [];
@@ -574,11 +576,18 @@ function initTreeDragMoveHandlers() {
     document.addEventListener('dragstart', (event) => {
         const node = event.target?.closest?.('#tree .node[data-path], #tree .advanced-search-result[data-path]');
         if (!node) return;
+        const type = node.dataset.type || 'file';
+        const path = node.dataset.path || '';
+        const root = node.dataset.root || getCurrentCloudRoot();
         if (selectionState.active && !isLassoDragHandle(event.target)) {
-            event.preventDefault();
+            if (type !== 'file') {
+                event.preventDefault();
+                return;
+            }
+            setTreeDragPayload(event, path, type, root);
             return;
         }
-        setTreeDragPayload(event, node.dataset.path || '', node.dataset.type || '', node.dataset.root || getCurrentCloudRoot());
+        setTreeDragPayload(event, path, type, root);
     });
 
     document.addEventListener('dragover', (event) => {
