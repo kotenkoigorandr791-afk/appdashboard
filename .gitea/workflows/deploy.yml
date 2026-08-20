@@ -26,7 +26,6 @@ jobs:
             exit 1
           fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
-          git archive --format=tar HEAD | docker exec -i appdashboard tar -C /var/www/AppDashboard -xf -
           docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
