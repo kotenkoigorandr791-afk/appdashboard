@@ -89,6 +89,121 @@ export function apiDelete(path: string, body?: unknown, query?: Record<string, s
   return apiCall("DELETE", path, body, query);
 }
 
+type FormValue = string | number | boolean | undefined | null | string[];
+
+function appendFormFields(params: URLSearchParams, fields: Record<string, FormValue>) {
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) params.append(k, String(item));
+      continue;
+    }
+    params.set(k, String(v));
+  }
+}
+
+async function apiFormCall(
+  path: string,
+  fields: Record<string, FormValue>,
+  query?: Record<string, string | number | boolean | undefined | null>,
+  retried = false,
+): Promise<any> {
+  const token = getToken();
+  const deviceId = ensureDeviceId();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    "X-Device-Id": deviceId,
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const body = new URLSearchParams();
+  appendFormFields(body, fields);
+  const res = await fetch(buildUrl(path, query), { method: "POST", headers, body });
+  const data = await parseBody(res);
+  if (res.status === 401 && !retried && token) {
+    try {
+      await refreshToken();
+      return apiFormCall(path, fields, query, true);
+    } catch {
+      clearToken();
+      throw new ApiError(data?.error || "unauthorized", 401, data);
+    }
+  }
+  if (res.status === 401) {
+    clearToken();
+    throw new ApiError(data?.error || "unauthorized", 401, data);
+  }
+  if (!res.ok) {
+    throw new ApiError(data?.error || `http_${res.status}`, res.status, data);
+  }
+  return data;
+}
+
+export function apiFormPost(
+  path: string,
+  fields: Record<string, FormValue>,
+  query?: Record<string, string | number | boolean | undefined | null>,
+) {
+  return apiFormCall(path, fields, query);
+}
+
+export type UploadFile = { field: string; filePath: string };
+
+async function apiUploadCall(
+  path: string,
+  fields: Record<string, FormValue>,
+  files: UploadFile[],
+  query?: Record<string, string | number | boolean | undefined | null>,
+  retried = false,
+): Promise<any> {
+  const { readFileSync } = await import("node:fs");
+  const { basename } = await import("node:path");
+  const token = getToken();
+  const deviceId = ensureDeviceId();
+  const headers: Record<string, string> = { "X-Device-Id": deviceId };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const form = new FormData();
+  for (const [k, v] of Object.entries(fields)) {
+    if (v === undefined || v === null) continue;
+    if (Array.isArray(v)) {
+      for (const item of v) form.append(k, String(item));
+      continue;
+    }
+    form.append(k, String(v));
+  }
+  for (const f of files) {
+    const content = readFileSync(f.filePath);
+    form.append(f.field, new Blob([content]), basename(f.filePath));
+  }
+  const res = await fetch(buildUrl(path, query), { method: "POST", headers, body: form });
+  const data = await parseBody(res);
+  if (res.status === 401 && !retried && token) {
+    try {
+      await refreshToken();
+      return apiUploadCall(path, fields, files, query, true);
+    } catch {
+      clearToken();
+      throw new ApiError(data?.error || "unauthorized", 401, data);
+    }
+  }
+  if (res.status === 401) {
+    clearToken();
+    throw new ApiError(data?.error || "unauthorized", 401, data);
+  }
+  if (!res.ok) {
+    throw new ApiError(data?.error || `http_${res.status}`, res.status, data);
+  }
+  return data;
+}
+
+export function apiUpload(
+  path: string,
+  fields: Record<string, FormValue>,
+  files: UploadFile[],
+  query?: Record<string, string | number | boolean | undefined | null>,
+) {
+  return apiUploadCall(path, fields, files, query);
+}
+
 export function shellAction(action: string, params: Record<string, unknown> = {}) {
   return apiPost("/public-api/shell", { action, ...params });
 }

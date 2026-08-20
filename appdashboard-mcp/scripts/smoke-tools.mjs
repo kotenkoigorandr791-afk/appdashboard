@@ -25,9 +25,12 @@ function parseText(res) {
 
 function isOk(data) {
   if (data == null) return false;
+  if (typeof data._text === "string" && /Fatal error|Parse error/i.test(data._text)) return false;
+  if (typeof data.raw === "string" && /Fatal error|Parse error/i.test(data.raw)) return false;
   if (data.error && data.error !== "insufficient_role") return false;
   if (data.ok === false) return false;
   if (data.error === "insufficient_role") return false;
+  if (data.status === "error") return false;
   return true;
 }
 
@@ -218,6 +221,44 @@ async function main() {
   // support
   await run("send_support_message", { message: "mcp smoke test" });
   await run("get_support_messages");
+
+  // spends
+  await run("get_available_years");
+  await run("get_year_data", { year: 2025 });
+  await run("get_expenses_page", { page: 1, per_page: 5 });
+  await run("get_exchange_rates", { base: "USD" });
+  await run("get_expense_meta", { date: "2025-01-15", store: "Lidl" });
+  await run("ocr_stats", { store: "__all__", year: 2025 });
+  await run("ocr_active_job");
+  await run("ocr_stores");
+  await run("spends_backup_list");
+  await run("get_spends_settings");
+  await run("get_spends_stores", { year: 2025 });
+  for (const n of [
+    "update_expense",
+    "update_income",
+    "create_spends_store",
+    "update_spends_store",
+    "delete_spends_store",
+    "add_spends_date",
+    "save_spends_settings",
+    "save_spends_table_settings",
+    "bank_csv_analyze",
+    "bank_csv_apply",
+    "ocr_start",
+    "ocr_status",
+    "ocr_resolve",
+    "ocr_finalize",
+    "ocr_create_store",
+    "spends_backup_create",
+    "spends_backup_download",
+    "spends_backup_restore",
+    "spends_backup_upload",
+    "spends_backup_delete",
+    "bulk_delete_spends",
+  ]) {
+    record(n, true, "skipped_mutating_or_needs_file");
+  }
 
   // shared files expire/delete — only if files exist
   const shares = await run("get_shared_files");

@@ -11,6 +11,7 @@ import { monitorTools } from "./monitor.js";
 import { backupTools } from "./backup.js";
 import { commandsTools } from "./commands.js";
 import { supportTools } from "./support.js";
+import { spendsTools } from "./spends.js";
 import type { ToolDef } from "./types.js";
 
 export type { ToolDef } from "./types.js";
@@ -26,6 +27,7 @@ export const ALL_TOOLS: ToolDef[] = [
   ...backupTools,
   ...commandsTools,
   ...supportTools,
+  ...spendsTools,
 ];
 
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));

@@ -4,10 +4,11 @@ require_once dirname(__DIR__, 3) . '/lib/app_session.php';
 app_session_start();
 ini_set('display_errors',0);
 error_reporting(E_ALL&~E_WARNING&~E_NOTICE);
-define('APP_ROOT',dirname(__DIR__));
-require_once APP_ROOT.'/core/db.php';
-require_once APP_ROOT.'/core/auth.php';
-require_once APP_ROOT.'/core/user_db.php';
+$spendsAppRoot = dirname(__DIR__);
+require_once $spendsAppRoot.'/core/db.php';
+require_once $spendsAppRoot.'/core/auth.php';
+require_once $spendsAppRoot.'/core/user_db.php';
+if (!function_exists('getSetting')) {
 function getSetting($db,$key,$default=''){return dbGetSetting($db,$key,$default);}
 function setSetting($db,$key,$value){dbSetSetting($db,$key,$value);}
 function userCurrency($db){return (string)dbGetSetting($db,'currency','USD');}
@@ -18,10 +19,12 @@ function storeList($db,$email){return array_map(static fn($s)=>['name'=>$s['name
 function ocrMappingsPath($email){return userDir($email).'/ocr_mappings.json';}
 function readOcrMappings($email){$path=ocrMappingsPath($email);$json=is_file($path)?json_decode((string)file_get_contents($path),true):[];return is_array($json)?$json:[];}
 function writeOcrMappings($email,$map){file_put_contents(ocrMappingsPath($email),json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));}
-define('USERS_DIR',APP_ROOT.'/users/');
-define('JOB_ROOT',APPS_DATA_DIR.'_ocr_jobs');
+}
+if (!defined('USERS_DIR')) define('USERS_DIR',$spendsAppRoot.'/users/');
+if (!defined('JOB_ROOT')) define('JOB_ROOT',APPS_DATA_DIR.'_ocr_jobs');
 if(!file_exists(JOB_ROOT)){mkdir(JOB_ROOT,SPENDS_RUNTIME_DIR_MODE,true);}
 @chmod(JOB_ROOT,SPENDS_RUNTIME_DIR_MODE);
+if (!function_exists('out')) {
 function out($p,$c=200){http_response_code($c);header('Content-Type: application/json; charset=utf-8');echo json_encode($p,JSON_UNESCAPED_UNICODE);exit;}
 function currentUser(){$email=getCurrentUserFromActiveSessions();return $email?:'default_user';}
 function normalizedUserEmail($email){return ($email===''||$email==='default_user')?'guest@local':$email;}
@@ -39,6 +42,7 @@ function jobPath($jobsDir,$jobId){return $jobsDir.'/'.basename($jobId);}
 function jobStateAndTimestamp($jobDir){$statusFile=$jobDir.'/status.json';$ts=@filemtime($jobDir)?:time();$state='';if(is_file($statusFile)){$ts=max($ts,@filemtime($statusFile)?:0);$raw=@file_get_contents($statusFile);$json=$raw?json_decode($raw,true):null;if(is_array($json)){$state=(string)($json['state']??'');$updated=strtotime((string)($json['updated_at']??''));if($updated){$ts=max($ts,$updated);}}}return [$state,$ts];}
 function markCrashedWorker($jobDir,$json){$state=(string)($json['state']??'');if(!in_array($state,['queued','processing'],true)){return $json;}$statusFile=$jobDir.'/status.json';$updated=strtotime((string)($json['updated_at']??''))?:(@filemtime($statusFile)?:time());if(time()-$updated<15){return $json;}$logFile=$jobDir.'/worker.log';if(!is_file($logFile)||@filesize($logFile)===0){return $json;}$log=(string)@file_get_contents($logFile,false,null,0,8192);if(!preg_match('/Traceback|ModuleNotFoundError|Fatal|Error|Exception/i',$log)){return $json;}$message='worker_crashed';if(preg_match('/(?:ModuleNotFoundError|RuntimeError|ImportError|Exception|Error):\s*([^\r\n]+)/',$log,$m)){$message=trim($m[0]);}$json['state']='error';$json['message']=$message;$json['updated_at']=gmdate('Y-m-d\TH:i:s\Z');file_put_contents($statusFile,json_encode($json,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));return $json;}
 function cleanupJobs($root){if(!is_dir($root)){return;}$now=time();foreach(glob($root.'/*',GLOB_ONLYDIR)?:[] as $userDir){foreach(glob($userDir.'/*',GLOB_ONLYDIR)?:[] as $jobDir){[$state,$ts]=jobStateAndTimestamp($jobDir);$age=$now-$ts;$limit=in_array($state,['done','error'],true)?21600:172800;if($age>$limit){rrmdir($jobDir);}}}}
+}
 cleanupJobs(JOB_ROOT);
 $api=$_GET['api']??'';
 $user=normalizedUserEmail(currentUser());

@@ -1,5 +1,16 @@
 <?php
 // ─── AJAX / POST handlers ──────────────────────────────────────────────────────
+if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
+    exit(json_encode([
+        'status' => 'success',
+        'monthly_budget' => $userSettings['monthly_budget'] ?? 100,
+        'currency' => $userSettings['currency'] ?? 'USD',
+        'show_incomes' => (bool)($userSettings['show_incomes'] ?? true),
+        'show_trend' => (bool)($userSettings['show_trend'] ?? false),
+        'trim_empty_months' => (bool)($userSettings['trim_empty_months'] ?? false),
+        'stores' => $userSettings['stores'] ?? [],
+    ]));
+}
 if (isset($_GET['get_expense_meta'])) {
     $date = trim($_GET['date'] ?? '');
     $store = trim($_GET['store'] ?? '');
@@ -518,7 +529,18 @@ if (isset($_POST['backup_action'])) {
     $userBackupDir = getUserBackupDir($currentUser);
     $allStores     = dbGetStores($udb);
 
-    if ($action === 'organize') {
+    if ($action === 'list') {
+        $backups = [];
+        foreach (glob("$userBackupDir/*.csv") ?: [] as $path) {
+            $backups[] = [
+                'name' => basename($path),
+                'size' => (int)filesize($path),
+                'mtime' => (int)filemtime($path),
+            ];
+        }
+        exit(json_encode(['status' => 'success', 'backups' => $backups]));
+    }
+    elseif ($action === 'organize') {
         $csv = exportExpensesToCSV($udb, $allStores);
         $_SESSION['organized_data'] = $csv;
         exit(json_encode(['status'=>'success','message'=>'Data organized successfully']));
