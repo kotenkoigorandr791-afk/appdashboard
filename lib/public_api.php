@@ -20,7 +20,7 @@ function public_api_is_https(): bool {
     return str_contains((string)($_SERVER['HTTP_CF_VISITOR'] ?? ''), '"scheme":"https"');
 }
 function public_api_cors(): void {
-    header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Device-Id, X-Request-Id');
     header('Access-Control-Max-Age: 600');
     $origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
@@ -120,6 +120,37 @@ function public_api_check_app(string $app): void {
 }
 function public_api_parse_path(): array {
     $uri = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
-    $path = preg_replace('#^/public-api/v1/?#', '', $uri) ?? '';
+    $path = preg_replace('#^/public-api(?:/v1)?/?#', '', $uri) ?? '';
     return array_values(array_filter(explode('/', trim($path, '/')), static fn($p) => $p !== ''));
+}
+function public_api_role(): int {
+    $email = (string)($_SESSION['user']['email'] ?? '');
+    if ($email === 'root@root') return 2;
+    return (int)($_SESSION['user']['role'] ?? 0);
+}
+function public_api_require_role(int $minRole): void {
+    $role = public_api_role();
+    if ($role < $minRole) {
+        $names = [0 => 'Guest', 1 => 'Manager', 2 => 'Admin'];
+        public_api_json([
+            'ok' => false,
+            'error' => 'insufficient_role',
+            'required' => $minRole,
+            'current' => $role,
+            'message' => 'This endpoint requires ' . ($names[$minRole] ?? (string)$minRole) . ' role. Your role: ' . ($names[$role] ?? (string)$role) . '.',
+        ], 403);
+    }
+}
+function public_api_host_base(): string {
+    $forwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    $cfVisitor = (string)($_SERVER['HTTP_CF_VISITOR'] ?? '');
+    $scheme = 'http';
+    if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || $forwardedProto === 'https'
+        || str_contains($cfVisitor, '"scheme":"https"')
+        || public_api_is_https()) {
+        $scheme = 'https';
+    }
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+    return $scheme . '://' . $host;
 }

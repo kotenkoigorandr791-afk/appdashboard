@@ -31,6 +31,11 @@ if (in_array($path, ['/.well-known/openid-configuration', '/.well-known/jwks.jso
     exit;
 }
 
+if ($path === '/mcp' || $path === '/mcp/' || str_starts_with($path, '/mcp/')) {
+    require __DIR__ . '/mcp_download.php';
+    exit;
+}
+
 if ($path === '/client-auth') {
     $requestId = trim((string)($_GET['request_id'] ?? ''));
     $browserToken = trim((string)($_GET['browser_token'] ?? ''));
