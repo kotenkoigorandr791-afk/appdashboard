@@ -38,10 +38,12 @@ if (!isset($_SESSION['user']['email'])) {
     http_response_code(403);
     die(json_encode(['success' => false, 'error' => 'Not authenticated']));
 }
-$sessRow = getUserFromActiveSessions(session_id());
-if (!$sessRow || ($sessRow['email'] ?? '') !== $_SESSION['user']['email']) {
-    http_response_code(403);
-    die(json_encode(['success' => false, 'error' => 'Invalid session']));
+if (!defined('PUBLIC_API')) {
+    $sessRow = getUserFromActiveSessions(session_id());
+    if (!$sessRow || ($sessRow['email'] ?? '') !== $_SESSION['user']['email']) {
+        http_response_code(403);
+        die(json_encode(['success' => false, 'error' => 'Invalid session']));
+    }
 }
 }
 

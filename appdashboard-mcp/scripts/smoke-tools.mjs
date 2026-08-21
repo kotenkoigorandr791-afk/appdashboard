@@ -260,6 +260,76 @@ async function main() {
     record(n, true, "skipped_mutating_or_needs_file");
   }
 
+  // cloud
+  await run("cloud_get_state");
+  await run("cloud_get_storage_usage");
+  await run("cloud_list", { root: "main", path: "" });
+  await run("cloud_groups_list");
+  const cloudListed = await run("cloud_list", { root: "main" });
+  const sampleFile = Array.isArray(cloudListed?.items)
+    ? cloudListed.items.find((i) => i?.type === "file" || i?.type === "f")
+    : null;
+  if (sampleFile?.path || sampleFile?.name) {
+    const p = sampleFile.path || sampleFile.name;
+    await run("cloud_open", { root: "main", path: p });
+    await run("cloud_get_properties", { root: "main", path: p });
+    await run("cloud_download", { root: "main", path: p });
+  } else {
+    record("cloud_open", true, "skipped_no_file");
+    record("cloud_get_properties", true, "skipped_no_file");
+    record("cloud_download", true, "skipped_no_file");
+  }
+  await run("cloud_format_code", { code: "<?php echo 1;", language: "php" });
+  await run("cloud_de_format_code", { code: "<?php echo 1;", language: "php" });
+  await run("cloud_remove_comments", { code: "<?php //x\necho 1;", language: "php" });
+  await run("cloud_compile_and_run", { language: "py", code: "print('ok')" });
+  for (const n of [
+    "cloud_mkdir",
+    "cloud_rename",
+    "cloud_delete",
+    "cloud_move",
+    "cloud_copy",
+    "cloud_create_file",
+    "cloud_save_file",
+    "cloud_upload",
+    "cloud_move_to_trash",
+    "cloud_restore_from_trash",
+    "cloud_empty_trash",
+    "cloud_share_file",
+    "cloud_get_folder_properties",
+    "cloud_create_archive",
+    "cloud_extract_archive",
+    "cloud_archive_job_status",
+    "cloud_convert_file",
+    "cloud_view_word",
+    "cloud_view_excel",
+    "cloud_view_presentation",
+    "cloud_extract_text",
+    "cloud_pdf_to_images",
+    "cloud_export_pdf",
+    "cloud_transcribe",
+    "cloud_translate",
+    "cloud_tts",
+    "cloud_agent_chat",
+    "cloud_agent_completion",
+    "cloud_agent_command",
+    "cloud_agent_read",
+    "cloud_agent_write",
+    "cloud_agent_search",
+    "cloud_groups_create",
+    "cloud_groups_join",
+    "cloud_groups_leave",
+    "cloud_groups_info",
+    "cloud_group_chat_messages",
+    "cloud_group_chat_send",
+    "cloud_video_generation",
+    "cloud_video_generation_status",
+    "cloud_raw_audio",
+    "cloud_raw_video",
+  ]) {
+    record(n, true, "skipped_mutating_or_needs_file");
+  }
+
   // shared files expire/delete — only if files exist
   const shares = await run("get_shared_files");
   const shareId = Array.isArray(shares?.files) && shares.files[0] ? shares.files[0].share_id || shares.files[0].id : null;

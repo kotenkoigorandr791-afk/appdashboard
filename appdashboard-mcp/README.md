@@ -2,6 +2,8 @@
 
 Prebuilt MCP server for AppDashboard (stdio). Clients install with **one command** — no local TypeScript build.
 
+Includes service-shell tools plus app tools (Spends, Cloud Storage).
+
 ## Install (from AppDashboard UI)
 
 Settings → MCP → copy command for your agent, e.g.:
@@ -11,6 +13,68 @@ npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url htt
 ```
 
 Requires Node.js 18+. Restart the agent after setup. On first use, open the browser auth URL.
+
+## Agent configs (Cloud / full server)
+
+Same package; optional server key `appdashboard-cloud-mcp` for Cloud-focused configs:
+
+**Claude Desktop** (`~/.config/claude/claude_desktop_config.json` or macOS `~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "appdashboard-cloud-mcp": {
+      "command": "npx",
+      "args": ["-y", "https://YOUR_HOST/mcp/download"],
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+    }
+  }
+}
+```
+
+**Cursor** (`~/.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "appdashboard-cloud-mcp": {
+      "command": "npx",
+      "args": ["-y", "https://YOUR_HOST/mcp/download"],
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+    }
+  }
+}
+```
+
+**VS Code** (`.vscode/mcp.json`):
+
+```json
+{
+  "servers": {
+    "appdashboard-cloud-mcp": {
+      "command": "npx",
+      "args": ["-y", "https://YOUR_HOST/mcp/download"],
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+    }
+  }
+}
+```
+
+**OpenCode** (`opencode.json`):
+
+```json
+{
+  "mcp": {
+    "appdashboard-cloud-mcp": {
+      "command": "npx",
+      "args": ["-y", "https://YOUR_HOST/mcp/download"],
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+    }
+  }
+}
+```
+
+Local develop entry uses `node` + `dist/index.js` instead of `npx`.
 
 ## Develop
 

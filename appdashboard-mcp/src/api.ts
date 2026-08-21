@@ -81,6 +81,14 @@ export function apiPost(path: string, body?: unknown, query?: Record<string, str
   return apiCall("POST", path, body ?? {}, query);
 }
 
+export function apiJsonPost(
+  path: string,
+  body?: unknown,
+  query?: Record<string, string | number | boolean | undefined | null>,
+) {
+  return apiPost(path, body ?? {}, query);
+}
+
 export function apiPut(path: string, body?: unknown, query?: Record<string, string | number | boolean | undefined | null>) {
   return apiCall("PUT", path, body ?? {}, query);
 }

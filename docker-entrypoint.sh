@@ -22,7 +22,9 @@ else
     printf 'opcache.revalidate_freq=30\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
-mkdir -p /var/www/AppDashboard/data /var/www/AppDashboard/uploads/avatars /var/www/AppDashboard/uploads/support_chat /opt/AppDashboard/data /opt/ApplicationData
+mkdir -p /var/www/AppDashboard/data /var/www/AppDashboard/uploads/avatars /var/www/AppDashboard/uploads/support_chat /opt/AppDashboard/data /opt/ApplicationData /opt/ApplicationData/cloud_libreoffice_home /opt/ApplicationData/cloud_libreoffice_home/.cache /opt/ApplicationData/cloud_libreoffice_home/.config /opt/ApplicationData/cloud_libreoffice_home/tmp /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache
+chown -R www-data:www-data /opt/ApplicationData/cloud_libreoffice_home /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache 2>/dev/null || true
+chmod -R 0775 /opt/ApplicationData/cloud_libreoffice_home /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
 if [ ! -f /opt/AppDashboard/data/db.env ]; then
   {
     printf 'DB_DRIVER=pgsql\n'

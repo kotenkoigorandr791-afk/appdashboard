@@ -12,6 +12,7 @@ import { backupTools } from "./backup.js";
 import { commandsTools } from "./commands.js";
 import { supportTools } from "./support.js";
 import { spendsTools } from "./spends.js";
+import { cloudTools } from "./cloud.js";
 import type { ToolDef } from "./types.js";
 
 export type { ToolDef } from "./types.js";
@@ -28,6 +29,7 @@ export const ALL_TOOLS: ToolDef[] = [
   ...commandsTools,
   ...supportTools,
   ...spendsTools,
+  ...cloudTools,
 ];
 
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));

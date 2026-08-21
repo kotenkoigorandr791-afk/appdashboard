@@ -335,7 +335,11 @@ if ($action === 'restore_from_trash') {
 
 if ($action === 'empty_trash') {
   $user = get_current_user_from_sessions();
+  if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
   $trashBase = user_root($user, 'trash');
+  if (!is_dir($trashBase)) {
+    @mkdir($trashBase, 0775, true);
+  }
   $meta = load_trash_metadata($user);
   $removed = 0;
 
@@ -356,7 +360,10 @@ if ($action === 'empty_trash') {
   save_trash_metadata($user, []);
 
   $email = get_session_email();
-  if ($email) append_sync_log($email, 'trash', 'empty_trash', '', 'WARNING', 'Trash emptied');
+  if ($email) {
+    invalidate_file_tree($email);
+    append_sync_log($email, 'trash', 'empty_trash', '', 'WARNING', 'Trash emptied');
+  }
   json_out(['ok' => true, 'removed' => $removed]);
 }
 
@@ -3556,16 +3563,20 @@ if ($action === 'convert_file') {
     
     // Determine the output path
     $source_dir = dirname($source_path);
+    if ($source_dir === '.' || $source_dir === '') {
+        $source_dir = '';
+    }
     $source_filename = pathinfo($source_path, PATHINFO_FILENAME);
     
     if ($output_path === '') {
-        $output_path = $source_dir . '/' . $source_filename . '.' . $target_format;
+        $output_path = ($source_dir === '' ? '' : ($source_dir . '/')) . $source_filename . '.' . $target_format;
     } else {
         // If a folder path is given, append the file name
         if (strpos($output_path, '.') === false) {
             $output_path = rtrim($output_path, '/') . '/' . $source_filename . '.' . $target_format;
         }
     }
+    $output_path = ltrim(str_replace('\\', '/', $output_path), '/');
     if (($nameError = cloud_validate_relative_path_names($output_path)) !== null) json_out(['error'=>$nameError], 400);
     
     $output_full = $base . '/' . $output_path;

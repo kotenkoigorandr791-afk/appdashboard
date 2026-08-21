@@ -23,8 +23,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2-dev libonig-dev libicu-dev ffmpeg tesseract-ocr tesseract-ocr-rus \
     tesseract-ocr-ukr smartmontools util-linux openssh-client \
     python3 python3-pip python3-venv python3-dev python3-psycopg2 build-essential autoconf pkg-config docker.io \
-    postgresql-client imagemagick poppler-utils libreoffice \
-    libnss3 libatk-bridge2.0-0 libgtk-3-0 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 fonts-dejavu-core \
+    postgresql-client imagemagick poppler-utils libreoffice pandoc \
+    fonts-liberation fonts-dejavu-core \
+    libnss3 libatk-bridge2.0-0 libgtk-3-0 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
     texlive-latex-base texlive-latex-recommended texlive-latex-extra \
     texlive-fonts-recommended texlive-lang-cyrillic texlive-xetex texlive-plain-generic latexmk \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
