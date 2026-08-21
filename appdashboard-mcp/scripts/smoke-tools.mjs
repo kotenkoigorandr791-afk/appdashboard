@@ -417,6 +417,163 @@ async function main() {
     record(n, true, "skipped_mutating_or_external");
   }
 
+  // --- Steps ---
+  const today = new Date().toISOString().slice(0, 10);
+  await run("steps_get_range", { from: today, to: today });
+  await run("steps_get_settings");
+  await run("steps_get_table_page", { page: 1 });
+  await run("steps_backup_list");
+  for (const n of [
+    "steps_add",
+    "steps_import_batch",
+    "steps_save_settings",
+    "steps_backup_create",
+    "steps_backup_restore",
+    "steps_backup_delete",
+    "steps_backup_download",
+  ]) {
+    record(n, true, "skipped_mutating");
+  }
+
+  // --- Immich ---
+  const immichAlbums = await callTool("immich_albums_list", {});
+  const immichData = parseText(immichAlbums);
+  const immichSkip =
+    immichAlbums?.isError ||
+    !isOk(immichData) ||
+    /immich_|credentials|unavailable|unknown_app|forbidden|http_/i.test(JSON.stringify(immichData));
+  if (immichSkip) {
+    record("immich_albums_list", true, "env_skip: " + JSON.stringify(immichData).slice(0, 200));
+    for (const n of [
+      "immich_albums_create",
+      "immich_albums_get",
+      "immich_albums_update",
+      "immich_albums_delete",
+      "immich_albums_add_assets",
+      "immich_albums_remove_assets",
+      "immich_assets_list",
+      "immich_assets_get",
+      "immich_assets_update",
+      "immich_assets_delete",
+      "immich_assets_bulk_update",
+      "immich_assets_get_statistics",
+      "immich_assets_get_random",
+      "immich_search_general",
+      "immich_search_smart",
+      "immich_search_metadata",
+      "immich_search_explore",
+    ]) {
+      record(n, true, "env_skip_immich");
+    }
+  } else {
+    record("immich_albums_list", true, JSON.stringify(immichData).slice(0, 200));
+    await run("immich_assets_get_statistics", {});
+    await run("immich_search_explore", {});
+    const album = Array.isArray(immichData) ? immichData[0] : null;
+    if (album?.id) {
+      await run("immich_albums_get", { albumId: album.id });
+    } else {
+      record("immich_albums_get", true, "skipped_no_album");
+    }
+    for (const n of [
+      "immich_albums_create",
+      "immich_albums_update",
+      "immich_albums_delete",
+      "immich_albums_add_assets",
+      "immich_albums_remove_assets",
+      "immich_assets_list",
+      "immich_assets_get",
+      "immich_assets_update",
+      "immich_assets_delete",
+      "immich_assets_bulk_update",
+      "immich_assets_get_random",
+      "immich_search_general",
+      "immich_search_smart",
+      "immich_search_metadata",
+    ]) {
+      record(n, true, "skipped_mutating_or_needs_id");
+    }
+  }
+
+  // --- Gitea ---
+  const giteaUserRes = await callTool("gitea_user_info", {});
+  const giteaUser = parseText(giteaUserRes);
+  const giteaSkip =
+    giteaUserRes?.isError ||
+    !isOk(giteaUser) ||
+    /gitea_|credentials|unavailable|unknown_app|forbidden|http_/i.test(JSON.stringify(giteaUser));
+  if (giteaSkip) {
+    record("gitea_user_info", true, "env_skip: " + JSON.stringify(giteaUser).slice(0, 200));
+    for (const n of [
+      "gitea_repo_list_my",
+      "gitea_repo_create",
+      "gitea_repo_fork",
+      "gitea_repo_list_tags",
+      "gitea_issue_get_by_index",
+      "gitea_issue_list",
+      "gitea_issue_search_list",
+      "gitea_issue_create",
+      "gitea_issue_edit",
+      "gitea_issue_add_labels",
+      "gitea_issue_remove_labels",
+      "gitea_issue_comment_list",
+      "gitea_issue_comment_create",
+      "gitea_issue_comment_edit",
+      "gitea_label_list",
+      "gitea_label_create",
+      "gitea_label_edit",
+      "gitea_label_delete",
+      "gitea_pr_list",
+      "gitea_pr_get",
+      "gitea_pr_create",
+      "gitea_pr_add_reviewer",
+      "gitea_pr_request_re_review",
+      "gitea_pr_delete_reviewer",
+      "gitea_pr_get_review",
+      "gitea_pr_get_review_comments",
+      "gitea_pr_list_reviews",
+      "gitea_pr_edit",
+      "gitea_pr_list_my",
+    ]) {
+      record(n, true, "env_skip_gitea");
+    }
+  } else {
+    record("gitea_user_info", true, JSON.stringify(giteaUser).slice(0, 200));
+    await run("gitea_repo_list_my", { limit: 5 });
+    await run("gitea_pr_list_my", { limit: 5, state: "open" });
+    for (const n of [
+      "gitea_repo_create",
+      "gitea_repo_fork",
+      "gitea_repo_list_tags",
+      "gitea_issue_get_by_index",
+      "gitea_issue_list",
+      "gitea_issue_search_list",
+      "gitea_issue_create",
+      "gitea_issue_edit",
+      "gitea_issue_add_labels",
+      "gitea_issue_remove_labels",
+      "gitea_issue_comment_list",
+      "gitea_issue_comment_create",
+      "gitea_issue_comment_edit",
+      "gitea_label_list",
+      "gitea_label_create",
+      "gitea_label_edit",
+      "gitea_label_delete",
+      "gitea_pr_list",
+      "gitea_pr_get",
+      "gitea_pr_create",
+      "gitea_pr_add_reviewer",
+      "gitea_pr_request_re_review",
+      "gitea_pr_delete_reviewer",
+      "gitea_pr_get_review",
+      "gitea_pr_get_review_comments",
+      "gitea_pr_list_reviews",
+      "gitea_pr_edit",
+    ]) {
+      record(n, true, "skipped_mutating_or_needs_repo");
+    }
+  }
+
   // shared files expire/delete — only if files exist
   const shares = await run("get_shared_files");
   const shareId = Array.isArray(shares?.files) && shares.files[0] ? shares.files[0].share_id || shares.files[0].id : null;

@@ -15,6 +15,9 @@ import { spendsTools } from "./spends.js";
 import { cloudTools } from "./cloud.js";
 import { smarthomeTools } from "./smarthome.js";
 import { recipesTools } from "./recipes.js";
+import { stepsTools } from "./steps.js";
+import { immichTools } from "./immich.js";
+import { giteaTools } from "./gitea.js";
 import type { ToolDef } from "./types.js";
 
 export type { ToolDef } from "./types.js";
@@ -34,6 +37,9 @@ export const ALL_TOOLS: ToolDef[] = [
   ...cloudTools,
   ...smarthomeTools,
   ...recipesTools,
+  ...stepsTools,
+  ...immichTools,
+  ...giteaTools,
 ];
 
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));

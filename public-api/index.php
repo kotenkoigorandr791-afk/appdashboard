@@ -41,6 +41,11 @@ if ($section === 'performance') {
     require __DIR__ . '/routes/performance.php';
     exit;
 }
+if ($section === 'integrations') {
+    public_api_auth_user(true);
+    require __DIR__ . '/routes/integrations.php';
+    exit;
+}
 $app = $section;
 $allowed = ['cloud','films','map','media_viewer','recipes','smart_home','spends','steps','viewer'];
 if (!in_array($app, $allowed, true)) {

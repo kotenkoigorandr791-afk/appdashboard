@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { apiGet, shellAction, textResult } from "../api.js";
 import { loginWithPassword, setCachedRole } from "../auth.js";
+import { clearIntegrationCaches } from "../integrations.js";
 import { normalizeRole } from "../roles.js";
 import type { ToolDef } from "./types.js";
 
@@ -22,6 +23,7 @@ export const authTools: ToolDef[] = [
     },
     handler: async (args) => {
       const parsed = loginSchema.parse(args);
+      clearIntegrationCaches();
       const creds = await loginWithPassword(parsed.email, parsed.password);
       return textResult({ ok: true, role: creds.role, host: creds.host, authenticated: true });
     },

@@ -500,9 +500,12 @@ function oauth_immich_db(): ?PDO {
     $user = (string)($vars['DB_USERNAME'] ?? 'postgres');
     $password = (string)($vars['DB_PASSWORD'] ?? 'postgres');
     $dbname = (string)($vars['DB_DATABASE_NAME'] ?? 'immich');
-    $hosts = ['127.0.0.1'];
+    $hosts = ['127.0.0.1', 'host.docker.internal'];
     $ip = trim((string)shell_exec("docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' immich_postgres 2>/dev/null"));
     if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) $hosts[] = $ip;
+    foreach (['172.17.0.1', '172.19.0.1'] as $extra) {
+        if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
+    }
     foreach ($hosts as $host) {
         foreach ([5436, 5432] as $port) {
             if ($host === '127.0.0.1' && $port === 5432) continue;
@@ -684,15 +687,22 @@ function oauth_gitea_db(): ?PDO {
     static $tried = false;
     if ($tried) return $pdo;
     $tried = true;
-    try {
-        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 3,
-        ]);
-    } catch (\Exception $e) {
-        $pdo = null;
+    $hosts = ['127.0.0.1', 'host.docker.internal'];
+    foreach (['172.17.0.1', '172.19.0.1'] as $extra) {
+        if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
-    return $pdo;
+    foreach ($hosts as $host) {
+        try {
+            $pdo = new PDO(sprintf('pgsql:host=%s;port=%d;dbname=gitea', $host, 5432), 'gitea', 'gitea', [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_TIMEOUT => 3,
+            ]);
+            return $pdo;
+        } catch (\Exception $e) {
+            $pdo = null;
+        }
+    }
+    return null;
 }
 
 function oauth_devise_password(string $plain = ''): string {
