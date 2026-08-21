@@ -62,6 +62,15 @@ export const monitorTools: ToolDef[] = [
         hours: { type: "number" },
       },
     },
-    handler: async (args) => textResult(await shellAction("get_metrics_hourly", { ...args })),
+    handler: async (args) => {
+      const params: Record<string, unknown> = {};
+      if (args.metric != null && String(args.metric) !== "") params.metric = String(args.metric);
+      if (args.hours != null && Number(args.hours) > 0) {
+        params.since = Math.floor(Date.now() / 1000) - Math.floor(Number(args.hours) * 3600);
+      } else if (args.since != null) {
+        params.since = Number(args.since);
+      }
+      return textResult(await shellAction("get_metrics_hourly", params));
+    },
   },
 ];

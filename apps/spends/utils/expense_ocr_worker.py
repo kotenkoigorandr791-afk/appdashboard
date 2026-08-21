@@ -124,6 +124,7 @@ def parse_amount_and_currency(line):
     return None
 def parse_amount_line_only(line):
     line=normalize_ocr_amount_str(normalize_us_thousands_amount_substrings(normalize_space(line)))
+    line=re.sub(r"^(?:total|suma|sum|итого|разом|до\s*сплати|до\s*оплаты)\s*[:\-]?\s*","",line,flags=re.IGNORECASE)
     for pattern in AMOUNT_PATTERNS:
         m=pattern.fullmatch(line)
         if not m:
@@ -135,6 +136,11 @@ def parse_amount_line_only(line):
         if amount is None:
             continue
         return amount,currency
+    m=re.fullmatch(rf"(?P<amount>{AMOUNT_OCR_PART})", line)
+    if m:
+        amount=parse_wallet_amount_decimal(m.group("amount"))
+        if amount is not None:
+            return amount,""
     return None
 def clean_wallet_merchant(line):
     s=normalize_space(line)

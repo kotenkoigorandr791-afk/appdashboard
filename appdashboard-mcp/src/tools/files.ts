@@ -36,8 +36,16 @@ export const filesTools: ToolDef[] = [
       },
       required: ["path", "content"],
     },
-    handler: async (args) =>
-      textResult(await shellAction("fm_save_file", { path: args.path, content: args.content })),
+    handler: async (args) => {
+      const path = String(args.path ?? "");
+      const content = String(args.content ?? "");
+      const saved = await shellAction("fm_save_file", { path, content });
+      if (saved && typeof saved === "object" && (saved as { error?: string }).error === "file_not_found") {
+        const created = await shellAction("fm_mkfile", { path, content });
+        return textResult(created);
+      }
+      return textResult(saved);
+    },
   },
   {
     name: "fm_create_dir",
@@ -130,17 +138,33 @@ export const filesTools: ToolDef[] = [
         share_id: { type: "string" },
         expires_option: {
           type: "string",
-          description: "never|1h|1d|1w|1m|3m|6m|1y",
+          description: "never|1h|1d|1w|1m|3m|6m|1y (or custom with expires)",
+        },
+        expires: {
+          type: "number",
+          description: "Unix timestamp when expires_option=custom; must be in the future",
         },
       },
       required: ["share_id", "expires_option"],
     },
-    handler: async (args) =>
-      textResult(
+    handler: async (args) => {
+      const option = String(args.expires_option ?? "");
+      if (option === "custom" || args.expires != null) {
+        const expires = Number(args.expires);
+        if (!Number.isFinite(expires) || expires <= Math.floor(Date.now() / 1000)) {
+          return textResult({
+            ok: false,
+            error: "expires_must_be_future",
+            message: "Share expiration must be a unix timestamp in the future.",
+          });
+        }
+      }
+      return textResult(
         await shellAction("update_shared_file_expiration", {
           share_id: args.share_id,
-          expires_option: args.expires_option,
+          expires_option: option,
         }),
-      ),
+      );
+    },
   },
 ];

@@ -412,11 +412,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     if ($token === '' || strlen($token) < 16) {
         exit(json_encode(['status' => 'error', 'message' => 'bad_token']));
     }
-    if (!isset($_SESSION['bank_csv_sessions'][$token])) {
-        exit(json_encode(['status' => 'error', 'message' => 'session']));
+    $path = $userDir . '/bank_import/' . $token . '.csv';
+    if (!is_file($path) && isset($_SESSION['bank_csv_sessions'][$token])) {
+        $meta = $_SESSION['bank_csv_sessions'][$token];
+        if (($meta['user'] ?? '') === $currentUser && !empty($meta['path']) && is_file($meta['path'])) {
+            $path = (string) $meta['path'];
+        }
     }
-    $meta = $_SESSION['bank_csv_sessions'][$token];
-    if (($meta['user'] ?? '') !== $currentUser || empty($meta['path']) || !is_file($meta['path'])) {
+    if (!is_file($path)) {
         exit(json_encode(['status' => 'error', 'message' => 'session']));
     }
     if (!is_array($exclude)) {
@@ -428,7 +431,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     if (!is_array($conflictDates)) {
         $conflictDates = [];
     }
-    $path = (string) $meta['path'];
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
         $base = (string) ($userSettings['currency'] ?? 'USD');
@@ -548,12 +550,17 @@ if (isset($_POST['backup_action'])) {
     elseif ($action === 'save' && isset($_POST['backup_name'])) {
         $name       = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['backup_name']);
         $backupPath = "$userBackupDir/$name.csv";
-        if (isset($_SESSION['organized_data'])) {
-            file_put_contents($backupPath, $_SESSION['organized_data']);
+        $csv = $_SESSION['organized_data'] ?? null;
+        if ($csv === null || $csv === '') {
+            $csv = exportExpensesToCSV($udb, $allStores);
+        } else {
             unset($_SESSION['organized_data']);
-            exit(json_encode(['status'=>'success','message'=>'Backup saved successfully']));
         }
-        exit(json_encode(['status'=>'error','message'=>'No organized data to save']));
+        if ($csv === null || $csv === '') {
+            exit(json_encode(['status'=>'error','message'=>'No organized data to save']));
+        }
+        file_put_contents($backupPath, $csv);
+        exit(json_encode(['status'=>'success','message'=>'Backup saved successfully']));
     }
     elseif ($action === 'restore' && isset($_POST['backup_file'])) {
         $backupFile = basename($_POST['backup_file']);

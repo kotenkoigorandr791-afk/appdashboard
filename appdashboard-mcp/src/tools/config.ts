@@ -68,7 +68,10 @@ export const configTools: ToolDef[] = [
       },
       required: ["path", "content"],
     },
-    handler: async (args) =>
-      textResult(await shellAction("save_json_file", { path: args.path, content: args.content })),
+    handler: async (args) => {
+      const content =
+        typeof args.content === "string" ? args.content : JSON.stringify(args.content ?? null);
+      return textResult(await shellAction("save_json_file", { path: args.path, content }));
+    },
   },
 ];

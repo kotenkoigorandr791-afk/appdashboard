@@ -621,15 +621,7 @@ export const cloudTools: ToolDef[] = [
     handler: async (args) => {
       const root = rootOf(args);
       const path = pathOf(args);
-      try {
-        return textResult(await cloudGet("pdf_to_images", { root, path }));
-      } catch {
-        return textResult({
-          url: streamUrl("view_pdf", root, path),
-          stream_url: streamUrl("pdf_stream", root, path),
-          note: "pdf_to_images unavailable; use view_pdf/pdf_stream URLs with Bearer auth",
-        });
-      }
+      return textResult(await cloudForm("pdf_to_images", { root, path }));
     },
   },
   {
@@ -891,7 +883,7 @@ export const cloudTools: ToolDef[] = [
           AI,
           {
             messages,
-            model: args.model != null ? String(args.model) : undefined,
+            model: String(args.model ?? "github/gpt-4o-mini"),
             stream: args.stream === true,
           },
           { action: "ai_completions" },
@@ -921,7 +913,7 @@ export const cloudTools: ToolDef[] = [
           AI,
           {
             stream: false,
-            model: args.model != null ? String(args.model) : undefined,
+            model: String(args.model ?? "github/gpt-4o-mini"),
             messages: [
               {
                 role: "system",
@@ -1060,18 +1052,33 @@ export const cloudTools: ToolDef[] = [
       },
       required: ["query", "paths"],
     },
-    handler: async (args) =>
-      textResult(
+    handler: async (args) => {
+      const root = rootOf(args);
+      const rawPaths = Array.isArray(args.paths) ? args.paths.map((p) => String(p).replace(/^\/+/, "")) : [];
+      const filePaths: string[] = [];
+      for (const p of rawPaths) {
+        const listing = await cloudGet("list", { root, path: p });
+        const items = Array.isArray(listing?.items) ? listing.items : null;
+        if (items) {
+          for (const it of items) {
+            if (it?.type === "file" && it?.path) filePaths.push(String(it.path).replace(/^\/+/, ""));
+          }
+          continue;
+        }
+        if (p) filePaths.push(p);
+      }
+      return textResult(
         await agentTool(
           "search_in_files",
           {
             query: String(args.query),
-            paths: Array.isArray(args.paths) ? args.paths.map(String) : [],
+            paths: filePaths.length ? filePaths : rawPaths,
             max_results: args.max_results != null ? Number(args.max_results) : 80,
           },
-          rootOf(args),
+          root,
         ),
-      ),
+      );
+    },
   },
   {
     name: "cloud_get_state",
@@ -1147,6 +1154,28 @@ export const cloudTools: ToolDef[] = [
     },
     handler: async (args) =>
       textResult(await cloudForm("groups_leave", { group_id: String(args.group_id) })),
+  },
+  {
+    name: "cloud_groups_delete",
+    description: "Delete a Cloud shared group (admin of the group only).",
+    minRole: 0,
+    inputSchema: {
+      type: "object",
+      properties: {
+        group_id: { type: "string" },
+        move_target_root: { type: "string", description: "Optional: main|archive|temp|documents|photos|pdf|clientsync" },
+        move_target_path: { type: "string" },
+      },
+      required: ["group_id"],
+    },
+    handler: async (args) =>
+      textResult(
+        await cloudForm("groups_delete", {
+          group_id: String(args.group_id),
+          move_target_root: args.move_target_root != null ? String(args.move_target_root) : undefined,
+          move_target_path: args.move_target_path != null ? String(args.move_target_path) : undefined,
+        }),
+      ),
   },
   {
     name: "cloud_groups_info",

@@ -41,7 +41,10 @@ if ($resource === 'status' && $method === 'GET') {
 
 if ($resource === 'run' && $id !== '' && $method === 'POST') {
     public_api_require_role(2);
-    $r = duplicati_call('Backups/' . rawurlencode($id) . '/Run', 'POST');
+    $r = duplicati_call('backup/' . rawurlencode($id) . '/run', 'POST');
+    if ((int)$r['code'] >= 400) {
+        $r = duplicati_call('Backups/' . rawurlencode($id) . '/Run', 'POST');
+    }
     if ((int)$r['code'] >= 400) {
         public_api_json(['ok' => false, 'error' => is_array($r['data']) ? ($r['data']['error'] ?? 'run_failed') : 'run_failed', 'http' => $r['code'], 'data' => $r['data']], (int)$r['code'] >= 400 ? (int)$r['code'] : 502);
     }
@@ -50,9 +53,15 @@ if ($resource === 'run' && $id !== '' && $method === 'POST') {
 
 if ($resource === 'logs' && $id !== '' && $method === 'GET') {
     public_api_require_role(2);
-    $r = duplicati_call('Backups/' . rawurlencode($id) . '/Log');
+    $r = duplicati_call('backup/' . rawurlencode($id) . '/log');
     if ((int)$r['code'] >= 400) {
-        $r2 = duplicati_call('Backups/' . rawurlencode($id) . '/Logs');
+        $r = duplicati_call('Backups/' . rawurlencode($id) . '/Log');
+    }
+    if ((int)$r['code'] >= 400) {
+        $r2 = duplicati_call('backup/' . rawurlencode($id) . '/logs');
+        if ((int)$r2['code'] >= 400) {
+            $r2 = duplicati_call('Backups/' . rawurlencode($id) . '/Logs');
+        }
         if ((int)$r2['code'] >= 400) {
             public_api_json(['ok' => false, 'error' => 'logs_failed', 'http' => $r2['code'], 'data' => $r2['data']], (int)$r2['code'] >= 400 ? (int)$r2['code'] : 502);
         }
