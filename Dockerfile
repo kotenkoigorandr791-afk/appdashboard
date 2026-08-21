@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && python3 -m pip install --break-system-packages --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu torch \
     && python3 -m pip install --break-system-packages --no-cache-dir gTTS openai-whisper pillow numpy scipy opencv-python-headless rembg onnxruntime psycopg2-binary \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pgsql gd zip mbstring intl bcmath opcache sockets \
+    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pgsql gd zip mbstring intl bcmath sockets \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && rm -rf /var/lib/apt/lists/*
