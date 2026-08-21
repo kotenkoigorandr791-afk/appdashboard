@@ -11,9 +11,10 @@ RUN apk add --no-cache git \
     && NODE_OPTIONS="--max-old-space-size=16384" pnpm build \
     && find dist -name '*.map' -type f -delete
 
-FROM php:8.3-fpm-bookworm
+FROM php:8.5-fpm-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
+ENV ONNXRUNTIME_PREFER_CPU=1
 ENV HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-home
 ENV XDG_CACHE_HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache
 ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
@@ -55,7 +56,7 @@ RUN cp -a /var/www/AppDashboard/apps/lopaka /usr/local/share/lopaka
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN ln -sf /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled/default \
     && rm -f /etc/nginx/sites-enabled/default.bak \
-    && sed -i 's|^listen = 9000|listen = /run/php/php8.3-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf \
+    && sed -i 's|^listen = 9000|listen = /run/php/php8.5-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf \
     && sed -i 's|^;listen.owner = www-data|listen.owner = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.group = www-data|listen.group = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.mode = 0660|listen.mode = 0660|' /usr/local/etc/php-fpm.d/www.conf \

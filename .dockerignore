@@ -5,9 +5,16 @@ graphify-out/
 node_modules/
 **/node_modules/
 **/.venv/
+.playwright-cli/
+.playwright-mcp/
+backups/
+instructions/
+tests/
+tmp/
 vendor/
 webssh/vendor/
 apps/cloud/vendor/
 apps/steps/utils/.venv/
 bot/.venv/
+bot/*.log
 *.bak-*
