@@ -67,17 +67,55 @@ if (!function_exists('recipes_getActiveSessionEmail')) {
     }
 }
 
+function recipes_ai_bearer_email(): ?string
+{
+    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+    if (!preg_match('/^\s*Bearer\s+([A-Fa-f0-9]{64})\s*$/', $auth, $m)) {
+        return null;
+    }
+    $db = getDB();
+    if (!$db) {
+        return null;
+    }
+    try {
+        require_once __DIR__ . '/../../../lib/public_api_auth.php';
+        if (function_exists('public_api_ensure_token_schema')) {
+            public_api_ensure_token_schema($db);
+        }
+        $tokenHash = hash('sha256', $m[1]);
+        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+        $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row && !empty($row['email'])) {
+            $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
+            $upd->bindValue(':t', time(), PDO::PARAM_INT);
+            $upd->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+            $upd->execute();
+            return (string)$row['email'];
+        }
+    } catch (Throwable $e) {
+    }
+    return null;
+}
+
 function recipes_ai_require_role(int $minRole = 1): void
 {
     require_once __DIR__ . '/session.php';
-    $db = getDB();
     $role = 0;
+    $email = recipes_ai_bearer_email();
+    if ($email !== null && $email !== '') {
+        $role = getUserRoleByEmail($email);
+        if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
+            $_SESSION['user'] = ['email' => $email, 'role' => $role];
+        }
+    }
     $sid = session_id();
-    if ($sid) {
+    if ($role < $minRole && $sid) {
         try {
-            $email = recipes_getActiveSessionEmail($sid);
-            if (!empty($email)) {
-                $role = getUserRoleByEmail($email);
+            $sessionEmail = recipes_getActiveSessionEmail($sid);
+            if (!empty($sessionEmail)) {
+                $role = getUserRoleByEmail($sessionEmail);
             }
         } catch (Throwable $e) {
         }
@@ -85,12 +123,15 @@ function recipes_ai_require_role(int $minRole = 1): void
     if ($role < $minRole && isset($_COOKIE['PHPSESSID'])) {
         try {
             $cookieSid = (string)$_COOKIE['PHPSESSID'];
-            $email = recipes_getActiveSessionEmail($cookieSid);
-            if (!empty($email)) {
-                $role = getUserRoleByEmail($email);
+            $sessionEmail = recipes_getActiveSessionEmail($cookieSid);
+            if (!empty($sessionEmail)) {
+                $role = getUserRoleByEmail($sessionEmail);
             }
         } catch (Throwable $e) {
         }
+    }
+    if ($role < $minRole && !empty($_SESSION['user']['email'])) {
+        $role = getUserRoleByEmail((string)$_SESSION['user']['email']);
     }
     if ($role < $minRole) {
         recipes_ai_json_out(['success' => false, 'message' => 'forbidden'], 403);
@@ -909,8 +950,10 @@ function recipes_ai_search_wikimedia_image(string $query): ?string
 
 function recipes_ai_searxng_image(string $query, int $maxResults = 6): array
 {
-    require_once __DIR__ . '/../../../db.php';
-    $baseUrl = rtrim(getConfig('search_engine_url', ''), '/');
+    if (!function_exists('getConfig')) {
+        require_once __DIR__ . '/../../../db.php';
+    }
+    $baseUrl = rtrim((string)getConfig('search_engine_url', ''), '/');
     if ($baseUrl === '') {
         return [];
     }
@@ -1349,7 +1392,14 @@ function recipes_ai_save_draft(array $draft, string $lang, string $recipes_dir =
 {
     $emitFn = $emit ?? static fn() => null;
     $db = getDB();
-    $title = trim((string)($draft['title'] ?? ''));
+    $titleRaw = $draft['title'] ?? '';
+    $titleI18n = null;
+    if (is_array($titleRaw)) {
+        $titleI18n = $titleRaw;
+        $title = trim((string)($titleRaw[$lang] ?? $titleRaw['en'] ?? (array_values($titleRaw)[0] ?? '')));
+    } else {
+        $title = trim((string)$titleRaw);
+    }
     $steps = $draft['steps'] ?? [];
     if ($title === '' || !is_array($steps) || $steps === []) {
         return ['success' => false, 'message' => 'invalid draft'];
@@ -1371,7 +1421,11 @@ function recipes_ai_save_draft(array $draft, string $lang, string $recipes_dir =
     }
     $recipe = ['id' => $recipe_id, 'title' => []];
     foreach ($langs as $l) {
-        $recipe['title'][$l] = ($l === $lang) ? $title : translate_text($title, $lang, $l);
+        if (is_array($titleI18n) && isset($titleI18n[$l]) && trim((string)$titleI18n[$l]) !== '') {
+            $recipe['title'][$l] = trim((string)$titleI18n[$l]);
+        } else {
+            $recipe['title'][$l] = ($l === $lang) ? $title : translate_text($title, $lang, $l);
+        }
         if ($l !== $lang) {
             $emitProgress('title');
         }
@@ -1382,13 +1436,27 @@ function recipes_ai_save_draft(array $draft, string $lang, string $recipes_dir =
             continue;
         }
         if ($step['type'] === 'instruction') {
-            $text = is_string($step['content'] ?? null) ? $step['content'] : '';
+            $contentRaw = $step['content'] ?? '';
             $content_trans = [];
-            foreach ($langs as $l) {
-                $content_trans[$l] = ($l === $lang) ? $text : translate_text($text, $lang, $l);
-            }
-            foreach ($targetLangs as $l) {
-                $emitProgress('instruction');
+            if (is_array($contentRaw)) {
+                foreach ($langs as $l) {
+                    $content_trans[$l] = trim((string)($contentRaw[$l] ?? $contentRaw[$lang] ?? $contentRaw['en'] ?? ''));
+                }
+                foreach ($targetLangs as $l) {
+                    if ($content_trans[$l] === '') {
+                        $seed = $content_trans[$lang] !== '' ? $content_trans[$lang] : ($content_trans['en'] ?? '');
+                        $content_trans[$l] = $seed !== '' ? translate_text($seed, $lang, $l) : '';
+                    }
+                    $emitProgress('instruction');
+                }
+            } else {
+                $text = (string)$contentRaw;
+                foreach ($langs as $l) {
+                    $content_trans[$l] = ($l === $lang) ? $text : translate_text($text, $lang, $l);
+                }
+                foreach ($targetLangs as $l) {
+                    $emitProgress('instruction');
+                }
             }
             $translated_steps[] = [
                 'type' => 'instruction',

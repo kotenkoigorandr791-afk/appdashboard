@@ -1,8 +1,8 @@
 # appdashboard-mcp
 
-Prebuilt MCP server for AppDashboard (stdio). Clients install with **one command** — no local TypeScript build.
+Prebuilt MCP server for AppDashboard (stdio). Clients install with **one command** — no local build.
 
-Includes service-shell tools plus app tools (Spends, Cloud Storage, Smart Home).
+One server key: **`appdashboard-mcp`**. Tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes) live in the same package.
 
 ## Install (from AppDashboard UI)
 
@@ -14,16 +14,14 @@ npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url htt
 
 Requires Node.js 18+. Restart the agent after setup. On first use, open the browser auth URL.
 
-## Agent configs (Cloud / full server)
-
-Same package; optional server key `appdashboard-cloud-mcp` for Cloud-focused configs:
+## Agent configs
 
 **Claude Desktop** (`~/.config/claude/claude_desktop_config.json` or macOS `~/Library/Application Support/Claude/claude_desktop_config.json`):
 
 ```json
 {
   "mcpServers": {
-    "appdashboard-cloud-mcp": {
+    "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
       "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
@@ -37,7 +35,7 @@ Same package; optional server key `appdashboard-cloud-mcp` for Cloud-focused con
 ```json
 {
   "mcpServers": {
-    "appdashboard-cloud-mcp": {
+    "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
       "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
@@ -51,7 +49,7 @@ Same package; optional server key `appdashboard-cloud-mcp` for Cloud-focused con
 ```json
 {
   "servers": {
-    "appdashboard-cloud-mcp": {
+    "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
       "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
@@ -65,67 +63,7 @@ Same package; optional server key `appdashboard-cloud-mcp` for Cloud-focused con
 ```json
 {
   "mcp": {
-    "appdashboard-cloud-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
-
-## Agent configs (Smart Home)
-
-Same package; use server key `appdashboard-smarthome-mcp`:
-
-**Claude Desktop** (`~/.config/claude/claude_desktop_config.json`):
-
-```json
-{
-  "mcpServers": {
-    "appdashboard-smarthome-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
-
-**Cursor** (`.cursor/mcp.json`):
-
-```json
-{
-  "mcpServers": {
-    "appdashboard-smarthome-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
-
-**VS Code** (`.vscode/mcp.json`):
-
-```json
-{
-  "servers": {
-    "appdashboard-smarthome-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
-
-**OpenCode** (`opencode.json`):
-
-```json
-{
-  "mcp": {
-    "appdashboard-smarthome-mcp": {
+    "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
       "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }

@@ -6,63 +6,137 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $response = ['success' => false, 'message' => ''];
         
         if ($_POST['action'] === 'edit_product_name') {
-            $product_id = $_POST['product_id'];
+            $product_id = trim((string)($_POST['product_id'] ?? ''));
+            $is_new_product = ($product_id === '' || $product_id === 'new');
             $clear_product_image = isset($_POST['clear_product_image']) && $_POST['clear_product_image'] === '1';
-            
-            try {
-                $update_fields = "name_en = :name_en, name_uk = :name_uk, name_ru = :name_ru, name_be = :name_be, category = :category, updated_at = CURRENT_TIMESTAMP";
-                $params = [
-                    ':id' => $product_id,
-                    ':name_en' => $_POST['name_en'],
-                    ':name_uk' => $_POST['name_uk'],
-                    ':name_ru' => $_POST['name_ru'],
-                    ':name_be' => $_POST['name_be'],
-                    ':category' => $_POST['category'] ?? ''
-                ];
-                $existing_product = recipes_load_product_row($db, $product_id);
+            $source_lang = isset($_POST['lang']) && in_array($_POST['lang'], ['en', 'uk', 'ru', 'be'], true)
+                ? $_POST['lang'] : $lang;
 
-                // Handle image upload if provided
-                if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            try {
+                $names = [
+                    'en' => trim((string)($_POST['name_en'] ?? '')),
+                    'uk' => trim((string)($_POST['name_uk'] ?? '')),
+                    'ru' => trim((string)($_POST['name_ru'] ?? '')),
+                    'be' => trim((string)($_POST['name_be'] ?? '')),
+                ];
+                $seed = $names[$source_lang] !== '' ? $names[$source_lang]
+                    : ($names['en'] ?: ($names['uk'] ?: ($names['ru'] ?: $names['be'])));
+                if ($seed === '') {
+                    throw new RuntimeException('Product name is required');
+                }
+                foreach (['en', 'uk', 'ru', 'be'] as $l) {
+                    if ($names[$l] === '') {
+                        $names[$l] = ($l === $source_lang) ? $seed : translate_text($seed, $source_lang, $l);
+                    }
+                }
+
+                if ($is_new_product) {
+                    $product_id = uniqid();
                     $product_dir = "$products_dir/$product_id";
                     if (!is_dir($product_dir)) mkdir($product_dir, 0777, true);
-                    $image_name = recipes_image_save_optimized_upload($_FILES['image'], $product_dir);
-                    if ($image_name === null) {
-                        throw new RuntimeException($translations[$lang]['image_url_not_image'] ?? 'Invalid image');
+                    $image_name = null;
+                    $preview_name = null;
+                    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                        $image_name = recipes_image_save_optimized_upload($_FILES['image'], $product_dir);
+                        if ($image_name === null) {
+                            throw new RuntimeException($translations[$lang]['image_url_not_image'] ?? 'Invalid image');
+                        }
+                        $preview_name = recipes_product_preview_refresh($products_dir, $product_id, $image_name);
                     }
-                    $update_fields .= ", image = :image";
-                    $params[':image'] = $image_name;
-                    $pv = recipes_product_preview_refresh($products_dir, $product_id, $image_name);
-                    $update_fields .= ", image_preview = :image_preview";
-                    $params[':image_preview'] = $pv;
-                } elseif ($clear_product_image) {
-                    $update_fields .= ", image = :image, image_preview = :image_preview";
-                    $params[':image'] = null;
-                    $params[':image_preview'] = null;
-                    $product_dir = "$products_dir/$product_id";
-                    if ($existing_product && !empty($existing_product['image'])) {
-                        @unlink($product_dir . '/' . $existing_product['image']);
-                    }
-                    if ($existing_product && !empty($existing_product['image_preview'])) {
-                        @unlink($product_dir . '/' . $existing_product['image_preview']);
-                    }
-                }
-
-                $stmt = $db->prepare("UPDATE " . RECIPES_DB_TABLE_PREFIX . "products SET $update_fields WHERE id = :id");
-                foreach ($params as $key => $value) {
-                    if (($key === ':image_preview' || $key === ':image') && ($value === null || $value === '')) {
-                        $stmt->bindValue($key, null, PDO::PARAM_NULL);
-                    } else {
-                        $stmt->bindValue($key, $value, PDO::PARAM_STR);
-                    }
-                }
-                $result = $stmt->execute();
-                
-                if ($result) {
+                    $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "products
+                        (id, name_en, name_uk, name_ru, name_be, category, image, image_preview)
+                        VALUES (:id, :name_en, :name_uk, :name_ru, :name_be, :category, :image, :image_preview)");
+                    $stmt->bindValue(':id', $product_id, PDO::PARAM_STR);
+                    $stmt->bindValue(':name_en', $names['en'], PDO::PARAM_STR);
+                    $stmt->bindValue(':name_uk', $names['uk'], PDO::PARAM_STR);
+                    $stmt->bindValue(':name_ru', $names['ru'], PDO::PARAM_STR);
+                    $stmt->bindValue(':name_be', $names['be'], PDO::PARAM_STR);
+                    $stmt->bindValue(':category', $_POST['category'] ?? '', PDO::PARAM_STR);
+                    $stmt->bindValue(':image', $image_name, $image_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmt->bindValue(':image_preview', $preview_name, $preview_name === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                    $stmt->execute();
                     $row = recipes_load_product_row($db, $product_id);
                     if ($row) recipes_save_product_json($products_dir, $row);
-                    $response = ['success' => true, 'message' => $translations[$lang]['product_name_updated']];
+                    $response = [
+                        'success' => true,
+                        'message' => $translations[$lang]['product_added'] ?? 'Product added',
+                        'product' => [
+                            'id' => $product_id,
+                            'name' => $names,
+                            'image' => $image_name,
+                            'image_preview' => $preview_name,
+                            'category' => $_POST['category'] ?? '',
+                        ],
+                    ];
                 } else {
-                    $response = ['success' => false, 'message' => $translations[$lang]['product_not_found']];
+                    $update_fields = "name_en = :name_en, name_uk = :name_uk, name_ru = :name_ru, name_be = :name_be, category = :category, updated_at = CURRENT_TIMESTAMP";
+                    $params = [
+                        ':id' => $product_id,
+                        ':name_en' => $names['en'],
+                        ':name_uk' => $names['uk'],
+                        ':name_ru' => $names['ru'],
+                        ':name_be' => $names['be'],
+                        ':category' => $_POST['category'] ?? ''
+                    ];
+                    $existing_product = recipes_load_product_row($db, $product_id);
+
+                    if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+                        $product_dir = "$products_dir/$product_id";
+                        if (!is_dir($product_dir)) mkdir($product_dir, 0777, true);
+                        $image_name = recipes_image_save_optimized_upload($_FILES['image'], $product_dir);
+                        if ($image_name === null) {
+                            throw new RuntimeException($translations[$lang]['image_url_not_image'] ?? 'Invalid image');
+                        }
+                        $update_fields .= ", image = :image";
+                        $params[':image'] = $image_name;
+                        $pv = recipes_product_preview_refresh($products_dir, $product_id, $image_name);
+                        $update_fields .= ", image_preview = :image_preview";
+                        $params[':image_preview'] = $pv;
+                    } elseif ($clear_product_image) {
+                        $update_fields .= ", image = :image, image_preview = :image_preview";
+                        $params[':image'] = null;
+                        $params[':image_preview'] = null;
+                        $product_dir = "$products_dir/$product_id";
+                        if ($existing_product && !empty($existing_product['image'])) {
+                            @unlink($product_dir . '/' . $existing_product['image']);
+                        }
+                        if ($existing_product && !empty($existing_product['image_preview'])) {
+                            @unlink($product_dir . '/' . $existing_product['image_preview']);
+                        }
+                    }
+
+                    $stmt = $db->prepare("UPDATE " . RECIPES_DB_TABLE_PREFIX . "products SET $update_fields WHERE id = :id");
+                    foreach ($params as $key => $value) {
+                        if (($key === ':image_preview' || $key === ':image') && ($value === null || $value === '')) {
+                            $stmt->bindValue($key, null, PDO::PARAM_NULL);
+                        } else {
+                            $stmt->bindValue($key, $value, PDO::PARAM_STR);
+                        }
+                    }
+                    $result = $stmt->execute();
+
+                    if ($result) {
+                        $row = recipes_load_product_row($db, $product_id);
+                        if ($row) recipes_save_product_json($products_dir, $row);
+                        $response = [
+                            'success' => true,
+                            'message' => $translations[$lang]['product_name_updated'] ?? $translations[$lang]['product_added'] ?? 'Product updated',
+                            'product' => $row ? [
+                                'id' => $row['id'],
+                                'name' => [
+                                    'en' => $row['name_en'],
+                                    'uk' => $row['name_uk'],
+                                    'ru' => $row['name_ru'],
+                                    'be' => $row['name_be'],
+                                ],
+                                'image' => $row['image'],
+                                'image_preview' => $row['image_preview'] ?? null,
+                                'category' => $row['category'] ?? '',
+                            ] : null,
+                        ];
+                    } else {
+                        $response = ['success' => false, 'message' => $translations[$lang]['product_not_found']];
+                    }
                 }
             } catch (Exception $e) {
                 $response = ['success' => false, 'message' => $e->getMessage()];
@@ -445,6 +519,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt = $db->prepare("
                             INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value, updated_at)
                             VALUES (:key, :value, CURRENT_TIMESTAMP)
+                            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
                         ");
                         $stmt->bindValue(':key', $key, PDO::PARAM_STR);
                         $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
@@ -472,13 +547,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt = $db->prepare("
                             INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at)
                             VALUES (:key, :value, CURRENT_TIMESTAMP)
+                            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
                         ");
                         $stmt->bindValue(':key', $key, PDO::PARAM_STR);
                         $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
                         $stmt->execute();
                     }
                     $db->exec("COMMIT");
-                    $response = ['success' => true, 'message' => $translations[$lang]['config_saved']];
+                    $response = ['success' => true, 'message' => $translations[$lang]['config_saved'] ?? 'Config saved'];
                 } catch (Exception $e) {
                     $db->exec("ROLLBACK");
                     $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];

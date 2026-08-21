@@ -287,5 +287,5 @@ function recipes_product_name_exists($db, array $names): bool {
 }
 
 // Run migration on app load
-migrateJSONToSQLite();
+recipes_migrate_json_to_sqlite();
 recipes_backfill_product_previews();

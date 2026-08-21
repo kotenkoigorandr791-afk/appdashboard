@@ -6,6 +6,8 @@ if (!defined('RECIPES_DB_TABLE_PREFIX')) {
 if (!defined('RECIPES_STEPS_TABLE')) {
     define('RECIPES_STEPS_TABLE', 'recipes_steps');
 }
-function getDB(): AppDatabase {
-    return app_main_db();
+if (!function_exists('getDB')) {
+    function getDB(): AppDatabase {
+        return app_main_db();
+    }
 }

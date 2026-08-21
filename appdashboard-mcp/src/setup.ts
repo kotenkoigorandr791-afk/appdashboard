@@ -90,15 +90,27 @@ function serverEntry(url: string, packageUrl?: string): Record<string, unknown> 
   };
 }
 
+const SERVER_KEY = "appdashboard-mcp";
+
 function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string, packageUrl?: string): Record<string, any> {
   const entry = serverEntry(url, packageUrl);
   const next = { ...config };
+  const stripLegacy = (bag: Record<string, unknown> | undefined) => {
+    if (!bag || typeof bag !== "object") return {};
+    const out = { ...bag };
+    for (const k of Object.keys(out)) {
+      if (k === "appdashboard" || k === "appdashboard-cloud-mcp" || k === "appdashboard-smarthome-mcp" || k === "appdashboard-recipes-mcp") {
+        delete out[k];
+      }
+    }
+    return out;
+  };
   if (agent === "vscode") {
-    next.servers = { ...(next.servers || {}), appdashboard: entry };
+    next.servers = { ...stripLegacy(next.servers), [SERVER_KEY]: entry };
   } else if (agent === "opencode") {
-    next.mcp = { ...(next.mcp || {}), appdashboard: entry };
+    next.mcp = { ...stripLegacy(next.mcp), [SERVER_KEY]: entry };
   } else {
-    next.mcpServers = { ...(next.mcpServers || {}), appdashboard: entry };
+    next.mcpServers = { ...stripLegacy(next.mcpServers), [SERVER_KEY]: entry };
   }
   return next;
 }

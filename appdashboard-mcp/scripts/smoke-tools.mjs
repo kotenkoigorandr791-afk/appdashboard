@@ -389,6 +389,34 @@ async function main() {
     record(n, true, "skipped_mutating_or_needs_device");
   }
 
+  // --- Recipes ---
+  await run("recipes_list");
+  await run("recipes_products");
+  await run("recipes_translate", { text: "Beetroot", source_lang: "en", target_langs: ["uk", "ru", "be"] });
+  const aiCfg = await run("recipes_ai_config");
+  if (aiCfg?.success === false && /forbidden/i.test(String(aiCfg?.message || ""))) {
+    record("recipes_ai_config", true, "env_skip_role_or_forbidden");
+  }
+  await run("recipes_save_state", { state: { current_recipe: null, completed_steps: [] } });
+  await run("recipes_save_config", { config: { items_per_page: 12 } });
+  for (const n of [
+    "recipes_add_product",
+    "recipes_update_product",
+    "recipes_delete_product",
+    "recipes_add",
+    "recipes_update",
+    "recipes_delete",
+    "recipes_ai_generate",
+    "recipes_ai_edit",
+    "recipes_ai_save",
+    "recipes_ai_image_options",
+    "recipes_ai_verify_image",
+    "recipes_fetch_image",
+    "recipes_remove_bg",
+  ]) {
+    record(n, true, "skipped_mutating_or_external");
+  }
+
   // shared files expire/delete — only if files exist
   const shares = await run("get_shared_files");
   const shareId = Array.isArray(shares?.files) && shares.files[0] ? shares.files[0].share_id || shares.files[0].id : null;

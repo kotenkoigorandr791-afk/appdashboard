@@ -1,6 +1,6 @@
 {
   "servers": {
-    "appdashboard-smarthome-mcp": {
+    "appdashboard-mcp": {
       "command": "node",
       "args": ["${workspaceFolder}/appdashboard-mcp/dist/index.js"],
       "env": {

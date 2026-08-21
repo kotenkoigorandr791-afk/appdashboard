@@ -50,7 +50,7 @@ function recipes_ensure_steps_table($db) {
 }
 
 // Migration function to transfer data from JSON to SQLite
-function migrateJSONToSQLite() {
+function recipes_migrate_json_to_sqlite() {
     $db = getDB();
     if (!$db) return false;
     
