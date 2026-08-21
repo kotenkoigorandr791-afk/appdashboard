@@ -330,6 +330,65 @@ async function main() {
     record(n, true, "skipped_mutating_or_needs_file");
   }
 
+  // smart home
+  const shState = await run("smarthome_state");
+  await run("smarthome_monitor_stats", { period: 24 });
+  await run("smarthome_monitor_errors", { period: 24 });
+  const shDevice =
+    (Array.isArray(shState?.my_devices) && shState.my_devices[0]) ||
+    (Array.isArray(shState?.devices) && shState.devices[0]) ||
+    null;
+  const shDeviceId = shDevice?.id || null;
+  if (shDeviceId) {
+    await run("smarthome_issue_ws_token", { device_id: shDeviceId });
+    if (Array.isArray(shDevice?.displayed_controls)) {
+      await run("smarthome_update_displayed_controls", {
+        device_id: shDeviceId,
+        displayed_controls: shDevice.displayed_controls,
+      });
+    } else {
+      record("smarthome_update_displayed_controls", true, "skipped_no_displayed_controls");
+    }
+    if (Array.isArray(shDevice?.displayed_params)) {
+      await run("smarthome_update_displayed_params", {
+        device_id: shDeviceId,
+        displayed_params: shDevice.displayed_params,
+      });
+    } else {
+      record("smarthome_update_displayed_params", true, "skipped_no_displayed_params");
+    }
+  } else {
+    record("smarthome_issue_ws_token", true, "skipped_no_device");
+    record("smarthome_update_displayed_controls", true, "skipped_no_device");
+    record("smarthome_update_displayed_params", true, "skipped_no_device");
+  }
+  const shGroup = Array.isArray(shState?.groups) && shState.groups[0] ? shState.groups[0] : null;
+  if (shGroup?.id) {
+    await run("smarthome_group_members", { group_id: shGroup.id });
+  } else {
+    record("smarthome_group_members", true, "skipped_no_group");
+  }
+  for (const n of [
+    "smarthome_save_device",
+    "smarthome_delete_device",
+    "smarthome_control",
+    "smarthome_save_settings",
+    "smarthome_save_floor_plan",
+    "smarthome_device_sync",
+    "smarthome_create_group",
+    "smarthome_delete_group",
+    "smarthome_add_member",
+    "smarthome_remove_member",
+    "smarthome_update_member_role",
+    "smarthome_record_param_history",
+    "smarthome_route_maps",
+    "smarthome_route_map_file",
+    "smarthome_route_delete",
+    "smarthome_route_rename",
+  ]) {
+    record(n, true, "skipped_mutating_or_needs_device");
+  }
+
   // shared files expire/delete — only if files exist
   const shares = await run("get_shared_files");
   const shareId = Array.isArray(shares?.files) && shares.files[0] ? shares.files[0].share_id || shares.files[0].id : null;

@@ -10,7 +10,9 @@ for ($__n = 0; $__n < 16; $__n++) {
     $__d = $__p;
 }
 
-session_start();
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_start();
+}
 header('Content-Type: text/html; charset=UTF-8');
 define('SH_APP_DIR', dirname(__DIR__));
 require_once dirname(SH_APP_DIR, 2) . '/lib/app_db.php';
@@ -172,6 +174,9 @@ function sh_active_session(): ?array {
 }
 
 function sh_user_email(): string {
+    if (isset($_SESSION['user']['email']) && !empty($_SESSION['user']['email'])) {
+        return (string)$_SESSION['user']['email'];
+    }
     if (isset($_SESSION['email']) && !empty($_SESSION['email'])) {
         return (string)$_SESSION['email'];
     }
@@ -186,6 +191,10 @@ function sh_user_email(): string {
 function sh_user_service_role(): int {
     static $cached = null;
     if ($cached !== null) return $cached;
+    if (isset($_SESSION['user']['role'])) {
+        $cached = (int)$_SESSION['user']['role'];
+        return $cached;
+    }
     $email = sh_user_email();
     if ($email === 'guest@local') { $cached = 0; return 0; }
     $session = sh_active_session();
@@ -1380,7 +1389,8 @@ function sh_ws_route_request(string $ownerEmail, string $deviceId, string $kind,
             $seenTypes[] = $type;
             if ($type === 'error' || $type === 'route_error') {
                 fclose($socket);
-                throw new RuntimeException((string)($msg['message'] ?? $msg['error'] ?? 'WebSocket error'));
+                $err = (string)($msg['message'] ?? $msg['error'] ?? 'WebSocket error');
+                return ['ok' => false, 'error' => $err, 'files' => [], 'html' => ''];
             }
             if ($type === 'connected') {
                 $connected = true;
@@ -1531,6 +1541,10 @@ if ($action !== '') {
             if (!$row) { http_response_code(404); header('Content-Type: text/plain; charset=UTF-8'); echo 'Device not found'; exit; }
             $ownerEmail = (string)($row['user_email'] ?? $userEmail);
             $result = sh_ws_route_request($ownerEmail, $deviceId, 'route_list', []);
+            if (empty($result['ok'])) {
+                echo json_encode(['ok'=>false,'error'=>(string)($result['error'] ?? 'route_maps_failed')], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+                exit;
+            }
             header('Content-Type: text/html; charset=UTF-8');
             echo sh_route_maps_page($deviceId, $result['files'] ?? []);
             exit;
@@ -1546,6 +1560,10 @@ if ($action !== '') {
             if (!$row) { http_response_code(404); header('Content-Type: text/plain; charset=UTF-8'); echo 'Device not found'; exit; }
             $ownerEmail = (string)($row['user_email'] ?? $userEmail);
             $result = sh_ws_route_request($ownerEmail, $deviceId, 'route_file', ['name'=>$name]);
+            if (empty($result['ok'])) {
+                echo json_encode(['ok'=>false,'error'=>(string)($result['error'] ?? 'route_map_file_failed')], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+                exit;
+            }
             header('Content-Type: text/html; charset=UTF-8');
             header('Cache-Control: no-store');
             if (!empty($_GET['download']) || !empty($payload['download'])) {
@@ -1562,7 +1580,7 @@ if ($action !== '') {
             if (!$row) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Device not found']); exit; }
             $ownerEmail = (string)($row['user_email'] ?? $userEmail);
             $result = sh_ws_route_request($ownerEmail, $deviceId, 'route_delete', ['name'=>$name]);
-            echo json_encode(['ok'=>!empty($result['ok']), 'result'=>$result], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            echo json_encode(['ok'=>!empty($result['ok']), 'error'=>$result['error'] ?? null, 'result'=>$result], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
         }
 
@@ -1574,7 +1592,7 @@ if ($action !== '') {
             if (!$row) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Device not found']); exit; }
             $ownerEmail = (string)($row['user_email'] ?? $userEmail);
             $result = sh_ws_route_request($ownerEmail, $deviceId, 'route_rename', ['old_name'=>$oldName, 'new_name'=>$newName]);
-            echo json_encode(['ok'=>!empty($result['ok']), 'result'=>$result], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            echo json_encode(['ok'=>!empty($result['ok']), 'error'=>$result['error'] ?? null, 'result'=>$result], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
         }
 
@@ -1625,7 +1643,7 @@ if ($action !== '') {
             }
             $elements = $payload['elements'] ?? [];
             $owner = $homeCtx['floor_owner'];
-            $stmt = $db->prepare("INSERT INTO smarthome_floor_plans (user_email, elements_json, updated_at) VALUES (:em, :el, CURRENT_TIMESTAMP)");
+            $stmt = $db->prepare("INSERT INTO smarthome_floor_plans (user_email, elements_json, updated_at) VALUES (:em, :el, CURRENT_TIMESTAMP) ON CONFLICT (user_email) DO UPDATE SET elements_json = EXCLUDED.elements_json, updated_at = CURRENT_TIMESTAMP");
             $stmt->bindValue(':em', $owner, PDO::PARAM_STR);
             $stmt->bindValue(':el', json_encode($elements, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
             $stmt->execute();
@@ -1666,7 +1684,7 @@ if ($action !== '') {
                 $homeGroupId = '';
             }
             $homeView = (($payload['home_view'] ?? $cur['home_view'] ?? 'tiles') === 'map') ? 'map' : 'tiles';
-            $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain, home_scope, home_group_id, home_view, updated_at) VALUES (:em, :sd, :ad, :hs, :hg, :hv, CURRENT_TIMESTAMP)');
+            $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain, home_scope, home_group_id, home_view, updated_at) VALUES (:em, :sd, :ad, :hs, :hg, :hv, CURRENT_TIMESTAMP) ON CONFLICT (user_email) DO UPDATE SET server_domain = EXCLUDED.server_domain, ap_domain = EXCLUDED.ap_domain, home_scope = EXCLUDED.home_scope, home_group_id = EXCLUDED.home_group_id, home_view = EXCLUDED.home_view, updated_at = CURRENT_TIMESTAMP');
             $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $stmt->bindValue(':sd', $sd, PDO::PARAM_STR);
             $stmt->bindValue(':ad', $ad, PDO::PARAM_STR);
@@ -1960,7 +1978,7 @@ if ($action !== '') {
                     if ($cid === '' || in_array($cid, $pendingIds, true)) continue;
                     if (!array_key_exists($cid, $payload['controls'])) continue;
                     $nv = sh_normalize_control_value($c, $payload['controls'][$cid]);
-                    if ($c['value'] !== $nv) { $c['value'] = $nv; $changed = true; }
+                    if (($c['value'] ?? null) !== $nv) { $c['value'] = $nv; $changed = true; }
                 }
                 unset($c);
                 if ($changed) {
@@ -2388,21 +2406,28 @@ function sh_migrate_from_json(): void {
     }
 }
 
-// Run migration once
-$migrationFlag = SH_APP_DIR . '/.migrated_to_db';
-if (!is_file($migrationFlag)) {
-    sh_migrate_from_json();
-    // Delete JSON data files after successful migration
-    $dataDir = SH_APP_DIR . '/data';
-    if (is_dir($dataDir)) {
-        $it = new RecursiveDirectoryIterator($dataDir, RecursiveDirectoryIterator::SKIP_DOTS);
+// Run migration once (flag in data/ — app dir is not writable in production)
+$dataDir = SH_APP_DIR . '/data';
+$migrationFlag = $dataDir . '/.migrated_to_db';
+$legacyMigrationFlag = SH_APP_DIR . '/.migrated_to_db';
+if (!is_file($migrationFlag) && !is_file($legacyMigrationFlag)) {
+    $usersDir = $dataDir . '/users';
+    if (is_dir($usersDir)) {
+        sh_migrate_from_json();
+        $it = new RecursiveDirectoryIterator($usersDir, RecursiveDirectoryIterator::SKIP_DOTS);
         $files = new RecursiveIteratorIterator($it, RecursiveIteratorIterator::CHILD_FIRST);
         foreach ($files as $f) {
             if ($f->isFile()) @unlink($f->getRealPath());
             elseif ($f->isDir()) @rmdir($f->getRealPath());
         }
+        @rmdir($usersDir);
     }
-    file_put_contents($migrationFlag, gmdate('c'));
+    if (!is_dir($dataDir)) {
+        @mkdir($dataDir, 0775, true);
+    }
+    if (is_dir($dataDir) && is_writable($dataDir)) {
+        @file_put_contents($migrationFlag, gmdate('c'));
+    }
 }
 
 // ─── HTML Template ──────────────────────────────────────────────────────────────
