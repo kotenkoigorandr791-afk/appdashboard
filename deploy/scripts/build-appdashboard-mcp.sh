@@ -1,5 +1,5 @@
 #!/bin/sh
-set -euo pipefail
+set -eu
 ROOT="${1:-}"
 if [ -z "$ROOT" ]; then
   ROOT="$(CDPATH= cd -- "$(dirname "$0")/../.." && pwd)"
