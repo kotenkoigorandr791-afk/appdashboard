@@ -14,6 +14,7 @@ RUN apk add --no-cache git \
 FROM php:8.5-fpm-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 ENV ONNXRUNTIME_PREFER_CPU=1
 ENV HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-home
 ENV XDG_CACHE_HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache
