@@ -5,6 +5,8 @@
 /webssh/vendor/
 /apps/cloud/vendor/
 /node_modules/
+**/node_modules/
+appdashboard-mcp/dist/
 /.venv/
 /apps/steps/utils/.venv/
 /apps/steps/utils/venv/
@@ -89,3 +91,5 @@ Thumbs.db
 **/CLAUDE.md
 **/backups_codex/
 **/openspec/
+opencode.json
+.mcp-test-duplicati-src/

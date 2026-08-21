@@ -69,6 +69,7 @@ $blockedExtensions = ['php','php3','php4','php5','php7','php8','phtml','phar','p
 
 const DB_FILE = '/opt/AppDashboard/data/db.env';
 
+if (!function_exists('getDB')) {
 function getDB() {
     static $db = null;
     if ($db === null) {
@@ -83,6 +84,7 @@ function getDB() {
         }
     }
     return $db;
+}
 }
 
 function normalize_cloud_device_id(string $value): string {
@@ -2524,13 +2526,25 @@ function getSecurityProperties($path) {
 // File conversion function
 function convertFile($inputFile, $outputFile, $targetFormat) {
     $inputFormat = strtolower(pathinfo($inputFile, PATHINFO_EXTENSION));
-    
-    // Supported conversions
+    $targetFormat = strtolower((string)$targetFormat);
+
     $supportedConversions = [
-        'docx' => ['pdf', 'txt', 'odt', 'html'],
-        'doc' => ['pdf', 'txt', 'odt', 'html'],
-        'pdf' => ['docx', 'txt', 'html'],
-        'odt' => ['pdf', 'docx', 'txt', 'html'],
+        'docx' => ['pdf', 'txt', 'odt', 'html', 'doc', 'rtf'],
+        'doc' => ['pdf', 'txt', 'odt', 'html', 'docx', 'rtf'],
+        'pdf' => ['docx', 'txt', 'html', 'odt'],
+        'odt' => ['pdf', 'docx', 'txt', 'html', 'doc', 'rtf'],
+        'rtf' => ['pdf', 'docx', 'odt', 'txt', 'html'],
+        'txt' => ['pdf', 'odt', 'docx', 'html', 'rtf'],
+        'md' => ['pdf', 'html', 'docx', 'odt', 'txt'],
+        'html' => ['pdf', 'docx', 'odt', 'txt'],
+        'htm' => ['pdf', 'docx', 'odt', 'txt'],
+        'xlsx' => ['pdf', 'ods', 'csv', 'html'],
+        'xls' => ['pdf', 'ods', 'csv', 'html', 'xlsx'],
+        'ods' => ['pdf', 'xlsx', 'csv', 'html'],
+        'csv' => ['xlsx', 'ods', 'pdf', 'html'],
+        'pptx' => ['pdf', 'odp', 'html'],
+        'ppt' => ['pdf', 'odp', 'html', 'pptx'],
+        'odp' => ['pdf', 'pptx', 'html'],
         'jpg' => ['png', 'webp', 'bmp', 'gif'],
         'jpeg' => ['png', 'webp', 'bmp', 'gif'],
         'png' => ['jpg', 'webp', 'bmp', 'gif'],
@@ -2538,88 +2552,152 @@ function convertFile($inputFile, $outputFile, $targetFormat) {
         'bmp' => ['jpg', 'png', 'webp', 'gif'],
         'gif' => ['jpg', 'png', 'webp', 'bmp']
     ];
-    
-    // Check conversion support
-    if (!isset($supportedConversions[$inputFormat]) || 
-        !in_array($targetFormat, $supportedConversions[$inputFormat])) {
+
+    if (!isset($supportedConversions[$inputFormat]) ||
+        !in_array($targetFormat, $supportedConversions[$inputFormat], true)) {
         throw new Exception("Conversion from .$inputFormat to .$targetFormat is not supported");
     }
-    
-    // Determine file type
-    $isDocument = in_array($inputFormat, ['docx', 'doc', 'pdf', 'odt', 'txt', 'html']);
-    $isImage = in_array($inputFormat, ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif']);
-    
+
+    $isDocument = in_array($inputFormat, ['docx', 'doc', 'pdf', 'odt', 'txt', 'html', 'htm', 'md', 'rtf', 'xlsx', 'xls', 'ods', 'csv', 'pptx', 'ppt', 'odp'], true);
+    $isImage = in_array($inputFormat, ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif'], true);
+
     if ($isDocument) {
         return convertDocument($inputFile, $outputFile, $inputFormat, $targetFormat);
-    } elseif ($isImage) {
-        return convertImage($inputFile, $outputFile, $inputFormat, $targetFormat);
-    } else {
-        throw new Exception("Unsupported file type: .$inputFormat");
     }
+    if ($isImage) {
+        return convertImage($inputFile, $outputFile, $inputFormat, $targetFormat);
+    }
+    throw new Exception("Unsupported file type: .$inputFormat");
+}
+
+function cloud_libreoffice_home(): string {
+    $home = '/opt/ApplicationData/cloud_libreoffice_home';
+    if (!is_dir($home)) {
+        @mkdir($home, 0775, true);
+    }
+    @chmod($home, 0775);
+    foreach (['.cache', '.config', 'tmp'] as $sub) {
+        $p = $home . '/' . $sub;
+        if (!is_dir($p)) {
+            @mkdir($p, 0775, true);
+        }
+    }
+    return $home;
+}
+
+function cloud_find_libreoffice_cmd(): string {
+    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+        foreach ([
+            'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+            'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
+        ] as $path) {
+            if (is_file($path)) {
+                return '"' . $path . '"';
+            }
+        }
+        return '';
+    }
+    foreach (['/usr/bin/soffice', '/usr/bin/libreoffice', 'soffice', 'libreoffice'] as $cmd) {
+        if ($cmd[0] === '/' && is_executable($cmd)) {
+            return $cmd;
+        }
+        $which = trim((string)shell_exec('command -v ' . escapeshellarg($cmd) . ' 2>/dev/null'));
+        if ($which !== '') {
+            return $which;
+        }
+    }
+    return '';
 }
 
 function convertDocument($inputFile, $outputFile, $from, $to) {
-    // Check if LibreOffice is available
-    $libreofficeCmd = '';
-    if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
-        // Windows paths
-        $possiblePaths = [
-            '"C:\Program Files\LibreOffice\program\soffice.exe"',
-            '"C:\Program Files (x86)\LibreOffice\program\soffice.exe"'
-        ];
-        
-        foreach ($possiblePaths as $cmd) {
-            if (file_exists(str_replace(['"', "'"], '', $cmd))) {
-                $libreofficeCmd = $cmd;
-                break;
+    $from = strtolower((string)$from);
+    $to = strtolower((string)$to);
+    $outputDir = dirname($outputFile);
+    if (!is_dir($outputDir)) {
+        @mkdir($outputDir, 0775, true);
+    }
+
+    if ($from === 'md' && in_array($to, ['pdf', 'html', 'docx', 'odt', 'txt'], true)) {
+        $pandoc = is_executable('/usr/bin/pandoc') ? '/usr/bin/pandoc' : trim((string)shell_exec('command -v pandoc 2>/dev/null'));
+        if ($pandoc !== '') {
+            $cmd = escapeshellarg($pandoc) . ' ' . escapeshellarg($inputFile) . ' -o ' . escapeshellarg($outputFile);
+            if ($to === 'pdf') {
+                $engine = is_executable('/usr/bin/xelatex') ? '/usr/bin/xelatex' : (is_executable('/usr/bin/pdflatex') ? '/usr/bin/pdflatex' : '');
+                if ($engine !== '') {
+                    $cmd .= ' --pdf-engine=' . escapeshellarg($engine);
+                    if ($engine === '/usr/bin/xelatex') {
+                        $cmd .= ' -V mainfont="Liberation Serif" -V papersize=a4';
+                    }
+                }
+            }
+            $output = [];
+            $returnCode = 1;
+            exec($cmd . ' 2>&1', $output, $returnCode);
+            if ($returnCode === 0 && is_file($outputFile)) {
+                return true;
             }
         }
-    } else {
-        // Linux/Mac
-        $libreofficeCmd = 'libreoffice';
     }
-    
-    if (!$libreofficeCmd) {
+
+    $libreofficeCmd = cloud_find_libreoffice_cmd();
+    if ($libreofficeCmd === '') {
         throw new Exception("LibreOffice not found. Please install LibreOffice for document conversion.");
     }
-    
-    $outputDir = dirname($outputFile);
-    $tempDir = __DIR__ . '/temp_convert';
-    
+
+    $tempDir = '/opt/ApplicationData/cloud_temp_convert';
     if (!is_dir($tempDir)) {
         @mkdir($tempDir, 0777, true);
     }
-    
-    $command = $libreofficeCmd . " --headless --convert-to " . escapeshellarg($to) . 
-              " --outdir " . escapeshellarg($tempDir) . " " . 
-              escapeshellarg($inputFile) . " 2>&1";
-    
+    if (!is_dir($tempDir) || !is_writable($tempDir)) {
+        $tempDir = __DIR__ . '/temp_convert';
+        if (!is_dir($tempDir)) {
+            @mkdir($tempDir, 0777, true);
+        }
+    }
+    $loHome = cloud_libreoffice_home();
+    $profileDir = $loHome . '/profile';
+    if (!is_dir($profileDir)) {
+        @mkdir($profileDir, 0775, true);
+    }
+    $profileUri = 'file://' . $profileDir;
+    $envPrefix = 'HOME=' . escapeshellarg($loHome)
+        . ' XDG_CACHE_HOME=' . escapeshellarg($loHome . '/.cache')
+        . ' XDG_CONFIG_HOME=' . escapeshellarg($loHome . '/.config')
+        . ' TMPDIR=' . escapeshellarg($loHome . '/tmp')
+        . ' SAL_USE_VCLPLUGIN=svp ';
+
+    $command = $envPrefix . $libreofficeCmd
+        . ' -env:UserInstallation=' . escapeshellarg($profileUri)
+        . ' --headless --nologo --nofirststartwizard --norestore'
+        . ' --convert-to ' . escapeshellarg($to)
+        . ' --outdir ' . escapeshellarg($tempDir) . ' '
+        . escapeshellarg($inputFile) . ' 2>&1';
+
+    $output = [];
+    $returnCode = 1;
     exec($command, $output, $returnCode);
-    
+
     if ($returnCode === 0) {
-        // Look for the converted file
         $originalFilename = pathinfo($inputFile, PATHINFO_FILENAME);
         $convertedFile = $tempDir . '/' . $originalFilename . '.' . $to;
-        
         if (file_exists($convertedFile)) {
-            // Move to the target location
-            if (!rename($convertedFile, $outputFile)) {
-                throw new Exception("Failed to move converted file");
+            if (!@rename($convertedFile, $outputFile)) {
+                if (!@copy($convertedFile, $outputFile)) {
+                    throw new Exception("Failed to move converted file");
+                }
+                @unlink($convertedFile);
             }
-            
-            // Clean up temporary files
-            $tempFiles = glob($tempDir . '/*');
-            foreach ($tempFiles as $tempFile) {
+            foreach (glob($tempDir . '/*') ?: [] as $tempFile) {
                 if (is_file($tempFile)) {
                     @unlink($tempFile);
                 }
             }
-            
             return true;
         }
     }
-    
-    throw new Exception("Document conversion failed. Error code: $returnCode");
+
+    $detail = trim(implode("\n", array_slice($output, -8)));
+    throw new Exception("Document conversion failed. Error code: $returnCode" . ($detail !== '' ? (': ' . $detail) : ''));
 }
 
 function convertImage($inputFile, $outputFile, $from, $to) {
@@ -3582,6 +3660,8 @@ function save_storage_usage_stats(string $email, string $user): array {
 //  patch_file_tree — incremental JSON cache update without disk scan
 //  ops = JSON array of { op:'add'|'remove'|'rename'|'move', ... }
 // ------------------------------------------------------------------
-if (!defined('CLOUD_SYNC_WS_BOOT') && basename((string)($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'api.php') {
+if (!defined('CLOUD_SYNC_WS_BOOT') && !defined('CLOUD_WEBDAV_BOOT') && (
+    defined('PUBLIC_API') || basename((string)($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'api.php'
+)) {
     require_once __DIR__ . '/api/actions/router.php';
 }

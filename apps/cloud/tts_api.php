@@ -86,6 +86,7 @@ require_once __DIR__ . '/../../lib/app_db.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 
+if (!function_exists('getDB')) {
 function getDB() {
     static $db = null;
     if ($db === null) {
@@ -100,13 +101,14 @@ function getDB() {
     }
     return $db;
 }
+}
 
 function get_session_email() {
     if (session_status() === PHP_SESSION_NONE) {
         require_once __DIR__ . '/includes/session.php';
         cloud_session_start();
     }
-    return $_SESSION['email'] ?? null;
+    return $_SESSION['email'] ?? $_SESSION['user']['email'] ?? null;
 }
 
 function invalidate_file_tree($email) {

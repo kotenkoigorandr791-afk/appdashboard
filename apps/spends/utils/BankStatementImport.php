@@ -429,7 +429,7 @@ final class BankStatementImport
                 continue;
             }
             $st = $t['store_default'];
-            $chk = $udb->prepare('SELECT 1 FROM expenses WHERE date=:d AND store=:s AND ABS(ROUND(amount,2)-:a)<0.02 LIMIT 1');
+            $chk = $udb->prepare('SELECT 1 FROM expenses WHERE date=:d AND store=:s AND ABS(ROUND(amount::numeric,2)-:a)<0.02 LIMIT 1');
             $chk->bindValue(':d', $t['date']);
             $chk->bindValue(':s', $st);
             $chk->bindValue(':a', $t['amount'], PDO::PARAM_STR);
@@ -443,7 +443,7 @@ final class BankStatementImport
     }
     public static function multisetFromDbExpenses(AppDatabase $udb, string $date): array
     {
-        $st = $udb->prepare('SELECT store, ROUND(amount,2) AS a FROM expenses WHERE date=:d AND ABS(amount)>0.0001');
+        $st = $udb->prepare('SELECT store, ROUND(amount::numeric,2) AS a FROM expenses WHERE date=:d AND ABS(amount)>0.0001');
         $st->bindValue(':d', $date);
         $r = $st->execute();
         $list = [];
@@ -631,7 +631,7 @@ final class BankStatementImport
                         $ins->bindValue(':a', $amt, PDO::PARAM_STR);
                         $ins->execute();
                     } else {
-                        $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO NOTHING ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='manual',ocr_raw_store=NULL");
+                        $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2),entry_source='manual',ocr_raw_store=NULL");
                         $ins->bindValue(':d', $d);
                         $ins->bindValue(':s', $store);
                         $ins->bindValue(':a', $amt, PDO::PARAM_STR);
@@ -656,7 +656,7 @@ final class BankStatementImport
                     $ins->bindValue(':a', $sum, PDO::PARAM_STR);
                     $ins->execute();
                 } else {
-                    $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO NOTHING ON CONFLICT(date) DO UPDATE SET amount=ROUND(amount+excluded.amount,2)');
+                    $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO UPDATE SET amount=ROUND((incomes.amount+excluded.amount)::numeric,2)');
                     $ins->bindValue(':d', $d);
                     $ins->bindValue(':a', $sum, PDO::PARAM_STR);
                     $ins->execute();

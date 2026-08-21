@@ -335,7 +335,11 @@ if ($action === 'restore_from_trash') {
 
 if ($action === 'empty_trash') {
   $user = get_current_user_from_sessions();
+  if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
   $trashBase = user_root($user, 'trash');
+  if (!is_dir($trashBase)) {
+    @mkdir($trashBase, 0775, true);
+  }
   $meta = load_trash_metadata($user);
   $removed = 0;
 
@@ -356,7 +360,10 @@ if ($action === 'empty_trash') {
   save_trash_metadata($user, []);
 
   $email = get_session_email();
-  if ($email) append_sync_log($email, 'trash', 'empty_trash', '', 'WARNING', 'Trash emptied');
+  if ($email) {
+    invalidate_file_tree($email);
+    append_sync_log($email, 'trash', 'empty_trash', '', 'WARNING', 'Trash emptied');
+  }
   json_out(['ok' => true, 'removed' => $removed]);
 }
 
@@ -2338,6 +2345,41 @@ if ($action === 'view_pdf') {
   exit;
 }
 
+if ($action === 'pdf_to_images') {
+    $user = get_current_user_from_sessions();
+    $rootKey = get_requested_root_key();
+    $base = user_root($user, $rootKey);
+    $path = safe_path((string)(($_GET['path'] ?? $_POST['path'] ?? '')));
+    if ($path === '') json_out(['ok' => false, 'error' => 'path required'], 400);
+    $target = $base . '/' . $path;
+    if (!is_file($target)) json_out(['ok' => false, 'error' => 'file_not_found'], 404);
+    $mime = (string)@mime_content_type($target);
+    $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+    if ($mime !== 'application/pdf' && $ext !== 'pdf') json_out(['ok' => false, 'error' => 'not_a_pdf'], 400);
+    $pdftoppm = trim((string)@shell_exec('command -v pdftoppm 2>/dev/null'));
+    if ($pdftoppm === '') json_out(['ok' => false, 'error' => 'pdftoppm_unavailable'], 501);
+    $stem = pathinfo($path, PATHINFO_FILENAME);
+    $dirRel = trim(str_replace('\\', '/', dirname($path)), '/.');
+    $outDirRel = ($dirRel === '' ? '' : ($dirRel . '/')) . $stem . '_pages';
+    $outDir = $base . '/' . $outDirRel;
+    if (!is_dir($outDir) && !@mkdir($outDir, 0775, true)) json_out(['ok' => false, 'error' => 'mkdir_failed'], 500);
+    $prefix = $outDir . '/page';
+    $cmd = escapeshellarg($pdftoppm) . ' -png -r 72 ' . escapeshellarg($target) . ' ' . escapeshellarg($prefix);
+    $output = [];
+    $code = 0;
+    @exec($cmd . ' 2>&1', $output, $code);
+    if ($code !== 0) json_out(['ok' => false, 'error' => 'pdftoppm_failed', 'detail' => implode("\n", $output)], 500);
+    $images = [];
+    foreach (glob($prefix . '-*.png') ?: [] as $img) {
+        $images[] = $outDirRel . '/' . basename($img);
+    }
+    sort($images, SORT_NATURAL);
+    if ($images === []) json_out(['ok' => false, 'error' => 'no_images_produced'], 500);
+    $email = get_session_email();
+    if ($email && $rootKey === 'main') invalidate_file_tree($email);
+    json_out(['ok' => true, 'images' => $images, 'count' => count($images), 'folder' => $outDirRel]);
+}
+
 function cloud_archive_jobs_dir(): string {
     $dir = upload_sessions_dir() . '/archive_jobs';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
@@ -3556,16 +3598,20 @@ if ($action === 'convert_file') {
     
     // Determine the output path
     $source_dir = dirname($source_path);
+    if ($source_dir === '.' || $source_dir === '') {
+        $source_dir = '';
+    }
     $source_filename = pathinfo($source_path, PATHINFO_FILENAME);
     
     if ($output_path === '') {
-        $output_path = $source_dir . '/' . $source_filename . '.' . $target_format;
+        $output_path = ($source_dir === '' ? '' : ($source_dir . '/')) . $source_filename . '.' . $target_format;
     } else {
         // If a folder path is given, append the file name
         if (strpos($output_path, '.') === false) {
             $output_path = rtrim($output_path, '/') . '/' . $source_filename . '.' . $target_format;
         }
     }
+    $output_path = ltrim(str_replace('\\', '/', $output_path), '/');
     if (($nameError = cloud_validate_relative_path_names($output_path)) !== null) json_out(['error'=>$nameError], 400);
     
     $output_full = $base . '/' . $output_path;

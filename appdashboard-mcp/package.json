@@ -1,0 +1,31 @@
+{
+  "name": "appdashboard-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for AppDashboard service shell",
+  "type": "module",
+  "bin": {
+    "appdashboard-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepack": "npm run build",
+    "start": "node dist/index.js",
+    "setup": "node dist/index.js setup"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "dist/index.js"
+}

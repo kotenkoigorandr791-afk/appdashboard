@@ -1,0 +1,11 @@
+{
+  "servers": {
+    "appdashboard-mcp": {
+      "command": "node",
+      "args": ["${workspaceFolder}/appdashboard-mcp/dist/index.js"],
+      "env": {
+        "APPDASHBOARD_URL": "http://localhost"
+      }
+    }
+  }
+}

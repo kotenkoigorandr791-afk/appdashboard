@@ -11,8 +11,20 @@ if [ "${PHP_OPCACHE_ENABLE:-1}" = "0" ]; then
     printf 'opcache.revalidate_freq=0\n'
     printf 'opcache.file_update_protection=0\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
+else
+  {
+    printf 'opcache.enable=1\n'
+    printf 'opcache.enable_cli=0\n'
+    printf 'opcache.memory_consumption=192\n'
+    printf 'opcache.interned_strings_buffer=16\n'
+    printf 'opcache.max_accelerated_files=20000\n'
+    printf 'opcache.validate_timestamps=1\n'
+    printf 'opcache.revalidate_freq=30\n'
+  } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
-mkdir -p /var/www/AppDashboard/data /var/www/AppDashboard/uploads/avatars /var/www/AppDashboard/uploads/support_chat /opt/AppDashboard/data /opt/ApplicationData
+mkdir -p /var/www/AppDashboard/data /var/www/AppDashboard/uploads/avatars /var/www/AppDashboard/uploads/support_chat /opt/AppDashboard/data /opt/ApplicationData /opt/ApplicationData/cloud_libreoffice_home /opt/ApplicationData/cloud_libreoffice_home/.cache /opt/ApplicationData/cloud_libreoffice_home/.config /opt/ApplicationData/cloud_libreoffice_home/tmp /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache
+chown -R www-data:www-data /opt/ApplicationData/cloud_libreoffice_home /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache 2>/dev/null || true
+chmod -R 0775 /opt/ApplicationData/cloud_libreoffice_home /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
 if [ ! -f /opt/AppDashboard/data/db.env ]; then
   {
     printf 'DB_DRIVER=pgsql\n'

@@ -38,10 +38,46 @@ function getUserRoleByEmail(string $email): int {
     return 0;
 }
 
+function recipes_bearer_email_from_auth(): ?string {
+    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+    if (!preg_match('/^\s*Bearer\s+([A-Fa-f0-9]{64})\s*$/', $auth, $m)) {
+        return null;
+    }
+    $db = getDB();
+    if (!$db) {
+        return null;
+    }
+    try {
+        require_once __DIR__ . '/../../lib/public_api_auth.php';
+        if (function_exists('public_api_ensure_token_schema')) {
+            public_api_ensure_token_schema($db);
+        }
+        $tokenHash = hash('sha256', $m[1]);
+        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+        $stmt->bindValue(':now', time(), PDO::PARAM_INT);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row && !empty($row['email'])) {
+            $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
+            $upd->bindValue(':t', time(), PDO::PARAM_INT);
+            $upd->bindValue(':h', $tokenHash, PDO::PARAM_STR);
+            $upd->execute();
+            return (string)$row['email'];
+        }
+    } catch (Throwable $e) {
+    }
+    return null;
+}
+
 function recipes_resolve_session_role(): int {
     $db = getDB();
     if (!$db) {
         return 0;
+    }
+
+    $bearerEmail = recipes_bearer_email_from_auth();
+    if (!empty($bearerEmail)) {
+        return getUserRoleByEmail($bearerEmail);
     }
 
     $getEmail = static function (string $sid) use ($db): ?string {
@@ -88,6 +124,9 @@ function recipes_resolve_session_role(): int {
         if (!empty($email)) {
             return getUserRoleByEmail($email);
         }
+    }
+    if (!empty($_SESSION['user']['email'])) {
+        return getUserRoleByEmail((string)$_SESSION['user']['email']);
     }
     return 0;
 }

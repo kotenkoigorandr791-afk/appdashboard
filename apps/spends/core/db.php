@@ -22,6 +22,8 @@ if (!file_exists($spendsUploadLink) && is_dir(UPLOAD_SESSIONS_DIR)) {
     @symlink(UPLOAD_SESSIONS_DIR, $spendsUploadLink);
 }
 require_once __DIR__ . '/../../../lib/app_db.php';
-function getDB(): AppDatabase {
-    return app_main_db();
+if (!function_exists('getDB')) {
+    function getDB(): AppDatabase {
+        return app_main_db();
+    }
 }

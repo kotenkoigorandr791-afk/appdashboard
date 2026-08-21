@@ -1,5 +1,16 @@
 <?php
 // ─── AJAX / POST handlers ──────────────────────────────────────────────────────
+if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
+    exit(json_encode([
+        'status' => 'success',
+        'monthly_budget' => $userSettings['monthly_budget'] ?? 100,
+        'currency' => $userSettings['currency'] ?? 'USD',
+        'show_incomes' => (bool)($userSettings['show_incomes'] ?? true),
+        'show_trend' => (bool)($userSettings['show_trend'] ?? false),
+        'trim_empty_months' => (bool)($userSettings['trim_empty_months'] ?? false),
+        'stores' => $userSettings['stores'] ?? [],
+    ]));
+}
 if (isset($_GET['get_expense_meta'])) {
     $date = trim($_GET['date'] ?? '');
     $store = trim($_GET['store'] ?? '');
@@ -401,11 +412,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     if ($token === '' || strlen($token) < 16) {
         exit(json_encode(['status' => 'error', 'message' => 'bad_token']));
     }
-    if (!isset($_SESSION['bank_csv_sessions'][$token])) {
-        exit(json_encode(['status' => 'error', 'message' => 'session']));
+    $path = $userDir . '/bank_import/' . $token . '.csv';
+    if (!is_file($path) && isset($_SESSION['bank_csv_sessions'][$token])) {
+        $meta = $_SESSION['bank_csv_sessions'][$token];
+        if (($meta['user'] ?? '') === $currentUser && !empty($meta['path']) && is_file($meta['path'])) {
+            $path = (string) $meta['path'];
+        }
     }
-    $meta = $_SESSION['bank_csv_sessions'][$token];
-    if (($meta['user'] ?? '') !== $currentUser || empty($meta['path']) || !is_file($meta['path'])) {
+    if (!is_file($path)) {
         exit(json_encode(['status' => 'error', 'message' => 'session']));
     }
     if (!is_array($exclude)) {
@@ -417,7 +431,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     if (!is_array($conflictDates)) {
         $conflictDates = [];
     }
-    $path = (string) $meta['path'];
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
         $base = (string) ($userSettings['currency'] ?? 'USD');
@@ -518,7 +531,18 @@ if (isset($_POST['backup_action'])) {
     $userBackupDir = getUserBackupDir($currentUser);
     $allStores     = dbGetStores($udb);
 
-    if ($action === 'organize') {
+    if ($action === 'list') {
+        $backups = [];
+        foreach (glob("$userBackupDir/*.csv") ?: [] as $path) {
+            $backups[] = [
+                'name' => basename($path),
+                'size' => (int)filesize($path),
+                'mtime' => (int)filemtime($path),
+            ];
+        }
+        exit(json_encode(['status' => 'success', 'backups' => $backups]));
+    }
+    elseif ($action === 'organize') {
         $csv = exportExpensesToCSV($udb, $allStores);
         $_SESSION['organized_data'] = $csv;
         exit(json_encode(['status'=>'success','message'=>'Data organized successfully']));
@@ -526,12 +550,17 @@ if (isset($_POST['backup_action'])) {
     elseif ($action === 'save' && isset($_POST['backup_name'])) {
         $name       = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['backup_name']);
         $backupPath = "$userBackupDir/$name.csv";
-        if (isset($_SESSION['organized_data'])) {
-            file_put_contents($backupPath, $_SESSION['organized_data']);
+        $csv = $_SESSION['organized_data'] ?? null;
+        if ($csv === null || $csv === '') {
+            $csv = exportExpensesToCSV($udb, $allStores);
+        } else {
             unset($_SESSION['organized_data']);
-            exit(json_encode(['status'=>'success','message'=>'Backup saved successfully']));
         }
-        exit(json_encode(['status'=>'error','message'=>'No organized data to save']));
+        if ($csv === null || $csv === '') {
+            exit(json_encode(['status'=>'error','message'=>'No organized data to save']));
+        }
+        file_put_contents($backupPath, $csv);
+        exit(json_encode(['status'=>'success','message'=>'Backup saved successfully']));
     }
     elseif ($action === 'restore' && isset($_POST['backup_file'])) {
         $backupFile = basename($_POST['backup_file']);
