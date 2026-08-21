@@ -2,7 +2,7 @@
 
 Prebuilt MCP server for AppDashboard (stdio). Clients install with **one command** — no local build.
 
-One server key: **`appdashboard-mcp`**. Tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea) live in the same package.
+One server key: **`appdashboard-mcp`**. Tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Plane) live in the same package.
 
 ## Install (from AppDashboard UI)
 
@@ -101,14 +101,16 @@ Produces `downloads/appdashboard-mcp.tgz` served at `/mcp/appdashboard-mcp.tgz`.
 | `steps_*` | Steps counter |
 | `immich_*` | Immich photo library |
 | `gitea_*` | Gitea git forge |
+| `plane_*` | Plane project management |
 
-All `steps_*`, `immich_*`, and `gitea_*` tools are available to any authenticated user (no Admin role required).
+All `steps_*`, `immich_*`, `gitea_*`, and `plane_*` tools are available to any authenticated user (no Admin role required).
 
-## Automatic Immich / Gitea credentials
+## Automatic Immich / Gitea / Plane credentials
 
-After `login`, Immich and Gitea tools do **not** ask for API keys or tokens. On first use the MCP client calls:
+After `login`, Immich, Gitea, and Plane tools do **not** ask for API keys or tokens. On first use the MCP client calls:
 
 - `GET /public-api/integrations/immich` → `{ url, api_key }`
 - `GET /public-api/integrations/gitea` → `{ url, access_token }`
+- `GET /public-api/integrations/plane` → `{ url, api_key, workspace_slug }`
 
 The dashboard creates (or reuses) a per-user key named **MCP** and returns it. Credentials are cached in the MCP process memory and never printed by the tools themselves.

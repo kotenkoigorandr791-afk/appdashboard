@@ -666,20 +666,34 @@ function oauth_plane_db(): ?PDO {
     if ($tried) return $pdo;
     $tried = true;
     $vars = oauth_env_file('/opt/docker/plane/.env');
-    $user = (string)($vars['POSTGRES_USER'] ?? 'plane');
-    $password = (string)($vars['POSTGRES_PASSWORD'] ?? 'plane');
-    $dbname = (string)($vars['POSTGRES_DB'] ?? $vars['PGDATABASE'] ?? 'plane');
-    try {
-        $pdo = new PDO(
-            sprintf('pgsql:host=%s;port=%d;dbname=%s', '127.0.0.1', 5432, $dbname),
-            $user,
-            $password,
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]
-        );
-    } catch (\Exception $e) {
-        $pdo = null;
+    if ($vars === []) {
+        $vars = oauth_env_file('/opt/ApplicationData/plane.env');
     }
-    return $pdo;
+    $user = (string)(getenv('PLANE_DB_USER') ?: ($vars['POSTGRES_USER'] ?? 'plane'));
+    $password = (string)(getenv('PLANE_DB_PASSWORD') ?: ($vars['POSTGRES_PASSWORD'] ?? 'plane'));
+    $dbname = (string)(getenv('PLANE_DB_NAME') ?: ($vars['POSTGRES_DB'] ?? $vars['PGDATABASE'] ?? 'plane'));
+    $port = (int)(getenv('PLANE_DB_PORT') ?: ($vars['POSTGRES_PORT'] ?? 5432));
+    if ($port <= 0) $port = 5432;
+    $hosts = ['127.0.0.1', 'host.docker.internal'];
+    foreach (['172.17.0.1', '172.19.0.1'] as $extra) {
+        if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
+    }
+    foreach ($hosts as $host) {
+        foreach (array_values(array_unique([(int)$port, 5437, 5432])) as $p) {
+            try {
+                $pdo = new PDO(
+                    sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, (int)$p, $dbname),
+                    $user,
+                    $password,
+                    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]
+                );
+                return $pdo;
+            } catch (\Exception $e) {
+                $pdo = null;
+            }
+        }
+    }
+    return null;
 }
 
 function oauth_gitea_db(): ?PDO {
@@ -873,7 +887,8 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
 }
 
 function oauth_ensure_plane_user(string $email, string $name, bool $isAdmin, string $avatar = '', string $theme = ''): void {
-    if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
+    if ($email === '') return;
+    if ($email !== 'root@root' && !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
     $pdo = oauth_plane_db();
     if (!$pdo) return;
     try {

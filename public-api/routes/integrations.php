@@ -20,6 +20,10 @@ if ($service === 'gitea') {
     $out = integrations_gitea_credentials($email);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
+if ($service === 'plane') {
+    $out = integrations_plane_credentials($email);
+    public_api_json($out, !empty($out['ok']) ? 200 : 503);
+}
 public_api_json(['ok' => false, 'error' => 'unknown_integration'], 404);
 
 function integrations_meta_get(string $key): string {
@@ -282,4 +286,108 @@ function integrations_gitea_credentials(string $email): array {
     }
     integrations_meta_set($metaKey, $token);
     return ['ok' => true, 'url' => $url, 'access_token' => $token];
+}
+
+function integrations_plane_url(): string {
+    $url = trim((string)(getenv('PLANE_PUBLIC_URL') ?: 'https://plane.serverkherson.xyz'));
+    return rtrim($url, '/');
+}
+
+function integrations_plane_user_id(PDO $pdo, string $email): ?string {
+    $stmt = $pdo->prepare('SELECT id FROM users WHERE lower(email) = lower(:email) LIMIT 1');
+    $stmt->execute([':email' => $email]);
+    $id = $stmt->fetchColumn();
+    return $id ? (string)$id : null;
+}
+
+function integrations_plane_workspace_slug(PDO $pdo, string $userId): string {
+    $stmt = $pdo->prepare(
+        'SELECT w.slug FROM workspaces w
+         INNER JOIN workspace_members m ON m.workspace_id = w.id
+         WHERE m.member_id = :uid AND m.is_active = true AND m.deleted_at IS NULL
+         ORDER BY CASE WHEN w.slug = :pref THEN 0 ELSE 1 END, w.created_at ASC
+         LIMIT 1'
+    );
+    $stmt->execute([':uid' => $userId, ':pref' => 'server']);
+    $slug = $stmt->fetchColumn();
+    if ($slug) return (string)$slug;
+    $any = $pdo->query('SELECT slug FROM workspaces ORDER BY created_at ASC LIMIT 1');
+    $fallback = $any ? $any->fetchColumn() : false;
+    return $fallback ? (string)$fallback : 'server';
+}
+
+function integrations_plane_create_token(PDO $pdo, string $userId): ?string {
+    $token = 'plane_api_' . bin2hex(random_bytes(20));
+    $id = function_exists('oauth_uuid') ? oauth_uuid() : sprintf(
+        '%s-%s-%s-%s-%s',
+        bin2hex(random_bytes(4)),
+        bin2hex(random_bytes(2)),
+        bin2hex(random_bytes(2)),
+        bin2hex(random_bytes(2)),
+        bin2hex(random_bytes(6))
+    );
+    try {
+        $stmt = $pdo->prepare(
+            'INSERT INTO api_tokens (
+                created_at, updated_at, id, token, label, user_type,
+                created_by_id, updated_by_id, user_id, workspace_id, description,
+                expired_at, is_active, last_used, is_service, deleted_at, allowed_rate_limit
+             ) VALUES (
+                now(), now(), :id, :token, :label, 0,
+                :uid, :uid2, :uid3, NULL, :desc,
+                NULL, true, NULL, false, NULL, :rate
+             )'
+        );
+        $stmt->execute([
+            ':id' => $id,
+            ':token' => $token,
+            ':label' => 'MCP',
+            ':uid' => $userId,
+            ':uid2' => $userId,
+            ':uid3' => $userId,
+            ':desc' => 'AppDashboard MCP',
+            ':rate' => '60/min',
+        ]);
+        return $token;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function integrations_plane_credentials(string $email): array {
+    $url = integrations_plane_url();
+    $metaKey = 'mcp_plane_api_key:' . strtolower($email);
+    $cached = trim(integrations_meta_get($metaKey));
+    oauth_ensure_plane_user($email, '', (int)($_SESSION['user']['role'] ?? 0) >= 2);
+    $pdo = oauth_plane_db();
+    if (!$pdo) {
+        return ['ok' => false, 'error' => 'plane_db_unavailable'];
+    }
+    $userId = integrations_plane_user_id($pdo, $email);
+    if (!$userId) {
+        return ['ok' => false, 'error' => 'plane_user_missing'];
+    }
+    $workspaceSlug = integrations_plane_workspace_slug($pdo, $userId);
+    if ($cached !== '') {
+        $chk = $pdo->prepare('SELECT 1 FROM api_tokens WHERE token = :t AND user_id = :uid AND is_active = true AND deleted_at IS NULL LIMIT 1');
+        $chk->execute([':t' => $cached, ':uid' => $userId]);
+        if ($chk->fetchColumn()) {
+            return ['ok' => true, 'url' => $url, 'api_key' => $cached, 'workspace_slug' => $workspaceSlug];
+        }
+    }
+    $existing = $pdo->prepare(
+        "SELECT token FROM api_tokens
+         WHERE user_id = :uid AND label = 'MCP' AND is_active = true AND deleted_at IS NULL
+         ORDER BY created_at DESC LIMIT 1"
+    );
+    $existing->execute([':uid' => $userId]);
+    $token = (string)($existing->fetchColumn() ?: '');
+    if ($token === '') {
+        $token = (string)(integrations_plane_create_token($pdo, $userId) ?? '');
+    }
+    if ($token === '') {
+        return ['ok' => false, 'error' => 'plane_token_create_failed'];
+    }
+    integrations_meta_set($metaKey, $token);
+    return ['ok' => true, 'url' => $url, 'api_key' => $token, 'workspace_slug' => $workspaceSlug];
 }

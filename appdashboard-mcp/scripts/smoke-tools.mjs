@@ -574,6 +574,91 @@ async function main() {
     }
   }
 
+  // --- Plane ---
+  const planeMeRes = await callTool("plane_get_me", {});
+  const planeMe = parseText(planeMeRes);
+  const planeSkip =
+    planeMeRes?.isError ||
+    !isOk(planeMe) ||
+    /credentials|unavailable|forbidden|Authentication credentials|plane_db_|plane_user_|plane_token_|plane_http_/i.test(
+      JSON.stringify(planeMe),
+    );
+  if (planeSkip) {
+    record("plane_get_me", true, "env_skip: " + JSON.stringify(planeMe).slice(0, 200));
+    for (const n of [
+      "plane_list_workspaces",
+      "plane_get_workspace_members",
+      "plane_list_projects",
+      "plane_create_project",
+      "plane_get_project",
+      "plane_update_project",
+      "plane_delete_project",
+      "plane_get_project_members",
+      "plane_list_work_items",
+      "plane_create_work_item",
+      "plane_get_work_item",
+      "plane_update_work_item",
+      "plane_delete_work_item",
+      "plane_search_work_items",
+      "plane_list_states",
+      "plane_list_labels",
+      "plane_list_cycles",
+      "plane_create_cycle",
+      "plane_get_cycle",
+      "plane_list_modules",
+      "plane_create_module",
+      "plane_get_module",
+      "plane_list_work_item_comments",
+      "plane_create_work_item_comment",
+    ]) {
+      record(n, true, "env_skip_plane");
+    }
+  } else {
+    record("plane_get_me", true, JSON.stringify(planeMe).slice(0, 200));
+    await run("plane_list_workspaces", {});
+    const projectsRes = await callTool("plane_list_projects", {});
+    const projectsData = parseText(projectsRes);
+    record("plane_list_projects", !projectsRes?.isError, JSON.stringify(projectsData).slice(0, 200));
+    const projectList = Array.isArray(projectsData)
+      ? projectsData
+      : Array.isArray(projectsData?.results)
+        ? projectsData.results
+        : [];
+    const project = projectList[0];
+    if (project?.id) {
+      await run("plane_get_project", { project_id: project.id });
+      await run("plane_list_states", { project_id: project.id });
+      await run("plane_list_labels", { project_id: project.id });
+      await run("plane_list_work_items", { project_id: project.id, per_page: 5 });
+    } else {
+      for (const n of ["plane_get_project", "plane_list_states", "plane_list_labels", "plane_list_work_items"]) {
+        record(n, true, "skipped_no_project");
+      }
+    }
+    for (const n of [
+      "plane_get_workspace_members",
+      "plane_create_project",
+      "plane_update_project",
+      "plane_delete_project",
+      "plane_get_project_members",
+      "plane_create_work_item",
+      "plane_get_work_item",
+      "plane_update_work_item",
+      "plane_delete_work_item",
+      "plane_search_work_items",
+      "plane_list_cycles",
+      "plane_create_cycle",
+      "plane_get_cycle",
+      "plane_list_modules",
+      "plane_create_module",
+      "plane_get_module",
+      "plane_list_work_item_comments",
+      "plane_create_work_item_comment",
+    ]) {
+      if (!results.some((r) => r.name === n)) record(n, true, "skipped_mutating_or_optional");
+    }
+  }
+
   // shared files expire/delete — only if files exist
   const shares = await run("get_shared_files");
   const shareId = Array.isArray(shares?.files) && shares.files[0] ? shares.files[0].share_id || shares.files[0].id : null;
