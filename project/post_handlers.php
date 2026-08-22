@@ -506,6 +506,56 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $profileSuccess=$translations['password_changed'];
         }
     }
+    if(isset($_POST['generate_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'){
+        apSecRequireSameOrigin();
+        $email=$_SESSION['user']['email']??'';
+        if($email===''){
+            $profileError=$translations['login']??'Not authenticated';
+        }else{
+            try{
+                $tokenDb=getDB();
+                ensureClientAuthTokensSchema($tokenDb);
+                $tokenName=trim((string)($_POST['mcp_token_name']??''));
+                if($tokenName==='')$tokenName='MCP';
+                $tokenName=substr($tokenName,0,80);
+                $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$tokenName);
+                $_SESSION['mcp_generated_token']=(string)$tokenData['token'];
+                $profileSuccess=$translations['mcp_setup_token_generated'];
+                if(isset($_POST['ajax'])){
+                    while(ob_get_level()>1)ob_end_clean();
+                    header('Content-Type: application/json');
+                    echo json_encode(['success'=>true,'token'=>(string)$tokenData['token'],'expires_at'=>$tokenData['expires_at']??null]);
+                    exit;
+                }
+            }catch(Throwable $e){
+                if(isset($_POST['ajax'])){
+                    while(ob_get_level()>1)ob_end_clean();
+                    header('Content-Type: application/json');
+                    echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
+                    exit;
+                }
+                $profileError=$translations['mcp_setup_token_error'].': '.$e->getMessage();
+            }
+        }
+    }
+    if(isset($_POST['revoke_mcp_token'])||($_POST['action']??'')==='revoke_mcp_token'){
+        apSecRequireSameOrigin();
+        $email=$_SESSION['user']['email']??'';
+        $tokenHash=trim((string)($_POST['token_hash']??''));
+        if($email!==''&&$tokenHash!==''){
+            try{
+                $tokenDb=getDB();
+                ensureClientAuthTokensSchema($tokenDb);
+                $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e");
+                $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
+                $stmt->bindValue(':e',$email,PDO::PARAM_STR);
+                $stmt->execute();
+                $profileSuccess=$translations['mcp_setup_token_revoked'];
+            }catch(Throwable $e){
+                $profileError=$translations['mcp_setup_token_error'].': '.$e->getMessage();
+            }
+        }
+    }
     if(isset($_POST['change_photo'])){
         apSecRequireSameOrigin();
         $email=$_SESSION['user']['email']??'';

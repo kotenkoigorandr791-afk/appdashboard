@@ -1,16 +1,26 @@
 <?php
 $mcpT = [
-    'title' => $translations['mcp_setup_title'] ?? 'MCP for AI agents',
-    'subtitle' => $translations['mcp_setup_subtitle'] ?? 'Connect Cursor, Claude Desktop, VS Code or OpenCode to this AppDashboard. One command — no local build.',
-    'req' => $translations['mcp_setup_req'] ?? 'Requires Node.js 18+ on your PC.',
-    'copy' => $translations['mcp_setup_copy'] ?? 'Copy',
-    'copied' => $translations['mcp_setup_copied'] ?? 'Copied',
-    'step1' => $translations['mcp_setup_step1'] ?? '1. Install Node.js 18+ if needed',
-    'step2' => $translations['mcp_setup_step2'] ?? '2. Copy the command for your agent and run it in a terminal',
-    'step3' => $translations['mcp_setup_step3'] ?? '3. Restart the agent, then open the browser auth link when prompted',
-    'not_ready' => $translations['mcp_setup_not_ready'] ?? 'Package is not built on this server yet. Ask an admin to redeploy main.',
-    'download' => $translations['mcp_setup_download'] ?? 'Download package',
+    'title' => $translations['mcp_setup_title'],
+    'subtitle' => $translations['mcp_setup_subtitle'],
+    'req' => $translations['mcp_setup_req'],
+    'copy' => $translations['mcp_setup_copy'],
+    'copied' => $translations['mcp_setup_copied'],
+    'step1' => $translations['mcp_setup_step1'],
+    'step2' => $translations['mcp_setup_step2'],
+    'step3' => $translations['mcp_setup_step3'],
+    'not_ready' => $translations['mcp_setup_not_ready'],
+    'not_built' => $translations['mcp_setup_not_built'],
+    'download' => $translations['mcp_setup_download'],
+    'token_title' => $translations['mcp_setup_token_title'],
+    'token_hint' => $translations['mcp_setup_token_hint'],
+    'token_name' => $translations['mcp_setup_token_name'],
+    'token_generate' => $translations['mcp_setup_token_generate'],
+    'token_default_name' => $translations['mcp_setup_token_default_name'],
+    'token_failed' => $translations['mcp_setup_token_failed'],
+    'token_copy_now' => $translations['mcp_token_copy_now'],
+    'endpoint' => $translations['mcp_setup_endpoint'],
 ];
+$mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/mcp-api/mcp';
 ?>
 <style>
 #mcp-setup-modal{display:none;position:fixed;inset:0;z-index:10050;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;}
@@ -30,6 +40,16 @@ $mcpT = [
 .mcp-setup-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;font-size:13px;}
 .mcp-setup-foot a{color:var(--primary-color,#2563eb);}
 .mcp-setup-err{color:#ef4444;font-size:13px;margin:0 0 10px;}
+.mcp-token-panel{margin:16px 0;padding:14px;border:1px solid var(--border-color);border-radius:10px;background:var(--group-block-bg,rgba(127,127,127,.08));}
+.mcp-token-panel h3{margin:0 0 6px;font-size:15px;}
+.mcp-token-panel p{margin:0 0 10px;font-size:13px;opacity:.78;}
+.mcp-token-controls{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.mcp-token-controls input{flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg,var(--modal-bg));color:var(--text-color);}
+.mcp-token-controls button{border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:600;}
+.mcp-token-output{display:none;margin-top:10px;padding:10px;border-radius:10px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);background:color-mix(in srgb,#22c55e 16%,transparent);}
+.mcp-token-output strong{display:block;margin-bottom:8px;font-size:13px;}
+.mcp-token-output code{display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+@media(max-width:640px){.mcp-token-controls{flex-direction:column;align-items:stretch;}}
 </style>
 <div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title">
     <div id="mcp-setup-content">
@@ -41,6 +61,23 @@ $mcpT = [
             <span class="mcp-setup-pill"><?php echo my_htmlspecialchars($mcpT['req']); ?></span>
         </div>
         <p class="mcp-setup-err" id="mcp-setup-err" style="display:none;"></p>
+        <div class="mcp-token-panel">
+            <h3><?php echo my_htmlspecialchars($mcpT['token_title']); ?></h3>
+            <p><?php echo my_htmlspecialchars($mcpT['token_hint']); ?></p>
+            <div class="mcp-setup-row">
+                <label><?php echo my_htmlspecialchars($mcpT['endpoint']); ?></label>
+                <div class="mcp-setup-cmd"><pre id="mcp-http-endpoint"><?php echo my_htmlspecialchars($mcpHttpEndpoint); ?></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-endpoint"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button></div>
+            </div>
+            <div class="mcp-token-controls">
+                <input type="text" id="mcp-token-name" value="<?php echo my_htmlspecialchars($mcpT['token_default_name']); ?>" maxlength="80" aria-label="<?php echo my_htmlspecialchars($mcpT['token_name']); ?>">
+                <button type="button" id="mcp-generate-token"><?php echo my_htmlspecialchars($mcpT['token_generate']); ?></button>
+            </div>
+            <p class="mcp-setup-err" id="mcp-token-err" style="display:none;"></p>
+            <div class="mcp-token-output" id="mcp-token-output">
+                <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
+                <code id="mcp-token-value"></code>
+            </div>
+        </div>
         <ol class="mcp-setup-steps">
             <li><?php echo my_htmlspecialchars($mcpT['step1']); ?></li>
             <li><?php echo my_htmlspecialchars($mcpT['step2']); ?></li>
@@ -60,9 +97,19 @@ $mcpT = [
     const cmdsEl=document.getElementById('mcp-setup-commands');
     const errEl=document.getElementById('mcp-setup-err');
     const verEl=document.getElementById('mcp-setup-version');
+    const tokenBtn=document.getElementById('mcp-generate-token');
+    const tokenName=document.getElementById('mcp-token-name');
+    const tokenErr=document.getElementById('mcp-token-err');
+    const tokenOut=document.getElementById('mcp-token-output');
+    const tokenValue=document.getElementById('mcp-token-value');
+    const endpointCopy=document.getElementById('mcp-copy-endpoint');
+    const endpointValue=document.getElementById('mcp-http-endpoint');
     const copyLabel=<?php echo json_encode($mcpT['copy'], JSON_UNESCAPED_UNICODE); ?>;
     const copiedLabel=<?php echo json_encode($mcpT['copied'], JSON_UNESCAPED_UNICODE); ?>;
     const notReady=<?php echo json_encode($mcpT['not_ready'], JSON_UNESCAPED_UNICODE); ?>;
+    const notBuilt=<?php echo json_encode($mcpT['not_built'], JSON_UNESCAPED_UNICODE); ?>;
+    const tokenDefaultName=<?php echo json_encode($mcpT['token_default_name'], JSON_UNESCAPED_UNICODE); ?>;
+    const tokenFailed=<?php echo json_encode($mcpT['token_failed'], JSON_UNESCAPED_UNICODE); ?>;
     const agentLabels={cursor:'Cursor',claude:'Claude Desktop',vscode:'VS Code / Copilot',opencode:'OpenCode'};
     function openModal(){
         if(!modal)return;
@@ -77,7 +124,7 @@ $mcpT = [
             const res=await fetch('/mcp/info',{credentials:'same-origin'});
             const data=await res.json();
             if(!data.ok) throw new Error(data.error||'failed');
-            verEl.textContent=data.ready ? ('v'+data.version) : 'not built';
+            verEl.textContent=data.ready ? ('v'+data.version) : notBuilt;
             if(!data.ready){
                 errEl.textContent=notReady;
                 errEl.style.display='block';
@@ -121,6 +168,37 @@ $mcpT = [
     });
     if(closeBtn) closeBtn.addEventListener('click',closeModal);
     if(modal) modal.addEventListener('click',function(e){ if(e.target===modal) closeModal(); });
+    if(endpointCopy) endpointCopy.addEventListener('click',async function(){
+        const text=endpointValue ? endpointValue.textContent.trim() : '';
+        try{
+            await navigator.clipboard.writeText(text);
+            endpointCopy.textContent=copiedLabel;
+            setTimeout(function(){endpointCopy.textContent=copyLabel;},1600);
+        }catch(e){}
+    });
+    if(tokenBtn) tokenBtn.addEventListener('click',async function(){
+        tokenErr.style.display='none';
+        tokenOut.style.display='none';
+        tokenBtn.disabled=true;
+        try{
+            const fd=new FormData();
+            fd.append('action','generate_mcp_token');
+            fd.append('generate_mcp_token','1');
+            fd.append('ajax','1');
+            fd.append('mcp_token_name',(tokenName&&tokenName.value.trim())||tokenDefaultName);
+            const res=await fetch('/main',{method:'POST',body:fd,credentials:'same-origin'});
+            const data=await res.json();
+            if(!data.success||!data.token) throw new Error(data.error||tokenFailed);
+            tokenValue.textContent=data.token;
+            tokenOut.style.display='block';
+            try{await navigator.clipboard.writeText(data.token);}catch(e){}
+        }catch(e){
+            tokenErr.textContent=String(e&&e.message?e.message:e);
+            tokenErr.style.display='block';
+        }finally{
+            tokenBtn.disabled=false;
+        }
+    });
     window.openMcpSetupModal=openModal;
 })();
 </script>

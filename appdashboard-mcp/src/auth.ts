@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -12,6 +13,10 @@ export type Credentials = {
   cached_at: number;
   expires_at?: number;
 };
+
+export type AuthContext = { token: string; deviceId: string };
+
+export const authStorage = new AsyncLocalStorage<AuthContext>();
 
 const CREDENTIALS_DIR = join(homedir(), ".config", "appdashboard-mcp");
 const CREDENTIALS_PATH = join(CREDENTIALS_DIR, "credentials.json");
