@@ -1,13 +1,13 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__) . '/storage_helper.php';
 if (!defined('APP_DB_CONFIG_LOADED')) {
     define('APP_DB_CONFIG_LOADED', true);
 }
 function app_db_config_path(): string {
     $env = getenv('APP_DB_CONFIG');
     if (is_string($env) && $env !== '' && is_readable($env)) return $env;
-    if (is_readable('/opt/AppDashboard/data/db.env')) return '/opt/AppDashboard/data/db.env';
-    return dirname(__DIR__) . '/data/db.env';
+    return appdata_data_dir() . '/db.env';
 }
 function app_db_load_config(): array {
     static $cfg = null;

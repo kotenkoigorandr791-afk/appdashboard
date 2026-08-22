@@ -22,7 +22,7 @@ DB_PATH = '/opt/AppDashboard/data/db.env'
 POLL_TIMEOUT = 30
 POLL_INTERVAL = 2
 TOKEN_CACHE_TTL = 60
-LOG_FILE = os.path.join(os.path.dirname(__file__), 'bot.log')
+LOG_FILE = os.environ.get('BOT_LOG_FILE', '/var/log/bot/bot.log')
 BOT_SERVICE_PHP = os.path.join(os.path.dirname(__file__), 'bot_service.php')
 
 _token_cache: dict = {'value': '', 'ts': 0}

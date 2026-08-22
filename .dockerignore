@@ -1,6 +1,4 @@
 .git/
-data/
-uploads/
 graphify-out/
 node_modules/
 **/node_modules/

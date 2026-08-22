@@ -24,10 +24,8 @@ apps/recipes/.pydeps/
 graphify-out/
 **/graphify-out/
 /backups/
-/data/.ssh/
-/data/ssh_ws_tokens/
-/data/db.env
-/data/
+/data/*
+!/data
 *.log
 *.sqlite3
 *.sqlite
@@ -65,7 +63,8 @@ graphify-out/
 /apps/recipes/recipes/
 /apps/smart_home/data/
 /apps/viewer/history.json
-/uploads/
+/uploads/*
+!/uploads
 /tmp/
 /.cache/
 /.cursor/

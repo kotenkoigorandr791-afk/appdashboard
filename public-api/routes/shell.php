@@ -1,4 +1,5 @@
 <?php
+require_once APP_ROOT . '/storage_helper.php';
 $auth = public_api_auth_user(true);
 $email = (string)$auth['email'];
 $role = public_api_role();
@@ -80,7 +81,7 @@ if ($action === 'change_photo') {
     $bin = base64_decode($b64, true);
     if ($bin === false || $bin === '') public_api_json(['ok' => false, 'error' => 'invalid_photo'], 400);
     if (strlen($bin) > 10 * 1024 * 1024) public_api_json(['ok' => false, 'error' => 'photo_too_large'], 400);
-    $uploadDir = APP_ROOT . '/uploads/avatars/';
+    $uploadDir = appdata_uploads_base_dir() . '/avatars/';
     if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true)) {
         public_api_json(['ok' => false, 'error' => 'upload_dir_unavailable'], 500);
     }

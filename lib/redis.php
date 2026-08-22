@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
+require_once dirname(__DIR__) . '/storage_helper.php';
 function app_redis_load_file_config(): array {
     static $cfg = null;
     if ($cfg !== null) return $cfg;
     $cfg = [];
     $path = getenv('APP_DB_CONFIG');
-    if (!is_string($path) || $path === '' || !is_readable($path)) $path = '/opt/AppDashboard/data/db.env';
-    if (!is_readable($path)) $path = dirname(__DIR__) . '/data/db.env';
+    if (!is_string($path) || $path === '' || !is_readable($path)) $path = appdata_data_dir() . '/db.env';
     if (is_readable($path)) {
         $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
         foreach ($lines as $line) {

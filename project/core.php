@@ -1,4 +1,5 @@
 <?php
+require_once APP_ROOT . '/storage_helper.php';
 
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
     return htmlspecialchars($string ?? '', $flags, $encoding, $double_encode);
@@ -77,7 +78,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
         http_response_code(400);
         exit;
     }
-    $cacheDir = APP_ROOT . '/uploads/avatar_cache';
+    $cacheDir = appdata_uploads_base_dir() . '/avatar_cache';
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0775, true);
     }
@@ -2637,7 +2638,7 @@ function deleteDirectory($dir){
 
 // ── News Portal API ───────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'news') {
-    $newsDataDir = rtrim((string)(getenv('APP_NEWS_DATA_DIR') ?: '/opt/AppDashboard/data/news'), '/');
+    $newsDataDir = rtrim((string)(getenv('APP_NEWS_DATA_DIR') ?: appdata_data_dir() . '/news'), '/');
     $newsFile = $newsDataDir . '/news.json';
     $layoutFile = $newsDataDir . '/news_layout.json';
     $uploadsDir = $newsDataDir . '/uploads/';
@@ -2738,7 +2739,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     function newsValidateWritingToken(string $token): bool {
         $token = trim($token);
         if ($token === '') return false;
-        $tokenFile = APP_ROOT . '/data/news_writing_token.json';
+        $tokenFile = appdata_data_dir() . '/news_writing_token.json';
         if (!is_file($tokenFile)) return false;
         $tokenData = json_decode((string)file_get_contents($tokenFile), true) ?: [];
         $storedToken = (string)($tokenData['token'] ?? '');
@@ -2951,7 +2952,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
     if ($action === 'get_writing_prompt') {
         if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
 
-        $tokenDir = APP_ROOT . '/data';
+        $tokenDir = appdata_data_dir();
         if (!is_dir($tokenDir)) {
             @mkdir($tokenDir, 0775, true);
         }

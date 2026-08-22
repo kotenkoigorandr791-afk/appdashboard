@@ -34,8 +34,7 @@ function shb_store_dashboard_token(string $userEmail, string $deviceId): string 
         }
     }
     if ($base === null) {
-        $link = __DIR__ . '/data';
-        $base = (is_link($link) && realpath($link)) ? realpath($link) : $link;
+        $base = rtrim((string)(getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData'), '/') . '/smart_home/data';
     }
     $file = rtrim($base, '/') . '/global/ws_tokens.json';
     $dir = dirname($file);

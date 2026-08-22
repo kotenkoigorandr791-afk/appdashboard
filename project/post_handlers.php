@@ -511,7 +511,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $email=$_SESSION['user']['email']??'';
         $users=loadUsers();
         if(isset($_FILES['photo'])&&$_FILES['photo']['error']===UPLOAD_ERR_OK){
-            $uploadDir=APP_ROOT.'/uploads/avatars/';
+            $uploadDir=appdata_uploads_base_dir().'/avatars/';
             if(!apSecEnsureWritableDir($uploadDir)){
                 if((string)getenv('APP_DEBUG')==='1'){ error_log('Avatar upload directory is not writable: '.$uploadDir); }
                 $profileError=$translations['photo_upload_failed'] ?? 'Failed to upload photo';
@@ -1769,7 +1769,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_port']??'Port'); ?></label><input id="ap-ssh-port" type="number" value="22" min="1" max="65535"></div>
                         <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_backend']??'Backend'); ?></label><input type="text" value="WebSocket + PTY" readonly style="opacity:.75;"></div>
                         <?php
-                        $apSshKeysDir = function_exists('apSshKeysDir') ? apSshKeysDir() : (APP_ROOT . '/data/.ssh');
+                        $apSshKeysDir = function_exists('apSshKeysDir') ? apSshKeysDir() : (appdata_data_dir() . '/.ssh');
                         $apSshDefaultKey = function_exists('apSshDiscoverKeyPath') ? apSshDiscoverKeyPath() : '';
                         ?>
                         <div class="ap-field" style="margin:0;grid-column:1/-1;"><label><?php echo my_htmlspecialchars($translations['ssh_key_path']??'SSH private key'); ?></label><input id="ap-ssh-key-path" type="text" value="<?php echo my_htmlspecialchars($apSshDefaultKey); ?>" placeholder="<?php echo my_htmlspecialchars($apSshKeysDir . '/id_ed25519'); ?>" readonly style="opacity:.85;"></div>
