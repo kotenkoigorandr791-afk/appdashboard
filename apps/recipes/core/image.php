@@ -247,8 +247,10 @@ function recipes_product_thumb_public_path(array $p, string $products_dir): stri
     if ($pv !== '' && is_file(__DIR__ . '/../' . $products_dir . '/' . $id . '/' . $pv)) {
         return $products_dir . '/' . $id . '/' . $pv;
     }
-    if (!empty($p['image'])) return $products_dir . '/' . $id . '/' . $p['image'];
-    return 'placeholder.jpg';
+    if (!empty($p['image']) && is_file(__DIR__ . '/../' . $products_dir . '/' . $id . '/' . $p['image'])) {
+        return $products_dir . '/' . $id . '/' . $p['image'];
+    }
+    return 'default_recipe.jpg';
 }
 
 function recipes_normalize_product_name(string $name): string {

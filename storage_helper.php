@@ -5,6 +5,16 @@ function appdata_base_dir(): string {
     if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
     return rtrim($base, '/');
 }
+function appdata_uploads_base_dir(): string {
+    $base = getenv('UPLOADS_BASE_DIR');
+    if (!is_string($base) || trim($base) === '') $base = appdata_base_dir() . '/dashboard/uploads';
+    return rtrim($base, '/');
+}
+function appdata_data_dir(): string {
+    $base = getenv('APPDATA_DATA_DIR');
+    if (!is_string($base) || trim($base) === '') $base = '/opt/AppDashboard/data';
+    return rtrim($base, '/');
+}
 function appdata_app_base_dir(string $appKey): string {
     $appKey = preg_replace('/[^a-zA-Z0-9_\-]/', '', $appKey);
     if ($appKey === '') throw new RuntimeException('Invalid appKey');

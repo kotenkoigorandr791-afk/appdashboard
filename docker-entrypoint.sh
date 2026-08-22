@@ -22,10 +22,34 @@ else
     printf 'opcache.revalidate_freq=30\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
-mkdir -p /var/www/AppDashboard/data /var/www/AppDashboard/uploads/avatars /var/www/AppDashboard/uploads/support_chat /opt/AppDashboard/data /opt/ApplicationData /opt/ApplicationData/cloud_libreoffice_home /opt/ApplicationData/cloud_libreoffice_home/.cache /opt/ApplicationData/cloud_libreoffice_home/.config /opt/ApplicationData/cloud_libreoffice_home/tmp /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache
-chown -R www-data:www-data /opt/ApplicationData/cloud_libreoffice_home /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache 2>/dev/null || true
-chmod -R 0775 /opt/ApplicationData/cloud_libreoffice_home /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
-if [ ! -f /opt/AppDashboard/data/db.env ]; then
+APP_ROOT=/var/www/AppDashboard
+APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
+APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
+UPLOADS_BASE_DIR="${UPLOADS_BASE_DIR:-${APPDATA_BASE_DIR%/}/dashboard/uploads}"
+mkdir -p "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
+if [ -f "$APP_ROOT/bot/bot.log" ]; then
+  [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
+  mv "$APP_ROOT/bot/bot.log" "/tmp/appdashboard-bot-log-migrated-$(date +%s)" 2>/dev/null || true
+fi
+if [ -d "$APP_ROOT/data" ] && [ ! -L "$APP_ROOT/data" ]; then
+  cp -a "$APP_ROOT/data/." "$APPDATA_DATA_DIR/" 2>/dev/null || true
+  rm -rf "$APP_ROOT/data"
+fi
+if [ -d "$APP_ROOT/uploads" ] && [ ! -L "$APP_ROOT/uploads" ]; then
+  cp -a "$APP_ROOT/uploads/." "$UPLOADS_BASE_DIR/" 2>/dev/null || true
+  rm -rf "$APP_ROOT/uploads"
+fi
+[ -e "$APP_ROOT/data" ] || ln -s "$APPDATA_DATA_DIR" "$APP_ROOT/data"
+[ -e "$APP_ROOT/uploads" ] || ln -s "$UPLOADS_BASE_DIR" "$APP_ROOT/uploads"
+chown -R www-data:www-data "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot 2>/dev/null || true
+chmod -R 0775 "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
+find "$APPDATA_DATA_DIR/.ssh" -type d -exec chmod 0700 {} \; 2>/dev/null || true
+find "$APPDATA_DATA_DIR/.ssh" -type f -exec chmod 0600 {} \; 2>/dev/null || true
+find "$APPDATA_DATA_DIR/ssh_ws_tokens" -type d -exec chmod 0700 {} \; 2>/dev/null || true
+find "$APPDATA_DATA_DIR/ssh_ws_tokens" -type f -exec chmod 0600 {} \; 2>/dev/null || true
+chmod g-s "$APPDATA_DATA_DIR/.ssh" "$APPDATA_DATA_DIR/ssh_ws_tokens" 2>/dev/null || true
+chmod 0600 "$APPDATA_DATA_DIR/db.env" "$APPDATA_DATA_DIR/news_writing_token.json" 2>/dev/null || true
+if [ ! -f "$APPDATA_DATA_DIR/db.env" ]; then
   {
     printf 'DB_DRIVER=pgsql\n'
     printf 'DB_HOST=%s\n' "${DB_HOST:-127.0.0.1}"
@@ -38,18 +62,19 @@ if [ ! -f /opt/AppDashboard/data/db.env ]; then
     printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-16379}"
     printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}"
     printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}"
-  } > /opt/AppDashboard/data/db.env
+  } > "$APPDATA_DATA_DIR/db.env"
 fi
-if [ -f /opt/AppDashboard/data/db.env ]; then
-  [ -n "${DB_HOST:-}" ] && sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  [ -n "${DB_PORT:-}" ] && sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  [ -n "${DB_NAME:-}" ] && sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  [ -n "${DB_USER:-}" ] && sed -i "s/^DB_USER=.*/DB_USER=${DB_USER}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  [ -n "${DB_PASSWORD:-}" ] && sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD}/" /opt/AppDashboard/data/db.env 2>/dev/null || true
-  grep -q '^REDIS_HOST=' /opt/AppDashboard/data/db.env || printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-appdashboard-redis}" >> /opt/AppDashboard/data/db.env
-  grep -q '^REDIS_PORT=' /opt/AppDashboard/data/db.env || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-6379}" >> /opt/AppDashboard/data/db.env
-  grep -q '^REDIS_DATABASE=' /opt/AppDashboard/data/db.env || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> /opt/AppDashboard/data/db.env
-  grep -q '^REDIS_PREFIX=' /opt/AppDashboard/data/db.env || printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}" >> /opt/AppDashboard/data/db.env
+if [ -f "$APPDATA_DATA_DIR/db.env" ]; then
+  [ -n "${DB_HOST:-}" ] && sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${DB_PORT:-}" ] && sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${DB_NAME:-}" ] && sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${DB_USER:-}" ] && sed -i "s/^DB_USER=.*/DB_USER=${DB_USER}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${DB_PASSWORD:-}" ] && sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  grep -q '^REDIS_HOST=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-appdashboard-redis}" >> "$APPDATA_DATA_DIR/db.env"
+  grep -q '^REDIS_PORT=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-6379}" >> "$APPDATA_DATA_DIR/db.env"
+  grep -q '^REDIS_DATABASE=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> "$APPDATA_DATA_DIR/db.env"
+  grep -q '^REDIS_PREFIX=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}" >> "$APPDATA_DATA_DIR/db.env"
+  chmod 0600 "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
 fi
 for docker_sock in /var/run/docker.sock /run/docker-desktop.sock; do
 if [ -S "$docker_sock" ]; then
@@ -65,10 +90,10 @@ if [ -S "$docker_sock" ]; then
   fi
 fi
 done
-chown -R www-data:www-data /var/www/AppDashboard/data /var/www/AppDashboard/uploads /opt/AppDashboard/data /var/www/AppDashboard/bot 2>/dev/null || true
-chmod -R u+rwX,g+rwX /var/www/AppDashboard/uploads 2>/dev/null || true
-chown www-data:www-data /opt/ApplicationData 2>/dev/null || true
-chmod 750 /opt/AppDashboard/data 2>/dev/null || true
+chown -h www-data:www-data "$APP_ROOT/data" "$APP_ROOT/uploads" 2>/dev/null || true
+chmod -R u+rwX,g+rwX "$UPLOADS_BASE_DIR" 2>/dev/null || true
+chown www-data:www-data "$APPDATA_BASE_DIR" 2>/dev/null || true
+chmod 750 "$APPDATA_DATA_DIR" 2>/dev/null || true
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard || true
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then

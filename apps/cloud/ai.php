@@ -1375,8 +1375,9 @@ function getHistoryFilePath() {
     $safeUser = preg_replace('/[^a-zA-Z0-9_-]/', '', $user);
     if (empty($safeUser)) $safeUser = 'default';
     
-    // Save in data directory
-    return __DIR__ . '/data/' . $safeUser . '_ai_chat_history.json';
+    $dir = appdata_app_base_dir('cloud') . '/data';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir . '/' . $safeUser . '_ai_chat_history.json';
 }
 
 echo json_encode(['error' => 'Unknown action']);

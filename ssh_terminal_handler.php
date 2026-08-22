@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/smart_log.php';
+require_once __DIR__ . '/storage_helper.php';
 smart_log_bootstrap('dashboard');
 if (!defined('AP_WEBSHH_VENDOR_AUTOLOAD')) {
     define('AP_WEBSHH_VENDOR_AUTOLOAD', __DIR__ . '/webssh/vendor/autoload.php');
@@ -60,7 +61,7 @@ if (!function_exists('apSshKeysDir')) {
         if ($custom !== '') {
             return rtrim($custom, '/');
         }
-        return (defined('APP_ROOT') ? APP_ROOT : dirname(__FILE__)) . '/data/.ssh';
+        return appdata_data_dir() . '/.ssh';
     }
 }
 
@@ -114,13 +115,6 @@ if (!function_exists('apSshValidateKeyPath')) {
         $keysReal = realpath($keysDir);
         if ($keysReal !== false) {
             $allowedRoots[] = $keysReal;
-        }
-        $appRoot = defined('APP_ROOT') ? realpath(APP_ROOT) : false;
-        if ($appRoot !== false) {
-            $dataSsh = realpath($appRoot . '/data/.ssh');
-            if ($dataSsh !== false) {
-                $allowedRoots[] = $dataSsh;
-            }
         }
         $allowedRoots = array_values(array_unique(array_filter($allowedRoots)));
         foreach ($allowedRoots as $root) {
@@ -497,7 +491,7 @@ if (!function_exists('apSshRunPhpseclibCommand')) {
 if (!function_exists('apSshWsTokenDir')) {
     function apSshWsTokenDir(): string
     {
-        $dir = (defined('APP_ROOT') ? APP_ROOT : dirname(__FILE__)) . '/data/ssh_ws_tokens';
+        $dir = appdata_data_dir() . '/ssh_ws_tokens';
         if (!is_dir($dir)) {
             @mkdir($dir, 0700, true);
         }

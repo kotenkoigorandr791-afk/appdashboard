@@ -7,14 +7,15 @@ Wants=network-online.target
 Type=simple
 User=www-data
 WorkingDirectory=/var/www/AppDashboard/bot
+LogsDirectory=bot
 ExecStart=/usr/bin/python3 /var/www/AppDashboard/bot/bot.py
 Restart=always
 RestartSec=15
 Nice=10
 IOSchedulingClass=idle
 CPUSchedulingPolicy=idle
-StandardOutput=append:/var/www/AppDashboard/bot/bot.log
-StandardError=append:/var/www/AppDashboard/bot/bot.log
+StandardOutput=append:/var/log/bot/bot.log
+StandardError=append:/var/log/bot/bot.log
 
 [Install]
 WantedBy=multi-user.target

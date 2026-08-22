@@ -1,4 +1,4 @@
-import { clearToken, getHost, getToken, ensureDeviceId, refreshToken } from "./auth.js";
+import { authStorage, clearToken, getHost, getToken, ensureDeviceId, refreshToken } from "./auth.js";
 
 export class ApiError extends Error {
   status: number;
@@ -34,6 +34,15 @@ async function parseBody(res: Response): Promise<any> {
   }
 }
 
+function getAuthHeaders(contentType?: string): { headers: Record<string, string>; token: string; canRefresh: boolean } {
+  const context = authStorage.getStore();
+  const token = context?.token || getToken();
+  const headers: Record<string, string> = { "X-Device-Id": context?.token ? "mcp_external" : ensureDeviceId() };
+  if (contentType) headers["Content-Type"] = contentType;
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return { headers, token, canRefresh: !context?.token };
+}
+
 async function apiCall(
   method: string,
   path: string,
@@ -41,20 +50,14 @@ async function apiCall(
   query?: Record<string, string | number | boolean | undefined | null>,
   retried = false,
 ): Promise<any> {
-  const token = getToken();
-  const deviceId = ensureDeviceId();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "X-Device-Id": deviceId,
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const { headers, token, canRefresh } = getAuthHeaders("application/json");
   const res = await fetch(buildUrl(path, query), {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await parseBody(res);
-  if (res.status === 401 && !retried && token) {
+  if (res.status === 401 && !retried && token && canRefresh) {
     try {
       await refreshToken();
       return apiCall(method, path, body, query, true);
@@ -64,6 +67,7 @@ async function apiCall(
     }
   }
   if (res.status === 401) {
+    if (!canRefresh) throw new ApiError(data?.error || "unauthorized", 401, data);
     clearToken();
     throw new ApiError(data?.error || "unauthorized", 401, data);
   }
@@ -116,18 +120,12 @@ async function apiFormCall(
   query?: Record<string, string | number | boolean | undefined | null>,
   retried = false,
 ): Promise<any> {
-  const token = getToken();
-  const deviceId = ensureDeviceId();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/x-www-form-urlencoded",
-    "X-Device-Id": deviceId,
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const { headers, token, canRefresh } = getAuthHeaders("application/x-www-form-urlencoded");
   const body = new URLSearchParams();
   appendFormFields(body, fields);
   const res = await fetch(buildUrl(path, query), { method: "POST", headers, body });
   const data = await parseBody(res);
-  if (res.status === 401 && !retried && token) {
+  if (res.status === 401 && !retried && token && canRefresh) {
     try {
       await refreshToken();
       return apiFormCall(path, fields, query, true);
@@ -137,6 +135,7 @@ async function apiFormCall(
     }
   }
   if (res.status === 401) {
+    if (!canRefresh) throw new ApiError(data?.error || "unauthorized", 401, data);
     clearToken();
     throw new ApiError(data?.error || "unauthorized", 401, data);
   }
@@ -165,10 +164,7 @@ async function apiUploadCall(
 ): Promise<any> {
   const { readFileSync } = await import("node:fs");
   const { basename } = await import("node:path");
-  const token = getToken();
-  const deviceId = ensureDeviceId();
-  const headers: Record<string, string> = { "X-Device-Id": deviceId };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const { headers, token, canRefresh } = getAuthHeaders();
   const form = new FormData();
   for (const [k, v] of Object.entries(fields)) {
     if (v === undefined || v === null) continue;
@@ -184,7 +180,7 @@ async function apiUploadCall(
   }
   const res = await fetch(buildUrl(path, query), { method: "POST", headers, body: form });
   const data = await parseBody(res);
-  if (res.status === 401 && !retried && token) {
+  if (res.status === 401 && !retried && token && canRefresh) {
     try {
       await refreshToken();
       return apiUploadCall(path, fields, files, query, true);
@@ -194,6 +190,7 @@ async function apiUploadCall(
     }
   }
   if (res.status === 401) {
+    if (!canRefresh) throw new ApiError(data?.error || "unauthorized", 401, data);
     clearToken();
     throw new ApiError(data?.error || "unauthorized", 401, data);
   }
@@ -253,20 +250,16 @@ export async function apiSsePostDirect(
   body?: unknown,
   query?: Record<string, string | number | boolean | undefined | null>,
 ): Promise<{ events: SseEvent[]; done: unknown; error: unknown }> {
-  const token = getToken();
-  const deviceId = ensureDeviceId();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+  const { headers, token, canRefresh } = getAuthHeaders("application/json");
+  Object.assign(headers, {
     Accept: "text/event-stream",
-    "X-Device-Id": deviceId,
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  });
   const res = await fetch(buildUrl(path, query), {
     method: "POST",
     headers,
     body: JSON.stringify(body ?? {}),
   });
-  if (res.status === 401 && token) {
+  if (res.status === 401 && token && canRefresh) {
     try {
       await refreshToken();
       return apiSsePostDirect(path, body, query);

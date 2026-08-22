@@ -10,6 +10,7 @@ if ($__APP_DEBUG) {
 }
 error_reporting($__APP_DEBUG ? E_ALL : 0);
 require_once APP_ROOT . '/lib/app_session.php';
+require_once APP_ROOT . '/storage_helper.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/bot/tg_mini_auth.php';
@@ -186,7 +187,7 @@ if (!function_exists('apSecStoreSupportChatMedia')) {
                 return ['error' => 'unsupported_type'];
             }
         }
-        $uploadDir = APP_ROOT . '/uploads/support_chat/';
+        $uploadDir = appdata_uploads_base_dir() . '/support_chat/';
         if (!is_dir($uploadDir)) @mkdir($uploadDir, 0755, true);
         $newFileName = apSecRandomFilename($ext);
         $destPath = $uploadDir . $newFileName;

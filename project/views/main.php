@@ -132,6 +132,15 @@
         .oauth-action-btn.connect{color:var(--primary-color);border-color:color-mix(in srgb,var(--primary-color) 35%,transparent);}
         .oauth-action-btn.unlink{color:#ef4444;border-color:rgba(239, 68, 68, 0.35);}
         .oauth-action-btn.unlink:hover{background:color-mix(in srgb,#ef4444 12%,transparent);}
+        .mcp-token-table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 14px;}
+        .mcp-token-table th,.mcp-token-table td{border-bottom:1px solid var(--border-color);padding:8px 6px;text-align:left;vertical-align:middle;}
+        .mcp-token-table th{font-weight:600;opacity:.8;}
+        .mcp-token-alert{width:100%;box-sizing:border-box;background:color-mix(in srgb,#22c55e 16%,transparent);border:1px solid color-mix(in srgb,#22c55e 45%,transparent);border-radius:8px;padding:12px;margin:8px 0 14px;text-align:left;}
+        .mcp-token-alert code{display:block;word-break:break-all;margin-top:8px;font-size:12px;}
+        .mcp-token-form{display:flex;gap:8px;width:100%;max-width:420px;align-items:center;}
+        .mcp-token-form .auth-input{margin:0;}
+        .mcp-token-form .profile-action-button{width:auto;margin:0;white-space:nowrap;}
+        .mcp-token-revoke{background:#ef4444;color:white;border:none;border-radius:18px;padding:7px 10px;cursor:pointer;}
         .password-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:<?php echo $config['theme']==='dark'?'#6b7280':'#3b82f6';?>;cursor:pointer;padding:5px;border-radius:4px;transition:background-color 0.3s;z-index:5;}
         .password-toggle:hover{background-color:rgba(0,0,0,0.1);}
         .password-toggle:active{background-color:rgba(0,0,0,0.2);}
@@ -2363,7 +2372,8 @@ endif; // showOtpPage
 </div>
 <?php endif; ?>
 <?php if(isset($_SESSION['user'])):?>
-    <div id="profile-modal">
+    <?php $profileModalInitialOpen=isset($_GET['profile'])||isset($_POST['reset_photo'])||isset($_POST['oauth_unlink'])||isset($_POST['generate_mcp_token'])||isset($_POST['revoke_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'||($_POST['action']??'')==='revoke_mcp_token'||isset($_GET['oauth_linked'])||isset($_GET['oauth_error']); ?>
+    <div id="profile-modal"<?php echo $profileModalInitialOpen?' style="display:flex;"':''; ?>>
         <div id="profile-content">
             <button id="close-profile" type="button">&times;</button>
         <div class="modal-scroll-body">
@@ -2500,6 +2510,51 @@ endif; // showOtpPage
                     </div>
                     <?php endforeach; ?>
                 </div>
+            </div>
+            <div class="profile-section">
+                <h3><?php echo my_htmlspecialchars($translations['mcp_api_tokens']); ?></h3>
+                <?php
+                $mcpGeneratedToken=(string)($_SESSION['mcp_generated_token']??'');
+                unset($_SESSION['mcp_generated_token']);
+                $mcpTokens=[];
+                try{
+                    $tokenDb=getDB();
+                    ensureClientAuthTokensSchema($tokenDb);
+                    $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 ORDER BY created_at DESC");
+                    $stmt->bindValue(':email',$_SESSION['user']['email'],PDO::PARAM_STR);
+                    $result=$stmt->execute();
+                    while($row=$result->fetch(PDO::FETCH_ASSOC)){
+                        $mcpTokens[]=$row;
+                    }
+                }catch(Throwable $e){}
+                ?>
+                <?php if($mcpGeneratedToken!==''): ?>
+                <div class="mcp-token-alert">
+                    <strong><?php echo my_htmlspecialchars($translations['mcp_token_copy_now']); ?></strong>
+                    <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
+                </div>
+                <?php endif; ?>
+                <table class="mcp-token-table">
+                    <thead><tr><th><?php echo my_htmlspecialchars($translations['mcp_token_device']); ?></th><th><?php echo my_htmlspecialchars($translations['created']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['expires']); ?></th><th></th></tr></thead>
+                    <tbody>
+                    <?php if(empty($mcpTokens)): ?>
+                    <tr><td colspan="5"><?php echo my_htmlspecialchars($translations['no_tokens']); ?></td></tr>
+                    <?php else: foreach($mcpTokens as $mcpToken): ?>
+                    <tr>
+                        <td><?php echo my_htmlspecialchars(trim(($mcpToken['device_name']??'').' / '.($mcpToken['platform']??''),' /')); ?></td>
+                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
+                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
+                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['expires_at'])); ?></td>
+                        <td><form method="post" action="/main" style="margin:0;"><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
+                    </tr>
+                    <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
+                <form method="post" action="/main" class="mcp-token-form">
+                    <input type="hidden" name="action" value="generate_mcp_token">
+                    <input type="text" name="mcp_token_name" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['mcp_token_name']); ?>" maxlength="80" required>
+                    <button type="submit" name="generate_mcp_token" class="profile-action-button"><?php echo my_htmlspecialchars($translations['generate'] ?? 'Сгенерировать'); ?></button>
+                </form>
             </div>
             <div class="profile-section">
                 <form method="post" action="/main">
@@ -5770,7 +5825,7 @@ if(isset($trustedDeviceRestoreNotice) && $trustedDeviceRestoreNotice !== '') $fl
 if(!empty($flashMessages)):
 $openPasswordOnLoad = isset($_POST['change_password']) && (isset($profileError) || isset($profileSuccess));
 $openPhotoOnLoad = isset($_POST['change_photo']) && (isset($profileError) || isset($profileSuccess));
-$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['reset_photo']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']);
+$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['reset_photo']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']) || isset($_POST['generate_mcp_token']) || isset($_POST['revoke_mcp_token']);
 ?>
 <script>
 document.addEventListener('DOMContentLoaded', function(){

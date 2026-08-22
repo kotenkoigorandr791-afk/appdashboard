@@ -1,14 +1,33 @@
     <script>
         const products = <?php echo json_encode($products, JSON_UNESCAPED_UNICODE); ?>;
+        const productImagePaths = <?php
+            $productImagePaths = [];
+            foreach ($products as $productPathItem) {
+                $productImagePaths[$productPathItem['id']] = recipes_product_thumb_public_path($productPathItem, $products_dir);
+            }
+            echo json_encode($productImagePaths, JSON_UNESCAPED_UNICODE);
+        ?>;
+        const recipeImagePaths = <?php
+            $recipeImagePaths = [];
+            foreach ($recipes as $recipePathItem) {
+                $recipeImagePaths[$recipePathItem['id']] = isset($recipePathItem['image']) && is_file(__DIR__ . '/../' . $recipes_dir . '/' . $recipePathItem['id'] . '/' . $recipePathItem['image']) ? $recipes_dir . '/' . $recipePathItem['id'] . '/' . $recipePathItem['image'] : 'default_recipe.jpg';
+            }
+            echo json_encode($recipeImagePaths, JSON_UNESCAPED_UNICODE);
+        ?>;
         const PRODUCT_IMG_WIDE_MIN = 900;
+        function recipeImg(recipe) {
+            return recipeImagePaths[recipe?.id] || 'default_recipe.jpg';
+        }
         function productImgTile(p) {
-            if (!p || !p.image) return 'placeholder.jpg';
+            if (p && productImagePaths[p.id]) return productImagePaths[p.id];
+            if (!p || !p.image) return 'default_recipe.jpg';
             const v = encodeURIComponent(p.updated_at || '');
             if (p.image_preview) return 'products/' + p.id + '/' + p.image_preview + (v ? ('?v=' + v) : '');
             return 'products/' + p.id + '/' + p.image + (v ? ('?v=' + v) : '');
         }
         function productImgFull(p) {
-            if (!p || !p.image) return 'placeholder.jpg';
+            if (p && productImagePaths[p.id]) return productImagePaths[p.id];
+            if (!p || !p.image) return 'default_recipe.jpg';
             const v = encodeURIComponent(p.updated_at || '');
             return 'products/' + p.id + '/' + p.image + (v ? ('?v=' + v) : '');
         }
@@ -519,7 +538,7 @@
                         const pagedRecipes = data.recipes.slice(start, start + itemsPerPageCount);
 
                         pagedRecipes.forEach(recipe => {
-                            const imageSrc = recipe.image ? `recipes/${recipe.id}/${recipe.image}` : 'default_recipe.jpg';
+                            const imageSrc = recipeImg(recipe);
                             const card = document.createElement('div');
                             card.className = 'recipe-card';
                             card.onclick = () => showRecipe(recipe.id);
@@ -757,7 +776,7 @@
                 const previewImg = document.getElementById('editProductPreviewImg');
                 const epFileIn = document.getElementById('editProductImageInput');
                 if (product.image) {
-                    previewImg.src = `products/${productId}/${product.image}`;
+                    previewImg.src = productImgFull(product);
                     previewContainer.style.display = 'block';
                     previewImg.dataset.existingSrc = previewImg.src;
                     previewImg.dataset.clickAction = 'crop';
@@ -916,7 +935,7 @@
                     let html = langButtons;
                     html += `<h2>${recipeData.title[currentLang]}</h2>`;
 
-                    const imageSrc = recipeData.image ? `recipes/${recipeId}/${recipeData.image}` : 'default_recipe.jpg';
+                    const imageSrc = recipeImg(recipeData);
                     html += `<img src="${imageSrc}" alt="${recipeData.title[currentLang]}" class="recipe-image">`;
 
                     // Ingredients section
@@ -1013,7 +1032,7 @@
                     let html = langButtons;
                     html += `<h2>${recipe.title[langCode] || recipe.title.en}</h2>`;
                     
-                    const imageSrc = recipe.image ? `recipes/${recipeId}/${recipe.image}` : 'default_recipe.jpg';
+                    const imageSrc = recipeImg(recipe);
                     html += `<img src="${imageSrc}" alt="${recipe.title[langCode] || recipe.title.en}" class="recipe-image">`;
 
                     // Ingredients section
@@ -1135,7 +1154,7 @@
                     if (_rifEd) { _rifEd.value = ''; _rifEd.style.display = 'block'; }
                     if (_ripEd && _rpiEd) {
                         if (recipeData.image) {
-                            const existingImageSrc = `recipes/${recipeId}/${recipeData.image}`;
+                            const existingImageSrc = recipeImg(recipeData);
                             _ripEd.style.display = 'block';
                             _rpiEd.src = existingImageSrc;
                             _rpiEd.dataset.existingSrc = existingImageSrc;
@@ -2835,7 +2854,7 @@
                     html += `<h2 style="color: var(--primary-color); margin: 0 0 15px 0; font-size: 28px;">${recipe.title[shareLang] || recipe.title.en}</h2>`;
                     
                     if (recipe.image) {
-                        html += `<img src="recipes/${recipeId}/${recipe.image}" alt="${recipe.title[shareLang] || recipe.title.en}" style="max-width: 250px; max-height: 200px; object-fit: cover; border-radius: 12px; border: 3px solid var(--primary-color); box-shadow: 0 5px 15px rgba(0,0,0,0.2);">`;
+                        html += `<img src="${recipeImg(recipe)}" alt="${recipe.title[shareLang] || recipe.title.en}" style="max-width: 250px; max-height: 200px; object-fit: cover; border-radius: 12px; border: 3px solid var(--primary-color); box-shadow: 0 5px 15px rgba(0,0,0,0.2);">`;
                     }
                     html += `</div>`;
                     

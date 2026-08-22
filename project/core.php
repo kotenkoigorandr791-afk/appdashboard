@@ -1,4 +1,5 @@
 <?php
+require_once APP_ROOT . '/storage_helper.php';
 
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
     return htmlspecialchars($string ?? '', $flags, $encoding, $double_encode);
@@ -77,7 +78,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
         http_response_code(400);
         exit;
     }
-    $cacheDir = APP_ROOT . '/uploads/avatar_cache';
+    $cacheDir = appdata_uploads_base_dir() . '/avatar_cache';
     if (!is_dir($cacheDir)) {
         @mkdir($cacheDir, 0775, true);
     }
@@ -206,7 +207,7 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
-    if ($deviceId !== '') {
+    if ($deviceId !== '' && $deviceId !== 'mcp_external') {
         $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND device_id = :d');
         $del->bindValue(':e', $email, PDO::PARAM_STR);
         $del->bindValue(':d', $deviceId, PDO::PARAM_STR);
@@ -1623,6 +1624,35 @@ $defaultTranslations['news_published_label'] = 'Published';
 $defaultTranslations['news_writing_prompt'] = 'News writing prompt';
 $defaultTranslations['refresh_token'] = 'Refresh token';
 $defaultTranslations['copy'] = 'Copy';
+$defaultTranslations['created'] = 'Created';
+$defaultTranslations['expires'] = 'Expires';
+$defaultTranslations['revoke'] = 'Revoke';
+$defaultTranslations['no_tokens'] = 'No tokens';
+$defaultTranslations['mcp_setup_title'] = 'MCP for AI agents';
+$defaultTranslations['mcp_setup_subtitle'] = 'Connect Cursor, Claude Desktop, VS Code, OpenCode, or Agora to this AppDashboard.';
+$defaultTranslations['mcp_setup_req'] = 'Requires Node.js 18+ on your PC.';
+$defaultTranslations['mcp_setup_copy'] = 'Copy';
+$defaultTranslations['mcp_setup_copied'] = 'Copied';
+$defaultTranslations['mcp_setup_step1'] = '1. Install Node.js 18+ if needed';
+$defaultTranslations['mcp_setup_step2'] = '2. Copy the command for your agent and run it in a terminal';
+$defaultTranslations['mcp_setup_step3'] = '3. Restart the agent, then open the browser auth link when prompted';
+$defaultTranslations['mcp_setup_not_ready'] = 'Package is not built on this server yet. Ask an admin to redeploy main.';
+$defaultTranslations['mcp_setup_not_built'] = 'Not built';
+$defaultTranslations['mcp_setup_download'] = 'Download package';
+$defaultTranslations['mcp_setup_token_title'] = 'HTTP token for external apps';
+$defaultTranslations['mcp_setup_token_hint'] = 'Use this Bearer token with the Streamable HTTP endpoint.';
+$defaultTranslations['mcp_setup_token_name'] = 'Token name';
+$defaultTranslations['mcp_setup_token_default_name'] = 'Agora';
+$defaultTranslations['mcp_setup_token_generate'] = 'Generate Agora token';
+$defaultTranslations['mcp_setup_token_failed'] = 'Token generation failed';
+$defaultTranslations['mcp_setup_token_generated'] = 'MCP token generated';
+$defaultTranslations['mcp_setup_token_revoked'] = 'MCP token revoked';
+$defaultTranslations['mcp_setup_token_error'] = 'MCP token error';
+$defaultTranslations['mcp_setup_endpoint'] = 'Streamable HTTP endpoint';
+$defaultTranslations['mcp_api_tokens'] = 'API Tokens for external apps (MCP)';
+$defaultTranslations['mcp_token_copy_now'] = 'Copy this token now. For security it will not be shown again.';
+$defaultTranslations['mcp_token_device'] = 'Device / Service name';
+$defaultTranslations['mcp_token_name'] = 'Token name';
 $defaultTranslations['news_draft_label'] = 'Draft';
 $defaultTranslations['news_created_on'] = 'Created on';
 $defaultTranslations['news_updated_on'] = 'Updated on';
@@ -2637,7 +2667,7 @@ function deleteDirectory($dir){
 
 // ── News Portal API ───────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'news') {
-    $newsDataDir = rtrim((string)(getenv('APP_NEWS_DATA_DIR') ?: '/opt/AppDashboard/data/news'), '/');
+    $newsDataDir = rtrim((string)(getenv('APP_NEWS_DATA_DIR') ?: appdata_data_dir() . '/news'), '/');
     $newsFile = $newsDataDir . '/news.json';
     $layoutFile = $newsDataDir . '/news_layout.json';
     $uploadsDir = $newsDataDir . '/uploads/';
@@ -2738,7 +2768,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     function newsValidateWritingToken(string $token): bool {
         $token = trim($token);
         if ($token === '') return false;
-        $tokenFile = APP_ROOT . '/data/news_writing_token.json';
+        $tokenFile = appdata_data_dir() . '/news_writing_token.json';
         if (!is_file($tokenFile)) return false;
         $tokenData = json_decode((string)file_get_contents($tokenFile), true) ?: [];
         $storedToken = (string)($tokenData['token'] ?? '');
@@ -2951,7 +2981,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
     if ($action === 'get_writing_prompt') {
         if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
 
-        $tokenDir = APP_ROOT . '/data';
+        $tokenDir = appdata_data_dir();
         if (!is_dir($tokenDir)) {
             @mkdir($tokenDir, 0775, true);
         }
