@@ -37,7 +37,9 @@ async function parseBody(res: Response): Promise<any> {
 function getAuthHeaders(contentType?: string): { headers: Record<string, string>; token: string; canRefresh: boolean } {
   const context = authStorage.getStore();
   const token = context?.token || getToken();
-  const headers: Record<string, string> = { "X-Device-Id": context?.token ? "mcp_external" : ensureDeviceId() };
+  const headers: Record<string, string> = {};
+  const deviceId = context ? context.deviceId : ensureDeviceId();
+  if (deviceId) headers["X-Device-Id"] = deviceId;
   if (contentType) headers["Content-Type"] = contentType;
   if (token) headers.Authorization = `Bearer ${token}`;
   return { headers, token, canRefresh: !context?.token };
@@ -330,19 +332,13 @@ export async function apiBinaryPostDirect(
   body?: unknown,
   query?: Record<string, string | number | boolean | undefined | null>,
 ): Promise<{ content_type: string; base64: string; json?: unknown }> {
-  const token = getToken();
-  const deviceId = ensureDeviceId();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    "X-Device-Id": deviceId,
-  };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const { headers, token, canRefresh } = getAuthHeaders("application/json");
   const res = await fetch(buildUrl(path, query), {
     method: "POST",
     headers,
     body: JSON.stringify(body ?? {}),
   });
-  if (res.status === 401 && token) {
+  if (res.status === 401 && token && canRefresh) {
     try {
       await refreshToken();
       return apiBinaryPostDirect(path, body, query);

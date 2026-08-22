@@ -257,7 +257,7 @@ export const recipesTools: ToolDef[] = [
       properties: {
         recipes_data: { type: "object", description: "Full recipe object with title and steps" },
         title: { description: "Title string or i18n object" },
-        steps: { type: "array" },
+        steps: { type: "array", items: { type: "object" } },
         lang: langProp,
         image_path: { type: "string" },
       },
@@ -274,7 +274,7 @@ export const recipesTools: ToolDef[] = [
         recipe_id: { type: "string" },
         recipes_data: { type: "object" },
         title: {},
-        steps: { type: "array" },
+        steps: { type: "array", items: { type: "object" } },
         lang: langProp,
         image_path: { type: "string" },
       },

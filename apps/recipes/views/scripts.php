@@ -101,6 +101,15 @@
             'be': 'Беларуская'
         };
 
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.lang-btn');
+            if (!btn) return;
+            const pills = btn.closest('.lang-pills');
+            if (!pills) return;
+            pills.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        });
+
         function getCurrentProductPage() {
             const urlParams = new URLSearchParams(window.location.search);
             return parseInt(urlParams.get('product_page') || '<?php echo $product_page; ?>', 10) || 1;
@@ -486,7 +495,8 @@
             grid.innerHTML = '';
             
             const sortedProducts = getSortedProducts(productsList);
-            const page = getCurrentProductPage();
+            const totalPages = Math.max(1, Math.ceil(sortedProducts.length / itemsPerPage));
+            const page = Math.min(getCurrentProductPage(), totalPages);
             const start = (page - 1) * itemsPerPage;
             const pagedProducts = sortedProducts.slice(start, start + itemsPerPage);
             pagedProducts.forEach(product => {
@@ -498,6 +508,29 @@
                 grid.appendChild(card);
             });
             bindProductModalEvents();
+            renderProductPagination(page, totalPages);
+        }
+
+        function renderProductPagination(page, totalPages) {
+            const pagination = document.querySelector('#productModal .pagination');
+            if (!pagination) return;
+            if (totalPages <= 1) {
+                pagination.style.display = 'none';
+                return;
+            }
+
+            let html = '';
+            if (page > 1) {
+                html += `<a href="#" onclick="changeProductPage(${page - 1}); return false;">&laquo; ${translations.previous}</a>`;
+            }
+            for (let i = 1; i <= totalPages; i++) {
+                html += `<a href="#" onclick="changeProductPage(${i}); return false;" ${i === page ? 'class="active"' : ''}>${i}</a>`;
+            }
+            if (page < totalPages) {
+                html += `<a href="#" onclick="changeProductPage(${page + 1}); return false;">${translations.next} &raquo;</a>`;
+            }
+            pagination.innerHTML = html;
+            pagination.style.display = 'flex';
         }
 
         function refreshProducts() {
@@ -927,9 +960,11 @@
                     // Language switch buttons
                     let langButtons = '<div class="language-switcher">';
                     langButtons += '<span>Язык/Language:</span>';
+                    langButtons += '<div class="lang-pills">';
                     for (const [langCode, langName] of Object.entries(languages)) {
                         langButtons += `<button class="lang-btn ${currentLang === langCode ? 'active' : ''}" onclick="switchRecipeLanguage('${recipeId}', '${langCode}')">${langName}</button>`;
                     }
+                    langButtons += '</div>';
                     langButtons += '</div>';
 
                     let html = langButtons;
@@ -1024,9 +1059,11 @@
                     
                     let langButtons = '<div class="language-switcher">';
                     langButtons += '<span>Язык/Language:</span>';
+                    langButtons += '<div class="lang-pills">';
                     for (const [lc, langName] of Object.entries(languages)) {
                         langButtons += `<button class="lang-btn ${langCode === lc ? 'active' : ''}" onclick="switchRecipeLanguage('${recipe.id}', '${lc}')">${langName}</button>`;
                     }
+                    langButtons += '</div>';
                     langButtons += '</div>';
                     
                     let html = langButtons;
@@ -1492,13 +1529,6 @@
             urlParams.set('product_page', page);
             window.history.replaceState({}, '', `${window.location.pathname}?${urlParams}`);
             renderProductGrid(products);
-            
-            document.querySelectorAll('#productModal .pagination a').forEach(link => {
-                link.classList.remove('active');
-                if (link.textContent == page) {
-                    link.classList.add('active');
-                }
-            });
         }
 
         function changeSelectPage(page) {
@@ -3111,11 +3141,61 @@
                     if (m === j.config.default_model) o.selected = true;
                     sel.appendChild(o);
                 });
+                setupAiModelDropdown(j.config.models || []);
             }
             if (!j.config.has_key) {
                 setAiRecipeStatus(translations.ai_config_missing, true);
             }
             return j.config;
+        }
+
+        function setupAiModelDropdown(models) {
+            const dropdown = document.getElementById('aiModelDropdown');
+            const select = document.getElementById('aiRecipeModel');
+            const toggle = document.getElementById('aiModelToggle');
+            const value = dropdown?.querySelector('.ai-model-value');
+            const menu = document.getElementById('aiModelMenu');
+            if (!dropdown || !select || !toggle || !value || !menu) return;
+
+            const close = () => {
+                dropdown.classList.remove('open');
+                toggle.setAttribute('aria-expanded', 'false');
+            };
+            const selectModel = model => {
+                select.value = model;
+                value.textContent = model;
+                menu.querySelectorAll('.ai-model-option').forEach(option => {
+                    option.classList.toggle('selected', option.dataset.model === model);
+                });
+                close();
+            };
+
+            menu.innerHTML = '';
+            models.forEach(model => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'ai-model-option';
+                option.dataset.model = model;
+                option.setAttribute('role', 'option');
+                option.innerHTML = '<svg class="ai-model-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.1L5 10l5.1 1.9L12 17l1.9-5.1L19 10l-5.1-1.9L12 3Z"></path><path d="m19 15-.9 2.1L16 18l2.1.9L19 21l.9-2.1L22 18l-2.1-.9L19 15Z"></path></svg>';
+                const name = document.createElement('span');
+                name.textContent = model;
+                option.appendChild(name);
+                option.addEventListener('click', () => selectModel(model));
+                menu.appendChild(option);
+            });
+            selectModel(select.value || models[0] || '');
+
+            if (!dropdown.dataset.initialized) {
+                toggle.addEventListener('click', () => {
+                    const open = dropdown.classList.toggle('open');
+                    toggle.setAttribute('aria-expanded', String(open));
+                });
+                document.addEventListener('click', event => {
+                    if (!dropdown.contains(event.target)) close();
+                });
+                dropdown.dataset.initialized = 'true';
+            }
         }
 
         function setAiRecipeStatus(msg, isError) {

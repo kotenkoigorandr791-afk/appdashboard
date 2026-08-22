@@ -244,16 +244,17 @@ export const stepsTools: ToolDef[] = [
     minRole: 0,
     inputSchema: { type: "object", properties: {} },
     handler: async () => {
-      const { getHost, getToken, ensureDeviceId, refreshToken, clearToken } = await import("../auth.js");
+      const { authStorage, getHost, getToken, ensureDeviceId, refreshToken, clearToken } = await import("../auth.js");
       const { ApiError } = await import("../api.js");
       const base = getHost();
       if (!base) throw new Error("APPDASHBOARD_URL is not set");
       const token = getToken();
-      const deviceId = ensureDeviceId();
+      const context = authStorage.getStore();
+      const deviceId = context ? context.deviceId : ensureDeviceId();
       const headers: Record<string, string> = {
         "Content-Type": "application/x-www-form-urlencoded",
-        "X-Device-Id": deviceId,
       };
+      if (deviceId) headers["X-Device-Id"] = deviceId;
       if (token) headers.Authorization = `Bearer ${token}`;
       const body = new URLSearchParams({ download_backup: "1" });
       let res = await fetch(`${base}${STEPS}`, { method: "POST", headers, body });

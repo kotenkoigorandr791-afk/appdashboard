@@ -159,6 +159,7 @@ export const smarthomeTools: ToolDef[] = [
       properties: {
         elements: {
           type: "array",
+          items: { type: "object" },
           description: "Floor plan elements, e.g. {type,x,y,width,height,label} or {type:device,device_id,x,y}",
         },
       },
@@ -217,7 +218,7 @@ export const smarthomeTools: ToolDef[] = [
         local_url: { type: "string" },
         name: { type: "string" },
         definition: { type: "object", description: "Optional type/icon/controls/params definition" },
-        events: { type: "array" },
+        events: { type: "array", items: { type: "object" } },
       },
       required: ["device_token"],
     },

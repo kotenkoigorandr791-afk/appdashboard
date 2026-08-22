@@ -494,10 +494,18 @@
             <header class="ai-workspace-header">
                 <h2 id="aiWorkspaceTitle"><?php echo htmlspecialchars($translations[$lang]['ai_recipe_workspace']); ?></h2>
                 <?php if ($userRole >= 1): ?>
-                    <label class="ai-model-field">
+                    <div class="ai-model-field">
                         <span><?php echo htmlspecialchars($translations[$lang]['ai_model_label'] ?? 'AI model'); ?></span>
-                        <select id="aiRecipeModel" class="custom-select ai-model-select"></select>
-                    </label>
+                        <div class="ai-model-dropdown" id="aiModelDropdown">
+                            <select id="aiRecipeModel" class="custom-select ai-model-select"></select>
+                            <button type="button" class="ai-model-toggle" id="aiModelToggle" aria-expanded="false" aria-haspopup="listbox">
+                                <svg class="ai-model-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3-1.9 5.1L5 10l5.1 1.9L12 17l1.9-5.1L19 10l-5.1-1.9L12 3Z"></path><path d="m19 15-.9 2.1L16 18l2.1.9L19 21l.9-2.1L22 18l-2.1-.9L19 15Z"></path></svg>
+                                <span class="ai-model-value"></span>
+                                <svg class="ai-model-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+                            </button>
+                            <div class="ai-model-menu" id="aiModelMenu" role="listbox"></div>
+                        </div>
+                    </div>
                 <?php endif; ?>
             </header>
             <div class="ai-workspace-body">
