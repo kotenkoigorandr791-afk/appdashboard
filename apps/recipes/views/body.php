@@ -55,7 +55,7 @@
             $start = ($page - 1) * $items_per_page;
             $paged_recipes = array_slice($recipes, $start, $items_per_page);
             foreach ($paged_recipes as $recipe): 
-                $image_src = isset($recipe['image']) ? $recipes_dir . '/' . $recipe['id'] . '/' . $recipe['image'] : 'default_recipe.jpg';
+                $image_src = isset($recipe['image']) && is_file(__DIR__ . '/../' . $recipes_dir . '/' . $recipe['id'] . '/' . $recipe['image']) ? $recipes_dir . '/' . $recipe['id'] . '/' . $recipe['image'] : 'default_recipe.jpg';
             ?>
                 <div class="recipe-card" onclick="showRecipe('<?php echo $recipe['id']; ?>')">
                     <img src="<?php echo $image_src; ?>" alt="<?php echo htmlspecialchars($recipe['title'][$lang]); ?>">
