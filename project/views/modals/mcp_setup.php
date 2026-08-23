@@ -10,6 +10,11 @@ $mcpT = [
     'step3' => $translations['mcp_setup_step3'],
     'not_ready' => $translations['mcp_setup_not_ready'],
     'not_built' => $translations['mcp_setup_not_built'],
+    'info_failed' => $translations['mcp_setup_info_failed'],
+    'agent_cursor' => $translations['mcp_setup_agent_cursor'],
+    'agent_claude' => $translations['mcp_setup_agent_claude'],
+    'agent_vscode' => $translations['mcp_setup_agent_vscode'],
+    'agent_opencode' => $translations['mcp_setup_agent_opencode'],
     'download' => $translations['mcp_setup_download'],
     'token_title' => $translations['mcp_setup_token_title'],
     'token_hint' => $translations['mcp_setup_token_hint'],
@@ -30,6 +35,8 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
 .mcp-setup-lead{opacity:.78;margin:0 0 16px;line-height:1.45;font-size:14px;}
 .mcp-setup-meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
 .mcp-setup-pill{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--group-block-bg,rgba(127,127,127,.08));}
+.mcp-setup-pill.warn{display:inline-flex;align-items:center;gap:7px;font-weight:600;border-color:color-mix(in srgb,#f59e0b 55%,transparent);background:color-mix(in srgb,#f59e0b 15%,transparent);}
+.mcp-setup-pill.warn::before{content:"";flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:#f59e0b;box-shadow:0 0 6px color-mix(in srgb,#f59e0b 60%,transparent);}
 .mcp-setup-steps{margin:0 0 14px;padding-left:18px;font-size:13px;line-height:1.5;opacity:.9;}
 .mcp-setup-row{margin:0 0 12px;}
 .mcp-setup-row label{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;opacity:.7;margin-bottom:6px;}
@@ -53,7 +60,7 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
 </style>
 <div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title">
     <div id="mcp-setup-content">
-        <button type="button" id="close-mcp-setup" aria-label="Close">&times;</button>
+        <button type="button" id="close-mcp-setup" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
         <h2 id="mcp-setup-title" style="margin:0 0 8px;font-size:22px;"><?php echo my_htmlspecialchars($mcpT['title']); ?></h2>
         <p class="mcp-setup-lead"><?php echo my_htmlspecialchars($mcpT['subtitle']); ?></p>
         <div class="mcp-setup-meta">
@@ -108,9 +115,15 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
     const copiedLabel=<?php echo json_encode($mcpT['copied'], JSON_UNESCAPED_UNICODE); ?>;
     const notReady=<?php echo json_encode($mcpT['not_ready'], JSON_UNESCAPED_UNICODE); ?>;
     const notBuilt=<?php echo json_encode($mcpT['not_built'], JSON_UNESCAPED_UNICODE); ?>;
+    const loadFailed=<?php echo json_encode($mcpT['info_failed'], JSON_UNESCAPED_UNICODE); ?>;
     const tokenDefaultName=<?php echo json_encode($mcpT['token_default_name'], JSON_UNESCAPED_UNICODE); ?>;
     const tokenFailed=<?php echo json_encode($mcpT['token_failed'], JSON_UNESCAPED_UNICODE); ?>;
-    const agentLabels={cursor:'Cursor',claude:'Claude Desktop',vscode:'VS Code / Copilot',opencode:'OpenCode'};
+    const agentLabels={
+        cursor:<?php echo json_encode($mcpT['agent_cursor'], JSON_UNESCAPED_UNICODE); ?>,
+        claude:<?php echo json_encode($mcpT['agent_claude'], JSON_UNESCAPED_UNICODE); ?>,
+        vscode:<?php echo json_encode($mcpT['agent_vscode'], JSON_UNESCAPED_UNICODE); ?>,
+        opencode:<?php echo json_encode($mcpT['agent_opencode'], JSON_UNESCAPED_UNICODE); ?>
+    };
     function openModal(){
         if(!modal)return;
         modal.style.display='flex';
@@ -123,8 +136,9 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
         try{
             const res=await fetch('/mcp/info',{credentials:'same-origin'});
             const data=await res.json();
-            if(!data.ok) throw new Error(data.error||'failed');
+            if(!data.ok) throw new Error(data.error||loadFailed);
             verEl.textContent=data.ready ? ('v'+data.version) : notBuilt;
+            verEl.classList.toggle('warn', !data.ready);
             if(!data.ready){
                 errEl.textContent=notReady;
                 errEl.style.display='block';

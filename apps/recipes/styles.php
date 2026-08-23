@@ -150,7 +150,7 @@ body::-webkit-scrollbar-thumb:hover {
     background: <?php echo $scrollbar_thumb_hover; ?>;
 }
 
-.app-top-bar {
+    .app-top-bar {
     position: fixed;
     top: 0;
     left: 0;
@@ -915,15 +915,13 @@ form button:hover {
 
 .step button {
     background-color: var(--btn-bg-color);
-    color: var(--text-color);
+    color: <?php echo $theme === 'dark' ? '#141817' : '#ffffff'; ?>;
     border: none;
     padding: 8px 16px;
     border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
-    background-color: var(--btn-bg-color);
-    border: none;
 }
 
 .search-button {
@@ -1426,10 +1424,10 @@ form button:hover {
     gap: 12px;
 }
 #addProductModal .add-product-inner {
-    background: rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.1);
+    background: transparent;
     border-radius: var(--border-radius);
     padding: 12px 14px;
-    border: 1px solid rgba(<?php echo implode(',', sscanf($color, '#%02x%02x%02x')); ?>, 0.35);
+    border: none;
     box-sizing: border-box;
 }
 #addProductModal .add-product-inner--switch {
@@ -1455,21 +1453,25 @@ form button:hover {
 }
 
 #addProductModal .add-product-panel {
-    background-color: var(--grouping-bg);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: var(--border-radius);
-    padding: 16px 18px;
-    box-shadow: var(--shadow);
-    border: 1px solid var(--primary-color);
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-radius: 0;
+    padding: 0 0 20px 0;
+    box-shadow: none;
+    border: none;
+}
+#addProductModal .add-product-panel:last-child {
+    padding-bottom: 0;
 }
 #addProductModal .add-product-panel-title {
     margin: 0 0 14px 0;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--primary-color);
+    padding-bottom: 0;
+    border-bottom: none;
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-color);
+    opacity: 0.7;
 }
 #addProductModal .add-product-field-label {
     display: block;
@@ -1736,14 +1738,10 @@ input[type="file"]:required {
 /* Styles for the language switcher in recipe view */
 .language-switcher {
     display: flex;
+    align-items: center;
     gap: 10px;
     margin-bottom: 20px;
     flex-wrap: wrap;
-    align-items: center;
-    background-color: var(--grouping-bg);
-    padding: 10px;
-    border-radius: var(--border-radius);
-    backdrop-filter: blur(10px);
 }
 
 .language-switcher span {
@@ -1751,27 +1749,39 @@ input[type="file"]:required {
     font-weight: bold;
 }
 
+.language-switcher .lang-pills {
+    display: inline-flex;
+    gap: 2px;
+    padding: 4px;
+    background: <?php echo $theme === 'dark' ? '#1c2740' : '#18201c'; ?>;
+    border-radius: 999px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, <?php echo $theme === 'dark' ? '0.35' : '0.18'; ?>);
+}
+
 .lang-btn {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 2px solid var(--btn-border-color);
-    padding: 5px 10px;
-    border-radius: var(--border-radius);
+    border: 0;
+    background: transparent;
+    color: <?php echo $theme === 'dark' ? '#9eabc7' : 'rgba(255, 255, 255, 0.75)'; ?>;
+    padding: 8px 14px;
+    border-radius: 999px;
     cursor: pointer;
     transition: all 0.3s ease;
     font-size: 14px;
+    font-weight: 600;
 }
 
 .lang-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--hover-shadow);
+    color: #ffffff;
+    background: transparent;
+    transform: none;
+    box-shadow: none;
 }
 
 .lang-btn.active {
-    background-color: var(--primary-color);
-    color: var(--text-color);
+    background: <?php echo $theme === 'dark' ? '#f3f5ef' : '#ffffff'; ?>;
+    color: #10182a;
     font-weight: bold;
-    box-shadow: var(--glow);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
 /* Styles for the share modal */
@@ -3072,7 +3082,73 @@ input[type="file"]:required {
     white-space: nowrap;
 }
 .ai-model-select {
+    display: none;
+}
+.ai-model-dropdown {
+    position: relative;
     min-width: 220px;
+}
+.ai-model-toggle,
+.ai-model-option {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 10px;
+    width: 100%;
+    border: 0;
+    color: var(--text-color);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+.ai-model-toggle {
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid var(--ai-surface-border);
+    border-radius: var(--border-radius);
+    background: var(--ai-surface);
+}
+.ai-model-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ai-model-chevron {
+    margin-left: auto;
+    transition: transform 0.2s ease;
+}
+.ai-model-dropdown.open .ai-model-chevron {
+    transform: rotate(180deg);
+}
+.ai-model-menu {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    display: none;
+    overflow: hidden;
+    border: 1px solid var(--ai-surface-border);
+    border-radius: var(--border-radius);
+    background: var(--surface-strong);
+    box-shadow: var(--ink-shadow);
+}
+.ai-model-dropdown.open .ai-model-menu {
+    display: block;
+}
+.ai-model-option {
+    padding: 10px 12px;
+    background: transparent;
+}
+.ai-model-option:hover,
+.ai-model-option.selected {
+    background: color-mix(in srgb, var(--herb-color) 16%, transparent);
+}
+.ai-model-icon {
+    flex: 0 0 auto;
+    color: var(--herb-color);
 }
 .ai-workspace-zone {
     display: flex;
@@ -4004,6 +4080,18 @@ form button:hover,
     transform: translateY(-2px);
 }
 
+.step .complete-button,
+#searchRecipeModal .search-button {
+    color: <?php echo $theme === 'dark' ? '#141817' : '#ffffff'; ?>;
+}
+
+.cropper-actions button,
+.btn-load-image-url,
+.image-tool-btn,
+#addProductModal .add-product-submit-btn {
+    color: <?php echo $theme === 'dark' ? '#141817' : '#ffffff'; ?>;
+}
+
 .sidebar button svg,
 .card-actions button svg,
 .product-card-actions button svg {
@@ -4124,17 +4212,24 @@ form button:hover,
 
 .modal-close,
 #recipeViewModal .modal-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     width: 40px;
     height: 40px;
+    padding: 0;
     border: 1px solid var(--line-color);
     border-radius: 999px;
     background: var(--surface-strong);
     color: var(--text-color);
     box-shadow: var(--shadow);
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .modal-close svg,
 #recipeViewModal .modal-close svg {
+    display: block;
+    flex: 0 0 auto;
     stroke: var(--text-color) !important;
 }
 
@@ -4149,6 +4244,7 @@ form button:hover,
     grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
     gap: 16px;
     align-items: stretch;
+    align-content: start;
 }
 
 .product-card {
@@ -4203,10 +4299,7 @@ form button:hover,
 .selected-products,
 .share-controls,
 .share-preview-container,
-.language-switcher,
 .step,
-#addProductModal .add-product-panel,
-#addProductModal .add-product-modal-body,
 .ai-workspace-zone,
 .ai-preview-step,
 .ai-pending-item,
@@ -4215,6 +4308,25 @@ form button:hover,
     border-radius: 8px;
     background: var(--surface-color);
     box-shadow: var(--shadow);
+}
+
+#addProductModal .add-product-modal-body {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+#addProductModal .add-product-panel {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding: 0 0 20px 0;
+}
+#addProductModal .add-product-panel:last-child {
+    padding-bottom: 0;
 }
 
 .recipe-view {
@@ -4330,7 +4442,7 @@ form button:hover,
     :root {
         --app-top-bar-height: 120px;
     }
-    .app-top-bar {
+.app-top-bar {
         min-height: var(--app-top-bar-height);
         align-items: stretch;
         flex-direction: column;
@@ -4388,4 +4500,8 @@ form button:hover,
     #productModal .product-grid {
         overflow: visible !important;
     }
+}
+
+#menu-button {
+    border: 1px solid var(--line-color);
 }

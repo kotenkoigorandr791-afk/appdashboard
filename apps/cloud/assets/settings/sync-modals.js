@@ -550,6 +550,29 @@ write_fstab_entry() {
   $SUDO_CMD sh -c "grep -vF '$WEBDAV_URL' /etc/fstab > /etc/fstab.appdashboard.tmp && printf '%s\\n' '$FSTAB_ENTRY' >> /etc/fstab.appdashboard.tmp && cat /etc/fstab.appdashboard.tmp > /etc/fstab && rm -f /etc/fstab.appdashboard.tmp" || true
   $SUDO_CMD systemctl daemon-reload >/dev/null 2>&1 || true
 }
+set_davfs_option() {
+  file="$1"
+  key="$2"
+  value="$3"
+  mkdir -p "$(dirname "$file")"
+  touch "$file"
+  if grep -q "^$key[[:space:]]" "$file"; then
+    sed "s/^$key[[:space:]].*/$key $value/" "$file" > "$file.tmp"
+  else
+    cat "$file" > "$file.tmp"
+    printf '%s %s\\n' "$key" "$value" >> "$file.tmp"
+  fi
+  mv "$file.tmp" "$file"
+}
+configure_davfs() {
+  mkdir -p "$TARGET_HOME/.davfs2"
+  touch "$TARGET_HOME/.davfs2/davfs2.conf"
+  set_davfs_option "$TARGET_HOME/.davfs2/davfs2.conf" use_locks 0
+  chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_HOME/.davfs2" 2>/dev/null || true
+  if [ -z "$SUDO_CMD" ] || command -v sudo >/dev/null 2>&1; then
+    $SUDO_CMD sh -c "touch /etc/davfs2/davfs2.conf && if grep -q '^use_locks[[:space:]]' /etc/davfs2/davfs2.conf; then sed -i 's/^use_locks[[:space:]].*/use_locks 0/' /etc/davfs2/davfs2.conf; else printf '\\nuse_locks 0\\n' >> /etc/davfs2/davfs2.conf; fi" || true
+  fi
+}
 write_desktop_link() {
   [ -d "$USER_DESKTOP_DIR" ] || return 0
   cat > "$USER_DESKTOP_FILE" <<EOF
@@ -671,6 +694,7 @@ if ! command -v mount.davfs >/dev/null 2>&1; then
   install_package davfs2
 fi
 if command -v mount.davfs >/dev/null 2>&1 && { [ "$AUTOMOUNT" != "1" ] || [ -z "$SUDO_CMD" ]; }; then
+  configure_davfs
   mkdir -p "$TARGET_HOME/.davfs2"
   touch "$TARGET_HOME/.davfs2/secrets"
   chmod 600 "$TARGET_HOME/.davfs2/secrets"

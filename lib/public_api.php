@@ -100,7 +100,6 @@ function public_api_auth_user(bool $requireDevice = true): array {
     $token = public_api_bearer_token();
     if ($token === '') public_api_json(['ok' => false, 'error' => 'missing_token'], 401);
     $deviceId = public_api_device_id();
-    if ($requireDevice && $deviceId === '') public_api_json(['ok' => false, 'error' => 'device_id_required'], 400);
     $db = getDB();
     if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
     $row = public_api_validate_token($db, $token, $deviceId);

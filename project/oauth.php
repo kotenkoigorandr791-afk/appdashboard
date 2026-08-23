@@ -470,6 +470,21 @@ function oauth_env_file(string $path): array {
     return $vars;
 }
 
+function oauth_docker_env(string $container): array {
+    $vars = [];
+    $container = preg_replace('/[^A-Za-z0-9_.-]/', '', $container) ?? '';
+    if ($container === '') return $vars;
+    $out = shell_exec('docker exec ' . escapeshellarg($container) . ' env 2>/dev/null');
+    if (!is_string($out) || $out === '') return $vars;
+    foreach (explode("\n", $out) as $line) {
+        $line = trim($line);
+        if ($line === '' || !str_contains($line, '=')) continue;
+        [$k, $v] = explode('=', $line, 2);
+        $vars[trim($k)] = trim($v, " \t\"'");
+    }
+    return $vars;
+}
+
 function oauth_dawarich_db(): ?PDO {
     static $pdo = null;
     static $tried = false;
@@ -669,13 +684,16 @@ function oauth_plane_db(): ?PDO {
     if ($vars === []) {
         $vars = oauth_env_file('/opt/ApplicationData/plane.env');
     }
+    if ($vars === []) {
+        $vars = oauth_docker_env('plane-api-1');
+    }
     $user = (string)(getenv('PLANE_DB_USER') ?: ($vars['POSTGRES_USER'] ?? 'plane'));
     $password = (string)(getenv('PLANE_DB_PASSWORD') ?: ($vars['POSTGRES_PASSWORD'] ?? 'plane'));
     $dbname = (string)(getenv('PLANE_DB_NAME') ?: ($vars['POSTGRES_DB'] ?? $vars['PGDATABASE'] ?? 'plane'));
     $port = (int)(getenv('PLANE_DB_PORT') ?: ($vars['POSTGRES_PORT'] ?? 5432));
     if ($port <= 0) $port = 5432;
-    $hosts = ['127.0.0.1', 'host.docker.internal'];
-    foreach (['172.17.0.1', '172.19.0.1'] as $extra) {
+    $hosts = ['127.0.0.1', 'host.docker.internal', 'host-gateway'];
+    foreach (['172.17.0.1', '172.19.0.1', '172.27.0.1'] as $extra) {
         if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
     foreach ($hosts as $host) {

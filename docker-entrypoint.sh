@@ -94,6 +94,10 @@ chown -h www-data:www-data "$APP_ROOT/data" "$APP_ROOT/uploads" 2>/dev/null || t
 chmod -R u+rwX,g+rwX "$UPLOADS_BASE_DIR" 2>/dev/null || true
 chown www-data:www-data "$APPDATA_BASE_DIR" 2>/dev/null || true
 chmod 750 "$APPDATA_DATA_DIR" 2>/dev/null || true
+mkdir -p /var/lib/mosquitto /etc/mosquitto
+touch /etc/mosquitto/smarthome.passwd /etc/mosquitto/smarthome.acl
+chown -R mosquitto:mosquitto /var/lib/mosquitto 2>/dev/null || true
+chmod 0600 /etc/mosquitto/smarthome.passwd /etc/mosquitto/smarthome.acl 2>/dev/null || true
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard || true
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
@@ -134,5 +138,8 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   fi
   "$BOT_VENV/bin/pip" install -q -r /var/www/AppDashboard/bot/requirements.txt || true
   ) >/var/log/supervisor/startup-deps.log 2>&1 &
+fi
+if [ -f /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php ]; then
+  /usr/local/bin/php /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php --once >/var/log/supervisor/smart-home-mqtt-auth-boot.log 2>&1 || true
 fi
 exec "$@"

@@ -132,6 +132,12 @@ function sh_init_tables(AppDatabase $db): void {
         context_json TEXT NOT NULL DEFAULT '{}',
         created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
+    $db->exec("CREATE TABLE IF NOT EXISTS smarthome_mqtt_auth (
+        username TEXT PRIMARY KEY,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'backend',
+        updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+    )");
     sh_ensure_column($db, 'smarthome_devices', 'displayed_controls', "TEXT NOT NULL DEFAULT '[]'");
     sh_ensure_column($db, 'smarthome_devices', 'category', "TEXT NOT NULL DEFAULT ''");
     sh_ensure_column($db, 'smarthome_devices', 'group_id', "TEXT NOT NULL DEFAULT ''");
@@ -139,6 +145,7 @@ function sh_init_tables(AppDatabase $db): void {
     sh_ensure_column($db, 'smarthome_settings', 'home_group_id', "TEXT NOT NULL DEFAULT ''");
     sh_ensure_column($db, 'smarthome_settings', 'home_view', "TEXT NOT NULL DEFAULT 'tiles'");
     sh_ensure_column($db, 'smarthome_devices', 'icon_locked', "INTEGER NOT NULL DEFAULT 0");
+    sh_ensure_column($db, 'smarthome_devices', 'transport', "TEXT NOT NULL DEFAULT 'ws'");
 }
 
 function sh_ensure_column(AppDatabase $db, string $table, string $column, string $def): void {
@@ -417,6 +424,71 @@ function sh_enqueue_control_request(string $userEmail, string $deviceId, string 
     return $requestId;
 }
 
+function sh_mqtt_backend_credentials(AppDatabase $db): array {
+    sh_init_tables($db);
+    $username = 'appdashboard_backend';
+    $stmt = $db->prepare('SELECT password FROM smarthome_mqtt_auth WHERE username = :u LIMIT 1');
+    $stmt->bindValue(':u', $username, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if ($row && (string)($row['password'] ?? '') !== '') {
+        return ['username' => $username, 'password' => (string)$row['password']];
+    }
+    $password = bin2hex(random_bytes(24));
+    $ins = $db->prepare("INSERT INTO smarthome_mqtt_auth (username, password, role, updated_at) VALUES (:u, :p, 'backend', CURRENT_TIMESTAMP) ON CONFLICT (username) DO UPDATE SET password = EXCLUDED.password, updated_at = CURRENT_TIMESTAMP");
+    $ins->bindValue(':u', $username, PDO::PARAM_STR);
+    $ins->bindValue(':p', $password, PDO::PARAM_STR);
+    $ins->execute();
+    return ['username' => $username, 'password' => $password];
+}
+
+function sh_mqtt_mark_auth_dirty(): void {
+    $dir = getenv('APPDATA_DATA_DIR') ?: dirname(SH_APP_DIR, 2) . '/data';
+    @file_put_contents(rtrim($dir, '/') . '/smarthome_mqtt_auth_dirty', (string)time());
+}
+
+function sh_mqtt_controls_map(array $device): array {
+    $out = [];
+    foreach (($device['controls'] ?? []) as $control) {
+        if (!is_array($control)) continue;
+        $id = (string)($control['id'] ?? '');
+        if ($id !== '') $out[$id] = $control['value'] ?? null;
+    }
+    return $out;
+}
+
+function sh_mqtt_publish_command(AppDatabase $db, string $deviceId, string $controlId, mixed $value, array $device): bool {
+    $autoload = dirname(SH_APP_DIR, 2) . '/vendor/autoload.php';
+    if (!is_file($autoload)) return false;
+    require_once $autoload;
+    if (!class_exists(\PhpMqtt\Client\MqttClient::class)) return false;
+    $creds = sh_mqtt_backend_credentials($db);
+    $clientId = 'appdashboard-api-' . bin2hex(random_bytes(4));
+    $mqtt = new \PhpMqtt\Client\MqttClient('127.0.0.1', 1883, $clientId);
+    $settings = (new \PhpMqtt\Client\ConnectionSettings)
+        ->setUsername($creds['username'])
+        ->setPassword($creds['password'])
+        ->setConnectTimeout(3)
+        ->setSocketTimeout(3)
+        ->setKeepAliveInterval(15);
+    $payload = json_encode([
+        'type' => 'command',
+        'control_id' => $controlId,
+        'value' => $value,
+        'controls' => sh_mqtt_controls_map($device),
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($payload === false) return false;
+    try {
+        $mqtt->connect($settings, true);
+        $mqtt->publish('home/' . $deviceId . '/set', $payload, 1, false);
+        $mqtt->loop(true, true, 2);
+        $mqtt->disconnect();
+        return true;
+    } catch (Throwable $e) {
+        try { $mqtt->disconnect(); } catch (Throwable $ignored) {}
+        throw $e;
+    }
+}
+
 function sh_wait_for_control_result(string $requestId, float $timeoutSeconds = 7.0): ?array {
     $db = sh_db();
     $deadline = microtime(true) + $timeoutSeconds;
@@ -470,6 +542,7 @@ function sh_device_stale_seconds(): int {
 }
 
 function sh_apply_stale_device_status(array $row): array {
+    if (($row['transport'] ?? 'ws') === 'mqtt') return $row;
     if (($row['status'] ?? '') !== 'online') return $row;
     $updatedRaw = trim((string)($row['updated_at'] ?? ''));
     if ($updatedRaw === '') return $row;
@@ -491,7 +564,7 @@ function sh_persist_stale_devices(AppDatabase $db): void {
     if ($done) return;
     $done = true;
     try {
-        $stmt = $db->prepare("SELECT id, params FROM smarthome_devices WHERE status = 'online' AND updated_at::timestamptz < CURRENT_TIMESTAMP - (:sec || ' seconds')::interval");
+        $stmt = $db->prepare("SELECT id, params FROM smarthome_devices WHERE status = 'online' AND COALESCE(transport, 'ws') <> 'mqtt' AND updated_at::timestamptz < CURRENT_TIMESTAMP - (:sec || ' seconds')::interval");
         $stmt->bindValue(':sec', (string)sh_device_stale_seconds(), PDO::PARAM_STR);
         $res = $stmt->execute();
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
@@ -726,11 +799,25 @@ function sh_push_local_gp(array $device, string $controlId, mixed $value): bool 
 }
 
 function sh_deliver_control(AppDatabase $db, string $userEmail, string $deviceId, string $controlId, mixed $value, array $device): array {
-    $delivered = ['ws' => false, 'local' => false];
+    $delivered = ['ws' => false, 'local' => false, 'mqtt' => false];
     if (sh_push_local_control($device, $controlId, $value)) {
         $delivered['local'] = true;
         sh_clear_control_queue_for_device($db, $deviceId);
         return $delivered;
+    }
+    if (($device['transport'] ?? 'ws') === 'mqtt') {
+        try {
+            $delivered['mqtt'] = sh_mqtt_publish_command($db, $deviceId, $controlId, $value, $device);
+            if ($delivered['mqtt']) {
+                sh_clear_control_queue_for_device($db, $deviceId);
+                return $delivered;
+            }
+        } catch (Throwable $e) {
+            sh_log_error($userEmail, $deviceId, (string)($device['name'] ?? ''), 'control_mqtt', $e->getMessage(), [
+                'control_id' => $controlId,
+                'value' => $value,
+            ]);
+        }
     }
     try {
         sh_ws_dispatch_control($userEmail, $deviceId, $controlId, $value);
@@ -1767,6 +1854,7 @@ if ($action !== '') {
                 $ti->bindValue(':did', $slug, PDO::PARAM_STR);
                 $ti->bindValue(':now', $now, PDO::PARAM_STR);
                 $ti->execute();
+                sh_mqtt_mark_auth_dirty();
                 // Log
                 sh_monitor_log($userEmail, $slug, 'device_created', ['name'=>$name, 'type'=>$type]);
             } else {
@@ -1808,6 +1896,7 @@ if ($action !== '') {
                     $ti->bindValue(':em', $userEmail, PDO::PARAM_STR);
                     $ti->bindValue(':did', $deviceId, PDO::PARAM_STR);
                     $ti->execute();
+                    sh_mqtt_mark_auth_dirty();
                 }
             }
             $settings = sh_load_user_settings($db, $userEmail);
@@ -1873,9 +1962,10 @@ if ($action !== '') {
             ]);
             echo json_encode([
                 'ok'=>true,
-                'queued'=>!$delivery['local'] && !$delivery['ws'],
+                'queued'=>!$delivery['local'] && !$delivery['ws'] && !$delivery['mqtt'],
                 'delivered_local'=>$delivery['local'],
                 'delivered_ws'=>$delivery['ws'],
+                'delivered_mqtt'=>$delivery['mqtt'],
                 'request_id'=>$requestId,
                 'device'=>$device,
                 'device_status'=>(string)($row['status'] ?? 'unknown'),

@@ -53,6 +53,35 @@ function cloud_webdav_write_file(string $path, $data): void {
         throw $e;
     }
 }
+function cloud_webdav_cleanup_expired_locks(string $path): void {
+    if (!is_file($path)) return;
+    $fp = @fopen($path, 'c+');
+    if (!$fp) return;
+    try {
+        if (!flock($fp, LOCK_EX)) return;
+        rewind($fp);
+        $raw = stream_get_contents($fp);
+        $locks = is_string($raw) && $raw !== '' ? @unserialize($raw) : [];
+        if (!is_array($locks)) $locks = [];
+        $now = time();
+        $kept = [];
+        foreach ($locks as $lock) {
+            $created = is_object($lock) && isset($lock->created) ? (int)$lock->created : 0;
+            $timeout = is_object($lock) && isset($lock->timeout) ? (int)$lock->timeout : 0;
+            if ($created > 0 && $timeout > 0 && $created + $timeout <= $now) continue;
+            $kept[] = $lock;
+        }
+        if (count($kept) !== count($locks)) {
+            rewind($fp);
+            ftruncate($fp, 0);
+            fwrite($fp, serialize($kept));
+            fflush($fp);
+        }
+    } finally {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+    }
+}
 final class CloudWebDavDirectory extends FS\Directory {
     private string $email;
     private string $rootPath;
@@ -166,5 +195,7 @@ $server = new DAV\Server(new CloudWebDavDirectory($root, $webdavEmail, $root));
 $baseUri = str_starts_with(strtolower($requestPath), '/webdav') ? '/webdav/' : '/apps/cloud/webdav.php/';
 $server->setBaseUri($baseUri);
 $server->addPlugin(new DAV\Browser\Plugin());
-$server->addPlugin(new DAV\Locks\Plugin(new DAV\Locks\Backend\File(upload_sessions_dir() . '/webdav_locks')));
+$locksPath = upload_sessions_dir() . '/webdav_locks';
+cloud_webdav_cleanup_expired_locks($locksPath);
+$server->addPlugin(new DAV\Locks\Plugin(new DAV\Locks\Backend\File($locksPath)));
 $server->exec();

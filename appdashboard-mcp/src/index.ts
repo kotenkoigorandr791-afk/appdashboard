@@ -50,6 +50,7 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
         res.status(401).json({ error: "missing_bearer_token" });
         return;
       }
+      const deviceId = (req.header("x-device-id") || "").trim();
       res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("X-Accel-Buffering", "no");
       const sessionId = req.header("mcp-session-id") || "";
@@ -70,7 +71,7 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
         entry = { server, transport };
       }
       const activeEntry = entry;
-      await authStorage.run({ token, deviceId: "mcp_external" }, async () => {
+      await authStorage.run({ token, deviceId }, async () => {
         await activeEntry.transport.handleRequest(req, res, req.body);
         if (activeEntry.transport.sessionId) transports.set(activeEntry.transport.sessionId, activeEntry);
       });

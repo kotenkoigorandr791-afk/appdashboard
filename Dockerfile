@@ -20,7 +20,7 @@ ENV HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-home
 ENV XDG_CACHE_HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache
 ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx supervisor git curl ca-certificates sudo unzip zip p7zip-full \
+    nginx supervisor git curl ca-certificates sudo unzip zip p7zip-full mosquitto mosquitto-clients \
     libpq-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
     libxml2-dev libonig-dev libicu-dev ffmpeg tesseract-ocr tesseract-ocr-rus \
     tesseract-ocr-ukr smartmontools util-linux openssh-client \
@@ -47,6 +47,7 @@ RUN mkdir -p /run/php /var/log/supervisor /opt/AppDashboard/data /opt/Applicatio
     && chown -R www-data:www-data /run/php /opt/AppDashboard /opt/ApplicationData /var/www/.hyperframes \
     && su -s /bin/sh www-data -c 'hyperframes telemetry disable || true'
 COPY nginx/appdashboard.conf /etc/nginx/sites-available/appdashboard.conf
+COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY . /var/www/AppDashboard/
 RUN rm -rf /var/www/AppDashboard/apps/tft-generator \

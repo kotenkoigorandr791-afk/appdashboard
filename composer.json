@@ -5,7 +5,8 @@
         "firebase/php-jwt": "^7.0",
         "phpseclib/phpseclib": "^3.0.54",
         "guzzlehttp/psr7": "^2.13",
-        "guzzlehttp/guzzle": "^7.15"
+        "guzzlehttp/guzzle": "^7.15",
+        "php-mqtt/client": "^2.3"
     },
     "config": {
         "audit": {

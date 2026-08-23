@@ -114,7 +114,7 @@ export function ensureDeviceId(): string {
 }
 
 export function getToken(): string {
-  return loadCredentials()?.token || "";
+  return authStorage.getStore()?.token || loadCredentials()?.token || "";
 }
 
 export function getCachedRole(): Role {
@@ -195,18 +195,22 @@ export async function refreshToken(): Promise<Credentials> {
 }
 
 export async function fetchMe(): Promise<{ email: string; name?: string; role: Role } | null> {
+  const context = authStorage.getStore();
   const creds = loadCredentials();
   const base = getHost();
-  if (!creds?.token || !base) return null;
+  const token = context?.token || creds?.token || "";
+  const deviceId = context ? context.deviceId : creds?.device_id;
+  if (!token || !base) return null;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+  if (deviceId) headers["X-Device-Id"] = deviceId;
   const { status, data } = await fetchJson(`${base}/public-api/auth/me`, {
     method: "GET",
-    headers: {
-      Authorization: `Bearer ${creds.token}`,
-      "X-Device-Id": creds.device_id,
-      "Content-Type": "application/json",
-    },
+    headers,
   });
-  if (status === 401) {
+  if (status === 401 && !context) {
     try {
       await refreshToken();
       return fetchMe();
