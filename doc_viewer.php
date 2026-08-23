@@ -30,14 +30,19 @@ function docViewerDeny(int $httpCode, string $htmlMsg, string $jsonMsg = ''): vo
     exit;
 }
 
-// Check authentication
-if (isset($_SESSION['user'], $_SESSION['auth_time']) && !getUserFromActiveSessions(session_id())) {
-    $_SESSION = [];
-    session_destroy();
-    session_start();
+// Check authentication - validate session freshness
+$docViewerLoggedIn = isset($_SESSION['user']['email'], $_SESSION['auth_time']);
+if ($docViewerLoggedIn) {
+    // Check if session is still valid (8 hours timeout)
+    $authTimeout = 8 * 3600;
+    if (time() - $_SESSION['auth_time'] > $authTimeout) {
+        $_SESSION = [];
+        session_destroy();
+        session_start();
+        $docViewerLoggedIn = false;
+    }
 }
 
-$docViewerLoggedIn = isset($_SESSION['user']['email']);
 if (!$docViewerLoggedIn) {
     docViewerDeny(401, 'You must be logged in.', 'Unauthorized');
 }
