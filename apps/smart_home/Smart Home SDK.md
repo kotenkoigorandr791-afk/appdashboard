@@ -253,6 +253,79 @@ Recommended interval:
 
 ## WebSocket Synchronization
 
+MQTT is the preferred realtime transport for new firmware. The legacy WebSocket transport remains available during migration for devices whose `smarthome_devices.transport` is still `ws`.
+
+## MQTT Synchronization
+
+Broker endpoints:
+
+| Client | Endpoint |
+|---|---|
+| Firmware/browser MQTT over WebSocket | `ws://<host>/mqtt` |
+| Backend inside container | `127.0.0.1:1883` |
+
+Auth:
+
+| Field | Value |
+|---|---|
+| `client_id` | `device_id` |
+| username | `device_id` |
+| password | existing device token |
+
+Topics:
+
+| Topic | Direction | QoS | Retained |
+|---|---|---:|---|
+| `home/<device_id>/set` | server/dashboard to device | 1 | no |
+| `home/<device_id>/state` | device to server/dashboard | 1 | yes |
+| `home/<device_id>/status` | device to server/dashboard | 1 | yes |
+
+Last Will:
+
+```text
+topic: home/<device_id>/status
+payload: offline
+qos: 1
+retain: true
+```
+
+On successful MQTT connect, publish:
+
+```text
+topic: home/<device_id>/status
+payload: online
+qos: 1
+retain: true
+```
+
+State payload should keep the current WebSocket state shape:
+
+```json
+{
+  "type": "state",
+  "local_url": "http://192.168.1.50",
+  "controls": {
+    "power": true
+  },
+  "telemetry": {
+    "signal": "-60 dBm"
+  }
+}
+```
+
+Command payload on `home/<device_id>/set` keeps the current command shape:
+
+```json
+{
+  "type": "command",
+  "control_id": "power",
+  "value": true,
+  "controls": {
+    "power": true
+  }
+}
+```
+
 Device connects to:
 
 ```text
