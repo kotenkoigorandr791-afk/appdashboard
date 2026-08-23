@@ -30,21 +30,18 @@ function docViewerDeny(int $httpCode, string $htmlMsg, string $jsonMsg = ''): vo
     exit;
 }
 
-// Check authentication - validate session freshness
-$docViewerLoggedIn = isset($_SESSION['user']['email'], $_SESSION['auth_time']);
-if ($docViewerLoggedIn) {
-    // Check if session is still valid (8 hours timeout)
-    $authTimeout = 8 * 3600;
-    if (time() - $_SESSION['auth_time'] > $authTimeout) {
-        $_SESSION = [];
-        session_destroy();
-        session_start();
-        $docViewerLoggedIn = false;
-    }
-}
+// Check authentication from DB/Redis active sessions
+$activeSession = getUserFromActiveSessions(session_id());
+$docViewerLoggedIn = $activeSession !== null;
 
 if (!$docViewerLoggedIn) {
     docViewerDeny(401, 'You must be logged in.', 'Unauthorized');
+}
+
+// Restore session data from active_sessions if needed
+if (!isset($_SESSION['user']) && isset($activeSession['user_data'])) {
+    $_SESSION['user'] = $activeSession['user_data'];
+    $_SESSION['auth_time'] = $activeSession['last_activity'];
 }
 
 // Allow only embedded or admin access

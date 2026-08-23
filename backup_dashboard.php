@@ -31,22 +31,21 @@ function backupDashboardDeny(int $httpCode, string $htmlMsg, string $jsonMsg = '
         . '</p><p><a href="/">Home</a></p></body></html>';
     exit;
 }
-// Check authentication - validate session freshness
-$backupDashLoggedIn = isset($_SESSION['user']['email'], $_SESSION['auth_time']);
-if ($backupDashLoggedIn) {
-    // Check if session is still valid (8 hours timeout)
-    $authTimeout = 8 * 3600;
-    if (time() - $_SESSION['auth_time'] > $authTimeout) {
-        $_SESSION = [];
-        session_destroy();
-        session_start();
-        $backupDashLoggedIn = false;
-    }
-}
-$backupDashRole = $backupDashLoggedIn ? (int)($_SESSION['user']['role'] ?? 0) : -1;
+// Check authentication from DB/Redis active sessions
+$activeSession = getUserFromActiveSessions(session_id());
+$backupDashLoggedIn = $activeSession !== null;
+
 if (!$backupDashLoggedIn) {
     backupDashboardDeny(401, 'You must be logged in.', 'Unauthorized');
 }
+
+// Restore session data from active_sessions if needed
+if (!isset($_SESSION['user']) && isset($activeSession['user_data'])) {
+    $_SESSION['user'] = $activeSession['user_data'];
+    $_SESSION['auth_time'] = $activeSession['last_activity'];
+}
+
+$backupDashRole = $backupDashLoggedIn ? (int)($_SESSION['user']['role'] ?? $activeSession['user_data']['role'] ?? 0) : -1;
 if ($backupDashRole < 2 && !backupDashboardIsEmbeddedRequest()) {
     backupDashboardDeny(
         403,
