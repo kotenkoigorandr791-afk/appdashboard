@@ -31,12 +31,18 @@ function backupDashboardDeny(int $httpCode, string $htmlMsg, string $jsonMsg = '
         . '</p><p><a href="/">Home</a></p></body></html>';
     exit;
 }
-if (isset($_SESSION['user'], $_SESSION['auth_time']) && !getUserFromActiveSessions(session_id())) {
-    $_SESSION = [];
-    session_destroy();
-    session_start();
+// Check authentication - validate session freshness
+$backupDashLoggedIn = isset($_SESSION['user']['email'], $_SESSION['auth_time']);
+if ($backupDashLoggedIn) {
+    // Check if session is still valid (8 hours timeout)
+    $authTimeout = 8 * 3600;
+    if (time() - $_SESSION['auth_time'] > $authTimeout) {
+        $_SESSION = [];
+        session_destroy();
+        session_start();
+        $backupDashLoggedIn = false;
+    }
 }
-$backupDashLoggedIn = isset($_SESSION['user']['email']);
 $backupDashRole = $backupDashLoggedIn ? (int)($_SESSION['user']['role'] ?? 0) : -1;
 if (!$backupDashLoggedIn) {
     backupDashboardDeny(401, 'You must be logged in.', 'Unauthorized');
