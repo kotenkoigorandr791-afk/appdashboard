@@ -1635,9 +1635,11 @@ function ensureAuthenticatedSession(): bool {
 function getUserFromActiveSessions(string $sessionId): ?array {
     if ($redis = app_redis()) {
         $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
-        if (!$raw) return null;
-        $row = json_decode((string)$raw, true);
-        return is_array($row) ? $row : null;
+        if ($raw) {
+            $row = json_decode((string)$raw, true);
+            if (is_array($row)) return $row;
+        }
+        // Fallback to DB if Redis doesn't have the key
     }
     $db          = getDB();
     $authTimeout = 8 * 3600;
@@ -1650,6 +1652,15 @@ function getUserFromActiveSessions(string $sessionId): ?array {
         return null;
     }
     $row['user_data'] = json_decode($row['user_data'], true) ?? [];
+    
+    // Sync back to Redis if available
+    if ($redis && isset($row['email'])) {
+        $ttl = activeSessionTtlSeconds($row['email']);
+        try {
+            $redis->setex(app_redis_key('active_session:' . $sessionId), $ttl, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        } catch (Throwable $e) {}
+    }
+    
     return $row;
 }
 
