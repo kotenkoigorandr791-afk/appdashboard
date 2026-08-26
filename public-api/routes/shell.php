@@ -6,6 +6,34 @@ $role = public_api_role();
 $isAdmin = $role >= 2;
 $body = public_api_body();
 $action = trim((string)($body['action'] ?? $_GET['action'] ?? ''));
+$shellNormalizeChatEmail = static fn($email): string => strtolower(trim((string)$email));
+$shellPeerConversationKey = static function ($a, $b) use ($shellNormalizeChatEmail): array {
+    $a = $shellNormalizeChatEmail($a);
+    $b = $shellNormalizeChatEmail($b);
+    return strcmp($a, $b) <= 0 ? [$a, $b] : [$b, $a];
+};
+$shellIsPeerBlocked = static function (AppDatabase $db, $a, $b) use ($shellNormalizeChatEmail): bool {
+    $a = $shellNormalizeChatEmail($a);
+    $b = $shellNormalizeChatEmail($b);
+    if ($a === '' || $b === '') return true;
+    $stmt = $db->prepare('SELECT 1 FROM chat_blocks WHERE (blocker_email = :a AND blocked_email = :b) OR (blocker_email = :b2 AND blocked_email = :a2) LIMIT 1');
+    $stmt->bindValue(':a', $a, PDO::PARAM_STR);
+    $stmt->bindValue(':b', $b, PDO::PARAM_STR);
+    $stmt->bindValue(':b2', $b, PDO::PARAM_STR);
+    $stmt->bindValue(':a2', $a, PDO::PARAM_STR);
+    return (bool)$stmt->execute()->fetch(PDO::FETCH_ASSOC);
+};
+$shellAssertPeerVisible = static function (AppDatabase $db, $current, $other) use ($shellNormalizeChatEmail, $shellIsPeerBlocked): array {
+    $current = $shellNormalizeChatEmail($current);
+    $other = $shellNormalizeChatEmail($other);
+    if ($other === '' || $other === $current) public_api_json(['ok' => false, 'error' => 'invalid_peer'], 400);
+    $stmt = $db->prepare('SELECT email, name, photo FROM users WHERE lower(email) = :email LIMIT 1');
+    $stmt->bindValue(':email', $other, PDO::PARAM_STR);
+    $user = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$user) public_api_json(['ok' => false, 'error' => 'user_not_found'], 404);
+    if ($shellIsPeerBlocked($db, $current, $user['email'])) public_api_json(['ok' => false, 'error' => 'peer_blocked'], 403);
+    return $user;
+};
 if ($action === '' && isset($body['quick_command_action'])) {
     $qcMap = ['list' => 'list_quick_commands', 'create' => 'create_quick_command', 'update' => 'update_quick_command', 'delete' => 'delete_quick_command'];
     $action = $qcMap[(string)$body['quick_command_action']] ?? '';
@@ -212,16 +240,30 @@ if ($action === 'update_shared_file_expiration') {
     public_api_json(['ok' => true, 'expires' => $expires, 'expires_option' => $expiresOption]);
 }
 
-if ($action === 'send_support_message') {
+if ($action === 'send_support_message' || $action === 'send_messenger_message') {
     $message = trim((string)($body['message'] ?? ''));
     if ($message === '') public_api_json(['ok' => false, 'error' => 'empty_message'], 400);
-    $chatUserEmail = $isAdmin ? trim((string)($body['user_email'] ?? '')) : $email;
-    if ($chatUserEmail === '') $chatUserEmail = $email;
     $db = getDB();
     if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
     ensureSupportChatSchema($db);
-    $stmt = $db->prepare('INSERT INTO support_chat (user_email, sender_email, message, created_at) VALUES (:u, :s, :m, :c)');
+    $recipient = $shellNormalizeChatEmail($body['recipient_email'] ?? '');
+    $chatId = (string)($body['chat_id'] ?? '');
+    if ($recipient === '' && str_starts_with($chatId, 'peer:')) $recipient = $shellNormalizeChatEmail(substr($chatId, 5));
+    if ($action === 'send_messenger_message' && $recipient !== '') {
+        if ($isAdmin) public_api_json(['ok' => false, 'error' => 'permission_denied'], 403);
+        $shellAssertPeerVisible($db, $email, $recipient);
+        [$chatUserEmail, $recipientEmail] = $shellPeerConversationKey($email, $recipient);
+        $chatType = 'peer';
+    } else {
+        $chatUserEmail = $isAdmin ? $shellNormalizeChatEmail($body['user_email'] ?? '') : $shellNormalizeChatEmail($email);
+        if ($chatUserEmail === '') $chatUserEmail = $shellNormalizeChatEmail($email);
+        $recipientEmail = null;
+        $chatType = 'support';
+    }
+    $stmt = $db->prepare('INSERT INTO support_chat (user_email, recipient_email, chat_type, sender_email, message, created_at) VALUES (:u, :r, :t, :s, :m, :c)');
     $stmt->bindValue(':u', $chatUserEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':r', $recipientEmail, $recipientEmail ? PDO::PARAM_STR : PDO::PARAM_NULL);
+    $stmt->bindValue(':t', $chatType, PDO::PARAM_STR);
     $stmt->bindValue(':s', $email, PDO::PARAM_STR);
     $stmt->bindValue(':m', $message, PDO::PARAM_STR);
     $stmt->bindValue(':c', time(), PDO::PARAM_INT);
@@ -229,18 +271,54 @@ if ($action === 'send_support_message') {
     public_api_json(['ok' => true, 'message_id' => $db->lastInsertRowID()]);
 }
 
-if ($action === 'get_support_messages') {
-    $chatUserEmail = $isAdmin ? trim((string)($body['user_email'] ?? $_GET['user_email'] ?? '')) : $email;
-    if ($chatUserEmail === '') $chatUserEmail = $email;
+if ($action === 'get_support_messages' || $action === 'get_messenger_messages') {
     $db = getDB();
     if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
     ensureSupportChatSchema($db);
-    $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at FROM support_chat WHERE user_email = :e ORDER BY created_at DESC LIMIT 100');
+    $recipient = $shellNormalizeChatEmail($body['recipient_email'] ?? $_GET['recipient_email'] ?? '');
+    $chatId = (string)($body['chat_id'] ?? $_GET['chat_id'] ?? '');
+    if ($recipient === '' && str_starts_with($chatId, 'peer:')) $recipient = $shellNormalizeChatEmail(substr($chatId, 5));
+    if ($action === 'get_messenger_messages' && $recipient !== '') {
+        if ($isAdmin) public_api_json(['ok' => false, 'error' => 'permission_denied'], 403);
+        $shellAssertPeerVisible($db, $email, $recipient);
+        [$chatUserEmail, $recipientEmail] = $shellPeerConversationKey($email, $recipient);
+        $chatType = 'peer';
+    } else {
+        $chatUserEmail = $isAdmin ? $shellNormalizeChatEmail($body['user_email'] ?? $_GET['user_email'] ?? '') : $shellNormalizeChatEmail($email);
+        if ($chatUserEmail === '') $chatUserEmail = $shellNormalizeChatEmail($email);
+        $recipientEmail = null;
+        $chatType = 'support';
+    }
+    $stmt = $db->prepare('SELECT id, user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at FROM support_chat WHERE chat_type = :t AND user_email = :e AND ' . ($chatType === 'peer' ? 'recipient_email = :r' : 'recipient_email IS NULL') . ' ORDER BY created_at DESC LIMIT 100');
+    $stmt->bindValue(':t', $chatType, PDO::PARAM_STR);
     $stmt->bindValue(':e', $chatUserEmail, PDO::PARAM_STR);
+    if ($chatType === 'peer') $stmt->bindValue(':r', $recipientEmail, PDO::PARAM_STR);
     $res = $stmt->execute();
     $rows = [];
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) $rows[] = $row;
     public_api_json(['ok' => true, 'messages' => array_reverse($rows)]);
+}
+
+if ($action === 'list_messenger_chats') {
+    $db = getDB();
+    if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
+    ensureSupportChatSchema($db);
+    if ($isAdmin) {
+        public_api_json(['ok' => true, 'chats' => [['chat_id' => 'support', 'chat_type' => 'support', 'user_email' => $shellNormalizeChatEmail($email), 'recipient_email' => null]]]);
+    }
+    $me = $shellNormalizeChatEmail($email);
+    $stmt = $db->prepare("SELECT user_email, recipient_email, MAX(created_at) AS last_message_time, COUNT(*) AS message_count FROM support_chat WHERE chat_type = 'peer' AND (user_email = :me OR recipient_email = :me2) GROUP BY user_email, recipient_email ORDER BY last_message_time DESC");
+    $stmt->bindValue(':me', $me, PDO::PARAM_STR);
+    $stmt->bindValue(':me2', $me, PDO::PARAM_STR);
+    $res = $stmt->execute();
+    $chats = [['chat_id' => 'support', 'chat_type' => 'support', 'user_email' => $me, 'recipient_email' => null]];
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+        $row['chat_type'] = 'peer';
+        $row['peer_email'] = $shellNormalizeChatEmail($row['user_email']) === $me ? $row['recipient_email'] : $row['user_email'];
+        $row['chat_id'] = 'peer:' . $row['peer_email'];
+        $chats[] = $row;
+    }
+    public_api_json(['ok' => true, 'chats' => $chats]);
 }
 
 $adminActions = [

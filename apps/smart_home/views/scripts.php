@@ -1527,6 +1527,7 @@ const FP = {
   panning: false, panStartCX: 0, panStartCY: 0, panOriginX: 0, panOriginY: 0,
   boxSelect: null,
   polyVertexIdx: 0,
+  clipboard: null,
 };
 function fpGetDevice(deviceId) {
   return (state.devices || []).find(d => d.id === deviceId)
@@ -1913,8 +1914,14 @@ function fpFindElementLabelPosition(ctx, el, text, fontSize, occupied, blockers)
   const center = fpElShape(el) === 'poly'
     ? fpPolyInteriorAnchor(el.points, ref)
     : ref;
-  const candidates = [{ x: center.x, y: center.y }];
-  const step = Math.max(FP.snap, Math.round(fontSize));
+  const cBox = fpLabelBoxAt(ctx, center.x, center.y, text, fontSize);
+  if (fpLabelFitsElement(el, cBox, 2)
+    && !occupied.some(ob => fpRectOverlap(cBox, ob, 2))
+    && !blockers.some(ob => fpRectOverlap(cBox, ob, 2))) {
+    return { x: center.x, y: center.y, box: cBox, ok: true };
+  }
+  const candidates = [];
+  const step = Math.max(Math.round(FP.snap / 2), Math.round(fontSize / 3));
   for (let y = bounds.y1 + step; y <= bounds.y2 - step; y += step) {
     for (let x = bounds.x1 + step; x <= bounds.x2 - step; x += step) {
       if (fpElShape(el) === 'poly' && !fpPointInPoly(x, y, el.points)) continue;
@@ -1962,6 +1969,7 @@ function fpFinishPolygon() {
 }
 function fpSetTool(tool) {
   if (fpIsViewOnly()) return;
+  if (!tool) tool = 'select';
   FP.tool = tool;
   FP.drawing = false;
   FP.polyPoints = null;
@@ -2131,6 +2139,27 @@ function fpCancelAction() {
   fpRender();
 }
 const FP_TOOL_KEYS = { v: 'select', 1: 'select', 2: 'wall', 3: 'window', 4: 'door', 5: 'furniture', 6: 'room', 7: 'floor', 8: 'room-label', 9: 'room-poly', 0: 'furniture-poly' };
+function fpCopySelected() {
+  const idx = FP.propsIdx >= 0 ? FP.propsIdx : FP.selected;
+  if (idx < 0 || !FP.elements[idx]) return;
+  FP.clipboard = JSON.parse(JSON.stringify(FP.elements[idx]));
+}
+function fpPaste() {
+  if (!FP.clipboard) return;
+  const el = JSON.parse(JSON.stringify(FP.clipboard));
+  const off = FP.snap * 2;
+  if (el.x !== undefined) { el.x += off; el.y += off; }
+  if (el.x2 !== undefined) { el.x2 += off; el.y2 += off; }
+  if (el.points) el.points = el.points.map(p => ({ x: p.x + off, y: p.y + off }));
+  FP.elements.push(el);
+  fpPushHistory();
+  fpSelectEl(FP.elements.length - 1);
+  fpSave();
+}
+function fpCutSelected() {
+  fpCopySelected();
+  fpDeleteSelected();
+}
 let fpKeyboardBound = false;
 function fpOnKeyDown(e) {
   if (!fpIsMapVisible() || !FP.canvas || fpMapInputBlocked()) return;
@@ -2152,6 +2181,9 @@ function fpOnKeyDown(e) {
   if (mod && key.toLowerCase() === 'z' && !e.shiftKey) { e.preventDefault(); fpUndo(); return; }
   if (mod && (key.toLowerCase() === 'y' || (key.toLowerCase() === 'z' && e.shiftKey))) { e.preventDefault(); fpRedo(); return; }
   if (mod && key.toLowerCase() === 's') { e.preventDefault(); fpSave(); const btn = document.getElementById('mapSaveBtn'); if (btn) { const orig = btn.innerHTML; btn.textContent = uiText.map_saved; setTimeout(() => { btn.innerHTML = orig; }, 1500); } return; }
+  if (mod && key.toLowerCase() === 'c') { e.preventDefault(); fpCopySelected(); return; }
+  if (mod && key.toLowerCase() === 'v') { e.preventDefault(); fpPaste(); return; }
+  if (mod && key.toLowerCase() === 'x') { e.preventDefault(); fpCutSelected(); return; }
   if (key === 'Escape') { e.preventDefault(); fpCancelAction(); return; }
   if (key === 'Enter' && FP.polyPoints?.length >= 3) { e.preventDefault(); fpFinishPolygon(); return; }
   if (key === 'Delete' || key === 'Backspace') { e.preventDefault(); fpDeleteSelected(); return; }
@@ -2427,13 +2459,14 @@ function fpEnsurePropsAutoSave() {
   fpPropsAutoSaveBound = true;
   let tm = null;
   body.addEventListener('input', e => {
-    if (fpIsViewOnly() || !e.target.matches('[data-k]')) return;
+    if (fpIsViewOnly() || !e.target.matches('[data-k], [data-pvi]')) return;
     clearTimeout(tm);
     tm = setTimeout(() => fpApplyProps(true), 400);
   });
   body.addEventListener('change', e => {
-    if (fpIsViewOnly() || !e.target.matches('[data-k]')) return;
+    if (fpIsViewOnly() || !e.target.matches('[data-k], [data-pvi]')) return;
     fpApplyProps(true);
+    if (e.target.dataset.k === 'rounded') fpRenderProps();
   });
 }
 
@@ -2501,10 +2534,11 @@ function fpRenderProps() {
   let rows = `<tr><th>${esc(uiText.props_type)}</th><td>${esc(fpTypeLabel(el.type))}</td></tr>`;
   const num = (k, label, step) => `<tr><th>${esc(label)}</th><td><input type="number" data-k="${k}" step="${step ?? FP.snap}" value="${Number(el[k]??0)}"></td></tr>`;
   const txt = (k, label) => `<tr><th>${esc(label)}</th><td><input type="text" data-k="${k}" value="${esc(String(el[k]??''))}"></td></tr>`;
-  const chk = (k, label, checked) => `<tr><th>${esc(label)}</th><td><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" data-k="${k}" ${checked ? 'checked' : ''}><span>${checked ? 'On' : 'Off'}</span></label></td></tr>`;
+  const chk = (k, label, checked) => `<tr><th>${esc(label)}</th><td><label class="fp-toggle-row"><input type="checkbox" class="toggle-switch" data-k="${k}" ${checked ? 'checked' : ''}><span class="fp-toggle-state">${checked ? 'On' : 'Off'}</span></label></td></tr>`;
+  const isRounded = el.rounded !== undefined ? !!el.rounded : fpElementDefaultRounded(el);
   const cornerRows = fpSupportsRounded(el)
-    ? chk('rounded', uiText.props_rounded || 'Rounded', el.rounded !== undefined ? !!el.rounded : fpElementDefaultRounded(el))
-      + num('cornerRadius', uiText.props_corner_radius || 'Corner radius', 1)
+    ? chk('rounded', uiText.props_rounded || 'Rounded', isRounded)
+      + (isRounded ? num('cornerRadius', uiText.props_corner_radius || 'Corner radius', 1) : '')
     : '';
   if (el.type === 'room') {
     rows += txt('text', uiText.props_text);
@@ -2546,7 +2580,13 @@ function fpApplyProps(silent) {
     if (inp.dataset.pvi !== undefined) {
       const i = parseInt(inp.dataset.pvi, 10);
       const pk = inp.dataset.pvk;
-      if (el.points?.[i] && (pk === 'x' || pk === 'y')) el.points[i][pk] = fpSnap(parseFloat(inp.value) || 0);
+      if (el.points?.[i] && (pk === 'x' || pk === 'y')) {
+        el.points[i][pk] = fpSnap(parseFloat(inp.value) || 0);
+        if (el.points.length >= 3) {
+          if (i === 0) el.points[el.points.length - 1] = { x: el.points[0].x, y: el.points[0].y };
+          else if (i === el.points.length - 1) el.points[0] = { x: el.points[i].x, y: el.points[i].y };
+        }
+      }
       return;
     }
     const k = inp.dataset.k;
@@ -2638,22 +2678,24 @@ function fpMouseDown(e) {
     fpOpenPlaceDeviceModal(p.x, p.y);
     return;
   }
+  if (hitIdx >= 0) {
+    const el = FP.elements[hitIdx];
+    const vi = fpHitPolyVertex(el, p.x, p.y);
+    if (vi >= 0 && fpElShape(el) === 'poly') {
+      FP.polyVertexIdx = vi;
+      fpSelectEl(hitIdx);
+      FP.vertexDrag = vi;
+      FP.dragEl = hitIdx;
+      fpRender();
+      return;
+    }
+  }
   if (FP.tool === 'select') {
     const idx = hitIdx;
     if (idx < 0) {
       FP.boxSelect = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, active: true };
       FP.selected = -1; FP.propsIdx = -1; FP.vertexDrag = -1;
       fpRenderProps(); fpRender();
-      return;
-    }
-    const el = FP.elements[idx];
-    const vi = fpHitPolyVertex(el, p.x, p.y);
-    if (vi >= 0 && fpElShape(el) === 'poly') {
-      FP.polyVertexIdx = vi;
-      fpSelectEl(idx);
-      FP.vertexDrag = vi;
-      FP.dragEl = idx;
-      fpRender();
       return;
     }
     fpSelectEl(idx);
@@ -2725,6 +2767,10 @@ function fpMouseMove(e) {
     const el = FP.elements[FP.dragEl];
     if (el.points?.[FP.vertexDrag]) {
       el.points[FP.vertexDrag] = { x: p.x, y: p.y };
+      if (el.points.length >= 3) {
+        if (FP.vertexDrag === 0) el.points[el.points.length - 1] = { x: p.x, y: p.y };
+        else if (FP.vertexDrag === el.points.length - 1) el.points[0] = { x: p.x, y: p.y };
+      }
       FP.polyVertexIdx = FP.vertexDrag;
       fpRenderProps();
       fpRender();
@@ -2768,6 +2814,10 @@ function fpMouseUp(e) {
     if (el) fpNormalizeElement(el);
     if (FP.vertexDrag >= 0 && el?.points) {
       el.points[FP.vertexDrag] = { x: fpSnap(el.points[FP.vertexDrag].x), y: fpSnap(el.points[FP.vertexDrag].y) };
+      if (el.points.length >= 3) {
+        if (FP.vertexDrag === 0) el.points[el.points.length - 1] = { x: el.points[0].x, y: el.points[0].y };
+        else if (FP.vertexDrag === el.points.length - 1) el.points[0] = { x: el.points[FP.vertexDrag].x, y: el.points[FP.vertexDrag].y };
+      }
     }
     FP.vertexDrag = -1;
     FP.dragging = false; FP.dragEl = -1; FP._polyDragStart = null;
@@ -2949,7 +2999,10 @@ function fpRender() {
   const gy1 = Math.ceil((H / 2 / FP.zoom - FP.panY) / FP.snap) * FP.snap + FP.snap * 2;
   for (let x = gx0; x <= gx1; x += FP.snap) { ctx.beginPath(); ctx.moveTo(x, gy0); ctx.lineTo(x, gy1); ctx.stroke(); }
   for (let y = gy0; y <= gy1; y += FP.snap) { ctx.beginPath(); ctx.moveTo(gx0, y); ctx.lineTo(gx1, y); ctx.stroke(); }
-  FP.elements.forEach((el, i) => {
+  const _renderOrder = { room: 0, wall: 1, window: 2, door: 3, furniture: 4, 'room-label': 5, device: 6 };
+  const _sortedIdx = FP.elements.map((_, i) => i).sort((a, b) => (_renderOrder[FP.elements[a]?.type] ?? 9) - (_renderOrder[FP.elements[b]?.type] ?? 9));
+  _sortedIdx.forEach(i => {
+    const el = FP.elements[i];
     const sel = i === FP.selected && (!fpIsViewOnly() || el.type === 'device');
     ctx.save();
     switch (el.type) {

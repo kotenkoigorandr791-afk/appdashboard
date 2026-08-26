@@ -26,6 +26,24 @@ $mcpT = [
     'endpoint' => $translations['mcp_setup_endpoint'],
 ];
 $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https' ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . '/mcp-api/mcp';
+$mcpModalInitialOpen=isset($_POST['generate_mcp_token'])||isset($_POST['revoke_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'||($_POST['action']??'')==='revoke_mcp_token';
+$mcpInitialTab=isset($_POST['revoke_mcp_token'])||($_POST['action']??'')==='revoke_mcp_token'?'tokens':'generate';
+$mcpGeneratedToken=(string)($_SESSION['mcp_generated_token']??'');
+unset($_SESSION['mcp_generated_token']);
+$mcpTokens=[];
+try{
+    $mcpUserEmail=(string)($_SESSION['user']['email']??'');
+    if($mcpUserEmail!==''){
+        $tokenDb=getDB();
+        ensureClientAuthTokensSchema($tokenDb);
+        $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 ORDER BY created_at DESC");
+        $stmt->bindValue(':email',$mcpUserEmail,PDO::PARAM_STR);
+        $result=$stmt->execute();
+        while($row=$result->fetch(PDO::FETCH_ASSOC)){
+            $mcpTokens[]=$row;
+        }
+    }
+}catch(Throwable $e){}
 ?>
 <style>
 #mcp-setup-modal{display:none;position:fixed;inset:0;z-index:10050;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;}
@@ -56,9 +74,14 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
 .mcp-token-output{display:none;margin-top:10px;padding:10px;border-radius:10px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);background:color-mix(in srgb,#22c55e 16%,transparent);}
 .mcp-token-output strong{display:block;margin-bottom:8px;font-size:13px;}
 .mcp-token-output code{display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.mcp-setup-tabs{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--border-color);padding-bottom:10px;}
+.mcp-setup-tab{border:1px solid var(--border-color);background:var(--group-block-bg,rgba(127,127,127,.08));color:var(--text-color);border-radius:999px;padding:8px 12px;cursor:pointer;font-size:13px;font-weight:600;}
+.mcp-setup-tab.active{background:var(--primary-color,#2563eb);border-color:var(--primary-color,#2563eb);color:#fff;}
+.mcp-setup-pane{display:none;}
+.mcp-setup-pane.active{display:block;}
 @media(max-width:640px){.mcp-token-controls{flex-direction:column;align-items:stretch;}}
 </style>
-<div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title">
+<div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title"<?php echo $mcpModalInitialOpen?' style="display:flex;"':''; ?> data-initial-tab="<?php echo my_htmlspecialchars($mcpInitialTab); ?>">
     <div id="mcp-setup-content">
         <button type="button" id="close-mcp-setup" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
         <h2 id="mcp-setup-title" style="margin:0 0 8px;font-size:22px;"><?php echo my_htmlspecialchars($mcpT['title']); ?></h2>
@@ -68,7 +91,11 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
             <span class="mcp-setup-pill"><?php echo my_htmlspecialchars($mcpT['req']); ?></span>
         </div>
         <p class="mcp-setup-err" id="mcp-setup-err" style="display:none;"></p>
-        <div class="mcp-token-panel">
+        <div class="mcp-setup-tabs" role="tablist">
+            <button type="button" class="mcp-setup-tab active" data-mcp-tab="generate">Get token</button>
+            <button type="button" class="mcp-setup-tab" data-mcp-tab="tokens">Tokens</button>
+        </div>
+        <div class="mcp-token-panel mcp-setup-pane active" data-mcp-pane="generate">
             <h3><?php echo my_htmlspecialchars($mcpT['token_title']); ?></h3>
             <p><?php echo my_htmlspecialchars($mcpT['token_hint']); ?></p>
             <div class="mcp-setup-row">
@@ -84,6 +111,30 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
                 <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
                 <code id="mcp-token-value"></code>
             </div>
+            <?php if($mcpGeneratedToken!==''): ?>
+            <div class="mcp-token-output" style="display:block;">
+                <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
+                <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
+            </div>
+            <?php endif; ?>
+        </div>
+        <div class="mcp-token-panel mcp-setup-pane" data-mcp-pane="tokens">
+            <table class="mcp-token-table">
+                <thead><tr><th><?php echo my_htmlspecialchars($translations['mcp_token_device']); ?></th><th><?php echo my_htmlspecialchars($translations['created']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['expires']); ?></th><th></th></tr></thead>
+                <tbody>
+                <?php if(empty($mcpTokens)): ?>
+                <tr><td colspan="5"><?php echo my_htmlspecialchars($translations['no_tokens']); ?></td></tr>
+                <?php else: foreach($mcpTokens as $mcpToken): ?>
+                <tr>
+                    <td><?php echo my_htmlspecialchars(trim(($mcpToken['device_name']??'').' / '.($mcpToken['platform']??''),' /')); ?></td>
+                    <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
+                    <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
+                    <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['expires_at'])); ?></td>
+                    <td><form method="post" action="/main" style="margin:0;"><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
+                </tr>
+                <?php endforeach; endif; ?>
+                </tbody>
+            </table>
         </div>
         <ol class="mcp-setup-steps">
             <li><?php echo my_htmlspecialchars($mcpT['step1']); ?></li>
@@ -111,6 +162,8 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
     const tokenValue=document.getElementById('mcp-token-value');
     const endpointCopy=document.getElementById('mcp-copy-endpoint');
     const endpointValue=document.getElementById('mcp-http-endpoint');
+    const tabs=modal?modal.querySelectorAll('.mcp-setup-tab'):[];
+    const panes=modal?modal.querySelectorAll('.mcp-setup-pane'):[];
     const copyLabel=<?php echo json_encode($mcpT['copy'], JSON_UNESCAPED_UNICODE); ?>;
     const copiedLabel=<?php echo json_encode($mcpT['copied'], JSON_UNESCAPED_UNICODE); ?>;
     const notReady=<?php echo json_encode($mcpT['not_ready'], JSON_UNESCAPED_UNICODE); ?>;
@@ -124,6 +177,12 @@ $mcpHttpEndpoint = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ||
         vscode:<?php echo json_encode($mcpT['agent_vscode'], JSON_UNESCAPED_UNICODE); ?>,
         opencode:<?php echo json_encode($mcpT['agent_opencode'], JSON_UNESCAPED_UNICODE); ?>
     };
+    function showMcpTab(name){
+        tabs.forEach(function(tab){tab.classList.toggle('active',tab.getAttribute('data-mcp-tab')===name);});
+        panes.forEach(function(pane){pane.classList.toggle('active',pane.getAttribute('data-mcp-pane')===name);});
+    }
+    tabs.forEach(function(tab){tab.addEventListener('click',function(){showMcpTab(tab.getAttribute('data-mcp-tab')||'generate');});});
+    showMcpTab(modal ? (modal.getAttribute('data-initial-tab')||'generate') : 'generate');
     function openModal(){
         if(!modal)return;
         modal.style.display='flex';

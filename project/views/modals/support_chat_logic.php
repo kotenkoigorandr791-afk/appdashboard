@@ -13,10 +13,12 @@
     const adminChatList = document.getElementById('admin-chat-list');
     const chatListContainer = document.getElementById('chat-list-container');
     const chatModalTitle = document.getElementById('chat-modal-title');
+    const chatHeaderAvatar = document.getElementById('chat-header-avatar');
     const contextMenu = document.getElementById('chat-context-menu');
     const contextEdit = document.getElementById('context-edit');
     const contextDelete = document.getElementById('context-delete');
     const deleteChatBtn = document.getElementById('delete-chat-btn');
+    const blockChatBtn = document.getElementById('block-chat-btn');
     const newChatBtn = document.getElementById('new-chat-btn');
     const supportChatDeleteModal = document.getElementById('support-chat-delete-modal');
     const supportChatDeleteEmail = document.getElementById('support-chat-delete-email');
@@ -32,6 +34,10 @@
     }
 
     let currentChatUser = null;
+    let currentChatType = 'support';
+    let currentPeerEmail = '';
+    let currentChatTitle = '';
+    let currentPeerBlocked = false;
     let isAdmin = <?php echo json_encode(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2); ?>;
     let currentUserEmail = <?php echo json_encode($_SESSION['user']['email'] ?? ''); ?>;
     let chatPollInterval = null;
@@ -52,8 +58,42 @@
     const userSearchInput = document.getElementById('chat-user-search-input');
     const userSearchResults = document.getElementById('chat-user-search-results');
     const userSearchCancel = document.getElementById('chat-user-search-cancel');
+    const chatTypeModal = document.getElementById('chat-type-modal');
+    const chatTypeSupport = document.getElementById('chat-type-support');
+    const chatTypePeer = document.getElementById('chat-type-peer');
+    const chatTypeCancel = document.getElementById('chat-type-cancel');
+    let userSearchTimer = null;
+    let pendingNewChatType = 'peer';
+    function openChatAlertModal(msg) {
+        const md = document.getElementById('fm-alert-modal');
+        const msgEl = document.getElementById('fm-alert-msg');
+        const ok = document.getElementById('fm-alert-ok');
+        if (!md || !msgEl || !ok) {
+            return;
+        }
+        msgEl.textContent = msg;
+        md.style.display = 'flex';
+        md.classList.add('fm-alert-open');
+        md.setAttribute('aria-hidden', 'false');
+        const close = function() {
+            md.classList.remove('fm-alert-open');
+            md.style.display = 'none';
+            md.setAttribute('aria-hidden', 'true');
+            ok.onclick = null;
+            md.onclick = null;
+        };
+        ok.onclick = close;
+        md.onclick = function(e) {
+            if (e.target === md) close();
+        };
+        ok.focus();
+    }
     function chatAlert(msg) {
-        fmAlert(msg);
+        if (typeof fmAlert === 'function') {
+            fmAlert(msg);
+        } else {
+            openChatAlertModal(msg);
+        }
     }
     function escChat(s) {
         const d = document.createElement('div');
@@ -79,7 +119,7 @@
         if (!cont || !chatModal) {
             return;
         }
-        if (!isAdmin || !isAdminMobileMatch()) {
+        if (!isChatMobileMatch()) {
             cont.classList.remove('support-chat-admin-mobile', 'chat-mobile-phase-list', 'chat-mobile-phase-chat');
             return;
         }
@@ -91,6 +131,31 @@
             cont.classList.remove('chat-mobile-phase-list');
             cont.classList.add('chat-mobile-phase-chat');
         }
+    }
+    function isChatMobileMatch() {
+        return typeof window.matchMedia === 'function' && window.matchMedia('(max-width:768px)').matches;
+    }
+    function currentChatQuery() {
+        if (currentChatType === 'peer') {
+            return '&chat_type=peer&peer_email=' + encodeURIComponent(currentPeerEmail);
+        }
+        return isAdmin ? '&chat_type=support&user_email=' + encodeURIComponent(currentChatUser || '') : '&chat_type=support';
+    }
+    function currentChatKey() {
+        return currentChatType + ':' + (currentChatType === 'peer' ? currentPeerEmail : currentChatUser || currentUserEmail);
+    }
+    function setHeaderActions() {
+        if (deleteChatBtn) {
+            deleteChatBtn.style.display = currentChatUser ? 'inline-flex' : 'none';
+        }
+        if (blockChatBtn) {
+            blockChatBtn.style.display = (!isAdmin && currentChatType === 'peer' && currentPeerEmail) ? 'block' : 'none';
+            blockChatBtn.textContent = currentPeerBlocked ? 'Unblock' : 'Block';
+        }
+        var blocked = currentChatType === 'peer' && currentPeerBlocked;
+        if (chatInput) chatInput.disabled = blocked;
+        if (chatSendBtn) chatSendBtn.disabled = blocked;
+        if (chatUploadBtn) chatUploadBtn.disabled = blocked;
     }
     function openChatMediaEditor(file, onDone) {
         if (!file || !file.type || file.type.indexOf('image/') !== 0) {
@@ -645,8 +710,9 @@
         document.body.style.overflow = '';
     }
     function clearAdminEditDraftForCurrentChat() {
-        if (isAdmin && currentChatUser && adminDraftEdits[currentChatUser]) {
-            delete adminDraftEdits[currentChatUser];
+        var key = currentChatKey();
+        if (isAdmin && currentChatUser && adminDraftEdits[key]) {
+            delete adminDraftEdits[key];
         }
     }
     function cancelEditUI() {
@@ -816,18 +882,15 @@
     if (chatBtn) {
         chatBtn.addEventListener('click', function() {
             if (isAdmin) {
-                // For admins, use hash-based navigation
                 window.location.hash = '#support-chat';
             } else {
                 chatModal.style.display = 'flex';
-                currentChatUser = currentUserEmail;
-                lastMessagesHash = '';
-                messagesData = [];
-                chatOldestId = null;
-                chatMaxId = 0;
-                chatHasMoreOlder = false;
-                loadMessages(false);
-                startPolling();
+                if (adminChatList) {
+                    adminChatList.style.display = 'flex';
+                }
+                adminMobilePhase = currentChatUser && isChatMobileMatch() ? 'chat' : 'list';
+                syncAdminMobileLayout();
+                loadChatList();
             }
         });
     }
@@ -874,7 +937,7 @@
         closeChatBtn.addEventListener('click', function() {
             if (isAdmin) {
                 if (currentChatUser && editingMessageId) {
-                    adminDraftEdits[currentChatUser] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
+adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
                     cancelEditUI();
                 }
                 window.location.hash = '';
@@ -890,7 +953,7 @@
             if (e.target === chatModal) {
                 if (isAdmin) {
                     if (currentChatUser && editingMessageId) {
-                        adminDraftEdits[currentChatUser] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
+adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
                         cancelEditUI();
                     }
                     window.location.hash = '';
@@ -986,7 +1049,7 @@
                 if (typeof showTempNotification === 'function') {
                     showTempNotification('Your browser does not support audio recording', 'error');
                 } else {
-                    alert(T.browser_no_audio_recording);
+                    chatAlert(T.browser_no_audio_recording);
                 }
                 return;
             }
@@ -1035,7 +1098,7 @@
                     if (typeof showTempNotification === 'function') {
                         showTempNotification(msg, 'error');
                     } else {
-                        alert(msg);
+                        chatAlert(msg);
                     }
                     isRecording = false;
                 });
@@ -1252,7 +1315,7 @@
         adminChatListCloseBtn.addEventListener('click', function() {
             if (isAdmin) {
                 if (currentChatUser && editingMessageId) {
-                    adminDraftEdits[currentChatUser] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
+adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
                     cancelEditUI();
                 }
                 window.location.hash = '';
@@ -1294,19 +1357,22 @@
             })
             .then(data => {
                 if (data.ok) {
-                    var arr = data.chats || [];
+                    var arr = isAdmin ? (data.chats || []) : [].concat((data.sections && data.sections.support) || [], (data.sections && data.sections.people) || []);
                     if (arr.length) {
                         arr.sort(function(a, b) {
                             return (b.last_message_time || 0) - (a.last_message_time || 0);
                         });
                     }
-                    renderChatList(arr);
+                    renderChatList(isAdmin ? arr : data.sections);
+                    if (!isAdmin && !currentChatUser && !isChatMobileMatch() && ((data.sections && data.sections.support && data.sections.support[0]) || arr[0])) {
+                        window.selectChat((data.sections && data.sections.support && data.sections.support[0]) || arr[0]);
+                    }
                     if (isAdmin && arr.length) {
                         var keep = currentChatUser && arr.some(function(c) {
                             return c.user_email === currentChatUser;
                         });
                         if (!keep) {
-                            window.selectChat(arr[0].user_email);
+                            window.selectChat(arr[0]);
                         } else {
                             loadMessages(false);
                             startPolling();
@@ -1323,16 +1389,27 @@
         if (!chatListContainer) {
             return;
         }
-        lastAdminChatList = chats || [];
-        if (!chats.length) {
+        var sections = isAdmin ? { support: chats || [], people: [] } : (Array.isArray(chats) ? { support: chats.filter(function(c) { return (c.chat_type || 'support') === 'support'; }), people: chats.filter(function(c) { return c.chat_type === 'peer'; }) } : (chats || { support: [], people: [] }));
+        var allChats = [].concat(sections.support || [], sections.people || []);
+        lastAdminChatList = allChats;
+        if (!allChats.length) {
             chatListContainer.innerHTML = '<p style="text-align:center;color:var(--text-color);opacity:0.6;">' + (T.support_chat_no_chats || 'No active chats') + '</p>';
             return;
         }
         chatListContainer.innerHTML = '';
-        chats.forEach(function(chat) {
+        function addSection(label, rows) {
+            rows = rows || [];
+            var sep = document.createElement('div');
+            sep.style.cssText = 'display:flex;align-items:center;gap:10px;margin:12px 0;color:var(--text-color);opacity:.62;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;';
+            sep.innerHTML = '<span style="height:1px;background:var(--border-color);flex:1;"></span><span>' + escChat(label) + '</span><span style="height:1px;background:var(--border-color);flex:1;"></span>';
+            chatListContainer.appendChild(sep);
+            rows.forEach(addRow);
+        }
+        function addRow(chat) {
             var row = document.createElement('div');
             row.className = 'chat-list-row';
-            if (currentChatUser === chat.user_email) {
+            var rowPeer = chat.chat_type === 'peer' ? (chat.peer_email || '') : '';
+            if (currentChatType === (chat.chat_type || 'support') && (currentChatType === 'peer' ? currentPeerEmail === rowPeer : currentChatUser === chat.user_email)) {
                 row.classList.add('chat-list-row-active');
             }
             row.style.cssText = 'padding:18px;background:linear-gradient(135deg,rgba(99,102,241,.05) 0%,rgba(168,85,247,.05) 100%);border:1px solid var(--border-color);border-radius:16px;cursor:pointer;margin-bottom:12px;transition:transform .2s,box-shadow .2s,border-color .2s,background .2s;';
@@ -1355,17 +1432,20 @@
             }
             var title = document.createElement('div');
             title.style.cssText = 'font-weight:600;color:var(--text-color);margin-bottom:6px;font-size:15px;line-height:1.35;';
-            var nm = (chat.user_name && String(chat.user_name).trim()) ? String(chat.user_name).trim() : '';
+            var nm = chat.chat_type === 'support' && !isAdmin ? 'Support' : ((chat.user_name && String(chat.user_name).trim()) ? String(chat.user_name).trim() : '');
+            var emailText = chat.chat_type === 'peer' ? (chat.peer_email || chat.recipient_email || chat.user_email) : (isAdmin ? chat.user_email : '');
             if (nm) {
                 title.appendChild(document.createTextNode(nm + ' '));
-                var emSpan = document.createElement('span');
-                emSpan.style.cssText = 'font-weight:500;opacity:.78;font-size:13px;word-break:break-all;';
-                emSpan.textContent = chat.user_email;
-                title.appendChild(emSpan);
+                if (emailText) {
+                    var emSpan = document.createElement('span');
+                    emSpan.style.cssText = 'font-weight:500;opacity:.78;font-size:13px;word-break:break-all;';
+                    emSpan.textContent = emailText;
+                    title.appendChild(emSpan);
+                }
             } else {
-                title.textContent = chat.user_email;
+                title.textContent = emailText;
             }
-            if (chat.user_role >= 2) {
+            if (chat.user_role >= 2 && (isAdmin || chat.chat_type !== 'support')) {
                 var adm = document.createElement('span');
                 adm.style.cssText = 'font-size:11px;opacity:.6;';
                 adm.textContent = ' (Admin)';
@@ -1374,14 +1454,43 @@
             avatarWrap.appendChild(title);
             var meta = document.createElement('div');
             meta.style.cssText = 'font-size:13px;color:var(--text-color);opacity:.6;';
-            meta.textContent = chat.message_count + ' messages • ' + new Date(chat.last_message_time * 1000).toLocaleString();
+            meta.textContent = (chat.message_count || 0) + ' messages' + (chat.last_message_time ? ' • ' + new Date(chat.last_message_time * 1000).toLocaleString() : '');
             row.appendChild(avatarWrap);
             row.appendChild(meta);
+            if (!isAdmin) {
+                var actions = document.createElement('div');
+                actions.style.cssText = 'display:flex;gap:8px;margin-top:10px;';
+                var del = document.createElement('button');
+                del.type = 'button';
+                del.textContent = 'Delete';
+                del.style.cssText = 'padding:6px 10px;border-radius:8px;border:1px solid rgba(239,68,68,.28);background:rgba(239,68,68,.08);color:#ef4444;cursor:pointer;font-size:12px;';
+                del.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    window.selectChat(chat);
+                    deleteChat();
+                });
+                actions.appendChild(del);
+                if (chat.chat_type === 'peer') {
+                    var blk = document.createElement('button');
+                    blk.type = 'button';
+                    blk.textContent = chat.is_blocked_by_me ? 'Unblock' : 'Block';
+                    blk.style.cssText = 'padding:6px 10px;border-radius:8px;border:1px solid rgba(239,68,68,.22);background:transparent;color:#ef4444;cursor:pointer;font-size:12px;';
+                    blk.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        window.selectChat(chat);
+                        if (blockChatBtn) blockChatBtn.click();
+                    });
+                    actions.appendChild(blk);
+                }
+                row.appendChild(actions);
+            }
             row.addEventListener('click', function() {
-                window.selectChat(chat.user_email);
+                window.selectChat(chat);
             });
             chatListContainer.appendChild(row);
-        });
+        }
+        addSection('Priority support', sections.support || []);
+        addSection('People', sections.people || []);
     }
 
     function openUserSearchModal() {
@@ -1391,10 +1500,12 @@
         userSearchModal.style.display = 'flex';
         if (userSearchInput) {
             userSearchInput.value = '';
+            userSearchInput.type = isAdmin ? 'text' : 'email';
+            userSearchInput.placeholder = isAdmin ? 'Name or email' : 'Full email address';
             userSearchInput.focus();
         }
         if (userSearchResults) {
-            userSearchResults.innerHTML = '<p style="text-align:center;padding:20px;opacity:0.55;color:var(--text-color);font-size:14px;">' + escChat(T.support_chat_search_placeholder || 'Type to search') + '</p>';
+            userSearchResults.innerHTML = '<p style="text-align:center;padding:20px;opacity:0.55;color:var(--text-color);font-size:14px;">' + (isAdmin ? 'Type a name or email' : 'Enter a full email address') + '</p>';
         }
         runUserSearch('');
     }
@@ -1442,7 +1553,15 @@
                     var em = u.email;
                     btn.addEventListener('click', function() {
                         closeUserSearchModal();
-                        window.selectChat(em);
+                        if (isAdmin) {
+                            if (pendingNewChatType === 'peer') {
+                                window.selectChat({ chat_type: 'peer', peer_email: em, user_email: currentUserEmail, recipient_email: em, user_name: u.name || '', user_photo: u.photo || '', is_blocked_by_me: false });
+                            } else {
+                                window.selectChat({ chat_type: 'support', peer_email: '', user_email: em, recipient_email: '', user_name: u.name || '', user_photo: u.photo || '', is_blocked_by_me: false });
+                            }
+                        } else {
+                            window.selectChat({ chat_type: 'peer', peer_email: em, user_email: currentUserEmail, recipient_email: em, user_name: u.name || '', user_photo: u.photo || '', is_blocked_by_me: false });
+                        }
                     });
                     userSearchResults.appendChild(btn);
                 });
@@ -1453,7 +1572,39 @@
     }
     if (newChatBtn) {
         newChatBtn.addEventListener('click', function() {
-            openUserSearchModal();
+            if (isAdmin && chatTypeModal) {
+                chatTypeModal.style.display = 'flex';
+            } else {
+                pendingNewChatType = 'peer';
+                openUserSearchModal();
+            }
+        });
+    }
+    function chooseNewChatType(type) {
+        pendingNewChatType = type === 'support' ? 'support' : 'peer';
+        if (chatTypeModal) chatTypeModal.style.display = 'none';
+        openUserSearchModal();
+    }
+    if (chatTypeSupport) {
+        chatTypeSupport.addEventListener('click', function() {
+            chooseNewChatType('support');
+        });
+    }
+    if (chatTypePeer) {
+        chatTypePeer.addEventListener('click', function() {
+            chooseNewChatType('peer');
+        });
+    }
+    if (chatTypeCancel) {
+        chatTypeCancel.addEventListener('click', function() {
+            if (chatTypeModal) chatTypeModal.style.display = 'none';
+        });
+    }
+    if (chatTypeModal) {
+        chatTypeModal.addEventListener('click', function(e) {
+            if (e.target === chatTypeModal) {
+                chatTypeModal.style.display = 'none';
+            }
         });
     }
     if (userSearchCancel) {
@@ -1478,21 +1629,33 @@
         });
     }
 
-    window.selectChat = function(userEmail) {
-        if (isAdmin && currentChatUser && currentChatUser !== userEmail && editingMessageId) {
-            adminDraftEdits[currentChatUser] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
+    window.selectChat = function(chat) {
+        if (typeof chat === 'string') {
+            chat = { chat_type: 'support', user_email: chat };
+        }
+        var nextType = chat.chat_type || 'support';
+        var nextPeer = nextType === 'peer' ? (chat.peer_email || chat.recipient_email || '') : '';
+        var nextUser = nextType === 'support' ? (chat.user_email || currentUserEmail) : (chat.user_email || currentUserEmail);
+        if (isAdmin && currentChatUser && currentChatUser !== nextUser && editingMessageId) {
+            adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
             cancelEditUI();
         }
-        currentChatUser = userEmail;
+        currentChatType = nextType;
+        currentPeerEmail = nextPeer;
+        currentChatUser = nextUser;
+        currentPeerBlocked = !!chat.is_blocked_by_me;
+        currentChatTitle = nextType === 'peer' ? ((chat.user_name && String(chat.user_name).trim()) ? String(chat.user_name).trim() : nextPeer) : (isAdmin ? 'Chat: ' + nextUser : 'Support');
         if (chatMessagesArea) {
             chatMessagesArea.style.display = 'flex';
         }
         if (chatModalTitle) {
-            chatModalTitle.textContent = 'Chat: ' + userEmail;
+            chatModalTitle.textContent = currentChatTitle;
         }
-        if (deleteChatBtn && isAdmin) {
-            deleteChatBtn.style.display = 'block';
+        if (chatHeaderAvatar) {
+            chatHeaderAvatar.src = chat.user_photo || 'default_avatar.png';
+            chatHeaderAvatar.style.display = 'block';
         }
+        setHeaderActions();
         lastMessagesHash = '';
         messagesData = [];
         chatOldestId = null;
@@ -1501,7 +1664,7 @@
         if (chatMessages) {
             chatMessages.innerHTML = '<p style="text-align:center;color:var(--text-color);opacity:0.7;padding:40px;">' + (T.support_chat_loading || 'Loading...') + '</p>';
         }
-        if (isAdmin && lastAdminChatList.length) {
+        if (lastAdminChatList.length) {
             renderChatList(lastAdminChatList);
         }
         loadMessages(false);
@@ -1551,7 +1714,7 @@
         chatLoadingOlder = true;
         var prevH = chatMessages.scrollHeight;
         var prevT = chatMessages.scrollTop;
-        var url = (isAdmin ? '?api=support_chat&action=get_messages&user_email=' + encodeURIComponent(currentChatUser) : '?api=support_chat&action=get_messages') + '&before_id=' + chatOldestId + '&limit=30';
+        var url = '?api=support_chat&action=get_messages' + currentChatQuery() + '&before_id=' + chatOldestId + '&limit=30';
         fetch(url)
             .then(function(r) {
                 return r.json();
@@ -1587,11 +1750,14 @@
         if (!currentChatUser) {
             return;
         }
+        if (currentChatType === 'peer' && currentPeerBlocked) {
+            return;
+        }
         silent = !!silent;
         opts = opts || {};
         var forceScrollBottom = !!opts.forceScrollBottom;
         var full = !!opts.full;
-        var base = isAdmin ? '?api=support_chat&action=get_messages&user_email=' + encodeURIComponent(currentChatUser) : '?api=support_chat&action=get_messages';
+        var base = '?api=support_chat&action=get_messages' + currentChatQuery();
         var url = base;
         if (full) {
             url += '&full=1';
@@ -1608,6 +1774,12 @@
             })
             .then(function(data) {
                 if (!data.ok) {
+                    if (data.error === 'peer_blocked') {
+                        currentPeerBlocked = true;
+                        setHeaderActions();
+                        stopPolling();
+                        return;
+                    }
                     console.error('Failed to load messages:', data.error);
                     return;
                 }
@@ -1686,7 +1858,7 @@
         if (!isAdmin || !currentChatUser) {
             return;
         }
-        var d = adminDraftEdits[currentChatUser];
+var d = adminDraftEdits[currentChatKey()];
         if (!d || !d.id) {
             return;
         }
@@ -1694,15 +1866,85 @@
             return m.id === d.id && !m.is_deleted;
         });
         if (!exists) {
-            delete adminDraftEdits[currentChatUser];
+delete adminDraftEdits[currentChatKey()];
             return;
         }
-        delete adminDraftEdits[currentChatUser];
+delete adminDraftEdits[currentChatKey()];
         startEdit(d.id);
         if (chatInput) {
             chatInput.value = d.text != null ? d.text : '';
         }
     }
+
+    function parseCloudAttachmentMessage(message) {
+        if (!message || message.charAt(0) !== '{') return null;
+        try {
+            var data = JSON.parse(message);
+            if (!data || data.type !== 'cloud_attachment' || !data.share_id) return null;
+            return data;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function formatChatFileSize(bytes) {
+        bytes = Number(bytes || 0);
+        if (!bytes) return '';
+        var units = ['B', 'KB', 'MB', 'GB'];
+        var index = 0;
+        while (bytes >= 1024 && index < units.length - 1) {
+            bytes /= 1024;
+            index++;
+        }
+        return (index === 0 ? bytes : bytes.toFixed(bytes >= 10 ? 0 : 1)) + ' ' + units[index];
+    }
+
+    function getChatCloudFileIconMarkup(name) {
+        var ext = String(name || '').split('.').pop().toLowerCase();
+        if (!ext || ext === String(name || '').toLowerCase()) ext = 'txt';
+        var src = '/apps/cloud/icons/' + encodeURIComponent(ext) + '.svg';
+        return '<span style="width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;"><img src="' + escAttrChat(src) + '" alt="" loading="lazy" style="width:30px;height:30px;object-fit:contain;"></span>';
+    }
+
+    function renderCloudAttachmentCard(att, isOwn) {
+        var name = String(att.name || 'File');
+        var previewType = String(att.preview_type || 'file');
+        var preview = String(att.preview || '');
+        var size = formatChatFileSize(att.size);
+        var previewHtml = '';
+        if (previewType === 'image' && preview.indexOf('data:image/') === 0) {
+            previewHtml = '<img src="' + escAttrChat(preview) + '" alt="" style="width:100%;max-height:140px;object-fit:cover;border-radius:8px;margin-top:8px;background:rgba(0,0,0,.08);">';
+        } else if (previewType === 'text' && preview) {
+            previewHtml = '<pre style="margin:8px 0 0;max-height:96px;overflow:hidden;white-space:pre-wrap;word-break:break-word;font:12px/1.35 ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;background:rgba(0,0,0,.10);border-radius:8px;padding:8px;color:inherit;">' + escChat(preview) + '</pre>';
+        }
+        return '<button type="button" class="chat-cloud-attachment" data-share-id="' + escAttrChat(att.share_id) + '" onclick="openChatCloudAttachment(this.dataset.shareId)" style="width:min(320px,100%);margin-left:' + (isOwn ? 'auto' : '0') + ';border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:10px;text-align:left;cursor:pointer;display:block;">' +
+            '<span style="display:flex;align-items:center;gap:10px;min-width:0;">' +
+            getChatCloudFileIconMarkup(name) +
+            '<span style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;">' +
+            '<span style="font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escChat(name) + '</span>' +
+            '<span style="font-size:11px;opacity:.75;">Cloud attachment' + (size ? ' · ' + escChat(size) : '') + '</span>' +
+            '</span>' +
+            '</span>' +
+            previewHtml +
+            '</button>';
+    }
+
+    window.openChatCloudAttachment = function(shareId) {
+        if (!shareId) return;
+        var formData = new FormData();
+        formData.append('action', 'import_internal_share');
+        formData.append('share_id', shareId);
+        fetch('/apps/cloud/api.php', { method: 'POST', body: formData, credentials: 'same-origin' })
+            .then(function(response) { return response.json(); })
+            .then(function(data) {
+                if (!data.ok) throw new Error(data.error || 'open failed');
+                sessionStorage.setItem('cloudOpenAfterLoad', JSON.stringify({ path: data.path, root: data.root || 'temp' }));
+                window.location.href = '/main?app=cloud';
+            })
+            .catch(function(err) {
+                chatAlert('Error: ' + err.message);
+            });
+    };
 
     function renderMessages(messages, opts) {
         if (!chatMessages) {
@@ -1759,7 +2001,10 @@
                             '</div>';
                     }
                 }
-                if (msg.message) {
+                const cloudAttachment = parseCloudAttachmentMessage(msg.message);
+                if (cloudAttachment) {
+                    content += renderCloudAttachmentCard(cloudAttachment, isOwn);
+                } else if (msg.message) {
                     content += '<div style="word-wrap:break-word;line-height:1.5;">' + formatChatMessage(msg.message) + '</div>';
                 }
             }
@@ -1871,7 +2116,7 @@
             if (typeof showTempNotification === 'function') {
                 showTempNotification(T.support_chat_msg_empty || 'Message cannot be empty', 'error');
             } else {
-                alert(T.support_chat_msg_empty || 'Message cannot be empty');
+                chatAlert(T.support_chat_msg_empty || 'Message cannot be empty');
             }
             return;
         }
@@ -1885,7 +2130,7 @@
                 if (typeof showTempNotification === 'function') {
                     showTempNotification(T.support_chat_file_too_large || 'File size must not exceed 20MB', 'error');
                 } else {
-                    alert(T.support_chat_file_too_large || 'File size must not exceed 20MB');
+                    chatAlert(T.support_chat_file_too_large || 'File size must not exceed 20MB');
                 }
                 return;
             }
@@ -1903,11 +2148,7 @@
                 cancelEditUI();
                 loadMessages(false, { forceScrollBottom: true, full: true });
             } else {
-                if (typeof showTempNotification === 'function') {
-                    showTempNotification('Error: ' + (data.error || T.unknown_error), 'error');
-                } else {
-                    alert('Error: ' + (data.error || T.unknown_error));
-                }
+                chatAlert('Error: ' + (data.error || T.unknown_error));
             }
         })
         .catch(err => {
@@ -1915,7 +2156,7 @@
             if (typeof showTempNotification === 'function') {
                 showTempNotification(T.network_error || 'Network error', 'error');
             } else {
-                alert(T.network_error || 'Network error');
+                chatAlert(T.network_error || 'Network error');
             }
         });
     }
@@ -1929,15 +2170,19 @@
         const formData = new FormData();
         formData.append('action', 'send_message');
         formData.append('message', message);
-        if (isAdmin) {
+        formData.append('chat_type', currentChatType);
+        if (currentChatType === 'peer') {
+            formData.append('peer_email', currentPeerEmail);
+        } else if (isAdmin) {
             formData.append('user_email', currentChatUser);
+            formData.append('send_as', 'support');
         }
         if (file) {
             if (file.size > 20 * 1024 * 1024) {
                 if (typeof showTempNotification === 'function') {
                     showTempNotification(T.support_chat_file_too_large || 'File size must not exceed 20MB', 'error');
                 } else {
-                    alert(T.support_chat_file_too_large || 'File size must not exceed 20MB');
+                    chatAlert(T.support_chat_file_too_large || 'File size must not exceed 20MB');
                 }
                 return;
             }
@@ -1959,11 +2204,7 @@
                     loadMessages(false, { forceScrollBottom: true });
                 }
             } else {
-                if (typeof showTempNotification === 'function') {
-                    showTempNotification('Error: ' + (data.error || T.unknown_error), 'error');
-                } else {
-                    alert('Error: ' + (data.error || T.unknown_error));
-                }
+                chatAlert('Error: ' + (data.error || T.unknown_error));
             }
         })
         .catch(err => {
@@ -1971,7 +2212,7 @@
             if (typeof showTempNotification === 'function') {
                 showTempNotification(T.network_error || 'Network error', 'error');
             } else {
-                alert(T.network_error || 'Network error');
+                chatAlert(T.network_error || 'Network error');
             }
         });
     }
@@ -1990,11 +2231,7 @@
             if (data.ok) {
                 loadMessages(false, { full: true });
             } else {
-                if (typeof showTempNotification === 'function') {
-                    showTempNotification('Error: ' + (data.error || T.unknown_error), 'error');
-                } else {
-                    alert('Error: ' + (data.error || T.unknown_error));
-                }
+                chatAlert('Error: ' + (data.error || T.unknown_error));
             }
         })
         .catch(err => console.error('Error deleting message:', err));
@@ -2259,7 +2496,7 @@
                 if (typeof showTempNotification === 'function') {
                     showTempNotification(T.failed_to_load_file + ' ' + err.message, 'error');
                 } else {
-                    alert(T.failed_to_load_file + ' ' + err.message);
+                    chatAlert(T.failed_to_load_file + ' ' + err.message);
                 }
                 modal.style.display = 'none';
             });
@@ -2302,7 +2539,7 @@
         }
     }
     function executeSupportChatDelete() {
-        if (!currentChatUser || !isAdmin) {
+        if (!currentChatUser) {
             return;
         }
         var ue = currentChatUser;
@@ -2314,7 +2551,12 @@
         }
         const formData = new FormData();
         formData.append('action', 'delete_chat');
-        formData.append('user_email', ue);
+        formData.append('chat_type', currentChatType);
+        if (currentChatType === 'peer') {
+            formData.append('peer_email', currentPeerEmail);
+        } else {
+            formData.append('user_email', ue);
+        }
         fetch('?api=support_chat', {
             method: 'POST',
             body: formData
@@ -2325,7 +2567,6 @@
             .then(function(data) {
                 if (data.ok) {
                     closeSupportChatDeleteModal();
-                    chatAlert(T.support_chat_deleted_ok || 'Chat deleted');
                     currentChatUser = null;
                     if (chatMessagesArea) {
                         chatMessagesArea.style.display = 'none';
@@ -2333,15 +2574,10 @@
                     if (deleteChatBtn) {
                         deleteChatBtn.style.display = 'none';
                     }
-                    if (chatModalTitle) {
-                        chatModalTitle.textContent = 'Support Chats';
-                    }
+                    if (chatModalTitle) chatModalTitle.textContent = 'Messenger';
                     adminMobilePhase = 'list';
                     syncAdminMobileLayout();
                     loadChatList();
-                    if (chatModal) {
-                        chatModal.style.display = 'none';
-                    }
                     stopPolling();
                 } else {
                     chatAlert('Error: ' + (data.error || 'Unknown error'));
@@ -2365,7 +2601,7 @@
             });
     }
     function openSupportChatDeleteModal() {
-        if (!currentChatUser || !isAdmin) {
+        if (!currentChatUser) {
             return;
         }
         if (!supportChatDeleteModal) {
@@ -2419,7 +2655,7 @@
         }, true);
     }
     function deleteChat() {
-        if (!currentChatUser || !isAdmin) {
+        if (!currentChatUser) {
             return;
         }
         wireSupportChatDeleteModal();
@@ -2429,13 +2665,39 @@
     if (deleteChatBtn) {
         deleteChatBtn.addEventListener('click', deleteChat);
     }
+    if (blockChatBtn) {
+        blockChatBtn.addEventListener('click', function() {
+            if (!currentPeerEmail || currentChatType !== 'peer') return;
+            if (!currentPeerBlocked) {
+                stopPolling();
+            }
+            const formData = new FormData();
+            formData.append('action', currentPeerBlocked ? 'unblock_user' : 'block_user');
+            formData.append('peer_email', currentPeerEmail);
+            fetch('?api=support_chat', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.ok) {
+                        chatAlert('Error: ' + (data.error || 'Unknown error'));
+                        return;
+                    }
+                    currentPeerBlocked = !currentPeerBlocked;
+                    setHeaderActions();
+                    if (currentPeerBlocked) {
+                        stopPolling();
+                    } else {
+                        startPolling();
+                    }
+                    loadChatList();
+                })
+                .catch(() => chatAlert(T.network_error || 'Network error'));
+        });
+    }
 
     function markAsRead() {
         if (!currentChatUser) return;
 
-        const url = isAdmin
-            ? `?api=support_chat&action=mark_read&user_email=${encodeURIComponent(currentChatUser)}`
-            : '?api=support_chat&action=mark_read';
+        const url = '?api=support_chat&action=mark_read' + currentChatQuery();
 
         fetch(url).catch(err => console.error('Error marking as read:', err));
     }
@@ -2507,4 +2769,3 @@
     }
 })();
 </script>
-

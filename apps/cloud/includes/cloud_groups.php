@@ -21,6 +21,7 @@ function cloud_group_root_key(string $groupId): string
 function ensureCloudGroupsSchema($db): void
 {
     if (!$db) return;
+    cloud_group_ensure_notifications($db);
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_groups (
         group_id TEXT PRIMARY KEY,
         name TEXT NOT NULL DEFAULT '',
@@ -48,6 +49,10 @@ function ensureCloudGroupsSchema($db): void
         FOREIGN KEY (group_id) REFERENCES cloud_groups(group_id) ON DELETE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_group_history_group_ts ON cloud_group_file_history(group_id, created_at DESC)");
+    try {
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_group_notifications_lookup ON app_notifications(user_email, app_id, event_type, is_read, created_at)");
+    } catch (Throwable $e) {
+    }
 }
 
 function cloud_group_generate_id(): string
@@ -352,6 +357,101 @@ function cloud_group_log_activity(string $groupId, string $filePath, string $act
     $stmt->bindValue(':action', $action, PDO::PARAM_STR);
     $stmt->bindValue(':ts', time(), PDO::PARAM_INT);
     $stmt->execute();
+    if ($action !== 'open') cloud_group_notify_file_change($db, $groupId, $filePath, $action, $email);
+}
+
+function cloud_group_notification_title(string $email): string
+{
+    $db = cloud_path_db();
+    $lang = 'en';
+    if ($db && $email !== '') {
+        try {
+            $stmt = $db->prepare('SELECT language FROM users WHERE LOWER(email) = :email LIMIT 1');
+            $stmt->bindValue(':email', strtolower($email), PDO::PARAM_STR);
+            $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+            $lang = strtolower((string)($row['language'] ?? 'en'));
+        } catch (Throwable $e) {
+        }
+    }
+    return str_starts_with($lang, 'ru') ? 'Файлы в группе изменены' : 'Group files changed';
+}
+
+function cloud_group_ensure_notifications($db): void
+{
+    if (!function_exists('app_notifications_ensure')) {
+        $lib = dirname(__DIR__, 3) . '/lib/app_db.php';
+        if (is_file($lib)) require_once $lib;
+    }
+    if (function_exists('app_notifications_ensure')) app_notifications_ensure($db);
+}
+
+function cloud_group_member_emails($db, string $groupId): array
+{
+    $group = cloud_group_get_row($db, $groupId);
+    if (!$group) return [];
+    $emails = [strtolower((string)$group['admin_email']) => true];
+    $stmt = $db->prepare('SELECT member_email FROM cloud_group_members WHERE group_id = :gid');
+    $stmt->bindValue(':gid', strtolower($groupId), PDO::PARAM_STR);
+    $res = $stmt->execute();
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+        $email = strtolower(trim((string)($row['member_email'] ?? '')));
+        if ($email !== '') $emails[$email] = true;
+    }
+    return array_keys($emails);
+}
+
+function cloud_group_find_unread_notification($db, string $email, string $groupId): ?array
+{
+    $stmt = $db->prepare("SELECT id, context_json FROM app_notifications WHERE user_email = :email AND app_id = 'cloud' AND event_type = 'cloud_group_files_changed' AND is_read = 0 ORDER BY created_at DESC, id DESC");
+    $stmt->bindValue(':email', strtolower($email), PDO::PARAM_STR);
+    $res = $stmt->execute();
+    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+        $ctx = json_decode((string)($row['context_json'] ?? '{}'), true);
+        if (is_array($ctx) && strtolower((string)($ctx['group_id'] ?? '')) === strtolower($groupId)) return $row;
+    }
+    return null;
+}
+
+function cloud_group_notify_file_change($db, string $groupId, string $filePath, string $action, string $actorEmail): void
+{
+    if (!$db) return;
+    cloud_group_ensure_notifications($db);
+    $actorEmail = strtolower(trim($actorEmail));
+    if ($actorEmail === '') return;
+    $now = time();
+    foreach (cloud_group_member_emails($db, $groupId) as $email) {
+        if ($email === $actorEmail) continue;
+        $existing = cloud_group_find_unread_notification($db, $email, $groupId);
+        $context = ['group_id' => strtolower($groupId), 'last_path' => $filePath, 'last_action' => $action, 'last_actor' => $actorEmail, 'count' => 1];
+        if ($existing) {
+            $old = json_decode((string)($existing['context_json'] ?? '{}'), true);
+            if (is_array($old)) $context['count'] = max(1, (int)($old['count'] ?? 1)) + 1;
+            $stmt = $db->prepare('UPDATE app_notifications SET title = :title, message = :message, context_json = :ctx, created_at = :ts, read_at = NULL WHERE id = :id');
+            $stmt->bindValue(':id', (int)$existing['id'], PDO::PARAM_INT);
+        } else {
+            $stmt = $db->prepare("INSERT INTO app_notifications(user_email, app_id, severity, title, message, event_type, context_json, is_read, created_at) VALUES(:email, 'cloud', 'info', :title, :message, 'cloud_group_files_changed', :ctx, 0, :ts)");
+            $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':title', cloud_group_notification_title($email), PDO::PARAM_STR);
+        $stmt->bindValue(':message', $context['count'] > 1 ? (string)$context['count'] : '', PDO::PARAM_STR);
+        $stmt->bindValue(':ctx', json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), PDO::PARAM_STR);
+        $stmt->bindValue(':ts', $now, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+}
+
+function cloud_group_mark_notifications_read($db, string $groupId, string $email): int
+{
+    cloud_group_ensure_notifications($db);
+    $changed = 0;
+    while ($row = cloud_group_find_unread_notification($db, $email, $groupId)) {
+        $stmt = $db->prepare('UPDATE app_notifications SET is_read = 1, read_at = :ts WHERE id = :id');
+        $stmt->bindValue(':id', (int)$row['id'], PDO::PARAM_INT);
+        $stmt->bindValue(':ts', time(), PDO::PARAM_INT);
+        $stmt->execute();
+        $changed++;
+    }
+    return $changed;
 }
 
 function cloud_group_list_for_email(string $email): array
