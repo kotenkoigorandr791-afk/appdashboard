@@ -65,9 +65,10 @@ npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent opencode --url h
 {
   "mcpServers": {
     "appdashboard-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "enabled": true,
+      "type": "local",
+      "command": ["npx", "-y", "https://YOUR_HOST/mcp/download"],
+      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
     }
   }
 }
@@ -79,9 +80,10 @@ npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent opencode --url h
 {
   "mcpServers": {
     "appdashboard-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "enabled": true,
+      "type": "local",
+      "command": ["npx", "-y", "https://YOUR_HOST/mcp/download"],
+      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
     }
   }
 }

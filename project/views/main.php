@@ -171,7 +171,7 @@
             #profile-content { margin: 5% auto; width: 95%; }
             #edit-stats-content, #stats-content, #shared-files-content, #sessions-content, #users-content { margin: 5% auto; }
         }
-        #close-profile{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
+        #close-profile{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:24px;cursor:pointer;padding:0;z-index:10002;width:40px;height:40px;min-width:40px;min-height:40px;display:inline-flex;align-items:center;justify-content:center;line-height:1;box-sizing:border-box;}
         .profile-section{margin-bottom:25px;padding-bottom:20px;border-bottom:1px solid var(--border-color);display:flex;flex-direction:column;align-items:center;}
         .profile-section:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
         .profile-avatar{width:100px;height:100px;border-radius:50%;object-fit:cover;display:block;margin:0 auto 15px;border:3px solid var(--primary-color);}
