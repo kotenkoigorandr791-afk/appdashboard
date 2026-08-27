@@ -92,17 +92,27 @@ function serverEntry(url: string, packageUrl?: string): Record<string, unknown> 
   };
 }
 
+function opencodeServerEntry(url: string, packageUrl?: string): Record<string, unknown> {
+  const command = packageUrl ? ["npx", "-y", packageUrl] : ["node", entryScript()];
+  return {
+    enabled: true,
+    type: "local",
+    command,
+    environment: { APPDASHBOARD_URL: url },
+  };
+}
+
 const SERVER_KEY = "appdashboard-mcp";
 
 function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string, packageUrl?: string): Record<string, any> {
   const baseEntry = serverEntry(url, packageUrl);
-  const entry = agent === "opencode" ? { enabled: true, type: "local", ...baseEntry } : baseEntry;
+  const entry = agent === "opencode" ? opencodeServerEntry(url, packageUrl) : baseEntry;
   const next = { ...config };
-  const stripLegacy = (bag: Record<string, unknown> | undefined) => {
+  const stripLegacy = (bag: Record<string, unknown> | undefined, removeCurrent = false) => {
     if (!bag || typeof bag !== "object") return {};
     const out = { ...bag };
     for (const k of Object.keys(out)) {
-      if (k === "appdashboard" || k === "appdashboard-cloud-mcp" || k === "appdashboard-smarthome-mcp" || k === "appdashboard-recipes-mcp") {
+      if ((removeCurrent && k === SERVER_KEY) || k === "appdashboard" || k === "appdashboard-cloud-mcp" || k === "appdashboard-smarthome-mcp" || k === "appdashboard-recipes-mcp") {
         delete out[k];
       }
     }
@@ -111,7 +121,7 @@ function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string
   if (agent === "vscode") {
     next.servers = { ...stripLegacy(next.servers), [SERVER_KEY]: entry };
   } else if (agent === "opencode") {
-    next.mcp = { ...stripLegacy(next.mcp), [SERVER_KEY]: entry };
+    next.mcp = { ...stripLegacy(next.mcp, true), [SERVER_KEY]: entry };
   } else {
     next.mcpServers = { ...stripLegacy(next.mcpServers), [SERVER_KEY]: entry };
   }
@@ -162,7 +172,7 @@ export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<
     console.log(`Updated ${path}`);
     console.log(`APPDASHBOARD_URL=${url}`);
     console.log(`Package: ${packageUrl}`);
-    console.log("No local build needed — npx downloads the prebuilt package.");
+    console.log("No local build needed - npx downloads the prebuilt package.");
     console.log("Login is required: after restart, open the browser auth URL printed by the MCP server or run the login tool.");
     console.log("Restart the agent to load the MCP server.");
   } finally {

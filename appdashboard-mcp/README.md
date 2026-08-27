@@ -67,9 +67,8 @@ Login is required before using AppDashboard MCP tools.
     "appdashboard-mcp": {
       "enabled": true,
       "type": "local",
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "command": ["npx", "-y", "https://YOUR_HOST/mcp/download"],
+      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
     }
   }
 }

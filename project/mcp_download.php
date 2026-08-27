@@ -16,11 +16,12 @@ if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
 }
 $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
 $baseUrl = $scheme . '://' . $host;
-$packageUrl = $baseUrl . '/mcp/download';
 $meta = is_file($metaFile) ? json_decode((string)file_get_contents($metaFile), true) : null;
 if (!is_array($meta)) $meta = [];
 $version = (string)($meta['version'] ?? '1.0.0');
 $ready = is_file($tgzFile) && filesize($tgzFile) > 0;
+$cacheKey = $ready ? substr((string)($meta['sha256'] ?? ''), 0, 12) : $version;
+$packageUrl = $baseUrl . '/mcp/download?v=' . rawurlencode($cacheKey);
 
 if ($mcpPath === '' || $mcpPath === 'info') {
     header('Content-Type: application/json; charset=utf-8');
@@ -49,6 +50,12 @@ if ($mcpPath === '' || $mcpPath === 'info') {
             'command' => 'npx',
             'args' => ['-y', $packageUrl],
             'env' => ['APPDASHBOARD_URL' => $baseUrl],
+        ],
+        'opencode_mcp_entry' => [
+            'enabled' => true,
+            'type' => 'local',
+            'command' => ['npx', '-y', $packageUrl],
+            'environment' => ['APPDASHBOARD_URL' => $baseUrl],
         ],
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit;
