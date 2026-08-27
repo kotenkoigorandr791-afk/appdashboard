@@ -13,6 +13,7 @@ npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url htt
 ```
 
 Requires Node.js 18+. Restart the agent after setup. On first use, open the browser auth URL.
+Login is required before using AppDashboard MCP tools.
 
 ## Agent configs
 
@@ -64,6 +65,8 @@ Requires Node.js 18+. Restart the agent after setup. On first use, open the brow
 {
   "mcp": {
     "appdashboard-mcp": {
+      "enabled": true,
+      "type": "local",
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
       "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }

@@ -27,8 +27,10 @@ if ($mcpPath === '' || $mcpPath === 'info') {
     header('Cache-Control: no-store');
     $agents = ['cursor', 'claude', 'vscode', 'opencode'];
     $commands = [];
+    $removeCommands = [];
     foreach ($agents as $agent) {
         $commands[$agent] = 'npx -y ' . $packageUrl . ' setup --agent ' . $agent . ' --url ' . $baseUrl . ' --package ' . $packageUrl;
+        $removeCommands[$agent] = 'npx -y ' . $packageUrl . ' setup --agent ' . $agent . ' --remove';
     }
     echo json_encode([
         'ok' => true,
@@ -42,6 +44,7 @@ if ($mcpPath === '' || $mcpPath === 'info') {
         'built_at' => $meta['built_at'] ?? null,
         'requirement' => 'Node.js 18+',
         'commands' => $commands,
+        'remove_commands' => $removeCommands,
         'mcp_entry' => [
             'command' => 'npx',
             'args' => ['-y', $packageUrl],

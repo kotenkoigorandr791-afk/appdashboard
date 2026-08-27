@@ -54,15 +54,17 @@ function writeJson(path: string, data: unknown): void {
   writeFileSync(path, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
-function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: string } {
+function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: string; remove: boolean } {
   let agent: Agent = "cursor";
   let url: string | undefined;
   let packageUrl: string | undefined;
+  let remove = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if ((a === "--agent" || a === "-a") && argv[i + 1]) agent = argv[++i] as Agent;
     else if ((a === "--url" || a === "-u") && argv[i + 1]) url = argv[++i];
     else if ((a === "--package" || a === "--package-url" || a === "-p") && argv[i + 1]) packageUrl = argv[++i];
+    else if (a === "--remove" || a === "remove" || a === "uninstall") remove = true;
     else if (a.startsWith("--agent=")) agent = a.slice("--agent=".length) as Agent;
     else if (a.startsWith("--url=")) url = a.slice("--url=".length);
     else if (a.startsWith("--package=")) packageUrl = a.slice("--package=".length);
@@ -71,7 +73,7 @@ function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: s
   if (!["claude", "cursor", "vscode", "opencode"].includes(agent)) {
     throw new Error(`Unknown agent: ${agent}. Use claude|cursor|vscode|opencode`);
   }
-  return { agent, url, packageUrl };
+  return { agent, url, packageUrl, remove };
 }
 
 function serverEntry(url: string, packageUrl?: string): Record<string, unknown> {
@@ -93,7 +95,8 @@ function serverEntry(url: string, packageUrl?: string): Record<string, unknown> 
 const SERVER_KEY = "appdashboard-mcp";
 
 function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string, packageUrl?: string): Record<string, any> {
-  const entry = serverEntry(url, packageUrl);
+  const baseEntry = serverEntry(url, packageUrl);
+  const entry = agent === "opencode" ? { enabled: true, type: "local", ...baseEntry } : baseEntry;
   const next = { ...config };
   const stripLegacy = (bag: Record<string, unknown> | undefined) => {
     if (!bag || typeof bag !== "object") return {};
@@ -115,11 +118,37 @@ function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string
   return next;
 }
 
+function removeServerEntry(agent: Agent, config: Record<string, any>): Record<string, any> {
+  const next = { ...config };
+  if (agent === "vscode") {
+    const servers = { ...(next.servers || {}) };
+    delete servers[SERVER_KEY];
+    next.servers = servers;
+  } else if (agent === "opencode") {
+    const mcp = { ...(next.mcp || {}) };
+    delete mcp[SERVER_KEY];
+    next.mcp = mcp;
+  } else {
+    const mcpServers = { ...(next.mcpServers || {}) };
+    delete mcpServers[SERVER_KEY];
+    next.mcpServers = mcpServers;
+  }
+  return next;
+}
+
 export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<void> {
-  const { agent, url: urlArg, packageUrl: pkgArg } = parseArgs(argv.filter((a) => a !== "setup"));
+  const { agent, url: urlArg, packageUrl: pkgArg, remove } = parseArgs(argv.filter((a) => a !== "setup"));
   const interactive = !urlArg && !process.env.APPDASHBOARD_URL;
   const rl = interactive ? createInterface({ input, output }) : null;
   try {
+    const path = agentConfigPath(agent);
+    const existing = readJson(path);
+    if (remove) {
+      writeJson(path, removeServerEntry(agent, existing));
+      console.log(`Removed ${SERVER_KEY} from ${path}`);
+      console.log("Restart the agent to unload the MCP server.");
+      return;
+    }
     let url = (urlArg || process.env.APPDASHBOARD_URL || "").trim();
     if (!url && rl) {
       url = (await rl.question("AppDashboard URL (e.g. https://example.com): ")).trim();
@@ -128,15 +157,13 @@ export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<
     if (!url) throw new Error("URL is required (--url or APPDASHBOARD_URL)");
     let packageUrl = (pkgArg || process.env.APPDASHBOARD_MCP_PACKAGE_URL || "").trim();
     if (!packageUrl) packageUrl = `${url}/mcp/download`;
-    const path = agentConfigPath(agent);
-    const existing = readJson(path);
     const merged = mergeServerEntry(agent, existing, url, packageUrl);
     writeJson(path, merged);
     console.log(`Updated ${path}`);
     console.log(`APPDASHBOARD_URL=${url}`);
     console.log(`Package: ${packageUrl}`);
     console.log("No local build needed — npx downloads the prebuilt package.");
-    console.log("On first use, open the browser auth URL printed by the MCP server (or use the login tool).");
+    console.log("Login is required: after restart, open the browser auth URL printed by the MCP server or run the login tool.");
     console.log("Restart the agent to load the MCP server.");
   } finally {
     rl?.close();

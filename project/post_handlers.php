@@ -546,7 +546,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);
-                $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e");
+                $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND (device_id = 'mcp_external' OR platform = 'mcp')");
                 $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
                 $stmt->bindValue(':e',$email,PDO::PARAM_STR);
                 $stmt->execute();
