@@ -161,6 +161,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   
   // Restore state after the tree loads
   await restoreFolderState();
+  await maybeOpenCloudAttachmentFromChat();
   initTreeAutoRefresh();
   ensureCloudDeviceId();
   setTimeout(() => {
@@ -176,6 +177,23 @@ document.addEventListener('DOMContentLoaded', async function() {
   initLassoSelection();
 });
 
+async function maybeOpenCloudAttachmentFromChat() {
+  let payload = null;
+  try {
+    payload = JSON.parse(sessionStorage.getItem('cloudOpenAfterLoad') || 'null');
+    sessionStorage.removeItem('cloudOpenAfterLoad');
+  } catch (_) {
+    sessionStorage.removeItem('cloudOpenAfterLoad');
+  }
+  if (!payload || !payload.path) return;
+  const root = payload.root || 'temp';
+  if (root !== getCurrentCloudRoot()) {
+    setCurrentCloudRoot(root);
+    await buildTree('');
+    await syncRootModeView();
+  }
+  openFileInTab(payload.path, false, root);
+}
 
 function waitForAPP_CONFIG() {
   return new Promise((resolve) => {
@@ -1171,6 +1189,26 @@ async function generateShareKey(filePath, expiresOption = 'never') {
     throw new Error('Failed to generate share key');
 }
 window.generateShareKey = generateShareKey;
+function buildCloudShareUrl(shareData) {
+    const currentUrl = new URL(window.location.href);
+    const currentParams = currentUrl.searchParams;
+    let color = currentParams.get('color');
+    if (!color) {
+        color = window.APP_CONFIG.color.replace('#', '%23');
+    }
+    const shareUrl = new URL(window.location.href);
+    shareUrl.pathname = '/';
+    shareUrl.search = '';
+    shareUrl.searchParams.set('sharedFile', shareData.key);
+    shareUrl.searchParams.set('theme', currentParams.get('theme') || window.APP_CONFIG.theme);
+    shareUrl.searchParams.set('lang', currentParams.get('lang') || window.APP_CONFIG.lang);
+    shareUrl.searchParams.set('color', color);
+    return shareUrl.toString();
+}
+window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never') {
+    const shareData = await generateShareKey(filePath, expiresOption);
+    return buildCloudShareUrl(shareData);
+};
 async function renderShareModalForPath(filePath, displayName, expiresOption = 'never') {
     const modal = document.getElementById('share-modal');
     const select = document.getElementById('share-expires-select');
@@ -1206,20 +1244,7 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     if (passwordInput) passwordInput.value = currentPasswordValue;
     if (openLimitInput) openLimitInput.value = String(shareState.currentRestrictions.max_views || 0);
 
-    const currentUrl = new URL(window.location.href);
-    const currentParams = currentUrl.searchParams;
-    let color = currentParams.get('color');
-    if (!color) {
-        color = window.APP_CONFIG.color.replace('#', '%23');
-    }
-    const shareUrl = new URL(window.location.href);
-    shareUrl.pathname = '/';
-    shareUrl.search = '';
-    shareUrl.searchParams.set('sharedFile', shareData.key);
-    shareUrl.searchParams.set('theme', currentParams.get('theme') || window.APP_CONFIG.theme);
-    shareUrl.searchParams.set('lang', currentParams.get('lang') || window.APP_CONFIG.lang);
-    shareUrl.searchParams.set('color', color);
-    const finalUrl = shareUrl.toString();
+    const finalUrl = buildCloudShareUrl(shareData);
 
     const linkEl = document.getElementById('share-link');
     linkEl.href = finalUrl;
@@ -1311,10 +1336,68 @@ async function openShareModal() {
         return false;
     }
 }
+function cloudShareText(key, fallback) {
+    const value = t(window.i18n, key);
+    return value && value !== key ? value : fallback;
+}
+function openShareChoiceMenu(anchor, getLinkAction, sendAction) {
+    document.querySelectorAll('.context-menu, .context-menu-submenu').forEach((el) => el.remove());
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.position = 'fixed';
+    menu.style.zIndex = '200000';
+    menu.style.visibility = 'hidden';
+    menu.style.opacity = '0';
+    const options = [
+        { label: cloudShareText('shareGetLink', 'Get link'), icon: 'link', action: getLinkAction },
+        { label: cloudShareText('shareSendToChat', 'Send to chat'), icon: 'message', action: sendAction }
+    ];
+    if (typeof renderContextMenuOptions === 'function') {
+        renderContextMenuOptions(menu, options);
+    } else {
+        options.forEach((opt) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'context-menu-item';
+            item.textContent = opt.label;
+            item.addEventListener('click', () => {
+                menu.remove();
+                opt.action();
+            });
+            menu.appendChild(item);
+        });
+    }
+    document.body.appendChild(menu);
+    const rect = anchor.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+    menu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - menuRect.width - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - menuRect.height - 8))}px`;
+    menu.style.visibility = 'visible';
+    menu.style.opacity = '1';
+    const close = (e) => {
+        if (menu.contains(e.target) || e.target === anchor) return;
+        menu.remove();
+        document.removeEventListener('pointerdown', close, true);
+    };
+    setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
+}
 function initShareFeature() {
-    document.getElementById('btn-share').addEventListener('click', async () => {
-        const ok = await openShareModal();
-        if (ok) showSuccessCheck(document.getElementById('btn-share'));
+    document.getElementById('btn-share').addEventListener('click', () => {
+        const button = document.getElementById('btn-share');
+        openShareChoiceMenu(button, async () => {
+            const ok = await openShareModal();
+            if (ok) showSuccessCheck(button);
+        }, () => {
+            const viewer = document.getElementById('viewer');
+            const filePath = viewer?.dataset?.path;
+            if (!filePath) {
+                flashStatus(t(i18n, 'noFileOpen'));
+                return;
+            }
+            if (typeof window.sendCloudShareToChat === 'function') {
+                window.sendCloudShareToChat(filePath, 'file');
+            }
+        });
     });
     document.getElementById('btn-close-share').addEventListener('click', () => {
         document.getElementById('share-modal').classList.add('hidden');

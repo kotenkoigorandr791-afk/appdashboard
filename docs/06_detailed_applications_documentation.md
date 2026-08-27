@@ -14,7 +14,7 @@ This document provides comprehensive documentation for all 10 applications in th
 6. [Recipes](#6-recipes)
 7. [Spends (Expense Tracker)](#7-spends-expense-tracker)
 8. [Steps (Steps Counter)](#8-steps-steps-counter)
-9. [TFT Generator](#9-tft-generator)
+9. [TFT Generator](#9-lopaka)
 10. [Viewer (IoT Dashboard)](#10-viewer-iot-dashboard)
 
 ---
@@ -970,7 +970,7 @@ settings (
 
 ## 9. TFT Generator
 
-**Path:** `apps/tft-generator/`  
+**Path:** `apps/lopaka/`  
 **Main File:** `index.php`
 
 ### Overview
@@ -980,7 +980,7 @@ A visual code generator for TFT (Thin Film Transistor) displays with drawing too
 ### File Structure
 
 ```
-apps/tft-generator/
+apps/lopaka/
 ├── index.php                    # Generator interface
 ├── name.json                    # App name
 ├── style.css                    # Styles
@@ -1329,5 +1329,5 @@ function create_upload_session($target_path, $user) {
 | **recipes** | ~400 | JSON | Ingredient matching, timers |
 | **spends** | 2,625 | Per-user SQLite | Budget, charts, Excel import |
 | **steps** | ~400 | Per-user SQLite | Video analysis, Excel editor |
-| **tft-generator** | ~300 | Per-user SQLite | Drawing tools, code generation |
+| **lopaka** | ~300 | Per-user SQLite | Drawing tools, code generation |
 | **viewer** | ~200 | JSON | IoT tiles, token auth |

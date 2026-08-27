@@ -118,6 +118,11 @@
         updateToolbarButton();
         renderGroupSwitcher();
         updateSectionTitle();
+        markGroupNotificationsRead(groupId);
+    }
+    function markGroupNotificationsRead(groupId) {
+        if (!groupId) return;
+        api('groups_mark_notifications_read', { group_id: groupId }).catch(() => {});
     }
     function formatTs(ts) {
         if (!ts) return '';
@@ -253,6 +258,7 @@
         if (!state.manageGroupId && state.groups.length) state.manageGroupId = state.groups[0].id;
         const gid = state.manageGroupId;
         const group = getGroupById(gid);
+        if (gid) markGroupNotificationsRead(gid);
         let detailHtml = '';
         if (!group) {
             detailHtml = '<div class="groups-detail-panel"><p>' + t('groupNotFound') + '</p></div>';

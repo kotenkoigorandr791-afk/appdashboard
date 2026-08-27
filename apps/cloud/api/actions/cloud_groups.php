@@ -13,6 +13,18 @@ if ($action === 'groups_list') {
     }
 }
 
+if ($action === 'groups_mark_notifications_read') {
+    $email = get_session_email();
+    if (!$email) json_out(['ok' => false, 'error' => 'not authenticated'], 401);
+    $groupId = strtolower(trim((string)($_POST['group_id'] ?? $_GET['group_id'] ?? '')));
+    if ($groupId === '') json_out(['ok' => false, 'error' => 'group_id required'], 400);
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    if (!cloud_group_member_access($db, $groupId, $email)) json_out(['ok' => false, 'error' => 'access denied'], 403);
+    $changed = cloud_group_mark_notifications_read($db, $groupId, $email);
+    json_out(['ok' => true, 'changed' => $changed]);
+}
+
 if ($action === 'groups_create') {
     $email = get_session_email();
     if (!$email) json_out(['ok' => false, 'error' => 'not authenticated'], 401);

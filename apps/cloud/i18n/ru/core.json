@@ -57,6 +57,7 @@
   "pdfCreated": "PDF успешно создан",
   "noSubfolders": "Нет подпапок",
   "filesCreated": "Созданы новые файлы",
+  "groupFilesChangedNotification": "Файлы в группе изменены",
   "filesDeleted": "Удалены файлы",
   "audio.player": "Аудио плеер",
   "audio.rewind": "Назад 10 секунд",

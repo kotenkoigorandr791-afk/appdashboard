@@ -1,272 +1,178 @@
 # ServerKherson Documentation Index
 
-Welcome to the ServerKherson project documentation. This folder contains comprehensive documentation for all components of the platform.
-
 ## Documentation Files
 
 ### Core Documentation
 
 | File | Description |
 |------|-------------|
-| **[00_documentation_index.md](00_documentation_index.md)** | This file - documentation index with quick reference |
-| **[01_project_overview_and_architecture.md](01_project_overview_and_architecture.md)** | High-level project overview, architecture, technology stack, and security features |
-| **[02_root_level_files_and_core_system.md](02_root_level_files_and_core_system.md)** | Detailed documentation of root-level PHP files, configuration, and assets |
-| **[03_applications_directory_summary.md](03_applications_directory_summary.md)** | Summary of all 10 sub-applications in the `apps/` directory |
-| **[04_internationalization_i18n.md](04_internationalization_i18n.md)** | Internationalization system documentation (4 supported languages) |
-| **[05_webssh_terminal.md](05_webssh_terminal.md)** | WebSSH WebSocket terminal application documentation |
-| **[06_detailed_applications_documentation.md](06_detailed_applications_documentation.md)** | Comprehensive documentation overview for each of the 10 apps |
-| **[07_project_structure.md](07_project_structure.md)** | **Complete project file tree with detailed structure** |
+| **[00_documentation_index.md](00_documentation_index.md)** | Documentation index |
+| **[01_project_overview_and_architecture.md](01_project_overview_and_architecture.md)** | Overview, architecture, stack, security |
+| **[02_root_level_files_and_core_system.md](02_root_level_files_and_core_system.md)** | Root PHP, `project/`, `lib/`, config |
+| **[03_applications_directory_summary.md](03_applications_directory_summary.md)** | Summary of all 13 apps and new components |
+| **[04_internationalization_i18n.md](04_internationalization_i18n.md)** | i18n (6 languages: en, ru, uk, be, pl, cs) |
+| **[05_webssh_terminal.md](05_webssh_terminal.md)** | WebSSH WebSocket terminal |
+| **[06_detailed_applications_documentation.md](06_detailed_applications_documentation.md)** | Detailed overview of each app |
+| **[07_project_structure.md](07_project_structure.md)** | Project file tree |
 
 ### Application-Specific Documentation
 
-| File | Description | Lines |
-|------|-------------|-------|
-| **[08_cloud_app_detailed.md](08_cloud_app_detailed.md)** | Cloud Storage - Full documentation with API, database, features | ~15,000 |
-| **[09_films_app_detailed.md](09_films_app_detailed.md)** | Films/Movie Manager - Complete documentation | ~4,000 |
-| **[10_map_app_detailed.md](10_map_app_detailed.md)** | Maps Application - Full documentation | ~500 |
-| **[11_media_viewer_app_detailed.md](11_media_viewer_app_detailed.md)** | Media Viewer/Gallery - Complete documentation | ~1,300 |
-| **[12_performance_app_detailed.md](12_performance_app_detailed.md)** | Performance Monitor - Full documentation | ~2,400 |
-| **[13_recipes_app_detailed.md](13_recipes_app_detailed.md)** | Recipe Manager - Complete documentation | ~2,800 |
-| **[14_spends_app_detailed.md](14_spends_app_detailed.md)** | Expense Tracker - Full documentation | ~2,700 |
-| **[15_steps_app_detailed.md](15_steps_app_detailed.md)** | Steps Counter - Complete documentation with OCR | ~3,400 |
-| **[16_tft_generator_app_detailed.md](16_tft_generator_app_detailed.md)** | TFT Generator - Full documentation | ~1,700 |
-| **[17_viewer_app_detailed.md](17_viewer_app_detailed.md)** | Network Viewer - Complete documentation | ~1,700 |
+| File | Description |
+|------|-------------|
+| **[08_cloud_app_detailed.md](08_cloud_app_detailed.md)** | Cloud Storage |
+| **[09_films_app_detailed.md](09_films_app_detailed.md)** | Films / Movie Manager |
+| **[10_dawarich_app_detailed.md](10_dawarich_app_detailed.md)** | Dawarich (Maps) SSO bridge |
+| **[11_media_viewer_app_detailed.md](11_media_viewer_app_detailed.md)** | Media Viewer / Gallery |
+| **[12_performance_app_detailed.md](12_performance_app_detailed.md)** | Server Monitor (`project/performance/`) |
+| **[13_recipes_app_detailed.md](13_recipes_app_detailed.md)** | Recipe Manager |
+| **[14_spends_app_detailed.md](14_spends_app_detailed.md)** | Expense Tracker |
+| **[15_steps_app_detailed.md](15_steps_app_detailed.md)** | Steps Counter |
+| **[16_lopaka_app_detailed.md](16_lopaka_app_detailed.md)** | Lopaka (embedded display editor) |
+| **[17_viewer_app_detailed.md](17_viewer_app_detailed.md)** | Network Viewer |
+| **[18_gitea_sso_bridge.md](18_gitea_sso_bridge.md)** | Gitea SSO bridge |
+| **[19_immich_sso_bridge.md](19_immich_sso_bridge.md)** | Immich SSO bridge |
+| **[20_plane_sso_bridge.md](20_plane_sso_bridge.md)** | Plane SSO bridge |
+| **[21_smart_home_app_detailed.md](21_smart_home_app_detailed.md)** | Smart Home (WS + MQTT) |
 
-## Quick Reference
+### System & Services Documentation
 
-### Project Structure
-
-```
-/mnt/server/
-├── docs/                      # This documentation folder
-├── index.php                  # Main entry point
-├── db.php                     # Database layer
-├── apps/                      # 10 sub-applications
-│   ├── cloud/                 # Cloud storage (main app)
-│   ├── films/                 # Movie manager
-│   ├── map/                   # Maps application
-│   ├── media_viewer/          # Media gallery
-│   ├── performance/           # Server monitor
-│   ├── recipes/               # Recipe manager
-│   ├── spends/                # Expense tracker
-│   ├── steps/                 # Steps counter
-│   ├── tft-generator/         # TFT code generator
-│   └── viewer/                # Network device viewer
-├── i18n/                      # Translation files (EN/UK/RU/BE)
-├── webssh/                    # SSH terminal application
-└── uploads/                   # User uploads
+| File | Description |
+|------|-------------|
+| **[22_public_api_reference.md](22_public_api_reference.md)** | Public API routes and specifications |
+├── docs/
+├── index.php                  # Entry → project/index.php
+├── db.php
+├── project/                   # Core framework, OAuth, UI shell, performance/
+├── lib/                       # DB layer, public API auth
+├── appdashboard-mcp/           # MCP server for AI agents (Cursor, Claude, VS Code, OpenCode)
+├── bots/                      # Bot scripts and integrations
+├── public-api/                # REST API endpoints
+├── share_file_utils/          # Shared file viewer module
+├── webssh/                    # WebSSH terminal
+├── apps/                      # 13 sub-applications
+│   ├── cloud/
+│   ├── dawarich/
+│   ├── films/
+│   ├── gitea/
+│   ├── immich/
+│   ├── lopaka/
+│   ├── media_viewer/
+│   ├── plane/
+│   ├── recipes/
+│   ├── smart_home/
+│   ├── spends/
+│   ├── steps/
+│   └── viewer/
+├── i18n/                      # en, ru, uk, be, pl, cs
+├── home/
+├── deploy/
+└── uploads/
 ```
 
 ### Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Backend | PHP 8+ |
-| Database | PostgreSQL |
+| Backend | PHP 8.3 |
+| Backend-FS | Node.js 18+ (MCP server) |
+| Database | PostgreSQL (+ SQLite-compat layer) |
 | Frontend | HTML5, CSS3, JavaScript |
-| 3D Rendering | Three.js |
-| Code Editor | Monaco Editor, CodeMirror |
-| SSH | phpseclib + Ratchet WebSocket |
+| Web server | nginx (Docker) |
+| 3D | Three.js |
+| Code editor | Monaco |
+| SSH | phpseclib + Ratchet |
+| Smart Home | Ratchet WS + Mosquitto MQTT |
 | Email | PHPMailer |
-| OAuth | Google API Client |
+| OAuth | Google, GitHub, bridge providers |
+| AI Agents | Cursor, Claude Desktop, VS Code, OpenCode, Agora |
+| MCP | stdio/HTTP transport for AI agents |
 
 ### Key Features
 
-- **Authentication**: Email/password, Google OAuth, One-Time PIN (OTP)
-- **Authorization**: Role-based access (guest/manager/admin)
-- **File Management**: Cloud storage with editors, sharing, sync
-- **3D Viewing**: Support for 3MF, STL, OBJ, FBX, DXF, DWG formats
-- **AI Integration**: AI assistant with LM Studio proxy
-- **Server Monitoring**: Real-time CPU, memory, disk, network metrics
-- **SSH Terminal**: Browser-based SSH access with encrypted credentials
-- **Internationalization**: 4 languages (English, Ukrainian, Russian, Belarusian)
+- Authentication: email/password, Google OAuth, OTP, Telegram Mini App
+- Roles: guest / manager / admin
+- Cloud storage with editors, AI, 3D, sharing
+- SSO bridges: Gitea, Immich, Plane, Dawarich
+- Smart Home: WebSocket + MQTT dual transport
+- Server monitoring in `project/performance/`
+- Public API (`public-api/`) with Bearer + device id
+- MCP server for AI agents (Cursor, Claude, VS Code, OpenCode)
+- Telegram bot service for server management
+- Share file viewer module
+- i18n: 6 languages (en, ru, uk, be, pl, cs)
 
-### Database Schema
+### Applications Summary
 
-Main tables in `PostgreSQL appdashboard (/opt/AppDashboard/data/db.env)`:
+| App | Purpose |
+|-----|---------|
+| **cloud** | Cloud storage, editors, 3D, AI, transcription |
+| **films** | Movie catalog and comments |
+| **dawarich** | Maps / location — OAuth bridge to Dawarich |
+| **media_viewer** | Photo/video gallery (Immich-related) |
+| **recipes** | Recipes and products |
+| **spends** | Expense tracking |
+| **steps** | Steps counter with OCR |
+| **lopaka** | Embedded display graphics editor |
+| **viewer** | Network device dashboard |
+| **gitea** | SSO bridge to Gitea |
+| **immich** | SSO bridge to Immich |
+| **plane** | SSO bridge to Plane |
+| **smart_home** | Smart home (WS + MQTT) |
 
-| Table | Purpose |
-|-------|---------|
-| `users` | User accounts |
-| `active_sessions` | Current sessions |
-| `client_auth_tokens` | API access tokens |
-| `one_time_pins` | OTP codes |
-| `ip_lockouts` | Brute-force protection |
-| `config` | Application configuration |
-| `visit_stats` | App visit statistics |
-| `shared_files` | Shared file metadata |
+Admin server monitor lives in `project/performance/` (not under `apps/`).
 
-See [02_root_level_files_and_core_system.md](02_root_level_files_and_core_system.md) for complete schema.
+### Security
 
-## Applications Summary
+- Session validation via `active_sessions`
+- IP lockouts / OTP limits
+- AES-256-GCM for SSH and backup secrets
+- Role-based app access
+- Public API: Bearer token + `X-Device-Id`
 
-| App | Lines of Code | Key Features |
-|-----|---------------|--------------|
-| **cloud** | ~15,000+ | File management, editors, 3D viewer, AI, transcription |
-| **films** | ~3,700 | Movie catalog, comments |
-| **spends** | ~2,600 | Expense tracking, Excel import |
-| **performance** | ~1,600 | Server monitoring dashboard |
-| **viewer** | ~500 | Network device viewer |
-| **map** | ~400 | Maps with user uploads |
-| **recipes** | ~400 | Recipe manager |
-| **steps** | ~400 | Activity tracker with OCR |
-| **tft-generator** | ~300 | TFT display code generator |
-| **media_viewer** | ~300 | Photo/video gallery |
-
-## Security
-
-### Authentication Flow
-
-1. User accesses application
-2. Session validated against `active_sessions` table
-3. 12-hour session timeout enforced
-4. Client auth tokens available for API access (180 days)
-
-### Protection Mechanisms
-
-- IP-based brute-force protection
-- OTP with attempt limits (3 attempts, then IP lockout)
-- Encrypted SSH credentials (AES-256-GCM)
-- SQLite file access blocked via `.htaccess`
-- Role-based access control
-
-### Environment Variables
-
-Recommended environment variables for production:
+### Development
 
 ```bash
-# SSH credential encryption
-export SSH_CREDENTIALS_CRYPT_KEY="your-secret-key"
-
-# Backup encryption
-export BACKUP_DASHBOARD_CRYPT_KEY="your-secret-key"
-
-# LM Studio AI proxy
-export LM_STUDIO_URL="http://localhost:1234"
-```
-
-## Development
-
-### Installing Dependencies
-
-```bash
-# Root dependencies
 composer install
-
-# Cloud app dependencies
 cd apps/cloud && composer install
-
-# WebSSH dependencies
 cd webssh && composer install
 ```
 
-### Database Initialization
+### AI Agents & MCP
 
-The database (`PostgreSQL appdashboard (/opt/AppDashboard/data/db.env)`) is automatically initialized on first access by `db.php`.
+**appdashboard-mcp** provides one MCP server that exposes tools for:
+- Service shell (auth, users, apps, Docker, files, config, monitor, backup, commands, support)
+- Spends app
+- Cloud app
+- Smart Home app
+- Recipes app
+- Steps counter
+- Immich photo library
+- Gitea git forge
+- Plane project management
 
-Default admin account:
-- **Email**: `root@root`
-- **Password**: `root`
-
-### Adding a New Language
-
-1. Create `i18n/{code}.json` with all translation keys
-2. Update language validation in PHP files
-3. Add language selector option in UI
-
-See [04_internationalization_i18n.md](04_internationalization_i18n.md) for details.
-
-### Adding a New App
-
-1. Create `apps/{appname}/` directory
-2. Add `index.php` with authentication check
-3. Add `name.json` with app name translations
-4. Register app in main routing (`index.php`)
-
-## API Reference
-
-### Client Auth Token API
-
-```http
-POST /api/client-auth/
-Content-Type: application/json
-
-{
-    "email": "user@example.com",
-    "device_id": "unique-device-id",
-    "device_name": "My Phone",
-    "platform": "android"
-}
-
-Response:
-{
-    "token": "abc123...",
-    "expires_at": 1234567890
-}
-```
-
-### Cloud Storage API
-
-```http
-GET  /apps/cloud/api.php?action=files
-POST /apps/cloud/api.php?action=upload
-DELETE /apps/cloud/api.php?action=delete
-POST /apps/cloud/api.php?action=rename
-```
-
-See [03_applications_directory_summary.md](03_applications_directory_summary.md) for complete API documentation.
-
-### Performance Monitor API
-
-```http
-GET /performance/cpu
-GET /performance/mem
-GET /performance/diskio
-GET /performance/network
-GET /performance/uptime
-```
-
-## Troubleshooting
-
-### Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| Database locked | Check WAL mode, increase busy timeout |
-| Session expires quickly | Verify session cookie settings |
-| Upload fails | Check `upload_max_filesize` in php.ini |
-| WebSocket disconnect | Check proxy configuration for WSS |
-| OTP not sending | Verify SMTP configuration |
-
-### Logs
-
-Check these logs for debugging:
+Install with one command via UI (Settings → MCP):
 
 ```bash
-# Apache error log
-tail -f /var/log/apache2/error.log
-
-# PHP error log
-tail -f /var/log/php/error.log
-
-# SQLite WAL files (if locking issues)
-ls -la *.sqlite3-wal
+npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url https://YOUR_HOST
 ```
 
-## Contributing
+Supported agents: Cursor, Claude Desktop, VS Code, OpenCode
 
-When contributing to this project:
+### API
 
-1. Follow existing code style
-2. Add translations for all 4 languages
-3. Update documentation for new features
-4. Test with different user roles
-5. Ensure mobile responsiveness
+- Public API: `/public-api/` — see [22_public_api_reference.md](22_public_api_reference.md)
+- Cloud: `apps/cloud/api.php`
+- Performance: `project/performance/` + public-api `/performance/*`
+- MCP HTTP server: `project/appdashboard-mcp/index.js` on port 8808
 
-## License
+### Troubleshooting
 
-[Add license information here]
+| Issue | Check |
+|-------|-------|
+| Session | `active_sessions`, cookie settings |
+| Upload | `upload_max_filesize` |
+| WebSocket | nginx proxy for WSS, ports 8766 (smart home) |
+| MQTT | Mosquitto + `mqtt_auth_sync.php` |
+| MCP HTTP | Check `supervisord.conf` for `appdashboard-mcp-http` |
 
-## Contact
-
-[Add contact information here]
+Prefer nginx/Docker logs under the deployment host, not Apache.

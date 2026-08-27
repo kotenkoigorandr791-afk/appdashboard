@@ -49,7 +49,7 @@
 │   ├── recipes/                       # Recipe Manager
 │   ├── spends/                        # Expense Tracker
 │   ├── steps/                         # Steps Counter with OCR
-│   ├── tft-generator/                 # TFT Display Code Generator
+│   ├── lopaka/                 # TFT Display Code Generator
 │   └── viewer/                        # Network Device Viewer
 │
 ├── i18n/                              # Internationalization files
@@ -383,12 +383,12 @@ apps/steps/
 
 ---
 
-### 9. TFT Generator - Display Code Generator (`apps/tft-generator/`)
+### 9. TFT Generator - Display Code Generator (`apps/lopaka/`)
 
 **Size:** ~300 lines of code | **Main File:** `index.php` (1,616 lines)
 
 ```
-apps/tft-generator/
+apps/lopaka/
 ├── index.php                          # Generator interface (1,616 lines)
 ├── name.json                          # App name translations
 ├── style.css                          # Generator styles
@@ -528,7 +528,7 @@ getVisitStats()                      // Get visit statistics
 | **recipes** | 3 | 0 | 80+ | ~4.2 MB |
 | **spends** | 5+ | 0 | 10+ | ~10 MB |
 | **steps** | 3 | 0 | 5+ | ~5 MB |
-| **tft-generator** | 1 | 1 | 2 | ~1 MB |
+| **lopaka** | 1 | 1 | 2 | ~1 MB |
 | **viewer** | 1 | 0 | 3 | ~1 MB |
 
 ### Lines of Code Summary
@@ -543,7 +543,7 @@ getVisitStats()                      // Get visit statistics
 | **recipes** | ~400 | ~50 | ~450 |
 | **steps** | ~400 | ~100 | ~500 |
 | **viewer** | ~500 | ~50 | ~550 |
-| **tft-generator** | ~300 | ~100 | ~400 |
+| **lopaka** | ~300 | ~100 | ~400 |
 | **media_viewer** | ~300 | ~100 | ~400 |
 
 ---

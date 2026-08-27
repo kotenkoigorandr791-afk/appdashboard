@@ -934,11 +934,43 @@ if (isset($_GET['api']) && $_GET['api'] === 'onboarding') { try {
 }}
 
 // ── Support Chat API ─────────────────────────────────────────────────────────
+function normalizeChatEmail($email): string {
+    return strtolower(trim((string)$email));
+}
+function peerConversationKey($a, $b): array {
+    $a = normalizeChatEmail($a);
+    $b = normalizeChatEmail($b);
+    return strcmp($a, $b) <= 0 ? [$a, $b] : [$b, $a];
+}
+function isPeerBlocked(AppDatabase $db, $a, $b): bool {
+    $a = normalizeChatEmail($a);
+    $b = normalizeChatEmail($b);
+    if ($a === '' || $b === '') return true;
+    $stmt = $db->prepare('SELECT 1 FROM chat_blocks WHERE (blocker_email = :a AND blocked_email = :b) OR (blocker_email = :b2 AND blocked_email = :a2) LIMIT 1');
+    $stmt->bindValue(':a', $a, PDO::PARAM_STR);
+    $stmt->bindValue(':b', $b, PDO::PARAM_STR);
+    $stmt->bindValue(':b2', $b, PDO::PARAM_STR);
+    $stmt->bindValue(':a2', $a, PDO::PARAM_STR);
+    return (bool)$stmt->execute()->fetch(PDO::FETCH_ASSOC);
+}
+function assertPeerVisible(AppDatabase $db, $current, $other): array {
+    $current = normalizeChatEmail($current);
+    $other = normalizeChatEmail($other);
+    if ($other === '' || $other === $current) json_out(['ok' => false, 'error' => 'invalid_peer'], 400);
+    $stmt = $db->prepare('SELECT email, name, photo FROM users WHERE lower(email) = :email LIMIT 1');
+    $stmt->bindValue(':email', $other, PDO::PARAM_STR);
+    $user = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$user) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
+    $other = normalizeChatEmail($user['email']);
+    if (isPeerBlocked($db, $current, $other)) json_out(['ok' => false, 'error' => 'peer_blocked']);
+    return $user;
+}
 if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     $sessionOk = isset($_SESSION['user']['email'], $_SESSION['auth_time']) && getUserFromActiveSessions(session_id()) !== null;
     if (!$sessionOk) json_out(['ok' => false, 'error' => 'not_authenticated'], 401);
 
     $db = getDB();
+    ensureSupportChatSchema($db);
     $userEmail = (string)$_SESSION['user']['email'];
     $userRole = (int)($_SESSION['user']['role'] ?? 0);
     $isAdmin = $userRole >= 2;
@@ -947,30 +979,62 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     }
 
     $action = $_GET['action'] ?? $_POST['action'] ?? '';
+    if ($action === 'session_info') {
+        json_out(['ok' => true, 'is_admin' => $isAdmin, 'email' => normalizeChatEmail($userEmail)]);
+    }
 
     if ($action === 'get_unread_count') {
         if ($isAdmin) {
-            $stmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE is_read = 0 AND sender_email != :me');
+            $stmt = $db->prepare("SELECT COUNT(*) AS c FROM support_chat WHERE chat_type = 'support' AND is_read = 0 AND sender_email != :me");
             $stmt->bindValue(':me', $userEmail, PDO::PARAM_STR);
             $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
             json_out(['ok' => true, 'count' => (int)($row['c'] ?? 0)]);
         }
-        $stmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE user_email = :u AND is_read = 0 AND sender_email != :u2');
+        $stmt = $db->prepare("SELECT COUNT(*) AS c FROM support_chat sc WHERE (sc.chat_type = 'support' AND sc.user_email = :u OR sc.chat_type = 'peer' AND (sc.user_email = :u3 OR sc.recipient_email = :u4)) AND sc.is_read = 0 AND sc.sender_email != :u2 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :u5 AND h.chat_type = sc.chat_type AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = COALESCE(sc.recipient_email,''))");
         $stmt->bindValue(':u', $userEmail, PDO::PARAM_STR);
         $stmt->bindValue(':u2', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':u3', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':u4', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':u5', $userEmail, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         json_out(['ok' => true, 'count' => (int)($row['c'] ?? 0)]);
     }
 
     // Get messages (chunked: initial latest N, before_id=older, since_id=newer for poll, full=1 up to 500)
     if ($action === 'get_messages') {
-        $chatUserEmail = $isAdmin ? ($_GET['user_email'] ?? $_POST['user_email'] ?? '') : $userEmail;
-        if ($chatUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
+        $chatType = ($_GET['chat_type'] ?? $_POST['chat_type'] ?? 'support') === 'peer' ? 'peer' : 'support';
+        $peerEmail = normalizeChatEmail($_GET['peer_email'] ?? $_POST['peer_email'] ?? '');
+        if ($chatType === 'peer') {
+            assertPeerVisible($db, $userEmail, $peerEmail);
+            [$convUserEmail, $convRecipientEmail] = peerConversationKey($userEmail, $peerEmail);
+        } else {
+            $convUserEmail = $isAdmin ? normalizeChatEmail($_GET['user_email'] ?? $_POST['user_email'] ?? '') : normalizeChatEmail($userEmail);
+            $convRecipientEmail = null;
+            if ($convUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
+        }
+        $where = "chat_type = :chat_type AND user_email = :email AND " . ($chatType === 'peer' ? 'recipient_email = :recipient_email' : 'recipient_email IS NULL');
+        $bindConversation = static function ($stmt) use ($chatType, $convUserEmail, $convRecipientEmail): void {
+            $stmt->bindValue(':chat_type', $chatType, PDO::PARAM_STR);
+            $stmt->bindValue(':email', $convUserEmail, PDO::PARAM_STR);
+            if ($chatType === 'peer') $stmt->bindValue(':recipient_email', $convRecipientEmail, PDO::PARAM_STR);
+        };
+        if (!$isAdmin) {
+            $hiddenStmt = $db->prepare("SELECT 1 FROM chat_hidden WHERE email = :me AND chat_type = :chat_type AND user_email = :email AND COALESCE(recipient_email,'') = COALESCE(:recipient_email,'') LIMIT 1");
+            $hiddenStmt->bindValue(':me', normalizeChatEmail($userEmail), PDO::PARAM_STR);
+            $hiddenStmt->bindValue(':chat_type', $chatType, PDO::PARAM_STR);
+            $hiddenStmt->bindValue(':email', $convUserEmail, PDO::PARAM_STR);
+            $hiddenStmt->bindValue(':recipient_email', $convRecipientEmail, $convRecipientEmail ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            if ($hiddenStmt->execute()->fetch(PDO::FETCH_ASSOC)) {
+                json_out(['ok' => true, 'messages' => [], 'mode' => 'initial', 'has_more_older' => false, 'min_id' => null, 'max_id' => null]);
+            }
+        }
 
         $mapRow = static function (array $row): array {
             return [
                 'id' => (int)$row['id'],
                 'user_email' => $row['user_email'],
+                'recipient_email' => $row['recipient_email'] ?? null,
+                'chat_type' => $row['chat_type'] ?? 'support',
                 'sender_email' => $row['sender_email'],
                 'message' => $row['message'],
                 'media_path' => $row['media_path'],
@@ -984,9 +1048,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         };
 
         if ((int)($_GET['full'] ?? 0) === 1) {
-            $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
-                FROM support_chat WHERE user_email = :email ORDER BY created_at ASC LIMIT 500');
-            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+            $stmt = $db->prepare("SELECT id, user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
+                FROM support_chat WHERE $where ORDER BY created_at ASC LIMIT 500");
+            $bindConversation($stmt);
             $result = $stmt->execute();
             $messages = [];
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
@@ -997,9 +1061,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         $sinceId = (int)($_GET['since_id'] ?? 0);
         if ($sinceId > 0) {
-            $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
-                FROM support_chat WHERE user_email = :email AND id > :sid ORDER BY created_at ASC LIMIT 100');
-            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+            $stmt = $db->prepare("SELECT id, user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
+                FROM support_chat WHERE $where AND id > :sid ORDER BY created_at ASC LIMIT 100");
+            $bindConversation($stmt);
             $stmt->bindValue(':sid', $sinceId, PDO::PARAM_INT);
             $result = $stmt->execute();
             $messages = [];
@@ -1013,9 +1077,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         $beforeId = (int)($_GET['before_id'] ?? 0);
 
         if ($beforeId > 0) {
-            $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
-                FROM support_chat WHERE user_email = :email AND id < :bid ORDER BY created_at DESC LIMIT :lim');
-            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+            $stmt = $db->prepare("SELECT id, user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
+                FROM support_chat WHERE $where AND id < :bid ORDER BY created_at DESC LIMIT :lim");
+            $bindConversation($stmt);
             $stmt->bindValue(':bid', $beforeId, PDO::PARAM_INT);
             $stmt->bindValue(':lim', $chunk, PDO::PARAM_INT);
             $result = $stmt->execute();
@@ -1030,8 +1094,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             }
             $hasMore = false;
             if ($minId !== null) {
-                $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE user_email = :e AND id < :mid');
-                $cstmt->bindValue(':e', $chatUserEmail, PDO::PARAM_STR);
+                $cstmt = $db->prepare("SELECT COUNT(*) AS c FROM support_chat WHERE $where AND id < :mid");
+                $bindConversation($cstmt);
                 $cstmt->bindValue(':mid', $minId, PDO::PARAM_INT);
                 $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
                 $hasMore = $crow && (int)$crow['c'] > 0;
@@ -1039,9 +1103,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             json_out(['ok' => true, 'messages' => $messages, 'mode' => 'older', 'has_more_older' => $hasMore, 'min_id' => $minId]);
         }
 
-        $stmt = $db->prepare('SELECT id, user_email, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
-            FROM support_chat WHERE user_email = :email ORDER BY created_at DESC LIMIT :lim');
-        $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+        $stmt = $db->prepare("SELECT id, user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, is_deleted, is_edited, is_read, created_at, edited_at
+            FROM support_chat WHERE $where ORDER BY created_at DESC LIMIT :lim");
+        $bindConversation($stmt);
         $stmt->bindValue(':lim', $chunk, PDO::PARAM_INT);
         $result = $stmt->execute();
         $rows = [];
@@ -1057,8 +1121,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         }
         $hasMore = false;
         if ($minId !== null) {
-            $cstmt = $db->prepare('SELECT COUNT(*) AS c FROM support_chat WHERE user_email = :e AND id < :mid');
-            $cstmt->bindValue(':e', $chatUserEmail, PDO::PARAM_STR);
+            $cstmt = $db->prepare("SELECT COUNT(*) AS c FROM support_chat WHERE $where AND id < :mid");
+            $bindConversation($cstmt);
             $cstmt->bindValue(':mid', $minId, PDO::PARAM_INT);
             $crow = $cstmt->execute()->fetch(PDO::FETCH_ASSOC);
             $hasMore = $crow && (int)$crow['c'] > 0;
@@ -1069,8 +1133,26 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     // Send message
     if ($action === 'send_message') {
         $message = trim((string)($_POST['message'] ?? ''));
-        $chatUserEmail = $isAdmin ? ($_POST['user_email'] ?? '') : $userEmail;
-
+        $chatType = ($_POST['chat_type'] ?? 'support') === 'peer' ? 'peer' : 'support';
+        $senderEmail = normalizeChatEmail($userEmail);
+        if ($chatType === 'peer') {
+            $peerEmail = normalizeChatEmail($_POST['peer_email'] ?? '');
+            assertPeerVisible($db, $userEmail, $peerEmail);
+            [$chatUserEmail, $recipientEmail] = peerConversationKey($userEmail, $peerEmail);
+        } else {
+            $chatUserEmail = $isAdmin ? normalizeChatEmail($_POST['user_email'] ?? '') : normalizeChatEmail($userEmail);
+            $recipientEmail = null;
+            if ($isAdmin) {
+                $uStmt = $db->prepare('SELECT email FROM users WHERE lower(email) = :email LIMIT 1');
+                $uStmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+                $targetUser = $uStmt->execute()->fetch(PDO::FETCH_ASSOC);
+                if (!$targetUser) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
+                $chatUserEmail = normalizeChatEmail($targetUser['email']);
+            }
+            if ($isAdmin && ($_POST['send_as'] ?? 'support') === 'user') {
+                $senderEmail = $chatUserEmail;
+            }
+        }
         if ($chatUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
         if ($message === '' && empty($_FILES['media'])) json_out(['ok' => false, 'error' => 'empty_message'], 400);
 
@@ -1084,10 +1166,12 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             $mediaType = $stored['type'];
         }
 
-        $stmt = $db->prepare("INSERT INTO support_chat (user_email, sender_email, message, media_path, media_type, created_at)
-                              VALUES (:user_email, :sender_email, :message, :media_path, :media_type, :created_at)");
+        $stmt = $db->prepare("INSERT INTO support_chat (user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, created_at)
+                              VALUES (:user_email, :recipient_email, :chat_type, :sender_email, :message, :media_path, :media_type, :created_at)");
         $stmt->bindValue(':user_email', $chatUserEmail, PDO::PARAM_STR);
-        $stmt->bindValue(':sender_email', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':recipient_email', $recipientEmail, $recipientEmail ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':chat_type', $chatType, PDO::PARAM_STR);
+        $stmt->bindValue(':sender_email', $senderEmail, PDO::PARAM_STR);
         $stmt->bindValue(':message', $message, PDO::PARAM_STR);
         $stmt->bindValue(':media_path', $mediaPath, $mediaPath ? PDO::PARAM_STR : PDO::PARAM_NULL);
         $stmt->bindValue(':media_type', $mediaType, $mediaType ? PDO::PARAM_STR : PDO::PARAM_NULL);
@@ -1095,9 +1179,16 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         $stmt->execute();
 
         $messageId = $db->lastInsertRowID();
+        $clearHidden = $db->prepare("DELETE FROM chat_hidden WHERE chat_type = :chat_type AND user_email = :user_email AND COALESCE(recipient_email,'') = COALESCE(:recipient_email,'') AND (email = :sender OR email = :peer)");
+        $clearHidden->bindValue(':chat_type', $chatType, PDO::PARAM_STR);
+        $clearHidden->bindValue(':user_email', $chatUserEmail, PDO::PARAM_STR);
+        $clearHidden->bindValue(':recipient_email', $recipientEmail, $recipientEmail ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $clearHidden->bindValue(':sender', normalizeChatEmail($userEmail), PDO::PARAM_STR);
+        $clearHidden->bindValue(':peer', $recipientEmail ? ($recipientEmail === normalizeChatEmail($userEmail) ? $chatUserEmail : $recipientEmail) : $chatUserEmail, PDO::PARAM_STR);
+        $clearHidden->execute();
 
-        if (!$isAdmin) {
-            $checkStmt = $db->prepare('SELECT COUNT(*) AS cnt FROM support_chat WHERE user_email = :email AND sender_email = :email');
+        if (!$isAdmin && $chatType === 'support') {
+            $checkStmt = $db->prepare("SELECT COUNT(*) AS cnt FROM support_chat WHERE chat_type = 'support' AND user_email = :email AND sender_email = :email");
             $checkStmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
             $checkResult = $checkStmt->execute()->fetch(PDO::FETCH_ASSOC);
 
@@ -1131,12 +1222,12 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if ($messageId <= 0) json_out(['ok' => false, 'error' => 'invalid_message_id'], 400);
 
         // Check if user has permission to delete
-        $stmt = $db->prepare("SELECT sender_email FROM support_chat WHERE id = :id LIMIT 1");
+        $stmt = $db->prepare("SELECT sender_email, chat_type, user_email, recipient_email FROM support_chat WHERE id = :id LIMIT 1");
         $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) json_out(['ok' => false, 'error' => 'message_not_found'], 404);
-        if (!$isAdmin && $row['sender_email'] !== $userEmail) {
+        if (!$isAdmin && ($row['sender_email'] !== $userEmail || (($row['chat_type'] ?? 'support') === 'peer' && $row['user_email'] !== $userEmail && $row['recipient_email'] !== $userEmail))) {
             json_out(['ok' => false, 'error' => 'permission_denied'], 403);
         }
 
@@ -1156,12 +1247,12 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         if ($messageId <= 0) json_out(['ok' => false, 'error' => 'invalid_message_id'], 400);
 
         // Check if user has permission to edit
-        $stmt = $db->prepare('SELECT sender_email, media_path, media_type FROM support_chat WHERE id = :id LIMIT 1');
+        $stmt = $db->prepare('SELECT sender_email, user_email, recipient_email, chat_type, media_path, media_type FROM support_chat WHERE id = :id LIMIT 1');
         $stmt->bindValue(':id', $messageId, PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) json_out(['ok' => false, 'error' => 'message_not_found'], 404);
-        if ($row['sender_email'] !== $userEmail) {
+        if ($row['sender_email'] !== $userEmail || (($row['chat_type'] ?? 'support') === 'peer' && $row['user_email'] !== $userEmail && $row['recipient_email'] !== $userEmail)) {
             json_out(['ok' => false, 'error' => 'permission_denied'], 403);
         }
 
@@ -1204,15 +1295,26 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
     // Mark messages as read
     if ($action === 'mark_read') {
-        $chatUserEmail = $isAdmin ? ($_GET['user_email'] ?? $_POST['user_email'] ?? '') : $userEmail;
-        if ($chatUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
+        $chatType = ($_GET['chat_type'] ?? $_POST['chat_type'] ?? 'support') === 'peer' ? 'peer' : 'support';
+        if ($chatType === 'peer') {
+            $peerEmail = normalizeChatEmail($_GET['peer_email'] ?? $_POST['peer_email'] ?? '');
+            assertPeerVisible($db, $userEmail, $peerEmail);
+            [$chatUserEmail, $recipientEmail] = peerConversationKey($userEmail, $peerEmail);
+        } else {
+            $chatUserEmail = $isAdmin ? normalizeChatEmail($_GET['user_email'] ?? $_POST['user_email'] ?? '') : normalizeChatEmail($userEmail);
+            $recipientEmail = null;
+            if ($chatUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
+        }
 
-        // Mark all messages in this chat as read (except own messages)
         $stmt = $db->prepare("UPDATE support_chat SET is_read = 1
                               WHERE user_email = :user_email
+                              AND chat_type = :chat_type
+                              AND " . ($chatType === 'peer' ? 'recipient_email = :recipient_email' : 'recipient_email IS NULL') . "
                               AND sender_email != :current_user
                               AND is_read = 0");
         $stmt->bindValue(':user_email', $chatUserEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':chat_type', $chatType, PDO::PARAM_STR);
+        if ($chatType === 'peer') $stmt->bindValue(':recipient_email', $recipientEmail, PDO::PARAM_STR);
         $stmt->bindValue(':current_user', $userEmail, PDO::PARAM_STR);
         $stmt->execute();
 
@@ -1236,10 +1338,11 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
 
         // Check if user has access to this file (file must be in a message they can see)
         $fileName = basename($filePath);
-        $stmt = $db->prepare('SELECT COUNT(*) as cnt FROM support_chat WHERE media_path = :path AND (user_email = :email OR sender_email = :email2)');
+        $stmt = $db->prepare('SELECT COUNT(*) as cnt FROM support_chat WHERE media_path = :path AND (user_email = :email OR recipient_email = :email3 OR sender_email = :email2)');
         $stmt->bindValue(':path', $filePath, PDO::PARAM_STR);
         $stmt->bindValue(':email', $userEmail, PDO::PARAM_STR);
         $stmt->bindValue(':email2', $userEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':email3', $userEmail, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if (!$isAdmin && (!$row || (int)$row['cnt'] === 0)) {
@@ -1254,47 +1357,103 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
         json_out(['ok' => true, 'content' => $content]);
     }
 
-    // Get chat list (admin only)
+    // Get chat list
     if ($action === 'get_chat_list') {
-        if (!$isAdmin) json_out(['ok' => false, 'error' => 'permission_denied'], 403);
-
-        $stmt = $db->query("SELECT * FROM (SELECT DISTINCT sc.user_email,
-                            (SELECT MAX(COALESCE(edited_at, created_at)) FROM support_chat t WHERE t.user_email = sc.user_email AND COALESCE(t.is_deleted,0)=0) AS last_message_time,
-                            (SELECT COUNT(*) FROM support_chat t2 WHERE t2.user_email = sc.user_email AND COALESCE(t2.is_deleted,0)=0) AS message_count,
+        if ($isAdmin) {
+            $stmt = $db->query("SELECT * FROM (SELECT DISTINCT sc.user_email,
+                            (SELECT MAX(COALESCE(edited_at, created_at)) FROM support_chat t WHERE t.chat_type = 'support' AND t.user_email = sc.user_email AND COALESCE(t.is_deleted,0)=0) AS last_message_time,
+                            (SELECT COUNT(*) FROM support_chat t2 WHERE t2.chat_type = 'support' AND t2.user_email = sc.user_email AND COALESCE(t2.is_deleted,0)=0) AS message_count,
                             (SELECT role FROM users WHERE email = sc.user_email LIMIT 1) as user_role,
                             (SELECT COALESCE(name, '') FROM users WHERE email = sc.user_email LIMIT 1) as user_name,
                             (SELECT photo FROM users WHERE email = sc.user_email LIMIT 1) as user_photo
                             FROM support_chat sc
+                            WHERE sc.chat_type = 'support'
                             ) chat_rows ORDER BY CASE WHEN last_message_time IS NULL THEN 1 ELSE 0 END ASC, last_message_time DESC");
-        if (!$stmt) json_out(['ok' => false, 'error' => 'db_query_failed'], 500);
-
-        $chats = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $chats[] = [
+            if (!$stmt) json_out(['ok' => false, 'error' => 'db_query_failed'], 500);
+            $chats = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $chats[] = [
+                    'chat_type' => 'support',
+                    'user_email' => $row['user_email'],
+                    'user_name' => (string)($row['user_name'] ?? ''),
+                    'last_message_time' => (int)$row['last_message_time'],
+                    'message_count' => (int)$row['message_count'],
+                    'user_role' => (int)($row['user_role'] ?? 0),
+                    'user_photo' => app_avatar_src($row['user_photo'] ?? null),
+                ];
+            }
+            json_out(['ok' => true, 'chats' => $chats]);
+        }
+        $me = normalizeChatEmail($userEmail);
+        $supportStmt = $db->prepare("SELECT MAX(COALESCE(edited_at, created_at)) AS last_message_time, COUNT(*) AS message_count FROM support_chat sc WHERE sc.chat_type = 'support' AND sc.user_email = :me AND COALESCE(sc.is_deleted,0)=0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :me2 AND h.chat_type = 'support' AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = '')");
+        $supportStmt->bindValue(':me', $me, PDO::PARAM_STR);
+        $supportStmt->bindValue(':me2', $me, PDO::PARAM_STR);
+        $supportRow = $supportStmt->execute()->fetch(PDO::FETCH_ASSOC);
+        $supportChats = [[
+            'chat_type' => 'support',
+            'user_email' => $me,
+            'peer_email' => '',
+            'user_name' => 'Support',
+            'last_message_time' => (int)($supportRow['last_message_time'] ?? 0),
+            'message_count' => (int)($supportRow['message_count'] ?? 0),
+            'user_role' => 2,
+            'user_photo' => app_avatar_src('default_avatar.png'),
+        ]];
+        $peerStmt = $db->prepare("SELECT sc.user_email, sc.recipient_email, MAX(COALESCE(sc.edited_at, sc.created_at)) AS last_message_time, COUNT(*) AS message_count FROM support_chat sc WHERE sc.chat_type = 'peer' AND (sc.user_email = :me OR sc.recipient_email = :me2) AND COALESCE(sc.is_deleted,0)=0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :me3 AND h.chat_type = 'peer' AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = COALESCE(sc.recipient_email,'')) GROUP BY sc.user_email, sc.recipient_email ORDER BY last_message_time DESC");
+        $peerStmt->bindValue(':me', $me, PDO::PARAM_STR);
+        $peerStmt->bindValue(':me2', $me, PDO::PARAM_STR);
+        $peerStmt->bindValue(':me3', $me, PDO::PARAM_STR);
+        $res = $peerStmt->execute();
+        $peerChats = [];
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+            $other = normalizeChatEmail($row['user_email']) === $me ? $row['recipient_email'] : $row['user_email'];
+            $uStmt = $db->prepare('SELECT email, name, role, photo FROM users WHERE lower(email) = :email LIMIT 1');
+            $uStmt->bindValue(':email', normalizeChatEmail($other), PDO::PARAM_STR);
+            $u = $uStmt->execute()->fetch(PDO::FETCH_ASSOC) ?: [];
+            $blockedStmt = $db->prepare('SELECT 1 FROM chat_blocks WHERE blocker_email = :me AND blocked_email = :other LIMIT 1');
+            $blockedStmt->bindValue(':me', $me, PDO::PARAM_STR);
+            $blockedStmt->bindValue(':other', normalizeChatEmail($other), PDO::PARAM_STR);
+            $peerChats[] = [
+                'chat_type' => 'peer',
                 'user_email' => $row['user_email'],
-                'user_name' => (string)($row['user_name'] ?? ''),
-                'last_message_time' => (int)$row['last_message_time'],
-                'message_count' => (int)$row['message_count'],
-                'user_role' => (int)($row['user_role'] ?? 0),
-                'user_photo' => app_avatar_src($row['user_photo'] ?? null),
+                'recipient_email' => $row['recipient_email'],
+                'peer_email' => normalizeChatEmail($other),
+                'user_name' => (string)($u['name'] ?? ''),
+                'last_message_time' => (int)($row['last_message_time'] ?? 0),
+                'message_count' => (int)($row['message_count'] ?? 0),
+                'user_role' => (int)($u['role'] ?? 0),
+                'user_photo' => app_avatar_src($u['photo'] ?? null),
+                'is_blocked_by_me' => (bool)$blockedStmt->execute()->fetch(PDO::FETCH_ASSOC),
             ];
         }
-
-        json_out(['ok' => true, 'chats' => $chats]);
+        json_out(['ok' => true, 'sections' => ['support' => $supportChats, 'people' => $peerChats], 'chats' => array_merge($supportChats, $peerChats)]);
     }
 
-    // Delete entire chat (admin only)
+    // Delete entire chat
     if ($action === 'delete_chat') {
-        if (!$isAdmin) json_out(['ok' => false, 'error' => 'permission_denied'], 403);
-
-        $chatUserEmail = $_POST['user_email'] ?? '';
-        if ($chatUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
-
-        // Delete all messages for this user
-        $stmt = $db->prepare("DELETE FROM support_chat WHERE user_email = :email");
-        $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+        $chatType = ($_POST['chat_type'] ?? 'support') === 'peer' ? 'peer' : 'support';
+        if ($isAdmin) {
+            $chatUserEmail = normalizeChatEmail($_POST['user_email'] ?? '');
+            if ($chatUserEmail === '') json_out(['ok' => false, 'error' => 'missing_user_email'], 400);
+            $stmt = $db->prepare("DELETE FROM support_chat WHERE chat_type = 'support' AND user_email = :email");
+            $stmt->bindValue(':email', $chatUserEmail, PDO::PARAM_STR);
+            $stmt->execute();
+            json_out(['ok' => true]);
+        }
+        if ($chatType === 'peer') {
+            $peerEmail = normalizeChatEmail($_POST['peer_email'] ?? '');
+            [$chatUserEmail, $recipientEmail] = peerConversationKey($userEmail, $peerEmail);
+        } else {
+            $chatUserEmail = normalizeChatEmail($userEmail);
+            $recipientEmail = null;
+        }
+        $stmt = $db->prepare("INSERT INTO chat_hidden (email, chat_type, user_email, recipient_email, hidden_at) VALUES (:email, :chat_type, :user_email, :recipient_email, :hidden_at) ON CONFLICT DO NOTHING");
+        $stmt->bindValue(':email', normalizeChatEmail($userEmail), PDO::PARAM_STR);
+        $stmt->bindValue(':chat_type', $chatType, PDO::PARAM_STR);
+        $stmt->bindValue(':user_email', $chatUserEmail, PDO::PARAM_STR);
+        $stmt->bindValue(':recipient_email', $recipientEmail, $recipientEmail ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':hidden_at', time(), PDO::PARAM_INT);
         $stmt->execute();
-
         json_out(['ok' => true]);
     }
 
@@ -1318,20 +1477,31 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
     }
 
     if ($action === 'search_users') {
-        if (!$isAdmin) {
-            json_out(['ok' => false, 'error' => 'permission_denied'], 403);
-        }
         $q = trim((string)($_GET['q'] ?? ''));
-        if ($q === '') {
-            $result = $db->query("SELECT email, name, role, photo FROM users WHERE role < 2 ORDER BY lower(email) LIMIT 40");
+        if (!$isAdmin) {
+            $emailQ = normalizeChatEmail($q);
+            if ($emailQ === '' || !filter_var($emailQ, FILTER_VALIDATE_EMAIL) || $emailQ === normalizeChatEmail($userEmail) || isPeerBlocked($db, $userEmail, $emailQ)) {
+                json_out(['ok' => true, 'users' => []]);
+            }
+            $stmt = $db->prepare('SELECT email, name, role, photo FROM users WHERE lower(email) = :email LIMIT 1');
+            $stmt->bindValue(':email', $emailQ, PDO::PARAM_STR);
+            $result = $stmt->execute();
+        } elseif ($q === '') {
+            $result = $db->query("SELECT email, name, role, photo FROM users ORDER BY lower(email) LIMIT 40");
         } else {
             $esc = static function (string $s): string {
                 return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
             };
-            $term = '%' . $esc($q) . '%';
-            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE role < 2 AND (email LIKE :t ESCAPE '\\' OR COALESCE(name, '') LIKE :t ESCAPE '\\') ORDER BY lower(email) LIMIT 40");
-            $stmt->bindValue(':t', $term, PDO::PARAM_STR);
+            $term = normalizeChatEmail($q);
+            $prefix = $esc(strtolower($q)) . '%';
+            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE lower(email) = :term OR lower(email) LIKE :prefix ESCAPE '\\' OR lower(COALESCE(name, '')) LIKE :prefix ESCAPE '\\' ORDER BY CASE WHEN lower(email) = :term2 THEN 0 ELSE 1 END, lower(email) LIMIT 40");
+            $stmt->bindValue(':term', $term, PDO::PARAM_STR);
+            $stmt->bindValue(':term2', $term, PDO::PARAM_STR);
+            $stmt->bindValue(':prefix', $prefix, PDO::PARAM_STR);
             $result = $stmt->execute();
+        }
+        if (!$result) {
+            json_out(['ok' => false, 'error' => 'db_query_failed'], 500);
         }
         $users = [];
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
@@ -1343,6 +1513,22 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             ];
         }
         json_out(['ok' => true, 'users' => $users]);
+    }
+
+    if ($action === 'block_user' || $action === 'unblock_user') {
+        if ($isAdmin) json_out(['ok' => false, 'error' => 'permission_denied'], 403);
+        $peerEmail = normalizeChatEmail($_POST['peer_email'] ?? $_GET['peer_email'] ?? '');
+        if ($peerEmail === '' || $peerEmail === normalizeChatEmail($userEmail)) json_out(['ok' => false, 'error' => 'invalid_peer'], 400);
+        if ($action === 'block_user') {
+            $stmt = $db->prepare("INSERT INTO chat_blocks (blocker_email, blocked_email, created_at) VALUES (:me, :peer, :created_at) ON CONFLICT DO NOTHING");
+            $stmt->bindValue(':created_at', time(), PDO::PARAM_INT);
+        } else {
+            $stmt = $db->prepare('DELETE FROM chat_blocks WHERE blocker_email = :me AND blocked_email = :peer');
+        }
+        $stmt->bindValue(':me', normalizeChatEmail($userEmail), PDO::PARAM_STR);
+        $stmt->bindValue(':peer', $peerEmail, PDO::PARAM_STR);
+        $stmt->execute();
+        json_out(['ok' => true]);
     }
 
     json_out(['ok' => false, 'error' => 'unknown_action'], 400);
@@ -1629,13 +1815,13 @@ $defaultTranslations['expires'] = 'Expires';
 $defaultTranslations['revoke'] = 'Revoke';
 $defaultTranslations['no_tokens'] = 'No tokens';
 $defaultTranslations['mcp_setup_title'] = 'MCP for AI agents';
-$defaultTranslations['mcp_setup_subtitle'] = 'Connect Cursor, Claude Desktop, VS Code, OpenCode, or Agora to this AppDashboard.';
+$defaultTranslations['mcp_setup_subtitle'] = 'Connect Cursor, Claude Desktop, VS Code, or OpenCode to this AppDashboard.';
 $defaultTranslations['mcp_setup_req'] = 'Requires Node.js 18+ on your PC.';
 $defaultTranslations['mcp_setup_copy'] = 'Copy';
 $defaultTranslations['mcp_setup_copied'] = 'Copied';
 $defaultTranslations['mcp_setup_step1'] = 'Install Node.js 18+ if needed';
-$defaultTranslations['mcp_setup_step2'] = 'Copy the command for your agent and run it in a terminal';
-$defaultTranslations['mcp_setup_step3'] = 'Restart the agent, then open the browser auth link when prompted';
+$defaultTranslations['mcp_setup_step2'] = 'Select your agent and copy the generated setup command';
+$defaultTranslations['mcp_setup_step3'] = 'Restart the agent, then complete required login from the auth link or login tool';
 $defaultTranslations['mcp_setup_not_ready'] = 'Package is not built on this server yet. Ask an admin to redeploy main.';
 $defaultTranslations['mcp_setup_not_built'] = 'Not built';
 $defaultTranslations['mcp_setup_info_failed'] = 'Could not load MCP setup info';
@@ -1644,11 +1830,17 @@ $defaultTranslations['mcp_setup_agent_claude'] = 'Claude Desktop';
 $defaultTranslations['mcp_setup_agent_vscode'] = 'VS Code / Copilot';
 $defaultTranslations['mcp_setup_agent_opencode'] = 'OpenCode';
 $defaultTranslations['mcp_setup_download'] = 'Download package';
+$defaultTranslations['mcp_setup_installers'] = 'Installers';
+$defaultTranslations['mcp_setup_tokens_tab'] = 'Tokens';
+$defaultTranslations['mcp_setup_select_agent'] = 'Select agent';
+$defaultTranslations['mcp_setup_command'] = 'Setup command';
+$defaultTranslations['mcp_setup_remove_command'] = 'Remove command';
+$defaultTranslations['mcp_setup_remove_hint'] = 'If this package is no longer needed, run this command and restart the agent.';
 $defaultTranslations['mcp_setup_token_title'] = 'HTTP token for external apps';
 $defaultTranslations['mcp_setup_token_hint'] = 'Use this Bearer token with the Streamable HTTP endpoint.';
 $defaultTranslations['mcp_setup_token_name'] = 'Token name';
-$defaultTranslations['mcp_setup_token_default_name'] = 'Agora';
-$defaultTranslations['mcp_setup_token_generate'] = 'Generate Agora token';
+$defaultTranslations['mcp_setup_token_default_name'] = 'External app';
+$defaultTranslations['mcp_setup_token_generate'] = 'Generate token';
 $defaultTranslations['mcp_setup_token_failed'] = 'Token generation failed';
 $defaultTranslations['mcp_setup_token_generated'] = 'MCP token generated';
 $defaultTranslations['mcp_setup_token_revoked'] = 'MCP token revoked';

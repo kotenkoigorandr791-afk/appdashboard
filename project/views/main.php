@@ -247,10 +247,10 @@
         #menu-button .menu-button-glyph{width:100%;height:100%;}
         #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-height) * 0.5);height:calc(var(--shell-menu-button-height) * 0.5);}
 	        @media (max-width:768px){
-	            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
-	            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
-	            #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
-	        }
+            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
+            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
+            #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
+        }
         <?php endif; ?>
         #sidebar{position:fixed;top:54px;left:-320px;width:320px;height:calc(100% - 54px);background:var(--sidebar-bg);transition:left 0.3s cubic-bezier(.2,.8,.2,1);padding:20px;box-sizing:border-box;display:flex;flex-direction:column;z-index:999;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);border-left:none;box-shadow:var(--glass-shadow);}
         <?php if(!$isHomeDashboard): ?>
@@ -302,6 +302,7 @@
         #app-list-container::after{content:"";position:absolute;left:0;right:0;z-index:2;pointer-events:none;backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);}
         #app-list-container::before{top:0;height:44px;-webkit-mask-image:linear-gradient(to bottom,black 0%,transparent 100%);mask-image:linear-gradient(to bottom,black 0%,transparent 100%);}
         #app-list-container::after{bottom:0;height:54px;-webkit-mask-image:linear-gradient(to top,black 0%,transparent 100%);mask-image:linear-gradient(to top,black 0%,transparent 100%);}
+        @media (min-width:769px){#app-list-container{overflow-y:auto;-webkit-mask-image:none;mask-image:none;}#app-list-container::before,#app-list-container::after{display:none;}}
         .search-container{overflow:hidden;width:36px;height:36px;box-sizing:border-box;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 8px;margin-left:8px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:width 0.45s cubic-bezier(0.2,0.8,0.2,1),background 0.3s ease,border-color 0.3s ease,border-radius 0.45s cubic-bezier(0.2,0.8,0.2,1);cursor:pointer;flex-shrink:0;}
         .bottom-bar-actions{position:absolute;right:8px;align-self:center;display:flex;align-items:center;gap:8px;flex-shrink:0;}
         .search-icon{color:var(--text-color);font-size:14px;flex-shrink:0;width:auto;height:auto;opacity:0.65;}
@@ -309,8 +310,12 @@
         #search-bar::placeholder{color:color-mix(in srgb,var(--text-color) 42%,transparent);opacity:1;}
         .search-container:hover{width:120px;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
         .search-container:hover #search-bar{opacity:1;transform:translateX(0);}
-        .search-container.open{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);border-radius:999px;}
+        .search-container.open{width:120px;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);border-radius:999px;}
         .search-container.open #search-bar{opacity:1;transform:translateX(0);}
+        #bottom-bar #support-chat-btn.app-page-chat{position:relative;top:auto;right:auto;left:auto;margin-left:0;width:32px;height:32px;background:none;border:none;box-shadow:none;color:var(--text-color);padding:0;backdrop-filter:none;-webkit-backdrop-filter:none;transform:none;}
+        #bottom-bar #support-chat-btn.app-page-chat:hover{background:none;box-shadow:none;transform:none;color:var(--text-color);}
+        .search-container.open + #support-chat-btn.app-page-chat,
+        .search-container:hover + #support-chat-btn.app-page-chat{display:none!important;}
         #clear-search{display:none!important;}
         .group-letter{font-weight:bold;margin-bottom:5px;color:var(--text-color);}
         .group-block{background:var(--group-block-bg);border-radius:14px;padding:10px;margin-bottom:15px;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
@@ -546,7 +551,7 @@
         #content{padding-top:0;position:fixed;left:0;width:100%;height:100vh;box-sizing:border-box;overflow:hidden;}
         #content.has-app-rail{--rail-w:48px;}
         #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
-        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none;transition:background-color .35s ease,border-color .35s ease,color .35s ease;}
+        #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:color-mix(in srgb,var(--bg-color) 18%,transparent);backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow:hidden;overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none;transition:background-color .35s ease,border-color .35s ease,color .35s ease;}
         body.light-theme #app-icon-rail{background:rgba(240,244,248,0.20);}
         #content.app-edge-immich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#000000':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
         #content.app-edge-gitea{--app-edge-bg:<?php echo $config['theme']==='dark'?'#1e1f20':'#f6f8fa';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#30363d':'#d0d7de';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f0f6fc':'#24292f';?>;}
@@ -921,6 +926,19 @@
             font-size: 12px;
             color: #f59e0b;
             cursor: default;
+            max-width: 100%;
+            text-align: center;
+            line-height: 1.4;
+            word-wrap: break-word;
+            white-space: normal;
+            display: none;
+        }
+        #sidebarWeatherWidget .weather-perm {
+            order: 2;
+            width: 100%;
+        }
+        #sidebarWeatherWidget .weather-pin-icon {
+            order: 1;
         }
         @media (min-width: 601px) and (max-width: 1200px) {
             #top-bar-title {
@@ -2372,7 +2390,7 @@ endif; // showOtpPage
 </div>
 <?php endif; ?>
 <?php if(isset($_SESSION['user'])):?>
-    <?php $profileModalInitialOpen=isset($_GET['profile'])||isset($_POST['reset_photo'])||isset($_POST['oauth_unlink'])||isset($_POST['generate_mcp_token'])||isset($_POST['revoke_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'||($_POST['action']??'')==='revoke_mcp_token'||isset($_GET['oauth_linked'])||isset($_GET['oauth_error']); ?>
+    <?php $profileModalInitialOpen=isset($_GET['profile'])||isset($_POST['reset_photo'])||isset($_POST['oauth_unlink'])||isset($_GET['oauth_linked'])||isset($_GET['oauth_error']); ?>
     <div id="profile-modal"<?php echo $profileModalInitialOpen?' style="display:flex;"':''; ?>>
         <div id="profile-content">
             <button id="close-profile" type="button">&times;</button>
@@ -2510,51 +2528,6 @@ endif; // showOtpPage
                     </div>
                     <?php endforeach; ?>
                 </div>
-            </div>
-            <div class="profile-section">
-                <h3><?php echo my_htmlspecialchars($translations['mcp_api_tokens']); ?></h3>
-                <?php
-                $mcpGeneratedToken=(string)($_SESSION['mcp_generated_token']??'');
-                unset($_SESSION['mcp_generated_token']);
-                $mcpTokens=[];
-                try{
-                    $tokenDb=getDB();
-                    ensureClientAuthTokensSchema($tokenDb);
-                    $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 ORDER BY created_at DESC");
-                    $stmt->bindValue(':email',$_SESSION['user']['email'],PDO::PARAM_STR);
-                    $result=$stmt->execute();
-                    while($row=$result->fetch(PDO::FETCH_ASSOC)){
-                        $mcpTokens[]=$row;
-                    }
-                }catch(Throwable $e){}
-                ?>
-                <?php if($mcpGeneratedToken!==''): ?>
-                <div class="mcp-token-alert">
-                    <strong><?php echo my_htmlspecialchars($translations['mcp_token_copy_now']); ?></strong>
-                    <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
-                </div>
-                <?php endif; ?>
-                <table class="mcp-token-table">
-                    <thead><tr><th><?php echo my_htmlspecialchars($translations['mcp_token_device']); ?></th><th><?php echo my_htmlspecialchars($translations['created']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['expires']); ?></th><th></th></tr></thead>
-                    <tbody>
-                    <?php if(empty($mcpTokens)): ?>
-                    <tr><td colspan="5"><?php echo my_htmlspecialchars($translations['no_tokens']); ?></td></tr>
-                    <?php else: foreach($mcpTokens as $mcpToken): ?>
-                    <tr>
-                        <td><?php echo my_htmlspecialchars(trim(($mcpToken['device_name']??'').' / '.($mcpToken['platform']??''),' /')); ?></td>
-                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
-                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
-                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['expires_at'])); ?></td>
-                        <td><form method="post" action="/main" style="margin:0;"><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
-                    </tr>
-                    <?php endforeach; endif; ?>
-                    </tbody>
-                </table>
-                <form method="post" action="/main" class="mcp-token-form">
-                    <input type="hidden" name="action" value="generate_mcp_token">
-                    <input type="text" name="mcp_token_name" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['mcp_token_name']); ?>" maxlength="80" required>
-                    <button type="submit" name="generate_mcp_token" class="profile-action-button"><?php echo my_htmlspecialchars($translations['generate'] ?? 'Сгенерировать'); ?></button>
-                </form>
             </div>
             <div class="profile-section">
                 <form method="post" action="/main">
@@ -2993,6 +2966,7 @@ endif; // showOtpPage
                 <input type="text" id="search-bar" placeholder="<?php echo my_htmlspecialchars($translations['search_placeholder']); ?>">
                 <button id="clear-search" style="display:none;">&times;</button>
             </div>
+            <?php if(!$isHomeDashboard&&isset($_SESSION['user'])):?><button type="button" id="support-chat-btn" class="sidebar-button app-page-chat" title="<?php echo my_htmlspecialchars($translations['chat'] ?? 'Chat'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['chat'] ?? 'Chat'); ?>"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span></button><?php endif;?>
             <div class="bottom-bar-actions">
                 <?php if(!$isHomeDashboard): ?><a href="/main" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a><?php endif; ?>
                 <button id="settings-button" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['settings_title']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg></button>
@@ -3185,6 +3159,7 @@ endif; // showOtpPage
                 <tr><td><code>Q</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_qr'] ?? 'Open QR Code'); ?></td></tr>
                 <tr><td><code>N</code></td><td><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></td></tr>
                 <tr><td><code>P</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_profile'] ?? 'Open Profile'); ?></td></tr>
+                <?php if(isset($_SESSION['user'])): ?><tr><td><code>M</code></td><td><?php echo my_htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP for AI agents'); ?></td></tr><?php endif; ?>
                 <tr><td><code>H</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_support_chat'] ?? 'Open Support Chat'); ?></td></tr>
                 <tr><td><code>← ↑ ↓ →</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_arrows'] ?? 'Move between app tiles'); ?></td></tr>
                 <tr><td><code>Enter</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_enter'] ?? 'Open selected app'); ?></td></tr>
@@ -3766,6 +3741,7 @@ var T=<?php echo json_encode([
         const isHomeDashboard = <?php echo $isHomeDashboard ? 'true' : 'false'; ?>;
         const isAdminUser = <?php echo $isAdmin ? 'true' : 'false'; ?>;
         const appGrid=document.getElementById('app-grid');
+        const searchContainer=document.querySelector('.search-container');
         let selectedAppTileIndex = -1;
 
         function sanitizeAppSearchValue(value) {
@@ -3783,11 +3759,18 @@ var T=<?php echo json_encode([
                 searchBar.blur();
             }
         }
+        function syncAppPageChatButton(){
+            const btn=document.querySelector('#support-chat-btn.app-page-chat');
+            if(!btn) return;
+            const hidden=(searchContainer&&(searchContainer.classList.contains('open')||searchContainer.matches(':hover')))||(searchBar&&searchBar.value.trim()!=='');
+            btn.style.display=hidden?'none':'flex';
+        }
         function closeSidebarMenu() {
             if(!sidebar) return false;
             const wasOpen = sidebar.classList.contains('open');
             sidebar.classList.remove('open');
             clearAppSearch(false);
+            syncAppPageChatButton();
             return wasOpen;
         }
         function getAppTileLinks() {
@@ -5369,7 +5352,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
         if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
         const modalButtons=[qrButton,emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
-        if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else sidebar.classList.add('open'); });}
+        if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else if(sidebar) sidebar.classList.add('open'); syncAppPageChatButton(); });}
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
         if(settingsModal){settingsModal.addEventListener('click',(e)=>{if(e.target===settingsModal){settingsModal.style.display='none';}});}
@@ -5567,7 +5550,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             return tag === 'input' || tag === 'textarea' || tag === 'select' || !!target.isContentEditable;
         }
         function isAnyBlockingModalOpen(){
-            const modals = [settingsModal, qrModal, emailModal, usersModal, profileModal, sessionsModal, sharedFilesModal, authModal, shortcutsModal];
+            const modals = [settingsModal, qrModal, emailModal, usersModal, profileModal, sessionsModal, sharedFilesModal, authModal, shortcutsModal, document.getElementById('mcp-setup-modal')];
             const np = document.getElementById('news-portal-overlay');
             return modals.some(modal => modal && modal.style.display === 'flex') || (np && np.classList.contains('active'));
         }
@@ -5592,6 +5575,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 'reset-user-password-modal',
                 'tg-bot-modal',
                 'support-chat-modal',
+                'mcp-setup-modal',
                 'otp-gen-modal'
             ];
             let closedAny = false;
@@ -5628,10 +5612,15 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 }
                 return;
             }
-            if(!isHomeDashboard) return;
             if(e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
             if(isTypingContext(e.target) || isAnyBlockingModalOpen()) return;
             if(!code) return;
+            if(code === 'KeyM' && typeof window.openMcpSetupModal === 'function'){
+                e.preventDefault();
+                window.openMcpSetupModal();
+                return;
+            }
+            if(!isHomeDashboard) return;
             if(code === 'ArrowLeft' || code === 'ArrowRight' || code === 'ArrowUp' || code === 'ArrowDown'){
                 e.preventDefault();
                 const directionMap = {
@@ -5655,6 +5644,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 e.preventDefault();
                 if(sidebar && !sidebar.classList.contains('open')){
                     sidebar.classList.add('open');
+                    syncAppPageChatButton();
                 }
                 if(searchBar){
                     setTimeout(function(){
@@ -5731,6 +5721,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                         group.previousElementSibling.style.display=visibleItems.length>0?'block':'none';
                     }
                 });
+                syncAppPageChatButton();
             });
         }
         if(clearSearch){
@@ -5740,7 +5731,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 }
             });
         }
-        const searchContainer=document.querySelector('.search-container');
         function expandAppSearch(){
             if(!searchContainer||!searchContainer.parentElement) return false;
             const bar=searchContainer.parentElement;
@@ -5775,9 +5765,11 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(searchBar){
             searchBar.addEventListener('focus',function(){
                 expandAppSearch();
+                syncAppPageChatButton();
             });
             searchBar.addEventListener('blur',function(){
                 collapseAppSearch();
+                syncAppPageChatButton();
             });
             searchBar.addEventListener('keydown',function(e){
                 if(e.key==='Escape'){
@@ -5789,7 +5781,13 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             if(searchContainer&&searchContainer.classList.contains('open')){
                 expandAppSearch();
             }
+            syncAppPageChatButton();
         });
+        if(searchContainer){
+            searchContainer.addEventListener('mouseenter',syncAppPageChatButton);
+            searchContainer.addEventListener('mouseleave',function(){setTimeout(syncAppPageChatButton, 450);});
+        }
+        syncAppPageChatButton();
         document.querySelectorAll('#app-list a, a[href="index.php"]').forEach(link=>{link.addEventListener('click',()=>{closeSidebarMenu();});});
         function showNotification(){const notification=document.getElementById('domain-notification');if(notification){setTimeout(()=>{notification.classList.add('show');},100);setTimeout(()=>{notification.classList.remove('show');setTimeout(()=>{if(notification.parentNode){notification.remove();}},400);},4000);}}
         document.addEventListener('click',(e)=>{
@@ -5825,7 +5823,7 @@ if(isset($trustedDeviceRestoreNotice) && $trustedDeviceRestoreNotice !== '') $fl
 if(!empty($flashMessages)):
 $openPasswordOnLoad = isset($_POST['change_password']) && (isset($profileError) || isset($profileSuccess));
 $openPhotoOnLoad = isset($_POST['change_photo']) && (isset($profileError) || isset($profileSuccess));
-$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['reset_photo']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']) || isset($_POST['generate_mcp_token']) || isset($_POST['revoke_mcp_token']);
+$openProfileOnLoad = isset($_GET['profile']) || isset($_POST['reset_photo']) || isset($_POST['oauth_unlink']) || isset($_GET['oauth_linked']) || isset($_GET['oauth_error']);
 ?>
 <script>
 document.addEventListener('DOMContentLoaded', function(){

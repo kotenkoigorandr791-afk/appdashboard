@@ -714,12 +714,12 @@ function attachContextMenuDismiss(removeMenu) {
     document.addEventListener('pointerdown', (ev) => {
         if (!isContextMenuUiElement(ev.target)) dismiss();
     }, { signal, capture: true });
-    document.addEventListener('pointermove', (ev) => {
+    document.addEventListener('pointerdown', (ev) => {
         if (!document.getElementById('context-menu')) return;
         const hit = document.elementFromPoint(ev.clientX, ev.clientY);
         if (!hit || isContextMenuUiElement(hit)) return;
         if (hit.tagName === 'IFRAME' || hit.closest?.('#viewer')) dismiss();
-    }, { signal, capture: true, passive: true });
+    }, { signal, capture: true });
     return dismiss;
 }
 function renderContextMenuOptions(menu, options, hooks = {}) {
@@ -911,7 +911,17 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
             });
         }
     }
-    if (path) options.push({ label: t(window.i18n, 'share'), icon: 'share', action: () => shareItem(path, type) });
+    if (path) {
+        options.push({
+            type: 'group',
+            label: t(window.i18n, 'share'),
+            icon: 'share',
+            items: [
+                { label: cloudActionText('shareGetLink', 'Get link'), icon: 'link', action: () => shareItem(path, type) },
+                { label: cloudActionText('shareSendToChat', 'Send to chat'), icon: 'message', action: () => sendCloudShareToChat(path, type) }
+            ]
+        });
+    }
     if (path) options.push({ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) });
     if (opts.tabId != null) {
         if (tabsState.tabs.length <= 1) {
@@ -1084,12 +1094,25 @@ function showContextMenu(e, path, type, name) {
     const closeOnEscape = (event) => {
         if (event.key === 'Escape') removeMenu();
     };
-    const closeOnDistance = (event) => {
-        const r = menu.getBoundingClientRect();
-        const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
-        const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
-        if (Math.sqrt(dx * dx + dy * dy) > 150) removeMenu();
-    };
+    const closeOnDistance = (() => {
+        const samples = [];
+        return (event) => {
+            const now = performance.now();
+            samples.push({ x: event.clientX, y: event.clientY, t: now });
+            while (samples.length > 0 && now - samples[0].t > 100) samples.shift();
+            if (samples.length < 2) return;
+            const r = menu.getBoundingClientRect();
+            const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
+            const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < 20) return;
+            const head = samples[0];
+            const dt = (now - head.t) / 1000;
+            if (dt < 0.01) return;
+            const speed = Math.hypot(event.clientX - head.x, event.clientY - head.y) / dt;
+            if (speed > 600) removeMenu();
+        };
+    })();
     setTimeout(() => {
         document.addEventListener('click', closeMenu);
         document.addEventListener('keydown', closeOnEscape);
@@ -1118,6 +1141,8 @@ function getContextMenuIconSvg(iconName) {
         select: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><polyline points="8 12 11 15 16 9"/></svg>',
         deselect: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><line x1="8" y1="8" x2="16" y2="16"/><line x1="16" y1="8" x2="8" y2="16"/></svg>',
         upload: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V6"/><polyline points="8 10 12 6 16 10"/><path d="M4 18h16"/></svg>',
+        link: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
+        message: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
         video: '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m10 9 5 3-5 3z"/></svg>',
         'new-folder': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
         'new-file': '<svg class="context-menu-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
@@ -1515,6 +1540,11 @@ function showLoadingModal(message) {
     return modal;
 }
 
+function cloudActionText(key, fallback) {
+    const value = t(window.i18n, key);
+    return value && value !== key ? value : fallback;
+}
+
 async function shareItem(path, type) {
     if (!path) {
         flashStatus(t(i18n, 'noPathSelected'));
@@ -1534,6 +1564,170 @@ async function shareItem(path, type) {
         flashStatus(t(i18n, 'shareError') + ': ' + err.message);
     }
 }
+
+function getCloudShareChatModal() {
+    let modal = document.getElementById('cloud-share-chat-modal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'cloud-share-chat-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:200010;align-items:center;justify-content:center;background:rgba(0,0,0,.52);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:16px;box-sizing:border-box;';
+    modal.innerHTML = `
+        <div style="width:100%;max-width:420px;border-radius:16px;border:1px solid var(--border);background:var(--panel);box-shadow:0 24px 70px rgba(0,0,0,.38);overflow:hidden;">
+            <div style="padding:18px 20px;border-bottom:1px solid var(--border);font-size:17px;font-weight:700;color:var(--fg);">${cloudActionText('shareSendToChat', 'Send to chat')}</div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:12px;">
+                <input id="cloud-share-chat-email" type="email" autocomplete="off" placeholder="email@example.com" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--fg);font-size:15px;">
+                <div id="cloud-share-chat-results" style="display:none;max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--bg);padding:4px;"></div>
+                <div id="cloud-share-chat-status" style="min-height:20px;color:var(--muted);font-size:14px;"></div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end;padding:14px 20px 18px;border-top:1px solid var(--border);">
+                <button type="button" id="cloud-share-chat-cancel" class="btn secondary">${cloudActionText('cancel', 'Cancel')}</button>
+                <button type="button" id="cloud-share-chat-send" class="btn primary">${cloudActionText('send', 'Send')}</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function sendCloudShareToChat(path, type) {
+    if (!path) {
+        flashStatus(t(i18n, 'noPathSelected'));
+        return;
+    }
+    const modal = getCloudShareChatModal();
+    const emailInput = modal.querySelector('#cloud-share-chat-email');
+    const results = modal.querySelector('#cloud-share-chat-results');
+    const status = modal.querySelector('#cloud-share-chat-status');
+    const cancel = modal.querySelector('#cloud-share-chat-cancel');
+    const send = modal.querySelector('#cloud-share-chat-send');
+    let searchTimer = null;
+    const close = () => {
+        modal.style.display = 'none';
+        send.disabled = false;
+        cancel.disabled = false;
+        if (results) {
+            results.style.display = 'none';
+            results.innerHTML = '';
+        }
+    };
+    const renderUserResults = (users) => {
+        if (!results) return;
+        if (!users.length) {
+            results.style.display = 'none';
+            results.innerHTML = '';
+            return;
+        }
+        results.innerHTML = '';
+        users.forEach((user) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = 'display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:var(--fg);cursor:pointer;text-align:left;';
+            let photo = user.photo || '/default_avatar.png';
+            if (photo && !/^https?:\/\//i.test(photo) && !photo.startsWith('/')) {
+                photo = '/' + photo.replace(/^\/+/, '');
+            }
+            btn.innerHTML = `<img src="${escapeHtml(photo)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;"><span style="min-width:0;display:flex;flex-direction:column;"><span style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(user.name || user.email)}</span><span style="font-size:12px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(user.email)}</span></span>`;
+            btn.addEventListener('click', () => {
+                emailInput.value = user.email;
+                results.style.display = 'none';
+                results.innerHTML = '';
+                status.textContent = '';
+            });
+            results.appendChild(btn);
+        });
+        results.style.display = 'block';
+    };
+    emailInput.oninput = () => {
+        const q = emailInput.value.trim();
+        if (searchTimer) clearTimeout(searchTimer);
+        if (q.length < 2) {
+            renderUserResults([]);
+            return;
+        }
+        searchTimer = setTimeout(async () => {
+            try {
+                const url = new URL('/main', window.location.origin);
+                url.searchParams.set('api', 'support_chat');
+                url.searchParams.set('action', 'search_users');
+                url.searchParams.set('q', q);
+                const response = await fetch(url, { credentials: 'same-origin' });
+                const data = await response.json();
+                renderUserResults(data.ok && Array.isArray(data.users) ? data.users : []);
+            } catch (_) {
+                renderUserResults([]);
+            }
+        }, 200);
+    };
+    emailInput.value = '';
+    emailInput.type = 'text';
+    status.textContent = '';
+    modal.style.display = 'flex';
+    emailInput.focus();
+    cancel.onclick = close;
+    modal.onclick = (e) => {
+        if (e.target === modal) close();
+    };
+    send.onclick = async () => {
+        const email = emailInput.value.trim().toLowerCase();
+        if (!email || !email.includes('@')) {
+            status.textContent = cloudActionText('enterFullEmail', 'Enter full email');
+            return;
+        }
+        send.disabled = true;
+        cancel.disabled = true;
+        status.textContent = cloudActionText('generatingLink', 'Generating link...');
+        try {
+            const shareData = typeof window.generateShareKey === 'function'
+                ? await window.generateShareKey(path, shareState.currentExpiresOption || 'never')
+                : await api('share_file', { path, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            if (!shareData?.key) throw new Error('Failed to generate share key');
+            let metadata = {};
+            try {
+                metadata = await api('internal_share_metadata', { path, root: getCurrentCloudRoot() }, 'GET');
+            } catch (_) {}
+            const sessionUrl = new URL('/main', window.location.origin);
+            sessionUrl.searchParams.set('api', 'support_chat');
+            sessionUrl.searchParams.set('action', 'session_info');
+            const sessionResponse = await fetch(sessionUrl, { credentials: 'same-origin' });
+            const sessionData = await sessionResponse.json();
+            const isAdmin = !!sessionData?.is_admin;
+            const formData = new FormData();
+            formData.append('action', 'send_message');
+            if (isAdmin) {
+                formData.append('chat_type', 'support');
+                formData.append('user_email', email);
+                formData.append('send_as', 'support');
+            } else {
+                formData.append('chat_type', 'peer');
+                formData.append('peer_email', email);
+            }
+            formData.append('message', JSON.stringify({
+                type: 'cloud_attachment',
+                share_id: shareData.key,
+                name: metadata.name || path.split('/').pop(),
+                ext: metadata.ext || String(path.split('.').pop() || '').toLowerCase(),
+                size: Number(metadata.size || 0),
+                mime: metadata.mime || '',
+                preview_type: metadata.preview_type || 'file',
+                preview: metadata.preview || ''
+            }));
+            const response = await fetch('/main?api=support_chat', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            if (!data.ok) throw new Error(data.error || 'Send failed');
+            close();
+            flashStatus(cloudActionText('sentToChat', 'Sent to chat'));
+        } catch (err) {
+            status.textContent = err.message;
+            send.disabled = false;
+            cancel.disabled = false;
+        }
+    };
+}
+window.sendCloudShareToChat = sendCloudShareToChat;
 
 
 

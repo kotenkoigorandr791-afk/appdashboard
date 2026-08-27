@@ -6,7 +6,7 @@
 <title><?=sh_h($t['app_title'])?></title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
-<link rel="stylesheet" href="assets/css/app.css?v=20260530">
+<link rel="stylesheet" href="assets/css/app.css?v=20260826k">
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
 <div id="app-bg" aria-hidden="true"></div>
@@ -255,57 +255,57 @@
     <!-- Toolbar -->
     <div class="map-toolbar" id="mapToolbar">
       <div class="tool-group map-editor-only">
-        <button class="map-tool-btn active" data-tool="select" title="<?=sh_h($t['map_select'])?>">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7 7.5 2.5-1-1 2.5 7.5-7.5-5-4.5-2.5-1 1-2.5-2.5 7.5z"/><rect x="10" y="10" width="11" height="11" rx="1" stroke-dasharray="3 2"/></svg>
+        <button class="map-tool-btn active" data-tool="select">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4 L6 17.5 L9.5 14.8 L12 19.5 L14 18.5 L11.5 13.8 L17 13.3 Z"/></svg>
           <span class="tooltip"><?=sh_h($t['map_select'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="wall" title="<?=sh_h($t['map_wall'])?>">
+        <button class="map-tool-btn" data-tool="wall">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="9" width="20" height="6" rx="1"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
           <span class="tooltip"><?=sh_h($t['map_wall'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="window" title="<?=sh_h($t['map_window'])?>">
+        <button class="map-tool-btn" data-tool="window">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="4" width="14" height="16" rx="1"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span class="tooltip"><?=sh_h($t['map_window'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="door" title="<?=sh_h($t['map_door'])?>">
+        <button class="map-tool-btn" data-tool="door">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4v16"/><path d="M4 4h14a2 2 0 012 2v12"/><circle cx="16" cy="12" r="1" fill="currentColor"/><path d="M4 20h16"/></svg>
           <span class="tooltip"><?=sh_h($t['map_door'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="furniture" title="<?=sh_h($t['map_furniture'])?>">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5z"/><path d="M6 12V9a2 2 0 012-2h8a2 2 0 012 2v3"/></svg>
+        <button class="map-tool-btn" data-tool="furniture">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="7" width="12" height="10" rx="0.8"/><path d="M4.5 7 L4.5 17 M3.7 7 L5.3 7 M3.7 17 L5.3 17" stroke-width="1.2"/><path d="M6 18.5 L18 18.5 M6 17.7 L6 19.3 M18 17.7 L18 19.3" stroke-width="1.2"/></svg>
           <span class="tooltip"><?=sh_h($t['map_furniture'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="furniture-poly" title="<?=sh_h($t['map_furniture_poly'])?>">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 18 L9 6 L15 8 L19 16 Z" stroke-dasharray="3 2"/><circle cx="5" cy="18" r="1.5" fill="currentColor"/></svg>
+        <button class="map-tool-btn" data-tool="furniture-poly">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15.5 L5 8.5 L9 6 L18 7.5 L18 16 L12.5 18 Z" stroke-dasharray="2.5 2.5"/><circle cx="5" cy="15.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="5" cy="8.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="9" cy="6" r="0.9" fill="currentColor" stroke="none"/><circle cx="18" cy="7.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="18" cy="16" r="0.9" fill="currentColor" stroke="none"/><circle cx="12.5" cy="18" r="0.9" fill="currentColor" stroke="none"/><path d="M16 3.5 L20 3.5 M18 1.5 L18 5.5" stroke-width="1.3"/></svg>
           <span class="tooltip"><?=sh_h($t['map_furniture_poly'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="room" title="<?=sh_h($t['map_room'])?>">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1" stroke-dasharray="4 3"/><path d="M8 8h3M13 8h3M8 13h3M13 13h3"/></svg>
+        <button class="map-tool-btn" data-tool="room">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="0.8" stroke-dasharray="2 2"/><path d="M3 5 L3 19 M2.2 5 L3.8 5 M2.2 19 L3.8 19" stroke-width="1.2"/><path d="M5 21 L19 21 M5 20.2 L5 21.8 M19 20.2 L19 21.8" stroke-width="1.2"/></svg>
           <span class="tooltip"><?=sh_h($t['map_room'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="room-poly" title="<?=sh_h($t['map_room_poly'])?>">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="4,20 8,4 16,6 20,18" stroke-dasharray="3 2"/><circle cx="4" cy="20" r="1.5" fill="currentColor"/></svg>
+        <button class="map-tool-btn" data-tool="room-poly">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15.5 L5 8.5 L9 6 L18 7.5 L18 16 L12.5 18 Z" stroke-dasharray="2.5 2.5"/><circle cx="5" cy="15.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="5" cy="8.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="9" cy="6" r="0.9" fill="currentColor" stroke="none"/><circle cx="18" cy="7.5" r="0.9" fill="currentColor" stroke="none"/><circle cx="18" cy="16" r="0.9" fill="currentColor" stroke="none"/><circle cx="12.5" cy="18" r="0.9" fill="currentColor" stroke="none"/></svg>
           <span class="tooltip"><?=sh_h($t['map_room_poly'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="floor" title="<?=sh_h($t['map_floor'])?>">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg>
+        <button class="map-tool-btn" data-tool="floor">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="1"/><path d="M3 8.5 L17 8.5 M3 13 L17 13" stroke-width="1.1"/><path d="M8 3 L8 8.5 M12.5 8.5 L12.5 13 M8 13 L8 17" stroke-width="1.1"/><path d="M18 15.5 L23 20.5 L20.5 23 L15.5 18 Z" fill="currentColor" fill-opacity="0.12"/><path d="M15.5 18 L13 20.5 L15 22.5 L17.5 20" stroke-width="1.3"/></svg>
           <span class="tooltip"><?=sh_h($t['map_floor'])?></span>
         </button>
-        <button class="map-tool-btn" data-tool="room-label" title="<?=sh_h($t['props_text'])?>">
+        <button class="map-tool-btn" data-tool="room-label">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 5h12"/><path d="M12 5v14"/><path d="M8 19h8"/></svg>
           <span class="tooltip"><?=sh_h($t['props_text'])?></span>
         </button>
-        <button type="button" class="map-tool-btn" id="mapPlaceDeviceBtn" title="<?=sh_h($t['map_add_device'])?>">
+        <button type="button" class="map-tool-btn" id="mapPlaceDeviceBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>
           <span class="tooltip"><?=sh_h($t['map_add_device'])?></span>
         </button>
       </div>
       <div class="tool-group map-editor-only">
-        <button class="map-tool-btn" id="mapUndoBtn" title="<?=sh_h($t['map_undo'])?>">
+        <button class="map-tool-btn" id="mapUndoBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
           <span class="tooltip"><?=sh_h($t['map_undo'])?></span>
         </button>
-        <button class="map-tool-btn" id="mapRedoBtn" title="<?=sh_h($t['map_redo'])?>">
+        <button class="map-tool-btn" id="mapRedoBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
           <span class="tooltip"><?=sh_h($t['map_redo'])?></span>
         </button>

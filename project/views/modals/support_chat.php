@@ -1,15 +1,15 @@
-<!-- Support Chat Modal -->
+<!-- Messenger Modal -->
 <div id="support-chat-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);z-index:100000;align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);animation:fadeIn 0.3s ease;">
-    <div id="chat-modal-container" style="background:var(--modal-bg);border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);width:<?php echo (isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2) ? '95%' : '90%'; ?>;max-width:<?php echo (isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2) ? '1400px' : '900px'; ?>;height:85%;max-height:min(700px,85vh);min-height:0;display:flex;flex-direction:<?php echo (isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2) ? 'row' : 'column'; ?>;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;position:relative;animation:slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
+    <div id="chat-modal-container" style="background:var(--modal-bg);border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);width:95%;max-width:1400px;height:85%;max-height:min(700px,85vh);min-height:0;display:flex;flex-direction:row;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;position:relative;animation:slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
         <!-- Animated background -->
         <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;">
             <div class="chat-bg-animation"></div>
         </div>
 
-        <!-- Admin: Chat list sidebar (hidden by default, shown via hash) -->
+        <!-- Chat list sidebar -->
         <div id="admin-chat-list" style="display:none;width:320px;min-height:0;flex-shrink:0;border-right:1px solid var(--border-color);flex-direction:column;position:relative;z-index:1;background:rgba(0,0,0,0.02);">
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:12px;">
-                <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text-color);flex:1;min-width:0;">Support Chats</h2>
+                <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text-color);flex:1;min-width:0;">Messenger</h2>
                 <button type="button" id="admin-chat-list-close" title="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>" style="flex-shrink:0;width:40px;height:40px;border:none;border-radius:12px;background:rgba(255,255,255,0.12);color:var(--text-color);font-size:24px;line-height:1;cursor:pointer;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
             </div>
             <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;">
@@ -27,16 +27,16 @@
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:10px;">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                     <button type="button" id="chat-admin-mobile-back" style="flex-shrink:0;width:40px;height:40px;border:none;border-radius:12px;background:rgba(255,255,255,0.12);color:var(--text-color);cursor:pointer;align-items:center;justify-content:center;padding:0;" title="<?php echo my_htmlspecialchars($translations['support_chat_back_list'] ?? 'Chats'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['support_chat_back_list'] ?? 'Back to chats'); ?>"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                    <img id="chat-header-avatar" src="default_avatar.png" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none;">
                     <h2 id="chat-modal-title" style="margin:0;font-size:22px;font-weight:600;color:var(--text-color);background:linear-gradient(135deg, <?php echo $config['color']; ?> 0%, <?php echo $config['color']; ?>cc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_title'] ?? 'Chat with Support'); ?></h2>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <?php if ($isAdmin): ?>
-                    <button id="delete-chat-btn" style="display:none;background:rgba(255,59,48,0.15);border:1px solid rgba(255,59,48,0.3);font-size:14px;cursor:pointer;color:#ff3b30;padding:8px 16px;border-radius:10px;transition:all 0.2s;font-weight:500;" onmouseover="this.style.background='rgba(255,59,48,0.25)';" onmouseout="this.style.background='rgba(255,59,48,0.15)';">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:6px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                        Delete Chat
+                    <button id="delete-chat-btn" style="display:none;align-items:center;justify-content:center;gap:6px;white-space:nowrap;line-height:1;min-width:100px;background:rgba(255,59,48,0.15);border:1px solid rgba(255,59,48,0.3);font-size:14px;cursor:pointer;color:#ff3b30;padding:8px 16px;border-radius:10px;transition:all 0.2s;font-weight:500;" onmouseover="this.style.background='rgba(255,59,48,0.25)';" onmouseout="this.style.background='rgba(255,59,48,0.15)';">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:0 0 16px;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Delete
                     </button>
-                    <?php endif; ?>
-                    <button id="close-chat-modal" class="ap-close-btn-style">&times;</button>
+                    <button id="block-chat-btn" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);font-size:14px;cursor:pointer;color:#ef4444;padding:8px 16px;border-radius:10px;transition:all 0.2s;font-weight:500;">Block</button>
+                    <button id="close-chat-modal" class="ap-close-btn-style" style="flex:0 0 40px;width:40px;height:40px;min-width:40px;min-height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;">&times;</button>
                 </div>
             </div>
 
@@ -94,11 +94,25 @@
         </div>
     </div>
 </div>
+<?php if ($isAdmin): ?>
+<div id="chat-type-modal" style="display:none;position:fixed;inset:0;z-index:100002;background:rgba(6,10,16,0.28);align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);">
+    <div style="background:var(--modal-bg);border:1px solid var(--border-color);border-radius:16px;width:92%;max-width:420px;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.35);overflow:hidden;">
+        <div style="padding:18px 20px;border-bottom:1px solid var(--border-color);font-weight:600;font-size:17px;color:var(--text-color);">New chat</div>
+        <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <button type="button" id="chat-type-support" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--group-block-bg);color:var(--text-color);cursor:pointer;text-align:left;font-size:15px;font-weight:600;">Support</button>
+            <button type="button" id="chat-type-peer" style="display:flex;align-items:center;gap:12px;width:100%;padding:14px;border:1px solid var(--border-color);border-radius:12px;background:var(--group-block-bg);color:var(--text-color);cursor:pointer;text-align:left;font-size:15px;font-weight:600;">User chat</button>
+        </div>
+        <div style="padding:14px 16px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border-color);">
+            <button type="button" id="chat-type-cancel" style="padding:10px 18px;border-radius:10px;border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);cursor:pointer;font-size:14px;"><?php echo my_htmlspecialchars($translations['cancel'] ?? 'Cancel'); ?></button>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 <div id="chat-user-search-modal" style="display:none;position:fixed;inset:0;z-index:100002;background:rgba(6,10,16,0.28);align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);">
     <div style="background:var(--modal-bg);border:1px solid var(--border-color);border-radius:16px;width:92%;max-width:440px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,0.35);overflow:hidden;">
         <div style="padding:18px 20px;border-bottom:1px solid var(--border-color);font-weight:600;font-size:17px;color:var(--text-color);"><?php echo my_htmlspecialchars($translations['support_chat_new_title'] ?? 'New chat'); ?></div>
         <div style="padding:14px 16px 0;">
-            <input type="search" id="chat-user-search-input" autocomplete="off" placeholder="<?php echo my_htmlspecialchars($translations['support_chat_search_placeholder'] ?? 'Search by name or email…'); ?>" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid var(--border-color);border-radius:12px;background:var(--input-bg);color:var(--text-color);font-size:15px;">
+            <input type="email" id="chat-user-search-input" autocomplete="off" placeholder="Full email address" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid var(--border-color);border-radius:12px;background:var(--input-bg);color:var(--text-color);font-size:15px;">
         </div>
         <div id="chat-user-search-results" style="flex:1;min-height:120px;max-height:280px;overflow-y:auto;margin:12px 16px;padding:4px;border:1px solid var(--border-color);border-radius:12px;background:rgba(0,0,0,0.03);"></div>
         <div style="padding:14px 16px 16px;display:flex;justify-content:flex-end;gap:10px;border-top:1px solid var(--border-color);">
@@ -197,4 +211,3 @@ document.documentElement.style.setProperty('--chat-color-border', '<?php echo $c
         Delete
     </div>
 </div>
-

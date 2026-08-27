@@ -546,7 +546,7 @@ EOF
 write_fstab_entry() {
   [ -z "$SUDO_CMD" ] || command -v sudo >/dev/null 2>&1 || return 0
   FSTAB_TARGET="$(fstab_escape "$MOUNT_DIR")"
-  FSTAB_ENTRY="$WEBDAV_URL $FSTAB_TARGET davfs rw,user,noauto,x-systemd.automount,_netdev,nofail,uid=$TARGET_UID,gid=$TARGET_GID,file_mode=664,dir_mode=775 0 0"
+  FSTAB_ENTRY="$WEBDAV_URL $FSTAB_TARGET davfs rw,user,noauto,x-systemd.automount,x-systemd.idle-timeout=60,x-systemd.mount-timeout=10,_netdev,nofail,uid=$TARGET_UID,gid=$TARGET_GID,file_mode=664,dir_mode=775 0 0"
   $SUDO_CMD sh -c "grep -vF '$WEBDAV_URL' /etc/fstab > /etc/fstab.appdashboard.tmp && printf '%s\\n' '$FSTAB_ENTRY' >> /etc/fstab.appdashboard.tmp && cat /etc/fstab.appdashboard.tmp > /etc/fstab && rm -f /etc/fstab.appdashboard.tmp" || true
   $SUDO_CMD systemctl daemon-reload >/dev/null 2>&1 || true
 }

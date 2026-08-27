@@ -57,6 +57,7 @@
   "pdfCreated": "PDF created successfully",
   "noSubfolders": "No subfolders",
   "filesCreated": "New files created",
+  "groupFilesChangedNotification": "Group files changed",
   "filesDeleted": "Files deleted",
   "audio.player": "Audio Player",
   "audio.rewind": "Rewind 10 seconds",

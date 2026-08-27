@@ -90,6 +90,8 @@ function ensureSupportChatSchema(AppDatabase $db): void {
             message TEXT NOT NULL DEFAULT '',
             media_path TEXT,
             media_type TEXT,
+            recipient_email TEXT,
+            chat_type TEXT NOT NULL DEFAULT 'support',
             is_deleted INTEGER NOT NULL DEFAULT 0,
             is_edited INTEGER NOT NULL DEFAULT 0,
             is_read INTEGER NOT NULL DEFAULT 0,
@@ -99,6 +101,8 @@ function ensureSupportChatSchema(AppDatabase $db): void {
         foreach ([
             "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS media_path TEXT",
             "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS media_type TEXT",
+            "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS recipient_email TEXT",
+            "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS chat_type TEXT NOT NULL DEFAULT 'support'",
             "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS is_deleted INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS is_edited INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS is_read INTEGER NOT NULL DEFAULT 0",
@@ -108,6 +112,27 @@ function ensureSupportChatSchema(AppDatabase $db): void {
         }
         $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_user ON support_chat(user_email)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_created ON support_chat(created_at)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_pair ON support_chat(chat_type,user_email,recipient_email)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_sender ON support_chat(sender_email)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_recipient ON support_chat(recipient_email)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users(lower(email))");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_name ON users(lower(name))");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_email_pattern ON users(lower(email) text_pattern_ops)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_name_pattern ON users(lower(name) text_pattern_ops)");
+        $db->exec("CREATE TABLE IF NOT EXISTS chat_blocks (
+            blocker_email TEXT NOT NULL,
+            blocked_email TEXT NOT NULL,
+            created_at BIGINT NOT NULL,
+            PRIMARY KEY (blocker_email, blocked_email)
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS chat_hidden (
+            email TEXT NOT NULL,
+            chat_type TEXT NOT NULL,
+            user_email TEXT NOT NULL,
+            recipient_email TEXT,
+            hidden_at BIGINT NOT NULL
+        )");
+        $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_hidden_unique ON chat_hidden(email,chat_type,user_email,COALESCE(recipient_email,''))");
         return;
     }
     $db->exec("CREATE TABLE IF NOT EXISTS support_chat (
@@ -117,6 +142,8 @@ function ensureSupportChatSchema(AppDatabase $db): void {
         message     TEXT NOT NULL DEFAULT '',
         media_path  TEXT,
         media_type  TEXT,
+        recipient_email TEXT,
+        chat_type TEXT NOT NULL DEFAULT 'support',
         is_deleted  INTEGER NOT NULL DEFAULT 0,
         is_edited   INTEGER NOT NULL DEFAULT 0,
         is_read     INTEGER NOT NULL DEFAULT 0,
@@ -127,12 +154,33 @@ function ensureSupportChatSchema(AppDatabase $db): void {
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_user ON support_chat(user_email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_created ON support_chat(created_at)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_pair ON support_chat(chat_type,user_email,recipient_email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_sender ON support_chat(sender_email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_recipient ON support_chat(recipient_email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users(lower(email))");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_name ON users(lower(name))");
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN media_path TEXT"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN media_type TEXT"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN recipient_email TEXT"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN chat_type TEXT NOT NULL DEFAULT 'support'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_edited INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE support_chat ADD COLUMN edited_at INTEGER"); } catch (Exception $e) {}
+    $db->exec("CREATE TABLE IF NOT EXISTS chat_blocks (
+        blocker_email TEXT NOT NULL,
+        blocked_email TEXT NOT NULL,
+        created_at BIGINT NOT NULL,
+        PRIMARY KEY (blocker_email, blocked_email)
+    )");
+    $db->exec("CREATE TABLE IF NOT EXISTS chat_hidden (
+        email TEXT NOT NULL,
+        chat_type TEXT NOT NULL,
+        user_email TEXT NOT NULL,
+        recipient_email TEXT,
+        hidden_at BIGINT NOT NULL
+    )");
+    $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_hidden_unique ON chat_hidden(email,chat_type,user_email,COALESCE(recipient_email,''))");
 }
 function ensureTelegramBotSchema(AppDatabase $db): void {
     if (app_db_is_pgsql()) {

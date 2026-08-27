@@ -11729,11 +11729,41 @@ function initWeather() {
             clearTimeout(timeoutId);
             if(error.code === error.PERMISSION_DENIED) {
                 showWeatherError(T.weather_denied || 'Location access denied. Enable it to see local weather.', true);
-            } else if(error.code === error.TIMEOUT) {
-                showWeatherError(T.weather_timeout || 'Location request timed out', false);
-            } else {
-                showWeatherError(T.weather_no_geo || 'Could not determine location', false);
+                return;
             }
+            var failMsg = error.code === error.TIMEOUT
+                ? (T.weather_timeout || 'Location request timed out')
+                : (T.weather_no_geo || 'Could not determine location');
+            fetch('https://ipwho.is/')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if(data && data.success !== false && data.latitude != null && data.longitude != null) {
+                        var lat = data.latitude;
+                        var lon = data.longitude;
+                        weatherStore.lat = lat;
+                        weatherStore.lon = lon;
+                        if(data.city) weatherStore.city = data.city;
+                        var weatherUrl = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon +
+                            '&current=temperature_2m,weathercode,windspeed,is_day' +
+                            '&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max' +
+                            '&timezone=auto&forecast_days=7';
+                        return fetch(weatherUrl).then(function(r) { return r.json(); }).then(function(wdata) {
+                            var cw = wdata && (wdata.current_weather || wdata.current);
+                            if(!cw) { showWeatherError(T.weather_no_data || 'No weather data', false); return; }
+                            weatherStore.current = cw;
+                            weatherStore.daily = wdata.daily || null;
+                            var temp = cw.temperature || cw.temperature_2m;
+                            var windSpeed = cw.windspeed;
+                            var code = cw.weathercode || cw.weather_code;
+                            var isDay = (cw.is_day !== undefined) ? cw.is_day !== 0 : 1;
+                            var city = weatherStore.city || (T.weather_unknown || 'Unknown location');
+                            renderWeather(city, temp, windSpeed, code, isDay);
+                        });
+                    } else {
+                        showWeatherError(failMsg, false);
+                    }
+                })
+                .catch(function() { showWeatherError(failMsg, false); });
         },
         {
             enableHighAccuracy: false,

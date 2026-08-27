@@ -376,7 +376,7 @@ table_settings    -- Table display settings
 
 ---
 
-## 9. TFT Display Generator (`apps/tft-generator/`)
+## 9. TFT Display Generator (`apps/lopaka/`)
 
 **Purpose**: Code generator for TFT displays.
 

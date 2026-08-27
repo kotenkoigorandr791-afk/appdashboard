@@ -613,9 +613,23 @@ function saveWeatherSettings() {
                         weatherStore.lat = pos.coords.latitude;
                         weatherStore.lon = pos.coords.longitude;
                         window.apWeatherRefresh(weatherStore.lat, weatherStore.lon, null, true);
-                    }, function() {
-                        if (window.apWeatherShowPermError) window.apWeatherShowPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
-                    }, { enableHighAccuracy: false, timeout: 10000 });
+                    }, function(err) {
+                        if (err && err.code === err.PERMISSION_DENIED) {
+                            if (window.apWeatherShowPermError) window.apWeatherShowPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+                            return;
+                        }
+                        fetch('https://ipwho.is/').then(function(r){ return r.json(); }).then(function(data) {
+                            if (data && data.success !== false && data.latitude != null && data.longitude != null) {
+                                weatherStore.lat = data.latitude;
+                                weatherStore.lon = data.longitude;
+                                window.apWeatherRefresh(weatherStore.lat, weatherStore.lon, data.city || null, !data.city);
+                                return;
+                            }
+                            if (window.apWeatherShowPermError) window.apWeatherShowPermError(wt('weather_timeout', 'Location request timed out'));
+                        }).catch(function() {
+                            if (window.apWeatherShowPermError) window.apWeatherShowPermError(wt('weather_timeout', 'Location request timed out'));
+                        });
+                    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
                 }
             }
         }
@@ -668,20 +682,41 @@ function notifyWeatherGeoUnavailable(message) {
 }
 
 window.apRequestWeatherLocationFromModal = function() {
+    function applyPos(lat, lon, city) {
+        weatherStore.lat = lat;
+        weatherStore.lon = lon;
+        if (city) weatherStore.city = city;
+        if (window.apWeatherRefresh) window.apWeatherRefresh(lat, lon, city || null, !city);
+        showWeatherModal();
+    }
+    function ipFallback(failMsg) {
+        fetch('https://ipwho.is/').then(function(r){ return r.json(); }).then(function(data) {
+            if (data && data.success !== false && data.latitude != null && data.longitude != null) {
+                applyPos(data.latitude, data.longitude, data.city || '');
+                return;
+            }
+            renderWeatherGeoPrompt(failMsg);
+            notifyWeatherGeoUnavailable(failMsg);
+        }).catch(function() {
+            renderWeatherGeoPrompt(failMsg);
+            notifyWeatherGeoUnavailable(failMsg);
+        });
+    }
     if(!navigator.geolocation) {
-        renderWeatherGeoPrompt(wt('weather_no_geo', 'Geolocation not supported'));
-        notifyWeatherGeoUnavailable(wt('weather_no_geo', 'Geolocation not supported'));
+        ipFallback(wt('weather_no_geo', 'Geolocation not supported'));
         return;
     }
     modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
     navigator.geolocation.getCurrentPosition(function(pos) {
-        weatherStore.lat = pos.coords.latitude;
-        weatherStore.lon = pos.coords.longitude;
-        showWeatherModal();
-    }, function() {
-        renderWeatherGeoPrompt(wt('weather_settings_hint', 'Go to browser site settings and allow location'));
-        notifyWeatherGeoUnavailable(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
-    }, { enableHighAccuracy: false, timeout: 10000 });
+        applyPos(pos.coords.latitude, pos.coords.longitude, null);
+    }, function(err) {
+        if (err && err.code === err.PERMISSION_DENIED) {
+            renderWeatherGeoPrompt(wt('weather_settings_hint', 'Go to browser site settings and allow location'));
+            notifyWeatherGeoUnavailable(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+            return;
+        }
+        ipFallback(err && err.code === err.TIMEOUT ? wt('weather_timeout', 'Location request timed out') : wt('weather_no_geo', 'Could not determine location'));
+    }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
 };
 
 function showWeatherModal() {
@@ -1111,7 +1146,7 @@ window.toggleWindChart = toggleWindChart;
     function initWeather() {
         var widgets = document.querySelectorAll('.weather-widget-instance');
         if (widgets.length === 0) return;
-
+        var cacheKey = 'ap_weather_data';
         widgets.forEach(function(w) {
             w.style.cursor = 'pointer';
             w.title = wt('weather_click_forecast', 'Click to see 7-day forecast');
@@ -1119,96 +1154,37 @@ window.toggleWindChart = toggleWindChart;
                 showWeatherModal();
             });
         });
-
-        fetch('/project/weather_settings.php')
-            .then(response => response.json())
-            .then(settings => {
-                if (!settings.use_current_location && settings.selected_city && settings.lat != null && settings.lon != null) {
-                    weatherStore.city = settings.selected_city;
-                    weatherStore.lat = settings.lat;
-                    weatherStore.lon = settings.lon;
-                    fetchWeather(weatherStore.lat, weatherStore.lon);
-                    applyToWidgets(null, null, settings.selected_city, null);
-                } else {
-                    // Try to load from cache
-                    try {
-                        var cached = JSON.parse(localStorage.getItem('ap_weather_data'));
-                        if (cached && cached.ts && Date.now() - cached.ts < 3600000 && cached.lat != null && cached.lon != null) {
-                            weatherStore.lat = cached.lat;
-                            weatherStore.lon = cached.lon;
-                            weatherStore.city = cached.city;
-                            if (cached.daily && cached.daily.time) weatherStore.daily = cached.daily;
-                            weatherStore.current = {
-                                temperature_2m: cached.temp,
-                                weather_code: cached.code,
-                                wind_speed_10m: cached.wind
-                            };
-                            applyToWidgets(weatherSvg(cached.code), (cached.temp || '--') + '\u00b0C', cached.city || '', cached.wind != null ? cached.wind + ' km/h' : null);
-                            return;
-                        }
-                    } catch(e) {}
-                    // If no cache or settings for current geolocation — use geolocation
-                    if (navigator.geolocation) {
-                        navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
-                    } else {
-                        showPermError(wt('weather_no_geo', 'Geolocation not supported'));
-                    }
-                }
-            })
-            .catch(() => {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
-                } else {
-                    showPermError(wt('weather_no_geo', 'Geolocation not supported'));
-                }
+        function clearPermError() {
+            widgets.forEach(function(widget) {
+                var permEl = widget.querySelector('.weather-perm');
+                var iconEl = widget.querySelector('.weather-icon');
+                var tempEl = widget.querySelector('.weather-temp');
+                var locSepEl = widget.querySelector('.weather-location-sep');
+                var locEl = widget.querySelector('.weather-location');
+                var windEl = widget.querySelector('.weather-wind');
+                var pinEl = widget.querySelector('.weather-pin-icon');
+                if(permEl) permEl.style.display = 'none';
+                if(iconEl) iconEl.style.display = '';
+                if(tempEl) tempEl.style.display = '';
+                if(locSepEl) locSepEl.style.display = '';
+                if(locEl) locEl.style.display = '';
+                if(windEl) windEl.style.display = '';
+                if(pinEl) pinEl.style.display = '';
             });
-
-        var cacheKey = 'ap_weather_data';
-        window.apWeatherShowPermError = showPermError;
-        window.apWeatherRefresh = function(lat, lng, city, resolveCity) {
-            if (lat == null || lng == null) return;
-            weatherStore.lat = lat;
-            weatherStore.lon = lng;
-            if (city !== null) {
-                weatherStore.city = city || '';
-                applyToWidgets(null, null, weatherStore.city, null);
-            }
-            fetchWeather(lat, lng);
-            if (resolveCity) fetchCity(lat, lng);
-        };
-        try {
-            var cached = JSON.parse(localStorage.getItem(cacheKey));
-            if (cached && cached.ts && Date.now() - cached.ts < 3600000) {
-                if (cached.lat != null && cached.lon != null) {
-                    weatherStore.lat = cached.lat;
-                    weatherStore.lon = cached.lon;
-                }
-                if (cached.city) weatherStore.city = cached.city;
-                if (cached.daily && cached.daily.time) weatherStore.daily = cached.daily;
-                weatherStore.current = {
-                    temperature_2m: cached.temp,
-                    weather_code: cached.code,
-                    wind_speed_10m: cached.wind
-                };
-                applyToWidgets(weatherSvg(cached.code), (cached.temp || '--') + '\u00b0C', cached.city || '', cached.wind != null ? cached.wind + ' km/h' : null);
-                return;
-            }
-        } catch(e) {}
-
+        }
         function applyToWidgets(iconHtml, tempStr, locStr, windStr) {
+            clearPermError();
             widgets.forEach(function(widget) {
                 var iconEl = widget.querySelector('.weather-icon');
                 var tempEl = widget.querySelector('.weather-temp');
                 var locEl = widget.querySelector('.weather-location');
                 var windEl = widget.querySelector('.weather-wind');
-
                 if(iconEl && iconHtml !== null) iconEl.innerHTML = iconHtml;
                 if(tempEl && tempStr !== null) tempEl.textContent = tempStr;
                 if(locEl && locStr !== null) locEl.textContent = locStr;
                 if(windEl && windStr !== null) windEl.textContent = windStr;
             });
         }
-
         function showPermError(message) {
             widgets.forEach(function(widget) {
                 var permEl = widget.querySelector('.weather-perm');
@@ -1217,7 +1193,7 @@ window.toggleWindChart = toggleWindChart;
                 var locSepEl = widget.querySelector('.weather-location-sep');
                 var locEl = widget.querySelector('.weather-location');
                 var windEl = widget.querySelector('.weather-wind');
-
+                var pinEl = widget.querySelector('.weather-pin-icon');
                 if(permEl) {
                     permEl.style.display = 'block';
                     permEl.textContent = message;
@@ -1227,14 +1203,9 @@ window.toggleWindChart = toggleWindChart;
                 if(locSepEl) locSepEl.style.display = 'none';
                 if(locEl) locEl.style.display = 'none';
                 if(windEl) windEl.style.display = 'none';
+                if(pinEl) pinEl.style.display = 'none';
             });
         }
-
-        if (!navigator.geolocation) {
-            showPermError(wt('weather_no_geo', 'Geolocation not supported'));
-            return;
-        }
-
         function saveToCache(temp, code, wind, city, lat, lng, daily) {
             try {
                 localStorage.setItem(cacheKey, JSON.stringify({
@@ -1249,7 +1220,6 @@ window.toggleWindChart = toggleWindChart;
                 }));
             } catch(e) {}
         }
-
         function fetchWeather(lat, lng) {
             fetch(weatherForecastUrl(lat, lng))
                 .then(function(r){ return r.json(); })
@@ -1261,20 +1231,16 @@ window.toggleWindChart = toggleWindChart;
                     var wind = Math.round(c.wind_speed_10m);
                     if (data.daily) weatherStore.daily = data.daily;
                     weatherStore.current = c;
-
                     applyToWidgets(weatherSvg(code), temp + '\u00b0C', null, wind + ' km/h');
-
                     var locStr = '';
                     var sampleLoc = widgets[0].querySelector('.weather-location');
                     if(sampleLoc) locStr = sampleLoc.textContent;
-
                     saveToCache(temp, code, wind, locStr, lat, lng, data.daily || null);
                 })
                 .catch(function() {
                     widgets.forEach(function(w) { w.style.display = 'none'; });
                 });
         }
-
         function fetchCity(lat, lng) {
             var locale = document.documentElement.lang || 'en';
             fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lng + '&localityLanguage=' + locale)
@@ -1303,12 +1269,9 @@ window.toggleWindChart = toggleWindChart;
             weatherStore.lon = lng;
             fetchWeather(lat, lng);
             fetchCity(lat, lng);
-
             fetch('/project/weather_settings.php', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     use_current_location: true,
                     selected_country: null,
@@ -1318,18 +1281,91 @@ window.toggleWindChart = toggleWindChart;
                     lat: null,
                     lon: null
                 })
-            }).catch(() => {});
+            }).catch(function(){});
         }
-
+        function fallbackFromIp(failMessage) {
+            fetch('https://ipwho.is/')
+                .then(function(r){ return r.json(); })
+                .then(function(data) {
+                    if (data && data.success !== false && data.latitude != null && data.longitude != null) {
+                        success({ coords: { latitude: data.latitude, longitude: data.longitude } });
+                        if (data.city) applyToWidgets(null, null, data.city, null);
+                        return;
+                    }
+                    showPermError(failMessage || wt('weather_timeout', 'Location request timed out'));
+                })
+                .catch(function() {
+                    showPermError(failMessage || wt('weather_timeout', 'Location request timed out'));
+                });
+        }
         function error(err) {
-            if (err.code === err.PERMISSION_DENIED) {
+            if (err && err.code === err.PERMISSION_DENIED) {
                 showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
-            } else {
-                showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+                return;
             }
+            var msg = (err && err.code === err.TIMEOUT)
+                ? wt('weather_timeout', 'Location request timed out')
+                : wt('weather_no_geo', 'Could not determine location');
+            fallbackFromIp(msg);
         }
-
-        navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000 });
+        function requestGeo() {
+            if (!navigator.geolocation) {
+                fallbackFromIp(wt('weather_no_geo', 'Geolocation not supported'));
+                return;
+            }
+            navigator.geolocation.getCurrentPosition(success, error, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+        }
+        function applyCached(cached) {
+            if (cached.lat != null && cached.lon != null) {
+                weatherStore.lat = cached.lat;
+                weatherStore.lon = cached.lon;
+            }
+            if (cached.city) weatherStore.city = cached.city;
+            if (cached.daily && cached.daily.time) weatherStore.daily = cached.daily;
+            weatherStore.current = {
+                temperature_2m: cached.temp,
+                weather_code: cached.code,
+                wind_speed_10m: cached.wind
+            };
+            applyToWidgets(weatherSvg(cached.code), (cached.temp || '--') + '\u00b0C', cached.city || '', cached.wind != null ? cached.wind + ' km/h' : null);
+        }
+        window.apWeatherShowPermError = showPermError;
+        window.apWeatherRequestGeo = requestGeo;
+        window.apWeatherRefresh = function(lat, lng, city, resolveCity) {
+            if (lat == null || lng == null) return;
+            weatherStore.lat = lat;
+            weatherStore.lon = lng;
+            if (city !== null) {
+                weatherStore.city = city || '';
+                applyToWidgets(null, null, weatherStore.city, null);
+            }
+            fetchWeather(lat, lng);
+            if (resolveCity) fetchCity(lat, lng);
+        };
+        try {
+            var cachedBoot = JSON.parse(localStorage.getItem(cacheKey));
+            if (cachedBoot && cachedBoot.ts && Date.now() - cachedBoot.ts < 3600000 && cachedBoot.lat != null && cachedBoot.lon != null) {
+                applyCached(cachedBoot);
+            }
+        } catch(e) {}
+        fetch('/project/weather_settings.php')
+            .then(function(response) { return response.json(); })
+            .then(function(settings) {
+                if (!settings.use_current_location && settings.selected_city && settings.lat != null && settings.lon != null) {
+                    weatherStore.city = settings.selected_city;
+                    weatherStore.lat = settings.lat;
+                    weatherStore.lon = settings.lon;
+                    fetchWeather(weatherStore.lat, weatherStore.lon);
+                    applyToWidgets(null, null, settings.selected_city, null);
+                    return;
+                }
+                if (weatherStore.lat != null && weatherStore.lon != null) return;
+                requestGeo();
+            })
+            .catch(function() {
+                if (weatherStore.lat != null && weatherStore.lon != null) return;
+                requestGeo();
+            });
     }
 
     if (document.readyState === 'loading') {

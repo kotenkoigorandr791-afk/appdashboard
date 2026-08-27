@@ -198,6 +198,10 @@ if ($action === 'move') {
   if ($email && $target_root_key === 'main' && $target_root_key !== $rootKey) invalidate_file_tree($email);
   if ($email) append_sync_log($email, $rootKey, 'move', $source_path, 'INFO', 'Path moved');
   cloud_group_maybe_log('move', $source_path);
+  if ($target_root_key !== $rootKey) {
+    $target_group_id = cloud_parse_group_id($target_root_key);
+    if ($target_group_id) cloud_group_log_activity($target_group_id, ($target_dir === '' ? basename($source_path) : $target_dir . '/' . basename($source_path)), 'create', $email);
+  }
   json_out(['ok' => true]);
 }
 
@@ -267,12 +271,15 @@ if ($action === 'copy') {
   $email = get_session_email();
   if ($email && ($rootKey === 'main' || $target_root_key === 'main')) invalidate_file_tree($email);
   if ($email) append_sync_log($email, $rootKey, 'copy', $source_path, 'INFO', 'Path copied');
+  $target_group_id = cloud_parse_group_id($target_root_key);
+  if ($target_group_id) cloud_group_log_activity($target_group_id, ($target_dir === '' ? basename($source_path) : $target_dir . '/' . basename($source_path)), 'create', $email);
   json_out(['ok' => true]);
 }
 
 if ($action === 'move_to_trash') {
   $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
+  cloud_group_require_write($rootKey);
   $path = safe_path((string)($_POST['path'] ?? ''));
   if ($path === '') json_out(['error' => 'path required'], 400);
 
@@ -287,6 +294,7 @@ if ($action === 'move_to_trash') {
   $email = get_session_email();
   if ($email && $rootKey === 'main') invalidate_file_tree($email);
   if ($email) append_sync_log($email, $rootKey, 'trash', $path, 'WARNING', 'Path moved to trash');
+  cloud_group_maybe_log('delete', $path);
   json_out(['ok' => true, 'item' => $meta]);
 }
 
@@ -538,6 +546,65 @@ if ($action === 'share_file') {
         cloud_safe_error_log("Share file error: " . $e->getMessage());
         json_out(['error' => 'Database error: ' . $e->getMessage()], 500);
     }
+}
+
+if ($action === 'internal_share_metadata') {
+    $user = get_current_user_from_sessions();
+    if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
+    $base = user_root($user, get_requested_root_key());
+    $path = safe_path((string)($_GET['path'] ?? $_POST['path'] ?? ''));
+    if ($path === '') json_out(['error' => 'path required'], 400);
+    $target = $base . '/' . $path;
+    if (!is_file($target)) json_out(['error' => 'file not found'], 404);
+    $name = basename($target);
+    $size = (int)(@filesize($target) ?: 0);
+    $ext = strtolower(pathinfo($target, PATHINFO_EXTENSION));
+    $mime = (string)(@mime_content_type($target) ?: 'application/octet-stream');
+    $previewType = 'file';
+    $preview = '';
+    $textExts = ['txt','md','json','xml','csv','log','html','css','js','ts','tsx','jsx','php','py','java','c','cpp','h','hpp','go','rs','sql','yaml','yml','sh','ini','conf','config'];
+    if (($size <= 65536 && (is_text_mime($mime) || in_array($ext, $textExts, true))) || $size === 0) {
+        $previewType = 'text';
+        $preview = substr((string)@file_get_contents($target, false, null, 0, 1200), 0, 500);
+    } elseif ($size <= 262144 && preg_match('#^image/(png|jpe?g|gif|webp|svg\+xml)$#i', $mime)) {
+        $previewType = 'image';
+        $preview = 'data:' . $mime . ';base64,' . base64_encode((string)@file_get_contents($target));
+    }
+    json_out(['ok' => true, 'name' => $name, 'size' => $size, 'ext' => $ext, 'mime' => $mime, 'preview_type' => $previewType, 'preview' => $preview]);
+}
+
+if ($action === 'import_internal_share') {
+    $user = get_current_user_from_sessions();
+    $email = get_session_email();
+    if ($user === 'guest' || !$email) json_out(['error' => 'not authenticated'], 401);
+    $shareId = preg_replace('/[^a-f0-9]/', '', strtolower((string)($_POST['share_id'] ?? $_GET['share_id'] ?? '')));
+    if ($shareId === '') json_out(['error' => 'share_id required'], 400);
+    $db = getDB();
+    if (!$db) json_out(['error' => 'Database connection failed'], 500);
+    $stmt = $db->prepare('SELECT share_id, file_name, file_path, is_folder, expires FROM shared_files WHERE share_id = :share_id LIMIT 1');
+    $stmt->bindValue(':share_id', $shareId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$row) json_out(['error' => 'share not found'], 404);
+    if (!empty($row['expires']) && (int)$row['expires'] < time()) json_out(['error' => 'share expired'], 410);
+    if ((int)($row['is_folder'] ?? 0) === 1) json_out(['error' => 'folders are not supported'], 400);
+    $source = (string)($row['file_path'] ?? '');
+    if ($source === '' || !is_file($source)) json_out(['error' => 'file not found'], 404);
+    $safeName = basename((string)($row['file_name'] ?? basename($source)));
+    if (($nameError = cloud_validate_file_name($safeName)) !== null) json_out(['error' => $nameError], 400);
+    $targetDirRel = 'incoming';
+    $targetBase = user_root($user, 'temp');
+    $targetDir = $targetBase . '/' . $targetDirRel;
+    if (!is_dir($targetDir) && !@mkdir($targetDir, 0775, true)) json_out(['error' => 'create failed'], 500);
+    $nameBase = pathinfo($safeName, PATHINFO_FILENAME);
+    $ext = pathinfo($safeName, PATHINFO_EXTENSION);
+    $candidate = $safeName;
+    for ($i = 1; file_exists($targetDir . '/' . $candidate); $i++) {
+        $candidate = $nameBase . '-' . $i . ($ext !== '' ? '.' . $ext : '');
+    }
+    $target = $targetDir . '/' . $candidate;
+    if (!@copy($source, $target)) json_out(['error' => 'copy failed'], 500);
+    append_sync_log($email, 'temp', 'import_internal_share', $targetDirRel . '/' . $candidate, 'INFO', 'Imported chat attachment');
+    json_out(['ok' => true, 'root' => 'temp', 'path' => $targetDirRel . '/' . $candidate, 'name' => $candidate]);
 }
 
 if ($action === 'set_quota') {
@@ -813,6 +880,7 @@ if ($action === 'create_file') {
   // Only invalidate cache for main root, not for hidden roots
   if ($email && $rootKey === 'main') invalidate_file_tree($email);
   if ($email) append_sync_log($email, $rootKey, 'create_file', $path, 'INFO', 'File created');
+  cloud_group_maybe_log('create', $path);
   json_out(['ok'=>true]);
 }
 
@@ -1905,6 +1973,7 @@ if ($action === 'upload') {
             // the structure will be updated incrementally via patch_file_tree.
             $emailLog = get_session_email();
             if ($chunk == $chunks - 1 && $emailLog) append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
+            if ($chunk == $chunks - 1) cloud_group_maybe_log('create', $final_target_path);
             json_out(['ok'=>true, 'name'=>$fileName, 'chunk'=>$chunk, 'completed'=>($chunk == $chunks - 1)]);
         } else {
             json_out(['error'=>'failed to write chunk'], 500);
@@ -1935,6 +2004,7 @@ if ($action === 'upload') {
         // the structure will be updated incrementally via patch_file_tree.
         $emailLog = get_session_email();
         if ($emailLog) append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
+        cloud_group_maybe_log('create', $final_target_path);
         json_out(['ok'=>true, 'name'=>$fileName]);
     }
 }
