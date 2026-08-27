@@ -45,7 +45,7 @@
 │   ├── recipes/                 # Recipe Manager
 │   ├── spends/                  # Expense Tracker
 │   ├── steps/                   # Activity/Steps Counter
-│   ├── tft-generator/           # TFT Display Code Generator
+│   ├── lopaka/           # TFT Display Code Generator
 │   └── viewer/                  # Network Device Viewer
 │
 ├── i18n/                        # Internationalization files
@@ -116,7 +116,7 @@ The application uses a centralized PostgreSQL database (`appdashboard`, credenti
 | **recipes** | Recipe manager with product database |
 | **spends** | Personal expense tracker with Excel import |
 | **steps** | Activity/steps counter with OCR support |
-| **tft-generator** | TFT display code generator |
+| **lopaka** | TFT display code generator |
 | **viewer** | Network device viewer |
 
 ## External Dependencies

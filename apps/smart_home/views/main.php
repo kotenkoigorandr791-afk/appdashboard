@@ -6,7 +6,7 @@
 <title><?=sh_h($t['app_title'])?></title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
-<link rel="stylesheet" href="assets/css/app.css?v=20260530">
+<link rel="stylesheet" href="assets/css/app.css?v=20260826k">
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
 <div id="app-bg" aria-hidden="true"></div>
@@ -288,7 +288,7 @@
           <span class="tooltip"><?=sh_h($t['map_room_poly'])?></span>
         </button>
         <button class="map-tool-btn" data-tool="floor">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14" rx="1"/><path d="M3 8.5 L17 8.5 M3 13 L17 13" stroke-width="1.1"/><path d="M8 3 L8 8.5 M12.5 8.5 L12.5 13 M8 13 L8 17" stroke-width="1.1"/><path d="M18 15.5 L23 20.5 L20.5 23 L15.5 18 Z" fill="currentColor" fill-opacity="0.12"/><path d="M15.5 18 L13 20.5 L15 22.5 L17.5 20" stroke-width="1.3"/></svg>
           <span class="tooltip"><?=sh_h($t['map_floor'])?></span>
         </button>
         <button class="map-tool-btn" data-tool="room-label">

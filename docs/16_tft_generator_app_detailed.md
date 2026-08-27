@@ -1,6 +1,6 @@
-# TFT Generator Application - Detailed Documentation
+# Lopaka Application - Detailed Documentation
 
-**Path:** `apps/tft-generator/`  
+**Path:** `apps/lopaka/`  
 **Total Lines of Code:** ~1,700  
 **Main Entry:** `index.php` (1,616 lines)
 
@@ -37,7 +37,7 @@ The TFT Generator application is a **code generator for TFT displays** with a vi
 ## File Structure
 
 ```
-apps/tft-generator/
+apps/lopaka/
 ├── index.php                          # Generator interface (1,616 lines)
 ├── name.json                          # App name translations
 ├── style.css                          # Generator styles

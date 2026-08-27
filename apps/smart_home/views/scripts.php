@@ -1965,7 +1965,7 @@ function fpFinishPolygon() {
   FP.elements.push(el);
   fpPushHistory();
   fpSelectEl(i);
-  fpSave();
+  fpMarkDirty();
 }
 function fpSetTool(tool) {
   if (fpIsViewOnly()) return;
@@ -2109,7 +2109,7 @@ function fpConfirmPlaceDevice() {
     FP.elements.push(fpNormalizeElement({ type: 'device', x: p.x, y: p.y, deviceId: devId, scale }));
     fpSelectEl(i);
   }
-  fpPushHistory(); fpSave();
+  fpPushHistory(); fpMarkDirty();
   closeModal();
   FP._placeAt = null;
   fpSetTool('select');
@@ -2123,7 +2123,7 @@ function fpDeleteSelected() {
   FP.propsIdx = -1;
   fpPushHistory();
   fpRender();
-  fpSave();
+  fpMarkDirty();
   fpRenderProps();
 }
 function fpCancelAction() {
@@ -2154,7 +2154,7 @@ function fpPaste() {
   FP.elements.push(el);
   fpPushHistory();
   fpSelectEl(FP.elements.length - 1);
-  fpSave();
+  fpMarkDirty();
 }
 function fpCutSelected() {
   fpCopySelected();
@@ -2319,6 +2319,11 @@ function fpSave() {
   state.floorPlan = FP.elements;
   api('save_floor_plan', { elements: FP.elements }).catch(e => console.error('floor plan save', e));
 }
+function fpMarkDirty() {
+  if (fpIsViewOnly()) return;
+  fpNormalizeElements();
+  state.floorPlan = FP.elements;
+}
 function fpPushHistory() {
   FP.histIdx++;
   FP.history = FP.history.slice(0, FP.histIdx);
@@ -2326,10 +2331,10 @@ function fpPushHistory() {
   if (FP.history.length > 50) FP.history.shift();
 }
 function fpUndo() {
-  if (FP.histIdx > 0) { FP.histIdx--; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpRender(); fpSave(); }
+  if (FP.histIdx > 0) { FP.histIdx--; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpRender(); fpMarkDirty(); }
 }
 function fpRedo() {
-  if (FP.histIdx < FP.history.length - 1) { FP.histIdx++; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpRender(); fpSave(); }
+  if (FP.histIdx < FP.history.length - 1) { FP.histIdx++; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpRender(); fpMarkDirty(); }
 }
 
 function fpWhenLayoutReady(fn) {
@@ -2409,7 +2414,7 @@ function fpInit() {
   document.getElementById('mapZoomOutBtn')?.addEventListener('click', () => { FP.zoom = Math.max(FP.zoom / 1.2, 0.2); fpRender(); });
   document.getElementById('mapClearBtn')?.addEventListener('click', () => {
     if (FP.elements.length === 0) return;
-    uiConfirm(uiText.map_clear_confirm, () => { FP.elements = []; FP.selected = -1; FP.propsIdx = -1; fpPushHistory(); fpRenderProps(); fpRender(); fpSave(); }, null, { danger: true });
+    uiConfirm(uiText.map_clear_confirm, () => { FP.elements = []; FP.selected = -1; FP.propsIdx = -1; fpPushHistory(); fpRenderProps(); fpRender(); fpMarkDirty(); }, null, { danger: true });
   });
   document.getElementById('mapSaveBtn')?.addEventListener('click', () => {
     fpSave();
@@ -2430,7 +2435,7 @@ function fpInit() {
     uiConfirm(uiText.map_delete_el, () => {
       FP.elements.splice(FP.propsIdx, 1);
       FP.selected = -1; FP.propsIdx = -1;
-      fpPushHistory(); fpRender(); fpSave(); fpRenderProps();
+      fpPushHistory(); fpRender(); fpMarkDirty(); fpRenderProps();
     }, null, { danger: true, okLabel: uiText.props_delete });
   });
   fpUpdateMapMode();
@@ -2534,7 +2539,7 @@ function fpRenderProps() {
   let rows = `<tr><th>${esc(uiText.props_type)}</th><td>${esc(fpTypeLabel(el.type))}</td></tr>`;
   const num = (k, label, step) => `<tr><th>${esc(label)}</th><td><input type="number" data-k="${k}" step="${step ?? FP.snap}" value="${Number(el[k]??0)}"></td></tr>`;
   const txt = (k, label) => `<tr><th>${esc(label)}</th><td><input type="text" data-k="${k}" value="${esc(String(el[k]??''))}"></td></tr>`;
-  const chk = (k, label, checked) => `<tr><th>${esc(label)}</th><td><label class="fp-toggle-row"><input type="checkbox" class="toggle-switch" data-k="${k}" ${checked ? 'checked' : ''}><span class="fp-toggle-state">${checked ? 'On' : 'Off'}</span></label></td></tr>`;
+  const chk = (k, label, checked) => `<tr><th>${esc(label)}</th><td style="padding:0"><div class="fp-toggle-row"><label class="fp-toggle-label"><input type="checkbox" class="toggle-switch" data-k="${k}" ${checked ? 'checked' : ''}><span class="fp-toggle-slider"></span></label><span class="fp-toggle-state">${checked ? 'On' : 'Off'}</span></div></td></tr>`;
   const isRounded = el.rounded !== undefined ? !!el.rounded : fpElementDefaultRounded(el);
   const cornerRows = fpSupportsRounded(el)
     ? chk('rounded', uiText.props_rounded || 'Rounded', isRounded)
@@ -2602,7 +2607,7 @@ function fpApplyProps(silent) {
   if (el.type === 'room' && el.h < 20) el.h = 60;
   if (!silent) fpPushHistory();
   fpRender();
-  fpSave();
+  fpMarkDirty();
 }
 
 function fpHighlightHomeDeviceCard() {}
@@ -2701,6 +2706,7 @@ function fpMouseDown(e) {
     fpSelectEl(idx);
     FP.dragging = true;
     FP.dragEl = idx;
+    const el = FP.elements[idx];
     if (el.type === 'wall') {
       FP.dragOffX = p.x; FP.dragOffY = p.y;
       FP._wallOx = el.x; FP._wallOy = el.y; FP._wallOx2 = el.x2; FP._wallOy2 = el.y2;
@@ -2730,13 +2736,13 @@ function fpMouseDown(e) {
   if (FP.tool === 'room-label') {
     const i = FP.elements.length;
     FP.elements.push({ type: 'room-label', x: p.x, y: p.y, text: 'Room', fontSize: 16 });
-    fpPushHistory(); fpSelectEl(i); fpSave();
+    fpPushHistory(); fpSelectEl(i); fpMarkDirty();
     return;
   }
   if (FP.tool === 'furniture') {
     const i = FP.elements.length;
     FP.elements.push(fpNormalizeElement({ type: 'furniture', x: p.x, y: p.y, w: 60, h: 40, label: 'table', scale: 1 }));
-    fpPushHistory(); fpSelectEl(i); fpSave();
+    fpPushHistory(); fpSelectEl(i); fpMarkDirty();
     return;
   }
   FP.drawing = true;
@@ -2821,7 +2827,7 @@ function fpMouseUp(e) {
     }
     FP.vertexDrag = -1;
     FP.dragging = false; FP.dragEl = -1; FP._polyDragStart = null;
-    fpPushHistory(); fpSave(); return;
+    fpPushHistory(); fpMarkDirty(); return;
   }
   if (!FP.drawing) return;
   FP.drawing = false;
@@ -2848,7 +2854,7 @@ function fpMouseUp(e) {
     FP.elements.push(fpNormalizeElement({ type: 'room', x: rx, y: ry, w: rw, h: rh, text: 'Room', floorType: 'wood', scale: 1 }));
   }
   if (newIdx >= 0) {
-    fpPushHistory(); fpSelectEl(newIdx); fpSave();
+    fpPushHistory(); fpSelectEl(newIdx); fpMarkDirty();
   }
 }
 
@@ -2879,7 +2885,7 @@ function fpDblClick(e) {
     const vi = fpHitPolyVertex(el, p.x, p.y);
     if (vi >= 0 && el.points.length > 3) {
       el.points.splice(vi, 1);
-      fpPushHistory(); fpRender(); fpSave(); fpRenderProps();
+      fpPushHistory(); fpRender(); fpMarkDirty(); fpRenderProps();
       return;
     }
   }

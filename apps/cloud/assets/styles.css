@@ -59,7 +59,7 @@ body[data-theme="dark"] .CodeMirror-hints::-webkit-scrollbar-thumb:hover{backgro
 .icon-btn:focus-visible,.btn:focus-visible{background:color-mix(in srgb,var(--accent) 10%,var(--bg));border-color:color-mix(in srgb,var(--accent) 45%,var(--border));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 .icon-btn:active,.btn:active,.icon-btn.is-pressed,.btn.is-pressed{transform:translateY(1px)}
 .icon-btn:focus-visible,.btn:focus-visible{outline:none}
-button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scroll-btn):not(.search-clear):not(.file-toolbar *):not(#desktop-root-toolbar-footer *):not(#btn-sort-filter){border-radius:999px!important}
+button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scroll-btn):not(.search-clear):not(.file-toolbar *):not(#desktop-root-toolbar-footer *):not(#btn-sort-filter):not(#btn-toggle-sidebar){border-radius:999px!important}
 .topbar .btn,.topbar .icon-btn,.file-toolbar .btn,.file-toolbar .icon-btn,#btn-sort-filter,#desktop-root-toolbar-footer button{border-radius:8px!important}
 .topbar #btn-advanced-search,.topbar .search-clear{border-radius:50%!important}
 .topbar #btn-toggle-sidebar{border-radius:0 10px 10px 0!important}

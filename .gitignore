@@ -92,3 +92,4 @@ Thumbs.db
 **/openspec/
 opencode.json
 .mcp-test-duplicati-src/
+.serena/
