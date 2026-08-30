@@ -46,7 +46,7 @@
                 
                 const embedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${lon-0.005},${lat-0.005},${lon+0.005},${lat+0.005}&layer=mapnik&marker=${lat},${lon}`;
                 
-                mapContainer.innerHTML = `<iframe src="${embedUrl}" loading="lazy"></iframe>`;
+                mapContainer.innerHTML = `<iframe name="cloud-map-embed" title="Map Location" src="${embedUrl}" loading="lazy"></iframe>`;
             }
 
             // Extract base path from fullPath (e.g., "storage/root_root/123/image1.jpg" -> "storage/root_root/123")

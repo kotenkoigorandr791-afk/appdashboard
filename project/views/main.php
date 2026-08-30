@@ -512,10 +512,14 @@
         #shared-files-content,#sessions-content,#profile-content,#qr-content,#email-form,#users-content,#stats-content,#tg-bot-content,#delete-user-content,#reset-user-password-content,#edit-stats-content,#shortcuts-content{overflow:hidden;}
         #shared-files-content{border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #sessions-content{border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);padding:0;display:flex;flex-direction:column;}
-        #sessions-content .modal-scroll-body{padding:40px 20px 20px;}
+        #sessions-content .modal-scroll-body{padding-top:10px;}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border-color);}
+        .modal-header-left h2{margin:0;font-size:18px;font-weight:600;}
+        #sessions-content .modal-scroll-body{padding:0 20px 20px;}
         #profile-content,#qr-content,#email-form,#users-content{padding:0;display:flex;flex-direction:column;}
         #profile-content .modal-scroll-body{padding:30px;}
         #qr-content .modal-scroll-body{padding:30px;}
+        #qr-content .modal-scroll-body:first-child{padding-top:10px;}
         #email-form .modal-scroll-body{padding:40px 20px 20px;}
         #users-content .modal-scroll-body{padding:40px 20px 20px;}
         #tg-bot-modal,#delete-user-modal,#reset-user-password-modal,#edit-stats-modal,#profile-modal{backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);background:rgba(6,10,16,0.28);}
@@ -638,10 +642,18 @@
         #shared-files-search{padding-right:35px;}
         #shared-files-clear-search{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#ff4444;font-size:18px;cursor:pointer;display:none;width:20px;height:20px;align-items:center;justify-content:center;border-radius:50%;}
         #shared-files-clear-search:hover{background-color:rgba(255,68,68,0.1);}
-        .shared-files-actions{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;flex:0 0 auto;}
-        .shared-files-actions > *{height:40px;box-sizing:border-box;flex-shrink:0;}
-        .shared-files-actions select{width:auto;min-width:0;padding:0 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--modal-bg);color:var(--text-color);font-size:13px;}
-        #shared-files-sort,#shared-files-group{height:40px;}
+.shared-files-actions{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;flex:0 0 auto;}
+    .shared-files-actions > *{height:40px;box-sizing:border-box;flex-shrink:0;}
+    .shared-files-actions select{width:auto;min-width:0;padding:0 10px;border-radius:6px;border:1px solid var(--border-color);background:var(--modal-bg);color:var(--text-color);font-size:13px;}
+    #shared-files-sort,#shared-files-group{height:40px;}
+    @media(max-width:768px){
+      .shared-files-actions{flex:1 1 auto; gap:4px; min-width:0; flex-wrap:nowrap; overflow-x:auto;}
+      .shared-files-actions > *{flex-shrink:0; min-width:0; max-width:100px; padding:0 8px;}
+    }
+    @media(max-width:480px){
+      .shared-files-actions{gap:3px;}
+      .shared-files-actions > *{max-width:70px; padding:0 6px;}
+    }
         #refresh-shared-files,#delete-all-files-btn,#delete-filtered-files,#delete-selected-shared-files{height:40px;display:inline-flex;align-items:center;justify-content:center;white-space:nowrap;padding:0 12px;}
         #refresh-shared-files{width:40px;padding:0;}
         .delete-filtered-btn{background:#ff9800;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;display:none;align-items:center;gap:5px;}
@@ -671,15 +683,19 @@
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
-        .settings-button-wrapper{position:relative;overflow:visible;flex-shrink:0;}
+.settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+.settings-button-wrapper{position:relative;overflow:visible;flex:0 0 1;min-width:0;margin:0 -2px;}
         .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;pointer-events:none;z-index:2147483647;}
         body>.tooltip{background:var(--group-block-bg);color:var(--text-color);padding:6px 12px;border-radius:8px;font-size:13px;border:1px solid var(--border-color);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3);pointer-events:none;}
         .settings-buttons-end-group{display:flex;align-items:stretch;gap:15px;margin-left:auto;flex-wrap:nowrap;}
         .settings-buttons-divider{width:1px;align-self:stretch;min-height:34px;background:var(--border-color);opacity:.75;flex:0 0 1px;}
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
-        @media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}.settings-buttons-divider{display:none !important;}}
+        @media(max-width:480px){
+  .settings-buttons-box{gap:10px;padding:10px;overflow-x:auto;}
+  .settings-button-wrapper{min-width:32px;flex-shrink:0;}
+}
+@media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}.settings-buttons-divider{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shortcuts-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;max-width:640px;max-height:90vh;overflow:auto;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shortcuts{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -977,17 +993,20 @@
             #top-bar-title,
             #weatherWidget {
                 left: 50%;
-                max-width: calc(100vw - 176px);
+                max-width: calc(100vw - 48px);
                 overflow: hidden;
                 position: absolute;
                 text-overflow: ellipsis;
                 transform: translateX(-50%);
+                padding: 0 8px;
+                box-sizing: border-box;
             }
             #top-bar-title {
                 margin-left: 0;
                 white-space: nowrap;
                 opacity: 1;
                 transition: opacity .6s ease;
+                font-size:15px;
             }
             #weatherWidget {
                 justify-content: center;
@@ -995,6 +1014,7 @@
                 opacity: 0;
                 pointer-events: none;
                 transition: opacity .6s ease;
+                font-size:11px;
             }
             #top-bar.mobile-info-show-weather #top-bar-title {
                 opacity: 0;
@@ -1004,14 +1024,12 @@
                 opacity: 1;
                 pointer-events: auto;
             }
-            .weather-widget .weather-wind {
+            .weather-widget .weather-wind, .weather-widget .weather-location, .weather-widget .weather-pin-icon, .weather-widget .weather-location-sep {
                 display: none;
             }
-            .weather-widget .weather-location {
-                max-width: 82px;
-            }
-            .weather-widget {
-                gap: 4px;
+            .weather-perm {
+                font-size:11px;
+                max-width:80px;
             }
         }
         @media (max-width:360px){
@@ -2773,7 +2791,7 @@ endif; // showOtpPage
 <?php if(isset($_SESSION['user'])):?>
     <div id="sessions-modal">
         <div id="sessions-content">
-            <button id="close-sessions" type="button">&times;</button>
+            <div class="modal-header"><div class="modal-header-left"><h2><?php echo my_htmlspecialchars($translations['session_management']); ?></h2></div><button id="close-sessions" type="button">&times;</button></div>
         <div class="modal-scroll-body">
             <h2><?php echo my_htmlspecialchars($translations['session_management']); ?></h2>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['active_sessions']); ?></h3><button id="refresh-sessions" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
@@ -2931,7 +2949,7 @@ endif; // showOtpPage
 </div>
 <div id="qr-modal">
     <div id="qr-content">
-        <button id="close-qr" type="button">&times;</button>
+        <div class="modal-header"><div class="modal-header-left"><h2><?php echo my_htmlspecialchars($translations['qr_code_title']); ?></h2></div><button id="close-qr" type="button">&times;</button></div>
         <div class="modal-scroll-body">
         <div class="qr-container">
             <h2><?php echo my_htmlspecialchars($translations['qr_code_title']); ?></h2>
@@ -3192,7 +3210,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             </div>
         </div>
         <?php endif;?>
-        <iframe id="app-iframe" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
+        <iframe id="app-iframe" name="devtools-app" title="Application: <?php echo my_htmlspecialchars($selectedApp); ?>" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
     <?php elseif($path==='/main'):?>
         <?php if(!$showTopBarTitle):?>
         <button type="button" id="notifications-btn" class="notifications-floating" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" style="position:fixed;top:10px;right:64px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 10%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
@@ -6025,5 +6043,89 @@ function restoreSavedCitySelection() {
 }
 </script>-->
 <?php endif; ?>
+<script>
+(function(){
+  var frames = {
+    app: { name: 'devtools-app', title: 'Application Shell', selector: 'iframe[name="devtools-app"]' },
+    docker: { name: 'devtools-docker', title: 'Docker Manager', selector: 'iframe[name="devtools-docker"]' },
+    performance: { name: 'devtools-performance', title: 'Performance Monitor', selector: 'iframe[name="devtools-performance"]' },
+    backup: { name: 'devtools-backup', title: 'Backup Dashboard', selector: 'iframe[name="devtools-backup"]' },
+    docs: { name: 'devtools-docs', title: 'Documentation', selector: 'iframe[name="devtools-docs"]' },
+    db: { name: 'devtools-db', title: 'Database Admin', selector: 'iframe[name="devtools-db"]' },
+    omniroute: { name: 'devtools-omniroute', title: 'OmniRoute', selector: 'iframe[name="devtools-omniroute"]' }
+  };
+
+  window.__devtools = {
+    frames: frames,
+    list: function() {
+      var result = [];
+      Object.keys(frames).forEach(function(key) {
+        var f = frames[key];
+        var el = document.querySelector(f.selector);
+        result.push({
+          key: key,
+          name: f.name,
+          title: f.title,
+          loaded: el ? !!el.contentWindow : false,
+          url: el ? el.src : 'not found'
+        });
+      });
+      console.table(result);
+      return result;
+    },
+    focus: function(key) {
+      var f = frames[key];
+      if (!f) { console.error('Unknown frame: ' + key + '. Use __devtools.list() to see options.'); return; }
+      var el = document.querySelector(f.selector);
+      if (!el) { console.error('Frame not found in DOM: ' + f.selector); return; }
+      try {
+        el.contentWindow.focus();
+        console.log('Focused: ' + f.title + ' (' + f.name + ')');
+      } catch(e) {
+        console.log('Frame found but cross-origin: ' + f.title + '. URL: ' + el.src);
+      }
+    },
+    inspect: function(key) {
+      var f = frames[key];
+      if (!f) { console.error('Unknown frame: ' + key); return; }
+      var el = document.querySelector(f.selector);
+      if (!el) { console.error('Frame not found: ' + f.selector); return; }
+      console.log('Frame: ' + f.title);
+      console.log('Name: ' + f.name);
+      console.log('URL: ' + el.src);
+      console.log('Dimensions: ' + el.offsetWidth + 'x' + el.offsetHeight);
+      console.log('Tip: In DevTools, use the frame selector dropdown (top of Elements panel) to switch to "' + f.name + '"');
+    },
+    help: function() {
+      console.log('=== DevTools Frame Helper ===');
+      console.log('Commands:');
+      console.log('  __devtools.list()          - List all frames with status');
+      console.log('  __devtools.focus("key")    - Focus a frame (app, docker, performance, backup, docs, db, omniroute)');
+      console.log('  __devtools.inspect("key")  - Show frame details');
+      console.log('  __devtools.help()          - Show this help');
+      console.log('');
+      console.log('Keyboard shortcuts (Ctrl+Shift+):');
+      console.log('  1 = App Shell    2 = Docker      3 = Performance');
+      console.log('  4 = Backup       5 = Docs        6 = Database');
+      console.log('  7 = OmniRoute');
+      console.log('');
+      console.log('DevTips:');
+      console.log('  - Elements panel > top dropdown > select frame name to inspect inside');
+      console.log('  - Console panel > dropdown > switch to frame context to run JS inside');
+      console.log('  - Each iframe now has name+title attributes for easy identification');
+    }
+  };
+
+  var keyMap = { '1': 'app', '2': 'docker', '3': 'performance', '4': 'backup', '5': 'docs', '6': 'db', '7': 'omniroute' };
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.shiftKey && keyMap[e.key]) {
+      e.preventDefault();
+      window.__devtools.focus(keyMap[e.key]);
+    }
+  });
+
+  console.log('%c[DevTools Helper] Ready! Type __devtools.help() for commands.', 'color: #22c55e; font-weight: bold;');
+})();
+</script>
 </body>
 </html>

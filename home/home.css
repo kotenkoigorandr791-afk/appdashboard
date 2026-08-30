@@ -380,6 +380,9 @@ body.light-theme .weather-widget {
   text-align: center;
   color: #f0b27a;
   line-height: 1.5;
+  max-width: 100%;
+  padding: 0 4px;
+  box-sizing: border-box;
 }
 body.light-theme .weather-perm {
   color: #b85c00;

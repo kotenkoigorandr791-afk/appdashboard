@@ -361,6 +361,7 @@
                                     <div class="takeout-guide-body">
                                         <iframe
                                             id="zeep-guide-frame"
+                                            name="steps-zeep-guide"
                                             loading="lazy"
                                             title="<?php echo htmlspecialchars($translations['zeep_guide_iframe_title'] ?? 'Zeep Life instruction'); ?>"
                                             src="instruction/zeep_life_guide.html?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($theme); ?>&color=<?php echo urlencode($color); ?>"
@@ -436,6 +437,7 @@
                                     <div class="takeout-guide-body">
                                         <iframe
                                             id="takeout-guide-frame"
+                                            name="steps-takeout-guide"
                                             loading="lazy"
                                             title="<?php echo htmlspecialchars($translations['takeout_guide_iframe_title'] ?? 'Takeout instruction'); ?>"
                                             src="instruction/takeout_guide.html?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($theme); ?>&color=<?php echo urlencode($color); ?>"
@@ -453,7 +455,7 @@
                 <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
                 <h2 class="guide-expand-title"><i class="fas fa-map-signs"></i> <span id="guide-expand-title-text"></span></h2>
                 <div class="guide-expand-frame-wrap">
-                    <iframe id="guide-expand-frame" loading="lazy"></iframe>
+                    <iframe id="guide-expand-frame" name="steps-guide-expand" loading="lazy"></iframe>
                 </div>
             </div>
         </div>
@@ -621,6 +623,7 @@
                     <div class="takeout-guide-body">
                         <iframe
                             id="video-confirm-phone-guide-frame"
+                            name="steps-phone-guide"
                             title="<?php echo htmlspecialchars($translations['video_phone_guide_iframe_title'] ?? 'Phone steps instruction'); ?>"
                             src="instruction/video_phone_steps_guide.html?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($theme); ?>&color=<?php echo urlencode($color); ?>"
                         ></iframe>

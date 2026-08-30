@@ -428,6 +428,45 @@ function email_to_cloud_username(string $email): string {
     $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
     return $username ?: 'guest';
 }
+function cloud_get_email_from_redis_session(string $sessionId): ?string {
+    $redis = function_exists('app_redis') ? app_redis() : null;
+    if (!$redis) return null;
+    try {
+        $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
+        if ($raw) {
+            $row = json_decode((string)$raw, true);
+            if (is_array($row) && !empty($row['email'])) {
+                return $row['email'];
+            }
+        }
+    } catch (Throwable $e) {
+        cloud_safe_error_log("cloud_get_email_from_redis_session failed: " . $e->getMessage());
+    }
+    return null;
+}
+function cloud_get_email_from_php_redis_session(string $sessionId): ?string {
+    $redis = function_exists('app_redis') ? app_redis() : null;
+    if (!$redis) return null;
+    try {
+        $raw = $redis->get(app_redis_key('php_session:' . $sessionId));
+        if (!$raw) return null;
+        $data = (string)$raw;
+        if (preg_match('/s:5:"email";s:\d+:"([^"]+)"/', $data, $m)) {
+            return html_entity_decode($m[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        }
+    } catch (Throwable $e) {
+        cloud_safe_error_log("cloud_get_email_from_php_redis_session failed: " . $e->getMessage());
+    }
+    return null;
+}
+function cloud_session_candidate_ids(): array {
+    $ids = [];
+    foreach ([session_id(), $_COOKIE[session_name()] ?? null, $_COOKIE['PHPSESSID'] ?? null] as $sid) {
+        if (!is_string($sid) || $sid === '' || isset($ids[$sid])) continue;
+        $ids[$sid] = $sid;
+    }
+    return array_values($ids);
+}
 // ------------------------------------------------------------------
 //  Returns the username derived from the active PHP session.
 //  If the session is not found in the DB → returns 'guest'.
@@ -445,15 +484,19 @@ function get_current_user_from_sessions(): string {
     if (is_string($sessionEmail) && $sessionEmail !== '') {
         return email_to_cloud_username($sessionEmail);
     }
+
+    $tryIds = cloud_session_candidate_ids();
+
+    foreach ($tryIds as $sid) {
+        $email = cloud_get_email_from_redis_session($sid);
+        if ($email === null || $email === '') $email = cloud_get_email_from_php_redis_session($sid);
+        if ($email !== null && $email !== '') {
+            return email_to_cloud_username($email);
+        }
+    }
+
     $db = getDB();
     if (!$db) return 'guest';
-
-    $tryIds = [];
-    $session_id = session_id();
-    if ($session_id) $tryIds[] = $session_id;
-    if (isset($_COOKIE['PHPSESSID']) && $_COOKIE['PHPSESSID'] !== $session_id) {
-        $tryIds[] = $_COOKIE['PHPSESSID'];
-    }
 
     foreach ($tryIds as $sid) {
         try {
@@ -492,15 +535,26 @@ function get_session_email(): ?string {
     if (is_string($sessionEmail) && $sessionEmail !== '') {
         return strtolower(trim($sessionEmail));
     }
+
+    $tryIds = cloud_session_candidate_ids();
+
+    // Check Redis first (active_sessions stored in Redis when Redis is available)
+    foreach ($tryIds as $sid) {
+        $email = cloud_get_email_from_redis_session($sid);
+        if ($email === null || $email === '') $email = cloud_get_email_from_php_redis_session($sid);
+        if ($email !== null && $email !== '') {
+            return strtolower(trim($email));
+        }
+    }
+
     $db = getDB();
     if (!$db) return null;
 
     // Primary: use the session PHP already started
-    $session_id = session_id();
-    if ($session_id) {
+    foreach ($tryIds as $sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-            $stmt->bindValue(':sid', $session_id, PDO::PARAM_STR);
+            $stmt->bindValue(':sid', $sid, PDO::PARAM_STR);
             $result = $stmt->execute();
             $row    = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
@@ -508,25 +562,6 @@ function get_session_email(): ?string {
             }
         } catch (Exception $e) {
             cloud_safe_error_log("get_session_email (session_id) failed: " . $e->getMessage());
-        }
-    }
-
-    // Fallback: the auth system may store the session under PHPSESSID cookie
-    // directly (e.g. when api.php and auth live under different session configs).
-    if (isset($_COOKIE['PHPSESSID'])) {
-        $cookie_sid = $_COOKIE['PHPSESSID'];
-        if ($cookie_sid && $cookie_sid !== $session_id) {
-            try {
-                $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
-                $stmt->bindValue(':sid', $cookie_sid, PDO::PARAM_STR);
-                $result = $stmt->execute();
-                $row    = $result->fetch(PDO::FETCH_ASSOC);
-                if ($row && !empty($row['email'])) {
-                    return $row['email'];
-                }
-            } catch (Exception $e) {
-                cloud_safe_error_log("get_session_email (cookie) failed: " . $e->getMessage());
-            }
         }
     }
 
@@ -584,12 +619,10 @@ function isUserRoot(): bool {
     $db = getDB();
     if (!$db) return false;
 
-    $tryIds = [];
-    $session_id = session_id();
-    if ($session_id) $tryIds[] = $session_id;
-    if (isset($_COOKIE['PHPSESSID']) && $_COOKIE['PHPSESSID'] !== $session_id) {
-        $tryIds[] = $_COOKIE['PHPSESSID'];
-    }
+    $sessionEmail = get_session_email();
+    if ($sessionEmail) return getUserRoleByEmail($sessionEmail) === 2;
+
+    $tryIds = cloud_session_candidate_ids();
 
     $sql = "SELECT u.role
             FROM   active_sessions s

@@ -1939,8 +1939,95 @@ let tabsState = {
 };
 window.tabsState = tabsState;
 let tabPreviewHoverTimer = null;
+const RECENT_FILES_KEY = 'cloudRecentFiles';
+let recentFilesSelection = 0;
 function getViewerElement() {
     return document.getElementById('viewer');
+}
+function loadRecentFiles() {
+    try {
+        const rows = JSON.parse(localStorage.getItem(RECENT_FILES_KEY) || '[]');
+        return Array.isArray(rows) ? rows.filter((row) => row && row.path && row.type !== 'dir').slice(0, 12) : [];
+    } catch (_) {
+        return [];
+    }
+}
+function saveRecentFile(path, root = null) {
+    if (!path) return;
+    const file = { path, root: root || getCurrentCloudRoot(), title: String(path).split('/').pop(), ts: Date.now() };
+    const rows = loadRecentFiles().filter((row) => !(row.path === file.path && row.root === file.root));
+    rows.unshift(file);
+    localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(rows.slice(0, 12)));
+    if (tabsState.tabs.length === 0) renderViewerEmptyState();
+}
+function recentFileEmptyIcon() {
+    return '<svg class="viewer-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M9 15h6"></path><path d="M9 18h3"></path></svg>';
+}
+function renderViewerEmptyState() {
+    const viewer = getViewerElement();
+    const fileView = document.getElementById('file-view');
+    if (!viewer || !fileView || tabsState.tabs.length > 0) return;
+    if ((typeof isTrashRoot === 'function' && isTrashRoot()) || document.body.classList.contains('trash-mode')) return;
+    fileView.classList.remove('hidden');
+    viewer.innerHTML = '';
+    viewer.dataset.path = '';
+    viewer.dataset.editor = '';
+    viewer.dataset.empty = 'true';
+    viewer.classList.add('viewer-empty-state');
+    const rows = loadRecentFiles();
+    const wrap = document.createElement('div');
+    wrap.className = 'viewer-empty';
+    if (!rows.length) {
+        wrap.innerHTML = `${recentFileEmptyIcon()}<div class="viewer-empty-title">${escapeHtml(t(i18n, 'noRecentFiles'))}</div><div class="viewer-empty-subtitle">${escapeHtml(t(i18n, 'noRecentFilesHint'))}</div>`;
+        viewer.appendChild(wrap);
+        return;
+    }
+    recentFilesSelection = Math.max(0, Math.min(recentFilesSelection, rows.length - 1));
+    wrap.innerHTML = `<div class="viewer-empty-title">${escapeHtml(t(i18n, 'recentFiles'))}</div><div class="viewer-recent-list" role="listbox" aria-label="${escapeHtml(t(i18n, 'recentFiles'))}"></div>`;
+    const list = wrap.querySelector('.viewer-recent-list');
+    rows.forEach((row, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'viewer-recent-item';
+        btn.dataset.index = String(index);
+        btn.dataset.path = row.path;
+        btn.dataset.root = row.root || 'main';
+        btn.setAttribute('role', 'option');
+        btn.setAttribute('aria-selected', index === recentFilesSelection ? 'true' : 'false');
+        btn.innerHTML = `${getFileIconMarkup(row.title || row.path, 'viewer-recent-icon')}<span class="viewer-recent-text"><span class="viewer-recent-name">${escapeHtml(row.title || row.path)}</span><span class="viewer-recent-path">${escapeHtml(formatDisplayPath(row.path))}</span></span>`;
+        btn.addEventListener('click', () => openRecentFile(index));
+        list.appendChild(btn);
+    });
+    viewer.appendChild(wrap);
+    updateRecentFilesSelection();
+}
+function updateRecentFilesSelection() {
+    document.querySelectorAll('.viewer-recent-item').forEach((item) => {
+        item.classList.toggle('selected', Number(item.dataset.index) === recentFilesSelection);
+        item.setAttribute('aria-selected', Number(item.dataset.index) === recentFilesSelection ? 'true' : 'false');
+    });
+}
+function openRecentFile(index = recentFilesSelection) {
+    const rows = loadRecentFiles();
+    const row = rows[index];
+    if (!row) return;
+    openFileInTab(row.path, false, row.root || 'main');
+}
+function initRecentFilesKeyboard() {
+    if (window.recentFilesKeyboardInitialized) return;
+    window.recentFilesKeyboardInitialized = true;
+    document.addEventListener('keydown', (event) => {
+        if (tabsState.tabs.length > 0) return;
+        const tag = (document.activeElement?.tagName || '').toUpperCase();
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
+        const rows = loadRecentFiles();
+        if (!rows.length || !['ArrowUp', 'ArrowDown', 'Enter'].includes(event.key)) return;
+        event.preventDefault();
+        if (event.key === 'ArrowUp') recentFilesSelection = (recentFilesSelection - 1 + rows.length) % rows.length;
+        if (event.key === 'ArrowDown') recentFilesSelection = (recentFilesSelection + 1) % rows.length;
+        if (event.key === 'Enter') openRecentFile();
+        updateRecentFilesSelection();
+    });
 }
 function getOrCreateFileContainer(tabId) {
     const viewer = getViewerElement();
@@ -2270,6 +2357,7 @@ function openFileInTab(path, editMode = false, root = null) {
     
     tabsState.activeTabId = tabId;
     renderTabs();
+    saveRecentFile(path, newTab.root);
     
     if (isLatexEditor) {
         loadLatexEditorToTab(newTab);
@@ -2334,6 +2422,7 @@ function openMarkdownEditor(filePath, root = null) {
     }
     tabsState.activeTabId = tabId;
     renderTabs();
+    saveRecentFile(filePath, newTab.root);
     loadMarkdownEditorToTab(newTab);
     saveTabsState();
 }
@@ -2604,6 +2693,7 @@ function openHtmlEditor(filePath, root = null) {
     }
     tabsState.activeTabId = tabId;
     renderTabs();
+    saveRecentFile(filePath, newTab.root);
     loadHtmlEditorToTab(newTab);
     saveTabsState();
 }
@@ -3470,6 +3560,12 @@ function initTabScrolling() {
 function renderTabs() {
     const hasTabs = tabsState.tabs.length > 0;
     document.body.classList.toggle('tabs-open', hasTabs);
+    document.body.classList.toggle('tabs-empty', !hasTabs);
+    const viewer = getViewerElement();
+    if (hasTabs && viewer) {
+        viewer.classList.remove('viewer-empty-state');
+        delete viewer.dataset.empty;
+    }
 
     let tabsContainer = document.querySelector('.tabs-container');
     let tabsList = document.getElementById('tabs-list');
@@ -3530,6 +3626,7 @@ function renderTabs() {
         const scrollRight = document.getElementById('tab-scroll-right');
         if (scrollLeft) scrollLeft.style.display = 'none';
         if (scrollRight) scrollRight.style.display = 'none';
+        renderViewerEmptyState();
         return;
     }
     
@@ -4248,6 +4345,8 @@ function bindUI(i18n) {
     });
 
     initTabs();
+    initRecentFilesKeyboard();
+    renderViewerEmptyState();
     initCodeActionsMenuIcons();
     document.getElementById('btn-close-all-tabs').addEventListener('click', closeAllTabs);
     window.addEventListener('resize', () => {
@@ -9460,7 +9559,7 @@ function guessLangClass(ext) {
 }
 function closeViewer() {
     clearAutoSaveTimer();
-    document.getElementById('file-view').classList.add('hidden');
+    document.getElementById('file-view').classList.remove('hidden');
     const viewer = document.getElementById('viewer');
     const allIframes = viewer.querySelectorAll('iframe');
     allIframes.forEach(frame => {
@@ -9479,6 +9578,8 @@ function closeViewer() {
 
     const hasTabs = tabsState.tabs.length > 0;
     document.body.classList.toggle('tabs-open', hasTabs);
+    document.body.classList.toggle('tabs-empty', !hasTabs);
+    renderViewerEmptyState();
 }
 async function copyViewer(path) {
   try {

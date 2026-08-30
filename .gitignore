@@ -84,6 +84,11 @@ Thumbs.db
 # AI assistant instruction files
 **/*cloud*.md
 **/.claude/
+
+# Local dev debug URLs (not part of deploy)
+docs/APP_DEBUG_URLS.md
+APP_DEBUG_URLS.md
+debug_panel.php
 **/.codex/
 **/AGENTS.md
 **/agents.md

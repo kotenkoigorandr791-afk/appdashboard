@@ -3,28 +3,56 @@ window.initSyncLogModal = function initSyncLogModal(i18n) {
   const modal = document.getElementById('sync-log-modal');
   const closeBtn = document.getElementById('btn-close-sync-log');
   const body = document.getElementById('sync-log-body');
+  const tableWrap = modal ? modal.querySelector('.sync-log-table-wrap') : null;
   if (!openBtn || !modal || !closeBtn || !body) return;
 
-  const renderRows = (rows) => {
-    body.innerHTML = '';
+  const state = { offset: 0, limit: 30, loading: false, hasMore: true };
+
+  const appendRows = (rows) => {
     rows.forEach((row) => {
       const tr = document.createElement('tr');
       const level = String(row.level || 'INFO').toUpperCase();
       const levelClass = level === 'ERROR'
         ? 'sync-log-level-error'
         : (level === 'WARNING' ? 'sync-log-level-warning' : 'sync-log-level-info');
-      tr.innerHTML = `<td>${new Date((row.ts || 0) * 1000).toLocaleString()}</td><td class="${levelClass}">${level}</td><td>${t(i18n, `${row.root || 'main'}Root`)}</td><td>${row.action || ''}</td><td>${row.path || ''}</td><td>${row.message || ''}</td>`;
+      tr.innerHTML = `<td>${new Date((row.ts || 0) * 1000).toLocaleString()}</td><td class="${levelClass}">${escapeHtml(level)}</td><td>${escapeHtml(t(i18n, `${row.root || 'main'}Root`))}</td><td>${escapeHtml(row.action || '')}</td><td>${escapeHtml(row.path || '')}</td><td>${escapeHtml(row.message || '')}</td>`;
       body.appendChild(tr);
     });
   };
 
+  const loadPage = async (reset = false) => {
+    if (state.loading || (!state.hasMore && !reset)) return;
+    state.loading = true;
+    try {
+      if (reset) {
+        state.offset = 0;
+        state.hasMore = true;
+        body.innerHTML = '';
+      }
+      const res = await api('get_sync_log', { limit: state.limit, offset: state.offset }, 'GET');
+      const items = res.items || [];
+      appendRows(items);
+      state.offset += items.length;
+      state.hasMore = !!res.has_more;
+    } catch (err) {
+      flashStatus(t(i18n, 'errorPrefix') + err.message);
+    } finally {
+      state.loading = false;
+    }
+  };
+
   openBtn.addEventListener('click', async () => {
     try {
-      const res = await api('get_sync_log', { limit: 300 }, 'GET');
-      renderRows(res.items || []);
+      await loadPage(true);
       modal.classList.remove('hidden');
     } catch (err) {
       flashStatus(t(i18n, 'errorPrefix') + err.message);
+    }
+  });
+
+  tableWrap?.addEventListener('scroll', () => {
+    if (tableWrap.scrollTop + tableWrap.clientHeight >= tableWrap.scrollHeight - 160) {
+      loadPage(false);
     }
   });
 
@@ -157,7 +185,12 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     syncSelection();
     const selectedToken = getSelectedToken();
 
-    tokensListContainer.innerHTML = tokens.map((token) => {
+    const tokenCount = tokens.length;
+    const isFirstToken = (index) => index === 0;
+    const isLastToken = (index) => index === tokenCount - 1;
+
+    console.log('Rendering tokens list, count:', tokens.length, 'selected:', selectedTokenHash);
+    tokensListContainer.innerHTML = tokens.map((token, index) => {
       const isSelected = token.token_hash === selectedTokenHash;
       const deviceName = escapeHtml(token.device_name || tr('unknownDevice', 'Unknown Device'));
       const platform = escapeHtml(token.platform || tr('unknownPlatform', 'Unknown Platform'));
@@ -165,10 +198,15 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       const lastUsed = escapeHtml(formatDateTime(token.last_used_at));
       const expiresAt = escapeHtml(formatDate(token.expires_at));
 
+      let borderRadius = '0';
+      isFirstToken(index) && (borderRadius = '8px 8px 0 0');
+      isLastToken(index) && (borderRadius = '0 0 8px 8px');
+      console.log('Token', index, 'isFirst:', isFirstToken(index), 'isLast:', isLastToken(index), 'borderRadius:', borderRadius);
+
       return `<button type="button"
         class="token-item${isSelected ? ' selected' : ''}"
         data-token-hash="${escapeHtml(token.token_hash)}"
-        style="width:100%;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--border);background:${isSelected ? 'rgba(var(--accent-rgb), 0.16)' : 'transparent'};color:var(--fg);cursor:pointer;transition:background .15s ease, box-shadow .15s ease;color:var(--fg);box-shadow:${isSelected ? 'inset 3px 0 0 var(--accent), inset 0 0 0 1px rgba(var(--accent-rgb), 0.22)' : 'none'};">
+        style="width:100%;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--border);background:${isSelected ? 'rgba(var(--accent-rgb), 0.16)' : 'transparent'};color:var(--fg);cursor:pointer;transition:background .15s ease, box-shadow .15s ease;color:var(--fg);box-shadow:${isSelected ? 'none' : 'none'};border-radius:${borderRadius};">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">
             <strong style="font-size:13px;color:var(--fg);">${deviceName}</strong>
             <span style="font-size:11px;color:${isSelected ? 'var(--accent)' : 'var(--fg-secondary)'};">${platform}</span>

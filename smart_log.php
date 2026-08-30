@@ -105,7 +105,6 @@ function smart_log_errno_level(int $errno): string {
             return 'warning';
         case E_NOTICE:
         case E_USER_NOTICE:
-        case E_STRICT:
         case E_DEPRECATED:
         case E_USER_DEPRECATED:
             return 'notice';
@@ -204,9 +203,8 @@ function smart_log_notify_telegram(AppDatabase $db, string $sig, string $appId, 
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => 8,
             ]);
-            curl_exec($ch);
-            curl_close($ch);
-        }
+curl_exec($ch);
+         }
         $up = $db->prepare("INSERT INTO smart_log_tg_sent(signature,last_sent) VALUES(:s,:t) ON CONFLICT(signature) DO UPDATE SET last_sent = excluded.last_sent");
         $up->bindValue(':s', $sig, PDO::PARAM_STR);
         $up->bindValue(':t', $now, PDO::PARAM_INT);
