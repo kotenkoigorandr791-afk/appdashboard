@@ -26,7 +26,6 @@ function portainer_can_auth(string $baseUrl, string $username, string $password)
     ]);
     $response = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($httpCode !== 200) return false;
     $decoded = json_decode((string)$response, true);
     return is_array($decoded) && trim((string)($decoded['jwt'] ?? '')) !== '';
@@ -40,7 +39,6 @@ function portainer_can_status(string $baseUrl): bool {
     ]);
     curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     return $httpCode === 200;
 }
 function portainer_resolve_url(array $cfg): string {
@@ -70,7 +68,6 @@ function portainer_auth(string $url, array &$cfg): ?string {
     ]);
     $response = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($httpCode !== 200) return null;
     $decoded = json_decode((string)$response, true);
     $jwt = is_array($decoded) ? trim((string)($decoded['jwt'] ?? '')) : '';
@@ -109,7 +106,6 @@ function portainer_call(string $path, string $method = 'GET', $data = null, int 
     $response = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $curlErr = curl_error($ch);
-    curl_close($ch);
     if ($retryAuth && ($httpCode === 401 || $httpCode === 403)) {
         $new = portainer_auth($ctx['url'], $ctx['cfg']);
         if ($new !== null) {

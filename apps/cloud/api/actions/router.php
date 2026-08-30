@@ -677,19 +677,23 @@ if ($action === 'set_hide_lang_switcher') {
 if ($action === 'get_sync_log') {
     $email = get_session_email();
     if (!$email) json_out(['ok' => false, 'error' => 'not authenticated'], 401);
-    $limit = max(1, min(500, (int)($_GET['limit'] ?? 200)));
+    $limit = max(1, min(100, (int)($_GET['limit'] ?? 30)));
+    $offset = max(0, (int)($_GET['offset'] ?? 0));
     $user = get_current_user_from_sessions();
     $db = getDB();
     if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
     ensureCloudSyncLogsSchema($db);
     cloud_sync_logs_migrate_legacy($db, $email, $user);
-    $stmt = $db->prepare("SELECT ts, level, root_key AS root, action, path, message FROM cloud_sync_logs WHERE email = :e ORDER BY ts DESC, id DESC LIMIT :lim");
+    $stmt = $db->prepare("SELECT ts, level, root_key AS root, action, path, message FROM cloud_sync_logs WHERE email = :e ORDER BY ts DESC, id DESC LIMIT :lim OFFSET :off");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
-    $stmt->bindValue(':lim', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':lim', $limit + 1, PDO::PARAM_INT);
+    $stmt->bindValue(':off', $offset, PDO::PARAM_INT);
     $res = $stmt->execute();
     $items = [];
     while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) $items[] = $row;
-    json_out(['ok' => true, 'items' => $items]);
+    $hasMore = count($items) > $limit;
+    if ($hasMore) array_pop($items);
+    json_out(['ok' => true, 'items' => $items, 'has_more' => $hasMore]);
 }
 
 if ($action === 'set_sync_profile') {

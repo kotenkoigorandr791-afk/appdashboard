@@ -58,7 +58,7 @@
                         <button id="openInModal" title="Open in full screen"><i class="fas fa-expand"></i></button>
                     </div>
                 </div>
-                <iframe class="viewer-iframe" id="viewerIframe" src="about:blank"></iframe>
+                <iframe class="viewer-iframe" id="viewerIframe" name="viewer-main" title="Site Viewer" src="about:blank"></iframe>
             </div>
         </div>
     </div>
@@ -126,7 +126,7 @@
                 <button id="closeFullscreenModal" title="Close"><i class="fas fa-times"></i></button>
             </div>
         </div>
-        <iframe class="fullscreen-modal-iframe" id="fullscreenIframe" src="about:blank"></iframe>
+        <iframe class="fullscreen-modal-iframe" id="fullscreenIframe" name="viewer-fullscreen" title="Fullscreen Site Viewer" src="about:blank"></iframe>
     </div>
 
     <div class="action-modal" id="actionModal">

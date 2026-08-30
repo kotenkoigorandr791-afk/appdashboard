@@ -2068,7 +2068,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             </div>
         </div>
         <?php endif;?>
-        <iframe id="app-iframe" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
+        <iframe id="app-iframe" name="devtools-app" title="Application: <?php echo my_htmlspecialchars($selectedApp); ?>" class="mobile-vv-fill" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($themeForAppLink); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
     <?php elseif($path==='/main'):?>
         <?php if(!$showTopBarTitle):?>
         <button type="button" id="support-chat-btn" class="support-chat-floating" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>" style="position:fixed;top:10px;right:16px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 28%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 14%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;">
@@ -4579,6 +4579,7 @@ var T=<?php echo json_encode([
 #ap-content:has(#ap-backup.active),
 #ap-content:has(#ap-docs.active),
 #ap-content:has(#ap-db.active),
+#ap-content:has(#ap-performance.active),
 #ap-content:has(#ap-omniroute.active) {
     padding: 0;
 }
@@ -4591,6 +4592,7 @@ var T=<?php echo json_encode([
     min-height: 0;
 }
 #ap-content:has(#ap-backup.active),
+#ap-content:has(#ap-performance.active),
 #ap-content:has(#ap-omniroute.active) {
     overflow: hidden;
 }
@@ -4604,6 +4606,7 @@ var T=<?php echo json_encode([
 #ap-backup.active,
 #ap-docs.active,
 #ap-db.active,
+#ap-performance.active,
 #ap-omniroute.active,
 #ap-ssh.active { display: flex; position: relative; flex: 1; min-height: 0; height: 100%; width: 100%; }
 #ap-ssh.ap-panel.active {
@@ -11773,6 +11776,90 @@ function initWeather() {
     );
 }
 
+})();
+</script>
+<script>
+(function(){
+  var frames = {
+    app: { name: 'devtools-app', title: 'Application Shell', selector: 'iframe[name="devtools-app"]' },
+    docker: { name: 'devtools-docker', title: 'Docker Manager', selector: 'iframe[name="devtools-docker"]' },
+    performance: { name: 'devtools-performance', title: 'Performance Monitor', selector: 'iframe[name="devtools-performance"]' },
+    backup: { name: 'devtools-backup', title: 'Backup Dashboard', selector: 'iframe[name="devtools-backup"]' },
+    docs: { name: 'devtools-docs', title: 'Documentation', selector: 'iframe[name="devtools-docs"]' },
+    db: { name: 'devtools-db', title: 'Database Admin', selector: 'iframe[name="devtools-db"]' },
+    omniroute: { name: 'devtools-omniroute', title: 'OmniRoute', selector: 'iframe[name="devtools-omniroute"]' }
+  };
+
+  window.__devtools = {
+    frames: frames,
+    list: function() {
+      var result = [];
+      Object.keys(frames).forEach(function(key) {
+        var f = frames[key];
+        var el = document.querySelector(f.selector);
+        result.push({
+          key: key,
+          name: f.name,
+          title: f.title,
+          loaded: el ? !!el.contentWindow : false,
+          url: el ? el.src : 'not found'
+        });
+      });
+      console.table(result);
+      return result;
+    },
+    focus: function(key) {
+      var f = frames[key];
+      if (!f) { console.error('Unknown frame: ' + key + '. Use __devtools.list() to see options.'); return; }
+      var el = document.querySelector(f.selector);
+      if (!el) { console.error('Frame not found in DOM: ' + f.selector); return; }
+      try {
+        el.contentWindow.focus();
+        console.log('Focused: ' + f.title + ' (' + f.name + ')');
+      } catch(e) {
+        console.log('Frame found but cross-origin: ' + f.title + '. URL: ' + el.src);
+      }
+    },
+    inspect: function(key) {
+      var f = frames[key];
+      if (!f) { console.error('Unknown frame: ' + key); return; }
+      var el = document.querySelector(f.selector);
+      if (!el) { console.error('Frame not found: ' + f.selector); return; }
+      console.log('Frame: ' + f.title);
+      console.log('Name: ' + f.name);
+      console.log('URL: ' + el.src);
+      console.log('Dimensions: ' + el.offsetWidth + 'x' + el.offsetHeight);
+      console.log('Tip: In DevTools, use the frame selector dropdown (top of Elements panel) to switch to "' + f.name + '"');
+    },
+    help: function() {
+      console.log('=== DevTools Frame Helper ===');
+      console.log('Commands:');
+      console.log('  __devtools.list()          - List all frames with status');
+      console.log('  __devtools.focus("key")    - Focus a frame (app, docker, performance, backup, docs, db, omniroute)');
+      console.log('  __devtools.inspect("key")  - Show frame details');
+      console.log('  __devtools.help()          - Show this help');
+      console.log('');
+      console.log('Keyboard shortcuts (Ctrl+Shift+):');
+      console.log('  1 = App Shell    2 = Docker      3 = Performance');
+      console.log('  4 = Backup       5 = Docs        6 = Database');
+      console.log('  7 = OmniRoute');
+      console.log('');
+      console.log('DevTips:');
+      console.log('  - Elements panel > top dropdown > select frame name to inspect inside');
+      console.log('  - Console panel > dropdown > switch to frame context to run JS inside');
+      console.log('  - Each iframe now has name+title attributes for easy identification');
+    }
+  };
+
+  var keyMap = { '1': 'app', '2': 'docker', '3': 'performance', '4': 'backup', '5': 'docs', '6': 'db', '7': 'omniroute' };
+  document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.shiftKey && keyMap[e.key]) {
+      e.preventDefault();
+      window.__devtools.focus(keyMap[e.key]);
+    }
+  });
+
+  console.log('%c[DevTools Helper] Ready! Type __devtools.help() for commands.', 'color: #22c55e; font-weight: bold;');
 })();
 </script>
 </body>

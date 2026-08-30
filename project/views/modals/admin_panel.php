@@ -110,21 +110,7 @@
 /* Close button — icon-only circle */
 .ap-close-btn-style,
 #ap-close-btn {
-    width: 36px;
-    height: 36px;
-    background: none;
-    border: 1.5px solid var(--border-color);
-    color: var(--text-color);
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all .2s;
-    padding: 0;
-}
+    width:36px;height:36px;background:none;border:1.5px solid var(--border-color);color:var(--text-color);border-radius:50%;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;flex:0 0 auto;flex-shrink:0;aspect-ratio:1;min-width:36px;min-height:36px;box-sizing:border-box;}
 .ap-close-btn-style:hover,
 #ap-close-btn:hover {
     background: color-mix(in srgb, #f85149 15%, transparent);

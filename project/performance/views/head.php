@@ -24,7 +24,7 @@
 .graph-title { text-align: center; margin-bottom: 25px; font-size: 1.8rem; color: var(--text-color); font-weight: 600; }
 .graph-canvas-container { flex: 1; position: relative; width: 100%; height: 100%; }
 .graph-canvas-container canvas { width: 100% !important; height: 100% !important; }
-.stats-grid { justify-content: center; }
+.stats-grid { justify-content: stretch; }
 .monitor-section { display: none; animation: monitorSectionFade 0.18s ease; }
 .monitor-section.active { display: block; }
 @keyframes monitorSectionFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

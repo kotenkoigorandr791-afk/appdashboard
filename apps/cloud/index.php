@@ -60,7 +60,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <title data-i18n="appTitle">File Space</title>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=27" />
+  <link rel="stylesheet" href="assets/styles.css?v=31" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -223,7 +223,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=31"></script>
+<script defer src="assets/app.js?v=32"></script>
 <script defer src="assets/app/editors-and-tree.js?v=9"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
@@ -233,10 +233,10 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=7"></script>
 <script defer src="assets/audio-player.js?v=2"></script>
-<script defer src="assets/app/cloud-group-chat.js?v=8"></script>
+<script defer src="assets/app/cloud-group-chat.js?v=9"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
-<script defer src="assets/settings/sync-modals.js?v=7"></script>
+<script defer src="assets/settings/sync-modals.js?v=8"></script>
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>

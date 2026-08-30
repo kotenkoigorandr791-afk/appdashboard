@@ -42,6 +42,22 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
     const app = express();
     const transports = new Map<string, { server: Server; transport: StreamableHTTPServerTransport }>();
     app.disable("x-powered-by");
+    app.use((req, res, next) => {
+      const origin = req.header("origin");
+      if (origin) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+      }
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+      res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Device-Id, X-Request-Id, MCP-Session-Id, Mcp-Session-Id, MCP-Protocol-Version, Mcp-Protocol-Version, Last-Event-ID");
+      res.setHeader("Access-Control-Expose-Headers", "MCP-Session-Id, Mcp-Session-Id, MCP-Protocol-Version, Mcp-Protocol-Version");
+      res.setHeader("Access-Control-Max-Age", "600");
+      if (req.method === "OPTIONS") {
+        res.status(204).end();
+        return;
+      }
+      next();
+    });
     app.use(express.json({ limit: "10mb", type: ["application/json", "application/*+json"] }));
     app.all("/mcp", async (req, res) => {
       const authHeader = req.header("authorization") || "";

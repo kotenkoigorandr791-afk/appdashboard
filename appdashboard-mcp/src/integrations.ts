@@ -1,81 +1,101 @@
 import { apiGet, ApiError } from "./api.js";
+import { getToken } from "./auth.js";
 
 export type ImmichCredentials = { url: string; api_key: string };
 export type GiteaCredentials = { url: string; access_token: string };
 export type PlaneCredentials = { url: string; api_key: string; workspace_slug: string };
 
-let immichCache: ImmichCredentials | null = null;
-let giteaCache: GiteaCredentials | null = null;
-let planeCache: PlaneCredentials | null = null;
-let immichPromise: Promise<ImmichCredentials> | null = null;
-let giteaPromise: Promise<GiteaCredentials> | null = null;
-let planePromise: Promise<PlaneCredentials> | null = null;
+const immichCache = new Map<string, ImmichCredentials>();
+const giteaCache = new Map<string, GiteaCredentials>();
+const planeCache = new Map<string, PlaneCredentials>();
+const immichPromises = new Map<string, Promise<ImmichCredentials>>();
+const giteaPromises = new Map<string, Promise<GiteaCredentials>>();
+const planePromises = new Map<string, Promise<PlaneCredentials>>();
+
+function cacheKey(): string {
+  return getToken() || "default";
+}
 
 export function clearIntegrationCaches(): void {
-  immichCache = null;
-  giteaCache = null;
-  planeCache = null;
-  immichPromise = null;
-  giteaPromise = null;
-  planePromise = null;
+  immichCache.clear();
+  giteaCache.clear();
+  planeCache.clear();
+  immichPromises.clear();
+  giteaPromises.clear();
+  planePromises.clear();
 }
 
 export async function getImmichCredentials(): Promise<ImmichCredentials> {
-  if (immichCache) return immichCache;
-  if (!immichPromise) {
-    immichPromise = (async () => {
+  const key = cacheKey();
+  const cached = immichCache.get(key);
+  if (cached) return cached;
+  let promise = immichPromises.get(key);
+  if (!promise) {
+    promise = (async () => {
       const data = await apiGet("/public-api/integrations/immich");
       if (!data?.ok || !data.api_key || !data.url) {
         throw new ApiError(data?.error || data?.message || "immich_credentials_failed", 502, data);
       }
-      immichCache = { url: String(data.url).replace(/\/$/, ""), api_key: String(data.api_key) };
-      return immichCache;
+      const creds = { url: String(data.url).replace(/\/$/, ""), api_key: String(data.api_key) };
+      immichCache.set(key, creds);
+      return creds;
     })().finally(() => {
-      immichPromise = null;
+      immichPromises.delete(key);
     });
+    immichPromises.set(key, promise);
   }
-  return immichPromise;
+  return promise;
 }
 
 export async function getGiteaCredentials(): Promise<GiteaCredentials> {
-  if (giteaCache) return giteaCache;
-  if (!giteaPromise) {
-    giteaPromise = (async () => {
+  const key = cacheKey();
+  const cached = giteaCache.get(key);
+  if (cached) return cached;
+  let promise = giteaPromises.get(key);
+  if (!promise) {
+    promise = (async () => {
       const data = await apiGet("/public-api/integrations/gitea");
       if (!data?.ok || !data.access_token || !data.url) {
         throw new ApiError(data?.error || data?.message || "gitea_credentials_failed", 502, data);
       }
-      giteaCache = {
+      const creds = {
         url: String(data.url).replace(/\/$/, ""),
         access_token: String(data.access_token),
       };
-      return giteaCache;
+      giteaCache.set(key, creds);
+      return creds;
     })().finally(() => {
-      giteaPromise = null;
+      giteaPromises.delete(key);
     });
+    giteaPromises.set(key, promise);
   }
-  return giteaPromise;
+  return promise;
 }
 
 export async function getPlaneCredentials(): Promise<PlaneCredentials> {
-  if (planeCache) return planeCache;
-  if (!planePromise) {
-    planePromise = (async () => {
+  const key = cacheKey();
+  const cached = planeCache.get(key);
+  if (cached) return cached;
+  let promise = planePromises.get(key);
+  if (!promise) {
+    promise = (async () => {
       const data = await apiGet("/public-api/integrations/plane");
       if (!data?.ok || !data.api_key || !data.url) {
         throw new ApiError(data?.error || data?.message || "plane_credentials_failed", 502, data);
       }
-      planeCache = {
+      const creds = {
         url: String(data.url).replace(/\/$/, ""),
         api_key: String(data.api_key),
         workspace_slug: String(data.workspace_slug || ""),
       };
-      return planeCache;
+      planeCache.set(key, creds);
+      return creds;
     })().finally(() => {
-      planePromise = null;
+      planePromises.delete(key);
     });
+    planePromises.set(key, promise);
   }
-  return planePromise;
+  return promise;
 }
 
 async function parseJson(res: Response): Promise<any> {
