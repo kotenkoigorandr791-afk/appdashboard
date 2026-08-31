@@ -61,7 +61,6 @@ function cloud_ai_speech_api_post(string $endpoint, array $params): array
         ]);
         $response = curl_exec($ch);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($error !== '') {
             return ['ok' => false, 'error' => 'API request failed: ' . $error];
@@ -121,7 +120,6 @@ function cloud_ai_speech_api_get(string $endpoint, array $params): array
         ]);
         $response = curl_exec($ch);
         $error = curl_error($ch);
-        curl_close($ch);
 
         if ($error !== '') {
             return ['ok' => false, 'error' => 'API request failed: ' . $error];

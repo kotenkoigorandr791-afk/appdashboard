@@ -54,12 +54,12 @@ try{
 <style>
 #mcp-setup-modal{display:none;position:fixed;inset:0;z-index:10050;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;}
 #mcp-setup-content{width:min(760px,96vw);max-height:90vh;overflow:hidden;background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:var(--casa-radius,16px);box-shadow:var(--glass-shadow,0 20px 50px rgba(0,0,0,.25));position:relative;display:flex;flex-direction:column;}
+.mcp-agent-menu-open #mcp-setup-content{overflow:visible;}
 .mcp-setup-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:28px 24px 20px;scrollbar-width:thin;scrollbar-color:transparent transparent;}
 .mcp-setup-scroll::-webkit-scrollbar{width:6px;height:6px;}
 .mcp-setup-scroll::-webkit-scrollbar-track{background:transparent;border-radius:10px;}
 .mcp-setup-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:10px;min-width:6px;min-height:6px;}
 .mcp-setup-scroll:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);}
-.mcp-agent-menu{left:auto;right:0;min-width:240px;max-width:min(320px,calc(100vw - 40px));}
 #close-mcp-setup{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-color);font-size:22px;cursor:pointer;line-height:1;}
 #close-mcp-setup:hover{color:#ef4444;}
 .mcp-setup-lead{opacity:.78;margin:0 0 16px;line-height:1.45;font-size:14px;}
@@ -98,7 +98,7 @@ try{
 .mcp-agent-current{width:100%;height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--input-bg,var(--modal-bg));color:var(--text-color);cursor:pointer;font:inherit;}
 .mcp-agent-current-main{display:flex;align-items:center;gap:10px;min-width:0;}
 .mcp-agent-icon{width:22px;height:22px;flex:0 0 auto;color:var(--primary-color,#2563eb);}
-.mcp-agent-menu{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:10060;padding:6px;border:1px solid var(--border-color);border-radius:12px;background:<?php echo ($config['theme']??'light')==='dark'?'#18202b':'#ffffff'; ?>;box-shadow:0 14px 32px rgba(0,0,0,.22);min-width:240px;max-width:min(320px,calc(100vw - 40px));overflow:hidden;}
+.mcp-agent-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;z-index:999999;padding:6px;border:1px solid var(--border-color);border-radius:12px;background:<?php echo ($config['theme']??'light')==='dark'?'#18202b':'#ffffff'; ?>;box-shadow:0 14px 32px rgba(0,0,0,.22);overflow:hidden;box-sizing:border-box;}
 .mcp-agent-picker.open .mcp-agent-menu{display:block;}
 .mcp-agent-option{width:100%;height:42px;border:0;border-radius:9px;background:transparent;color:var(--text-color);display:flex;align-items:center;gap:10px;padding:0 10px;cursor:pointer;font:inherit;text-align:left;}
 .mcp-agent-option:hover,.mcp-agent-option.active{background:color-mix(in srgb,var(--primary-color,#2563eb) 14%,transparent);}
@@ -332,11 +332,44 @@ try{
     if(agentCurrent) agentCurrent.addEventListener('click',function(){
         if(!agentPicker)return;
         agentPicker.classList.toggle('open');
-        agentCurrent.setAttribute('aria-expanded',agentPicker.classList.contains('open')?'true':'false');
+        const isOpen=agentPicker.classList.contains('open');
+        if(agentMenu){
+            if(isOpen){
+                const r=agentPicker.getBoundingClientRect();
+                agentMenu.style.display='block';
+                agentMenu.style.position='fixed';
+                agentMenu.style.left=r.left+'px';
+                agentMenu.style.top=(r.bottom + 6)+'px';
+                agentMenu.style.width=r.width+'px';
+                agentMenu.style.right='auto';
+                agentMenu.style.bottom='auto';
+                agentMenu.style.zIndex='999999';
+            }else{
+                agentMenu.style.display='none';
+                agentMenu.style.position='absolute';
+                agentMenu.style.left='';
+                agentMenu.style.top='';
+                agentMenu.style.width='';
+                agentMenu.style.right='';
+                agentMenu.style.bottom='';
+                agentMenu.style.zIndex='';
+            }
+        }
+        agentCurrent.setAttribute('aria-expanded',isOpen?'true':'false');
     });
     document.addEventListener('click',function(e){
         if(agentPicker&&!agentPicker.contains(e.target)){
             agentPicker.classList.remove('open');
+            if(agentMenu){
+                agentMenu.style.display='none';
+                agentMenu.style.position='absolute';
+                agentMenu.style.left='';
+                agentMenu.style.top='';
+                agentMenu.style.width='';
+                agentMenu.style.right='';
+                agentMenu.style.bottom='';
+                agentMenu.style.zIndex='';
+            }
             if(agentCurrent)agentCurrent.setAttribute('aria-expanded','false');
         }
     });

@@ -4176,10 +4176,10 @@ function monitorRetentionExec(AppDatabase $db, string $sql): void {
 }
 
 function monitorRetentionSetMeta(AppDatabase $db, string $key, string $value): void {
-    $stmt = $db->prepare('DELETE FROM app_meta WHERE key = :key');
-    $stmt->bindValue(':key', $key, PDO::PARAM_STR);
-    $stmt->execute();
-    $stmt = $db->prepare('INSERT INTO app_meta(key, value) VALUES(:key, :value)');
+    $stmt = $db->prepare(
+        'INSERT INTO app_meta(key, value) VALUES(:key, :value)
+         ON CONFLICT (key) DO UPDATE SET value = excluded.value'
+    );
     $stmt->bindValue(':key', $key, PDO::PARAM_STR);
     $stmt->bindValue(':value', $value, PDO::PARAM_STR);
     $stmt->execute();

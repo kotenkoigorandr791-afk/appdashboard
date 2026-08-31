@@ -359,7 +359,6 @@ function cloud_ai_fetch_url(string $url, int $maxBytes = CLOUD_AI_FETCH_MAX_BYTE
             $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             $contentType = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
         }
-        curl_close($ch);
     }
     if ($body === '') {
         $ctx = stream_context_create([
@@ -801,7 +800,6 @@ function cloud_ai_searxng_query(string $baseUrl, array $params, int $timeout = 2
         ]);
         $resp = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if (is_string($resp) && $code >= 200 && $code < 400) {
             $body = $resp;
         }

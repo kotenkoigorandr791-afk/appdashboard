@@ -134,7 +134,16 @@ async function fetchJson(url: string, init: RequestInit): Promise<{ status: numb
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
-    data = { raw: text };
+    const start = text.search(/[{[]/);
+    if (start >= 0) {
+      try {
+        data = JSON.parse(text.slice(start));
+      } catch {
+        data = { raw: text };
+      }
+    } else {
+      data = { raw: text };
+    }
   }
   return { status: res.status, data };
 }

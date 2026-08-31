@@ -5,6 +5,7 @@ $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $parts = public_api_parse_path();
 $service = strtolower((string)($parts[1] ?? ''));
 $email = (string)($_SESSION['user']['email'] ?? '');
+$refresh = (string)($_GET['refresh'] ?? '') === '1';
 if ($email === '') {
     public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
 }
@@ -13,15 +14,15 @@ if ($method !== 'GET') {
 }
 
 if ($service === 'immich') {
-    $out = integrations_immich_credentials($email);
+    $out = integrations_immich_credentials($email, $refresh);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
 if ($service === 'gitea') {
-    $out = integrations_gitea_credentials($email);
+    $out = integrations_gitea_credentials($email, $refresh);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
 if ($service === 'plane') {
-    $out = integrations_plane_credentials($email);
+    $out = integrations_plane_credentials($email, $refresh);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
 public_api_json(['ok' => false, 'error' => 'unknown_integration'], 404);
@@ -56,7 +57,7 @@ function integrations_immich_full_permissions(): string {
     return '{all}';
 }
 
-function integrations_immich_credentials(string $email): array {
+function integrations_immich_credentials(string $email, bool $refresh = false): array {
     $url = integrations_immich_url();
     $metaKey = 'mcp_immich_api_key:' . strtolower($email);
     $stored = trim(integrations_meta_get($metaKey));
@@ -76,7 +77,7 @@ function integrations_immich_credentials(string $email): array {
     if ($immichUserId === null) {
         return ['ok' => false, 'error' => 'immich_user_missing'];
     }
-    if ($stored !== '') {
+    if ($stored !== '' && !$refresh) {
         try {
             $hashHex = hash('sha256', $stored);
             $chk = $pdo->prepare('SELECT 1 FROM api_key WHERE "userId" = :uid AND name = :name AND key = decode(:hex, \'hex\') LIMIT 1');
@@ -164,7 +165,6 @@ function integrations_gitea_http(string $method, string $path, ?array $auth, ?ar
     $body = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err = curl_error($ch);
-    curl_close($ch);
     $data = null;
     if (is_string($body) && $body !== '') {
         $decoded = json_decode($body, true);
@@ -226,7 +226,7 @@ function integrations_gitea_create_token_db(string $email, string $username): ?s
     }
 }
 
-function integrations_gitea_credentials(string $email): array {
+function integrations_gitea_credentials(string $email, bool $refresh = false): array {
     $url = integrations_gitea_url();
     $metaKey = 'mcp_gitea_access_token:' . strtolower($email);
     $stored = trim(integrations_meta_get($metaKey));
@@ -239,7 +239,7 @@ function integrations_gitea_credentials(string $email): array {
         (string)($user['photo'] ?? '')
     );
     $username = integrations_gitea_username($email);
-    if ($stored !== '') {
+    if ($stored !== '' && !$refresh) {
         $probe = integrations_gitea_http('GET', '/user', null, null, $stored);
         if ($probe['code'] >= 200 && $probe['code'] < 300) {
             return ['ok' => true, 'url' => $url, 'access_token' => $stored];
@@ -354,7 +354,7 @@ function integrations_plane_create_token(PDO $pdo, string $userId): ?string {
     }
 }
 
-function integrations_plane_credentials(string $email): array {
+function integrations_plane_credentials(string $email, bool $refresh = false): array {
     $url = integrations_plane_url();
     $metaKey = 'mcp_plane_api_key:' . strtolower($email);
     $cached = trim(integrations_meta_get($metaKey));
@@ -368,11 +368,18 @@ function integrations_plane_credentials(string $email): array {
         return ['ok' => false, 'error' => 'plane_user_missing'];
     }
     $workspaceSlug = integrations_plane_workspace_slug($pdo, $userId);
-    if ($cached !== '') {
+    if ($cached !== '' && !$refresh) {
         $chk = $pdo->prepare('SELECT 1 FROM api_tokens WHERE token = :t AND user_id = :uid AND is_active = true AND deleted_at IS NULL LIMIT 1');
         $chk->execute([':t' => $cached, ':uid' => $userId]);
         if ($chk->fetchColumn()) {
             return ['ok' => true, 'url' => $url, 'api_key' => $cached, 'workspace_slug' => $workspaceSlug];
+        }
+    }
+    if ($refresh) {
+        try {
+            $del = $pdo->prepare("UPDATE api_tokens SET is_active = false, deleted_at = now() WHERE user_id = :uid AND label = 'MCP' AND deleted_at IS NULL");
+            $del->execute([':uid' => $userId]);
+        } catch (Throwable $e) {
         }
     }
     $existing = $pdo->prepare(

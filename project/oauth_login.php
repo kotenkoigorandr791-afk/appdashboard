@@ -167,7 +167,6 @@ function oauthHttpRequest(string $method, string $url, array $headers = [], ?str
     $response = curl_exec($ch);
     $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    curl_close($ch);
     if ($response === false) {
         throw new RuntimeException('OAuth request failed: ' . $error);
     }

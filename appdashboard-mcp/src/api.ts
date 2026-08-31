@@ -30,6 +30,13 @@ async function parseBody(res: Response): Promise<any> {
   try {
     return JSON.parse(text);
   } catch {
+    const start = text.search(/[{[]/);
+    if (start >= 0) {
+      try {
+        return JSON.parse(text.slice(start));
+      } catch {
+      }
+    }
     return { raw: text };
   }
 }

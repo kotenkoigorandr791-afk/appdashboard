@@ -1556,10 +1556,10 @@ async function loadLocale(lang) {
   const map = { en:'en', ru:'ru', uk:'uk', be:'be', pl:'pl', cs:'cs' };
   const code = map[lang] || 'en';
   try {
-    const res = await fetch(`i18n/load.php?lang=${encodeURIComponent(code)}&v=2`);
+    const res = await fetch(`i18n/load.php?lang=${encodeURIComponent(code)}&v=3`);
     if (res.ok) return res.json();
   } catch (e) {}
-  const res = await fetch(`i18n/${code}.json?v=1`);
+  const res = await fetch(`i18n/${code}.json?v=2`);
   return res.ok ? res.json() : {};
 }
 function applyTheme(theme, color) {
@@ -3583,8 +3583,8 @@ function renderTabs() {
             }
         }
         
-        tabsContainer.innerHTML = `
-            <button class="tab-scroll-btn" id="tab-scroll-left" title="Scroll left">
+            tabsContainer.innerHTML = `
+            	    <button class="tab-scroll-btn" id="tab-scroll-left" title="Scroll left">
                 <svg viewBox="0 0 24 24">
                     <polyline points="15 18 9 12 15 6"></polyline>
                 </svg>
@@ -3595,20 +3595,22 @@ function renderTabs() {
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
             </button>
-            <button class="icon-btn tab-close-all" id="btn-close-all-tabs" title="Close all tabs">
-                <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-            </button>
-        `;
+	            <button class="icon-btn tab-close-all" id="btn-close-all-tabs" title="" data-i18n-title="closeAllTabs">
+	                <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+	                    <line x1="18" y1="6" x2="6" y2="18"></line>
+	                    <line x1="6" y1="6" x2="18" y2="18"></line>
+	                </svg>
+	            </button>
+            `;
         
         // Re-initialize references
         tabsList = document.getElementById('tabs-list');
         closeAllBtn = document.getElementById('btn-close-all-tabs');
         
-        // Add a handler for the close-all-tabs button
-        closeAllBtn.addEventListener('click', closeAllTabs);
+	        // Add a handler for the close-all-tabs button
+	        closeAllBtn.addEventListener('click', closeAllTabs);
+	        // Ensure translated title for dynamically-created button
+	        if (window.i18n) closeAllBtn.title = t(window.i18n, 'closeAllTabs');
         
         // Initialize scrolling
         if (typeof initTabScrolling === 'function' && !window.tabScrollingInitialized) {

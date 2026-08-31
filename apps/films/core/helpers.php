@@ -130,7 +130,6 @@ function makeRequest($url) {
     if (curl_errno($ch)) {
         throw new Exception('cURL error: ' . curl_error($ch));
     }
-    curl_close($ch);
     return $response;
 }
 
