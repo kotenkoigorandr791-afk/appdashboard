@@ -109,6 +109,9 @@ if [ -d /usr/local/share/lopaka ]; then
   cp -a /usr/local/share/lopaka/. /var/www/AppDashboard/apps/lopaka/
 fi
 git config --system --add safe.directory /var/www/AppDashboard 2>/dev/null || true
+if [ "${RUN_MCP_PACKAGE_BUILD:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh ]; then
+  sh /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh /var/www/AppDashboard >/var/log/supervisor/mcp-package-build.log 2>&1
+fi
 if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   (
   mkdir -p /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor

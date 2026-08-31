@@ -67,6 +67,7 @@ services:
       REDIS_DATABASE: "0"
       REDIS_PREFIX: "appdashboard:"
       RUN_STARTUP_DEPS: "1"
+      RUN_MCP_PACKAGE_BUILD: "1"
       PHP_OPCACHE_ENABLE: "1"
       SSH_WS_PORT: "8765"
       SSH_WS_BIND: 127.0.0.1

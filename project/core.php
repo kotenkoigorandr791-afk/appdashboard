@@ -100,7 +100,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
             $body = curl_exec($ch);
             $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $type = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-            curl_close($ch);
         } else {
             $ctx = stream_context_create(['http' => ['timeout' => 8, 'follow_location' => 1, 'user_agent' => 'AppDashboard/1.0']]);
             $body = @file_get_contents($url, false, $ctx);
@@ -566,7 +565,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row) json_out(['ok' => false, 'error' => 'invalid_token'], 401);
         if ((int)$row['expires_at'] < time()) json_out(['ok' => false, 'error' => 'token_expired'], 401);
-        if ($deviceId !== '' && (string)$row['device_id'] !== '' && $deviceId !== (string)$row['device_id']) json_out(['ok' => false, 'error' => 'device_mismatch'], 403);
+        $tokenDeviceId = (string)($row['device_id'] ?? '');
+        if ($deviceId !== '' && $tokenDeviceId !== '' && $tokenDeviceId !== 'mcp_external' && $deviceId !== $tokenDeviceId) json_out(['ok' => false, 'error' => 'device_mismatch'], 403);
         $users = loadUsers();
         $email = (string)($row['email'] ?? '');
         if (!loginUserSession($email, $users)) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
@@ -2410,7 +2410,6 @@ function sendTelegramMessage($text, $domain = null){
         $result = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
         if($result === false){
             error_log('[TG] curl error for chatId='.$chatId.': '.$curlError);
         } else {
@@ -2457,7 +2456,6 @@ function sendTelegramPhoto($photoUrl, $caption){
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         $photoData = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if($photoData === false || $httpCode !== 200) $photoData = null;
     } elseif($photoUrl && file_exists($photoUrl)){
         $photoData = file_get_contents($photoUrl);
@@ -2497,7 +2495,6 @@ function sendTelegramPhoto($photoUrl, $caption){
 
         $result   = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if(isset($tmpFile) && file_exists($tmpFile)) @unlink($tmpFile);
         $tmpFile = null;
 

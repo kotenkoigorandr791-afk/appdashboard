@@ -73,7 +73,18 @@ function public_api_device_id(): string {
     return strtolower($v);
 }
 function public_api_bearer_token(): string {
-    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? $_SERVER['Authorization'] ?? '');
+    if ($auth === '' && function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (is_array($headers)) {
+            foreach ($headers as $name => $value) {
+                if (strcasecmp((string)$name, 'Authorization') === 0) {
+                    $auth = (string)$value;
+                    break;
+                }
+            }
+        }
+    }
     if (preg_match('/^\s*Bearer\s+([A-Fa-f0-9]{64})\s*$/', $auth, $m)) return $m[1];
     return '';
 }

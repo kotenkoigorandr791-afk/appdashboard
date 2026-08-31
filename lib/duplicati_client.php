@@ -180,7 +180,6 @@ function duplicati_call(string $endpoint, string $method = 'GET', $data = null):
         $response = curl_exec($ch);
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $curlError = curl_error($ch);
-        curl_close($ch);
         if ($curlError === '') break;
     }
     if ($curlError !== '') {

@@ -1639,7 +1639,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <!-- Docker Manager Panel -->
         <div class="ap-panel" id="ap-docker-manager" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-docker-frame" src="/docker_menager.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/docker_menager.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
@@ -1647,7 +1647,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <div class="ap-panel" id="ap-performance" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-performance-frame" src="/project/performance/index.php?lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                <iframe id="ap-performance-frame" name="devtools-performance" title="Performance Monitor" src="/project/performance/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['performance_monitor_title'] ?? 'Performance'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
@@ -1982,7 +1982,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <div class="ap-panel" id="ap-backup" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-backup-frame" src="/backup_dashboard.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                <iframe id="ap-backup-frame" name="devtools-backup" title="Backup Dashboard" src="/backup_dashboard.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['backup'] ?? 'Backup'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
@@ -1990,7 +1990,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <div class="ap-panel" id="ap-docs" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe src="/doc_viewer.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                <iframe name="devtools-docs" title="Documentation Viewer" src="/doc_viewer.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['documentation'] ?? 'Documentation'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
@@ -1998,7 +1998,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <div class="ap-panel" id="ap-db" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe src="/db_admin.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                <iframe name="devtools-db" title="Database Admin" src="/db_admin.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['database'] ?? 'Database'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
@@ -2006,7 +2006,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <div class="ap-panel" id="ap-omniroute" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-omniroute-frame" data-src="/omniroute-bridge?next=/admin-omniroute/home" title="<?php echo my_htmlspecialchars($translations['omniroute_title'] ?? 'OmniRoute'); ?>" style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0; background:#0b0d10;" allow="clipboard-read; clipboard-write; microphone"></iframe>
+                <iframe id="ap-omniroute-frame" name="devtools-omniroute" data-src="/omniroute-bridge?next=/admin-omniroute/home" title="<?php echo my_htmlspecialchars($translations['omniroute_title'] ?? 'OmniRoute'); ?>" style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0; background:#0b0d10;" allow="clipboard-read; clipboard-write; microphone"></iframe>
             </div>
         </div>
     </div><!-- #ap-content -->

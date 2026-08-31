@@ -73,7 +73,6 @@ function download_remote_content(string $url): string|false {
     curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     $data = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($data === false || $code >= 400) return false;
     return $data;
 }

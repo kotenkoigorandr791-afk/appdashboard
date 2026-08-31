@@ -49,7 +49,8 @@ function public_api_validate_token(AppDatabase $db, string $rawToken, string $de
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     if ((int)($row['expires_at'] ?? 0) < time()) return null;
-    if ($deviceId !== '' && (string)($row['device_id'] ?? '') !== '' && !hash_equals((string)$row['device_id'], $deviceId)) return null;
+    $tokenDeviceId = (string)($row['device_id'] ?? '');
+    if ($deviceId !== '' && $tokenDeviceId !== '' && $tokenDeviceId !== 'mcp_external' && !hash_equals($tokenDeviceId, $deviceId)) return null;
     $upd = $db->prepare("UPDATE client_auth_tokens SET last_used_at = :u WHERE token_hash = :h");
     $upd->bindValue(':u', time(), PDO::PARAM_INT);
     $upd->bindValue(':h', $hash, PDO::PARAM_STR);

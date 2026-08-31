@@ -155,14 +155,14 @@ async function main() {
 
   // files under APP_ROOT
   await run("fm_list_dir", { path: "/" });
-  await run("fm_create_file", { path: "/uploads/tmp_mcp_smoke.txt", content: "mcp-smoke" });
-  await run("fm_read_file", { path: "/uploads/tmp_mcp_smoke.txt" });
-  await run("fm_write_file", { path: "/uploads/tmp_mcp_smoke.txt", content: "mcp-smoke-2" });
-  await run("fm_create_dir", { path: "/uploads/tmp_mcp_smoke_dir" });
-  await run("fm_dir_size", { path: "/uploads/tmp_mcp_smoke_dir" });
-  await run("fm_rename", { path: "/uploads/tmp_mcp_smoke.txt", new_path: "tmp_mcp_smoke_renamed.txt" });
-  await run("fm_delete", { path: "/uploads/tmp_mcp_smoke_renamed.txt" });
-  await run("fm_delete", { path: "/uploads/tmp_mcp_smoke_dir" });
+  await run("fm_create_file", { path: "/appdashboard-mcp/tmp_mcp_smoke.txt", content: "mcp-smoke" });
+  await run("fm_read_file", { path: "/appdashboard-mcp/tmp_mcp_smoke.txt" });
+  await run("fm_write_file", { path: "/appdashboard-mcp/tmp_mcp_smoke.txt", content: "mcp-smoke-2" });
+  await run("fm_create_dir", { path: "/appdashboard-mcp/tmp_mcp_smoke_dir" });
+  await run("fm_dir_size", { path: "/appdashboard-mcp/tmp_mcp_smoke_dir" });
+  await run("fm_rename", { path: "/appdashboard-mcp/tmp_mcp_smoke.txt", new_path: "tmp_mcp_smoke_renamed.txt" });
+  await run("fm_delete", { path: "/appdashboard-mcp/tmp_mcp_smoke_renamed.txt" });
+  await run("fm_delete", { path: "/appdashboard-mcp/tmp_mcp_smoke_dir" });
 
   // config
   await run("list_config_keys");

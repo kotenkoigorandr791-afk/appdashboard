@@ -70,7 +70,6 @@ if (isset($_GET['get_exchange_rates'])) {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 5);
         $response = curl_exec($ch);
-        curl_close($ch);
         
         if ($response) {
             $data = json_decode($response, true);

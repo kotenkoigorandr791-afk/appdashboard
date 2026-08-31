@@ -46,7 +46,6 @@ function canAuthenticatePortainer(string $baseUrl, string $username, string $pas
     ]);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($httpCode !== 200) {
         return false;
     }
@@ -62,7 +61,6 @@ function canReachPortainerStatus(string $baseUrl): bool {
     ]);
     curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     return $httpCode === 200;
 }
 function resolvePortainerUrl(array $dockerCfg): string {
@@ -161,7 +159,6 @@ function tryRefreshDockerToken() {
     curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($httpCode !== 200) {
         return false;
     }
@@ -192,7 +189,6 @@ function callPortainerAPI($endpoint, $method = 'GET', $data = null, $timeout = 1
     }
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($retryAuth && ($httpCode === 401 || $httpCode === 403) && tryRefreshDockerToken()) {
         return callPortainerAPI($endpoint, $method, $data, $timeout, false);
     }
@@ -404,7 +400,6 @@ function dockerExecReadOutput($containerId, $command, $timeout = 30) {
     curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
     $raw = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($httpCode !== 200 || $raw === false || $raw === '') return null;
     if (($httpCode === 401 || $httpCode === 403) && tryRefreshDockerToken()) {
         return dockerExecReadOutput($containerId, $command, $timeout);

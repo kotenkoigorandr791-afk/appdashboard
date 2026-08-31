@@ -53,7 +53,13 @@ try{
 ?>
 <style>
 #mcp-setup-modal{display:none;position:fixed;inset:0;z-index:10050;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;}
-#mcp-setup-content{width:min(760px,96vw);max-height:90vh;overflow:auto;background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:var(--casa-radius,16px);box-shadow:var(--glass-shadow,0 20px 50px rgba(0,0,0,.25));padding:28px 24px 20px;position:relative;}
+#mcp-setup-content{width:min(760px,96vw);max-height:90vh;overflow:hidden;background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:var(--casa-radius,16px);box-shadow:var(--glass-shadow,0 20px 50px rgba(0,0,0,.25));position:relative;display:flex;flex-direction:column;}
+.mcp-agent-menu-open #mcp-setup-content{overflow:visible;}
+.mcp-setup-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:28px 24px 20px;scrollbar-width:thin;scrollbar-color:transparent transparent;}
+.mcp-setup-scroll::-webkit-scrollbar{width:6px;height:6px;}
+.mcp-setup-scroll::-webkit-scrollbar-track{background:transparent;border-radius:10px;}
+.mcp-setup-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:10px;min-width:6px;min-height:6px;}
+.mcp-setup-scroll:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);}
 #close-mcp-setup{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-color);font-size:22px;cursor:pointer;line-height:1;}
 #close-mcp-setup:hover{color:#ef4444;}
 .mcp-setup-lead{opacity:.78;margin:0 0 16px;line-height:1.45;font-size:14px;}
@@ -92,7 +98,7 @@ try{
 .mcp-agent-current{width:100%;height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--input-bg,var(--modal-bg));color:var(--text-color);cursor:pointer;font:inherit;}
 .mcp-agent-current-main{display:flex;align-items:center;gap:10px;min-width:0;}
 .mcp-agent-icon{width:22px;height:22px;flex:0 0 auto;color:var(--primary-color,#2563eb);}
-.mcp-agent-menu{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:2;padding:6px;border:1px solid var(--border-color);border-radius:12px;background:<?php echo ($config['theme']??'light')==='dark'?'#18202b':'#ffffff'; ?>;box-shadow:0 14px 32px rgba(0,0,0,.22);}
+.mcp-agent-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;z-index:999999;padding:6px;border:1px solid var(--border-color);border-radius:12px;background:<?php echo ($config['theme']??'light')==='dark'?'#18202b':'#ffffff'; ?>;box-shadow:0 14px 32px rgba(0,0,0,.22);overflow:hidden;box-sizing:border-box;}
 .mcp-agent-picker.open .mcp-agent-menu{display:block;}
 .mcp-agent-option{width:100%;height:42px;border:0;border-radius:9px;background:transparent;color:var(--text-color);display:flex;align-items:center;gap:10px;padding:0 10px;cursor:pointer;font:inherit;text-align:left;}
 .mcp-agent-option:hover,.mcp-agent-option.active{background:color-mix(in srgb,var(--primary-color,#2563eb) 14%,transparent);}
@@ -103,84 +109,86 @@ try{
 <div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title"<?php echo $mcpModalInitialOpen?' style="display:flex;"':''; ?> data-initial-tab="<?php echo my_htmlspecialchars($mcpInitialTab); ?>">
     <div id="mcp-setup-content">
         <button type="button" id="close-mcp-setup" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
-        <h2 id="mcp-setup-title" style="margin:0 0 8px;font-size:22px;"><?php echo my_htmlspecialchars($mcpT['title']); ?></h2>
-        <p class="mcp-setup-lead"><?php echo my_htmlspecialchars($mcpT['subtitle']); ?></p>
-        <div class="mcp-setup-meta">
-            <span class="mcp-setup-pill" id="mcp-setup-version">—</span>
-            <span class="mcp-setup-pill"><?php echo my_htmlspecialchars($mcpT['req']); ?></span>
-        </div>
-        <p class="mcp-setup-err" id="mcp-setup-err" style="display:none;"></p>
-        <div class="mcp-setup-tabs" role="tablist">
-            <button type="button" class="mcp-setup-tab active" data-mcp-tab="installers"><?php echo my_htmlspecialchars($mcpT['installers']); ?></button>
-            <button type="button" class="mcp-setup-tab" data-mcp-tab="tokens"><?php echo my_htmlspecialchars($mcpT['tokens_tab']); ?></button>
-        </div>
-        <div class="mcp-installer-panel mcp-setup-pane active" data-mcp-pane="installers">
-            <ol class="mcp-setup-steps">
-                <li><?php echo my_htmlspecialchars($mcpT['step1']); ?></li>
-                <li><?php echo my_htmlspecialchars($mcpT['step2']); ?></li>
-                <li><?php echo my_htmlspecialchars($mcpT['step3']); ?></li>
-            </ol>
-            <div class="mcp-setup-row">
-                <label><?php echo my_htmlspecialchars($mcpT['select_agent']); ?></label>
-                <div class="mcp-agent-picker" id="mcp-agent-picker">
-                    <button type="button" class="mcp-agent-current" id="mcp-agent-current" aria-haspopup="listbox" aria-expanded="false">
-                        <span class="mcp-agent-current-main"><span class="mcp-agent-icon" id="mcp-agent-current-icon"></span><span id="mcp-agent-current-label"><?php echo my_htmlspecialchars($mcpT['select_agent']); ?></span></span>
-                        <span>⌄</span>
-                    </button>
-                    <div class="mcp-agent-menu" id="mcp-agent-menu" role="listbox"></div>
+        <div class="mcp-setup-scroll">
+            <h2 id="mcp-setup-title" style="margin:0 0 8px;font-size:22px;"><?php echo my_htmlspecialchars($mcpT['title']); ?></h2>
+            <p class="mcp-setup-lead"><?php echo my_htmlspecialchars($mcpT['subtitle']); ?></p>
+            <div class="mcp-setup-meta">
+                <span class="mcp-setup-pill" id="mcp-setup-version">—</span>
+                <span class="mcp-setup-pill"><?php echo my_htmlspecialchars($mcpT['req']); ?></span>
+            </div>
+            <p class="mcp-setup-err" id="mcp-setup-err" style="display:none;"></p>
+            <div class="mcp-setup-tabs" role="tablist">
+                <button type="button" class="mcp-setup-tab active" data-mcp-tab="installers"><?php echo my_htmlspecialchars($mcpT['installers']); ?></button>
+                <button type="button" class="mcp-setup-tab" data-mcp-tab="tokens"><?php echo my_htmlspecialchars($mcpT['tokens_tab']); ?></button>
+            </div>
+            <div class="mcp-installer-panel mcp-setup-pane active" data-mcp-pane="installers">
+                <ol class="mcp-setup-steps">
+                    <li><?php echo my_htmlspecialchars($mcpT['step1']); ?></li>
+                    <li><?php echo my_htmlspecialchars($mcpT['step2']); ?></li>
+                    <li><?php echo my_htmlspecialchars($mcpT['step3']); ?></li>
+                </ol>
+                <div class="mcp-setup-row">
+                    <label><?php echo my_htmlspecialchars($mcpT['select_agent']); ?></label>
+                    <div class="mcp-agent-picker" id="mcp-agent-picker">
+                        <button type="button" class="mcp-agent-current" id="mcp-agent-current" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="mcp-agent-current-main"><span class="mcp-agent-icon" id="mcp-agent-current-icon"></span><span id="mcp-agent-current-label"><?php echo my_htmlspecialchars($mcpT['select_agent']); ?></span></span>
+                            <span>⌄</span>
+                        </button>
+                        <div class="mcp-agent-menu" id="mcp-agent-menu" role="listbox"></div>
+                    </div>
+                </div>
+                <div class="mcp-setup-row mcp-installer-output" id="mcp-installer-output">
+                    <label><?php echo my_htmlspecialchars($mcpT['command']); ?></label>
+                    <div class="mcp-setup-cmd"><pre id="mcp-generated-command"></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-command"></button></div>
+                </div>
+                <div class="mcp-setup-row mcp-installer-output" id="mcp-remove-output">
+                    <label><?php echo my_htmlspecialchars($mcpT['remove_command']); ?></label>
+                    <p class="mcp-remove-hint"><?php echo my_htmlspecialchars($mcpT['remove_hint']); ?></p>
+                    <div class="mcp-setup-cmd"><pre id="mcp-remove-command"></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-remove"></button></div>
+                </div>
+                <div class="mcp-setup-foot">
+                    <a id="mcp-setup-download" href="/mcp/download" download="appdashboard-mcp.tgz"><?php echo my_htmlspecialchars($mcpT['download']); ?></a>
                 </div>
             </div>
-            <div class="mcp-setup-row mcp-installer-output" id="mcp-installer-output">
-                <label><?php echo my_htmlspecialchars($mcpT['command']); ?></label>
-                <div class="mcp-setup-cmd"><pre id="mcp-generated-command"></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-command"></button></div>
+            <div class="mcp-token-panel mcp-setup-pane" data-mcp-pane="tokens">
+                <h3><?php echo my_htmlspecialchars($mcpT['token_title']); ?></h3>
+                <p><?php echo my_htmlspecialchars($mcpT['token_hint']); ?></p>
+                <div class="mcp-setup-row">
+                    <label><?php echo my_htmlspecialchars($mcpT['endpoint']); ?></label>
+                    <div class="mcp-setup-cmd"><pre id="mcp-http-endpoint"><?php echo my_htmlspecialchars($mcpHttpEndpoint); ?></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-endpoint"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button></div>
+                </div>
+                <div class="mcp-token-controls">
+                    <input type="text" id="mcp-token-name" value="<?php echo my_htmlspecialchars($mcpT['token_default_name']); ?>" maxlength="80" aria-label="<?php echo my_htmlspecialchars($mcpT['token_name']); ?>">
+                    <button type="button" id="mcp-generate-token"><?php echo my_htmlspecialchars($mcpT['token_generate']); ?></button>
+                </div>
+                <p class="mcp-setup-err" id="mcp-token-err" style="display:none;"></p>
+                <div class="mcp-token-output" id="mcp-token-output">
+                    <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
+                    <code id="mcp-token-value"></code>
+                </div>
+                <?php if($mcpGeneratedToken!==''): ?>
+                <div class="mcp-token-output" style="display:block;">
+                    <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
+                    <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
+                </div>
+                <?php endif; ?>
+                <table class="mcp-token-table">
+                    <thead><tr><th><?php echo my_htmlspecialchars($translations['mcp_token_device']); ?></th><th><?php echo my_htmlspecialchars($translations['created']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['expires']); ?></th><th></th></tr></thead>
+                    <tbody>
+                    <?php if(empty($mcpTokens)): ?>
+                    <tr><td colspan="5"><?php echo my_htmlspecialchars($translations['no_tokens']); ?></td></tr>
+                    <?php else: foreach($mcpTokens as $mcpToken): $mcpDeviceLabel=trim(($mcpToken['device_name']??'').' / '.($mcpToken['platform']??''),' /'); if(stripos($mcpDeviceLabel,'agora')!==false)$mcpDeviceLabel=$mcpT['token_default_name']; ?>
+                    <tr>
+                        <td><?php echo my_htmlspecialchars($mcpDeviceLabel); ?></td>
+                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
+                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
+                        <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['expires_at'])); ?></td>
+                        <td><form method="post" action="/main" style="margin:0;"><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
+                    </tr>
+                    <?php endforeach; endif; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="mcp-setup-row mcp-installer-output" id="mcp-remove-output">
-                <label><?php echo my_htmlspecialchars($mcpT['remove_command']); ?></label>
-                <p class="mcp-remove-hint"><?php echo my_htmlspecialchars($mcpT['remove_hint']); ?></p>
-                <div class="mcp-setup-cmd"><pre id="mcp-remove-command"></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-remove"></button></div>
-            </div>
-            <div class="mcp-setup-foot">
-                <a id="mcp-setup-download" href="/mcp/download" download="appdashboard-mcp.tgz"><?php echo my_htmlspecialchars($mcpT['download']); ?></a>
-            </div>
-        </div>
-        <div class="mcp-token-panel mcp-setup-pane" data-mcp-pane="tokens">
-            <h3><?php echo my_htmlspecialchars($mcpT['token_title']); ?></h3>
-            <p><?php echo my_htmlspecialchars($mcpT['token_hint']); ?></p>
-            <div class="mcp-setup-row">
-                <label><?php echo my_htmlspecialchars($mcpT['endpoint']); ?></label>
-                <div class="mcp-setup-cmd"><pre id="mcp-http-endpoint"><?php echo my_htmlspecialchars($mcpHttpEndpoint); ?></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-endpoint"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button></div>
-            </div>
-            <div class="mcp-token-controls">
-                <input type="text" id="mcp-token-name" value="<?php echo my_htmlspecialchars($mcpT['token_default_name']); ?>" maxlength="80" aria-label="<?php echo my_htmlspecialchars($mcpT['token_name']); ?>">
-                <button type="button" id="mcp-generate-token"><?php echo my_htmlspecialchars($mcpT['token_generate']); ?></button>
-            </div>
-            <p class="mcp-setup-err" id="mcp-token-err" style="display:none;"></p>
-            <div class="mcp-token-output" id="mcp-token-output">
-                <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
-                <code id="mcp-token-value"></code>
-            </div>
-            <?php if($mcpGeneratedToken!==''): ?>
-            <div class="mcp-token-output" style="display:block;">
-                <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
-                <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
-            </div>
-            <?php endif; ?>
-            <table class="mcp-token-table">
-                <thead><tr><th><?php echo my_htmlspecialchars($translations['mcp_token_device']); ?></th><th><?php echo my_htmlspecialchars($translations['created']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['expires']); ?></th><th></th></tr></thead>
-                <tbody>
-                <?php if(empty($mcpTokens)): ?>
-                <tr><td colspan="5"><?php echo my_htmlspecialchars($translations['no_tokens']); ?></td></tr>
-                <?php else: foreach($mcpTokens as $mcpToken): $mcpDeviceLabel=trim(($mcpToken['device_name']??'').' / '.($mcpToken['platform']??''),' /'); if(stripos($mcpDeviceLabel,'agora')!==false)$mcpDeviceLabel=$mcpT['token_default_name']; ?>
-                <tr>
-                    <td><?php echo my_htmlspecialchars($mcpDeviceLabel); ?></td>
-                    <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
-                    <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
-                    <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['expires_at'])); ?></td>
-                    <td><form method="post" action="/main" style="margin:0;"><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
-                </tr>
-                <?php endforeach; endif; ?>
-                </tbody>
-            </table>
         </div>
     </div>
 </div>
@@ -324,11 +332,44 @@ try{
     if(agentCurrent) agentCurrent.addEventListener('click',function(){
         if(!agentPicker)return;
         agentPicker.classList.toggle('open');
-        agentCurrent.setAttribute('aria-expanded',agentPicker.classList.contains('open')?'true':'false');
+        const isOpen=agentPicker.classList.contains('open');
+        if(agentMenu){
+            if(isOpen){
+                const r=agentPicker.getBoundingClientRect();
+                agentMenu.style.display='block';
+                agentMenu.style.position='fixed';
+                agentMenu.style.left=r.left+'px';
+                agentMenu.style.top=(r.bottom + 6)+'px';
+                agentMenu.style.width=r.width+'px';
+                agentMenu.style.right='auto';
+                agentMenu.style.bottom='auto';
+                agentMenu.style.zIndex='999999';
+            }else{
+                agentMenu.style.display='none';
+                agentMenu.style.position='absolute';
+                agentMenu.style.left='';
+                agentMenu.style.top='';
+                agentMenu.style.width='';
+                agentMenu.style.right='';
+                agentMenu.style.bottom='';
+                agentMenu.style.zIndex='';
+            }
+        }
+        agentCurrent.setAttribute('aria-expanded',isOpen?'true':'false');
     });
     document.addEventListener('click',function(e){
         if(agentPicker&&!agentPicker.contains(e.target)){
             agentPicker.classList.remove('open');
+            if(agentMenu){
+                agentMenu.style.display='none';
+                agentMenu.style.position='absolute';
+                agentMenu.style.left='';
+                agentMenu.style.top='';
+                agentMenu.style.width='';
+                agentMenu.style.right='';
+                agentMenu.style.bottom='';
+                agentMenu.style.zIndex='';
+            }
             if(agentCurrent)agentCurrent.setAttribute('aria-expanded','false');
         }
     });

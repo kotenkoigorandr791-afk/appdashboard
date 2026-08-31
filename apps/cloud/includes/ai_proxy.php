@@ -49,7 +49,6 @@ function cloud_ai_proxy_json(array $config, string $url, ?array $payload = null,
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $errno = curl_errno($ch);
     $error = curl_error($ch);
-    curl_close($ch);
     if ($error !== '') {
         return ['ok' => false, 'http' => 0, 'errno' => $errno, 'body' => '', 'error' => 'CURL error: ' . $error];
     }
@@ -143,7 +142,6 @@ function cloud_ai_proxy_completions(array $config, array $payload): void
         $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $errno = curl_errno($ch);
         $error = curl_error($ch);
-        curl_close($ch);
         if ($errno === CURLE_ABORTED_BY_CALLBACK) {
             return;
         }

@@ -60,7 +60,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <title data-i18n="appTitle">File Space</title>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=27" />
+  <link rel="stylesheet" href="assets/styles.css?v=31" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -223,7 +223,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=31"></script>
+<script defer src="assets/app.js?v=33"></script>
 <script defer src="assets/app/editors-and-tree.js?v=9"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
@@ -233,10 +233,10 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=7"></script>
 <script defer src="assets/audio-player.js?v=2"></script>
-<script defer src="assets/app/cloud-group-chat.js?v=8"></script>
+<script defer src="assets/app/cloud-group-chat.js?v=9"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
-<script defer src="assets/settings/sync-modals.js?v=7"></script>
+<script defer src="assets/settings/sync-modals.js?v=8"></script>
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>
@@ -251,7 +251,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
   <header class="topbar">
   <div class="brand">
-    <button id="btn-toggle-sidebar" class="icon-btn" title="Toggle Sidebar">
+    <button id="btn-toggle-sidebar" class="icon-btn" title="" data-i18n-title="toggleSidebar" aria-label="toggleSidebar">
       <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
         <line x1="3" y1="12" x2="21" y2="12"></line>
         <line x1="3" y1="6" x2="21" y2="6"></line>
@@ -267,8 +267,8 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
         </svg>
-        <input type="text" id="search-input" placeholder="Search..." class="search-input" />
-        <button id="btn-advanced-search" class="btn small" title="Advanced Search">
+        <input type="text" id="search-input" placeholder="" class="search-input" data-i18n-placeholder="search" aria-label="search" />
+        <button id="btn-advanced-search" class="btn small" title="" data-i18n-title="advancedSearch">
           <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
             <circle cx="11" cy="11" r="8"></circle>
             <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -294,12 +294,12 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
       <div class="lang-option" data-lang="pl" data-i18n="polish"></div>
       <div class="lang-option" data-lang="cs" data-i18n="czech"></div>
     </div>
-    <button id="btn-group-chat" class="icon-btn hidden" title="Group chat">
+     <button id="btn-group-chat" class="icon-btn hidden" title="" data-i18n-title="groupChatTitle">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.72a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.28 17.61a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="m6.163 21.117-2.906.85a1 1 0 0 1-1.236-1.169l.965-2.98"/></svg>
       <span class="group-chat-unread-badge hidden" aria-hidden="true"></span>
     </button>
     <div class="settings">
-      <button id="btn-settings" class="icon-btn settings-avatar-btn" title="Settings">
+      <button id="btn-settings" class="icon-btn settings-avatar-btn" title="" data-i18n-title="settings">
         <img id="user-settings-avatar" class="user-settings-avatar" src="/default_avatar.png" alt="">
       </button>
       <div id="settings-menu" class="settings-menu hidden" role="dialog" aria-labelledby="settings-menu-title">
@@ -423,16 +423,16 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <main class="layout">
     <aside id="root-toolbar" class="root-toolbar">
       <div class="root-toolbar-top-separator" aria-hidden="true"></div>
-       <button class="root-toolbar-btn active" data-root="main" data-i18n-title="folders" title="Folders" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
-       <button class="root-toolbar-btn" data-root="archive" data-i18n-title="archiveRoot" title="Archive" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h2"/><path d="M20 8v11a2 2 0 0 1-2 2h-2"/><path d="m9 15 3-3 3 3"/><path d="M12 12v9"/></svg></button>
-       <button class="root-toolbar-btn" data-root="temp" data-i18n-title="tempFilesRoot" title="Temporary files" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3"/><path d="M7 12H3"/><path d="M7 19H3"/><path d="M12 18a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5c-1.33 0-2.54.54-3.41 1.41L11 14"/><path d="M11 10v4h4"/></svg></button>
-       <button class="root-toolbar-btn" data-root="documents" data-i18n-title="documentsRoot" title="Documents" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v8l3-3 3 3V2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg></button>
-       <button class="root-toolbar-btn" data-root="photos" data-i18n-title="photosRoot" title="Photos" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
-       <button class="root-toolbar-btn" data-root="pdf" data-i18n-title="pdfRoot" title="PDF" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg></button>
-       <button class="root-toolbar-btn" data-root="clientsync" data-i18n-title="clientsyncRoot" title="Client Sync" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 18-1.535 1.605a5 5 0 0 1-8-1.5"/><path d="M17 22v-4h-4"/><path d="M20.996 15.251A4.5 4.5 0 0 0 17.495 8h-1.79a7 7 0 1 0-12.709 5.607"/><path d="M7 10v4h4"/><path d="m7 14 1.535-1.605a5 5 0 0 1 8 1.5"/></svg></button>
-       <button id="btn-root-groups" class="root-toolbar-btn hidden" data-i18n-title="groupsRoot" title="Groups" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
+       <button class="root-toolbar-btn active" data-root="main" data-i18n-title="folders" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></button>
+        <button class="root-toolbar-btn" data-root="archive" data-i18n-title="archiveRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h2"/><path d="M20 8v11a2 2 0 0 1-2 2h-2"/><path d="m9 15 3-3 3 3"/><path d="M12 12v9"/></svg></button>
+        <button class="root-toolbar-btn" data-root="temp" data-i18n-title="tempFilesRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H3"/><path d="M7 12H3"/><path d="M7 19H3"/><path d="M12 18a5 5 0 0 0 9-3 4.5 4.5 0 0 0-4.5-4.5c-1.33 0-2.54.54-3.41 1.41L11 14"/><path d="M11 10v4h4"/></svg></button>
+        <button class="root-toolbar-btn" data-root="documents" data-i18n-title="documentsRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v8l3-3 3 3V2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg></button>
+        <button class="root-toolbar-btn" data-root="photos" data-i18n-title="photosRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></button>
+        <button class="root-toolbar-btn" data-root="pdf" data-i18n-title="pdfRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/></svg></button>
+        <button class="root-toolbar-btn" data-root="clientsync" data-i18n-title="clientsyncRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 18-1.535 1.605a5 5 0 0 1-8-1.5"/><path d="M17 22v-4h-4"/><path d="M20.996 15.251A4.5 4.5 0 0 0 17.495 8h-1.79a7 7 0 1 0-12.709 5.607"/><path d="M7 10v4h4"/><path d="m7 14 1.535-1.605a5 5 0 0 1 8 1.5"/></svg></button>
+       <button id="btn-root-groups" class="root-toolbar-btn hidden" data-i18n-title="groupsRoot" title="" style="align-self: flex-start;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></button>
       <div class="root-toolbar-separator" aria-hidden="true"></div>
-      <button class="root-toolbar-btn" data-root="trash" data-i18n-title="trashRoot" title="Trash"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
+       <button class="root-toolbar-btn" data-root="trash" data-i18n-title="trashRoot" title=""><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></button>
       <div class="root-toolbar-spacer" aria-hidden="true"></div>
       <div id="desktop-root-toolbar-footer" class="root-toolbar-footer">
         <div class="root-toolbar-separator" aria-hidden="true"></div>
@@ -526,7 +526,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
       <div id="tabs-container" class="tabs-container">
           <div id="tabs-list" class="tabs-list"></div>
-          <button id="btn-close-all-tabs" class="icon-btn tab-close-all" title="Close All Tabs">
+           <button id="btn-close-all-tabs" class="icon-btn tab-close-all" title="" data-i18n-title="closeAllTabs">
               <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -538,10 +538,10 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
         <div class="file-toolbar">
           <span id="file-name" class="filename"></span>
           <div class="spacer"></div>
-          <button id="btn-trash-restore-all" class="btn secondary small hidden" data-i18n="restoreAll">Restore all</button>
-          <button id="btn-trash-delete-selected" class="btn danger small hidden" data-i18n="deleteSelected">Delete selected</button>
-          <button id="btn-trash-delete-all" class="btn danger small hidden" data-i18n="deleteAll">Delete all</button>
-          <button id="btn-trash-restore-selected" class="btn primary small hidden" data-i18n="restoreSelected">Restore selected</button>
+          <button id="btn-trash-restore-all" class="btn secondary small hidden" data-i18n="restoreAll"></button>
+          <button id="btn-trash-delete-selected" class="btn danger small hidden" data-i18n="deleteSelected"></button>
+          <button id="btn-trash-delete-all" class="btn danger small hidden" data-i18n="deleteAll"></button>
+          <button id="btn-trash-restore-selected" class="btn primary small hidden" data-i18n="restoreSelected"></button>
           <button id="btn-ai" class="icon-btn" title="AI Assistant">
             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
@@ -564,26 +564,26 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
                     <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
                     <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
                   </svg>
-                  <span data-i18n="compressCode">Compress</span>
+                  <span data-i18n="compressCode"></span>
                 </div>
                 <div class="dropdown-item" onclick="formatCurrentCode()" style="display:flex;align-items:center;gap:8px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                     <line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/>
                     <line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/>
                   </svg>
-                  <span data-i18n="formatCode">Code formatting</span>
+                  <span data-i18n="formatCode"></span>
                 </div>
                 <div class="dropdown-item" onclick="removeCommentsFromCode()" style="display:flex;align-items:center;gap:8px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                     <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                   </svg>
-                  <span data-i18n="removeComments">No comments</span>
+                  <span data-i18n="removeComments"></span>
                 </div>
                 <div class="dropdown-item" id="code-action-compile" onclick="compileAndRun()" style="display:flex;align-items:center;gap:8px;">
                   <svg width="15" height="15" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
                     <polygon points="5 3 19 12 5 21 5 3"/>
                   </svg>
-                  <span data-i18n="compileRun">Compile</span>
+                  <span data-i18n="compileRun"></span>
                 </div>
             </div>
           </div>

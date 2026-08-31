@@ -987,10 +987,10 @@ function monitorCollectModulesLists(): array {
 }
 
 function monitorSetAppMeta($db, string $key, string $value): void {
-    $stmt = $db->prepare('DELETE FROM app_meta WHERE key = :key');
-    $stmt->bindValue(':key', $key, PDO::PARAM_STR);
-    $stmt->execute();
-    $stmt = $db->prepare('INSERT INTO app_meta(key, value) VALUES(:key, :value)');
+    $stmt = $db->prepare(
+        'INSERT INTO app_meta(key, value) VALUES(:key, :value)
+         ON CONFLICT (key) DO UPDATE SET value = excluded.value'
+    );
     $stmt->bindValue(':key', $key, PDO::PARAM_STR);
     $stmt->bindValue(':value', $value, PDO::PARAM_STR);
     $stmt->execute();
@@ -1472,7 +1472,6 @@ function monitorDockerApiRequest(string $path, ?string $socketPath = null): ?arr
     ]);
     $raw = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-    curl_close($ch);
     if (!is_string($raw) || $raw === '' || $code < 200 || $code >= 300) {
         return null;
     }
@@ -1692,7 +1691,6 @@ function monitorCheckHttp(array $check): array {
     $err = curl_error($ch);
     $http = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
     $latency = (int)round(((float)curl_getinfo($ch, CURLINFO_TOTAL_TIME)) * 1000);
-    curl_close($ch);
     if ($body === false) {
         return ['status' => 'down', 'latency_ms' => $latency, 'http_status' => $http, 'message' => $err ?: 'request_failed'];
     }

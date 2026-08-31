@@ -18,6 +18,26 @@ npm ci
 npm run build
 chmod +x dist/index.js 2>/dev/null || true
 VERSION="$(node -p "require('./package.json').version")"
+SOURCE_STAMP="$(node <<'EOF'
+const fs = require('fs');
+const crypto = require('crypto');
+const roots = ['package.json', 'package-lock.json', 'tsconfig.json', 'README.md', 'src'];
+const hash = crypto.createHash('sha256');
+function add(file) {
+  const st = fs.statSync(file);
+  if (st.isDirectory()) {
+    for (const child of fs.readdirSync(file).sort()) add(`${file}/${child}`);
+    return;
+  }
+  hash.update(file);
+  hash.update(fs.readFileSync(file));
+}
+for (const root of roots) {
+  if (fs.existsSync(root)) add(root);
+}
+process.stdout.write(hash.digest('hex'));
+EOF
+)"
 EXPECTED="appdashboard-mcp-${VERSION}.tgz"
 rm -f "$OUT_DIR/$EXPECTED" "$OUT_DIR/appdashboard-mcp.tgz"
 # Quiet pack to destination; filename is deterministic from package.json
@@ -43,6 +63,7 @@ fs.writeFileSync(path.join('$OUT_DIR', 'appdashboard-mcp.json'), JSON.stringify(
   file: 'appdashboard-mcp.tgz',
   size: st.size,
   built_at: Math.floor(Date.now() / 1000),
+  source_stamp: '$SOURCE_STAMP',
   sha256: crypto.createHash('sha256').update(buf).digest('hex')
 }, null, 2) + '\n');
 EOF

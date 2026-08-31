@@ -179,7 +179,6 @@ function recipes_ai_chat(array $config, string $model, array $messages, ?array $
     $response = curl_exec($ch);
     $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
-    curl_close($ch);
     if ($error) {
         throw new RuntimeException('CURL error: ' . $error);
     }
@@ -305,7 +304,6 @@ function recipes_ai_download_image(string $url): ?array
     ]);
     $body = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($body === false || $code < 200 || $code >= 300 || strlen($body) > 10485760) {
         return null;
     }
@@ -356,7 +354,6 @@ function recipes_ai_wiki_http_get(string $url): ?string
         ]);
         $body = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if ($body !== false && $code === 200 && str_starts_with(trim($body), '{')) {
             @file_put_contents($cacheFile, $body);
             $mem[$key] = $body;
@@ -974,7 +971,6 @@ function recipes_ai_searxng_image(string $query, int $maxResults = 6): array
         ]);
         $resp = curl_exec($ch);
         $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
         if (is_string($resp) && $code >= 200 && $code < 400) {
             $body = $resp;
         }

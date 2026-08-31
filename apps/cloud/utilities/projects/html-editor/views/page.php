@@ -111,7 +111,7 @@
                         </div>
                     </div>
                     <div class="preview-frame-wrap">
-                        <iframe id="previewFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups" title="HTML preview"></iframe>
+                        <iframe id="previewFrame" name="cloud-html-preview" title="HTML Preview" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"></iframe>
                     </div>
                 </div>
             </div>

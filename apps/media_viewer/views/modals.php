@@ -571,7 +571,7 @@ $totalViewsAll = array_sum($stats);
         <button class="frame-close" onclick="closeFrame()">&times;</button>
         <div class="frame-title" id="frameAlbumTitle"></div>
     </div>
-    <iframe id="albumFrame" class="frame-content"></iframe>
+    <iframe id="albumFrame" name="media-album" title="Album Viewer" class="frame-content"></iframe>
 </div>
 <div id="appDialog" class="modal modal--dialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle">
     <div class="modal-content dialog-content">
