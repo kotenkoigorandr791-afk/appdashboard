@@ -860,8 +860,8 @@
             const goalDays = monthSteps.filter(entry => entry.steps >= userSettings.goal_steps).length;
             
             document.getElementById('goal-summary').innerHTML = `
-                <div>${translations.total_steps}: ${formatNumber(totalSteps)}</div>
-                <div>${translations.goal_days}: ${goalDays}</div>`;
+                <div class="goal-summary-item"><span class="goal-summary-label">${translations.total_steps}</span><span class="goal-summary-value">${formatNumber(totalSteps)}</span></div>
+                <div class="goal-summary-item"><span class="goal-summary-label">${translations.goal_days}</span><span class="goal-summary-value">${goalDays}</span></div>`;
         }
         
         // Functions for add steps modal

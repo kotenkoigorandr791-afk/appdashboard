@@ -318,9 +318,9 @@
         #bottom-bar .bottom-bar-actions .sidebar-button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);border-radius:999px;width:36px;height:36px;padding:0;box-shadow:none;margin:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         #bottom-bar .bottom-bar-actions .sidebar-button svg{width:20px;height:20px;opacity:0.65;}
         #bottom-bar .bottom-bar-actions .sidebar-button:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
-        #bottom-bar .bottom-bar-actions .user-profile{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);border-radius:999px;width:36px;height:36px;padding:0 !important;box-shadow:none;margin:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;box-sizing:border-box;}
+        #bottom-bar .bottom-bar-actions .user-profile{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);border-radius:999px;width:36px;height:36px;padding:0 !important;box-shadow:none;margin:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;box-sizing:border-box;overflow:hidden;}
         #bottom-bar .bottom-bar-actions .user-profile:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
-        #bottom-bar .bottom-bar-actions .user-avatar{width:20px;height:20px;border-width:1px;}
+        #bottom-bar .bottom-bar-actions .user-avatar{width:100%;height:100%;border:0 !important;border-radius:999px;object-fit:cover;display:block;}
         .search-container.open + #support-chat-btn.app-page-chat,
         .search-container:hover + #support-chat-btn.app-page-chat{display:none!important;}
         #clear-search{display:none!important;}
@@ -900,10 +900,11 @@
             box-sizing: border-box;
             /* align under the menu button without extra offset from sidebar padding */
             margin: calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) - 20px) 0 16px var(--shell-menu-button-width);
-            align-items: flex-start;
+            align-items: center;
             justify-content: center;
             border-radius: 12px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            gap: 6px;
             padding: 0 0 6px;
             background: color-mix(in srgb, var(--group-block-bg) 70%, transparent);
             border: 1px solid var(--border-color);
@@ -968,11 +969,16 @@
         }
         #sidebarWeatherWidget .weather-perm {
             order: 2;
-            width: 100%;
-            margin-top: 2px;
-            margin-left: 0;
+            width: auto;
+            flex: 1;
+            min-width: 0;
+            margin: 0;
             padding: 0;
             box-sizing: border-box;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.25;
         }
         #sidebarWeatherWidget .weather-pin-icon {
             order: 1;
