@@ -26,6 +26,8 @@ APP_ROOT=/var/www/AppDashboard
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
 APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
 UPLOADS_BASE_DIR="${UPLOADS_BASE_DIR:-${APPDATA_BASE_DIR%/}/dashboard/uploads}"
+mkdir -p "$APPDATA_BASE_DIR/cloud_runtime/temp" "$APPDATA_BASE_DIR/cloud_runtime/temp_convert" "$APPDATA_BASE_DIR/cloud_runtime/upload_sessions" "$APPDATA_BASE_DIR/cloud_runtime/transcription_uploads" "$APPDATA_BASE_DIR/cloud_runtime/tts_output" "$APPDATA_BASE_DIR/cloud"
+sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf 2>/dev/null || true
 mkdir -p "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
 if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
@@ -113,18 +115,21 @@ if [ "${RUN_MCP_PACKAGE_BUILD:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/
   sh /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh /var/www/AppDashboard >/var/log/supervisor/mcp-package-build.log 2>&1
 fi
 if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
-  (
+  export COMPOSER_CACHE_DIR="${COMPOSER_CACHE_DIR:-$APPDATA_BASE_DIR/.composer-cache}"
+  mkdir -p "$COMPOSER_CACHE_DIR"
+  chown -R www-data:www-data "$COMPOSER_CACHE_DIR"
+  install_composer_deps() {
+    dir="$1"
+    [ -f "$dir/composer.json" ] || return 0
+    [ -f "$dir/vendor/autoload.php" ] && return 0
+    su -s /bin/bash www-data -c "cd $dir && composer install --no-interaction --no-progress"
+  }
+  {
   mkdir -p /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
   chown -R www-data:www-data /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
-  if [ ! -f /var/www/AppDashboard/vendor/autoload.php ]; then
-    su -s /bin/bash www-data -c "cd /var/www/AppDashboard && composer install --no-interaction --prefer-dist" || true
-  fi
-  if [ ! -f /var/www/AppDashboard/webssh/vendor/autoload.php ]; then
-    su -s /bin/bash www-data -c "cd /var/www/AppDashboard/webssh && composer install --no-interaction --prefer-dist" || true
-  fi
-  if [ ! -f /var/www/AppDashboard/apps/cloud/vendor/autoload.php ]; then
-    su -s /bin/bash www-data -c "cd /var/www/AppDashboard/apps/cloud && composer install --no-interaction --prefer-dist" || true
-  fi
+  install_composer_deps /var/www/AppDashboard
+  install_composer_deps /var/www/AppDashboard/webssh
+  install_composer_deps /var/www/AppDashboard/apps/cloud
   VENV=/var/www/AppDashboard/apps/steps/utils/.venv
   if [ ! -d "$VENV" ]; then
     python3 -m venv "$VENV"
@@ -132,7 +137,7 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   if [ ! -x "$VENV/bin/pip" ]; then
     python3 -m venv --clear "$VENV"
   fi
-  if ! "$VENV/bin/python3" -c 'import pyzipper, psycopg2' 2>/dev/null; then
+  if [ -f /var/www/AppDashboard/apps/steps/utils/requirements.txt ] && ! "$VENV/bin/python3" -c 'import pyzipper, psycopg2' 2>/dev/null; then
     "$VENV/bin/pip" install -q -r /var/www/AppDashboard/apps/steps/utils/requirements.txt || true
   fi
   BOT_VENV=/var/www/AppDashboard/bot/.venv
@@ -140,7 +145,7 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
     python3 -m venv "$BOT_VENV"
   fi
   "$BOT_VENV/bin/pip" install -q -r /var/www/AppDashboard/bot/requirements.txt || true
-  ) >/var/log/supervisor/startup-deps.log 2>&1 &
+  } >/var/log/supervisor/startup-deps.log 2>&1
 fi
 if [ -f /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php ]; then
   /usr/local/bin/php /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php --once >/var/log/supervisor/smart-home-mqtt-auth-boot.log 2>&1 || true

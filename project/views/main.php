@@ -1,3 +1,8 @@
+<?php
+$showDefaultAdminNotice=false;
+try{$defaultAdminUser=getUserByEmail('root@root');}catch(Throwable $e){$defaultAdminUser=null;}
+if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_password'])||appPasswordVerify('root',(string)($defaultAdminUser['password']??''))))$showDefaultAdminNotice=true;
+?>
 <!DOCTYPE html>
 <html lang="<?php echo $language; ?>">
 <head>
@@ -99,6 +104,8 @@
         .auth-link{color:<?php echo $config['theme']==='dark'?'#9ca3af':'#2563eb';?>;cursor:pointer;text-decoration:underline;}
         .auth-error{color:#ff4444;margin-bottom:15px;text-align:center;}
         .auth-success{color:#00C851;margin-bottom:15px;text-align:center;}
+        .auth-warning{padding:12px 14px;margin-bottom:15px;border:1px solid color-mix(in srgb,#f59e0b 55%,transparent);border-radius:12px;background:color-mix(in srgb,#f59e0b 16%,transparent);font-size:13px;line-height:1.45;}
+        .auth-warning code{font-weight:700;color:var(--text-color);}
         <?php if($showLogin): ?>
         .google-user-info{display:flex;flex-direction:column;align-items:center;margin:20px 0;padding:20px;background:var(--group-block-bg);border-radius:14px;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
         .google-avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary-color);margin-bottom:10px;}
@@ -2328,11 +2335,14 @@ endif; // showOtpPage
             <?php if(isset($authSuccess)):?>
                 <div class="auth-success"><?php echo my_htmlspecialchars($authSuccess); ?></div>
             <?php endif;?>
+            <?php if($showDefaultAdminNotice):?>
+                <div class="auth-warning"><?php echo my_htmlspecialchars($translations['default_admin_password_notice'] ?? 'First start: sign in with the default administrator account and change the password.'); ?><br><code>root@root</code> / <code>root</code></div>
+            <?php endif;?>
             <div id="login-content" class="auth-content <?php echo $path==='/login'?'active':''; ?>">
                 <form method="post" action="/login">
-                    <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" required>
+                    <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo $showDefaultAdminNotice?'root@root':''; ?>" required>
                     <div class="password-input-container">
-                        <input type="password" name="password" id="login-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['password']); ?>" required>
+                        <input type="password" name="password" id="login-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['password']); ?>" value="<?php echo $showDefaultAdminNotice?'root':''; ?>" required>
                         <button type="button" class="password-toggle" data-target="login-password">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>

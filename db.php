@@ -405,6 +405,7 @@ function initDB(AppDatabase $db): void {
             icon_sort_order TEXT NOT NULL DEFAULT 'alpha',
             icon_style      TEXT NOT NULL DEFAULT 'animated',
             wallpaper       TEXT NOT NULL DEFAULT 'default',
+            must_change_password INTEGER NOT NULL DEFAULT 0,
             created_at      TEXT NOT NULL DEFAULT ''
         )");
         $db->exec("CREATE TABLE IF NOT EXISTS pending_users (
@@ -485,7 +486,8 @@ function initDB(AppDatabase $db): void {
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
     // Backfill icon_style column for existing databases (monochrome|multicolor|animated)
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
+        try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
+        try { $db->exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
 
     // ── Pending users (awaiting email verification) ──────────────────────────
     // No FK to users — pending users do NOT yet exist in the users table
@@ -1089,9 +1091,13 @@ function loadUsers(): array {
             'color'      => '#007bff',
             'icon_sort_order' => 'alpha',
             'icon_style' => 'animated',
+            'must_change_password' => 1,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
         $users['root@root'] = getUserByEmail('root@root') ?? [];
+    } elseif (empty($users['root@root']['must_change_password']) && appPasswordVerify('root', (string)($users['root@root']['password'] ?? ''))) {
+        $users['root@root']['must_change_password'] = 1;
+        upsertUser('root@root', $users['root@root']);
     }
     // Always keep root@root as admin
     $users['root@root']['role']     = 2;
@@ -1128,13 +1134,14 @@ function saveUsers(array $users): void {
                 icon_sort_order = :icon_sort_order,
                 icon_style = :icon_style,
                 wallpaper = :wallpaper,
-                created_at = :created_at
+                created_at = :created_at,
+                must_change_password = :must_change_password
                 WHERE email = :email");
         } else {
             // Use INSERT for new users
             $stmt = $db->prepare("INSERT INTO users 
-                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at)
-                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at)");
+                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at, must_change_password)
+                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at, :must_change_password)");
         }
         
         $stmt->bindValue(':email',      $email);
@@ -1150,6 +1157,7 @@ function saveUsers(array $users): void {
         $stmt->bindValue(':icon_style', $u['icon_style'] ?? 'animated');
         $stmt->bindValue(':wallpaper',  $u['wallpaper']  ?? 'default');
         $stmt->bindValue(':created_at', $u['created_at'] ?? date('Y-m-d H:i:s'));
+        $stmt->bindValue(':must_change_password', (int)($u['must_change_password'] ?? 0), PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -1187,11 +1195,12 @@ function upsertUser(string $email, array $fields): void {
         'icon_sort_order' => 'alpha',
         'icon_style' => 'animated',
         'wallpaper' => 'default',
+        'must_change_password' => 0,
         'created_at' => date('Y-m-d H:i:s'),
     ], $current, $fields);
     $stmt = $db->prepare("INSERT INTO users
-        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at)
-        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at)
+        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at,must_change_password)
+        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at,:must_change_password)
         ON CONFLICT (email) DO UPDATE SET
             name=excluded.name,
             password=excluded.password,
@@ -1204,7 +1213,8 @@ function upsertUser(string $email, array $fields): void {
             icon_sort_order=excluded.icon_sort_order,
             icon_style=excluded.icon_style,
             wallpaper=excluded.wallpaper,
-            created_at=excluded.created_at");
+            created_at=excluded.created_at,
+            must_change_password=excluded.must_change_password");
     $stmt->bindValue(':email',      $email);
     $stmt->bindValue(':name',       $merged['name']);
     $stmt->bindValue(':password',   $merged['password']);
@@ -1218,6 +1228,7 @@ function upsertUser(string $email, array $fields): void {
     $stmt->bindValue(':icon_style', $merged['icon_style'] ?? 'animated');
     $stmt->bindValue(':wallpaper',  $merged['wallpaper'] ?? 'default');
     $stmt->bindValue(':created_at', $merged['created_at']);
+    $stmt->bindValue(':must_change_password', (int)($merged['must_change_password'] ?? 0), PDO::PARAM_INT);
     $stmt->execute();
     oauthConsumePendingLink($email);
     if (!empty($merged['verified']) || $email === 'root@root') {
