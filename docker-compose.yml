@@ -77,6 +77,7 @@ services:
       - "80:80"
     volumes:
       - .:/var/www/AppDashboard
+      - .:/var/www/apps-dashboard
       - ./nginx/appdashboard.conf:/etc/nginx/sites-available/appdashboard.conf:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData
@@ -85,9 +86,316 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    profiles: ["portainer"]
+    ports:
+      - "${PORTAINER_HTTPS_PORT:-9443}:9443"
+      - "${PORTAINER_HTTP_PORT:-9000}:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer-data:/data
+
+  duplicati:
+    image: duplicati/duplicati:latest
+    container_name: duplicati
+    restart: unless-stopped
+    profiles: ["duplicati"]
+    ports:
+      - "${DUPLICATI_PORT:-8200}:8200"
+    volumes:
+      - duplicati-data:/data
+      - duplicati-backups:/backups
+      - .:/source/appdashboard:ro
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: gitea
+    restart: unless-stopped
+    profiles: ["gitea"]
+    environment:
+      USER_UID: "${GITEA_UID:-1000}"
+      USER_GID: "${GITEA_GID:-1000}"
+      GITEA__database__DB_TYPE: postgres
+      GITEA__database__HOST: gitea-db:5432
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: "${GITEA_DB_PASSWORD:-gitea_dev_password}"
+    ports:
+      - "${GITEA_HTTP_PORT:-3001}:3000"
+      - "${GITEA_SSH_PORT:-2222}:22"
+    volumes:
+      - gitea-data:/data
+    depends_on:
+      gitea-db:
+        condition: service_healthy
+
+  gitea-db:
+    image: postgres:16
+    container_name: gitea-db
+    restart: unless-stopped
+    profiles: ["gitea"]
+    environment:
+      POSTGRES_DB: gitea
+      POSTGRES_USER: gitea
+      POSTGRES_PASSWORD: "${GITEA_DB_PASSWORD:-gitea_dev_password}"
+    volumes:
+      - gitea-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitea -d gitea"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    container_name: immich-server
+    restart: unless-stopped
+    profiles: ["immich"]
+    environment:
+      DB_HOSTNAME: immich-db
+      DB_USERNAME: immich
+      DB_PASSWORD: "${IMMICH_DB_PASSWORD:-immich_dev_password}"
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: immich-redis
+    ports:
+      - "${IMMICH_PORT:-2283}:2283"
+    volumes:
+      - immich-uploads:/data
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      immich-redis:
+        condition: service_healthy
+      immich-db:
+        condition: service_healthy
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    container_name: immich-machine-learning
+    restart: unless-stopped
+    profiles: ["immich"]
+    volumes:
+      - immich-model-cache:/cache
+
+  immich-redis:
+    image: docker.io/valkey/valkey:9
+    container_name: immich-redis
+    restart: unless-stopped
+    profiles: ["immich"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  immich-db:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    container_name: immich-db
+    restart: unless-stopped
+    profiles: ["immich"]
+    environment:
+      POSTGRES_DB: immich
+      POSTGRES_USER: immich
+      POSTGRES_PASSWORD: "${IMMICH_DB_PASSWORD:-immich_dev_password}"
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - immich-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dawarich:
+    image: freikin/dawarich:latest
+    container_name: dawarich
+    restart: unless-stopped
+    profiles: ["dawarich"]
+    command: ["bin/rails", "server", "-p", "3000", "-b", "0.0.0.0"]
+    environment:
+      RAILS_ENV: production
+      REDIS_URL: redis://dawarich-redis:6379
+      DATABASE_HOST: dawarich-db
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: "${DAWARICH_DB_PASSWORD:-dawarich_dev_password}"
+      DATABASE_NAME: dawarich_development
+      APPLICATION_HOSTS: "${DAWARICH_HOSTS:-localhost,127.0.0.1,::1}"
+      APPLICATION_PROTOCOL: http
+      SECRET_KEY_BASE: "${DAWARICH_SECRET_KEY_BASE:-change_me_change_me_change_me_change_me}"
+      SELF_HOSTED: "true"
+    ports:
+      - "${DAWARICH_PORT:-3002}:3000"
+    volumes:
+      - dawarich-public:/var/app/public
+      - dawarich-storage:/var/app/storage
+      - dawarich-watched:/var/app/tmp/imports/watched
+    depends_on:
+      dawarich-db:
+        condition: service_healthy
+      dawarich-redis:
+        condition: service_healthy
+
+  dawarich-sidekiq:
+    image: freikin/dawarich:latest
+    container_name: dawarich-sidekiq
+    restart: unless-stopped
+    profiles: ["dawarich"]
+    command: ["bundle", "exec", "sidekiq"]
+    environment:
+      RAILS_ENV: production
+      REDIS_URL: redis://dawarich-redis:6379
+      DATABASE_HOST: dawarich-db
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: postgres
+      DATABASE_PASSWORD: "${DAWARICH_DB_PASSWORD:-dawarich_dev_password}"
+      DATABASE_NAME: dawarich_development
+      SECRET_KEY_BASE: "${DAWARICH_SECRET_KEY_BASE:-change_me_change_me_change_me_change_me}"
+      SELF_HOSTED: "true"
+    volumes:
+      - dawarich-public:/var/app/public
+      - dawarich-storage:/var/app/storage
+      - dawarich-watched:/var/app/tmp/imports/watched
+    depends_on:
+      dawarich:
+        condition: service_started
+
+  dawarich-db:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: dawarich-db
+    restart: unless-stopped
+    profiles: ["dawarich"]
+    environment:
+      POSTGRES_DB: dawarich_development
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "${DAWARICH_DB_PASSWORD:-dawarich_dev_password}"
+    volumes:
+      - dawarich-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d dawarich_development"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  dawarich-redis:
+    image: redis:7-alpine
+    container_name: dawarich-redis
+    restart: unless-stopped
+    profiles: ["dawarich"]
+    command: ["redis-server", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  plane:
+    image: makeplane/plane-aio-community:${PLANE_VERSION:-stable}
+    container_name: plane
+    restart: unless-stopped
+    profiles: ["plane"]
+    environment:
+      DOMAIN_NAME: "${PLANE_DOMAIN_NAME:-localhost:${PLANE_PORT:-8081}}"
+      WEB_URL: "http://${PLANE_DOMAIN_NAME:-localhost:${PLANE_PORT:-8081}}"
+      DATABASE_URL: "postgresql://plane:${PLANE_DB_PASSWORD:-plane_dev_password}@plane-db:5432/plane"
+      REDIS_URL: redis://plane-redis:6379
+      AMQP_URL: "amqp://plane:${PLANE_RABBITMQ_PASSWORD:-plane_dev_password}@plane-rabbitmq:5672/plane"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: "${PLANE_MINIO_ROOT_USER:-plane}"
+      AWS_SECRET_ACCESS_KEY: "${PLANE_MINIO_ROOT_PASSWORD:-plane_dev_password}"
+      AWS_S3_BUCKET_NAME: uploads
+      AWS_S3_ENDPOINT_URL: http://plane-minio:9000
+    ports:
+      - "${PLANE_PORT:-8081}:80"
+    volumes:
+      - plane-data:/app/data
+      - plane-logs:/app/logs
+    depends_on:
+      plane-db:
+        condition: service_healthy
+      plane-redis:
+        condition: service_healthy
+      plane-rabbitmq:
+        condition: service_healthy
+      plane-minio:
+        condition: service_started
+
+  plane-db:
+    image: postgres:16-alpine
+    container_name: plane-db
+    restart: unless-stopped
+    profiles: ["plane"]
+    environment:
+      POSTGRES_DB: plane
+      POSTGRES_USER: plane
+      POSTGRES_PASSWORD: "${PLANE_DB_PASSWORD:-plane_dev_password}"
+    volumes:
+      - plane-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plane -d plane"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  plane-redis:
+    image: redis:7-alpine
+    container_name: plane-redis
+    restart: unless-stopped
+    profiles: ["plane"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  plane-rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: plane-rabbitmq
+    restart: unless-stopped
+    profiles: ["plane"]
+    environment:
+      RABBITMQ_DEFAULT_USER: plane
+      RABBITMQ_DEFAULT_PASS: "${PLANE_RABBITMQ_PASSWORD:-plane_dev_password}"
+      RABBITMQ_DEFAULT_VHOST: plane
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  plane-minio:
+    image: minio/minio:latest
+    container_name: plane-minio
+    restart: unless-stopped
+    profiles: ["plane"]
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: "${PLANE_MINIO_ROOT_USER:-plane}"
+      MINIO_ROOT_PASSWORD: "${PLANE_MINIO_ROOT_PASSWORD:-plane_dev_password}"
+    volumes:
+      - plane-minio-data:/data
+
 volumes:
   appdashboard-logs:
   appdashboard-data:
   appdashboard-appdata:
   appdashboard-db-data:
   appdashboard-redis-data:
+  portainer-data:
+  duplicati-data:
+  duplicati-backups:
+  gitea-data:
+  gitea-db-data:
+  immich-uploads:
+  immich-model-cache:
+  immich-db-data:
+  dawarich-public:
+  dawarich-storage:
+  dawarich-watched:
+  dawarich-db-data:
+  plane-data:
+  plane-logs:
+  plane-db-data:
+  plane-minio-data:
