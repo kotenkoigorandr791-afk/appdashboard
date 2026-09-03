@@ -2251,7 +2251,7 @@ endif; // showOtpPage
                     <div class="google-email"><?php echo my_htmlspecialchars($pendingGoogleData['email']); ?></div>
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
                 </div>
-                <form method="post" action="/register">
+                <form method="post" action="/register?step=set_password&password_required=1">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($pendingGoogleData['email']); ?>">
                     <input type="hidden" name="name" value="<?php echo my_htmlspecialchars($pendingGoogleData['name']); ?>">
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">

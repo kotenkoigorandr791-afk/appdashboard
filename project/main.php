@@ -1284,7 +1284,7 @@ endif; // showOtpPage
                     <div class="google-email"><?php echo my_htmlspecialchars($pendingGoogleData['email']); ?></div>
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
                 </div>
-                <form method="post" action="/register">
+                <form method="post" action="/register?step=set_password&password_required=1">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($pendingGoogleData['email']); ?>">
                     <input type="hidden" name="name" value="<?php echo my_htmlspecialchars($pendingGoogleData['name']); ?>">
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">
@@ -5576,6 +5576,8 @@ var monacoInjected = false;
 window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
+    // Local monaco assets may be absent in some deployments.
+    // Prefer CDN (local assets may be missing => 404).
     var localVs='/project/assets/monaco-0.45.0/vs';
     var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
     function loadScript(src){
@@ -5601,10 +5603,10 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
         });
     }
     function tryLoad(vsPath){
-        var ready=typeof require==='function'?Promise.resolve():loadScript(vsPath+'/loader.js');
+        var ready=loadScript(vsPath+'/loader.js');
         return ready.then(function(){return loadEditor(vsPath);});
     }
-    window.__apMonacoPromise = tryLoad(localVs).catch(function(){return tryLoad(cdnVs);});
+    window.__apMonacoPromise = tryLoad(cdnVs);
     return window.__apMonacoPromise;
 };
 

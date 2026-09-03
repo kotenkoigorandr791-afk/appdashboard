@@ -67,7 +67,7 @@ function app_db_load_config(): array {
     return $cfg;
 }
 function app_db_is_pgsql(): bool {
-    return app_db_load_config()['driver'] === 'pgsql';
+    return true;
 }
 function app_db_skip_session_init(): bool {
     return getenv('APP_DB_SKIP_SESSION_INIT') === '1';
@@ -109,6 +109,9 @@ function app_pdo_connect(bool $fresh = false): PDO {
         }
     }
     $c = app_db_load_config();
+    if ($c['driver'] !== 'pgsql') {
+        throw new RuntimeException('Only PostgreSQL is supported');
+    }
     $retries = max(1, (int)$c['connect_retries']);
     $delayMs = max(0, (int)$c['connect_retry_delay_ms']);
     $last = null;

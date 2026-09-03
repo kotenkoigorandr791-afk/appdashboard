@@ -44,10 +44,7 @@ function getDB(): AppDatabase {
 }
 function app_db_schema_ready(AppDatabase $db): bool {
     try {
-        if (app_db_is_pgsql()) {
-            return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='config' LIMIT 1");
-        }
-        return (bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='config' LIMIT 1");
+        return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='config' LIMIT 1");
     } catch (Throwable $e) {
         return false;
     }
@@ -56,12 +53,8 @@ function app_db_schema_ready(AppDatabase $db): bool {
 function app_db_ensure_unique_index(AppDatabase $db, string $table, array $columns, string $indexName): void {
     $columnList = implode(',', $columns);
     try {
-        if (app_db_is_pgsql()) {
-            $partition = implode(', ', $columns);
-            $db->exec("DELETE FROM $table t USING (SELECT ctid, ROW_NUMBER() OVER (PARTITION BY $partition ORDER BY ctid) AS rn FROM $table) d WHERE t.ctid = d.ctid AND d.rn > 1");
-        } else {
-            $db->exec("DELETE FROM $table WHERE rowid NOT IN (SELECT MIN(rowid) FROM $table GROUP BY $columnList)");
-        }
+        $partition = implode(', ', $columns);
+        $db->exec("DELETE FROM $table t USING (SELECT ctid, ROW_NUMBER() OVER (PARTITION BY $partition ORDER BY ctid) AS rn FROM $table) d WHERE t.ctid = d.ctid AND d.rn > 1");
     } catch (Throwable $e) {
     }
     try {
@@ -390,79 +383,7 @@ function recordAppMetric(string $userEmail, string $appId, string $metric, float
 // Schema initialisation  (runs once on first connection)
 // ─────────────────────────────────────────────────────────────────────────────
 function initDB(AppDatabase $db): void {
-    if (app_db_is_pgsql()) {
-        $db->exec("CREATE TABLE IF NOT EXISTS users (
-            email           TEXT PRIMARY KEY,
-            name            TEXT NOT NULL DEFAULT '',
-            password        TEXT NOT NULL DEFAULT '',
-            photo           TEXT NOT NULL DEFAULT 'default_avatar.png',
-            role            INTEGER NOT NULL DEFAULT 0,
-            verified        INTEGER NOT NULL DEFAULT 0,
-            language        TEXT NOT NULL DEFAULT 'en',
-            theme           TEXT NOT NULL DEFAULT 'light',
-            color           TEXT NOT NULL DEFAULT '#007bff',
-            trusted_devices TEXT NOT NULL DEFAULT '[]',
-            icon_sort_order TEXT NOT NULL DEFAULT 'alpha',
-            icon_style      TEXT NOT NULL DEFAULT 'animated',
-            wallpaper       TEXT NOT NULL DEFAULT 'default',
-            created_at      TEXT NOT NULL DEFAULT ''
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS pending_users (
-            email       TEXT PRIMARY KEY,
-            name        TEXT NOT NULL DEFAULT '',
-            password    TEXT NOT NULL DEFAULT '',
-            photo       TEXT NOT NULL DEFAULT 'default_avatar.png',
-            role        INTEGER NOT NULL DEFAULT 0,
-            language    TEXT NOT NULL DEFAULT 'en',
-            theme       TEXT NOT NULL DEFAULT 'light',
-            color       TEXT NOT NULL DEFAULT '#007bff',
-            created_at  TEXT NOT NULL DEFAULT '',
-            reg_method  TEXT NOT NULL DEFAULT 'Email'
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS active_sessions (
-            session_id    TEXT PRIMARY KEY,
-            email         TEXT NOT NULL,
-            user_data     TEXT NOT NULL DEFAULT '{}',
-            login_time    INTEGER NOT NULL,
-            last_activity INTEGER NOT NULL,
-            ip_address    TEXT NOT NULL DEFAULT '',
-            user_agent    TEXT NOT NULL DEFAULT '',
-            device        TEXT NOT NULL DEFAULT '',
-            browser       TEXT NOT NULL DEFAULT '',
-            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
-        )");
-        $db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_email ON active_sessions(email)");
-        $db->exec("CREATE TABLE IF NOT EXISTS reset_codes (
-            email   TEXT PRIMARY KEY,
-            code    TEXT NOT NULL,
-            expires INTEGER NOT NULL,
-            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS verification_tokens (
-            token   TEXT PRIMARY KEY,
-            email   TEXT NOT NULL,
-            expires INTEGER NOT NULL
-        )");
-        $db->exec("CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)");
-        try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Throwable $e) {}
-        try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Throwable $e) {}
-        try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Throwable $e) {}
-        ensure_cloud_encryption_consents_schema($db);
-        ensureTrustedDevicesSchema($db);
-        ensureTrustedDeviceCookiesSchema($db);
-        ensureSupportChatSchema($db);
-        ensureTelegramBotSchema($db);
-        ensureOAuthConnectionsSchema($db);
-        ensureNotificationsSchema($db);
-        ensureVerificationTokensSchema($db);
-        require_once __DIR__ . '/lib/pg_foreign_keys.php';
-        ensure_pg_foreign_keys($db);
-    }
-    
-    // Enable foreign key support
     $db->exec("SELECT 1");
-
-    // ── Users ────────────────────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS users (
         email           TEXT PRIMARY KEY,
         name            TEXT NOT NULL DEFAULT '',
@@ -474,21 +395,24 @@ function initDB(AppDatabase $db): void {
         theme           TEXT NOT NULL DEFAULT 'light',
         color           TEXT NOT NULL DEFAULT '#007bff',
         trusted_devices TEXT NOT NULL DEFAULT '[]',
-        created_at      TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+        icon_sort_order TEXT NOT NULL DEFAULT 'alpha',
+        icon_style      TEXT NOT NULL DEFAULT 'animated',
+        wallpaper       TEXT NOT NULL DEFAULT 'default',
+        must_change_password INTEGER NOT NULL DEFAULT 0,
+        created_at      TEXT NOT NULL DEFAULT ''
     )");
     app_db_ensure_unique_index($db, 'users', ['email'], 'idx_users_email_unique');
-
-    // Backfill trusted_devices column for existing databases
     try { $db->exec("ALTER TABLE users ADD COLUMN trusted_devices TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
-
-    // Backfill icon_sort_order column for existing databases
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
-    // Backfill icon_style column for existing databases (monochrome|multicolor|animated)
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
-
-    // ── Pending users (awaiting email verification) ──────────────────────────
-    // No FK to users — pending users do NOT yet exist in the users table
+try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    $rootStmt = $db->prepare("INSERT INTO users (email,name,password,photo,role,verified,language,theme,color,trusted_devices,icon_sort_order,icon_style,wallpaper,must_change_password,created_at)
+        VALUES('root@root','Root Administrator',:password,'default_avatar.png',2,1,'en','light','#007bff','[]','alpha','animated','default',1,:created_at)
+        ON CONFLICT (email) DO NOTHING");
+    $rootStmt->bindValue(':password', appPasswordHash('root'), PDO::PARAM_STR);
+    $rootStmt->bindValue(':created_at', date('Y-m-d H:i:s'), PDO::PARAM_STR);
+    $rootStmt->execute();
     $db->exec("CREATE TABLE IF NOT EXISTS pending_users (
         email       TEXT PRIMARY KEY,
         name        TEXT NOT NULL DEFAULT '',
@@ -952,44 +876,6 @@ function initDB(AppDatabase $db): void {
         $ruleStmt->execute();
     }
 
-    // ── Migration: remove incorrect FK constraints from pending_users & verification_tokens
-    $fkMigDone = $db->querySingle("SELECT value FROM app_meta WHERE key='fk_drop_pending_vt_v1'");
-    if (!$fkMigDone) {
-        $db->exec("SELECT 1");
-
-        // Recreate pending_users without FK
-        $db->exec("CREATE TABLE IF NOT EXISTS pending_users_tmp (
-            email       TEXT PRIMARY KEY,
-            name        TEXT NOT NULL DEFAULT '',
-            password    TEXT NOT NULL DEFAULT '',
-            photo       TEXT NOT NULL DEFAULT 'default_avatar.png',
-            role        INTEGER NOT NULL DEFAULT 0,
-            language    TEXT NOT NULL DEFAULT 'en',
-            theme       TEXT NOT NULL DEFAULT 'light',
-            color       TEXT NOT NULL DEFAULT '#007bff',
-            created_at  TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP),
-            reg_method  TEXT NOT NULL DEFAULT 'Email'
-        )");
-        $db->exec("INSERT INTO pending_users_tmp
-                    SELECT email,name,password,photo,role,language,theme,color,created_at,reg_method
-                    FROM pending_users");
-        $db->exec("DROP TABLE pending_users");
-        $db->exec("ALTER TABLE pending_users_tmp RENAME TO pending_users");
-
-        // Recreate verification_tokens without FK
-        $db->exec("CREATE TABLE IF NOT EXISTS verification_tokens_tmp (
-            email   TEXT PRIMARY KEY,
-            token   TEXT NOT NULL,
-            expires INTEGER NOT NULL
-        )");
-        $db->exec("INSERT INTO verification_tokens_tmp
-                    SELECT email,token,expires FROM verification_tokens");
-        $db->exec("DROP TABLE verification_tokens");
-        $db->exec("ALTER TABLE verification_tokens_tmp RENAME TO verification_tokens");
-
-        $db->exec("SELECT 1");
-        monitorRetentionSetMeta($db, 'fk_drop_pending_vt_v1', '1');
-    }
     $cloudSettingsV2 = $db->querySingle("SELECT value FROM app_meta WHERE key='cloud_user_settings_v2'");
     if (!$cloudSettingsV2) {
         $cols = [];
@@ -1074,8 +960,7 @@ function loadUsers(): array {
         $row['verified'] = (bool)$row['verified'];
         $users[$email] = $row;
     }
-    // Ensure root@root always exists
-    if (!isset($users['root@root']) || userNeedsPasswordSet($users['root@root'])) {
+    if (!isset($users['root@root'])) {
         $rootPw = appPasswordHash('root');
         upsertUser('root@root', [
             'email'      => 'root@root',
@@ -1093,7 +978,6 @@ function loadUsers(): array {
         ]);
         $users['root@root'] = getUserByEmail('root@root') ?? [];
     }
-    // Always keep root@root as admin
     $users['root@root']['role']     = 2;
     $users['root@root']['verified'] = true;
     return $users;
@@ -1226,7 +1110,11 @@ function upsertUser(string $email, array $fields): void {
             if (is_readable($oauthFile)) require_once $oauthFile;
         }
         if (function_exists('oauth_provision_user_services')) {
-            oauth_provision_user_services($email, $merged);
+            try {
+                oauth_provision_user_services($email, $merged);
+            } catch (Throwable $e) {
+                error_log('oauth_provision_user_services failed: ' . $e->getMessage());
+            }
         }
     }
 }
@@ -2674,109 +2562,6 @@ function setLastActiveUser(string $email): void {
     monitorRetentionSetMeta($db, 'last_active_user', $email);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MIGRATION HELPER — call once to import existing JSON files into SQLite
-// ─────────────────────────────────────────────────────────────────────────────
-function migrateJsonToSQLite(): array {
-    $log = [];
-    $dir = __DIR__;
-
-    // users.json
-    $f = $dir . '/users.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveUsers($data); $log[] = 'users.json → users (' . count($data) . ' rows)'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // pending_users.json
-    $f = $dir . '/pending_users.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { savePendingUsers($data); $log[] = 'pending_users.json (' . count($data) . ')'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // visit_stats.json
-    $f = $dir . '/visit_stats.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveVisitStats($data); $log[] = 'visit_stats.json (' . count($data) . ' apps)'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // shared_files.json
-    $f = $dir . '/shared_files.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveSharedFiles($data); $log[] = 'shared_files.json (' . count($data) . ')'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // active_sessions.json
-    $f = $dir . '/active_sessions.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveActiveSessions($data); $log[] = 'active_sessions.json (' . count($data) . ')'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // auth_config.json
-    $f = $dir . '/auth_config.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveAuthConfig($data); $log[] = 'auth_config.json'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // reset_codes.json
-    $f = $dir . '/reset_codes.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveResetCodes($data); $log[] = 'reset_codes.json (' . count($data) . ')'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // verification_tokens.json
-    $f = $dir . '/verification_tokens.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveVerificationTokens($data); $log[] = 'verification_tokens.json (' . count($data) . ')'; }
-        rename($f, $f . '.migrated');
-    }
-
-    $f = $dir . '/user_app_restrictions.json';
-    if (file_exists($f)) {
-        rename($f, $f . '.migrated');
-        $log[] = 'user_app_restrictions.json (skipped — replaced by app_access_levels)';
-    }
-
-    // user_folders_config.json
-    $f = $dir . '/user_folders_config.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveUserFoldersConfig($data); $log[] = 'user_folders_config.json'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // tg_bot_config.json
-    $f = $dir . '/tg_bot_config.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data)) { saveTgBotConfig($data); $log[] = 'tg_bot_config.json'; }
-        rename($f, $f . '.migrated');
-    }
-
-    // last_active_user.json
-    $f = $dir . '/last_active_user.json';
-    if (file_exists($f)) {
-        $data = json_decode(file_get_contents($f), true) ?? [];
-        if (!empty($data['email'])) { setLastActiveUser($data['email']); $log[] = 'last_active_user.json'; }
-        rename($f, $f . '.migrated');
-    }
-
-    return $log;
-}
 // =============================================================================
 // ONE-TIME PINs
 // =============================================================================
@@ -4159,10 +3944,7 @@ function monitorRecordError(string $message, string $level = 'error', string $fi
 
 function monitorRetentionTableExists(AppDatabase $db, string $table): bool {
     try {
-        if (app_db_is_pgsql()) {
-            return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='" . AppDatabase::escapeString($table) . "' LIMIT 1");
-        }
-        return (bool)$db->querySingle("SELECT 1 FROM sqlite_master WHERE type='table' AND name='" . AppDatabase::escapeString($table) . "' LIMIT 1");
+        return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='" . AppDatabase::escapeString($table) . "' LIMIT 1");
     } catch (Exception $e) {
         return false;
     }

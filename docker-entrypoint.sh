@@ -31,6 +31,7 @@ if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
   mv "$APP_ROOT/bot/bot.log" "/tmp/appdashboard-bot-log-migrated-$(date +%s)" 2>/dev/null || true
 fi
+touch /var/log/bot/bot.log 2>/dev/null || true
 if [ -d "$APP_ROOT/data" ] && [ ! -L "$APP_ROOT/data" ]; then
   cp -a "$APP_ROOT/data/." "$APPDATA_DATA_DIR/" 2>/dev/null || true
   rm -rf "$APP_ROOT/data"
