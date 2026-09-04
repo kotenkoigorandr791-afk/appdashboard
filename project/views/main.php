@@ -896,21 +896,25 @@
         #sidebarWeatherWidget {
             flex-shrink: 0;
             display: flex;
-            width: calc(100% - var(--shell-menu-button-width));
+            width: auto;
+            height: var(--shell-menu-button-height);
+            min-height: var(--shell-menu-button-height);
             box-sizing: border-box;
-            /* align under the menu button without extra offset from sidebar padding */
-            margin: calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) - 32px) 0 16px var(--shell-menu-button-width);
+            margin: calc(var(--shell-menu-button-top) - 20px) 0 16px calc(var(--shell-menu-button-left) + var(--shell-menu-button-width) + 8px - 20px);
             align-items: center;
             justify-content: center;
             border-radius: 12px;
             flex-wrap: nowrap;
             gap: 6px;
-            padding: 0 0 6px;
+            padding: 0;
             background: color-mix(in srgb, var(--group-block-bg) 70%, transparent);
             border: 1px solid var(--border-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         @media (max-width:768px){
-            #sidebarWeatherWidget{width:calc(100% - var(--shell-menu-button-mobile-width));margin:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) - 32px) 0 16px var(--shell-menu-button-mobile-width);padding:0 0 6px;}
+            #sidebarWeatherWidget{width:auto;height:var(--shell-menu-button-mobile-height);min-height:var(--shell-menu-button-mobile-height);margin:calc(var(--shell-menu-button-mobile-top) - 20px) 0 16px calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px - 20px);padding:0;}
         }
         .weather-widget .weather-icon {
             display: inline-flex;
@@ -978,7 +982,11 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            line-height: 1.25;
+            line-height: var(--shell-menu-button-height);
+            height: auto;
+        }
+        @media (max-width:768px){
+            #sidebarWeatherWidget .weather-perm{line-height:var(--shell-menu-button-mobile-height);}
         }
         #sidebarWeatherWidget .weather-pin-icon {
             order: 1;
