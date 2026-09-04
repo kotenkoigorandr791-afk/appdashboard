@@ -657,51 +657,25 @@ $storeNames = array_map(fn($s) => $s['name'], $userSettings['stores']);
 $visibleStoreNames = array_map(fn($s) => $s['name'], $visibleStores);
 
 $today = date('Y-m-d');
+$lastYearStart = date('Y-m-d', strtotime('-1 year'));
 
-// Auto-create missing dates from last entry to today
-$lastDateRes = $udb->query("SELECT MAX(date) as last_date FROM expenses");
-$lastDateRow = $lastDateRes->fetch(PDO::FETCH_ASSOC);
-$lastDate = $lastDateRow ? $lastDateRow['last_date'] : null;
-
-if ($lastDate && $lastDate < $today) {
-    // Create all missing dates from lastDate+1 to today
-    $currentDate = date('Y-m-d', strtotime($lastDate . ' +1 day'));
-    $endDate = $today;
-    
+$daysToEnsure = listCalendarDaysInclusive($lastYearStart, $today);
+if (!empty($daysToEnsure)) {
     $udb->exec('BEGIN');
-    while ($currentDate <= $endDate) {
-        // Skip if date already exists
-        $checkStmt = $udb->prepare('SELECT COUNT(*) as cnt FROM expenses WHERE date = :d');
-        $checkStmt->bindValue(':d', $currentDate);
-        $exists = (int)$checkStmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
-        
-        if (!$exists) {
-            foreach ($storeNames as $sn) {
-                $st = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
-                $st->bindValue(':d', $currentDate);
-                $st->bindValue(':s', $sn);
-                $st->execute();
-            }
-            $stInc = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
-            $stInc->bindValue(':d', $currentDate);
-            $stInc->execute();
+    $expenseInsert = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
+    $incomeInsert = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
+    foreach ($daysToEnsure as $currentDate) {
+        foreach ($storeNames as $sn) {
+            $expenseInsert->bindValue(':d', $currentDate);
+            $expenseInsert->bindValue(':s', $sn);
+            $expenseInsert->execute();
         }
-        
-        $currentDate = date('Y-m-d', strtotime($currentDate . ' +1 day'));
+        $incomeInsert->bindValue(':d', $currentDate);
+        $incomeInsert->execute();
     }
     $udb->exec('COMMIT');
 }
-
-// Ensure today exists
-foreach ($storeNames as $sn) {
-    $st = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
-    $st->bindValue(':d', $today); $st->bindValue(':s', $sn);
-    $st->execute();
-}
 $udb->exec("INSERT INTO incomes(date,amount) SELECT DISTINCT date,0 FROM expenses ON CONFLICT (date) DO NOTHING");
-$stIncToday = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
-$stIncToday->bindValue(':d', $today);
-$stIncToday->execute();
 
 $startDateFilter = $tableSettings['start_date'] ? "AND date >= '" . AppDatabase::escapeString($tableSettings['start_date']) . "'" : '';
 $startDateForTable = trim($tableSettings['start_date'] ?? '');

@@ -163,7 +163,7 @@
     <div class="divider"></div>
 
     <div class="controls-container">
-        <button class="add-date-btn" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($hideTablesTitle) ?></button>
+        <button class="add-date-btn" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
     </div>
 
     <div id="preview-tooltip" style="display:none;position:absolute;background:var(--modal-bg);border:1px solid var(--primary-color);border-radius:4px;padding:5px 10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:1000;pointer-events:none;">

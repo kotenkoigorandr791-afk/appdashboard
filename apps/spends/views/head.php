@@ -4,7 +4,7 @@ $menuButton = $nameConfig['menu_button'] ?? [];
 $menuSafeWidth = (int)($menuButton['left'] ?? 16) + (int)($menuButton['width'] ?? 40) + 10;
 $bgFull = $theme === 'dark' ? '../steps/background_dark.jpg' : '../steps/background_light.jpg';
 $tableModalTitle = ['be'=>'Табліца','cs'=>'Tabulka','en'=>'Table','pl'=>'Tabela','ru'=>'Таблица','uk'=>'Таблиця'][$language] ?? 'Table';
-$hideTablesTitle = ['be'=>'Схаваць табліцы','cs'=>'Skrýt tabulky','en'=>'Hide tables','pl'=>'Ukryj tabele','ru'=>'Скрыть таблицы','uk'=>'Сховати таблиці'][$language] ?? 'Hide tables';
+$openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulku','en'=>'Open table','pl'=>'Otwórz tabelę','ru'=>'Открыть таблицу','uk'=>'Відкрити таблицю'][$language] ?? 'Open table';
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($language) ?>">
@@ -282,8 +282,10 @@ $hideTablesTitle = ['be'=>'Схаваць табліцы','cs'=>'Skrýt tabulky'
         .currency-btn { background:var(--group-block-bg); color:var(--muted-text); border:1px solid var(--border-color); padding:9px 12px; border-radius:var(--radius-sm); font-weight:800; }
         .currency-btn:hover, .currency-btn.active { background:var(--primary-color); color:white; border-color:var(--primary-color); }
         .divider { height:1px; background:var(--border-color); margin:18px 0; }
-        .controls-container { display:flex; justify-content:center; align-items:center; gap:12px; margin:12px 0; padding:12px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:linear-gradient(120deg,var(--surface-rail),var(--modal-bg)); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
-        .search-box { padding:10px 12px 10px 34px; width:min(44vw,260px); background:var(--surface-solid); border-radius:var(--radius-sm); }
+        .controls-container { display:flex; justify-content:center; align-items:center; margin:12px 0; padding:0; border:0; background:transparent; box-shadow:none; }
+        .table-toolbar .search-container { position:relative; display:flex; align-items:center; width:min(44vw,260px); min-width:220px; height:40px; }
+        .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
+        .table-toolbar .search-box { width:100%; height:40px; margin:0; padding:0 12px 0 38px; background:var(--surface-solid); border-radius:var(--radius-sm); line-height:40px; }
         .add-date-btn { padding:10px 16px; border-radius:var(--radius-sm); font-weight:800; }
         .data-table-container { overflow-x:auto; margin:12px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 20px); overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
         .data-table { border-collapse:separate; border-spacing:0; }
