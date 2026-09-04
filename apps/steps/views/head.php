@@ -546,7 +546,7 @@
         .goal-summary-label { display: block; color: var(--muted-text); font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .goal-summary-value { display: block; margin-top: 4px; font-size: 20px; font-weight: 850; color: var(--text-color); }
 
-        #info-button, #settings-button, #add-steps-button, #excel-button, #stats-button {
+        #info-button, #settings-button, #add-steps-button, #stats-button {
             position: static;
             background: rgba(127,127,127,0.08);
             border: 1px solid transparent;
@@ -561,7 +561,7 @@
             border-radius: var(--radius-sm);
             transition: background-color 0.2s, border-color 0.2s;
         }
-        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #excel-button:hover, #stats-button:hover, #stats-button.active {
+        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active {
             background: color-mix(in srgb, var(--primary-color) 14%, transparent);
             border-color: color-mix(in srgb, var(--primary-color) 34%, transparent);
         }
@@ -644,7 +644,7 @@
 
         .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content {
             background: var(--modal-bg);
-            padding: clamp(14px, 2vw, 22px);
+            padding: 24px;
             border-radius: var(--radius-lg);
             width: calc(100vw - 24px);
             max-width: calc(100vw - 24px);
@@ -663,6 +663,27 @@
         #info-modal .info-content {
             overflow-y: auto;
             overflow-x: hidden;
+        }
+        #info-modal .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 28px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        #info-modal .modal-close:hover {
+            background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+            color: var(--primary-color);
         }
         #stats-modal .stats-content {
             width: calc(100vw - 24px);
@@ -1542,33 +1563,94 @@
             color: #212529;
         }
 
-        /* Info modal */
+/* Info modal */
         .info-content {
             max-width: 800px;
+            gap: 20px;
+            padding: 24px;
         }
 
-        .info-section {
-            margin: 20px 0;
-            padding: 15px;
+        .info-header {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 16px;
+            align-items: center;
+            padding: 0 8px;
+        }
+
+        .info-header-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+        }
+
+        .info-header-icon svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .info-header h2 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 16px;
+        }
+
+        .info-card {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 12px;
             background: var(--group-block-bg);
-            border-radius: 8px;
             border: 1px solid var(--border-color);
+            border-radius: 12px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
-        .info-section h3 {
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+
+        .info-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+        }
+
+        .info-card-icon svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .info-card h3 {
+            margin: 0;
             color: var(--primary-color);
-            margin-top: 0;
+            font-size: 18px;
+            font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
         }
 
-        .info-section ul {
-            padding-left: 20px;
+        .info-card h3 svg {
+            color: var(--primary-color);
         }
 
-        .info-section li {
-            margin: 8px 0;
+        .info-card p {
+            margin: 2px 0 0;
+            color: var(--text-color);
+            line-height: 1.5;
+            flex-grow: 1;
         }
 
         .hotkey {
@@ -1640,6 +1722,64 @@
             color: white;
         }
 
+        .settings-backup-actions {
+            margin: 0 0 14px;
+            justify-content: flex-start;
+        }
+
+        .settings-backup-import {
+            margin-top: 14px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--group-block-bg);
+        }
+
+        .settings-backup-import h3 {
+            margin: 0 0 12px;
+            font-size: 15px;
+        }
+
+        .settings-backup-import-grid {
+            display: grid;
+            grid-template-columns: minmax(220px, 1fr) auto auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        .settings-backup-import label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .settings-backup-import input[type="file"] {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 6px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: var(--modal-bg);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+
+        .settings-backup-import-mode {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .settings-backup-import-mode label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0;
+            cursor: pointer;
+        }
+
         /* Table pagination */
         .table-pagination {
             display: flex;
@@ -1667,10 +1807,22 @@
             body.modal-open {
                 padding: 0 !important;
             }
+            body.modal-open #menu-button,
+            body.modal-open [id$="-menu-button"],
+            body.modal-open .menu-button,
+            body.modal-open .menu-toggle,
+            body.modal-open .mobile-menu-button {
+                opacity: 0 !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+            }
 
             .app-steps {
                 max-width: 100%;
-                padding: calc(var(--topbar-height) + 10px) 8px 10px;
+                min-height: 100dvh;
+                display: flex;
+                flex-direction: column;
+                padding: calc(var(--topbar-height) + 10px) 8px 8px;
                 margin: 0;
             }
 
@@ -1684,7 +1836,7 @@
                 display: none;
             }
 
-            #info-button, #settings-button, #add-steps-button, #excel-button, #stats-button {
+            #info-button, #settings-button, #add-steps-button, #stats-button {
                 font-size: 20px;
                 width: 35px;
                 height: 35px;
@@ -1705,6 +1857,7 @@
                 height: 35px;
             }
             .app-main {
+                flex: 1 1 auto;
                 grid-template-columns: 1fr;
                 grid-template-areas:
                     "view"
@@ -1715,6 +1868,16 @@
                 gap: 10px;
                 padding: 10px;
                 border-radius: 14px;
+            }
+            .data-type-selector {
+                width: min(100%, 360px);
+                justify-self: center;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            .data-type-btn {
+                align-items: center;
+                justify-content: center;
             }
             .goal-icon { width: 12px; height: 12px; right: 2px; left: auto; bottom: 2px; top: auto; transform: none; }
 
@@ -1732,20 +1895,36 @@
             .goal-summary-value { font-size: 18px; }
 
             .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content {
-                width: calc(100vw - 16px) !important;
-                max-width: calc(100vw - 16px) !important;
-                height: calc(100vh - 16px) !important;
-                max-height: calc(100vh - 16px) !important;
+                width: 100dvw !important;
+                max-width: 100dvw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
                 padding: 14px;
                 margin: 0;
+                border-radius: 0;
                 overflow: auto;
                 overflow-x: hidden;
             }
+            #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #alert-modal, #video-crop-modal, #guide-expand-modal {
+                width: 100dvw !important;
+                height: 100dvh !important;
+                padding: 0 !important;
+                align-items: stretch !important;
+                justify-content: stretch !important;
+            }
+            #guide-expand-modal .guide-expand-content,
+            #video-crop-modal .video-crop-inner {
+                width: 100dvw !important;
+                max-width: 100dvw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+                border-radius: 0 !important;
+            }
             #add-steps-modal .add-steps-merged {
-                width: calc(100vw - 16px) !important;
-                max-width: calc(100vw - 16px) !important;
-                height: calc(100vh - 16px) !important;
-                max-height: calc(100vh - 16px) !important;
+                width: 100dvw !important;
+                max-width: 100dvw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
                 padding: 14px !important;
             }
             .add-tab {
@@ -1770,14 +1949,6 @@
             .excel-table-container {
                 max-height: 50vh;
             }
-            #excel-modal .excel-content {
-                width: calc(100vw - 16px) !important;
-                max-width: calc(100vw - 16px) !important;
-                height: calc(100vh - 16px) !important;
-                max-height: calc(100vh - 16px) !important;
-                margin: 0 !important;
-                padding: 46px 42px 10px 10px !important;
-            }
             .excel-modal-head {
                 grid-template-columns: 44px minmax(0, 1fr) 44px;
                 column-gap: 4px;
@@ -1785,9 +1956,6 @@
             .excel-modal-head .excel-head-spacer {
                 width: 38px;
                 height: 38px;
-            }
-            #excel-modal {
-                padding: 8px;
             }
             #excel-modal .excel-table-stack {
                 flex: 1 1 0;
@@ -1808,6 +1976,23 @@
             }
             #info-modal .info-content {
                 overflow-y: auto;
+            }
+            .info-header {
+                grid-template-columns: 1fr;
+                padding-right: 36px;
+            }
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            .info-card {
+                min-height: 0;
+            }
+            .settings-backup-import-grid {
+                grid-template-columns: 1fr;
+            }
+            .settings-backup-import-mode {
+                align-items: flex-start;
+                flex-direction: column;
             }
             .stats-grid {
                 grid-template-columns: 1fr;

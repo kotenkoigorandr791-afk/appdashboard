@@ -899,7 +899,7 @@
             width: calc(100% - var(--shell-menu-button-width));
             box-sizing: border-box;
             /* align under the menu button without extra offset from sidebar padding */
-            margin: calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) - 20px) 0 16px var(--shell-menu-button-width);
+            margin: calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) - 32px) 0 16px var(--shell-menu-button-width);
             align-items: center;
             justify-content: center;
             border-radius: 12px;
@@ -910,7 +910,7 @@
             border: 1px solid var(--border-color);
         }
         @media (max-width:768px){
-            #sidebarWeatherWidget{width:calc(100% - var(--shell-menu-button-mobile-width));margin:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) - 20px) 0 16px var(--shell-menu-button-mobile-width);padding:0 0 6px;}
+            #sidebarWeatherWidget{width:calc(100% - var(--shell-menu-button-mobile-width));margin:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) - 32px) 0 16px var(--shell-menu-button-mobile-width);padding:0 0 6px;}
         }
         .weather-widget .weather-icon {
             display: inline-flex;
@@ -3696,6 +3696,7 @@ var T=<?php echo json_encode([
             }
             function sync(){
                 let hasOverlap=false;
+                let hasLayer=false;
                 try{
                     const doc=iframe.contentDocument||iframe.contentWindow.document;
                     const win=iframe.contentWindow;
@@ -3703,6 +3704,7 @@ var T=<?php echo json_encode([
                     const menuRect=menuButton.getBoundingClientRect();
                     hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
                         if(!isVisibleLayer(el,win))return false;
+                        hasLayer=true;
                         return layerRects(el,win).some(rect=>rectsOverlap(menuRect,{
                             left:iframeRect.left+rect.left,
                             right:iframeRect.left+rect.right,
@@ -3711,7 +3713,7 @@ var T=<?php echo json_encode([
                         }));
                     });
                 }catch(e){}
-                document.body.classList.toggle('app-modal-open',hasOverlap);
+                document.body.classList.toggle('app-modal-open',hasLayer||hasOverlap);
                 if(hasOverlap&&sidebar&&sidebar.classList.contains('open'))closeSidebarMenu();
             }
             function scheduleSync(){
