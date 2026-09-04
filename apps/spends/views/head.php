@@ -277,12 +277,24 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .chart-container { margin:0; justify-content:center; max-width:none; min-height:340px; padding:clamp(12px,2vw,18px); border-radius:var(--radius-lg); background:var(--surface-solid); border:1px solid rgba(127,127,127,.1); box-shadow:0 14px 40px rgba(0,0,0,.1); }
         .chart-nav-btn, .chart-toggle-btn { background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); padding:9px 14px; border-radius:var(--radius-sm); font-size:15px; font-weight:700; }
         .chart-nav-btn:hover, .chart-toggle-btn:hover { background:var(--primary-color); color:#fff; border-color:var(--primary-color); }
-        .chart-controls-row { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:12px 0; }
-        .currency-selector { display:flex; justify-content:center; gap:6px; flex-wrap:wrap; }
+        .chart-controls-row {
+            display:grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items:center;
+            gap:12px;
+            margin:12px 0;
+        }
+        .currency-selector { display:flex; justify-content:flex-start; gap:6px; flex-wrap:wrap; }
         .currency-btn { background:var(--group-block-bg); color:var(--muted-text); border:1px solid var(--border-color); padding:9px 12px; border-radius:var(--radius-sm); font-weight:800; }
         .currency-btn:hover, .currency-btn.active { background:var(--primary-color); color:white; border-color:var(--primary-color); }
         .divider { height:1px; background:var(--border-color); margin:18px 0; }
         .controls-container { display:flex; justify-content:center; align-items:center; margin:12px 0; padding:0; border:0; background:transparent; box-shadow:none; }
+        .open-table-desktop { display:block; }
+        .open-table-mobile { display:none; }
+
+        .open-table-desktop { justify-self: center; }
+        .chart-toggle-btn { justify-self: end; }
+        .currency-selector { justify-self: start; }
         .table-toolbar .search-container { position:relative; display:flex; align-items:center; width:min(44vw,260px); min-width:220px; height:40px; }
         .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
         .table-toolbar .search-box { width:100%; height:40px; margin:0; padding:0 12px 0 38px; background:var(--surface-solid); border-radius:var(--radius-sm); line-height:40px; }
@@ -311,28 +323,49 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .chart-year-framed { padding:8px 16px; border:1px solid var(--border-color); border-radius:var(--radius-md); font-weight:800; color:var(--text-color); margin-bottom:12px; background:var(--modal-bg); box-shadow:0 12px 30px rgba(0,0,0,.1); backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
         .rate-chart-container { border:1px solid var(--border-color); border-radius:var(--radius-md); }
 
-        @media (max-width:768px) {
+@media (max-width:768px) {
             :root { --top-bar-height: 64px; }
             .ocr-shell .ocrw-shell { padding-top:74px!important; }
             .header { justify-content:flex-end; align-content:center; }
             .header h2 { display:none; }
-            .header-buttons { gap:5px; justify-content:center; width:100%; }
+            .header-buttons { gap:5px; justify-content:flex-end; width:100%; }
             .header-btn { padding:4px; }
             .chart-container { max-width:100%; }
             .modal { padding:0!important; align-items:stretch!important; justify-content:stretch!important; }
             .modal .modal-content { width:100vw!important; height:100vh!important; max-width:none!important; max-height:none!important; border-radius:0!important; margin:0!important; padding:64px 12px 12px!important; box-sizing:border-box; }
             .modal .modal-content::before { border-radius:0!important; }
             .ocr-shell-close { top:12px!important; right:12px!important; }
+            .open-table-desktop { display:none !important; }
+            .open-table-mobile { display:block !important; }
+
             .chart-controls-row {
-                flex-direction: column !important;
-                gap: 12px !important;
+                display:flex;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                gap: 10px !important;
                 align-items: center !important;
+                justify-content: flex-start !important;
+                overflow-x: auto !important;
             }
+            .chart-toggle-btn { justify-self: auto !important; margin-left: 0 !important; }
+            .open-table-desktop { justify-self: auto !important; }
+            .currency-selector { justify-self: auto !important; }
             .currency-selector {
-                flex-wrap: wrap !important;
-                margin-bottom: 8px !important;
+                flex-wrap: nowrap !important;
+                gap: 6px !important;
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
             }
             .controls-container { justify-content:center; flex-wrap:wrap; }
+            .controls-container.open-table-mobile { width:100%; justify-content:stretch; }
+            .controls-container.open-table-mobile .add-date-btn {
+                width:100vw;
+                max-width:100vw;
+                display:block;
+                box-sizing:border-box;
+                margin-left:50%;
+                transform:translateX(-50%);
+            }
             .table-toolbar { justify-content:stretch; }
             .table-toolbar .search-container, .table-toolbar .search-box { width:100%; }
             .chart-toggle-btn {

@@ -891,7 +891,15 @@
                   prevDates = [],
                   nextDates = [];
             if (isNaN(dateObj.getTime())) return;
-            for (let i = 1; i <= 3; i++) {
+            const addPanel = document.getElementById('add-panel-manual');
+            const panelHeight = addPanel ? addPanel.clientHeight : 510;
+            const currentDateEl = addPanel ? addPanel.querySelector('.current-date') : null;
+            const currentDateHeight = currentDateEl ? currentDateEl.getBoundingClientRect().height : 60;
+            // Make adjacent dates fill most of the modal height (without relying on scroll)
+            const usable = Math.max(0, panelHeight - currentDateHeight - 20);
+            const count = Math.max(7, Math.min(18, Math.floor(usable / 36)));
+
+            for (let i = 1; i <= count; i++) {
                 const prevDate = new Date(dateObj);
                 prevDate.setDate(dateObj.getDate() - i);
 

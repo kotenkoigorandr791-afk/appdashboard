@@ -897,7 +897,7 @@
         }
         .add-tab-panel.active { display: block !important; }
         #add-panel-manual.add-tab-panel.active { display: flex !important; }
-        #add-panel-manual { text-align: center; align-items: center; justify-content: center; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; }
+        #add-panel-manual { text-align: center; align-items: center; justify-content: center; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: hidden; overflow-x: hidden; }
         #add-panel-takeout .video-analysis-content {
             padding: 2px;
             max-width: min(1100px, calc(100vw - 32px));
@@ -1510,6 +1510,10 @@
         .close-notification:hover { color: red; }
 
         .adjacent-dates { width: 100%; margin: 10px 0; }
+        #add-panel-manual { justify-content: space-between; align-items: stretch; }
+        .adjacent-dates { display: flex; flex-direction: column; overflow: visible; margin: 0; }
+        #prev-dates { flex: 1 1 0; justify-content: flex-end; }
+        #next-dates { flex: 1 1 0; justify-content: flex-start; }
         .adjacent-date { display: flex; justify-content: space-between; padding: 5px; background: var(--group-block-bg); border-radius: 4px; margin: 5px 0; opacity: 0.7; cursor: pointer; }
         .adjacent-date:hover { opacity: 1; background: var(--primary-color); color: #fff; }
         .current-date { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px; background: var(--modal-bg); border: 1px solid var(--primary-color); border-radius: 4px; margin: 10px auto; width: min(100%, 420px); box-sizing: border-box; }
@@ -1583,11 +1587,15 @@
             height: 64px;
             border-radius: 16px;
             background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .info-header-icon svg {
             width: 32px;
             height: 32px;
+            display: block;
         }
 
         .info-header h2 {
@@ -1625,11 +1633,15 @@
             height: 48px;
             border-radius: 12px;
             background: color-mix(in srgb, var(--primary-color) 20%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .info-card-icon svg {
             width: 24px;
             height: 24px;
+            display: block;
         }
 
         .info-card h3 {

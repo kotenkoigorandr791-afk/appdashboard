@@ -156,13 +156,14 @@
             <button class="currency-btn" data-currency="UAH" onclick="switchChartCurrency('UAH')">UAH</button>
             <button class="currency-btn" data-currency="BYN" onclick="switchChartCurrency('BYN')">BYN</button>
         </div>
+        <button class="add-date-btn open-table-desktop" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
         <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
         <div class="chart-year" id="chart-year2"></div>
     </div>
 
     <div class="divider"></div>
 
-    <div class="controls-container">
+    <div class="controls-container open-table-mobile">
         <button class="add-date-btn" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
     </div>
 
