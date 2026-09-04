@@ -383,6 +383,77 @@ function recordAppMetric(string $userEmail, string $appId, string $metric, float
 // Schema initialisation  (runs once on first connection)
 // ─────────────────────────────────────────────────────────────────────────────
 function initDB(AppDatabase $db): void {
+    if (app_db_is_pgsql()) {
+        $db->exec("CREATE TABLE IF NOT EXISTS users (
+            email           TEXT PRIMARY KEY,
+            name            TEXT NOT NULL DEFAULT '',
+            password        TEXT NOT NULL DEFAULT '',
+            photo           TEXT NOT NULL DEFAULT 'default_avatar.png',
+            role            INTEGER NOT NULL DEFAULT 0,
+            verified        INTEGER NOT NULL DEFAULT 0,
+            language        TEXT NOT NULL DEFAULT 'en',
+            theme           TEXT NOT NULL DEFAULT 'light',
+            color           TEXT NOT NULL DEFAULT '#007bff',
+            trusted_devices TEXT NOT NULL DEFAULT '[]',
+            icon_sort_order TEXT NOT NULL DEFAULT 'alpha',
+            icon_style      TEXT NOT NULL DEFAULT 'animated',
+            wallpaper       TEXT NOT NULL DEFAULT 'default',
+            must_change_password INTEGER NOT NULL DEFAULT 0,
+            created_at      TEXT NOT NULL DEFAULT ''
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS pending_users (
+            email       TEXT PRIMARY KEY,
+            name        TEXT NOT NULL DEFAULT '',
+            password    TEXT NOT NULL DEFAULT '',
+            photo       TEXT NOT NULL DEFAULT 'default_avatar.png',
+            role        INTEGER NOT NULL DEFAULT 0,
+            language    TEXT NOT NULL DEFAULT 'en',
+            theme       TEXT NOT NULL DEFAULT 'light',
+            color       TEXT NOT NULL DEFAULT '#007bff',
+            created_at  TEXT NOT NULL DEFAULT '',
+            reg_method  TEXT NOT NULL DEFAULT 'Email'
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS active_sessions (
+            session_id    TEXT PRIMARY KEY,
+            email         TEXT NOT NULL,
+            user_data     TEXT NOT NULL DEFAULT '{}',
+            login_time    INTEGER NOT NULL,
+            last_activity INTEGER NOT NULL,
+            ip_address    TEXT NOT NULL DEFAULT '',
+            user_agent    TEXT NOT NULL DEFAULT '',
+            device        TEXT NOT NULL DEFAULT '',
+            browser       TEXT NOT NULL DEFAULT '',
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_email ON active_sessions(email)");
+        $db->exec("CREATE TABLE IF NOT EXISTS reset_codes (
+            email   TEXT PRIMARY KEY,
+            code    TEXT NOT NULL,
+            expires INTEGER NOT NULL,
+            FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
+        )");
+        $db->exec("CREATE TABLE IF NOT EXISTS verification_tokens (
+            token   TEXT PRIMARY KEY,
+            email   TEXT NOT NULL,
+            expires INTEGER NOT NULL
+        )");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_verification_tokens_email ON verification_tokens(email)");
+        try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Throwable $e) {}
+        try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Throwable $e) {}
+        try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Throwable $e) {}
+        ensure_cloud_encryption_consents_schema($db);
+        ensureTrustedDevicesSchema($db);
+        ensureTrustedDeviceCookiesSchema($db);
+        ensureSupportChatSchema($db);
+        ensureTelegramBotSchema($db);
+        ensureOAuthConnectionsSchema($db);
+        ensureNotificationsSchema($db);
+        ensureVerificationTokensSchema($db);
+        require_once __DIR__ . '/lib/pg_foreign_keys.php';
+        ensure_pg_foreign_keys($db);
+    }
+
+    // Enable foreign key support
     $db->exec("SELECT 1");
     $db->exec("CREATE TABLE IF NOT EXISTS users (
         email           TEXT PRIMARY KEY,
@@ -405,7 +476,7 @@ function initDB(AppDatabase $db): void {
     try { $db->exec("ALTER TABLE users ADD COLUMN trusted_devices TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
-try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     $rootStmt = $db->prepare("INSERT INTO users (email,name,password,photo,role,verified,language,theme,color,trusted_devices,icon_sort_order,icon_style,wallpaper,must_change_password,created_at)
         VALUES('root@root','Root Administrator',:password,'default_avatar.png',2,1,'en','light','#007bff','[]','alpha','animated','default',1,:created_at)
@@ -413,6 +484,9 @@ try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'd
     $rootStmt->bindValue(':password', appPasswordHash('root'), PDO::PARAM_STR);
     $rootStmt->bindValue(':created_at', date('Y-m-d H:i:s'), PDO::PARAM_STR);
     $rootStmt->execute();
+
+    // ── Pending users (awaiting email verification) ──────────────────────────
+    // No FK to users — pending users do NOT yet exist in the users table
     $db->exec("CREATE TABLE IF NOT EXISTS pending_users (
         email       TEXT PRIMARY KEY,
         name        TEXT NOT NULL DEFAULT '',
@@ -974,9 +1048,13 @@ function loadUsers(): array {
             'color'      => '#007bff',
             'icon_sort_order' => 'alpha',
             'icon_style' => 'animated',
+            'must_change_password' => 1,
             'created_at' => date('Y-m-d H:i:s'),
         ]);
         $users['root@root'] = getUserByEmail('root@root') ?? [];
+    } elseif (empty($users['root@root']['must_change_password']) && appPasswordVerify('root', (string)($users['root@root']['password'] ?? ''))) {
+        $users['root@root']['must_change_password'] = 1;
+        upsertUser('root@root', $users['root@root']);
     }
     $users['root@root']['role']     = 2;
     $users['root@root']['verified'] = true;
@@ -1012,13 +1090,14 @@ function saveUsers(array $users): void {
                 icon_sort_order = :icon_sort_order,
                 icon_style = :icon_style,
                 wallpaper = :wallpaper,
-                created_at = :created_at
+                created_at = :created_at,
+                must_change_password = :must_change_password
                 WHERE email = :email");
         } else {
             // Use INSERT for new users
             $stmt = $db->prepare("INSERT INTO users 
-                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at)
-                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at)");
+                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at, must_change_password)
+                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at, :must_change_password)");
         }
         
         $stmt->bindValue(':email',      $email);
@@ -1034,6 +1113,7 @@ function saveUsers(array $users): void {
         $stmt->bindValue(':icon_style', $u['icon_style'] ?? 'animated');
         $stmt->bindValue(':wallpaper',  $u['wallpaper']  ?? 'default');
         $stmt->bindValue(':created_at', $u['created_at'] ?? date('Y-m-d H:i:s'));
+        $stmt->bindValue(':must_change_password', (int)($u['must_change_password'] ?? 0), PDO::PARAM_INT);
         $stmt->execute();
     }
 }
@@ -1071,11 +1151,12 @@ function upsertUser(string $email, array $fields): void {
         'icon_sort_order' => 'alpha',
         'icon_style' => 'animated',
         'wallpaper' => 'default',
+        'must_change_password' => 0,
         'created_at' => date('Y-m-d H:i:s'),
     ], $current, $fields);
     $stmt = $db->prepare("INSERT INTO users
-        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at)
-        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at)
+        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at,must_change_password)
+        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at,:must_change_password)
         ON CONFLICT (email) DO UPDATE SET
             name=excluded.name,
             password=excluded.password,
@@ -1088,7 +1169,8 @@ function upsertUser(string $email, array $fields): void {
             icon_sort_order=excluded.icon_sort_order,
             icon_style=excluded.icon_style,
             wallpaper=excluded.wallpaper,
-            created_at=excluded.created_at");
+            created_at=excluded.created_at,
+            must_change_password=excluded.must_change_password");
     $stmt->bindValue(':email',      $email);
     $stmt->bindValue(':name',       $merged['name']);
     $stmt->bindValue(':password',   $merged['password']);
@@ -1102,6 +1184,7 @@ function upsertUser(string $email, array $fields): void {
     $stmt->bindValue(':icon_style', $merged['icon_style'] ?? 'animated');
     $stmt->bindValue(':wallpaper',  $merged['wallpaper'] ?? 'default');
     $stmt->bindValue(':created_at', $merged['created_at']);
+    $stmt->bindValue(':must_change_password', (int)($merged['must_change_password'] ?? 0), PDO::PARAM_INT);
     $stmt->execute();
     oauthConsumePendingLink($email);
     if (!empty($merged['verified']) || $email === 'root@root') {

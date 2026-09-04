@@ -184,8 +184,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=$translations[$passwordErrorKey];
         }else{
             $users=loadUsers();
-            if(isset($users[$email])&&userNeedsPasswordSet($users[$email])&&!empty($users[$email]['verified'])){
+            if(isset($users[$email])&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
                 $users[$email]['password']=appPasswordHash($password);
+                $users[$email]['must_change_password']=0;
                 upsertUser($email,$users[$email]);
                 $clearPasswordRequirement=getDB()->prepare("UPDATE users SET password=:password,must_change_password=0 WHERE email=:email");
                 $clearPasswordRequirement->bindValue(':password',$users[$email]['password']);
@@ -498,6 +499,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $profileError=$translations[$passwordErrorKey];
         }else{
             $users[$email]['password']=appPasswordHash($newPassword);
+            $users[$email]['must_change_password']=0;
             saveUsers($users);
             $_SESSION['user']=$users[$email];
             $_SESSION['user']['email']=$email;
@@ -2143,6 +2145,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     $response['message'] = $translations[$passwordErrorKey] ?? $passwordErrorKey;
                 }else{
                     $users[$emailToReset]['password'] = appPasswordHash($newPassword);
+                    $users[$emailToReset]['must_change_password'] = 0;
                     saveUsers($users);
                     if($emailToReset === $currentUserEmail){
                         $_SESSION['user'] = $users[$emailToReset];

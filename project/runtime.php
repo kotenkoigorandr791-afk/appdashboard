@@ -16,7 +16,7 @@ function apRedirectToSetPassword(array $user): void {
 
 if(isset($_SESSION['user']['email'])&&$path!=='/register'&&!isset($_GET['code'])){
     $freshUserForPwd = getUserByEmail((string)$_SESSION['user']['email']);
-    if($freshUserForPwd && userNeedsPasswordSet($freshUserForPwd)){
+    if($freshUserForPwd && (userNeedsPasswordSet($freshUserForPwd)||!empty($freshUserForPwd['must_change_password']))){
         apRedirectToSetPassword($freshUserForPwd);
     }elseif($freshUserForPwd){
         appClearPendingPasswordFlow();

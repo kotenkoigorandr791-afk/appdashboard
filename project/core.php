@@ -1757,6 +1757,7 @@ $defaultTranslations=['search_placeholder'=>'Search apps...','settings_title'=>'
     'ap_settings_subtitle'=>'Configure email, Telegram bot, OnlyOffice, Docker, Backup, and AI Assistant integrations.',
     'docker_manager_subtitle'=>'Manage Docker containers, images, and services.'];
 $defaultTranslations['keyboard_shortcuts'] = 'Keyboard Shortcuts';
+$defaultTranslations['default_admin_password_notice'] = 'First start: sign in with the default administrator account and change the password.';
 $defaultTranslations['guide_reopen'] = 'Watch guide';
 $defaultTranslations['keyboard_shortcuts_desc'] = 'Hotkeys available on the home screen with app tiles.';
 $defaultTranslations['keyboard_shortcuts_hint'] = 'View hotkeys';
