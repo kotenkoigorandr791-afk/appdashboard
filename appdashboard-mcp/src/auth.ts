@@ -113,8 +113,12 @@ export function ensureDeviceId(): string {
   return deviceId;
 }
 
+export function getEnvToken(): string {
+  return (process.env.APPDASHBOARD_TOKEN || "").trim();
+}
+
 export function getToken(): string {
-  return authStorage.getStore()?.token || loadCredentials()?.token || "";
+  return authStorage.getStore()?.token || getEnvToken() || loadCredentials()?.token || "";
 }
 
 export function getCachedRole(): Role {
@@ -125,6 +129,19 @@ export function setCachedRole(role: Role): void {
   const creds = loadCredentials();
   if (!creds) return;
   saveCredentials({ ...creds, role: normalizeRole(role) });
+}
+
+export function saveTokenCredentials(host: string, token: string, role?: Role, expiresAt?: number): Credentials {
+  const creds: Credentials = {
+    host: host.replace(/\/+$/, ""),
+    token: token.trim(),
+    device_id: loadCredentials()?.device_id || generateDeviceId(),
+    role: normalizeRole(role),
+    cached_at: Math.floor(Date.now() / 1000),
+    expires_at: expiresAt,
+  };
+  saveCredentials(creds);
+  return creds;
 }
 
 async function fetchJson(url: string, init: RequestInit): Promise<{ status: number; data: any }> {
@@ -146,33 +163,6 @@ async function fetchJson(url: string, init: RequestInit): Promise<{ status: numb
     }
   }
   return { status: res.status, data };
-}
-
-export async function loginWithPassword(email: string, password: string, host?: string): Promise<Credentials> {
-  const base = (host || getHost()).replace(/\/+$/, "");
-  if (!base) throw new Error("APPDASHBOARD_URL is not set");
-  const deviceId = ensureDeviceId();
-  const { status, data } = await fetchJson(`${base}/public-api/auth/login`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Device-Id": deviceId,
-    },
-    body: JSON.stringify({ email, password, device_name: "MCP Client", platform: "mcp" }),
-  });
-  if (status >= 400 || !data?.ok || !data?.token) {
-    throw new Error(data?.error || `login_failed_${status}`);
-  }
-  const creds: Credentials = {
-    host: base,
-    token: String(data.token),
-    device_id: deviceId,
-    role: normalizeRole(data?.user?.role),
-    cached_at: Math.floor(Date.now() / 1000),
-    expires_at: data.expires_at ? Number(data.expires_at) : undefined,
-  };
-  saveCredentials(creds);
-  return creds;
 }
 
 export async function refreshToken(): Promise<Credentials> {
@@ -205,10 +195,9 @@ export async function refreshToken(): Promise<Credentials> {
 
 export async function fetchMe(): Promise<{ email: string; name?: string; role: Role } | null> {
   const context = authStorage.getStore();
-  const creds = loadCredentials();
   const base = getHost();
-  const token = context?.token || creds?.token || "";
-  const deviceId = context ? context.deviceId : creds?.device_id;
+  const token = context?.token || getToken();
+  const deviceId = context ? context.deviceId : ensureDeviceId();
   if (!token || !base) return null;
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
@@ -296,7 +285,7 @@ export async function pollBrowserAuth(
     }
     await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
   }
-  console.error("[appdashboard-mcp] Browser auth timed out. Use the login tool or restart to retry.");
+  console.error("[appdashboard-mcp] Browser auth timed out. Run setup with --token or set APPDASHBOARD_TOKEN.");
   return null;
 }
 
@@ -329,35 +318,15 @@ export async function ensureAuth(options?: { interactive?: boolean; timeoutMs?: 
   }
   ensureDeviceId();
   const existing = loadCredentials();
-  if (existing?.token) {
+  if (getToken()) {
     const me = await fetchMe();
     if (me) {
       const creds = loadCredentials();
-      return creds;
+      return creds?.token ? creds : saveTokenCredentials(host, getToken(), me.role);
     }
   }
-  const email = (process.env.APPDASHBOARD_EMAIL || "").trim();
-  const password = process.env.APPDASHBOARD_PASSWORD || "";
-  if (email && password) {
-    try {
-      return await loginWithPassword(email, password, host);
-    } catch (err) {
-      if (interactive) {
-        console.error(`[appdashboard-mcp] Env login failed: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-  }
-  if (!interactive) return loadCredentials()?.token ? loadCredentials() : null;
-  try {
-    const req = await startBrowserAuth(host);
-    console.error(`[appdashboard-mcp] Open this URL to authenticate:\n${req.auth_url}`);
-    const creds = await pollBrowserAuth(req.request_id, req.poll_token, host, options?.timeoutMs);
-    return creds;
-  } catch (err) {
-    console.error(`[appdashboard-mcp] Browser auth failed: ${err instanceof Error ? err.message : String(err)}`);
-    startBrowserAuthInBackground();
-    return null;
-  }
+  if (interactive) console.error("[appdashboard-mcp] Token is required. Run setup with --token or set APPDASHBOARD_TOKEN.");
+  return loadCredentials()?.token ? loadCredentials() : null;
 }
 
 export function credentialsDir(): string {

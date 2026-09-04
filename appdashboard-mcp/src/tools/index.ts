@@ -56,7 +56,7 @@ export async function resolveRole(): Promise<Role | null> {
 export async function listToolsForCurrentUser() {
   const role = await resolveRole();
   if (role === null) {
-    return ALL_TOOLS.filter((t) => t.name === "login").map(toMcpTool);
+    return [];
   }
   return filterToolsByRole(ALL_TOOLS, role).map(toMcpTool);
 }
@@ -74,15 +74,13 @@ export async function callTool(name: string, args: Record<string, unknown>) {
   if (!tool) {
     return textResult({ error: "unknown_tool", name });
   }
-  if (name !== "login") {
-    const role = await resolveRole();
-    if (role === null) {
-      return textResult({ error: "not_authenticated", message: "Use the login tool or complete browser auth." });
-    }
-    const required = TOOL_MIN_ROLE[name] ?? tool.minRole;
-    if (required > role) {
-      return textResult(insufficientRoleError(required, role));
-    }
+  const role = await resolveRole();
+  if (role === null) {
+    return textResult({ error: "not_authenticated", message: "Run setup with --token or set APPDASHBOARD_TOKEN." });
+  }
+  const required = TOOL_MIN_ROLE[name] ?? tool.minRole;
+  if (required > role) {
+    return textResult(insufficientRoleError(required, role));
   }
   try {
     return await tool.handler(args || {});

@@ -5,6 +5,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { saveTokenCredentials } from "./auth.js";
+import { normalizeRole, type Role } from "./roles.js";
 
 type Agent = "claude" | "cursor" | "vscode" | "opencode";
 
@@ -54,30 +56,33 @@ function writeJson(path: string, data: unknown): void {
   writeFileSync(path, JSON.stringify(data, null, 2) + "\n", "utf8");
 }
 
-function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: string; remove: boolean } {
+function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: string; token?: string; remove: boolean } {
   let agent: Agent = "cursor";
   let url: string | undefined;
   let packageUrl: string | undefined;
+  let token: string | undefined;
   let remove = false;
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if ((a === "--agent" || a === "-a") && argv[i + 1]) agent = argv[++i] as Agent;
     else if ((a === "--url" || a === "-u") && argv[i + 1]) url = argv[++i];
     else if ((a === "--package" || a === "--package-url" || a === "-p") && argv[i + 1]) packageUrl = argv[++i];
+    else if ((a === "--token" || a === "-t") && argv[i + 1]) token = argv[++i];
     else if (a === "--remove" || a === "remove" || a === "uninstall") remove = true;
     else if (a.startsWith("--agent=")) agent = a.slice("--agent=".length) as Agent;
     else if (a.startsWith("--url=")) url = a.slice("--url=".length);
+    else if (a.startsWith("--token=")) token = a.slice("--token=".length);
     else if (a.startsWith("--package=")) packageUrl = a.slice("--package=".length);
     else if (a.startsWith("--package-url=")) packageUrl = a.slice("--package-url=".length);
   }
   if (!["claude", "cursor", "vscode", "opencode"].includes(agent)) {
     throw new Error(`Unknown agent: ${agent}. Use claude|cursor|vscode|opencode`);
   }
-  return { agent, url, packageUrl, remove };
+  return { agent, url, packageUrl, token, remove };
 }
 
-function serverEntry(url: string, packageUrl?: string): Record<string, unknown> {
-  const env = { APPDASHBOARD_URL: url };
+function serverEntry(url: string, token: string, packageUrl?: string): Record<string, unknown> {
+  const env = { APPDASHBOARD_URL: url, APPDASHBOARD_TOKEN: token };
   if (packageUrl) {
     return {
       command: "npx",
@@ -92,21 +97,21 @@ function serverEntry(url: string, packageUrl?: string): Record<string, unknown> 
   };
 }
 
-function opencodeServerEntry(url: string, packageUrl?: string): Record<string, unknown> {
+function opencodeServerEntry(url: string, token: string, packageUrl?: string): Record<string, unknown> {
   const command = packageUrl ? ["npx", "-y", packageUrl] : ["node", entryScript()];
   return {
     enabled: true,
     type: "local",
     command,
-    environment: { APPDASHBOARD_URL: url },
+    environment: { APPDASHBOARD_URL: url, APPDASHBOARD_TOKEN: token },
   };
 }
 
 const SERVER_KEY = "appdashboard-mcp";
 
-function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string, packageUrl?: string): Record<string, any> {
-  const baseEntry = serverEntry(url, packageUrl);
-  const entry = agent === "opencode" ? opencodeServerEntry(url, packageUrl) : baseEntry;
+function mergeServerEntry(agent: Agent, config: Record<string, any>, url: string, token: string, packageUrl?: string): Record<string, any> {
+  const baseEntry = serverEntry(url, token, packageUrl);
+  const entry = agent === "opencode" ? opencodeServerEntry(url, token, packageUrl) : baseEntry;
   const next = { ...config };
   const stripLegacy = (bag: Record<string, unknown> | undefined, removeCurrent = false) => {
     if (!bag || typeof bag !== "object") return {};
@@ -147,8 +152,8 @@ function removeServerEntry(agent: Agent, config: Record<string, any>): Record<st
 }
 
 export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<void> {
-  const { agent, url: urlArg, packageUrl: pkgArg, remove } = parseArgs(argv.filter((a) => a !== "setup"));
-  const interactive = !urlArg && !process.env.APPDASHBOARD_URL;
+  const { agent, url: urlArg, packageUrl: pkgArg, token: tokenArg, remove } = parseArgs(argv.filter((a) => a !== "setup"));
+  const interactive = (!urlArg && !process.env.APPDASHBOARD_URL) || (!tokenArg && !process.env.APPDASHBOARD_TOKEN);
   const rl = interactive ? createInterface({ input, output }) : null;
   try {
     const path = agentConfigPath(agent);
@@ -165,19 +170,44 @@ export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<
     }
     url = url.replace(/\/+$/, "");
     if (!url) throw new Error("URL is required (--url or APPDASHBOARD_URL)");
+    let token = (tokenArg || process.env.APPDASHBOARD_TOKEN || "").trim();
+    if (!token && rl) {
+      token = (await rl.question("AppDashboard token: ")).trim();
+    }
+    if (!token) throw new Error("Token is required (--token or APPDASHBOARD_TOKEN)");
+    const role = await validateToken(url, token);
+    saveTokenCredentials(url, token, role);
     let packageUrl = (pkgArg || process.env.APPDASHBOARD_MCP_PACKAGE_URL || "").trim();
     if (!packageUrl) packageUrl = `${url}/mcp/download`;
-    const merged = mergeServerEntry(agent, existing, url, packageUrl);
+    const merged = mergeServerEntry(agent, existing, url, token, packageUrl);
     writeJson(path, merged);
     console.log(`Updated ${path}`);
     console.log(`APPDASHBOARD_URL=${url}`);
     console.log(`Package: ${packageUrl}`);
     console.log("No local build needed - npx downloads the prebuilt package.");
-    console.log("Login is required: after restart, open the browser auth URL printed by the MCP server or run the login tool.");
+    console.log("Token authentication configured.");
     console.log("Restart the agent to load the MCP server.");
   } finally {
     rl?.close();
   }
+}
+
+async function validateToken(url: string, token: string): Promise<Role> {
+  const res = await fetch(`${url}/public-api/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+  });
+  let data: any = null;
+  try {
+    data = await res.json();
+  } catch {
+  }
+  if (!res.ok || !data?.ok || !data?.user) {
+    throw new Error(data?.error || `token_validation_failed_${res.status}`);
+  }
+  return normalizeRole(data.user.role);
 }
 
 export { agentConfigPath, entryScript, serverEntry };
