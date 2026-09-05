@@ -22,6 +22,11 @@
                 <button id="info-button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
                     <i class="fas fa-info-circle"></i>
                 </button>
+                <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['email'])): ?>
+                <button id="mcp-token-open-btn" type="button" class="steps-header-btn" title="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>" aria-label="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>">
+                    <i class="fas fa-key"></i>
+                </button>
+                <?php endif; ?>
                 <div id="user-button" title="<?php echo htmlspecialchars($userName); ?>">
                     <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="User">
                 </div>
@@ -613,5 +618,21 @@
             <button type="button" id="global-image-viewer-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
             <img id="global-image-viewer-img" src="" alt="">
         </div>
+
+        <script>
+        (function(){
+            const btn = document.getElementById('mcp-token-open-btn');
+            if(!btn) return;
+            btn.addEventListener('click', () => {
+                try {
+                    if (window.parent && typeof window.parent.openMcpSetupModal === 'function') {
+                        window.parent.openMcpSetupModal();
+                        return;
+                    }
+                } catch (e) {}
+                try { window.location.href = '/main'; } catch (e) {}
+            });
+        })();
+        </script>
     </div>
     
