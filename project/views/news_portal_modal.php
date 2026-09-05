@@ -1018,10 +1018,13 @@ ${item.photo
     // Reset body editor to code view
     const bodyPrev = document.getElementById('npo-body-preview');
     const bodyEditorEl = document.getElementById('npo-body-editor');
+    const bodyEditorWrap = document.getElementById('npo-body-editor-wrap');
     const monacoEl = document.getElementById('npo-body-monaco');
     if (bodyEditorEl) bodyEditorEl.style.display = '';
+    if (bodyEditorWrap) bodyEditorWrap.style.display = '';
     if (monacoEl) monacoEl.style.display = '';
     if (bodyPrev) bodyPrev.style.display = 'none';
+    if (bodyEditorWrap) bodyEditorWrap.classList.remove('preview-mode');
     bodyToggleBtns.forEach(b => b.classList.remove('active'));
     bodyToolbar?.querySelector('[data-view="code"]')?.classList.add('active');
     if (bodyMonaco) bodyMonaco.layout();
@@ -1221,27 +1224,37 @@ ${item.photo
     });
   }
 
-      bodyToggleBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-          bodyToggleBtns.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          const monacoEl = document.getElementById('npo-body-monaco');
-          if (btn.dataset.view === 'preview') {
-            bodyPreview.innerHTML = renderMarkdown(getBodyValue());
-            if (monacoEl) monacoEl.style.display = 'none';
-            if (bodyEditorEl) bodyEditorEl.style.display = 'none';
-            bodyPreview.style.display = 'block';
-            if (typeof hljs !== 'undefined' && hljs.highlightElement) {
-              bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-            }
-          } else {
-            if (monacoEl) monacoEl.style.display = '';
-            if (bodyEditorEl) bodyEditorEl.style.display = '';
-            bodyPreview.style.display = 'none';
-            if (bodyMonaco) bodyMonaco.layout();
-          }
-        });
-      });
+  function setBodyView(view) {
+    const monacoEl = document.getElementById('npo-body-monaco');
+    if (view === 'preview') {
+      bodyPreview.innerHTML = renderMarkdown(getBodyValue());
+      if (monacoEl) monacoEl.style.display = 'none';
+      if (bodyEditorEl) bodyEditorEl.style.display = 'none';
+      if (bodyEditorWrap) bodyEditorWrap.style.display = 'none';
+      bodyPreview.style.display = 'block';
+      if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+        bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+      }
+    } else {
+      if (monacoEl) monacoEl.style.display = '';
+      if (bodyEditorEl) bodyEditorEl.style.display = '';
+      if (bodyEditorWrap) bodyEditorWrap.style.display = '';
+      bodyPreview.style.display = 'none';
+      if (bodyMonaco) bodyMonaco.layout();
+    }
+  }
+
+  bodyToggleBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      bodyToggleBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      setBodyView(btn.dataset.view);
+    });
+  });
+
+  // Ensure initial state matches active toggle button
+  const activeBodyView = bodyToolbar?.querySelector('.npo-md-toggle-btn.active')?.dataset.view;
+  setBodyView(activeBodyView === 'preview' ? 'preview' : 'code');
 
   // ── Canvas / Layout ────────────────────────────────────────────────────────
   function renderCanvas() {
