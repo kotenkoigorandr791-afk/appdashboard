@@ -72,7 +72,11 @@
     <!-- Result box (hidden until generated) -->
     <div id="otp-gen-result" style="display:none;border:1px solid var(--border-color);border-radius:8px;padding:18px;background:var(--group-block-bg);">
         <div style="font-size:12px;opacity:.55;margin-bottom:8px;"><?php echo my_htmlspecialchars($translations['otp_your_pin']??'Your one-time PIN:'); ?></div>
-        <div id="otp-gen-pin-display" style="font-size:46px;font-weight:900;letter-spacing:10px;color:var(--primary-color);margin-bottom:6px;font-family:monospace;">------</div>
+        <div id="otp-gen-pin-display" style="font-size:46px;font-weight:900;letter-spacing:10px;color:var(--primary-color);margin-bottom:6px;font-family:monospace;display:flex;align-items:center;justify-content:center;gap:14px;">
+            <span id="otp-gen-pin-left">---</span>
+            <span id="otp-gen-pin-dot" style="opacity:.35;font-weight:700;user-select:none;">•</span>
+            <span id="otp-gen-pin-right">---</span>
+        </div>
         <div id="otp-gen-expiry" style="font-size:12px;opacity:.45;margin-bottom:14px;"></div>
 
         <div style="font-size:12px;opacity:.55;margin-bottom:6px;"><?php echo my_htmlspecialchars($translations['otp_link_hint']??'Send the recipient this link:'); ?></div>
@@ -95,7 +99,8 @@ function openOtpGeneratorModal(){
     m.style.display='flex';
     document.getElementById('otp-gen-result').style.display='none';
     document.getElementById('otp-gen-error').textContent='';
-    document.getElementById('otp-gen-pin-display').textContent='------';
+    document.getElementById('otp-gen-pin-left').textContent='---';
+    document.getElementById('otp-gen-pin-right').textContent='---';
 }
 function closeOtpGeneratorModal(){
     var m=document.getElementById('otp-gen-modal');
@@ -120,7 +125,11 @@ function doGenerateOtp(){
             btn.disabled=false;btn.style.opacity='1';
             if(data.success){
                 document.getElementById('otp-gen-result').style.display='block';
-                document.getElementById('otp-gen-pin-display').textContent=data.pin;
+                var pin=String(data.pin||'');
+                var left=pin.slice(0,3);
+                var right=pin.slice(3,6);
+                document.getElementById('otp-gen-pin-left').textContent=left;
+                document.getElementById('otp-gen-pin-right').textContent=right;
                 var mins=Math.round(data.expires_in/60);
                 document.getElementById('otp-gen-expiry').textContent=
                     <?php echo json_encode($translations['otp_expires_in']??'Expires in'); ?> + ' ' + mins + ' ' + <?php echo json_encode($translations['otp_minutes']??'min'); ?>;

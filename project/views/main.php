@@ -706,11 +706,12 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
         @media(max-width:480px){
-  .settings-buttons-box{gap:8px;padding:10px;overflow-x:visible;justify-content:flex-start;flex-wrap:wrap;}
-  .settings-button-wrapper{min-width:28px;flex-shrink:0;}
-  .settings-buttons-box .sidebar-button{width:28px;height:28px;}
-  .settings-buttons-box .sidebar-button svg{width:18px;height:18px;}
-  .settings-buttons-end-group{margin-left:0;justify-content:flex-end;width:100%;}
+  .settings-buttons-box{gap:4px;padding:8px;overflow-x:hidden;justify-content:space-between;flex-wrap:nowrap;}
+  .settings-button-wrapper{min-width:0;flex:0 0 auto;}
+  .settings-buttons-box .sidebar-button{width:26px;height:26px;flex-shrink:1;}
+  .settings-buttons-box .sidebar-button svg{width:16px;height:16px;}
+  .settings-buttons-end-group{margin-left:0;justify-content:flex-end;width:auto;flex-wrap:nowrap;gap:4px;}
+  .settings-buttons-divider{display:none;}
  }
 @media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}

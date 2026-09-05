@@ -1017,7 +1017,9 @@ ${item.photo
     document.getElementById('npo-ai-prompt').value = '';
     // Reset body editor to code view
     const bodyPrev = document.getElementById('npo-body-preview');
+    const bodyEditorEl = document.getElementById('npo-body-editor');
     const monacoEl = document.getElementById('npo-body-monaco');
+    if (bodyEditorEl) bodyEditorEl.style.display = '';
     if (monacoEl) monacoEl.style.display = '';
     if (bodyPrev) bodyPrev.style.display = 'none';
     bodyToggleBtns.forEach(b => b.classList.remove('active'));
@@ -1170,6 +1172,7 @@ ${item.photo
   const bodyToolbar = document.getElementById('npo-body-toolbar');
   const bodyToggleBtns = bodyToolbar ? bodyToolbar.querySelectorAll('.npo-md-toggle-btn') : [];
   let bodyMonaco = null;
+  const bodyEditorEl = document.getElementById('npo-body-editor');
 
   function getBodyValue() {
     return bodyMonaco ? bodyMonaco.getValue() : (bodyTextarea ? bodyTextarea.value : '');
@@ -1218,25 +1221,27 @@ ${item.photo
     });
   }
 
-  bodyToggleBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      bodyToggleBtns.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const monacoEl = document.getElementById('npo-body-monaco');
-      if (btn.dataset.view === 'preview') {
-        bodyPreview.innerHTML = renderMarkdown(getBodyValue());
-        if (monacoEl) monacoEl.style.display = 'none';
-        bodyPreview.style.display = 'block';
-        if (typeof hljs !== 'undefined' && hljs.highlightElement) {
-          bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-        }
-      } else {
-        if (monacoEl) monacoEl.style.display = '';
-        bodyPreview.style.display = 'none';
-        if (bodyMonaco) bodyMonaco.layout();
-      }
-    });
-  });
+      bodyToggleBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          bodyToggleBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const monacoEl = document.getElementById('npo-body-monaco');
+          if (btn.dataset.view === 'preview') {
+            bodyPreview.innerHTML = renderMarkdown(getBodyValue());
+            if (monacoEl) monacoEl.style.display = 'none';
+            if (bodyEditorEl) bodyEditorEl.style.display = 'none';
+            bodyPreview.style.display = 'block';
+            if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+              bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+            }
+          } else {
+            if (monacoEl) monacoEl.style.display = '';
+            if (bodyEditorEl) bodyEditorEl.style.display = '';
+            bodyPreview.style.display = 'none';
+            if (bodyMonaco) bodyMonaco.layout();
+          }
+        });
+      });
 
   // ── Canvas / Layout ────────────────────────────────────────────────────────
   function renderCanvas() {
