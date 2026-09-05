@@ -347,6 +347,10 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
 #npo-prompt-preview img{max-width:100%;border-radius:8px;margin:8px 0;}
 /* Responsive */
 @media(max-width:760px){
+  #npo-menu-btn{margin-left:12px;}
+  #npo-title{display:none;}
+  #npo-header-actions{margin-right:8px;}
+
   #npo-menu-btn{display:flex;}
   #npo-sidebar{position:fixed;top:56px;left:0;bottom:0;width:280px;max-width:85vw;max-height:none;height:auto;border-right:1px solid var(--border-color);border-bottom:none;transform:translateX(-100%);transition:transform .25s ease;z-index:12001;box-shadow:0 0 24px rgba(0,0,0,.3);}
   #npo-sidebar.open{transform:translateX(0);}
@@ -354,8 +358,38 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
   #npo-sidebar-backdrop.open{display:block;opacity:1;}
   #npo-body{flex-direction:column;}
   .npo-pane{padding:18px 14px;}
-  #npo-prompt-modal > div{width:100vw !important;max-width:100vw !important;border-radius:0 !important;height:100vh;max-height:100vh;margin:0;box-shadow:none;}
+  #npo-settings-popover{left:12px !important;right:12px !important;width:auto !important;max-width:none !important;top:56px !important;max-height:calc(100vh - 72px) !important;overflow:auto;}
+  #npo-prompt-modal{justify-content:stretch;align-items:stretch;}
+  #npo-prompt-modal > div{width:100% !important;max-width:100% !important;border-radius:0 !important;height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;max-height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;margin:0;box-shadow:none;}
+  .npo-md-preview{padding:0 0 14px !important;}
+  .npo-md-preview > *:first-child{margin-top:0 !important;}
+
+  #npo-body-preview{padding:0 0 14px !important;}
+  #npo-body-preview > *:first-child{margin-top:0 !important;}
   }
+
+body.theme-light #npo-prompt-code-wrap pre code.hljs{color:#1f2937 !important;}
+body.theme-light #npo-prompt-code-wrap pre .hljs-keyword,
+body.theme-light #npo-prompt-code-wrap pre .hljs-title,
+body.theme-light #npo-prompt-code-wrap pre .hljs-selector-tag{color:#2563eb !important;}
+body.theme-light #npo-prompt-preview pre code.hljs{color:#1f2937 !important;}
+body.theme-light #npo-prompt-preview pre .hljs-keyword,
+body.theme-light #npo-prompt-preview pre .hljs-title,
+body.theme-light #npo-prompt-preview pre .hljs-selector-tag{color:#2563eb !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-comment,
+body.theme-light #npo-prompt-code-wrap pre .hljs-meta,
+body.theme-light #npo-prompt-preview pre .hljs-comment,
+body.theme-light #npo-prompt-preview pre .hljs-meta{color:#6b7280 !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-string,
+body.theme-light #npo-prompt-preview pre .hljs-string{color:#16a34a !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-number,
+body.theme-light #npo-prompt-preview pre .hljs-number{color:#f59e0b !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-function,
+body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important;}
     .check-label {
       display: flex;
       align-items: center;
@@ -1028,7 +1062,12 @@ ${item.photo
     try {
       const fd = new FormData();
       fd.append('photo', file);
-      const res = await fetch('/main?api=news&action=upload_photo', { method: 'POST', body: fd });
+      const res = await fetch('/main?api=news&action=upload_photo', {
+        method: 'POST',
+        body: fd,
+        // Let browser set the correct multipart boundary
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
       const data = await res.json();
       if (data.ok) {
         document.getElementById('npo-photo-url').value = data.url;

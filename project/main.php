@@ -403,7 +403,7 @@
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-        .settings-buttons-box{background:var(--group-block-bg);border-radius:12px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;overflow:visible;}
+        .settings-buttons-box{background:var(--group-block-bg);border-radius:12px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:space-evenly;align-items:center;flex-wrap:wrap;overflow:visible;}
         .settings-button-wrapper{position:relative;overflow:visible;}
         .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;display:none;pointer-events:none;z-index:99999;}
         .settings-button-wrapper:hover .tooltip{display:none;}/* JS handles positioning */

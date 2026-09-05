@@ -697,8 +697,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-.settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
-.settings-button-wrapper{position:relative;overflow:visible;flex:0 0 1;min-width:0;margin:0 -2px;}
+        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:space-evenly;align-items:center;flex-wrap:wrap;overflow-x:visible;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+        .settings-button-wrapper{position:relative;overflow:visible;flex:0 0 auto;min-width:0;margin:0;}
         .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;pointer-events:none;z-index:2147483647;}
         body>.tooltip{background:var(--group-block-bg);color:var(--text-color);padding:6px 12px;border-radius:8px;font-size:13px;border:1px solid var(--border-color);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3);pointer-events:none;}
         .settings-buttons-end-group{display:flex;align-items:stretch;gap:15px;margin-left:auto;flex-wrap:nowrap;}
@@ -706,10 +706,13 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
         @media(max-width:480px){
-  .settings-buttons-box{gap:10px;padding:10px;overflow-x:auto;}
-  .settings-button-wrapper{min-width:32px;flex-shrink:0;}
-}
-@media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}.settings-buttons-divider{display:none !important;}}
+  .settings-buttons-box{gap:8px;padding:10px;overflow-x:visible;justify-content:flex-start;flex-wrap:wrap;}
+  .settings-button-wrapper{min-width:28px;flex-shrink:0;}
+  .settings-buttons-box .sidebar-button{width:28px;height:28px;}
+  .settings-buttons-box .sidebar-button svg{width:18px;height:18px;}
+  .settings-buttons-end-group{margin-left:0;justify-content:flex-end;width:100%;}
+ }
+@media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shortcuts-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;max-width:640px;max-height:90vh;overflow:auto;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shortcuts{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
