@@ -832,7 +832,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
             .shared-files-actions{flex:1 1 100%;flex-wrap:wrap;}
             .shared-files-actions select{width:100%;}
             .terminate-btn,.delete-user-btn{padding:4px 8px;font-size:11px;}
-            #settings-form,#auth-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            #settings-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            #auth-form{width:96%;max-width:96%;padding:20px 15px;margin:2% 2%;}
             .settings-table{grid-template-columns:1fr;}
             #stats-content{width:95%;height:90vh;padding:50px 10px 10px 10px;margin:5% auto;}
             .stats-nav-buttons{gap:10px;}
@@ -1122,8 +1123,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
     }
 
     .checkbox-box svg path {
-      stroke-dasharray: 20;
-      stroke-dashoffset: 20;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
       transition: stroke-dashoffset 0.4s ease 0.05s;
     }
 
@@ -3657,6 +3658,12 @@ var T=<?php echo json_encode([
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyAutoTheme);
         showNotification();
+
+        <?php if($showLogin): ?>
+        setTimeout(function(){
+            document.querySelectorAll('.auth-error').forEach(function(el){ el.style.display='none'; });
+        },10000);
+        <?php endif; ?>
 
         <?php if(!$showLogin): ?>
         const trustedPromptKey='trusted_device_prompt_due';

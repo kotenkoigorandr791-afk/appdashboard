@@ -104,6 +104,7 @@ Produces `downloads/appdashboard-mcp.tgz` served at `/mcp/appdashboard-mcp.tgz`.
 | `immich_*` | Immich photo library |
 | `gitea_*` | Gitea git forge |
 | `plane_*` | Plane project management |
+| `news_*` | News portal (`news_delete` requires Manager+) |
 
 All `steps_*`, `immich_*`, `gitea_*`, and `plane_*` tools are available to any authenticated user (no Admin role required).
 

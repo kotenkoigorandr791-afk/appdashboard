@@ -19,6 +19,7 @@ import { stepsTools } from "./steps.js";
 import { immichTools } from "./immich.js";
 import { giteaTools } from "./gitea.js";
 import { planeTools } from "./plane.js";
+import { newsTools } from "./news.js";
 import type { ToolDef } from "./types.js";
 
 export type { ToolDef } from "./types.js";
@@ -42,6 +43,7 @@ export const ALL_TOOLS: ToolDef[] = [
   ...immichTools,
   ...giteaTools,
   ...planeTools,
+  ...newsTools,
 ];
 
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));

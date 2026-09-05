@@ -236,6 +236,10 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 .npo-list-item:nth-child(3n+2){background:color-mix(in srgb,var(--group-block-bg) 88%,#22c55e 12%);}
 .npo-list-item:nth-child(3n){background:color-mix(in srgb,var(--group-block-bg) 88%,#f59e0b 12%);}
 .npo-list-item:hover,.npo-list-item.selected{border-color:color-mix(in srgb,var(--primary-color) 65%,var(--border-color));background:color-mix(in srgb,var(--app-item-bg) 76%,var(--primary-color) 24%);}
+.npo-ctx-menu{position:fixed;z-index:14000;min-width:190px;background:var(--modal-bg);border:1px solid var(--border-color);border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);padding:6px;display:none;}
+.npo-ctx-menu .npo-ctx-item{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:none;background:none;color:var(--text-color);font-size:13px;border-radius:7px;cursor:pointer;text-align:left;}
+.npo-ctx-menu .npo-ctx-item:hover{background:color-mix(in srgb,#ef4444 13%,transparent);color:#ef4444;}
+.npo-ctx-item svg{flex-shrink:0;}
 .npo-list-thumb{width:56px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--group-block-bg);}
 .npo-list-thumb-ph{width:56px;height:40px;border-radius:6px;flex-shrink:0;background:var(--group-block-bg);display:flex;align-items:center;justify-content:center;opacity:.35;}
 .npo-list-meta{flex:1;min-width:0;}
@@ -390,8 +394,8 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     }
 
     .checkbox-box svg path {
-      stroke-dasharray: 20;
-      stroke-dashoffset: 20;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
       transition: stroke-dashoffset 0.4s ease 0.05s;
     }
 
@@ -449,6 +453,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     <?php endif; ?>
   </div>
   <div id="npo-sidebar-backdrop" aria-hidden="true"></div>
+  <div id="npo-ctx-menu" class="npo-ctx-menu" role="menu"></div>
   <div id="npo-body">
     <div id="npo-sidebar">
       <div id="npo-sidebar-header">
@@ -569,7 +574,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             <button type="button" id="npo-save-btn"><?php echo my_htmlspecialchars($translations['save'] ?? 'Save'); ?></button>
             <button type="button" id="npo-cancel-btn"><?php echo my_htmlspecialchars($translations['cancel'] ?? 'Cancel'); ?></button>
             <button type="button" id="npo-delete-btn" style="display:none">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               <?php echo my_htmlspecialchars($translations['delete'] ?? 'Delete'); ?>
             </button>
           </div>
@@ -636,7 +641,8 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
 body.theme-light .npo-md-editor textarea.npo-md-textarea{background:color-mix(in srgb,#ffffff 94%,#f4f6f8 6%);}
 .npo-md-editor textarea.npo-md-textarea::placeholder{opacity:.35;font-family:inherit;}
 #npo-body-monaco{width:100%;min-height:360px;border:none;}
-.npo-md-preview{display:none;width:100%;min-height:180px;padding:14px;border:none;background:transparent;color:var(--text-color);font-size:14px;line-height:1.65;box-sizing:border-box;overflow-y:auto;white-space:normal;word-wrap:break-word;}
+.npo-md-preview{display:none;width:100%;min-height:180px;padding:0 14px 14px;border:none;background:transparent;color:var(--text-color);font-size:14px;line-height:1.65;box-sizing:border-box;overflow-y:auto;white-space:normal;word-wrap:break-word;}
+.npo-md-preview > :first-child{margin-top:0;}
 .npo-md-preview a{color:var(--primary-color,#38bdf8);text-decoration:underline;}
 .npo-md-preview h1,.npo-md-preview h2,.npo-md-preview h3,.npo-md-preview h4{margin:14px 0 6px;font-weight:700;}
 .npo-md-preview h1{font-size:20px;color:var(--primary-color,#38bdf8);}
@@ -721,6 +727,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
   refreshListBtn?.addEventListener('click', () => loadNews());
   // Load more news when scrolled near the bottom of the list
   listEl.addEventListener('scroll', () => {
+    closeContextMenu();
     if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 160) {
       if (hasMore && !loadingMore) loadNews(false);
     }
@@ -862,7 +869,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     el.dataset.id = item.id;
     el.innerHTML = `
 ${item.photo
-  ? `<img class="npo-list-thumb" src="/${escH(item.photo)}" alt="" loading="lazy">`
+  ? `<img class="npo-list-thumb" src="${escH(item.photo)}" alt="" loading="lazy">`
   : `<div class="npo-list-thumb-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`}
 <div class="npo-list-meta">
   <div class="npo-list-title">${escH(item.title)}</div>
@@ -872,8 +879,44 @@ ${item.photo
   </div>
 </div>`;
     el.addEventListener('click', () => { openEditor(item); switchToEditorTab(); });
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openContextMenu(item, e.clientX, e.clientY);
+    });
     return el;
   }
+
+  const ctxMenuEl = document.getElementById('npo-ctx-menu');
+  function closeContextMenu() { if (ctxMenuEl) ctxMenuEl.style.display = 'none'; }
+  function openContextMenu(item, x, y) {
+    if (!canEdit || !ctxMenuEl || !item) return;
+    ctxMenuEl.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'npo-ctx-item';
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>${escH('<?php echo my_htmlspecialchars($translations['delete'] ?? 'Delete'); ?>')}`;
+    btn.addEventListener('click', async () => {
+      closeContextMenu();
+      if (!confirm('<?php echo my_htmlspecialchars($translations['news_delete_confirm'] ?? 'Delete this article?'); ?>')) return;
+      await fetch('/main?api=news&action=delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ id: item.id })
+      });
+      newsItems = newsItems.filter(n => n.id !== item.id);
+      if (selectedId === item.id) closeEditor();
+      renderList();
+    });
+    ctxMenuEl.appendChild(btn);
+    ctxMenuEl.style.display = 'block';
+    const rect = ctxMenuEl.getBoundingClientRect();
+    ctxMenuEl.style.left = Math.max(4, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
+    ctxMenuEl.style.top = Math.max(4, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+  }
+  document.addEventListener('click', (e) => {
+    if (ctxMenuEl && ctxMenuEl.style.display === 'block' && !ctxMenuEl.contains(e.target)) closeContextMenu();
+  });
 
   function appendListItems(items) {
     items.forEach(item => {
@@ -926,7 +969,7 @@ ${item.photo
     const ppw = document.getElementById('npo-photo-preview-wrap');
     const removeBtn = document.getElementById('npo-photo-remove-btn');
     if (item && item.photo) {
-      pp.src = '/' + item.photo;
+      pp.src = item.photo;
       ppw.style.display = 'block';
       if (removeBtn) removeBtn.style.display = '';
     } else {
@@ -975,6 +1018,11 @@ ${item.photo
   photoFile?.addEventListener('change', async () => {
     const file = photoFile.files[0];
     if (!file) return;
+    if (file.size > 64 * 1024 * 1024) {
+      setStatus('<?php echo my_htmlspecialchars($translations['news_photo_too_large'] ?? 'File is too large (max 64 MB)'); ?>');
+      photoFile.value = '';
+      return;
+    }
     uploadingPhoto = true;
     setStatus('<?php echo my_htmlspecialchars($translations['uploading'] ?? 'Uploading...'); ?>');
     try {
@@ -984,11 +1032,14 @@ ${item.photo
       const data = await res.json();
       if (data.ok) {
         document.getElementById('npo-photo-url').value = data.url;
-        document.getElementById('npo-photo-preview').src = '/' + data.url;
+        document.getElementById('npo-photo-preview').src = data.url;
         document.getElementById('npo-photo-preview-wrap').style.display = 'block';
         document.getElementById('npo-photo-remove-btn').style.display = '';
         setStatus('');
-      } else { setStatus('<?php echo my_htmlspecialchars($translations['upload_failed'] ?? 'Upload failed'); ?>'); }
+      } else {
+        const errMsg = { file_too_large: '<?php echo my_htmlspecialchars($translations['news_photo_too_large'] ?? 'File is too large (max 64 MB)'); ?>', upload_partial: '<?php echo my_htmlspecialchars($translations['news_photo_upload_partial'] ?? 'Upload was interrupted'); ?>', no_file: '<?php echo my_htmlspecialchars($translations['news_photo_no_file'] ?? 'No file selected'); ?>', invalid_type: '<?php echo my_htmlspecialchars($translations['news_photo_invalid_type'] ?? 'Only JPG, PNG, WEBP or GIF images are allowed'); ?>' }[data.error] || '<?php echo my_htmlspecialchars($translations['upload_failed'] ?? 'Upload failed'); ?>';
+        setStatus(errMsg);
+      }
     } catch { setStatus('<?php echo my_htmlspecialchars($translations['upload_failed'] ?? 'Upload failed'); ?>'); }
     uploadingPhoto = false;
   });

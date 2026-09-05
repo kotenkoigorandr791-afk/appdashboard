@@ -2986,6 +2986,26 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
     $bearerToken = preg_match('/^Bearer\s+(.+)$/i', $authHeader, $m) ? trim($m[1]) : '';
     $apiToken = $bearerToken ?: trim((string)($_SERVER['HTTP_X_API_TOKEN'] ?? (is_array($jsonInput) ? ($jsonInput['api_token'] ?? $jsonInput['token'] ?? '') : '')));
     $newsTokenAuth = newsValidateWritingToken($apiToken);
+    $apiTokenAuth = false;
+    if (!$newsTokenAuth && preg_match('/^[a-f0-9]{64}$/i', $bearerToken)) {
+        require_once APP_ROOT . '/lib/public_api_auth.php';
+        $apiDeviceId = (string)($_SERVER['HTTP_X_DEVICE_ID'] ?? '');
+        $apiDeviceId = preg_match('/^[a-f0-9]{32,128}$/i', $apiDeviceId) ? strtolower($apiDeviceId) : '';
+        $apiUserRow = public_api_validate_token($db, $bearerToken, $apiDeviceId);
+        if ($apiUserRow && !empty($apiUserRow['email'])) {
+            $apiUserEmail = (string)$apiUserRow['email'];
+            $apiUsers = loadUsers();
+            $apiUserRole = $apiUserEmail === 'root@root' ? 2 : (int)($apiUsers[$apiUserEmail]['role'] ?? -1);
+            if ($apiUserRole >= 1) {
+                $_SESSION['user'] = $apiUsers[$apiUserEmail] ?? [];
+                $_SESSION['user']['email'] = $apiUserEmail;
+                $userRole = $apiUserRole;
+                $userEmail = $apiUserEmail;
+                $canEdit = true;
+                $apiTokenAuth = true;
+            }
+        }
+    }
     header('Content-Type: application/json; charset=utf-8');
 
     if ($action === 'list') {
@@ -3021,7 +3041,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         $input = is_array($jsonInput) ? $jsonInput : json_decode((string)file_get_contents('php://input'), true);
         if (!is_array($input)) $input = [];
         if (!$canEdit && !$newsTokenAuth) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        if (!$newsTokenAuth) apSecRequireSameOrigin();
+        if (!$newsTokenAuth && !$apiTokenAuth) apSecRequireSameOrigin();
         $prompt = trim((string)($input['prompt'] ?? ''));
         if ($prompt === '') { echo json_encode(['ok' => false, 'error' => 'prompt_required']); exit; }
         try {
@@ -3087,7 +3107,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
 
     if ($action === 'save_layout') {
         if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        apSecRequireSameOrigin();
+        if (!$newsTokenAuth && !$apiTokenAuth) apSecRequireSameOrigin();
         $input = json_decode((string)file_get_contents('php://input'), true);
         $layout = $input['layout'] ?? [];
         if (!is_array($layout)) $layout = [];
@@ -3104,7 +3124,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
 
     if ($action === 'save') {
         if (!$canEdit && !$newsTokenAuth) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        if (!$newsTokenAuth) apSecRequireSameOrigin();
+        if (!$newsTokenAuth && !$apiTokenAuth) apSecRequireSameOrigin();
         $input = is_array($jsonInput) ? $jsonInput : json_decode((string)file_get_contents('php://input'), true);
         if (!is_array($input)) $input = $_POST;
         $id = trim((string)($input['id'] ?? ''));
@@ -3145,7 +3165,7 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
 
     if ($action === 'delete') {
         if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        apSecRequireSameOrigin();
+        if (!$newsTokenAuth && !$apiTokenAuth) apSecRequireSameOrigin();
         $input = json_decode((string)file_get_contents('php://input'), true);
         $id = trim((string)($input['id'] ?? ''));
         $stmt = $db->prepare("DELETE FROM app_news WHERE id = :id");
@@ -3157,8 +3177,18 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
 
     if ($action === 'upload_photo') {
         if (!$canEdit) { echo json_encode(['ok' => false, 'error' => 'forbidden']); exit; }
-        apSecRequireSameOrigin();
-        if (!isset($_FILES['photo']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
+        if (!$newsTokenAuth && !$apiTokenAuth) apSecRequireSameOrigin();
+        if (!isset($_FILES['photo'])) {
+            echo json_encode(['ok' => false, 'error' => 'no_file']); exit;
+        }
+        $uploadErr = (int)$_FILES['photo']['error'];
+        if ($uploadErr === UPLOAD_ERR_INI_SIZE || $uploadErr === UPLOAD_ERR_FORM_SIZE) {
+            echo json_encode(['ok' => false, 'error' => 'file_too_large']); exit;
+        }
+        if ($uploadErr === UPLOAD_ERR_PARTIAL) {
+            echo json_encode(['ok' => false, 'error' => 'upload_partial']); exit;
+        }
+        if ($uploadErr !== UPLOAD_ERR_OK) {
             echo json_encode(['ok' => false, 'error' => 'upload_error']); exit;
         }
         $file = $_FILES['photo'];
@@ -3168,7 +3198,9 @@ $action = (string)($_GET['action'] ?? $_POST['action'] ?? (is_array($jsonInput) 
         }
         $ext = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'][$mime];
         $filename = apSecRandomFilename($ext);
-        move_uploaded_file($file['tmp_name'], $uploadsDir . $filename);
+        if (!@move_uploaded_file($file['tmp_name'], $uploadsDir . $filename)) {
+            echo json_encode(['ok' => false, 'error' => 'upload_error']); exit;
+        }
         echo json_encode(['ok' => true, 'url' => '/main?api=news&action=photo&file=' . rawurlencode($filename)]);
         exit;
     }
