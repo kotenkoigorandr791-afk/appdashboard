@@ -630,7 +630,6 @@
                         return;
                     }
                 } catch (e) {}
-                try { window.location.href = '/main'; } catch (e) {}
             });
         })();
         </script>

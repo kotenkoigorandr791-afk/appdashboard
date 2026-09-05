@@ -57,6 +57,10 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    $contentLen = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    if ($contentLen > 0 && $contentLen > 8 * 1024 * 1024) {
+        public_api_json(['status' => 'error', 'message' => 'payload too large'], 413);
+    }
     $subLower = strtolower($sub);
     $okSub = $subLower === '' || $subLower === 'ingest' || $subLower === 'webhook' || $subLower === 'sync';
     if (!$okSub) {
