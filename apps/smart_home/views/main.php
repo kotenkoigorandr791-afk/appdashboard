@@ -6,7 +6,7 @@
 <title><?=sh_h($t['app_title'])?></title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
-<link rel="stylesheet" href="assets/css/app.css?v=20260826k">
+<link rel="stylesheet" href="assets/css/app.css?v=20260905a">
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
 <div id="app-bg" aria-hidden="true"></div>
