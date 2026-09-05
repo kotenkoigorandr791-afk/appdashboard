@@ -23,7 +23,7 @@
                     <i class="fas fa-info-circle"></i>
                 </button>
                 <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['email'])): ?>
-                <button id="mcp-token-open-btn" type="button" class="steps-header-btn" title="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>" aria-label="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>">
+                <button id="hc-token-open-btn" type="button" class="steps-header-btn" title="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>" aria-label="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>">
                     <i class="fas fa-key"></i>
                 </button>
                 <?php endif; ?>
@@ -619,17 +619,116 @@
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 
+        <div id="hc-token-modal" style="display:none;position:fixed;inset:0;z-index:10060;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;">
+            <div style="width:min(640px,96vw);max-height:86vh;overflow:auto;background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:16px;box-shadow:var(--glass-shadow,0 20px 50px rgba(0,0,0,.25));padding:18px;position:relative;">
+                <button type="button" id="hc-token-close" aria-label="Close" style="position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-color);font-size:22px;cursor:pointer;line-height:1;">×</button>
+                <h2 style="margin:0 0 8px;font-size:20px;">Health Connect authorization</h2>
+                <p style="margin:0 0 14px;opacity:.78;font-size:13px;line-height:1.45;">
+                    Use the token below as <code style="background:rgba(0,0,0,.14);padding:2px 6px;border-radius:8px;">Authorization: Bearer &lt;token&gt;</code>.
+                </p>
+
+                <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+                    <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:260px;">
+                            <label style="display:block;font-size:12px;font-weight:700;opacity:.7;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;">Endpoint</label>
+                            <pre id="hc-token-endpoint" style="margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:rgba(0,0,0,.16);word-break:break-all;white-space:pre-wrap;"></pre>
+                        </div>
+                        <button type="button" id="hc-token-copy-endpoint" style="align-self:flex-end;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:600;font-size:13px;">Copy</button>
+                    </div>
+
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:240px;">
+                            <label style="display:block;font-size:12px;font-weight:700;opacity:.7;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;">Token name</label>
+                            <input id="hc-token-name" type="text" maxlength="80" value="Health Connect" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg,var(--modal-bg));color:var(--text-color);" />
+                        </div>
+                        <button type="button" id="hc-token-generate" style="border:none;border-radius:10px;padding:12px 16px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:700;font-size:13px;">Generate</button>
+                    </div>
+
+                    <p id="hc-token-err" style="display:none;margin:0;color:#ef4444;font-size:13px;"></p>
+
+                    <div id="hc-token-output" style="display:none;padding:12px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);border-radius:12px;background:color-mix(in srgb,#22c55e 16%,transparent);">
+                        <strong style="display:block;margin-bottom:8px;font-size:13px;">Token</strong>
+                        <code id="hc-token-value" style="display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></code>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
+                            <button type="button" id="hc-token-copy" style="border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:#16a34a;color:#fff;font-weight:700;font-size:13px;">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <script>
         (function(){
-            const btn = document.getElementById('mcp-token-open-btn');
-            if(!btn) return;
-            btn.addEventListener('click', () => {
-                try {
-                    if (window.parent && typeof window.parent.openMcpSetupModal === 'function') {
-                        window.parent.openMcpSetupModal();
-                        return;
-                    }
-                } catch (e) {}
+            const btn=document.getElementById('hc-token-open-btn');
+            const modal=document.getElementById('hc-token-modal');
+            const closeBtn=document.getElementById('hc-token-close');
+            if(!btn||!modal||!closeBtn) return;
+            const endpointEl=document.getElementById('hc-token-endpoint');
+            const endpointCopyBtn=document.getElementById('hc-token-copy-endpoint');
+            const nameEl=document.getElementById('hc-token-name');
+            const genBtn=document.getElementById('hc-token-generate');
+            const errEl=document.getElementById('hc-token-err');
+            const outEl=document.getElementById('hc-token-output');
+            const tokenValEl=document.getElementById('hc-token-value');
+            const tokenCopyBtn=document.getElementById('hc-token-copy');
+
+            const endpoint=window.location.origin + '/public-api/steps';
+            if(endpointEl) endpointEl.textContent=endpoint;
+
+            function showModal(){
+                modal.style.display='flex';
+            }
+            function hideModal(){
+                modal.style.display='none';
+            }
+
+            btn.addEventListener('click', showModal);
+            closeBtn.addEventListener('click', hideModal);
+            modal.addEventListener('click', (e)=>{ if(e.target===modal) hideModal(); });
+
+            function setErr(msg){
+                if(!errEl) return;
+                if(!msg){ errEl.style.display='none'; errEl.textContent=''; return; }
+                errEl.textContent=msg;
+                errEl.style.display='block';
+            }
+
+            async function copyText(text){
+                try{ await navigator.clipboard.writeText(text); return true; }catch(e){ return false; }
+            }
+
+            endpointCopyBtn?.addEventListener('click', async ()=>{
+                await copyText(endpoint);
+            });
+
+            tokenCopyBtn?.addEventListener('click', async ()=>{
+                const t=tokenValEl?.textContent?.trim()||'';
+                if(t) await copyText(t);
+            });
+
+            genBtn?.addEventListener('click', async ()=>{
+                setErr('');
+                if(genBtn) genBtn.disabled=true;
+                try{
+                    const fd=new FormData();
+                    fd.append('action','generate_mcp_token');
+                    fd.append('generate_mcp_token','1');
+                    fd.append('ajax','1');
+                    const nm=nameEl && nameEl.value ? String(nameEl.value).trim() : 'Health Connect';
+                    fd.append('mcp_token_name', nm || 'Health Connect');
+
+                    const res=await fetch('/main', { method:'POST', body:fd, credentials:'same-origin' });
+                    const data=await res.json().catch(()=>null);
+                    if(!data||!data.success||!data.token) throw new Error(data.error||'Token generation failed');
+
+                    if(tokenValEl) tokenValEl.textContent=data.token;
+                    if(outEl) outEl.style.display='block';
+                    await copyText(data.token);
+                }catch(e){
+                    setErr(String(e && e.message ? e.message : e));
+                }finally{
+                    if(genBtn) genBtn.disabled=false;
+                }
             });
         })();
         </script>

@@ -23,6 +23,17 @@ if (isset($_GET['sharedFile'])) {
 
 $__path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $__pathLower = strtolower($__path);
+
+// Alias: allow external apps to call /api/steps as a shorthand for /public-api/steps
+// (helps webhook integrations that don't want the /public-api prefix).
+if (str_starts_with($__pathLower, '/api/steps')) {
+    $rest = substr($__path, strlen('/api')); // "/steps"...
+    $qs = (string)($_SERVER['QUERY_STRING'] ?? '');
+    $_SERVER['REQUEST_URI'] = '/public-api' . $rest . ($qs !== '' ? ('?' . $qs) : '');
+    require __DIR__ . '/../public-api/index.php';
+    exit;
+}
+
 if ($__pathLower === '/webdav' || str_starts_with($__pathLower, '/webdav/') || $__pathLower === '/apps/cloud/webdav.php' || str_starts_with($__pathLower, '/apps/cloud/webdav.php/')) {
     $_SERVER['SCRIPT_NAME'] = str_starts_with($__pathLower, '/webdav') ? '/webdav' : '/apps/cloud/webdav.php';
     $_SERVER['PHP_SELF'] = $__path;
