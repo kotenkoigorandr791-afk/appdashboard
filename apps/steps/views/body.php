@@ -672,7 +672,7 @@
             const tokenValEl=document.getElementById('hc-token-value');
             const tokenCopyBtn=document.getElementById('hc-token-copy');
 
-            const endpoint=window.location.origin + '/public-api/steps';
+            const endpoint=window.location.origin + '/api/steps';
             if(endpointEl) endpointEl.textContent=endpoint;
 
             function showModal(){
