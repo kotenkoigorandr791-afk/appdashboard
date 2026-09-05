@@ -126,7 +126,11 @@ function hc_store_payload_json(string $userDir, array $payload): array {
                 $dayFiles[$d] = $dayObj;
             }
             $dayFiles[$d]['types'][$k] = $dayFiles[$d]['types'][$k] ?? [];
-            $dayFiles[$d]['types'][$k][] = $rec;
+            $seen = $dayFiles[$d]['types'][$k];
+            $matches = array_filter($seen, static fn($x) => is_array($x) && $x === $rec);
+            if (!$matches) {
+                $dayFiles[$d]['types'][$k][] = $rec;
+            }
         }
     }
 
@@ -143,7 +147,6 @@ function hc_store_payload_json(string $userDir, array $payload): array {
             $dayFiles[$d] = $dayObj;
         }
         $dayFiles[$d]['steps_daily_total'] = (int)$total;
-        $dayFiles[$d]['types']['steps_daily_total'] = $dayFiles[$d]['types']['steps_daily_total'] ?? (int)$total;
     }
 
     foreach ($dayFiles as $d => $obj) {
