@@ -293,5 +293,7 @@
     "external_backup_imported": "Импортировано %d записей",
     "invalid_url": "Неверный URL",
     "external_backup_file": "CSV файл резервной копии",
-    "no_file_selected": "Файл не выбран"
+    "no_file_selected": "Файл не выбран",
+    "heart_rate": "Пульс (уд/мин)",
+    "sleep": "Сон (часы)"
 }

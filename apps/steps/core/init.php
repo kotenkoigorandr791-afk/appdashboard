@@ -1,6 +1,7 @@
 <?php
 // Initialization
 require_once dirname(__DIR__, 3) . '/project/i18n_helpers.php';
+require_once __DIR__ . '/health_connect_ingest.php';
 $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';
 $color        = $_GET['color'] ?? '#007bff';
@@ -103,3 +104,7 @@ if ($toInsert) {
 $stepsData = array_values($stepsDataRaw);
 usort($stepsData, fn($a, $b) => strcmp($a['date'], $b['date']));
 error_log("Final stepsData count: " . count($stepsData) . ", first 3: " . json_encode(array_slice($stepsData, 0, 3)));
+
+// Health Connect compact metrics for the same range (steps UI charts).
+$healthMetrics = hc_read_metrics_range($userDir, $jsRangeFrom, $jsRangeTo);
+error_log("Loaded health metrics days: " . count($healthMetrics));

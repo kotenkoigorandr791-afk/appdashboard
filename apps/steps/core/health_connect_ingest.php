@@ -89,74 +89,183 @@ function hc_json_atomic_write(string $path, string $content): void {
     @rename($tmp, $path);
 }
 
-function hc_store_payload_json(string $userDir, array $payload): array {
-    $dirRaw = hc_health_raw_dir($userDir, true);
-    $dirDays = hc_health_days_dir($userDir, true);
+/**
+ * Schema for the compact per-day metrics we keep. Only the data needed for
+ * charts/summaries is stored; the raw Health Connect response is never written
+ * to disk. sum = accumulate a daily total, series = keep min/max/avg/last.
+ */
+function hc_metric_type_config(): array {
+    return [
+        'steps'           => ['kind' => 'sum',    'fields' => ['count'],                          'total' => 'total',        'unit' => ''],
+        'distance'        => ['kind' => 'sum',    'fields' => ['meters', 'distance_meters', 'distance'], 'total' => 'total_meters', 'unit' => 'meters'],
+        'active_calories' => ['kind' => 'sum',    'fields' => ['calories'],                       'total' => 'total',        'unit' => 'kcal'],
+        'total_calories'  => ['kind' => 'sum',    'fields' => ['calories'],                       'total' => 'total',        'unit' => 'kcal'],
+        'sleep'           => ['kind' => 'sum',    'fields' => ['duration_seconds', 'duration', 'duration_millis'], 'total' => 'total_seconds', 'unit' => 'seconds', 'scales' => ['duration_millis' => 0.001]],
+        'heart_rate'      => ['kind' => 'series', 'fields' => ['bpm', 'value', 'heart_rate'],     'unit' => 'bpm'],
+        'weight'          => ['kind' => 'series', 'fields' => ['kilograms', 'weight_kg', 'weight', 'value'], 'unit' => 'kg'],
+        'blood_pressure'  => ['kind' => 'series', 'fields' => ['systolic'],                       'unit' => 'mmHg'],
+        'oxygen_spo2'     => ['kind' => 'series', 'fields' => ['percentage', 'value'],            'unit' => '%'],
+    ];
+}
 
+function hc_metric_record_value(array $rec, array $cfg): ?float {
+    $scales = $cfg['scales'] ?? [];
+    foreach ($cfg['fields'] as $f) {
+        if (array_key_exists($f, $rec) && is_numeric($rec[$f])) {
+            $v = (float)$rec[$f];
+            if (isset($scales[$f])) $v *= (float)$scales[$f];
+            return $v;
+        }
+    }
+    return null;
+}
+
+function hc_aggregate_records_by_type(string $type, array $records): array {
+    $cfg = hc_metric_type_config()[$type] ?? null;
+    if ($cfg === null) return [];
+    $agg = ['samples' => 0];
+    $sumSeries = 0.0;
+    foreach ($records as $rec) {
+        if (!is_array($rec)) continue;
+        $agg['samples']++;
+        $v = hc_metric_record_value($rec, $cfg);
+        if ($v === null) continue;
+        if ($cfg['kind'] === 'sum') {
+            $agg[$cfg['total']] = ($agg[$cfg['total']] ?? 0) + $v;
+        } else {
+            $agg['min'] = isset($agg['min']) ? min($agg['min'], $v) : $v;
+            $agg['max'] = isset($agg['max']) ? max($agg['max'], $v) : $v;
+            $agg['last'] = $v;
+            $sumSeries += $v;
+        }
+    }
+    if ($cfg['kind'] === 'series' && $agg['samples'] > 0 && isset($agg['min'])) {
+        $agg['avg'] = $sumSeries / $agg['samples'];
+    }
+    if (!empty($cfg['unit'])) $agg['unit'] = $cfg['unit'];
+    if (isset($agg['total']) && (float)$agg['total'] == (int)$agg['total']) {
+        $agg['total'] = (int)$agg['total'];
+    }
+    return $agg;
+}
+
+function hc_aggregate_payload_metrics(array $payload): array {
+    // Output: [YYYY-MM-DD => [type => compact metric]]
     $normalized = hc_payload_normalize_root($payload);
-
-    $ts = $normalized['timestamp'] ?? '';
-    $hash = hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-    $fileBase = ($ts !== '' ? str_replace([':', '.'], '-', $ts) : 't_' . time()) . '_' . substr($hash, 0, 12);
-    $rawPath = $dirRaw . '/payload_' . $fileBase . '.json';
-    hc_json_atomic_write($rawPath, json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-
-    // Store per-day payload slices for all keys except timestamp/app_version.
-    // Each day file keeps arrays grouped by data-type.
-    $stepsDaily = hc_payload_extract_steps_daily($payload);
-
-    $keys = array_keys($normalized);
-    $dayFiles = [];
-    foreach ($keys as $k) {
+    $schema = hc_metric_type_config();
+    $byDay = [];
+    foreach ($normalized as $k => $arr) {
         if ($k === 'timestamp' || $k === 'app_version') continue;
-        $arr = $normalized[$k];
-        if (!is_array($arr) || empty($arr)) continue;
+        if (!is_array($arr) || !isset($schema[$k])) continue;
         foreach ($arr as $rec) {
             if (!is_array($rec)) continue;
             $d = hc_extract_record_date($rec);
             if ($d === null) continue;
-            $dayPath = $dirDays . '/' . $d . '.json';
-            if (!isset($dayFiles[$d])) {
-                $dayObj = ['date' => $d, 'types' => []];
-                if (is_file($dayPath)) {
-                    $prev = json_decode((string)file_get_contents($dayPath), true);
-                    if (is_array($prev)) $dayObj = $prev;
-                }
-                if (!isset($dayObj['types']) || !is_array($dayObj['types'])) $dayObj['types'] = [];
-                $dayFiles[$d] = $dayObj;
-            }
-            $dayFiles[$d]['types'][$k] = $dayFiles[$d]['types'][$k] ?? [];
-            $seen = $dayFiles[$d]['types'][$k];
-            $matches = array_filter($seen, static fn($x) => is_array($x) && $x === $rec);
-            if (!$matches) {
-                $dayFiles[$d]['types'][$k][] = $rec;
-            }
+            $byDay[$d][$k][] = $rec;
         }
     }
-
-    // Also ensure steps totals are present for that day.
-    foreach ($stepsDaily as $d => $total) {
-        $dayPath = $dirDays . '/' . $d . '.json';
-        if (!isset($dayFiles[$d])) {
-            $dayObj = ['date' => $d, 'types' => []];
-            if (is_file($dayPath)) {
-                $prev = json_decode((string)file_get_contents($dayPath), true);
-                if (is_array($prev)) $dayObj = $prev;
-            }
-            if (!isset($dayObj['types']) || !is_array($dayObj['types'])) $dayObj['types'] = [];
-            $dayFiles[$d] = $dayObj;
+    $out = [];
+    foreach ($byDay as $d => $types) {
+        foreach ($types as $t => $recs) {
+            $agg = hc_aggregate_records_by_type((string)$t, $recs);
+            if ($agg) $out[$d][$t] = $agg;
         }
-        $dayFiles[$d]['steps_daily_total'] = (int)$total;
+    }
+    return $out;
+}
+
+function hc_metrics_from_legacy_day(array $day): array {
+    // Migrate old-format day files (full record arrays under 'types').
+    $metrics = [];
+    $types = $day['types'] ?? null;
+    if (is_array($types)) {
+        foreach ($types as $t => $recs) {
+            if (!is_array($recs)) continue;
+            $agg = hc_aggregate_records_by_type((string)$t, $recs);
+            if ($agg) $metrics[$t] = $agg;
+        }
+    }
+    if (isset($day['steps_daily_total'])) {
+        if (isset($metrics['steps'])) {
+            $metrics['steps']['total'] = (int)$day['steps_daily_total'];
+        } else {
+            $metrics['steps'] = ['samples' => 0, 'total' => (int)$day['steps_daily_total']];
+        }
+    }
+    return $metrics;
+}
+
+function hc_read_day_metrics(string $userDir, string $date): array {
+    $dir = hc_health_days_dir($userDir, false);
+    $path = $dir . '/' . $date . '.json';
+    if (!is_file($path)) return [];
+    $day = json_decode((string)file_get_contents($path), true);
+    if (!is_array($day)) return [];
+    if (isset($day['metrics']) && is_array($day['metrics'])) return $day['metrics'];
+    $metrics = hc_metrics_from_legacy_day($day);
+    if ($metrics) {
+        $day['metrics'] = $metrics;
+        unset($day['types']);
+        hc_json_atomic_write($path, json_encode($day, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+    return $metrics;
+}
+
+function hc_read_metrics_range(string $userDir, string $from, string $to): array {
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$to)) {
+        return [];
+    }
+    if (strcmp($from, $to) > 0) {
+        [$from, $to] = [$to, $from];
+    }
+    if (strcmp($to, $from) > 0 && (int)floor(((int)strtotime($to) - (int)strtotime($from)) / 86400) > 1000) {
+        return [];
+    }
+    $out = [];
+    $cd = new DateTime($from);
+    $end = new DateTime($to);
+    while ($cd <= $end) {
+        $ds = $cd->format('Y-m-d');
+        $m = hc_read_day_metrics($userDir, $ds);
+        if ($m) $out[] = ['date' => $ds, 'metrics' => $m];
+        $cd->modify('+1 day');
+    }
+    return $out;
+}
+
+function hc_store_payload_json(string $userDir, array $payload): array {
+    $dirRaw = hc_health_raw_dir($userDir, false);
+    $dirDays = hc_health_days_dir($userDir, true);
+
+    $stepsDaily = hc_payload_extract_steps_daily($payload);
+    $perDay = hc_aggregate_payload_metrics($payload);
+
+    $days = array_unique(array_merge(array_keys($stepsDaily), array_keys($perDay)));
+    $storedDays = [];
+    foreach ($days as $d) {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) continue;
+        $metrics = hc_read_day_metrics($userDir, $d);
+        foreach (($perDay[$d] ?? []) as $type => $agg) {
+            $metrics[$type] = $agg;
+        }
+        if (isset($stepsDaily[$d])) {
+            $metrics['steps'] = array_merge($metrics['steps'] ?? ['samples' => 0], ['total' => (int)$stepsDaily[$d]]);
+        }
+        $obj = ['date' => $d, 'metrics' => $metrics];
+        if (isset($stepsDaily[$d])) $obj['steps_daily_total'] = (int)$stepsDaily[$d];
+        hc_json_atomic_write($dirDays . '/' . $d . '.json', json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        $storedDays[] = $d;
     }
 
-    foreach ($dayFiles as $d => $obj) {
-        $dayPath = $dirDays . '/' . $d . '.json';
-        hc_json_atomic_write($dayPath, json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    // Legacy full-response files are no longer produced; clean them up.
+    if (is_dir($dirRaw)) {
+        foreach (glob($dirRaw . '/payload_*.json') ?: [] as $legacyRaw) {
+            @unlink($legacyRaw);
+        }
     }
 
     return [
-        'raw_file' => basename($rawPath),
         'steps_daily' => $stepsDaily,
-        'stored_days' => array_keys($dayFiles),
+        'stored_days' => $storedDays,
     ];
 }

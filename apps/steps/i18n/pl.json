@@ -293,5 +293,7 @@
     "external_backup_imported": "Zaimportowano %d rekordów",
     "invalid_url": "Nieprawidłowy URL",
     "external_backup_file": "Plik kopii zapasowej CSV",
-    "no_file_selected": "Nie wybrano pliku"
+    "no_file_selected": "Nie wybrano pliku",
+    "heart_rate": "Tętno (bpm)",
+    "sleep": "Sen (godziny)"
 }
