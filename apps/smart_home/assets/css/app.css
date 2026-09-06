@@ -164,6 +164,7 @@ body.map-home-mode .main-content {
   transition:none;
 }
 html.modal-open, body.modal-open { overflow:hidden !important; height:100%; }
+body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mobile-menu-button { opacity:0!important; pointer-events:none!important; visibility:hidden!important; }
 .modal-overlay.modal-overlay--api-docs.open { animation:apiDocsOverlayIn .3s ease both; }
 @keyframes apiDocsOverlayIn {
   0% { opacity:0; }
@@ -653,6 +654,7 @@ html.modal-open, body.modal-open { overflow:hidden !important; height:100%; }
   transform:scale(.95);
   transition:transform var(--transition);
 }
+.modal-overlay:not(.open) .modal { visibility:hidden; pointer-events:none; }
 .modal-overlay.open .modal { transform:scale(1); }
 .modal.modal--dialog { max-width:420px; padding:20px; }
 .modal.modal--dialog .modal-corner-slot { display:none; }
@@ -1192,10 +1194,12 @@ body:has(#page-map.page-section.active) .main-content {
   min-height:0;
 }
 #page-map .map-editor-layout {
-  flex:1;
+  flex:0 1 auto;
   min-height:0;
   overflow:hidden;
   align-items:stretch;
+  margin-top:12px;
+  height:calc(100vh - 76px);
 }
 #page-map .canvas-wrap {
   display:flex;

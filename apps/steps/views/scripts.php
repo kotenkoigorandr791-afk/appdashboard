@@ -3,10 +3,10 @@
             userSettings = <?php echo json_encode($userSettings); ?>,
             currentUser = '<?php echo htmlspecialchars($currentUser); ?>',
             translations = <?php echo json_encode($translations); ?>;
-            
-        const localeMap = { 'en': 'en-EN', 'ru': 'ru-RU', 'uk': 'uk-UA', 'be': 'be-BY' }, 
+
+        const localeMap = { 'en': 'en-EN', 'ru': 'ru-RU', 'uk': 'uk-UA', 'be': 'be-BY' },
               currentLocale = localeMap['<?php echo $language; ?>'] || 'en-EN';
-              
+
         const chartTypeStorageKey = () => 'stepsChartType_' + String(currentUser || 'u').replace(/[^a-z0-9_\-]/gi, '_');
         let currentView = 'year', currentDataType = 'steps', currentDate = new Date(), chart = null;
         let yearlyDistributionChart = null, monthlyIntensityChart = null;
@@ -17,19 +17,19 @@
         let currentRow = 0;
         let currentCol = 0;
         let isEditing = false;
-        
+
         Chart.register(ChartZoom);
-        
+
         // Helper functions
         const formatNumber = num => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
         const formatLocalYMD = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         const localDateFromYMD = s => { const p = String(s).split('-'); if (p.length !== 3) return new Date(NaN); const y = +p[0], m = +p[1], da = +p[2]; if (!y || !m || !da) return new Date(NaN); return new Date(y, m - 1, da); };
         const parseStepsRaw = s => String(s).replace(/\s/g, '');
         const setStepsInputValue = n => { const el = document.getElementById('steps-input'); if (el) { const v = Number(n) || 0; el.value = v > 0 ? formatNumber(v) : ''; } };
-        
-        const formatDate = (date, mode = 'day', lang = currentLocale) => 
-            mode === 'month' ? date.toLocaleDateString(lang, { month: 'long' }) : 
-            mode === 'day' ? date.toLocaleDateString(lang, { day: '2-digit', month: 'short' }) : 
+
+        const formatDate = (date, mode = 'day', lang = currentLocale) =>
+            mode === 'month' ? date.toLocaleDateString(lang, { month: 'long' }) :
+            mode === 'day' ? date.toLocaleDateString(lang, { day: '2-digit', month: 'short' }) :
             date.toLocaleDateString(lang, { year: 'numeric' });
         const mondayWeekOffset = d => (d.getDay() + 6) % 7;
         const getChartLabel = (view, date, lang = currentLocale) => {
@@ -46,7 +46,7 @@
     }
     return '';
 };
-        
+
         const getAvailableYears = () =>
             Array.from(new Set(stepsData.map(entry => localDateFromYMD(entry.date).getFullYear())))
                 .sort((a, b) => a - b);
@@ -141,11 +141,11 @@
             return true;
         };
 
-        const convertData = (data, dataType) => 
-            dataType === 'steps' ? data : 
-            dataType === 'distance' ? data.map(steps => (steps * userSettings.stride_length) / 100000) : 
+        const convertData = (data, dataType) =>
+            dataType === 'steps' ? data :
+            dataType === 'distance' ? data.map(steps => (steps * userSettings.stride_length) / 100000) :
             data.map(steps => steps * 0.04 * (userSettings.weight / 70));
-        
+
         // Function to show alert
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
@@ -163,13 +163,13 @@
                 extraBtn.textContent = extraText;
                 cancelBtn.style.display = isConfirm ? 'block' : 'none';
                 extraBtn.style.display = isConfirm && extraText ? 'block' : 'none';
-                
+
                 const openModal = () => {
                     document.body.classList.add('modal-open');
                     modal.style.display = 'flex';
                     setTimeout(() => okBtn.focus(), 0);
                 };
-                
+
                 const closeModal = (result) => {
                     modal.removeEventListener('keydown', handleKeyDown, true);
                     document.body.classList.remove('modal-open');
@@ -189,18 +189,18 @@
                         if (isConfirm) closeModal(true);
                     }
                 };
-                
+
                 okBtn.onclick = () => closeModal(true);
                 cancelBtn.onclick = () => closeModal(false);
                 extraBtn.onclick = () => closeModal('extra');
-                
+
                 modal.querySelector('.modal-close').onclick = () => closeModal(false);
                 modal.addEventListener('keydown', handleKeyDown, true);
-                
+
                 openModal();
             });
         }
-        
+
         // Handle modal windows
         function syncChartTypeButtons() {
             document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-type') === currentChartType));
@@ -321,6 +321,7 @@
             opts = opts || {};
             const modal = document.getElementById(modalId);
             if (modal) {
+                if (modal.firstElementChild) modal.firstElementChild.classList.add('modal-content');
                 document.body.classList.add('modal-open');
                 modal.style.display = 'flex';
                 if (modalId === 'settings-modal') {
@@ -345,9 +346,9 @@
                 });
             }
         }
-        
+
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','excel-modal','excel-hotkeys-modal','backups-modal','alert-modal','video-crop-modal','guide-expand-modal'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal'];
             const any = ids.some(id => { const m = document.getElementById(id); return m && window.getComputedStyle(m).display === 'flex'; });
             if (any) document.body.classList.add('modal-open');
             else document.body.classList.remove('modal-open');
@@ -381,56 +382,56 @@
                 refreshBodyModalLock();
             }
         }
-        
+
         // Functions for chart operations
         function prepareChartData(view, selectedDate, dataType, lang = currentLocale) {
     let labels = [], data = [], dates = [];
-    
+
     if (view === 'year') {
         const year = selectedDate.getFullYear();
         const yearData = {};
-        
+
         // Initialize all months of the year
         for (let month = 0; month < 12; month++) {
             const yearMonth = `${year}-${month + 1}`;
             yearData[yearMonth] = 0;
             yearData[`${yearMonth}_date`] = `${year}-${String(month + 1).padStart(2, '0')}-01`;
         }
-        
+
         // Sum steps by months of selected year
-        stepsData.forEach(entry => { 
+        stepsData.forEach(entry => {
             const date = localDateFromYMD(entry.date);
             if (date.getFullYear() === year) {
                 const yearMonth = `${year}-${date.getMonth() + 1}`;
                 yearData[yearMonth] = (yearData[yearMonth] || 0) + entry.steps;
             }
         });
-        
+
         // Sort months
         const sortedMonths = Object.keys(yearData).filter(key => !key.includes('_date')).sort((a, b) => {
             const aMonth = parseInt(a.split('-')[1]);
             const bMonth = parseInt(b.split('-')[1]);
             return aMonth - bMonth;
         });
-        
+
         labels = sortedMonths.map(ym => {
             const [year, month] = ym.split('-');
             return new Date(year, month - 1).toLocaleDateString(lang, { month: 'short' });
         });
-        
+
         data = sortedMonths.map(ym => yearData[ym]);
         dates = sortedMonths.map(ym => yearData[`${ym}_date`]);
-        
+
     } else if (view === 'month') {
         const monthData = stepsData.filter(entry => {
             const entryDate = localDateFromYMD(entry.date);
-            return entryDate.getMonth() === selectedDate.getMonth() && 
+            return entryDate.getMonth() === selectedDate.getMonth() &&
                 entryDate.getFullYear() === selectedDate.getFullYear();
         });
         labels = monthData.map(entry => formatDate(localDateFromYMD(entry.date), 'day', lang));
         data = monthData.map(entry => entry.steps);
         dates = monthData.map(entry => entry.date);
-        
+
     } else if (view === 'week') {
         const weekStart = new Date(selectedDate);
         weekStart.setDate(selectedDate.getDate() - mondayWeekOffset(selectedDate));
@@ -445,12 +446,12 @@
                 steps: stepsEntry ? stepsEntry.steps : 0
             });
         }
-        
+
         labels = weekData.map(entry => formatDate(localDateFromYMD(entry.date), 'day', lang));
         data = weekData.map(entry => entry.steps);
         dates = weekData.map(entry => entry.date);
     }
-    
+
     return { labels, data: convertData(data, dataType), dates };
 }
 
@@ -470,17 +471,17 @@
 
             const chartData = prepareChartData(view, selectedDate, dataType, lang);
             if (!chartData.data.length) return;
-            
+
             document.getElementById('chart-label').textContent = getChartLabel(view, selectedDate, lang);
             document.getElementById('chart-nav-left').style.display = 'block';
             document.getElementById('chart-nav-right').style.display = 'block';
             document.getElementById('chart-nav-left').disabled = !canNavigateBackward();
             document.getElementById('chart-nav-right').disabled = !canNavigateForward();
-            
+
             const unitLabel = dataType === 'steps' ? translations.steps : dataType === 'distance' ? translations.distance_km : translations.calories;
             const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
             const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
-            
+
             if (!Chart.registry.plugins.get('annotation')) {
                 Chart.register(ChartAnnotation);
             }
@@ -514,41 +515,41 @@
                             ...(yMaxWhenBelowGoal != null ? { max: yMaxWhenBelowGoal } : {}),
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
-                            ticks: { 
+                            ticks: {
                                 color: isDarkTheme ? '#fff' : '#000',
                                 callback: (v) => (dataType === 'steps' ? formatNumber(v) : String(v))
                             },
-                            title: { 
-                                display: true, 
-                                text: unitLabel, 
-                                color: isDarkTheme ? '#fff' : '#000' 
+                            title: {
+                                display: true,
+                                text: unitLabel,
+                                color: isDarkTheme ? '#fff' : '#000'
                             }
                         },
                         x: {
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
                             ticks: { color: isDarkTheme ? '#fff' : '#000' },
-                            title: { 
-                                display: true, 
-                                text: translations.time || 'Time', 
-                                color: isDarkTheme ? '#fff' : '#000' 
+                            title: {
+                                display: true,
+                                text: translations.time || 'Time',
+                                color: isDarkTheme ? '#fff' : '#000'
                             }
                         }
                     },
                     plugins: {
                         legend: { display: false },
-                        tooltip: { 
-                            callbacks: { 
-                                label: context => `${unitLabel}: ${formatNumber(Math.round(context.raw))}` 
-                            } 
+                        tooltip: {
+                            callbacks: {
+                                label: context => `${unitLabel}: ${formatNumber(Math.round(context.raw))}`
+                            }
                         },
-                        zoom: { 
-                            pan: { enabled: true, mode: 'x' }, 
-                            zoom: { 
-                                wheel: { enabled: true }, 
-                                pinch: { enabled: true }, 
-                                mode: 'x' 
-                            } 
+                        zoom: {
+                            pan: { enabled: true, mode: 'x' },
+                            zoom: {
+                                wheel: { enabled: true },
+                                pinch: { enabled: true },
+                                mode: 'x'
+                            }
                         },
                         ...(view !== 'year' && dataType === 'steps' ? {
                             annotation: {
@@ -578,7 +579,7 @@
                 }
             });
         }
-        
+
         let statsNotifRevealTimer = null, goalNotifRevealTimer = null, statsNotifRevealDone = false, goalNotifRevealDone = false;
         function panelNotifUserKey(kind) {
             return 'stepsPanelN_' + kind + '_' + String(currentUser || 'u').replace(/[^a-z0-9_\-]/gi, '_');
@@ -618,11 +619,11 @@
             }, Math.floor(Math.random() * 60000));
         }
         function updateStatsNotification() {
-            const steps = stepsData.map(entry => entry.steps), 
-                  maxSteps = Math.max(...steps), 
+            const steps = stepsData.map(entry => entry.steps),
+                  maxSteps = Math.max(...steps),
                   maxDistance = (maxSteps * userSettings.stride_length) / 100000;
-            const monthData = stepsData.filter(entry => 
-                localDateFromYMD(entry.date).getMonth() === currentDate.getMonth() && 
+            const monthData = stepsData.filter(entry =>
+                localDateFromYMD(entry.date).getMonth() === currentDate.getMonth() &&
                 localDateFromYMD(entry.date).getFullYear() === currentDate.getFullYear()
             );
             const avgSteps = monthData.length ? monthData.reduce((sum, entry) => sum + entry.steps, 0) / monthData.length : 0;
@@ -681,7 +682,7 @@
             ensureGoalNotifScheduled();
             if (goalNotifRevealDone) el.style.display = 'block';
         }
-        
+
         function destroyStatisticsCharts() {
             if (yearlyDistributionChart) { yearlyDistributionChart.destroy(); yearlyDistributionChart = null; }
             if (monthlyIntensityChart) { monthlyIntensityChart.destroy(); monthlyIntensityChart = null; }
@@ -821,9 +822,9 @@
         }
 
         function renderCalendar(date, lang = currentLocale) {
-            const year = date.getFullYear(), 
-                  month = date.getMonth(), 
-                  firstDay = new Date(year, month, 1), 
+            const year = date.getFullYear(),
+                  month = date.getMonth(),
+                  firstDay = new Date(year, month, 1),
                   lastDay = new Date(year, month + 1, 0),
                   daysInMonth = lastDay.getDate(),
                   weekStartOffset = mondayWeekOffset(firstDay),
@@ -835,7 +836,7 @@
                 const dayDate = new Date(year, month, 1 - weekStartOffset + idx),
                       inMonth = dayDate.getMonth() === month && dayDate.getFullYear() === year,
                       domDay = dayDate.getDate(),
-                      dateStr = formatLocalYMD(dayDate), 
+                      dateStr = formatLocalYMD(dayDate),
                       steps = (stepsData.find(entry => entry.date === dateStr) || { steps: 0 }).steps,
                       tipRaw = (translations.steps || 'Steps') + ': ' + formatNumber(steps),
                       tipAttr = tipRaw.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/'/g, '&#39;'),
@@ -848,22 +849,22 @@
                 if (idx % 7 === 6) calendarHTML += '</tr>';
             }
             calendarHTML += '</table>';
-            
+
             document.getElementById('calendar').innerHTML = calendarHTML;
-            
-            const monthSteps = stepsData.filter(entry => 
-                localDateFromYMD(entry.date).getFullYear() === year && 
+
+            const monthSteps = stepsData.filter(entry =>
+                localDateFromYMD(entry.date).getFullYear() === year &&
                 localDateFromYMD(entry.date).getMonth() === month
             );
-            
+
             const totalSteps = monthSteps.reduce((sum, entry) => sum + entry.steps, 0);
             const goalDays = monthSteps.filter(entry => entry.steps >= userSettings.goal_steps).length;
-            
+
             document.getElementById('goal-summary').innerHTML = `
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.total_steps}</span><span class="goal-summary-value">${formatNumber(totalSteps)}</span></div>
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.goal_days}</span><span class="goal-summary-value">${goalDays}</span></div>`;
         }
-        
+
         // Functions for add steps modal
         function applyManualDate(date, lang = currentLocale, direction = 'none') {
             document.getElementById('selected-date-input').value = date;
@@ -877,7 +878,7 @@
         }
         function handleDateWheelScroll(e) {
             e.preventDefault();
-            const dateInput = document.getElementById('selected-date-input'), 
+            const dateInput = document.getElementById('selected-date-input'),
                   cur = localDateFromYMD(dateInput.value);
             if (isNaN(cur.getTime())) return;
             const direction = e.deltaY > 0 ? 'next' : 'prev';
@@ -886,42 +887,50 @@
             applyManualDate(newDateStr, currentLocale, direction);
         }
         function updateAdjacentDates(date, lang = currentLocale, direction = 'none') {
-            const dateObj = localDateFromYMD(date), 
-                  prevDates = [], 
+            const dateObj = localDateFromYMD(date),
+                  prevDates = [],
                   nextDates = [];
             if (isNaN(dateObj.getTime())) return;
-            for (let i = 1; i <= 3; i++) {
-                const prevDate = new Date(dateObj); 
+            const addPanel = document.getElementById('add-panel-manual');
+            const panelHeight = addPanel ? addPanel.clientHeight : 510;
+            const currentDateEl = addPanel ? addPanel.querySelector('.current-date') : null;
+            const currentDateHeight = currentDateEl ? currentDateEl.getBoundingClientRect().height : 60;
+            // Make adjacent dates fill most of the modal height (without relying on scroll)
+            const usable = Math.max(0, panelHeight - currentDateHeight - 20);
+            const count = Math.max(7, Math.min(18, Math.floor(usable / 36)));
+
+            for (let i = 1; i <= count; i++) {
+                const prevDate = new Date(dateObj);
                 prevDate.setDate(dateObj.getDate() - i);
-                
-                const nextDate = new Date(dateObj); 
+
+                const nextDate = new Date(dateObj);
                 nextDate.setDate(dateObj.getDate() + i);
                 const prevStr = formatLocalYMD(prevDate), nextStr = formatLocalYMD(nextDate);
-                prevDates.push({ 
-                    date: prevStr, 
-                    steps: (stepsData.find(entry => entry.date === prevStr) || { steps: 0 }).steps 
+                prevDates.push({
+                    date: prevStr,
+                    steps: (stepsData.find(entry => entry.date === prevStr) || { steps: 0 }).steps
                 });
-                
-                nextDates.push({ 
-                    date: nextStr, 
-                    steps: (stepsData.find(entry => entry.date === nextStr) || { steps: 0 }).steps 
+
+                nextDates.push({
+                    date: nextStr,
+                    steps: (stepsData.find(entry => entry.date === nextStr) || { steps: 0 }).steps
                 });
             }
-            
+
             document.getElementById('prev-dates').innerHTML = prevDates.reverse()
                 .map(item => `<div class="adjacent-date" data-date="${item.date}">
                     <span>${localDateFromYMD(item.date).toLocaleDateString(lang)}</span>
                     <span>${formatNumber(item.steps)}</span>
                 </div>`)
                 .join('');
-                
+
             document.getElementById('next-dates').innerHTML = nextDates
                 .map(item => `<div class="adjacent-date" data-date="${item.date}">
                     <span>${localDateFromYMD(item.date).toLocaleDateString(lang)}</span>
                     <span>${formatNumber(item.steps)}</span>
                 </div>`)
                 .join('');
-                
+
             document.querySelectorAll('.adjacent-date').forEach(el => {
                 el.addEventListener('click', () => {
                     const newDate = el.getAttribute('data-date');
@@ -931,7 +940,7 @@
                 });
             });
         }
-        
+
         async function saveSteps(options = {}) {
             const advance = options.advance !== false;
             const silent = options.silent === true;
@@ -943,20 +952,20 @@
             }
             document.getElementById('selected-date').value = date;
             document.getElementById('selected-steps').value = steps;
-            
+
             try {
-                const response = await fetch('', { 
-                    method: 'POST', 
-                    body: new FormData(document.getElementById('add-steps-form')) 
+                const response = await fetch('', {
+                    method: 'POST',
+                    body: new FormData(document.getElementById('add-steps-form'))
                 });
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     stepsData = stepsData.filter(entry => entry.date !== date);
                     stepsData.push({ date, steps: parseInt(steps) });
                     stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
                     manualSaveSignature = date + '|' + steps;
-                    
+
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
                     updateCalendar(currentLocale);
                     updateStatsNotification();
@@ -984,7 +993,7 @@
             if (steps === '' || signature === manualSaveSignature) return;
             await saveSteps({ advance: false, silent: true });
         }
-        
+
         // Functions for Excel modal
         // ── Table with pagination and SQL filter ─────────────────────────────
         let tablePage = 1;
@@ -1070,20 +1079,20 @@
                 if (pagBar) pagBar.innerHTML = '';
             }
         }
-        
+
         function setupExcelTableEvents(table) {
             let isSelecting = false;
             let startCell = null;
-            
+
             table.addEventListener('mousedown', (e) => {
                 const cell = e.target.closest('td');
                 if (!cell || cell.closest('thead')) return;
-                
+
                 const row = parseInt(cell.getAttribute('data-row'));
                 const col = parseInt(cell.getAttribute('data-col'));
                 currentRow = row;
                 currentCol = col;
-                
+
                 if (e.shiftKey && startCell) {
                     // Range selection
                     selectCellRange(startCell, cell);
@@ -1093,33 +1102,33 @@
                     toggleCellSelection(cell);
                     startCell = cell;
                 }
-                
+
                 isSelecting = true;
                 e.preventDefault();
             });
-            
+
             table.addEventListener('mouseover', (e) => {
                 if (!isSelecting) return;
-                
+
                 const cell = e.target.closest('td');
                 if (cell && startCell) {
                     selectCellRange(startCell, cell);
                 }
             });
-            
+
             // Auto-save on focus out
             table.addEventListener('focusout', (e) => {
                 if (editingCell) {
                     finishEditing(true);
                 }
             });
-            
+
             // Save on Tab press
             table.addEventListener('keydown', (e) => {
                 if (e.key === 'Tab' && editingCell) {
                     e.preventDefault();
                     finishEditing(true);
-                    
+
                     // Move to next cell
                     const nextCell = getCell(currentRow, currentCol + 1);
                     if (nextCell) {
@@ -1131,62 +1140,62 @@
             document.addEventListener('mouseup', () => {
                 isSelecting = false;
             });
-            
+
             // Double click to edit
             table.addEventListener('dblclick', (e) => {
                 const cell = e.target.closest('td');
                 if (!cell || cell.closest('thead')) return;
-                
+
                 if (editingCell) {
                     finishEditing();
                 }
-                
+
                 startEditing(cell);
             });
         }
-        
+
         // Function for table navigation with arrow keys
         function setupTableNavigation(table) {
             function getCell(row, col) {
                 return table.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
             }
-            
+
             function moveSelection(newRow, newCol) {
                 const rows = table.querySelectorAll('tbody tr');
                 const maxRow = rows.length - 1;
                 const maxCol = 1; // 0 - date, 1 - steps
-                
+
                 // Constrain range
                 newRow = Math.max(0, Math.min(newRow, maxRow));
                 newCol = Math.max(0, Math.min(newCol, maxCol));
-                
+
                 // Clear selection from all cells
                 clearSelection();
-                
+
                 // Select new cell
                 const newCell = getCell(newRow, newCol);
                 if (newCell) {
                     toggleCellSelection(newCell);
                     currentRow = newRow;
                     currentCol = newCol;
-                    
+
                     // Scroll to cell if not visible
                     newCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
-            
+
             // Handle hotkeys
             document.addEventListener('keydown', (e) => {
                 // If in edit mode, don't handle arrows
                 if (editingCell || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
                     return;
                 }
-                
+
                 const modal = document.getElementById('excel-modal');
                 if (!modal || modal.style.display !== 'flex') {
                     return;
                 }
-                
+
                 switch (e.key) {
                     case 'ArrowUp':
                         e.preventDefault();
@@ -1242,23 +1251,23 @@
                 }
             });
         }
-        
+
         function selectAllCells() {
             const table = document.getElementById('excel-table');
             if (!table) return;
-            
+
             clearSelection();
-            
+
             const cells = table.querySelectorAll('td');
             cells.forEach(cell => {
                 cell.classList.add('selected');
                 selectedCells.add(cell);
             });
         }
-        
+
         function toggleCellSelection(cell) {
             if (!cell) return;
-            
+
             if (selectedCells.has(cell)) {
                 cell.classList.remove('selected');
                 selectedCells.delete(cell);
@@ -1267,25 +1276,25 @@
                 selectedCells.add(cell);
             }
         }
-        
+
         function selectCellRange(startCell, endCell) {
             if (!startCell || !endCell) return;
-            
+
             clearSelection();
-            
+
             const startRow = parseInt(startCell.getAttribute('data-row'));
             const startCol = parseInt(startCell.getAttribute('data-col'));
             const endRow = parseInt(endCell.getAttribute('data-row'));
             const endCol = parseInt(endCell.getAttribute('data-col'));
-            
+
             const minRow = Math.min(startRow, endRow);
             const maxRow = Math.max(startRow, endRow);
             const minCol = Math.min(startCol, endCol);
             const maxCol = Math.max(startCol, endCol);
-            
+
             const table = document.getElementById('excel-table');
             if (!table) return;
-            
+
             for (let row = minRow; row <= maxRow; row++) {
                 for (let col = minCol; col <= maxCol; col++) {
                     const cell = table.querySelector(`td[data-row="${row}"][data-col="${col}"]`);
@@ -1296,17 +1305,17 @@
                 }
             }
         }
-        
+
         function clearSelection() {
             selectedCells.forEach(cell => {
                 cell.classList.remove('selected');
             });
             selectedCells.clear();
         }
-        
+
         function startEditing(cell) {
             if (!cell) return;
-            
+
             // Check if cell is a date (column 0)
             const col = parseInt(cell.getAttribute('data-col'));
             if (col === 0) {
@@ -1314,17 +1323,17 @@
                 showAlert(translations.date_not_editable || 'Date cannot be edited');
                 return;
             }
-            
+
             // Finish previous editing if any
             if (editingCell) {
                 finishEditing(false);
             }
-            
+
             editingCell = cell;
             isEditing = true;
             cell.classList.add('editing');
             cell.setAttribute('contenteditable', 'true');
-            
+
             const displayVal = cell.textContent.trim();
             if (col === 1) {
                 const r = parseInt(parseStepsRaw(displayVal), 10) || 0;
@@ -1335,7 +1344,7 @@
             }
             // Focus and select text
             cell.focus();
-            
+
             // Select text
             const range = document.createRange();
             range.selectNodeContents(cell);
@@ -1343,31 +1352,31 @@
             selection.removeAllRanges();
             selection.addRange(range);
         }
-        
+
         async function updateDataFromTable() {
             // Save only the editing cell
             if (!editingCell) return false;
-            
+
             const row = parseInt(editingCell.getAttribute('data-row'));
             const col = parseInt(editingCell.getAttribute('data-col'));
-            
+
             // Get entire row
             const table = document.getElementById('excel-table');
             if (!table) return false;
-            
+
             const rowElement = table.querySelector(`tr[data-row="${row}"]`);
             if (!rowElement) return false;
-            
+
             const cells = rowElement.querySelectorAll('td');
             if (cells.length < 2) return false;
-            
+
             const dateCell = cells[0];
             const stepsCell = cells[1];
-            
+
             const dateStr = dateCell.textContent.trim();
             const newSteps = parseInt(parseStepsRaw(stepsCell.textContent), 10) || 0;
             const originalSteps = parseInt(parseStepsRaw(editingCell.getAttribute('data-original') || '0'), 10) || 0;
-            
+
             // Check if value changed
             if (newSteps === originalSteps) {
                 return true;
@@ -1402,14 +1411,14 @@
                 return false;
             }
         }
-        
+
         function updateLocalData(date, steps, rowIndex) {
             // Convert date from dd-mm-yy to yyyy-mm-dd for lookup in stepsData
             const dateParts = date.split('-');
             const day = dateParts[0];
             const month = dateParts[1];
             const year = dateParts[2];
-            
+
             // Determine full year
             const fullYear = parseInt(year) < 70 ? `20${year}` : `19${year}`;
             const searchDate = `${fullYear}-${month}-${day}`;
@@ -1421,13 +1430,13 @@
                     break;
                 }
             }
-            
+
             // If not found, add new entry
             if (!found) {
                 stepsData.push({ date: searchDate, steps: steps });
                 stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
             }
-            
+
             // Update chart and calendar
             renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
             updateCalendar(currentLocale);
@@ -1465,7 +1474,7 @@
                 stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
             }
         }
-        
+
         function finishEditing(save = true) {
     if (!editingCell) return;
 
@@ -1511,15 +1520,15 @@
         cellToUpdate.removeAttribute('data-original');
     }
 }
-        
+
         async function deleteSelectedCells() {
             if (selectedCells.size === 0) return;
-            
+
             const confirm = await showAlert(
                 translations.confirm_delete_cells || `Delete ${selectedCells.size} selected cell(s)?`,
                 true
             );
-            
+
             if (!confirm) return;
             const targets = Array.from(selectedCells).filter(cell => parseInt(cell.getAttribute('data-col'), 10) === 1);
             if (targets.length === 0) return;
@@ -1562,7 +1571,7 @@
             clearSelection();
             await showAlert(translations.cells_cleared || 'Cells cleared successfully');
         }
-        
+
         // Function to create new backup
         async function createBackup() {
             try {
@@ -1573,9 +1582,9 @@
                     },
                     body: 'create_backup=1'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     await showAlert(data.message || translations.backup_created || 'Backup created successfully');
                     await loadBackups(); // Update the backup list
@@ -1586,7 +1595,7 @@
                 await showAlert(`Error creating backup: ${err.message}`);
             }
         }
-        
+
         // Search — SQL filter via server, first page
         async function searchInTable() {
             const val   = document.getElementById('search-steps').value.trim();
@@ -1601,7 +1610,7 @@
             }
             await renderExcelTable(1, op, val, valTo, dateFrom, dateTo);
         }
-        
+
         async function loadBackups() {
             try {
                 const response = await fetch('', {
@@ -1611,9 +1620,9 @@
                     },
                     body: 'get_backups_list=1'
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     renderBackupsList(data.backups);
                 } else {
@@ -1623,18 +1632,18 @@
                 await showAlert(`Error: ${err.message}`);
             }
         }
-        
+
         function renderBackupsList(backups) {
             const container = document.getElementById('backups-list');
             if (!container) return;
-            
+
             if (!backups || backups.length === 0) {
                 container.innerHTML = `<div style="text-align: center; padding: 20px; color: #666;">${translations.no_backups_found || 'No backups found'}</div>`;
                 return;
             }
-            
+
             let html = '';
-            
+
             backups.forEach((backup, index) => {
                 const fileSize = (backup.size / 1024).toFixed(2);
                 html += `
@@ -1656,9 +1665,9 @@
                     </div>
                 `;
             });
-            
+
             container.innerHTML = html;
-            
+
             // Add event handlers for buttons
             container.querySelectorAll('.backup-btn.restore').forEach(btn => {
                 btn.addEventListener('click', async () => {
@@ -1666,7 +1675,7 @@
                     await restoreBackup(fileName);
                 });
             });
-            
+
             container.querySelectorAll('.backup-btn.delete').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const fileName = btn.getAttribute('data-file');
@@ -1674,30 +1683,30 @@
                 });
             });
         }
-        
+
         async function restoreBackup(fileName) {
             const confirm = await showAlert(
                 `${translations.confirm_restore_backup || 'Restore backup'} "${fileName}"?`,
                 true
             );
-            
+
             if (!confirm) return;
-            
+
             try {
                 const formData = new FormData();
                 formData.append('restore_backup', '1');
                 formData.append('backup_file', fileName);
-                
+
                 const response = await fetch('', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     await showAlert(translations.backup_restored || 'Backup restored successfully');
-                    
+
                     // Reload page to refresh data
                     location.reload();
                 } else {
@@ -1707,27 +1716,27 @@
                 await showAlert(`Error: ${err.message}`);
             }
         }
-        
+
         async function deleteBackup(fileName) {
             const confirm = await showAlert(
                 `${translations.confirm_delete_backup || 'Delete backup'} "${fileName}"?`,
                 true
             );
-            
+
             if (!confirm) return;
-            
+
             try {
                 const formData = new FormData();
                 formData.append('delete_backup', '1');
                 formData.append('backup_file', fileName);
-                
+
                 const response = await fetch('', {
                     method: 'POST',
                     body: formData
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.status === 'success') {
                     await showAlert(translations.backup_deleted || 'Backup deleted successfully');
                     await loadBackups(); // Update the list
@@ -1738,7 +1747,7 @@
                 await showAlert(`Error: ${err.message}`);
             }
         }
-        
+
         async function downloadBackup() {
             try {
                 const response = await fetch('', {
@@ -1748,7 +1757,7 @@
                     },
                     body: 'download_backup=1'
                 });
-                
+
                 if (response.ok) {
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
@@ -1809,7 +1818,7 @@
                 btn.innerHTML = origHTML;
             }
         }
-        
+
         let fitPollTimer = null, fitLastJobId = null;
         let zlPollTimer = null, zlLastJobId = null;
         let pendingVideoCleanup = { jobId: '', outputBasename: '' };
@@ -2771,12 +2780,12 @@
             updateGoalNotification();
             workerStartRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
-            
+
             // Handlers for info button
             document.getElementById('info-button').addEventListener('click', () => {
                 openModal('info-modal');
             });
-            
+
             // Handlers for view buttons
             document.querySelectorAll('.view-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2794,7 +2803,7 @@
                     openModal('stats-modal');
                 });
             }
-            
+
             // Handlers for data type
             document.querySelectorAll('.data-type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2804,7 +2813,7 @@
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
                 });
             });
-            
+
             // Handlers for chart type
             document.querySelectorAll('.chart-type-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2824,9 +2833,10 @@
                     const panel = document.getElementById('settings-panel-' + id);
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
+                    if (id === 'backups') loadBackups();
                 });
             });
-            
+
             // Chart navigation
             document.getElementById('chart-nav-left').addEventListener('click', () => {
                 if (!canNavigateBackward()) return;
@@ -2865,7 +2875,7 @@
                     syncCalendarSelectors();
                 }
             });
-            
+
             // Year selection
             document.getElementById('year-selector').addEventListener('change', () => {
                 const year = parseInt(document.getElementById('year-selector').value);
@@ -2884,34 +2894,23 @@
                 renderCalendar(currentDate, currentLocale);
                 renderChart('month', currentDate, currentDataType, currentChartType, currentLocale);
             });
-            
+
             // Settings button
             document.getElementById('settings-button').addEventListener('click', () => {
                 openModal('settings-modal');
             });
-            
+
             // Add steps button
-            document.getElementById('add-steps-button').addEventListener('click', () => { 
+            document.getElementById('add-steps-button').addEventListener('click', () => {
                 const today = formatLocalYMD(new Date());
                 applyManualDate(today, currentLocale);
                 openModal('add-steps-modal');
-                setTimeout(() => document.getElementById('steps-input').focus(), 100); 
+                setTimeout(() => document.getElementById('steps-input').focus(), 100);
             });
-            
-            // Excel button
-            document.getElementById('excel-button').addEventListener('click', () => {
-                document.getElementById('search-steps').value = '';
-                document.getElementById('search-steps-to').value = '';
-                document.getElementById('search-date-from').value = '';
-                document.getElementById('search-date-to').value = '';
-                renderExcelTable(1, '', '', '', '', '');
-                openModal('excel-modal');
-            });
-            document.getElementById('excel-hotkeys-open')?.addEventListener('click', () => { openModal('excel-hotkeys-modal'); });
-            
+
             // Create backup button
-            document.getElementById('create-backup').addEventListener('click', createBackup);
-            
+            document.getElementById('create-backup')?.addEventListener('click', createBackup);
+
             document.getElementById('video-recognition-notif-open')?.addEventListener('click', function() { zlOpenZeepModal(); });
             document.getElementById('global-image-viewer-close')?.addEventListener('click', function() { closeGlobalImageViewer(); });
             document.getElementById('global-image-viewer')?.addEventListener('click', function(e) {
@@ -3211,41 +3210,29 @@
                     });
                 }
             });
-            // Restore from backup button
-            document.getElementById('restore-backup').addEventListener('click', async () => {
-                await loadBackups();
-                openModal('backups-modal');
-            });
-            
-            // Manage backups button
-            document.getElementById('manage-backups').addEventListener('click', async () => {
-                await loadBackups();
-                openModal('backups-modal');
-            });
-            
             // Refresh backups list button
             document.getElementById('refresh-backups')?.addEventListener('click', async () => {
                 await loadBackups();
             });
-            
+
             // Download backup button
-            document.getElementById('download-backup').addEventListener('click', downloadBackup);
+            document.getElementById('download-backup')?.addEventListener('click', downloadBackup);
             document.getElementById('import-external-backup-btn')?.addEventListener('click', importExternalBackup);
-            
+
             // Search button
-            document.getElementById('search-btn').addEventListener('click', searchInTable);
-            
+            document.getElementById('search-btn')?.addEventListener('click', searchInTable);
+
             // Clear search
-            document.getElementById('clear-search').addEventListener('click', () => {
+            document.getElementById('clear-search')?.addEventListener('click', () => {
                 document.getElementById('search-steps').value = '';
                 document.getElementById('search-steps-to').value = '';
                 document.getElementById('search-date-from').value = '';
                 document.getElementById('search-date-to').value = '';
                 renderExcelTable(1, '', '', '', '', '');
             });
-            
+
             // Search operator change
-            document.getElementById('search-operator').addEventListener('change', function() {
+            document.getElementById('search-operator')?.addEventListener('change', function() {
                 const rangeInput = document.getElementById('search-steps-to');
                 if (this.value === 'range') {
                     rangeInput.style.display = 'inline-block';
@@ -3254,18 +3241,18 @@
                     rangeInput.value = '';
                 }
             });
-            
+
             // Enter for search
-            document.getElementById('search-steps').addEventListener('keypress', e => { 
-                if (e.key === 'Enter') searchInTable(); 
+            document.getElementById('search-steps')?.addEventListener('keypress', e => {
+                if (e.key === 'Enter') searchInTable();
             });
-            
-            document.getElementById('search-steps-to').addEventListener('keypress', e => { 
-                if (e.key === 'Enter') searchInTable(); 
+
+            document.getElementById('search-steps-to')?.addEventListener('keypress', e => {
+                if (e.key === 'Enter') searchInTable();
             });
-            document.getElementById('search-date-from').addEventListener('change', searchInTable);
-            document.getElementById('search-date-to').addEventListener('change', searchInTable);
-            
+            document.getElementById('search-date-from')?.addEventListener('change', searchInTable);
+            document.getElementById('search-date-to')?.addEventListener('change', searchInTable);
+
             // Close modals
             document.querySelectorAll('.modal-close').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -3275,7 +3262,7 @@
                     }
                 });
             });
-            
+
             document.querySelectorAll('.close-notification').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const notification = btn.closest('.notification');
@@ -3296,14 +3283,14 @@
                     notification.style.display = 'none';
                 });
             });
-            
+
             // Save settings
             document.getElementById('settings-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 try {
                     const response = await fetch('', { method: 'POST', body: new FormData(e.target) });
                     const data = await response.json();
-                    
+
                     if (data.status === 'success') {
                         closeModal('settings-modal');
                         location.reload();
@@ -3314,36 +3301,36 @@
                     await showAlert(`${translations.failed_save_settings || 'Error saving settings'}: ${err.message}`);
                 }
             });
-            
+
             // Save steps
             const stepsInpEl = document.getElementById('steps-input');
             stepsInpEl.addEventListener('focus', function() { this.value = parseStepsRaw(this.value); });
             stepsInpEl.addEventListener('blur', function() { const t = this.value.replace(/\D/g, ''); this.value = t ? formatNumber(parseInt(t, 10) || 0) : ''; autoSaveManualSteps(); });
             stepsInpEl.addEventListener('keypress', e => { if (e.key === 'Enter') saveSteps(); });
             document.getElementById('selected-date-input').addEventListener('change', function() { applyManualDate(this.value, currentLocale); });
-            
+
             // Date scroll
             document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);
-            
+
             // Prevent scrolling in adjacent dates
             document.querySelectorAll('.adjacent-dates').forEach(container => {
                 container.addEventListener('wheel', e => e.preventDefault());
             });
-            
+
             // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {
                 const cell = e.target.closest('td[data-date]');
-                if (cell) { 
-                    const date = cell.getAttribute('data-date'); 
+                if (cell) {
+                    const date = cell.getAttribute('data-date');
                     applyManualDate(date, currentLocale);
                     openModal('add-steps-modal');
                 }
             });
-            
+
             // Handlers for Excel modal
-            document.getElementById('delete-selected').addEventListener('click', deleteSelectedCells);
+            document.getElementById('delete-selected')?.addEventListener('click', deleteSelectedCells);
         }
-        
+
         // App startup
         initApp();
 

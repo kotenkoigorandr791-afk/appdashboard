@@ -1,4 +1,6 @@
 <body>
+<div id="bg-layer" aria-hidden="true"></div>
+<script>(function(){var s=<?= json_encode($bgFull) ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
 
 <!-- Import Modal -->
 <div id="import-modal" class="modal">
@@ -20,6 +22,7 @@
 <!-- Confirm Delete Modal -->
 <div id="confirm-delete-modal" class="modal confirm-modal">
     <div class="modal-content">
+        <button class="modal-close" onclick="closeModal('confirm-delete-modal')">×</button>
         <h3><?= htmlspecialchars($translations['confirm_delete_store'] ?? 'Confirm Delete') ?></h3>
         <p id="confirm-delete-message">Are you sure?</p>
         <div class="button-group">
@@ -145,94 +148,90 @@
         </button>
     </div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="display:flex;justify-content:center;gap:10px;margin-top:10px;">
+    <div class="chart-controls-row">
+        <div class="currency-selector">
             <button class="currency-btn" data-currency="USD" onclick="switchChartCurrency('USD')">USD</button>
             <button class="currency-btn" data-currency="EUR" onclick="switchChartCurrency('EUR')">EUR</button>
             <button class="currency-btn" data-currency="PLN" onclick="switchChartCurrency('PLN')">PLN</button>
             <button class="currency-btn" data-currency="UAH" onclick="switchChartCurrency('UAH')">UAH</button>
             <button class="currency-btn" data-currency="BYN" onclick="switchChartCurrency('BYN')">BYN</button>
         </div>
+        <button class="add-date-btn open-table-desktop" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
         <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
         <div class="chart-year" id="chart-year2"></div>
     </div>
 
     <div class="divider"></div>
 
-    <div class="controls-container">
-        <button class="add-date-btn" onclick="showModal('add-date-modal')"><?= htmlspecialchars($translations['add_date']) ?></button>
-        <div class="search-container">
-            <span class="search-icon">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-            </span>
-            <input type="text" class="search-box" id="search-input"
-                placeholder="<?= htmlspecialchars($translations['search_placeholder']) ?>"
-                oninput="filterTable()">
-        </div>
+    <div class="controls-container open-table-mobile">
+        <button class="add-date-btn" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
     </div>
 
     <div id="preview-tooltip" style="display:none;position:absolute;background:var(--modal-bg);border:1px solid var(--primary-color);border-radius:4px;padding:5px 10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:1000;pointer-events:none;">
         <span id="preview-tooltip-result"></span>
     </div>
-
-    <div class="data-table-container">
-        <table class="data-table" id="data-table">
-            <thead>
-                <tr>
-                    <th><?= htmlspecialchars($translations['date']) ?></th>
-                    <?php foreach ($visibleStores as $store):
-                        $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
-                        $safe = getSafeFolderName($currentUser);
-                        $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null;
-                    ?>
-                        <th>
-                            <div class="store-header">
-                                <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
-                                <?= htmlspecialchars($store['name']) ?>
-                            </div>
-                        </th>
-                    <?php endforeach; ?>
-                        <th class="income-separator income-header <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>"><div class="store-header"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9.4a4 4 0 1 0 0 5.2"/><path d="M7 12h5"/><circle cx="12" cy="12" r="10"/></svg><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></div></th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($firstPageRows as $date => $rowData):
-                    $dateObj = new DateTime($date);
-                    $day = $dateObj->format('d');
-                    $monthIndex = (int)$dateObj->format('m') - 1;
-                    $month = ($monthNames[$language] ?? $monthNames['en'])[$monthIndex];
-                    $year = $dateObj->format('Y');
-                    $isToday = ($date === date('Y-m-d'));
-                ?>
-                    <tr data-date="<?= htmlspecialchars($date) ?>" class="<?= $isToday ? 'current-date-row' : '' ?>">
-                        <td><?= htmlspecialchars("$day $month $year") ?></td>
+</div>
+<div id="expenses-table-modal" class="modal table-modal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeModal('expenses-table-modal')">×</button>
+        <h3><?= htmlspecialchars($tableModalTitle) ?></h3>
+        <div class="table-toolbar">
+            <div class="search-container">
+                <span class="search-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                </span>
+                <input type="text" class="search-box" id="search-input" placeholder="<?= htmlspecialchars($translations['search_placeholder']) ?>" oninput="filterTable()">
+            </div>
+        </div>
+        <div class="data-table-container">
+            <table class="data-table" id="data-table">
+                <thead>
+                    <tr>
+                        <th><?= htmlspecialchars($translations['date']) ?></th>
                         <?php foreach ($visibleStores as $store):
-                            $amount = $rowData[$store['name']] ?? 0;
+                            $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
+                            $safe = getSafeFolderName($currentUser);
+                            $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null;
                         ?>
-                            <td>
-                                <input type="text"
-                                    data-date="<?= htmlspecialchars($date) ?>"
-                                    data-store="<?= htmlspecialchars($store['name']) ?>"
-                                    value="<?= $amount != 0 ? number_format($amount, 2, '.', '') : '' ?>"
-                                    oninput="formatNumberInput(this)"
-                                    onchange="scheduleSave(this)">
-                            </td>
+                            <th>
+                                <div class="store-header">
+                                    <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
+                                    <?= htmlspecialchars($store['name']) ?>
+                                </div>
+                            </th>
                         <?php endforeach; ?>
-                        <?php $income = $allIncomes[$date] ?? 0; ?>
-                            <td class="income-separator <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>">
-                                <input type="text"
-                                    data-date="<?= htmlspecialchars($date) ?>"
-                                    data-income="1"
-                                    value="<?= $income != 0 ? number_format($income, 2, '.', '') : '' ?>"
-                                    oninput="formatNumberInput(this)"
-                                    onchange="scheduleSave(this)">
-                            </td>
+                            <th class="income-separator income-header <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>"><div class="store-header"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 9.4a4 4 0 1 0 0 5.2"/><path d="M7 12h5"/><circle cx="12" cy="12" r="10"/></svg><?= htmlspecialchars($translations['incomes'] ?? 'Incomes') ?></div></th>
                     </tr>
-                <?php endforeach; ?>
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    <?php foreach ($firstPageRows as $date => $rowData):
+                        $dateObj = new DateTime($date);
+                        $day = $dateObj->format('d');
+                        $monthIndex = (int)$dateObj->format('m') - 1;
+                        $month = ($monthNames[$language] ?? $monthNames['en'])[$monthIndex];
+                        $year = $dateObj->format('Y');
+                        $isToday = ($date === date('Y-m-d'));
+                    ?>
+                        <tr data-date="<?= htmlspecialchars($date) ?>" class="<?= $isToday ? 'current-date-row' : '' ?>">
+                            <td><?= htmlspecialchars("$day $month $year") ?></td>
+                            <?php foreach ($visibleStores as $store):
+                                $amount = $rowData[$store['name']] ?? 0;
+                            ?>
+                                <td>
+                                    <input type="text" data-date="<?= htmlspecialchars($date) ?>" data-store="<?= htmlspecialchars($store['name']) ?>" value="<?= $amount != 0 ? number_format($amount, 2, '.', '') : '' ?>" oninput="formatNumberInput(this)" onchange="scheduleSave(this)">
+                                </td>
+                            <?php endforeach; ?>
+                            <?php $income = $allIncomes[$date] ?? 0; ?>
+                                <td class="income-separator <?= empty($userSettings['show_incomes']) ? 'hidden' : '' ?>">
+                                    <input type="text" data-date="<?= htmlspecialchars($date) ?>" data-income="1" value="<?= $income != 0 ? number_format($income, 2, '.', '') : '' ?>" oninput="formatNumberInput(this)" onchange="scheduleSave(this)">
+                                </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <div id="pagination"></div>
     </div>
-    <div id="pagination"></div>
 </div>
 <div id="ocr-analytics-modal" class="modal">
     <div class="modal-content">
@@ -576,4 +575,3 @@
         <div id="backup-preview" style="overflow:auto;max-height:80vh;background:var(--bg-color);padding:10px;border-radius:5px;"></div>
     </div>
 </div>
-

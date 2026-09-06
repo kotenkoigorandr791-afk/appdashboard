@@ -236,6 +236,10 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 .npo-list-item:nth-child(3n+2){background:color-mix(in srgb,var(--group-block-bg) 88%,#22c55e 12%);}
 .npo-list-item:nth-child(3n){background:color-mix(in srgb,var(--group-block-bg) 88%,#f59e0b 12%);}
 .npo-list-item:hover,.npo-list-item.selected{border-color:color-mix(in srgb,var(--primary-color) 65%,var(--border-color));background:color-mix(in srgb,var(--app-item-bg) 76%,var(--primary-color) 24%);}
+.npo-ctx-menu{position:fixed;z-index:14000;min-width:190px;background:var(--modal-bg);border:1px solid var(--border-color);border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.35);padding:6px;display:none;}
+.npo-ctx-menu .npo-ctx-item{display:flex;align-items:center;gap:8px;width:100%;padding:9px 12px;border:none;background:none;color:var(--text-color);font-size:13px;border-radius:7px;cursor:pointer;text-align:left;}
+.npo-ctx-menu .npo-ctx-item:hover{background:color-mix(in srgb,#ef4444 13%,transparent);color:#ef4444;}
+.npo-ctx-item svg{flex-shrink:0;}
 .npo-list-thumb{width:56px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;background:var(--group-block-bg);}
 .npo-list-thumb-ph{width:56px;height:40px;border-radius:6px;flex-shrink:0;background:var(--group-block-bg);display:flex;align-items:center;justify-content:center;opacity:.35;}
 .npo-list-meta{flex:1;min-width:0;}
@@ -343,6 +347,10 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
 #npo-prompt-preview img{max-width:100%;border-radius:8px;margin:8px 0;}
 /* Responsive */
 @media(max-width:760px){
+  #npo-menu-btn{margin-left:12px;}
+  #npo-title{display:none;}
+  #npo-header-actions{margin-right:8px;}
+
   #npo-menu-btn{display:flex;}
   #npo-sidebar{position:fixed;top:56px;left:0;bottom:0;width:280px;max-width:85vw;max-height:none;height:auto;border-right:1px solid var(--border-color);border-bottom:none;transform:translateX(-100%);transition:transform .25s ease;z-index:12001;box-shadow:0 0 24px rgba(0,0,0,.3);}
   #npo-sidebar.open{transform:translateX(0);}
@@ -350,8 +358,38 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
   #npo-sidebar-backdrop.open{display:block;opacity:1;}
   #npo-body{flex-direction:column;}
   .npo-pane{padding:18px 14px;}
-  #npo-prompt-modal > div{width:100vw !important;max-width:100vw !important;border-radius:0 !important;height:100vh;max-height:100vh;margin:0;box-shadow:none;}
+  #npo-settings-popover{left:12px !important;right:12px !important;width:auto !important;max-width:none !important;top:56px !important;max-height:calc(100vh - 72px) !important;overflow:auto;}
+  #npo-prompt-modal{justify-content:stretch;align-items:stretch;}
+  #npo-prompt-modal > div{width:100% !important;max-width:100% !important;border-radius:0 !important;height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;max-height:calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)) !important;margin:0;box-shadow:none;}
+  .npo-md-preview{padding:0 0 14px !important;}
+  .npo-md-preview > *:first-child{margin-top:0 !important;}
+
+  #npo-body-preview{padding:0 0 14px !important;}
+  #npo-body-preview > *:first-child{margin-top:0 !important;}
   }
+
+body.theme-light #npo-prompt-code-wrap pre code.hljs{color:#1f2937 !important;}
+body.theme-light #npo-prompt-code-wrap pre .hljs-keyword,
+body.theme-light #npo-prompt-code-wrap pre .hljs-title,
+body.theme-light #npo-prompt-code-wrap pre .hljs-selector-tag{color:#2563eb !important;}
+body.theme-light #npo-prompt-preview pre code.hljs{color:#1f2937 !important;}
+body.theme-light #npo-prompt-preview pre .hljs-keyword,
+body.theme-light #npo-prompt-preview pre .hljs-title,
+body.theme-light #npo-prompt-preview pre .hljs-selector-tag{color:#2563eb !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-comment,
+body.theme-light #npo-prompt-code-wrap pre .hljs-meta,
+body.theme-light #npo-prompt-preview pre .hljs-comment,
+body.theme-light #npo-prompt-preview pre .hljs-meta{color:#6b7280 !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-string,
+body.theme-light #npo-prompt-preview pre .hljs-string{color:#16a34a !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-number,
+body.theme-light #npo-prompt-preview pre .hljs-number{color:#f59e0b !important;}
+
+body.theme-light #npo-prompt-code-wrap pre .hljs-function,
+body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important;}
     .check-label {
       display: flex;
       align-items: center;
@@ -390,8 +428,8 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     }
 
     .checkbox-box svg path {
-      stroke-dasharray: 20;
-      stroke-dashoffset: 20;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
       transition: stroke-dashoffset 0.4s ease 0.05s;
     }
 
@@ -449,6 +487,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
     <?php endif; ?>
   </div>
   <div id="npo-sidebar-backdrop" aria-hidden="true"></div>
+  <div id="npo-ctx-menu" class="npo-ctx-menu" role="menu"></div>
   <div id="npo-body">
     <div id="npo-sidebar">
       <div id="npo-sidebar-header">
@@ -569,7 +608,7 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
             <button type="button" id="npo-save-btn"><?php echo my_htmlspecialchars($translations['save'] ?? 'Save'); ?></button>
             <button type="button" id="npo-cancel-btn"><?php echo my_htmlspecialchars($translations['cancel'] ?? 'Cancel'); ?></button>
             <button type="button" id="npo-delete-btn" style="display:none">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
               <?php echo my_htmlspecialchars($translations['delete'] ?? 'Delete'); ?>
             </button>
           </div>
@@ -636,7 +675,8 @@ body.theme-light #npo-prompt-preview pre{background:#f4f6f8;}
 body.theme-light .npo-md-editor textarea.npo-md-textarea{background:color-mix(in srgb,#ffffff 94%,#f4f6f8 6%);}
 .npo-md-editor textarea.npo-md-textarea::placeholder{opacity:.35;font-family:inherit;}
 #npo-body-monaco{width:100%;min-height:360px;border:none;}
-.npo-md-preview{display:none;width:100%;min-height:180px;padding:14px;border:none;background:transparent;color:var(--text-color);font-size:14px;line-height:1.65;box-sizing:border-box;overflow-y:auto;white-space:normal;word-wrap:break-word;}
+.npo-md-preview{display:none;width:100%;min-height:180px;padding:0 14px 14px;border:none;background:transparent;color:var(--text-color);font-size:14px;line-height:1.65;box-sizing:border-box;overflow-y:auto;white-space:normal;word-wrap:break-word;}
+.npo-md-preview > :first-child{margin-top:0;}
 .npo-md-preview a{color:var(--primary-color,#38bdf8);text-decoration:underline;}
 .npo-md-preview h1,.npo-md-preview h2,.npo-md-preview h3,.npo-md-preview h4{margin:14px 0 6px;font-weight:700;}
 .npo-md-preview h1{font-size:20px;color:var(--primary-color,#38bdf8);}
@@ -721,6 +761,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
   refreshListBtn?.addEventListener('click', () => loadNews());
   // Load more news when scrolled near the bottom of the list
   listEl.addEventListener('scroll', () => {
+    closeContextMenu();
     if (listEl.scrollTop + listEl.clientHeight >= listEl.scrollHeight - 160) {
       if (hasMore && !loadingMore) loadNews(false);
     }
@@ -862,7 +903,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
     el.dataset.id = item.id;
     el.innerHTML = `
 ${item.photo
-  ? `<img class="npo-list-thumb" src="/${escH(item.photo)}" alt="" loading="lazy">`
+  ? `<img class="npo-list-thumb" src="${escH(item.photo)}" alt="" loading="lazy">`
   : `<div class="npo-list-thumb-ph"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>`}
 <div class="npo-list-meta">
   <div class="npo-list-title">${escH(item.title)}</div>
@@ -872,8 +913,44 @@ ${item.photo
   </div>
 </div>`;
     el.addEventListener('click', () => { openEditor(item); switchToEditorTab(); });
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openContextMenu(item, e.clientX, e.clientY);
+    });
     return el;
   }
+
+  const ctxMenuEl = document.getElementById('npo-ctx-menu');
+  function closeContextMenu() { if (ctxMenuEl) ctxMenuEl.style.display = 'none'; }
+  function openContextMenu(item, x, y) {
+    if (!canEdit || !ctxMenuEl || !item) return;
+    ctxMenuEl.innerHTML = '';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'npo-ctx-item';
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>${escH('<?php echo my_htmlspecialchars($translations['delete'] ?? 'Delete'); ?>')}`;
+    btn.addEventListener('click', async () => {
+      closeContextMenu();
+      if (!confirm('<?php echo my_htmlspecialchars($translations['news_delete_confirm'] ?? 'Delete this article?'); ?>')) return;
+      await fetch('/main?api=news&action=delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ id: item.id })
+      });
+      newsItems = newsItems.filter(n => n.id !== item.id);
+      if (selectedId === item.id) closeEditor();
+      renderList();
+    });
+    ctxMenuEl.appendChild(btn);
+    ctxMenuEl.style.display = 'block';
+    const rect = ctxMenuEl.getBoundingClientRect();
+    ctxMenuEl.style.left = Math.max(4, Math.min(x, window.innerWidth - rect.width - 8)) + 'px';
+    ctxMenuEl.style.top = Math.max(4, Math.min(y, window.innerHeight - rect.height - 8)) + 'px';
+  }
+  document.addEventListener('click', (e) => {
+    if (ctxMenuEl && ctxMenuEl.style.display === 'block' && !ctxMenuEl.contains(e.target)) closeContextMenu();
+  });
 
   function appendListItems(items) {
     items.forEach(item => {
@@ -926,7 +1003,7 @@ ${item.photo
     const ppw = document.getElementById('npo-photo-preview-wrap');
     const removeBtn = document.getElementById('npo-photo-remove-btn');
     if (item && item.photo) {
-      pp.src = '/' + item.photo;
+      pp.src = item.photo;
       ppw.style.display = 'block';
       if (removeBtn) removeBtn.style.display = '';
     } else {
@@ -940,9 +1017,14 @@ ${item.photo
     document.getElementById('npo-ai-prompt').value = '';
     // Reset body editor to code view
     const bodyPrev = document.getElementById('npo-body-preview');
+    const bodyEditorEl = document.getElementById('npo-body-editor');
+    const bodyEditorWrap = document.getElementById('npo-body-editor-wrap');
     const monacoEl = document.getElementById('npo-body-monaco');
+    if (bodyEditorEl) bodyEditorEl.style.display = '';
+    if (bodyEditorWrap) bodyEditorWrap.style.display = '';
     if (monacoEl) monacoEl.style.display = '';
     if (bodyPrev) bodyPrev.style.display = 'none';
+    if (bodyEditorWrap) bodyEditorWrap.classList.remove('preview-mode');
     bodyToggleBtns.forEach(b => b.classList.remove('active'));
     bodyToolbar?.querySelector('[data-view="code"]')?.classList.add('active');
     if (bodyMonaco) bodyMonaco.layout();
@@ -975,20 +1057,33 @@ ${item.photo
   photoFile?.addEventListener('change', async () => {
     const file = photoFile.files[0];
     if (!file) return;
+    if (file.size > 64 * 1024 * 1024) {
+      setStatus('<?php echo my_htmlspecialchars($translations['news_photo_too_large'] ?? 'File is too large (max 64 MB)'); ?>');
+      photoFile.value = '';
+      return;
+    }
     uploadingPhoto = true;
     setStatus('<?php echo my_htmlspecialchars($translations['uploading'] ?? 'Uploading...'); ?>');
     try {
       const fd = new FormData();
       fd.append('photo', file);
-      const res = await fetch('/main?api=news&action=upload_photo', { method: 'POST', body: fd });
+      const res = await fetch('/main?api=news&action=upload_photo', {
+        method: 'POST',
+        body: fd,
+        // Let browser set the correct multipart boundary
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
       const data = await res.json();
       if (data.ok) {
         document.getElementById('npo-photo-url').value = data.url;
-        document.getElementById('npo-photo-preview').src = '/' + data.url;
+        document.getElementById('npo-photo-preview').src = data.url;
         document.getElementById('npo-photo-preview-wrap').style.display = 'block';
         document.getElementById('npo-photo-remove-btn').style.display = '';
         setStatus('');
-      } else { setStatus('<?php echo my_htmlspecialchars($translations['upload_failed'] ?? 'Upload failed'); ?>'); }
+      } else {
+        const errMsg = { file_too_large: '<?php echo my_htmlspecialchars($translations['news_photo_too_large'] ?? 'File is too large (max 64 MB)'); ?>', upload_partial: '<?php echo my_htmlspecialchars($translations['news_photo_upload_partial'] ?? 'Upload was interrupted'); ?>', no_file: '<?php echo my_htmlspecialchars($translations['news_photo_no_file'] ?? 'No file selected'); ?>', invalid_type: '<?php echo my_htmlspecialchars($translations['news_photo_invalid_type'] ?? 'Only JPG, PNG, WEBP or GIF images are allowed'); ?>' }[data.error] || '<?php echo my_htmlspecialchars($translations['upload_failed'] ?? 'Upload failed'); ?>';
+        setStatus(errMsg);
+      }
     } catch { setStatus('<?php echo my_htmlspecialchars($translations['upload_failed'] ?? 'Upload failed'); ?>'); }
     uploadingPhoto = false;
   });
@@ -1080,6 +1175,7 @@ ${item.photo
   const bodyToolbar = document.getElementById('npo-body-toolbar');
   const bodyToggleBtns = bodyToolbar ? bodyToolbar.querySelectorAll('.npo-md-toggle-btn') : [];
   let bodyMonaco = null;
+  const bodyEditorEl = document.getElementById('npo-body-editor');
 
   function getBodyValue() {
     return bodyMonaco ? bodyMonaco.getValue() : (bodyTextarea ? bodyTextarea.value : '');
@@ -1128,25 +1224,37 @@ ${item.photo
     });
   }
 
+  function setBodyView(view) {
+    const monacoEl = document.getElementById('npo-body-monaco');
+    if (view === 'preview') {
+      bodyPreview.innerHTML = renderMarkdown(getBodyValue());
+      if (monacoEl) monacoEl.style.display = 'none';
+      if (bodyEditorEl) bodyEditorEl.style.display = 'none';
+      if (bodyEditorWrap) bodyEditorWrap.style.display = 'none';
+      bodyPreview.style.display = 'block';
+      if (typeof hljs !== 'undefined' && hljs.highlightElement) {
+        bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
+      }
+    } else {
+      if (monacoEl) monacoEl.style.display = '';
+      if (bodyEditorEl) bodyEditorEl.style.display = '';
+      if (bodyEditorWrap) bodyEditorWrap.style.display = '';
+      bodyPreview.style.display = 'none';
+      if (bodyMonaco) bodyMonaco.layout();
+    }
+  }
+
   bodyToggleBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       bodyToggleBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      const monacoEl = document.getElementById('npo-body-monaco');
-      if (btn.dataset.view === 'preview') {
-        bodyPreview.innerHTML = renderMarkdown(getBodyValue());
-        if (monacoEl) monacoEl.style.display = 'none';
-        bodyPreview.style.display = 'block';
-        if (typeof hljs !== 'undefined' && hljs.highlightElement) {
-          bodyPreview.querySelectorAll('pre code').forEach(b => hljs.highlightElement(b));
-        }
-      } else {
-        if (monacoEl) monacoEl.style.display = '';
-        bodyPreview.style.display = 'none';
-        if (bodyMonaco) bodyMonaco.layout();
-      }
+      setBodyView(btn.dataset.view);
     });
   });
+
+  // Ensure initial state matches active toggle button
+  const activeBodyView = bodyToolbar?.querySelector('.npo-md-toggle-btn.active')?.dataset.view;
+  setBodyView(activeBodyView === 'preview' ? 'preview' : 'code');
 
   // ── Canvas / Layout ────────────────────────────────────────────────────────
   function renderCanvas() {
@@ -1452,6 +1560,7 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
       if (window.__apMonacoPromise) return window.__apMonacoPromise;
       window.__apMonacoPromise = new Promise((resolve, reject) => {
         const localVs = '/project/assets/monaco-0.45.0/vs';
+        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
         const loadEditor = (vsPath) => {
           try {
             require.config({ paths: { vs: vsPath } });
@@ -1467,21 +1576,45 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
           const existing = document.querySelector('script[src="' + src + '"]');
           const script = existing || document.createElement('script');
           script.addEventListener('load', () => loadEditor(vsPath), { once: true });
-          script.addEventListener('error', reject, { once: true });
+          script.addEventListener('error', () => reject(new Error('Failed to load ' + src)), { once: true });
           if (!existing) {
             script.src = src;
             document.head.appendChild(script);
           }
         };
+        // Prefer CDN: local build may be missing (404) in some deployments.
         if (typeof require === 'function') {
-          loadEditor(localVs);
+          loadEditor(cdnVs);
           return;
         }
-        loadScript(localVs + '/loader.js', localVs);
+        loadScript(cdnVs + '/loader.js', cdnVs);
       });
       return window.__apMonacoPromise;
     };
-    loadMonaco().then(() => {
+    loadMonaco().catch(() => {
+      // Fallback: try loading from CDN if local assets failed.
+      return new Promise((resolve) => {
+        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
+        const loadEditor = () => {
+          try {
+            require.config({ paths: { vs: cdnVs } });
+            require(['vs/editor/editor.main'], () => resolve());
+          } catch (e) {
+            resolve();
+          }
+        };
+        const existing = document.querySelector('script[src="' + cdnVs + '/loader.js"]');
+        const script = existing || document.createElement('script');
+        if (!existing) {
+          script.src = cdnVs + '/loader.js';
+          script.async = false;
+          script.addEventListener('load', loadEditor, { once: true });
+          document.head.appendChild(script);
+        } else {
+          loadEditor();
+        }
+      });
+    }).then(() => {
         const isDark = !document.body.classList.contains('theme-light');
         bodyMonaco = monaco.editor.create(monacoContainer, {
           value: bodyTextarea ? bodyTextarea.value : '',

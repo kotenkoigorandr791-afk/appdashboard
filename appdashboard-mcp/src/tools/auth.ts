@@ -1,33 +1,12 @@
 import { z } from "zod";
 import { apiGet, shellAction, textResult } from "../api.js";
-import { loginWithPassword, setCachedRole } from "../auth.js";
-import { clearIntegrationCaches } from "../integrations.js";
+import { setCachedRole } from "../auth.js";
 import { normalizeRole } from "../roles.js";
 import type { ToolDef } from "./types.js";
 
 const empty: Record<string, unknown> = { type: "object", properties: {} };
-const loginSchema = z.object({ email: z.string().min(1), password: z.string().min(1) });
 
 export const authTools: ToolDef[] = [
-  {
-    name: "login",
-    description: "Log in to AppDashboard with email and password. Stores token locally.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        email: { type: "string", description: "User email" },
-        password: { type: "string", description: "User password" },
-      },
-      required: ["email", "password"],
-    },
-    handler: async (args) => {
-      const parsed = loginSchema.parse(args);
-      clearIntegrationCaches();
-      const creds = await loginWithPassword(parsed.email, parsed.password);
-      return textResult({ ok: true, role: creds.role, host: creds.host, authenticated: true });
-    },
-  },
   {
     name: "get_current_user",
     description: "Get the currently authenticated AppDashboard user.",

@@ -40,8 +40,8 @@
     }
 
     .checkbox-box svg path {
-      stroke-dasharray: 20;
-      stroke-dashoffset: 20;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
       transition: stroke-dashoffset 0.4s ease 0.05s;
     }
 

@@ -12,8 +12,8 @@ Settings → MCP → copy command for your agent, e.g.:
 npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url https://YOUR_HOST
 ```
 
-Requires Node.js 18+. Restart the agent after setup. On first use, open the browser auth URL.
-Login is required before using AppDashboard MCP tools.
+Requires Node.js 18+. Setup asks for an AppDashboard token, or pass `--token TOKEN` / `APPDASHBOARD_TOKEN`.
+Restart the agent after setup.
 
 ## Agent configs
 
@@ -25,7 +25,7 @@ Login is required before using AppDashboard MCP tools.
     "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST", "APPDASHBOARD_TOKEN": "YOUR_TOKEN" }
     }
   }
 }
@@ -39,7 +39,7 @@ Login is required before using AppDashboard MCP tools.
     "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST", "APPDASHBOARD_TOKEN": "YOUR_TOKEN" }
     }
   }
 }
@@ -53,7 +53,7 @@ Login is required before using AppDashboard MCP tools.
     "appdashboard-mcp": {
       "command": "npx",
       "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST", "APPDASHBOARD_TOKEN": "YOUR_TOKEN" }
     }
   }
 }
@@ -68,7 +68,7 @@ Login is required before using AppDashboard MCP tools.
       "enabled": true,
       "type": "local",
       "command": ["npx", "-y", "https://YOUR_HOST/mcp/download"],
-      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
+      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST", "APPDASHBOARD_TOKEN": "YOUR_TOKEN" }
     }
   }
 }
@@ -104,12 +104,13 @@ Produces `downloads/appdashboard-mcp.tgz` served at `/mcp/appdashboard-mcp.tgz`.
 | `immich_*` | Immich photo library |
 | `gitea_*` | Gitea git forge |
 | `plane_*` | Plane project management |
+| `news_*` | News portal (`news_delete` requires Manager+) |
 
 All `steps_*`, `immich_*`, `gitea_*`, and `plane_*` tools are available to any authenticated user (no Admin role required).
 
 ## Automatic Immich / Gitea / Plane credentials
 
-After `login`, Immich, Gitea, and Plane tools do **not** ask for API keys or tokens. On first use the MCP client calls:
+After token setup, Immich, Gitea, and Plane tools do **not** ask for API keys or tokens. On first use the MCP client calls:
 
 - `GET /public-api/integrations/immich` → `{ url, api_key }`
 - `GET /public-api/integrations/gitea` → `{ url, access_token }`

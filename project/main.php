@@ -403,7 +403,7 @@
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-        .settings-buttons-box{background:var(--group-block-bg);border-radius:12px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:wrap;overflow:visible;}
+        .settings-buttons-box{background:var(--group-block-bg);border-radius:12px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:space-evenly;align-items:center;flex-wrap:wrap;overflow:visible;}
         .settings-button-wrapper{position:relative;overflow:visible;}
         .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;display:none;pointer-events:none;z-index:99999;}
         .settings-button-wrapper:hover .tooltip{display:none;}/* JS handles positioning */
@@ -532,7 +532,8 @@
             .shared-files-actions{flex:1 1 100%;flex-wrap:wrap;}
             .shared-files-actions select{width:100%;}
             .terminate-btn,.delete-user-btn{padding:4px 8px;font-size:11px;}
-            #settings-form,#auth-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            #settings-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            #auth-form{width:96%;max-width:96%;padding:20px 15px;margin:2% 2%;}
             #stats-content{width:95%;height:90vh;padding:50px 10px 10px 10px;margin:5% auto;}
             .stats-nav-buttons{gap:10px;}
             .stats-nav-btn{padding:8px 12px;font-size:12px;}
@@ -1085,8 +1086,8 @@
     }
 
     .checkbox-box svg path {
-      stroke-dasharray: 20;
-      stroke-dashoffset: 20;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
       transition: stroke-dashoffset 0.4s ease 0.05s;
     }
 
@@ -1284,7 +1285,7 @@ endif; // showOtpPage
                     <div class="google-email"><?php echo my_htmlspecialchars($pendingGoogleData['email']); ?></div>
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
                 </div>
-                <form method="post" action="/register">
+                <form method="post" action="/register?step=set_password&password_required=1">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($pendingGoogleData['email']); ?>">
                     <input type="hidden" name="name" value="<?php echo my_htmlspecialchars($pendingGoogleData['name']); ?>">
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">
@@ -5576,6 +5577,8 @@ var monacoInjected = false;
 window.apLoadMonaco = window.apLoadMonaco || function(){
     if(window.monaco) return Promise.resolve(window.monaco);
     if(window.__apMonacoPromise) return window.__apMonacoPromise;
+    // Local monaco assets may be absent in some deployments.
+    // Prefer CDN (local assets may be missing => 404).
     var localVs='/project/assets/monaco-0.45.0/vs';
     var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
     function loadScript(src){
@@ -5601,10 +5604,10 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
         });
     }
     function tryLoad(vsPath){
-        var ready=typeof require==='function'?Promise.resolve():loadScript(vsPath+'/loader.js');
+        var ready=loadScript(vsPath+'/loader.js');
         return ready.then(function(){return loadEditor(vsPath);});
     }
-    window.__apMonacoPromise = tryLoad(localVs).catch(function(){return tryLoad(cdnVs);});
+    window.__apMonacoPromise = tryLoad(cdnVs);
     return window.__apMonacoPromise;
 };
 
@@ -8473,7 +8476,11 @@ document.addEventListener('DOMContentLoaded', function(){
     <!-- Result box (hidden until generated) -->
     <div id="otp-gen-result" style="display:none;border:1px solid var(--border-color);border-radius:8px;padding:18px;background:var(--group-block-bg);">
         <div style="font-size:12px;opacity:.55;margin-bottom:8px;"><?php echo my_htmlspecialchars($translations['otp_your_pin']??'Your one-time PIN:'); ?></div>
-        <div id="otp-gen-pin-display" style="font-size:46px;font-weight:900;letter-spacing:10px;color:var(--primary-color);margin-bottom:6px;font-family:monospace;">------</div>
+        <div id="otp-gen-pin-display" style="font-size:46px;font-weight:900;letter-spacing:10px;color:var(--primary-color);margin-bottom:6px;font-family:monospace;display:flex;align-items:center;justify-content:center;gap:14px;">
+            <span id="otp-gen-pin-left">---</span>
+            <span id="otp-gen-pin-dot" style="opacity:.35;font-weight:700;user-select:none;">•</span>
+            <span id="otp-gen-pin-right">---</span>
+        </div>
         <div id="otp-gen-expiry" style="font-size:12px;opacity:.45;margin-bottom:14px;"></div>
 
         <div style="font-size:12px;opacity:.55;margin-bottom:6px;"><?php echo my_htmlspecialchars($translations['otp_link_hint']??'Send the recipient this link:'); ?></div>
@@ -8496,7 +8503,8 @@ function openOtpGeneratorModal(){
     m.style.display='flex';
     document.getElementById('otp-gen-result').style.display='none';
     document.getElementById('otp-gen-error').textContent='';
-    document.getElementById('otp-gen-pin-display').textContent='------';
+    document.getElementById('otp-gen-pin-left').textContent='---';
+    document.getElementById('otp-gen-pin-right').textContent='---';
 }
 function closeOtpGeneratorModal(){
     var m=document.getElementById('otp-gen-modal');
@@ -8521,7 +8529,11 @@ function doGenerateOtp(){
             btn.disabled=false;btn.style.opacity='1';
             if(data.success){
                 document.getElementById('otp-gen-result').style.display='block';
-                document.getElementById('otp-gen-pin-display').textContent=data.pin;
+                var pin=String(data.pin||'');
+                var left=pin.slice(0,3);
+                var right=pin.slice(3,6);
+                document.getElementById('otp-gen-pin-left').textContent=left;
+                document.getElementById('otp-gen-pin-right').textContent=right;
                 var mins=Math.round(data.expires_in/60);
                 document.getElementById('otp-gen-expiry').textContent=
                     <?php echo json_encode($translations['otp_expires_in']??'Expires in'); ?> + ' ' + mins + ' ' + <?php echo json_encode($translations['otp_minutes']??'min'); ?>;

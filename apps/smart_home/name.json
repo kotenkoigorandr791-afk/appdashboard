@@ -9,6 +9,13 @@
         "width": 40,
         "height": 40
     },
+    "menu_button_style": {
+        "background": "linear-gradient(135deg, var(--primary-color), color-mix(in srgb,var(--primary-color) 68%, #000))",
+        "border": "2px solid var(--primary-color)",
+        "border-radius": "8px",
+        "box-shadow": "0 4px 6px rgba(0,0,0,0.1)",
+        "color": "var(--text-color)"
+    },
     "pl": "Inteligentny dom",
     "cs": "Chytrá domácnost"
 }

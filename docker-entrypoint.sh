@@ -22,6 +22,11 @@ else
     printf 'opcache.revalidate_freq=30\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
+{
+  printf 'upload_max_filesize=%s\n' "${PHP_UPLOAD_MAX_FILESIZE:-64M}"
+  printf 'post_max_size=%s\n' "${PHP_POST_MAX_SIZE:-64M}"
+  printf 'max_file_uploads=20\n'
+} > /usr/local/etc/php/conf.d/appdashboard-upload.ini
 APP_ROOT=/var/www/AppDashboard
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
 APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
@@ -33,6 +38,7 @@ if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
   mv "$APP_ROOT/bot/bot.log" "/tmp/appdashboard-bot-log-migrated-$(date +%s)" 2>/dev/null || true
 fi
+touch /var/log/bot/bot.log 2>/dev/null || true
 if [ -d "$APP_ROOT/data" ] && [ ! -L "$APP_ROOT/data" ]; then
   cp -a "$APP_ROOT/data/." "$APPDATA_DATA_DIR/" 2>/dev/null || true
   rm -rf "$APP_ROOT/data"

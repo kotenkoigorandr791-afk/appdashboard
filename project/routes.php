@@ -354,30 +354,42 @@ if($path==='/one-time-pin'){
 
 if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path==='/login/oauth/start'||(isset($_GET['code'])&&strpos($path,'/login')!==false)){
     $sessionOkEarly=isset($_SESSION['user']['email'],$_SESSION['auth_time'])&&getUserFromActiveSessions(session_id())!==null;
-    if($sessionOkEarly&&!isset($_GET['code'])){
+    $isAuthPost=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'))==='POST';
+    $skipEarlyRedirect=$isAuthPost;
+    if(!$skipEarlyRedirect && $path==='/register' && (
+        (!empty($_GET['password_required']) && (($_GET['step']??'')==='set_password'))
+        || !empty($_SESSION['pending_set_password_only'])
+        || !empty($_SESSION['pending_oauth_data'])
+        || !empty($_SESSION['pending_google_data'])
+    )){
+        $skipEarlyRedirect=true;
+    }
+    if($sessionOkEarly&&!isset($_GET['code'])&&!$skipEarlyRedirect){
         $rq=[];if($themeFromUrl)$rq['theme']=$themeFromUrl;if($langFromUrl)$rq['lang']=$langFromUrl;if($colorFromUrl)$rq['color']=$colorFromUrl;
         header('Location: ' . takePostLoginRedirect('/main'.($rq?'?'.http_build_query($rq):'')));exit;
     }
     $needsAuth=true;
     $showLogin=true;
-    $currentUrl = $_SERVER['REQUEST_URI'];
-    $parsedUrl = parse_url($currentUrl);
-    $queryParams = [];
-    if (isset($parsedUrl['query'])) {
-        parse_str($parsedUrl['query'], $queryParams);
-    }
-    $newQueryParams = $queryParams;
-    unset($newQueryParams['theme']);
-    unset($newQueryParams['lang']);
-    unset($newQueryParams['color']);
-    if ($themeFromUrl) $newQueryParams['theme'] = $themeFromUrl;
-    if ($langFromUrl) $newQueryParams['lang'] = $langFromUrl;
-    if ($colorFromUrl) $newQueryParams['color'] = $colorFromUrl;
-    $newQueryString = http_build_query($newQueryParams);
-    $newPath = $parsedUrl['path'] . ($newQueryString ? '?' . $newQueryString : '');
-    if ($currentUrl !== $newPath) {
-        header('Location: ' . $newPath);
-        exit;
+    if(!$isAuthPost){
+        $currentUrl = $_SERVER['REQUEST_URI'];
+        $parsedUrl = parse_url($currentUrl);
+        $queryParams = [];
+        if (isset($parsedUrl['query'])) {
+            parse_str($parsedUrl['query'], $queryParams);
+        }
+        $newQueryParams = $queryParams;
+        unset($newQueryParams['theme']);
+        unset($newQueryParams['lang']);
+        unset($newQueryParams['color']);
+        if ($themeFromUrl) $newQueryParams['theme'] = $themeFromUrl;
+        if ($langFromUrl) $newQueryParams['lang'] = $langFromUrl;
+        if ($colorFromUrl) $newQueryParams['color'] = $colorFromUrl;
+        $newQueryString = http_build_query($newQueryParams);
+        $newPath = $parsedUrl['path'] . ($newQueryString ? '?' . $newQueryString : '');
+        if ($currentUrl !== $newPath) {
+            header('Location: ' . $newPath);
+            exit;
+        }
     }
 }elseif($path==='/main'){
     if(isset($_SESSION['user'])&&!$needsAuth){

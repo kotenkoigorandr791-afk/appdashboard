@@ -697,8 +697,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         #close-app-access{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
         #close-app-access:hover{color:#cc0000;}
         .settings-buttons-container{display:flex;gap:10px;justify-content:center;margin:15px 0;flex-wrap:wrap;}
-.settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:center;flex-wrap:nowrap;overflow-x:auto;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
-.settings-button-wrapper{position:relative;overflow:visible;flex:0 0 1;min-width:0;margin:0 -2px;}
+        .settings-buttons-box{background:var(--group-block-bg);border-radius:16px;padding:15px;margin:20px 0;display:flex;gap:15px;justify-content:space-evenly;align-items:center;flex-wrap:wrap;overflow-x:visible;overflow-y:visible;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+        .settings-button-wrapper{position:relative;overflow:visible;flex:0 0 auto;min-width:0;margin:0;}
         .settings-button-wrapper .tooltip{position:fixed;bottom:auto;left:auto;transform:none;margin-bottom:0;pointer-events:none;z-index:2147483647;}
         body>.tooltip{background:var(--group-block-bg);color:var(--text-color);padding:6px 12px;border-radius:8px;font-size:13px;border:1px solid var(--border-color);white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.3);pointer-events:none;}
         .settings-buttons-end-group{display:flex;align-items:stretch;gap:15px;margin-left:auto;flex-wrap:nowrap;}
@@ -706,10 +706,14 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         .shortcuts-help-btn{background:color-mix(in srgb,var(--primary-color) 14%,transparent) !important;border:1px solid color-mix(in srgb,var(--primary-color) 40%,transparent) !important;color:var(--primary-color) !important;}
         .shortcuts-help-btn:hover{background:color-mix(in srgb,var(--primary-color) 24%,transparent) !important;border-color:var(--primary-color) !important;}
         @media(max-width:480px){
-  .settings-buttons-box{gap:10px;padding:10px;overflow-x:auto;}
-  .settings-button-wrapper{min-width:32px;flex-shrink:0;}
-}
-@media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}.settings-buttons-divider{display:none !important;}}
+  .settings-buttons-box{gap:4px;padding:8px;overflow-x:hidden;justify-content:space-between;flex-wrap:nowrap;}
+  .settings-button-wrapper{min-width:0;flex:0 0 auto;}
+  .settings-buttons-box .sidebar-button{width:26px;height:26px;flex-shrink:1;}
+  .settings-buttons-box .sidebar-button svg{width:16px;height:16px;}
+  .settings-buttons-end-group{margin-left:0;justify-content:flex-end;width:auto;flex-wrap:nowrap;gap:4px;}
+  .settings-buttons-divider{display:none;}
+ }
+@media (hover:none) and (pointer:coarse){.shortcuts-help-wrap{display:none !important;}}
         #shortcuts-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #shortcuts-content{background:var(--modal-bg);padding:40px 20px 20px 20px;border-radius:8px;color:var(--text-color);position:relative;width:90%;max-width:640px;max-height:90vh;overflow:auto;margin:2% auto;z-index:10001;box-sizing:border-box;}
         #close-shortcuts{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -832,7 +836,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
             .shared-files-actions{flex:1 1 100%;flex-wrap:wrap;}
             .shared-files-actions select{width:100%;}
             .terminate-btn,.delete-user-btn{padding:4px 8px;font-size:11px;}
-            #settings-form,#auth-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            #settings-form,#email-form{min-width:90%;max-width:90%;padding:20px 15px;margin:5% auto;}
+            #auth-form{width:96%;max-width:96%;padding:20px 15px;margin:2% 2%;}
             .settings-table{grid-template-columns:1fr;}
             #stats-content{width:95%;height:90vh;padding:50px 10px 10px 10px;margin:5% auto;}
             .stats-nav-buttons{gap:10px;}
@@ -903,21 +908,25 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         #sidebarWeatherWidget {
             flex-shrink: 0;
             display: flex;
-            width: calc(100% - var(--shell-menu-button-width));
+            width: auto;
+            height: var(--shell-menu-button-height);
+            min-height: var(--shell-menu-button-height);
             box-sizing: border-box;
-            /* align under the menu button without extra offset from sidebar padding */
-            margin: calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) - 20px) 0 16px var(--shell-menu-button-width);
+            margin: calc(var(--shell-menu-button-top) - 20px) 0 16px calc(var(--shell-menu-button-left) + var(--shell-menu-button-width) + 8px - 20px);
             align-items: center;
             justify-content: center;
             border-radius: 12px;
             flex-wrap: nowrap;
             gap: 6px;
-            padding: 0 0 6px;
+            padding: 0;
             background: color-mix(in srgb, var(--group-block-bg) 70%, transparent);
             border: 1px solid var(--border-color);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         @media (max-width:768px){
-            #sidebarWeatherWidget{width:calc(100% - var(--shell-menu-button-mobile-width));margin:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) - 20px) 0 16px var(--shell-menu-button-mobile-width);padding:0 0 6px;}
+            #sidebarWeatherWidget{width:auto;height:var(--shell-menu-button-mobile-height);min-height:var(--shell-menu-button-mobile-height);margin:calc(var(--shell-menu-button-mobile-top) - 20px) 0 16px calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px - 20px);padding:0;}
         }
         .weather-widget .weather-icon {
             display: inline-flex;
@@ -985,7 +994,11 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            line-height: 1.25;
+            line-height: var(--shell-menu-button-height);
+            height: auto;
+        }
+        @media (max-width:768px){
+            #sidebarWeatherWidget .weather-perm{line-height:var(--shell-menu-button-mobile-height);}
         }
         #sidebarWeatherWidget .weather-pin-icon {
             order: 1;
@@ -1114,8 +1127,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
     }
 
     .checkbox-box svg path {
-      stroke-dasharray: 20;
-      stroke-dashoffset: 20;
+      stroke-dasharray: 30;
+      stroke-dashoffset: 30;
       transition: stroke-dashoffset 0.4s ease 0.05s;
     }
 
@@ -2258,7 +2271,7 @@ endif; // showOtpPage
                     <div class="google-email"><?php echo my_htmlspecialchars($pendingGoogleData['email']); ?></div>
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
                 </div>
-                <form method="post" action="/register">
+                <form method="post" action="/register?step=set_password&password_required=1">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($pendingGoogleData['email']); ?>">
                     <input type="hidden" name="name" value="<?php echo my_htmlspecialchars($pendingGoogleData['name']); ?>">
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">
@@ -3650,6 +3663,12 @@ var T=<?php echo json_encode([
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyAutoTheme);
         showNotification();
 
+        <?php if($showLogin): ?>
+        setTimeout(function(){
+            document.querySelectorAll('.auth-error').forEach(function(el){ el.style.display='none'; });
+        },10000);
+        <?php endif; ?>
+
         <?php if(!$showLogin): ?>
         const trustedPromptKey='trusted_device_prompt_due';
         function scheduleTrustedPrompt(delayMs){
@@ -3706,6 +3725,7 @@ var T=<?php echo json_encode([
             }
             function sync(){
                 let hasOverlap=false;
+                let hasLayer=false;
                 try{
                     const doc=iframe.contentDocument||iframe.contentWindow.document;
                     const win=iframe.contentWindow;
@@ -3713,6 +3733,7 @@ var T=<?php echo json_encode([
                     const menuRect=menuButton.getBoundingClientRect();
                     hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
                         if(!isVisibleLayer(el,win))return false;
+                        hasLayer=true;
                         return layerRects(el,win).some(rect=>rectsOverlap(menuRect,{
                             left:iframeRect.left+rect.left,
                             right:iframeRect.left+rect.right,
@@ -3721,7 +3742,7 @@ var T=<?php echo json_encode([
                         }));
                     });
                 }catch(e){}
-                document.body.classList.toggle('app-modal-open',hasOverlap);
+                document.body.classList.toggle('app-modal-open',hasLayer||hasOverlap);
                 if(hasOverlap&&sidebar&&sidebar.classList.contains('open'))closeSidebarMenu();
             }
             function scheduleSync(){

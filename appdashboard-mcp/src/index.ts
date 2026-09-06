@@ -5,7 +5,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { authStorage, ensureAuth, getHost, getToken, startBrowserAuthInBackground } from "./auth.js";
+import { authStorage, ensureAuth, getHost, getToken } from "./auth.js";
 import { callTool, listToolsForCurrentUser } from "./tools/index.js";
 import { runSetup } from "./setup.js";
 
@@ -32,8 +32,7 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
   if (!getHost()) {
     console.error("[appdashboard-mcp] Warning: APPDASHBOARD_URL is not set.");
   } else if (!httpMode && !getToken()) {
-    console.error("[appdashboard-mcp] No token yet — starting browser auth (non-blocking). Only login tool is listed until authenticated.");
-    startBrowserAuthInBackground();
+    console.error("[appdashboard-mcp] No token configured. Run setup with --token or set APPDASHBOARD_TOKEN.");
   } else if (!httpMode) {
     void ensureAuth({ interactive: false }).catch(() => undefined);
   }

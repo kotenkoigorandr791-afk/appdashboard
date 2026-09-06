@@ -188,6 +188,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $users[$email]['password']=appPasswordHash($password);
                 $users[$email]['must_change_password']=0;
                 upsertUser($email,$users[$email]);
+                $clearPasswordRequirement=getDB()->prepare("UPDATE users SET password=:password,must_change_password=0 WHERE email=:email");
+                $clearPasswordRequirement->bindValue(':password',$users[$email]['password']);
+                $clearPasswordRequirement->bindValue(':email',$email);
+                $clearPasswordRequirement->execute();
                 unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
                 resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
                 clearTrustedDeviceLogoutSuppression();

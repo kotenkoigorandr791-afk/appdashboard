@@ -9,9 +9,6 @@
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
-                <button id="excel-button" title="<?php echo htmlspecialchars($translations['excel_view'] ?? 'Excel View'); ?>">
-                    <i class="fas fa-table"></i>
-                </button>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-pie-icon lucide-chart-pie" aria-hidden="true" focusable="false">
@@ -25,6 +22,11 @@
                 <button id="info-button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
                     <i class="fas fa-info-circle"></i>
                 </button>
+                <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['email'])): ?>
+                <button id="hc-token-open-btn" type="button" class="steps-header-btn" title="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>" aria-label="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>">
+                    <i class="fas fa-key"></i>
+                </button>
+                <?php endif; ?>
                 <div id="user-button" title="<?php echo htmlspecialchars($userName); ?>">
                     <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="User">
                 </div>
@@ -134,41 +136,84 @@
         <div id="info-modal" style="display:none;">
             <div class="info-content">
                 <button class="modal-close">×</button>
-                <h2><i class="fas fa-info-circle"></i> <?php echo htmlspecialchars($translations['app_info'] ?? 'Application Information'); ?></h2>
-                
-                <div class="info-section">
-                    <h3><i class="fas fa-walking"></i> <?php echo htmlspecialchars($translations['main_features'] ?? 'Main Features'); ?></h3>
-                    <ul>
-                        <li><?php echo htmlspecialchars($translations['feature_steps_tracking'] ?? 'Track your daily steps with detailed statistics'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['feature_visualization'] ?? 'Visualize data with interactive charts (bar and line charts)'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['feature_calendar_view'] ?? 'Calendar view with goal achievement indicators'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['feature_multiple_views'] ?? 'Multiple view modes: Year, Month, and Week'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['feature_data_types'] ?? 'Different data types: Steps, Distance, and Calories'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['feature_excel_editor'] ?? 'Excel-like table editor for managing your data'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['feature_backup_system'] ?? 'Automatic backup system with restore functionality'); ?></li>
-                    </ul>
+                <div class="info-header">
+                    <div class="info-header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2><?php echo htmlspecialchars($translations['app_info'] ?? 'Application Information'); ?></h2>
+                    </div>
                 </div>
-                
-                <div class="info-section">
-                    <h3><i class="fas fa-keyboard"></i> <?php echo htmlspecialchars($translations['hotkeys'] ?? 'Hotkeys'); ?></h3>
-                    <ul>
-                        <li><?php echo htmlspecialchars($translations['hotkey_enter'] ?? 'Press Enter to save edited cell'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['hotkey_escape'] ?? 'Press Escape to cancel editing'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['hotkey_delete'] ?? 'Press Delete to clear selected cells'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['hotkey_ctrl_a'] ?? 'Ctrl+A to select all cells in Excel view'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['hotkey_ctrl_s'] ?? 'Ctrl+S to save changes in Excel view'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['hotkey_shift_select'] ?? 'Hold Shift to select multiple cells'); ?></li>
-                    </ul>
-                </div>
-                
-                <div class="info-section">
-                    <h3><i class="fas fa-table"></i> <?php echo htmlspecialchars($translations['excel_features'] ?? 'Excel View Features'); ?></h3>
-                    <ul>
-                        <li><?php echo htmlspecialchars($translations['excel_edit'] ?? 'Double-click any cell to edit its value'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['excel_select'] ?? 'Click and drag to select multiple cells'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['excel_manage'] ?? 'Manage backups directly from the Excel view'); ?></li>
-                        <li><?php echo htmlspecialchars($translations['excel_restore'] ?? 'Restore data from any backup point'); ?></li>
-                    </ul>
+                <div class="info-grid">
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                                <line x1="4" y1="22" x2="4" y2="15"/>
+                            </svg>
+                        </div>
+<h3><?php echo htmlspecialchars($translations['info_card_tracking_title'] ?? 'Activity Tracking'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_tracking_text'] ?? 'Log your daily steps, distance walked, and calories burned with detailed statistics.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['info_card_charts_title'] ?? 'Data Visualization'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_charts_text'] ?? 'Visualize trends with interactive bar and line charts across different time periods.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                                <line x1="16" y1="2" x2="16" y2="6"/>
+                                <line x1="8" y1="2" x2="8" y2="6"/>
+                                <line x1="3" y1="10" x2="21" y2="10"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['info_card_calendar_title'] ?? 'Goal Calendar'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_calendar_text'] ?? 'Track your progress with calendar view and visually see goal achievement indicators.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                                <polyline points="9 22 9 12 15 12 15 22"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['info_card_views_title'] ?? 'Flexible Layouts'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_views_text'] ?? 'Switch between Year, Month, and Week views to analyze your data from different perspectives.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                                <circle cx="9" cy="7" r="4"/>
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['info_card_metrics_title'] ?? 'Metric Options'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_metrics_text'] ?? 'Select between Steps, Distance, and Calories to focus on the metrics that matter for your goals.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['info_card_backup_title'] ?? 'Backup & Restore'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_backup_text'] ?? 'Keep your data safe with automatic backups and the ability to restore to any previous point.'); ?></p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -184,6 +229,9 @@
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="chart" role="tab" aria-selected="false">
                         <i class="fas fa-chart-area"></i> <?php echo htmlspecialchars($translations['settings_tab_chart'] ?? 'Chart'); ?>
+                    </button>
+                    <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
+                        <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
                     </button>
                 </div>
                 <div id="settings-panel-profile" class="settings-tab-panel active" role="tabpanel">
@@ -261,6 +309,37 @@
                             <div class="settings-chart-preview-box">
                                 <canvas id="settings-chart-preview-line"></canvas>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="settings-panel-backups" class="settings-tab-panel" role="tabpanel">
+                    <div class="excel-actions settings-backup-actions">
+                        <button class="excel-btn create-backup" id="create-backup" type="button" style="background: #17a2b8;">
+                            <i class="fas fa-plus-circle"></i> <?php echo htmlspecialchars($translations['create_backup'] ?? 'Create Backup'); ?>
+                        </button>
+                        <button id="refresh-backups" class="excel-btn" type="button">
+                            <i class="fas fa-sync"></i> <?php echo htmlspecialchars($translations['refresh_backups'] ?? 'Refresh List'); ?>
+                        </button>
+                        <button class="excel-btn download" id="download-backup" type="button">
+                            <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['download_backup'] ?? 'Download Backup'); ?>
+                        </button>
+                    </div>
+                    <div class="backups-list" id="backups-list"></div>
+                    <div class="settings-backup-import">
+                        <h3><i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['import_external_backup'] ?? 'Import CSV backup'); ?></h3>
+                        <div class="settings-backup-import-grid">
+                            <div>
+                                <label for="external-backup-file"><?php echo htmlspecialchars($translations['external_backup_file'] ?? 'CSV backup file'); ?></label>
+                                <input type="file" id="external-backup-file" accept=".csv,text/csv">
+                            </div>
+                            <div class="settings-backup-import-mode">
+                                <span><?php echo htmlspecialchars($translations['import_mode'] ?? 'Import mode'); ?>:</span>
+                                <label><input type="radio" name="external-import-mode" value="merge" checked> <?php echo htmlspecialchars($translations['import_mode_merge'] ?? 'Merge (keep existing)'); ?></label>
+                                <label><input type="radio" name="external-import-mode" value="replace"> <?php echo htmlspecialchars($translations['import_mode_replace'] ?? 'Replace all data'); ?></label>
+                            </div>
+                            <button id="import-external-backup-btn" class="excel-btn" type="button" style="background: var(--primary-color); color: #fff;">
+                                <i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['import_external_btn'] ?? 'Import'); ?>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -470,121 +549,6 @@
             </div>
         </div>
         
-        <!-- Excel Modal -->
-        <div id="excel-modal" style="display:none;">
-            <div class="excel-content">
-                <button class="modal-close">×</button>
-                <div class="excel-modal-head">
-                    <button type="button" id="excel-hotkeys-open" class="excel-head-side-left" title="<?php echo htmlspecialchars($translations['hotkeys'] ?? 'Hotkeys'); ?>" aria-label="<?php echo htmlspecialchars($translations['hotkeys'] ?? 'Hotkeys'); ?>"><i class="fas fa-info-circle"></i></button>
-                    <h2><i class="fas fa-table"></i> <?php echo htmlspecialchars($translations['excel_view'] ?? 'Excel View'); ?></h2>
-                    <span class="excel-head-spacer" aria-hidden="true"></span>
-                </div>
-                <div class="excel-search-container">
-                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
-                        <div style="display: flex; gap: 5px; align-items: center; flex-wrap: wrap;">
-                            <input type="text" id="search-steps" placeholder="<?php echo htmlspecialchars($translations['search_steps'] ?? 'Search steps...'); ?>" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--modal-bg); color: var(--text-color); width: 150px;">
-                            <select id="search-operator" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--modal-bg); color: var(--text-color);">
-                                <option value="="><?php echo htmlspecialchars($translations['equals'] ?? '='); ?></option>
-                                <option value=">">></option>
-                                <option value="<"><</option>
-                                <option value=">=">>=</option>
-                                <option value="<="><=</option>
-                                <option value="range"><?php echo htmlspecialchars($translations['range'] ?? 'Range'); ?></option>
-                            </select>
-                            <input type="text" id="search-steps-to" placeholder="<?php echo htmlspecialchars($translations['to'] ?? 'to'); ?>" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--modal-bg); color: var(--text-color); width: 150px; display: none;">
-                            <input type="date" id="search-date-from" title="<?php echo htmlspecialchars($translations['from'] ?? 'From'); ?>" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--modal-bg); color: var(--text-color);">
-                            <input type="date" id="search-date-to" title="<?php echo htmlspecialchars($translations['to'] ?? 'To'); ?>" style="padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--modal-bg); color: var(--text-color);">
-                            <button id="search-btn" class="excel-btn" style="padding: 8px 15px;">
-                                <i class="fas fa-search"></i> <?php echo htmlspecialchars($translations['search'] ?? 'Search'); ?>
-                            </button>
-                            <button id="clear-search" class="excel-btn" style="padding: 8px 15px; background: #6c757d;">
-                                <i class="fas fa-times"></i> <?php echo htmlspecialchars($translations['clear'] ?? 'Clear'); ?>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <div class="excel-table-stack">
-                    <div class="excel-table-container" id="excel-table-container">
-                    </div>
-                    <div class="excel-table-pagination-bar" id="excel-table-pagination"></div>
-                </div>
-                <div class="excel-actions">
-                    <button class="excel-btn delete" id="delete-selected">
-                        <i class="fas fa-trash"></i> <?php echo htmlspecialchars($translations['delete_selected'] ?? 'Delete Selected'); ?>
-                    </button>
-                    <button class="excel-btn create-backup" id="create-backup" style="background: #17a2b8;">
-                        <i class="fas fa-plus-circle"></i> <?php echo htmlspecialchars($translations['create_backup'] ?? 'Create Backup'); ?>
-                    </button>
-                    <button class="excel-btn restore" id="restore-backup">
-                        <i class="fas fa-history"></i> <?php echo htmlspecialchars($translations['restore_backup'] ?? 'Restore from Backup'); ?>
-                    </button>
-                    <button class="excel-btn manage-backups" id="manage-backups">
-                        <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
-                    </button>
-                    <button class="excel-btn download" id="download-backup">
-                        <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['download_backup'] ?? 'Download Backup'); ?>
-                    </button>
-                </div>
-            </div>
-        </div>
-        <div id="excel-hotkeys-modal" style="display:none;">
-            <div class="excel-hotkeys-inner">
-                <button class="modal-close">×</button>
-                <h2><i class="fas fa-keyboard"></i> <?php echo htmlspecialchars($translations['hotkeys'] ?? 'Hotkeys'); ?></h2>
-                <div class="excel-hotkeys-info">
-                    <strong><?php echo htmlspecialchars($translations['navigation'] ?? 'Navigation:'); ?></strong>
-                    <span class="hotkey">↑↓←→</span> - <?php echo htmlspecialchars($translations['move_cells'] ?? 'Move between cells'); ?>
-                    <span class="hotkey">Enter</span> - <?php echo htmlspecialchars($translations['save_edit'] ?? 'Save edit'); ?>
-                    <span class="hotkey">Esc</span> - <?php echo htmlspecialchars($translations['cancel_edit'] ?? 'Cancel edit'); ?>
-                    <span class="hotkey">Ctrl+A</span> - <?php echo htmlspecialchars($translations['select_all'] ?? 'Select all'); ?>
-                    <span class="hotkey">Ctrl+S</span> - <?php echo htmlspecialchars($translations['save_changes'] ?? 'Save changes'); ?>
-                    <span class="hotkey">Delete</span> - <?php echo htmlspecialchars($translations['clear_selected'] ?? 'Clear selected'); ?>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Backups Modal -->
-        <div id="backups-modal" style="display:none;">
-            <div class="backups-content">
-                <button class="modal-close">×</button>
-                <h2><i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?></h2>
-                
-                <div class="backups-list" id="backups-list">
-                    <!-- Backups will be loaded here -->
-                </div>
-                
-                <div style="margin-top: 20px; text-align: center;">
-                    <button id="refresh-backups" class="excel-btn">
-                        <i class="fas fa-sync"></i> <?php echo htmlspecialchars($translations['refresh_backups'] ?? 'Refresh List'); ?>
-                    </button>
-                </div>
-
-                <hr style="margin: 20px 0; border-color: var(--border-color);">
-                <h3 style="margin: 0 0 12px; font-size: 15px;"><i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['import_external_backup'] ?? 'Import from External Server'); ?></h3>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <div>
-                        <label for="external-backup-file" style="display: block; margin-bottom: 4px; font-size: 13px; opacity: 0.8;"><?php echo htmlspecialchars($translations['external_backup_file'] ?? 'CSV backup file'); ?></label>
-                        <input type="file" id="external-backup-file" accept=".csv,text/csv"
-                            style="width: 100%; box-sizing: border-box; padding: 6px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--modal-bg); color: var(--text-color); font-size: 14px;">
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-                        <label style="font-size: 13px; opacity: 0.8;"><?php echo htmlspecialchars($translations['import_mode'] ?? 'Import mode'); ?>:</label>
-                        <label style="display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer;">
-                            <input type="radio" name="external-import-mode" value="merge" checked> <?php echo htmlspecialchars($translations['import_mode_merge'] ?? 'Merge (keep existing)'); ?>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 5px; font-size: 13px; cursor: pointer;">
-                            <input type="radio" name="external-import-mode" value="replace"> <?php echo htmlspecialchars($translations['import_mode_replace'] ?? 'Replace all data'); ?>
-                        </label>
-                    </div>
-                    <div>
-                        <button id="import-external-backup-btn" class="excel-btn" style="background: var(--primary-color); color: #fff;">
-                            <i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['import_external_btn'] ?? 'Import'); ?>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
         <!-- Alert Modal -->
         <div id="alert-modal" style="display:none;">
             <div class="alert-content">
@@ -654,5 +618,119 @@
             <button type="button" id="global-image-viewer-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
             <img id="global-image-viewer-img" src="" alt="">
         </div>
+
+        <div id="hc-token-modal" style="display:none;position:fixed;inset:0;z-index:10060;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;">
+            <div style="width:min(640px,96vw);max-height:86vh;overflow:auto;background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:16px;box-shadow:var(--glass-shadow,0 20px 50px rgba(0,0,0,.25));padding:18px;position:relative;">
+                <button type="button" id="hc-token-close" aria-label="Close" style="position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-color);font-size:22px;cursor:pointer;line-height:1;">×</button>
+                <h2 style="margin:0 0 8px;font-size:20px;">Health Connect authorization</h2>
+                <p style="margin:0 0 14px;opacity:.78;font-size:13px;line-height:1.45;">
+                    Use the token below as <code style="background:rgba(0,0,0,.14);padding:2px 6px;border-radius:8px;">Authorization: Bearer &lt;token&gt;</code>.
+                </p>
+
+                <div style="display:grid;grid-template-columns:1fr;gap:10px;">
+                    <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:260px;">
+                            <label style="display:block;font-size:12px;font-weight:700;opacity:.7;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;">Endpoint</label>
+                            <pre id="hc-token-endpoint" style="margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:rgba(0,0,0,.16);word-break:break-all;white-space:pre-wrap;"></pre>
+                        </div>
+                        <button type="button" id="hc-token-copy-endpoint" style="align-self:flex-end;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:600;font-size:13px;">Copy</button>
+                    </div>
+
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <div style="flex:1;min-width:240px;">
+                            <label style="display:block;font-size:12px;font-weight:700;opacity:.7;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;">Token name</label>
+                            <input id="hc-token-name" type="text" maxlength="80" value="Health Connect" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg,var(--modal-bg));color:var(--text-color);" />
+                        </div>
+                        <button type="button" id="hc-token-generate" style="border:none;border-radius:10px;padding:12px 16px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:700;font-size:13px;">Generate</button>
+                    </div>
+
+                    <p id="hc-token-err" style="display:none;margin:0;color:#ef4444;font-size:13px;"></p>
+
+                    <div id="hc-token-output" style="display:none;padding:12px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);border-radius:12px;background:color-mix(in srgb,#22c55e 16%,transparent);">
+                        <strong style="display:block;margin-bottom:8px;font-size:13px;">Token</strong>
+                        <code id="hc-token-value" style="display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></code>
+                        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
+                            <button type="button" id="hc-token-copy" style="border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:#16a34a;color:#fff;font-weight:700;font-size:13px;">Copy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+        (function(){
+            const btn=document.getElementById('hc-token-open-btn');
+            const modal=document.getElementById('hc-token-modal');
+            const closeBtn=document.getElementById('hc-token-close');
+            if(!btn||!modal||!closeBtn) return;
+            const endpointEl=document.getElementById('hc-token-endpoint');
+            const endpointCopyBtn=document.getElementById('hc-token-copy-endpoint');
+            const nameEl=document.getElementById('hc-token-name');
+            const genBtn=document.getElementById('hc-token-generate');
+            const errEl=document.getElementById('hc-token-err');
+            const outEl=document.getElementById('hc-token-output');
+            const tokenValEl=document.getElementById('hc-token-value');
+            const tokenCopyBtn=document.getElementById('hc-token-copy');
+
+            const endpoint=window.location.origin + '/api/steps';
+            if(endpointEl) endpointEl.textContent=endpoint;
+
+            function showModal(){
+                modal.style.display='flex';
+            }
+            function hideModal(){
+                modal.style.display='none';
+            }
+
+            btn.addEventListener('click', showModal);
+            closeBtn.addEventListener('click', hideModal);
+            modal.addEventListener('click', (e)=>{ if(e.target===modal) hideModal(); });
+
+            function setErr(msg){
+                if(!errEl) return;
+                if(!msg){ errEl.style.display='none'; errEl.textContent=''; return; }
+                errEl.textContent=msg;
+                errEl.style.display='block';
+            }
+
+            async function copyText(text){
+                try{ await navigator.clipboard.writeText(text); return true; }catch(e){ return false; }
+            }
+
+            endpointCopyBtn?.addEventListener('click', async ()=>{
+                await copyText(endpoint);
+            });
+
+            tokenCopyBtn?.addEventListener('click', async ()=>{
+                const t=tokenValEl?.textContent?.trim()||'';
+                if(t) await copyText(t);
+            });
+
+            genBtn?.addEventListener('click', async ()=>{
+                setErr('');
+                if(genBtn) genBtn.disabled=true;
+                try{
+                    const fd=new FormData();
+                    fd.append('action','generate_mcp_token');
+                    fd.append('generate_mcp_token','1');
+                    fd.append('ajax','1');
+                    const nm=nameEl && nameEl.value ? String(nameEl.value).trim() : 'Health Connect';
+                    fd.append('mcp_token_name', nm || 'Health Connect');
+
+                    const res=await fetch('/main', { method:'POST', body:fd, credentials:'same-origin' });
+                    const data=await res.json().catch(()=>null);
+                    if(!data||!data.success||!data.token) throw new Error(data.error||'Token generation failed');
+
+                    if(tokenValEl) tokenValEl.textContent=data.token;
+                    if(outEl) outEl.style.display='block';
+                    await copyText(data.token);
+                }catch(e){
+                    setErr(String(e && e.message ? e.message : e));
+                }finally{
+                    if(genBtn) genBtn.disabled=false;
+                }
+            });
+        })();
+        </script>
     </div>
     
