@@ -1477,7 +1477,9 @@
         }
         .data-type-btn.active { border-color: var(--primary-color); box-shadow: inset 0 -4px 0 var(--primary-color); }
         .data-type-btn img { max-width: 62%; max-height: 62%; transition: transform 0.18s ease, filter 0.18s ease; cursor: pointer; }
+        .data-type-btn i { font-size: 26px; color: var(--text-color); transition: transform 0.18s ease, color 0.18s ease; }
         .data-type-btn:hover img { transform: scale(1.06); filter: brightness(1.07); }
+        .data-type-btn:hover i { transform: scale(1.06); color: var(--primary-color); }
 
         .chart-type-btn { background: var(--primary-color); color: #fff; border: none; padding: 8px; margin: 5px 0; cursor: pointer; border-radius: 4px; font-size: 14px; display: flex; align-items: center; }
         .chart-type-btn.active, .chart-type-btn:hover { opacity: 0.9; }

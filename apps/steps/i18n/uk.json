@@ -293,5 +293,7 @@
     "external_backup_imported": "Імпортовано %d записів",
     "invalid_url": "Невірний URL",
     "external_backup_file": "CSV файл резервної копії",
-    "no_file_selected": "Файл не вибрано"
+    "no_file_selected": "Файл не вибрано",
+    "heart_rate": "Серцевий ритм (уд/хв)",
+    "sleep": "Сон (години)"
 }

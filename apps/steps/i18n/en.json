@@ -293,5 +293,7 @@
     "external_backup_imported": "Imported %d records",
     "invalid_url": "Invalid URL",
     "external_backup_file": "CSV backup file",
-    "no_file_selected": "No file selected"
+    "no_file_selected": "No file selected",
+    "heart_rate": "Heart rate (bpm)",
+    "sleep": "Sleep (hours)"
 }

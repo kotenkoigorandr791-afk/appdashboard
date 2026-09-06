@@ -49,6 +49,15 @@
     <button class="data-type-btn" data-type="calories">
         <img src="kkal.webp" alt="<?php echo htmlspecialchars($translations['calories']); ?>">
     </button>
+    <button class="data-type-btn" data-type="heart_rate" title="<?php echo htmlspecialchars($translations['heart_rate'] ?? 'Heart rate'); ?>">
+        <i class="fas fa-heartbeat"></i>
+    </button>
+    <button class="data-type-btn" data-type="sleep" title="<?php echo htmlspecialchars($translations['sleep'] ?? 'Sleep'); ?>">
+        <i class="fas fa-moon"></i>
+    </button>
+    <button class="data-type-btn" data-type="weight" title="<?php echo htmlspecialchars($translations['weight'] ?? 'Weight'); ?>">
+        <i class="fas fa-weight-hanging"></i>
+    </button>
 </div>
         
         <div class="chart-container">

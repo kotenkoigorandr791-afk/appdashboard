@@ -293,5 +293,7 @@
     "external_backup_imported": "Importováno %d záznamů",
     "invalid_url": "Neplatná URL",
     "external_backup_file": "CSV záložní soubor",
-    "no_file_selected": "Není vybrán soubor"
+    "no_file_selected": "Není vybrán soubor",
+    "heart_rate": "Tep (bpm)",
+    "sleep": "Spánek (hodiny)"
 }

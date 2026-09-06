@@ -1,5 +1,6 @@
     <script>
         let stepsData = <?php echo json_encode($stepsData); ?>,
+            healthData = <?php echo json_encode($healthMetrics ?? []); ?>,
             userSettings = <?php echo json_encode($userSettings); ?>,
             currentUser = '<?php echo htmlspecialchars($currentUser); ?>',
             translations = <?php echo json_encode($translations); ?>;
@@ -141,10 +142,40 @@
             return true;
         };
 
-        const convertData = (data, dataType) =>
-            dataType === 'steps' ? data :
-            dataType === 'distance' ? data.map(steps => (steps * userSettings.stride_length) / 100000) :
-            data.map(steps => steps * 0.04 * (userSettings.weight / 70));
+        const healthMap = {};
+        (healthData || []).forEach(e => { if (e && e.date) healthMap[e.date] = e.metrics || {}; });
+        const isSeriesType = dt => dt === 'heart_rate' || dt === 'weight';
+        const unitLabelFor = dt => dt === 'steps' ? (translations.steps || 'Steps') :
+            dt === 'distance' ? (translations.distance_km || 'km') :
+            dt === 'calories' ? (translations.calories || 'kcal') :
+            dt === 'heart_rate' ? (translations.heart_rate || 'Heart rate (bpm)') :
+            dt === 'sleep' ? (translations.sleep || 'Sleep (hours)') :
+            dt === 'weight' ? (translations.weight || 'Weight (kg)') : dt;
+        const hcDayValue = (dateStr, dataType) => {
+            const m = healthMap[dateStr];
+            if (!m) return null;
+            if (dataType === 'steps') return typeof m.steps?.total === 'number' ? m.steps.total : null;
+            if (dataType === 'distance' && m.distance) return typeof m.distance.total_meters === 'number' ? m.distance.total_meters / 1000 : null;
+            if (dataType === 'calories') {
+                const c = m.total_calories || m.active_calories;
+                return c && typeof c.total === 'number' ? c.total : null;
+            }
+            if (dataType === 'heart_rate' && m.heart_rate) return typeof m.heart_rate.avg === 'number' ? m.heart_rate.avg : (m.heart_rate.last ?? null);
+            if (dataType === 'sleep' && m.sleep) return typeof m.sleep.total_seconds === 'number' ? m.sleep.total_seconds / 3600 : null;
+            if (dataType === 'weight' && m.weight) return typeof m.weight.last === 'number' ? m.weight.last : (typeof m.weight.avg === 'number' ? m.weight.avg : null);
+            return null;
+        };
+        const stepsEntryFor = dateStr => stepsData.find(entry => entry.date === dateStr);
+        const dayValue = (dateStr, dataType) => {
+            if (dataType === 'steps') { const e = stepsEntryFor(dateStr); return e ? e.steps : 0; }
+            const real = hcDayValue(dateStr, dataType);
+            if (real !== null) return real;
+            const steps = (stepsEntryFor(dateStr) || {}).steps || 0;
+            if (dataType === 'distance') return (steps * userSettings.stride_length) / 100000;
+            if (dataType === 'calories') return steps * 0.04 * (userSettings.weight / 70);
+            return null;
+        };
+        const avgOf = vals => { const v = vals.filter(x => x !== null && Number.isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
 
         // Function to show alert
         function showAlert(message, isConfirm = false, options = {}) {
@@ -386,73 +417,52 @@
         // Functions for chart operations
         function prepareChartData(view, selectedDate, dataType, lang = currentLocale) {
     let labels = [], data = [], dates = [];
+    const series = isSeriesType(dataType);
 
     if (view === 'year') {
         const year = selectedDate.getFullYear();
-        const yearData = {};
+        const monthVals = {};
+        for (let month = 0; month < 12; month++) monthVals[month] = [];
 
-        // Initialize all months of the year
-        for (let month = 0; month < 12; month++) {
-            const yearMonth = `${year}-${month + 1}`;
-            yearData[yearMonth] = 0;
-            yearData[`${yearMonth}_date`] = `${year}-${String(month + 1).padStart(2, '0')}-01`;
-        }
-
-        // Sum steps by months of selected year
         stepsData.forEach(entry => {
             const date = localDateFromYMD(entry.date);
-            if (date.getFullYear() === year) {
-                const yearMonth = `${year}-${date.getMonth() + 1}`;
-                yearData[yearMonth] = (yearData[yearMonth] || 0) + entry.steps;
-            }
+            if (date.getFullYear() !== year) return;
+            const v = dayValue(entry.date, dataType);
+            if (v !== null) monthVals[date.getMonth()].push(v);
         });
 
-        // Sort months
-        const sortedMonths = Object.keys(yearData).filter(key => !key.includes('_date')).sort((a, b) => {
-            const aMonth = parseInt(a.split('-')[1]);
-            const bMonth = parseInt(b.split('-')[1]);
-            return aMonth - bMonth;
-        });
-
-        labels = sortedMonths.map(ym => {
-            const [year, month] = ym.split('-');
-            return new Date(year, month - 1).toLocaleDateString(lang, { month: 'short' });
-        });
-
-        data = sortedMonths.map(ym => yearData[ym]);
-        dates = sortedMonths.map(ym => yearData[`${ym}_date`]);
+        for (let month = 0; month < 12; month++) {
+            labels.push(new Date(year, month).toLocaleDateString(lang, { month: 'short' }));
+            dates.push(`${year}-${String(month + 1).padStart(2, '0')}-01`);
+            data.push(series ? avgOf(monthVals[month]) : monthVals[month].reduce((a, b) => a + b, 0));
+        }
 
     } else if (view === 'month') {
-        const monthData = stepsData.filter(entry => {
-            const entryDate = localDateFromYMD(entry.date);
-            return entryDate.getMonth() === selectedDate.getMonth() &&
-                entryDate.getFullYear() === selectedDate.getFullYear();
+        stepsData.forEach(entry => {
+            const date = localDateFromYMD(entry.date);
+            if (date.getMonth() !== selectedDate.getMonth() ||
+                date.getFullYear() !== selectedDate.getFullYear()) return;
+            const v = dayValue(entry.date, dataType);
+            labels.push(formatDate(date, 'day', lang));
+            data.push(v === null ? 0 : v);
+            dates.push(entry.date);
         });
-        labels = monthData.map(entry => formatDate(localDateFromYMD(entry.date), 'day', lang));
-        data = monthData.map(entry => entry.steps);
-        dates = monthData.map(entry => entry.date);
 
     } else if (view === 'week') {
         const weekStart = new Date(selectedDate);
         weekStart.setDate(selectedDate.getDate() - mondayWeekOffset(selectedDate));
-        const weekData = [];
         for (let i = 0; i < 7; i++) {
             const currentDay = new Date(weekStart);
             currentDay.setDate(weekStart.getDate() + i);
             const dateStr = formatLocalYMD(currentDay);
-            const stepsEntry = stepsData.find(entry => entry.date === dateStr);
-            weekData.push({
-                date: dateStr,
-                steps: stepsEntry ? stepsEntry.steps : 0
-            });
+            const v = dayValue(dateStr, dataType);
+            labels.push(formatDate(currentDay, 'day', lang));
+            data.push(v === null ? 0 : v);
+            dates.push(dateStr);
         }
-
-        labels = weekData.map(entry => formatDate(localDateFromYMD(entry.date), 'day', lang));
-        data = weekData.map(entry => entry.steps);
-        dates = weekData.map(entry => entry.date);
     }
 
-    return { labels, data: convertData(data, dataType), dates };
+    return { labels, data, dates };
 }
 
         function createBarGradient(canvas, alpha = 0.5) {
@@ -478,9 +488,12 @@
             document.getElementById('chart-nav-left').disabled = !canNavigateBackward();
             document.getElementById('chart-nav-right').disabled = !canNavigateForward();
 
-            const unitLabel = dataType === 'steps' ? translations.steps : dataType === 'distance' ? translations.distance_km : translations.calories;
+            const unitLabel = unitLabelFor(dataType);
             const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
             const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
+            const seriesType = isSeriesType(dataType);
+            const fmtAxis = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
+            const fmtTooltip = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
 
             if (!Chart.registry.plugins.get('annotation')) {
                 Chart.register(ChartAnnotation);
@@ -517,7 +530,7 @@
                             border: { color: chartGridColor },
                             ticks: {
                                 color: isDarkTheme ? '#fff' : '#000',
-                                callback: (v) => (dataType === 'steps' ? formatNumber(v) : String(v))
+                                callback: (v) => fmtAxis(v)
                             },
                             title: {
                                 display: true,
@@ -540,7 +553,7 @@
                         legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: context => `${unitLabel}: ${formatNumber(Math.round(context.raw))}`
+                                label: context => `${unitLabel}: ${fmtTooltip(context.raw)}`
                             }
                         },
                         zoom: {

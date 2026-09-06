@@ -44,6 +44,16 @@ if ($method === 'GET') {
     if (strcmp($from, $to) > 0) {
         [$from, $to] = [$to, $from];
     }
+    if (isset($_GET['metrics'])) {
+        $metrics = hc_read_metrics_range($userDir, $from, $to);
+        exit(json_encode([
+            'status' => 'success',
+            'from' => $from,
+            'to' => $to,
+            'metrics' => $metrics,
+            'count' => count($metrics),
+        ], JSON_UNESCAPED_UNICODE));
+    }
     $raw = loadStepsRange($userDb, $from, $to);
     $rows = array_values($raw);
     usort($rows, static fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
@@ -91,7 +101,6 @@ if ($method === 'POST') {
     exit(json_encode([
         'status' => 'success',
         'stored' => [
-            'raw_file' => $stored['raw_file'] ?? null,
             'stored_days' => $stored['stored_days'] ?? [],
         ],
         'steps_upserted' => count($stepsDaily),
