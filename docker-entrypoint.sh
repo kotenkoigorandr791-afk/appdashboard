@@ -33,6 +33,7 @@ APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
 UPLOADS_BASE_DIR="${UPLOADS_BASE_DIR:-${APPDATA_BASE_DIR%/}/dashboard/uploads}"
 mkdir -p "$APPDATA_BASE_DIR/cloud_runtime/temp" "$APPDATA_BASE_DIR/cloud_runtime/temp_convert" "$APPDATA_BASE_DIR/cloud_runtime/upload_sessions" "$APPDATA_BASE_DIR/cloud_runtime/transcription_uploads" "$APPDATA_BASE_DIR/cloud_runtime/tts_output" "$APPDATA_BASE_DIR/cloud"
 sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf 2>/dev/null || true
+[ -d /var/www/AppDashboard/apps/cloud/temp_convert ] || rm -f /var/www/AppDashboard/apps/cloud/temp_convert
 mkdir -p "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
 if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
