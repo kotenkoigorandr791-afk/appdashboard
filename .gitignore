@@ -99,3 +99,6 @@ opencode.json
 .mcp-test-duplicati-src/
 .serena/
 /.opencode/
+
+# Task files (local only, not committed)
+/tasks/
