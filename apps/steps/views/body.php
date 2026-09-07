@@ -116,10 +116,9 @@
                 <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;">
                     <button type="button" class="excel-btn" id="video-recognition-notif-open" style="background: var(--primary-color); color: #fff; padding: 8px 14px; font-size: 13px;"><?php echo htmlspecialchars($translations['zeep_notif_open'] ?? 'Open'); ?></button>
                 </div>
-            </div>
-        </div>
-        <div id="worker-progress-widget"></div>
-        </div>
+</div>
+                </div>
+            </div></div></div>
         <div id="stats-modal" style="display:none;">
             <div class="stats-content">
                 <button class="modal-close">×</button>
@@ -628,9 +627,7 @@
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 
-        <div id="hc-token-modal" style="display:none;position:fixed;inset:0;z-index:10060;background:rgba(6,10,16,.32);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);align-items:center;justify-content:center;padding:16px;">
-            <div style="width:min(640px,96vw);max-height:86vh;overflow:auto;background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:16px;box-shadow:var(--glass-shadow,0 20px 50px rgba(0,0,0,.25));padding:18px;position:relative;">
-                <button type="button" id="hc-token-close" aria-label="Close" style="position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-color);font-size:22px;cursor:pointer;line-height:1;">×</button>
+        <button type="button" id="hc-token-close" aria-label="Close">×</button>
                 <h2 style="margin:0 0 8px;font-size:20px;">Health Connect authorization</h2>
                 <p style="margin:0 0 14px;opacity:.78;font-size:13px;line-height:1.45;">
                     Use the token below as <code style="background:rgba(0,0,0,.14);padding:2px 6px;border-radius:8px;">Authorization: Bearer &lt;token&gt;</code>.
@@ -659,11 +656,10 @@
                         <strong style="display:block;margin-bottom:8px;font-size:13px;">Token</strong>
                         <code id="hc-token-value" style="display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></code>
                         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
-                            <button type="button" id="hc-token-copy" style="border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:#16a34a;color:#fff;font-weight:700;font-size:13px;">Copy</button>
-                        </div>
+<button type="button" id="hc-token-copy" style="border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:#16a34a;color:#fff;font-weight:700;font-size:13px;">Copy</button>
                     </div>
                 </div>
-            </div>
+            </div></div></div>
         </div>
 
         <script>

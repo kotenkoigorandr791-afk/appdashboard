@@ -579,7 +579,11 @@
             width: 40px;
             height: 40px;
             border-radius: var(--radius-sm);
-            padding: 0;
+            padding: 3px;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
             border: 1px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
             background: transparent;
@@ -590,7 +594,8 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: var(--radius-sm);
+            border-radius: calc(var(--radius-sm) - 3px);
+            box-sizing: border-box;
         }
 
         /* Modal windows for mobile */
@@ -1869,6 +1874,18 @@
             #user-button {
                 width: 35px;
                 height: 35px;
+                padding: 3px;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            #user-button img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                border-radius: calc(var(--radius-sm) - 3px);
+                box-sizing: border-box;
             }
             .app-main {
                 flex: 1 1 auto;
@@ -1908,7 +1925,7 @@
             .goal-summary { grid-template-columns: 1fr 1fr; padding: 12px; }
             .goal-summary-value { font-size: 18px; }
 
-            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content {
+            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner {
                 width: 100dvw !important;
                 max-width: 100dvw !important;
                 height: 100dvh !important;
@@ -1919,7 +1936,7 @@
                 overflow: auto;
                 overflow-x: hidden;
             }
-            #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #alert-modal, #video-crop-modal, #guide-expand-modal {
+            #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #alert-modal, #video-crop-modal, #guide-expand-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal {
                 width: 100dvw !important;
                 height: 100dvh !important;
                 padding: 0 !important;
@@ -2015,8 +2032,8 @@
                 height: 300px;
             }
             #settings-modal .settings-content {
-                width: calc(100vw - 16px) !important;
-                max-width: calc(100vw - 16px) !important;
+                width: 100dvw !important;
+                max-width: 100dvw !important;
             }
             .settings-tab-panel {
                 min-height: 0;
