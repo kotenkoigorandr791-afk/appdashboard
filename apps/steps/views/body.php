@@ -627,39 +627,36 @@
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 
-        <button type="button" id="hc-token-close" aria-label="Close">×</button>
-                <h2 style="margin:0 0 8px;font-size:20px;">Health Connect authorization</h2>
-                <p style="margin:0 0 14px;opacity:.78;font-size:13px;line-height:1.45;">
-                    Use the token below as <code style="background:rgba(0,0,0,.14);padding:2px 6px;border-radius:8px;">Authorization: Bearer &lt;token&gt;</code>.
-                </p>
-
-                <div style="display:grid;grid-template-columns:1fr;gap:10px;">
-                    <div style="display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;">
-                        <div style="flex:1;min-width:260px;">
-                            <label style="display:block;font-size:12px;font-weight:700;opacity:.7;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;">Endpoint</label>
-                            <pre id="hc-token-endpoint" style="margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:rgba(0,0,0,.16);word-break:break-all;white-space:pre-wrap;"></pre>
+        <div id="hc-token-modal">
+            <div class="hc-token-content">
+                <button type="button" id="hc-token-close" class="modal-close" aria-label="Close">×</button>
+                <h2>Health Connect authorization</h2>
+                <p class="hc-token-sub">Use the token below as <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+                <div class="hc-token-fields">
+                    <div class="hc-token-row">
+                        <div class="hc-token-field endpoint">
+                            <label>Endpoint</label>
+                            <pre id="hc-token-endpoint"></pre>
                         </div>
-                        <button type="button" id="hc-token-copy-endpoint" style="align-self:flex-end;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:600;font-size:13px;">Copy</button>
+                        <button type="button" id="hc-token-copy-endpoint" class="hc-token-btn">Copy</button>
                     </div>
-
-                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                        <div style="flex:1;min-width:240px;">
-                            <label style="display:block;font-size:12px;font-weight:700;opacity:.7;margin:0 0 6px;text-transform:uppercase;letter-spacing:.04em;">Token name</label>
-                            <input id="hc-token-name" type="text" maxlength="80" value="Health Connect" style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg,var(--modal-bg));color:var(--text-color);" />
+                    <div class="hc-token-row">
+                        <div class="hc-token-field">
+                            <label>Token name</label>
+                            <input id="hc-token-name" type="text" maxlength="80" value="Health Connect" />
                         </div>
-                        <button type="button" id="hc-token-generate" style="border:none;border-radius:10px;padding:12px 16px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:700;font-size:13px;">Generate</button>
+                        <button type="button" id="hc-token-generate" class="hc-token-btn">Generate</button>
                     </div>
-
-                    <p id="hc-token-err" style="display:none;margin:0;color:#ef4444;font-size:13px;"></p>
-
-                    <div id="hc-token-output" style="display:none;padding:12px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);border-radius:12px;background:color-mix(in srgb,#22c55e 16%,transparent);">
-                        <strong style="display:block;margin-bottom:8px;font-size:13px;">Token</strong>
-                        <code id="hc-token-value" style="display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></code>
-                        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
-<button type="button" id="hc-token-copy" style="border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:#16a34a;color:#fff;font-weight:700;font-size:13px;">Copy</button>
+                    <p id="hc-token-err"></p>
+                    <div id="hc-token-output">
+                        <strong>Token</strong>
+                        <code id="hc-token-value"></code>
+                        <div class="hc-token-actions">
+                            <button type="button" id="hc-token-copy" class="hc-token-btn">Copy</button>
+                        </div>
                     </div>
                 </div>
-            </div></div></div>
+            </div>
         </div>
 
         <script>

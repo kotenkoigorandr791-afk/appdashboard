@@ -546,7 +546,7 @@
         .goal-summary-label { display: block; color: var(--muted-text); font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .goal-summary-value { display: block; margin-top: 4px; font-size: 20px; font-weight: 850; color: var(--text-color); }
 
-        #info-button, #settings-button, #add-steps-button, #stats-button {
+        #info-button, #settings-button, #add-steps-button, #stats-button, #hc-token-open-btn {
             position: static;
             background: rgba(127,127,127,0.08);
             border: 1px solid transparent;
@@ -561,7 +561,7 @@
             border-radius: var(--radius-sm);
             transition: background-color 0.2s, border-color 0.2s;
         }
-        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active {
+        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active, #hc-token-open-btn:hover {
             background: color-mix(in srgb, var(--primary-color) 14%, transparent);
             border-color: color-mix(in srgb, var(--primary-color) 34%, transparent);
         }
@@ -689,6 +689,181 @@
         #info-modal .modal-close:hover {
             background: color-mix(in srgb, var(--primary-color) 10%, transparent);
             color: var(--primary-color);
+        }
+
+        #hc-token-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.42);
+            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            overflow: hidden;
+            overflow-x: hidden;
+            box-sizing: border-box;
+            padding: 12px;
+        }
+        #hc-token-modal .hc-token-content {
+            background: var(--modal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-soft);
+            padding: 24px;
+            width: min(640px, calc(100vw - 24px));
+            max-width: min(640px, calc(100vw - 24px));
+            min-width: 0;
+            box-sizing: border-box;
+            position: relative;
+            overflow: auto;
+            overflow-x: hidden;
+            max-height: calc(100vh - 24px);
+        }
+        #hc-token-modal .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: transparent;
+            border: none;
+            color: var(--muted-text);
+            font-size: 28px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+        #hc-token-modal .modal-close:hover {
+            background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+            color: var(--primary-color);
+        }
+        #hc-token-modal h2 {
+            margin: 0 0 8px;
+            font-size: 20px;
+            padding-right: 36px;
+            color: var(--text-color);
+        }
+        #hc-token-modal .hc-token-sub {
+            margin: 0 0 14px;
+            opacity: 0.78;
+            font-size: 13px;
+            line-height: 1.45;
+            color: var(--text-color);
+        }
+        #hc-token-modal .hc-token-sub code {
+            background: var(--group-block-bg);
+            padding: 2px 6px;
+            border-radius: 8px;
+            color: var(--text-color);
+        }
+        #hc-token-modal .hc-token-fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        #hc-token-modal .hc-token-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+            flex-wrap: wrap;
+        }
+        #hc-token-modal .hc-token-field {
+            flex: 1;
+            min-width: 240px;
+        }
+        #hc-token-modal .hc-token-field.endpoint {
+            min-width: 260px;
+        }
+        #hc-token-modal label {
+            display: block;
+            font-size: 12px;
+            font-weight: 700;
+            opacity: 0.7;
+            margin: 0 0 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-color);
+        }
+        #hc-token-modal #hc-token-endpoint {
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--group-block-bg);
+            color: var(--text-color);
+            word-break: break-all;
+            white-space: pre-wrap;
+            font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        }
+        #hc-token-modal #hc-token-name {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--modal-bg);
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+        #hc-token-modal .hc-token-btn {
+            padding: 10px 14px;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            background: var(--primary-color);
+            color: #fff;
+            font-weight: 600;
+            font-size: 13px;
+            align-self: flex-end;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            white-space: nowrap;
+        }
+        #hc-token-modal .hc-token-btn:hover { opacity: 0.8; }
+        #hc-token-modal #hc-token-copy {
+            background: #22c55e;
+            font-weight: 700;
+        }
+        #hc-token-modal #hc-token-err {
+            display: none;
+            margin: 0;
+            color: #ef4444;
+            font-size: 13px;
+        }
+        #hc-token-modal #hc-token-output {
+            display: none;
+            padding: 12px;
+            border: 1px solid color-mix(in srgb, #22c55e 45%, transparent);
+            border-radius: var(--radius-md);
+            background: color-mix(in srgb, #22c55e 16%, transparent);
+        }
+        #hc-token-modal #hc-token-output strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: var(--text-color);
+        }
+        #hc-token-modal #hc-token-value {
+            display: block;
+            word-break: break-all;
+            white-space: pre-wrap;
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            color: var(--text-color);
+        }
+        #hc-token-modal .hc-token-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            margin-top: 10px;
         }
         #stats-modal .stats-content {
             width: calc(100vw - 24px);
@@ -1855,7 +2030,7 @@
                 display: none;
             }
 
-            #info-button, #settings-button, #add-steps-button, #stats-button {
+            #info-button, #settings-button, #add-steps-button, #stats-button, #hc-token-open-btn {
                 font-size: 20px;
                 width: 35px;
                 height: 35px;
@@ -1925,7 +2100,7 @@
             .goal-summary { grid-template-columns: 1fr 1fr; padding: 12px; }
             .goal-summary-value { font-size: 18px; }
 
-            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner {
+            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content {
                 width: 100dvw !important;
                 max-width: 100dvw !important;
                 height: 100dvh !important;
@@ -1936,7 +2111,7 @@
                 overflow: auto;
                 overflow-x: hidden;
             }
-            #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #alert-modal, #video-crop-modal, #guide-expand-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal {
+            #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #alert-modal, #video-crop-modal, #guide-expand-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #hc-token-modal {
                 width: 100dvw !important;
                 height: 100dvh !important;
                 padding: 0 !important;
