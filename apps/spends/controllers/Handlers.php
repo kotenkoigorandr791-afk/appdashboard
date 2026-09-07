@@ -102,68 +102,71 @@ if (isset($_GET['get_exchange_rates'])) {
     }
 }
 
-// ─── Expenses page data (AJAX for table pagination) ───────────────────────────
+// ─── Expenses page data (AJAX for table) ──────────────────────────────────────
 if (isset($_GET['get_expenses_page'])) {
-    $page      = max(1, (int)($_GET['page'] ?? 1));
-    $search    = trim($_GET['search'] ?? '');
-    $perPage   = max(1, (int)($_GET['per_page'] ?? 25));
-    $sort      = $_GET['sort'] ?? 'date_asc';
-    $startDate = trim($_GET['start_date'] ?? '');
-    $sortDir   = $sort === 'date_desc' ? 'DESC' : 'ASC';
-    $where  = '1=1';
-    $params = [];
-    if ($startDate) {
-        $where .= " AND date >= '" . AppDatabase::escapeString($startDate) . "'";
+    $search       = trim($_GET['search'] ?? '');
+    $monthsWindow = max(0, (int)($_GET['months_window'] ?? 1));
+    $sort         = $_GET['sort'] ?? 'date_asc';
+    $startDate    = trim($_GET['start_date'] ?? '');
+    $sortDir      = $sort === 'date_desc' ? 'DESC' : 'ASC';
+    $today = date('Y-m-d');
+    $todayObj = new DateTime($today);
+    $startObj = (clone $todayObj)->modify("-{$monthsWindow} months")->modify('first day of this month');
+    $endObj   = (clone $todayObj)->modify("+{$monthsWindow} months")->modify('last day of this month');
+    $rangeStart = $startObj->format('Y-m-d');
+    $rangeEnd   = $endObj->format('Y-m-d');
+    if ($startDate && strcmp($startDate, $rangeStart) > 0) {
+        $rangeStart = $startDate;
     }
-    if ($search !== '') {
-        $where .= " AND (date LIKE :s OR store LIKE :s2 OR CAST(amount AS TEXT) LIKE :s3)";
-        $params[':s']  = "%$search%";
-        $params[':s2'] = "%$search%";
-        $params[':s3'] = "%$search%";
-    }
-    $minMaxSt = $udb->prepare("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses WHERE $where");
-    foreach ($params as $k => $v) {
-        $minMaxSt->bindValue($k, $v);
-    }
-    $minMax = $minMaxSt->execute()->fetch(PDO::FETCH_ASSOC);
-    if (empty($minMax['lo'])) {
-        exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'page' => 1, 'totalPages' => 1]));
-    }
-    $rangeStart = $startDate !== '' ? $startDate : $minMax['lo'];
-    $rangeEnd   = $minMax['hi'];
     if (strcmp($rangeStart, $rangeEnd) > 0) {
-        exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'page' => 1, 'totalPages' => 1]));
+        exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'totalPages' => 1]));
     }
     $allDays = listCalendarDaysInclusive($rangeStart, $rangeEnd);
     if ($sort === 'date_desc') {
         $allDays = array_reverse($allDays);
     }
-    $cnt = count($allDays);
-    $totalPages = max(1, (int)ceil($cnt / $perPage));
-    if ($page > $totalPages) {
-        $page = $totalPages;
-    }
-    $offset = ($page - 1) * $perPage;
-    $pageDays = array_slice($allDays, $offset, $perPage);
     $rows = [];
     $incomes = [];
-    if (!empty($pageDays)) {
-        $inDates = implode(',', array_map(fn($d) => "'" . AppDatabase::escapeString($d) . "'", $pageDays));
-        $dataRes = $udb->query("SELECT date, store, amount FROM expenses WHERE date IN ($inDates) ORDER BY date $sortDir, store");
-        while ($r = $dataRes->fetch(PDO::FETCH_ASSOC)) {
-            $rows[] = $r;
+    if (!empty($allDays)) {
+        $inDates = implode(',', array_map(fn($d) => "'" . AppDatabase::escapeString($d) . "'", $allDays));
+        $expWhere = "date IN ($inDates)";
+        $expParams = [];
+        if ($search !== '') {
+            $expWhere .= " AND (date LIKE :s OR store LIKE :s2 OR CAST(amount AS TEXT) LIKE :s3)";
+            $expParams[':s']  = "%$search%";
+            $expParams[':s2'] = "%$search%";
+            $expParams[':s3'] = "%$search%";
         }
-        $incRes = $udb->query("SELECT date, amount FROM incomes WHERE date IN ($inDates) ORDER BY date $sortDir");
+        $expSt = $udb->prepare("SELECT date, store, amount FROM expenses WHERE $expWhere ORDER BY date $sortDir, store");
+        foreach ($expParams as $k => $v) $expSt->bindValue($k, $v);
+        $expRes = $expSt->execute();
+        while ($r = $expRes->fetch(PDO::FETCH_ASSOC)) $rows[] = $r;
+
+        $incWhere = "date IN ($inDates)";
+        $incParams = [];
+        if ($search !== '') {
+            $incWhere .= " AND (date LIKE :s OR CAST(amount AS TEXT) LIKE :s2)";
+            $incParams[':s']  = "%$search%";
+            $incParams[':s2'] = "%$search%";
+        }
+        $incSt = $udb->prepare("SELECT date, amount FROM incomes WHERE $incWhere ORDER BY date $sortDir");
+        foreach ($incParams as $k => $v) $incSt->bindValue($k, $v);
+        $incRes = $incSt->execute();
         while ($r = $incRes->fetch(PDO::FETCH_ASSOC)) $incomes[] = $r;
+        if ($search !== '') {
+            $found = [];
+            foreach ($rows as $r) $found[$r['date']] = true;
+            foreach ($incomes as $r) $found[$r['date']] = true;
+            $allDays = array_values(array_filter($allDays, fn($d) => isset($found[$d])));
+        }
     }
     exit(json_encode([
         'status'     => 'success',
         'rows'       => $rows,
         'incomes'    => $incomes,
-        'dates'      => $pageDays,
-        'total'      => $cnt,
-        'page'       => $page,
-        'totalPages' => $totalPages,
+        'dates'      => $allDays,
+        'total'      => count($allDays),
+        'totalPages' => 1,
     ]));
 }
 
@@ -447,11 +450,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
 }
 
 if (isset($_POST['save_table_settings'])) {
-    $sortBy     = $_POST['sort_by']       ?? 'date_asc';
-    $rowsPerPage= (int)($_POST['rows_per_page'] ?? 25);
-    $startDate  = $_POST['start_date']    ?? '';
+    $sortBy      = $_POST['sort_by']       ?? 'date_asc';
+    $monthsWindow= max(0, (int)($_POST['months_window'] ?? 1));
+    $startDate   = $_POST['start_date']    ?? '';
     dbSetTableSetting($udb, 'sort_by',       $sortBy);
-    dbSetTableSetting($udb, 'rows_per_page', $rowsPerPage);
+    dbSetTableSetting($udb, 'months_window', $monthsWindow);
     dbSetTableSetting($udb, 'start_date',    $startDate);
 
     $visible = $_POST['store_visible'] ?? [];
@@ -677,35 +680,36 @@ if (!empty($daysToEnsure)) {
 }
 $udb->exec("INSERT INTO incomes(date,amount) SELECT DISTINCT date,0 FROM expenses ON CONFLICT (date) DO NOTHING");
 
-$startDateFilter = $tableSettings['start_date'] ? "AND date >= '" . AppDatabase::escapeString($tableSettings['start_date']) . "'" : '';
 $startDateForTable = trim($tableSettings['start_date'] ?? '');
 
-$rowsPerPage = $tableSettings['rows_per_page'];
+$monthsWindow = $tableSettings['months_window'];
 $sortDir = $tableSettings['sort_by'] === 'date_desc' ? 'DESC' : 'ASC';
-$mmTable = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses WHERE 1=1 $startDateFilter")->fetch(PDO::FETCH_ASSOC);
+$nowObj = new DateTime(date('Y-m-d'));
+$rangeStartObj = (clone $nowObj)->modify("-{$monthsWindow} months")->modify('first day of this month');
+$rangeEndObj   = (clone $nowObj)->modify("+{$monthsWindow} months")->modify('last day of this month');
+$rangeStart = $rangeStartObj->format('Y-m-d');
+$rangeEnd   = $rangeEndObj->format('Y-m-d');
+if ($startDateForTable !== '' && strcmp($startDateForTable, $rangeStart) > 0) {
+    $rangeStart = $startDateForTable;
+}
 $firstPageRows = [];
 $totalRows = 0;
-if (!empty($mmTable['lo'])) {
-    $rangeStart = $startDateForTable !== '' ? $startDateForTable : $mmTable['lo'];
-    $rangeEnd = $mmTable['hi'];
-    if (strcmp($rangeStart, $rangeEnd) <= 0) {
-        $allTableDays = listCalendarDaysInclusive($rangeStart, $rangeEnd);
-        if ($tableSettings['sort_by'] === 'date_desc') {
-            $allTableDays = array_reverse($allTableDays);
+if (strcmp($rangeStart, $rangeEnd) <= 0) {
+    $allTableDays = listCalendarDaysInclusive($rangeStart, $rangeEnd);
+    if ($tableSettings['sort_by'] === 'date_desc') {
+        $allTableDays = array_reverse($allTableDays);
+    }
+    $totalRows = count($allTableDays);
+    foreach ($allTableDays as $d) {
+        $rowData = [];
+        foreach ($visibleStoreNames as $sn) {
+            $st = $udb->prepare('SELECT amount FROM expenses WHERE date=:d AND store=:s');
+            $st->bindValue(':d', $d);
+            $st->bindValue(':s', $sn);
+            $amt = $st->execute()->fetch(PDO::FETCH_NUM);
+            $rowData[$sn] = $amt ? (float)$amt[0] : 0;
         }
-        $totalRows = count($allTableDays);
-        $pageDaysInit = array_slice($allTableDays, 0, $rowsPerPage);
-        foreach ($pageDaysInit as $d) {
-            $rowData = [];
-            foreach ($visibleStoreNames as $sn) {
-                $st = $udb->prepare('SELECT amount FROM expenses WHERE date=:d AND store=:s');
-                $st->bindValue(':d', $d);
-                $st->bindValue(':s', $sn);
-                $amt = $st->execute()->fetch(PDO::FETCH_NUM);
-                $rowData[$sn] = $amt ? (float)$amt[0] : 0;
-            }
-            $firstPageRows[$d] = $rowData;
-        }
+        $firstPageRows[$d] = $rowData;
     }
 }
 

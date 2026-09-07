@@ -26,9 +26,9 @@ $userSettings = [
 ];
 
 $tableSettings = [
-    'sort_by'      => dbGetTableSetting($udb, 'sort_by',       'date_asc'),
-    'rows_per_page'=> (int)dbGetTableSetting($udb, 'rows_per_page', 25),
-    'start_date'   => dbGetTableSetting($udb, 'start_date',    ''),
+    'sort_by'       => dbGetTableSetting($udb, 'sort_by',       'date_asc'),
+    'months_window' => (int)dbGetTableSetting($udb, 'months_window', 1),
+    'start_date'    => dbGetTableSetting($udb, 'start_date',    ''),
 ];
 
 // Profile photo & display name
