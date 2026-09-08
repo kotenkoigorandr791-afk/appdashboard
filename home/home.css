@@ -587,12 +587,6 @@ body.light-theme .engagement-toast-icon { background: rgba(30,100,180,0.1); colo
 }
 .engagement-toast-close:hover { opacity: 1; background: rgba(255,255,255,0.08); }
 body.light-theme .engagement-toast-close:hover { background: rgba(0,0,0,0.06); }
-@media (max-width: 480px) {
-  .engagement-toast { left: 16px; right: 16px; width: auto; max-width: none; }
-  .news-toast { left: 16px; right: 16px; width: auto; max-width: none; }
-  .explore-widget { left: 16px; right: 16px; width: auto; max-width: none; }
-}
-
 /* ── Lang Notify ── */
 .lang-notify {
   position: fixed; top: 28px; left: 50%; transform: translateX(-50%);
@@ -897,4 +891,15 @@ body.light-theme .explore-app-icon { background: rgba(0,0,0,0.05); }
 @media (max-width: 600px) {
   .news-section { padding: 40px 16px 30px; }
   .news-canvas.layout-mode .news-card { width: 260px; }
+}
+@media (max-width: 768px) {
+  .news-toast,
+  .engagement-toast,
+  .explore-widget {
+    left: 0;
+    right: calc(var(--toast-gutter, 0px) + env(safe-area-inset-right, 0px));
+    width: auto;
+    max-width: none;
+    box-sizing: border-box;
+  }
 }
