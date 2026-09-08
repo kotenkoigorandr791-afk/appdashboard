@@ -98,7 +98,7 @@ function migrateExistingFiles($userEmail, $udb) {
         $ts = $gs['table_settings'][$safe] ?? $gs['table_settings'][$userEmail] ?? [];
         if (!empty($ts)) {
             dbSetTableSetting($udb, 'sort_by',      $ts['sort_by']      ?? 'date_asc');
-            dbSetTableSetting($udb, 'rows_per_page', $ts['rows_per_page'] ?? 25);
+            dbSetTableSetting($udb, 'months_window', $ts['months_window'] ?? 1);
             dbSetTableSetting($udb, 'start_date',   $ts['start_date']   ?? '');
         }
     }

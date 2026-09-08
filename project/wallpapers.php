@@ -32,9 +32,21 @@ function ap_wallpaper_asset_url(string $id): string {
 }
 
 function ap_wallpaper_preview_style(string $id): string {
-    $url = ap_wallpaper_asset_url($id);
+    $url = ap_wallpaper_preview_url($id);
     if ($url === '') {
         return '';
     }
     return "background-image:url('" . str_replace("'", "%27", $url) . "');background-size:cover;background-position:center;";
+}
+
+function ap_wallpaper_preview_url(string $id): string {
+    $catalog = ap_wallpaper_catalog();
+    if ($id === 'default' || !isset($catalog[$id]) || empty($catalog[$id]['path'])) {
+        return '';
+    }
+    $path = $catalog[$id]['path'];
+    $pathParts = explode('/', $path);
+    $filename = end($pathParts);
+    $filenameWithoutExt = preg_replace('/\\.[^.]+$/', '', $filename);
+    return '/project/assets/wallpapers/previews/photos/photo-' . $filenameWithoutExt . '.webp';
 }

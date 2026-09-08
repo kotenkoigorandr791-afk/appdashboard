@@ -21,7 +21,6 @@ let currentCropType = '';
 let currentCropId   = '';
 let saveTimeout;
 let tableSettings = <?= json_encode($tableSettings, $jsonFlags) ?: '{}' ?>;
-let currentPage   = 1;
 let searchTerm    = '';
 let pendingDelete = { type:'', id:'', name:'' };
 let totalRowsDB   = <?= (int)$totalRows ?>;
@@ -48,19 +47,17 @@ function showNotification(message, type='info') {
     setTimeout(()=>n.remove(), 5000);
 }
 
-// ══ Server-side pagination (SQL) ════════════════════════════════════════════
+// ══ Server-side table data ════════════════════════════════════════════════════
 function filterTable() {
     searchTerm = document.getElementById('search-input').value.trim();
-    currentPage = 1;
-    loadPage(1);
+    loadPage();
 }
 
-function loadPage(page) {
+function loadPage() {
     const params = new URLSearchParams({
         get_expenses_page: 1,
-        page: page,
         search: searchTerm,
-        per_page: tableSettings.rows_per_page,
+        months_window: tableSettings.months_window,
         sort: tableSettings.sort_by,
         start_date: tableSettings.start_date || ''
     });
@@ -135,8 +132,7 @@ function loadPage(page) {
         });
 
         totalRowsDB = data.total;
-        currentPage = data.page;
-        renderPagination(data.totalPages);
+        renderPagination();
         highlightCurrentDate();
 
         document.querySelectorAll('#data-table tbody input').forEach(inp=>{
@@ -146,36 +142,9 @@ function loadPage(page) {
     .catch(e=>{ console.error('loadPage error:', e); });
 }
 
-function renderPagination(totalPages) {
-    if (!totalPages) {
-        totalPages = Math.ceil(totalRowsDB / tableSettings.rows_per_page) || 1;
-    }
-    let html = '';
-    html += `<button onclick="goToPage(${currentPage-1})" ${currentPage===1?'disabled':''}>←</button>`;
-    const maxButtons = 10;
-    let startPage, endPage;
-    if (totalPages<=maxButtons) { startPage=1; endPage=totalPages; }
-    else {
-        const half = Math.floor(maxButtons/2);
-        startPage = Math.max(1,currentPage-half);
-        endPage   = Math.min(totalPages,startPage+maxButtons-1);
-        if (endPage-startPage+1<maxButtons) {
-            if (currentPage<=half) endPage=maxButtons;
-            else startPage=totalPages-maxButtons+1;
-        }
-    }
-    if (startPage>1) { html+=`<button onclick="goToPage(1)">1</button>`; if(startPage>2) html+=`<span>…</span>`; }
-    for (let i=startPage;i<=endPage;i++) html+=`<button onclick="goToPage(${i})" class="${i===currentPage?'active':''}">${i}</button>`;
-    if (endPage<totalPages) { if(endPage<totalPages-1) html+=`<span>…</span>`; html+=`<button onclick="goToPage(${totalPages})">${totalPages}</button>`; }
-    html += `<button onclick="goToPage(${currentPage+1})" ${currentPage===totalPages?'disabled':''}>→</button>`;
-    document.getElementById('pagination').innerHTML = html;
-}
-
-function goToPage(page) {
-    const totalPages = Math.ceil(totalRowsDB/tableSettings.rows_per_page)||1;
-    if (page<1||page>totalPages) return;
-    currentPage=page;
-    loadPage(page);
+function renderPagination() {
+    const p = document.getElementById('pagination');
+    if (p) { p.innerHTML = ''; p.style.display = 'none'; }
 }
 
 // ══ Expense save ════════════════════════════════════════════════════════════
@@ -742,7 +711,7 @@ function addNewDate(date=null, colIdx=0) {
             if(!expensesData[date]){expensesData[date]={};userSettings.stores.forEach(s=>{expensesData[date][s.name]=0;});}
             if(typeof incomesData[date]==='undefined') incomesData[date]=0;
             totalRowsDB++;
-            loadPage(currentPage);
+            loadPage();
         } else showNotification(d.message||t('error_generic','Error'),'error');
     }).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
 }
@@ -777,7 +746,7 @@ function saveBudgetSettingsNow(){
         chartCurrency=userSettings.currency;
         document.querySelectorAll('.currency-btn').forEach(b=>b.classList.toggle('active',b.dataset.currency===chartCurrency));
         loadAvailableYears().then(()=>updateChart());
-        loadPage(currentPage);
+        loadPage();
     }).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
 }
 function scheduleSaveTableSettings(){
@@ -788,7 +757,7 @@ function saveTableSettingsNow(){
     const f=new FormData();
     f.append('save_table_settings','1');
     f.append('sort_by',document.getElementById('sort-by').value);
-    f.append('rows_per_page',document.getElementById('rows-per-page').value);
+    f.append('months_window',document.getElementById('months-window').value);
     f.append('start_date',document.getElementById('start-date').value);
     document.querySelectorAll('.visibility-toggle').forEach(btn=>{
         const sid=btn.getAttribute('data-store-id');
@@ -798,7 +767,7 @@ function saveTableSettingsNow(){
     fetch('',{method:'POST',body:f}).then(r=>r.json()).then(d=>{
         if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}
         tableSettings.sort_by=document.getElementById('sort-by').value;
-        tableSettings.rows_per_page=parseInt(document.getElementById('rows-per-page').value,10)||25;
+        tableSettings.months_window=Math.max(0,parseInt(document.getElementById('months-window').value,10)||1);
         tableSettings.start_date=document.getElementById('start-date').value||'';
         document.querySelectorAll('.visibility-toggle').forEach(btn=>{
             const id=btn.getAttribute('data-store-id');
@@ -1529,8 +1498,8 @@ document.addEventListener('DOMContentLoaded',function(){
     });
     const sb=document.getElementById('sort-by');
     if(sb)sb.addEventListener('change',scheduleSaveTableSettings);
-    const rpp=document.getElementById('rows-per-page');
-    if(rpp){rpp.addEventListener('input',scheduleSaveTableSettings);rpp.addEventListener('change',scheduleSaveTableSettings);}
+    const mw=document.getElementById('months-window');
+    if(mw){mw.addEventListener('input',scheduleSaveTableSettings);mw.addEventListener('change',scheduleSaveTableSettings);}
     const sd=document.getElementById('start-date');
     if(sd)sd.addEventListener('change',scheduleSaveTableSettings);
     const bdm=document.getElementById('bulk-delete-mode');
