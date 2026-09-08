@@ -485,6 +485,22 @@ function oauth_docker_env(string $container): array {
     return $vars;
 }
 
+function oauth_pgsql_reachable(string $host, int $port, float $timeout = 0.2): bool {
+    if (!filter_var($host, FILTER_VALIDATE_IP)) {
+        $resolved = @gethostbyname($host);
+        if ($resolved === '' || $resolved === $host || !filter_var($resolved, FILTER_VALIDATE_IP)) return false;
+        $host = $resolved;
+    }
+    $errno = 0;
+    $errstr = '';
+    $fp = @stream_socket_client('tcp://' . $host . ':' . $port, $errno, $errstr, $timeout);
+    if ($fp) {
+        @fclose($fp);
+        return true;
+    }
+    return false;
+}
+
 function oauth_dawarich_db(): ?PDO {
     static $pdo = null;
     static $tried = false;
@@ -524,6 +540,7 @@ function oauth_immich_db(): ?PDO {
     foreach ($hosts as $host) {
         foreach ([5436, 5432] as $port) {
             if ($host === '127.0.0.1' && $port === 5432) continue;
+            if (!oauth_pgsql_reachable($host, $port)) continue;
             try {
                 $pdo = new PDO(
                     sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, $port, $dbname),
@@ -692,12 +709,13 @@ function oauth_plane_db(): ?PDO {
     $dbname = (string)(getenv('PLANE_DB_NAME') ?: ($vars['POSTGRES_DB'] ?? $vars['PGDATABASE'] ?? 'plane'));
     $port = (int)(getenv('PLANE_DB_PORT') ?: ($vars['POSTGRES_PORT'] ?? 5432));
     if ($port <= 0) $port = 5432;
-    $hosts = ['127.0.0.1', 'host.docker.internal', 'host-gateway'];
+    $hosts = ['127.0.0.1', 'host.docker.internal'];
     foreach (['172.17.0.1', '172.19.0.1', '172.27.0.1'] as $extra) {
         if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
     foreach ($hosts as $host) {
         foreach (array_values(array_unique([(int)$port, 5437, 5432])) as $p) {
+            if (!oauth_pgsql_reachable($host, (int)$p)) continue;
             try {
                 $pdo = new PDO(
                     sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, (int)$p, $dbname),
@@ -724,6 +742,7 @@ function oauth_gitea_db(): ?PDO {
         if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
     foreach ($hosts as $host) {
+        if (!oauth_pgsql_reachable($host, 5432)) continue;
         try {
             $pdo = new PDO(sprintf('pgsql:host=%s;port=%d;dbname=gitea', $host, 5432), 'gitea', 'gitea', [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,

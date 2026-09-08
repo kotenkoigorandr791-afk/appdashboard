@@ -1,7 +1,7 @@
 <?php
 $showDefaultAdminNotice=false;
 try{$defaultAdminUser=getUserByEmail('root@root');}catch(Throwable $e){$defaultAdminUser=null;}
-if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_password'])||appPasswordVerify('root',(string)($defaultAdminUser['password']??''))))$showDefaultAdminNotice=true;
+if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdminUser['password']??'')))$showDefaultAdminNotice=true;
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $language; ?>">
