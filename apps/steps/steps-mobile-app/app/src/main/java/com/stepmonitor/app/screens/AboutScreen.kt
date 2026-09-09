@@ -1,4 +1,5 @@
 package com.stepmonitor.app.screens
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -28,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +52,7 @@ import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
 import com.stepmonitor.app.WebhookConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -66,12 +70,16 @@ data class ServerProfile(val name: String = "", val email: String = "", val phot
 fun AboutScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
+    val scope = rememberCoroutineScope()
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var link by remember { mutableStateOf("") }
     var status by remember { mutableStateOf(if (configs.any { it.isEnabled }) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting)) }
-    var profile by remember { mutableStateOf(ServerProfile()) }
+    var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(PROFILE_CACHE_MAX_AGE_MS)) ?: ServerProfile()) }
     var metricsExpanded by remember { mutableStateOf(false) }
+    var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
+    var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
+    var accentColor by remember { mutableStateOf(prefs.getAccentColor()) }
     fun connect(value: String) {
         runCatching {
             val uri = Uri.parse(value.trim())
@@ -91,7 +99,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         result.contents?.takeIf { it.isNotBlank() }?.let { connect(it) }
     }
     LaunchedEffect(configs) {
-        profile = fetchProfile(configs.firstOrNull { it.isEnabled })
+        profile = profileFromJson(prefs.getProfileCache(PROFILE_CACHE_MAX_AGE_MS)) ?: fetchProfile(configs.firstOrNull { it.isEnabled }, prefs)
     }
     LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
@@ -124,6 +132,11 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                     OutlinedTextField(value = link, onValueChange = { link = it }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.auth_link_label)) })
                     Button(onClick = { connect(link) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.auth_connect)) }
                     OutlinedButton(onClick = {
+                        scope.launch {
+                            status = testConnection(configs.firstOrNull { it.isEnabled })
+                        }
+                    }, enabled = configs.any { it.isEnabled }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_test_connection)) }
+                    OutlinedButton(onClick = {
                         configs = emptyList()
                         prefs.setWebhookConfigs(emptyList())
                         status = context.getString(R.string.auth_waiting)
@@ -131,6 +144,48 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                     }, enabled = configs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Filled.LinkOff, contentDescription = null)
                         Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_network), style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = wifiOnly, onCheckedChange = {
+                            wifiOnly = it
+                            prefs.setWifiOnly(it)
+                            (context.applicationContext as? com.stepmonitor.app.HCWebhookApplication)?.scheduleSyncWork()
+                        })
+                        Text(stringResource(R.string.settings_wifi_only), modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("auto" to R.string.theme_auto, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEach { (value, label) ->
+                            TextButton(onClick = {
+                                themeMode = value
+                                prefs.setThemeMode(value)
+                                (context as? Activity)?.recreate()
+                            }) { Text((if (themeMode == value) "✓ " else "") + stringResource(label)) }
+                        }
+                    }
+                    listOf("blue", "green", "teal", "orange", "red", "pink", "purple", "gray").chunked(4).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { value ->
+                                TextButton(onClick = {
+                                    accentColor = value
+                                    prefs.setAccentColor(value)
+                                    (context as? Activity)?.recreate()
+                                }) { Text((if (accentColor == value) "✓ " else "") + stringResource(accentNameRes(value))) }
+                            }
+                        }
                     }
                 }
             }
@@ -191,7 +246,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
     }
 }
-private suspend fun fetchProfile(config: WebhookConfig?): ServerProfile = withContext(Dispatchers.IO) {
+private suspend fun fetchProfile(config: WebhookConfig?, prefs: PreferencesManager): ServerProfile = withContext(Dispatchers.IO) {
     if (config == null) return@withContext ServerProfile()
     runCatching {
         val profileUrl = config.url.trimEnd('/') + "/profile"
@@ -200,14 +255,41 @@ private suspend fun fetchProfile(config: WebhookConfig?): ServerProfile = withCo
         OkHttpClient().newCall(builder.build()).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val profile = JSONObject(response.body?.string().orEmpty()).optJSONObject("profile") ?: JSONObject()
-            ServerProfile(
+            val result = ServerProfile(
                 name = profile.optString("name"),
                 email = profile.optString("email"),
                 photo = absoluteProfileUrl(config.url, profile.optString("photo"))
             )
+            prefs.setProfileCache(JSONObject().put("name", result.name).put("email", result.email).put("photo", result.photo).toString())
+            result
         }
     }.getOrElse { ServerProfile(error = it.message) }
 }
+private suspend fun testConnection(config: WebhookConfig?): String = withContext(Dispatchers.IO) {
+    if (config == null) return@withContext "Not connected"
+    runCatching {
+        val builder = Request.Builder().url(config.url.trimEnd('/') + "/profile")
+        config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+        OkHttpClient().newCall(builder.build()).execute().use { response ->
+            if (!response.isSuccessful) error("HTTP ${response.code}")
+            "Connection OK"
+        }
+    }.getOrElse { "Connection failed: ${it.message}" }
+}
+private fun profileFromJson(json: String?): ServerProfile? = runCatching {
+    if (json.isNullOrBlank()) null else JSONObject(json).let { ServerProfile(it.optString("name"), it.optString("email"), it.optString("photo")) }
+}.getOrNull()
+private fun accentNameRes(value: String): Int = when (value) {
+    "green" -> R.string.accent_green
+    "teal" -> R.string.accent_teal
+    "orange" -> R.string.accent_orange
+    "red" -> R.string.accent_red
+    "pink" -> R.string.accent_pink
+    "purple" -> R.string.accent_purple
+    "gray" -> R.string.accent_gray
+    else -> R.string.accent_blue
+}
+private const val PROFILE_CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000
 private fun absoluteProfileUrl(endpoint: String, photo: String): String {
     if (photo.isBlank() || photo.startsWith("http")) return photo
     val uri = Uri.parse(endpoint)

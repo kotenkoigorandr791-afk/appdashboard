@@ -437,4 +437,24 @@
     <string name="logs_sort_oldest">Oldest first</string>
     <string name="health_export_title">Export health data</string>
     <string name="health_export_desc">Export local synchronization logs and health delivery data for diagnostics.</string>
+    <string name="settings_network">Network</string>
+    <string name="settings_wifi_only">Use Wi-Fi only</string>
+    <string name="settings_test_connection">Test connection</string>
+    <string name="settings_personalization">Personalization</string>
+    <string name="theme_auto">Auto</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_teal">Teal</string>
+    <string name="accent_orange">Orange</string>
+    <string name="accent_red">Red</string>
+    <string name="accent_pink">Pink</string>
+    <string name="accent_purple">Purple</string>
+    <string name="accent_gray">Gray</string>
+    <string name="conflict_title">Sync conflict</string>
+    <string name="conflict_message">Different step values were found for %1$d day(s). Choose which data to keep.</string>
+    <string name="conflict_skip">Skip phone</string>
+    <string name="conflict_replace">Replace</string>
+    <string name="conflict_add">Add</string>
 </resources>

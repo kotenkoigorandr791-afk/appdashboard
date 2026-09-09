@@ -43,6 +43,7 @@ import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
 import com.stepmonitor.app.WebhookConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -68,11 +69,17 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
     val selectedDate = LocalDate.now().plusDays(dayOffset.toLong())
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
-    suspend fun load() {
-        state = fetchYearStats(config, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() })
+    suspend fun load(force: Boolean = false) {
+        state = fetchYearStats(config, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force)
     }
-    suspend fun loadAndroidSteps() {
+    suspend fun loadAndroidSteps(force: Boolean = false) {
         androidStepsError = null
+        if (!force) {
+            prefs.getAndroidStepsCache(selectedDate.toString(), ANDROID_CACHE_MAX_AGE_MS)?.let {
+                androidSteps = it
+                return
+            }
+        }
         readAndroidSteps(context, selectedDate)
             .onSuccess { androidSteps = it }
             .onFailure {
@@ -81,7 +88,12 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
             }
     }
     LaunchedEffect(config?.url) { load() }
-    LaunchedEffect(selectedDate) { loadAndroidSteps() }
+    LaunchedEffect(selectedDate) {
+        while (true) {
+            loadAndroidSteps()
+            delay(ANDROID_CACHE_MAX_AGE_MS)
+        }
+    }
     Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -105,7 +117,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                 StepsChart(state.steps, chartMonth)
             }
         }
-        Button(onClick = { scope.launch { load(); loadAndroidSteps() } }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { scope.launch { load(true); loadAndroidSteps(true) } }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.dashboard_refresh))
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -146,10 +158,16 @@ private suspend fun readAndroidSteps(context: android.content.Context, date: Loc
             .getOrThrow()
             .steps
             .sumOf { it.count }
+            .also { PreferencesManager(context).setAndroidStepsCache(date.toString(), it) }
     }
 }
-private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDataType>): StatsState = withContext(Dispatchers.IO) {
+private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDataType>, prefs: PreferencesManager, force: Boolean = false): StatsState = withContext(Dispatchers.IO) {
     if (config == null) return@withContext StatsState(error = "Not connected")
+    if (!force) {
+        prefs.getStatsCache(STATS_CACHE_MAX_AGE_MS)?.let {
+            return@withContext runCatching { parseServerMetrics(JSONObject(it).optJSONArray("metrics") ?: JSONArray(), enabled) }.getOrNull() ?: StatsState()
+        }
+    }
     runCatching {
         val to = LocalDate.now()
         val from = to.minusDays(365)
@@ -158,7 +176,9 @@ private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDa
         config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
         OkHttpClient().newCall(builder.build()).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
-            parseServerMetrics(JSONObject(response.body?.string().orEmpty()).optJSONArray("metrics") ?: JSONArray(), enabled)
+            val body = response.body?.string().orEmpty()
+            prefs.setStatsCache(body)
+            parseServerMetrics(JSONObject(body).optJSONArray("metrics") ?: JSONArray(), enabled)
         }
     }.getOrElse { StatsState(error = it.message) }
 }
@@ -201,3 +221,5 @@ private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>): 
     }
     return StatsState(byDay = byDay, steps = steps)
 }
+private const val STATS_CACHE_MAX_AGE_MS = 60L * 60 * 1000
+private const val ANDROID_CACHE_MAX_AGE_MS = 30L * 1000

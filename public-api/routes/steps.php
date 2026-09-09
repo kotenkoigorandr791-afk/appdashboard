@@ -6,26 +6,92 @@ require_once APP_ROOT . '/apps/steps/models/StepsModel.php';
 require_once APP_ROOT . '/apps/steps/core/user_helpers.php';
 require_once APP_ROOT . '/apps/steps/auth_common.php';
 require_once APP_ROOT . '/apps/steps/core/health_connect_ingest.php';
-
 $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
-
 $stepsAppDir = APP_ROOT . '/apps/steps';
 $usersDir = $stepsAppDir . '/users';
 $safeUserName = get_current_user_folder();
 $userDir = $usersDir . '/' . $safeUserName;
-
 checkDirectory($usersDir);
 checkDirectory($userDir);
-
 $userDb = getUserDB($userDir);
-if (!$userDb) {
-    public_api_json(['status' => 'error', 'message' => 'steps db unavailable'], 500);
-}
-
+if (!$userDb) public_api_json(['status' => 'error', 'message' => 'steps db unavailable'], 500);
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 header('Content-Type: application/json; charset=utf-8');
-
+function steps_conflicts_path(string $userDir): string {
+    $dir = rtrim($userDir, '/') . '/volume/health_connect';
+    if (!is_dir($dir)) @mkdir($dir, 0775, true);
+    return $dir . '/conflicts.json';
+}
+function steps_conflicts_read(string $userDir): array {
+    $path = steps_conflicts_path($userDir);
+    if (!is_file($path)) return [];
+    $data = json_decode((string)file_get_contents($path), true);
+    return is_array($data) ? $data : [];
+}
+function steps_conflicts_write(string $userDir, array $conflicts): void {
+    hc_json_atomic_write(steps_conflicts_path($userDir), json_encode(array_values($conflicts), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+}
+function steps_conflict_public(array $conflict): array {
+    return [
+        'id' => (string)($conflict['id'] ?? ''),
+        'status' => (string)($conflict['status'] ?? 'pending'),
+        'created_at' => (int)($conflict['created_at'] ?? 0),
+        'days' => $conflict['days'] ?? [],
+        'resolution_url' => (string)($conflict['resolution_url'] ?? ''),
+    ];
+}
+function steps_detect_conflicts(AppDatabase $db, array $stepsDaily): array {
+    $dates = array_values(array_filter(array_keys($stepsDaily), static fn($d) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)));
+    if (!$dates) return [];
+    sort($dates);
+    $existing = loadStepsRange($db, $dates[0], $dates[count($dates) - 1]);
+    $out = [];
+    foreach ($dates as $date) {
+        $server = (int)($existing[$date]['steps'] ?? 0);
+        $phone = (int)$stepsDaily[$date];
+        if ($server > 0 && $phone > 0 && $server !== $phone) $out[] = ['date' => $date, 'server' => $server, 'phone' => $phone];
+    }
+    return $out;
+}
+function steps_filter_payload_days(array $payload, array $skipDates): array {
+    if (!$skipDates) return $payload;
+    $skip = array_fill_keys($skipDates, true);
+    foreach ($payload as $key => $value) {
+        if (!is_array($value)) continue;
+        $payload[$key] = array_values(array_filter($value, static function ($row) use ($skip) {
+            if (!is_array($row)) return true;
+            $date = hc_extract_record_date($row);
+            return $date === null || empty($skip[$date]);
+        }));
+    }
+    return $payload;
+}
+function steps_create_conflict(string $userDir, array $payload, array $days): array {
+    $id = sha1(json_encode($days) . '|' . json_encode($payload) . '|' . microtime(true));
+    $conflict = ['id' => $id, 'status' => 'pending', 'created_at' => time(), 'days' => $days, 'payload' => $payload, 'resolution_url' => '/api/steps/conflicts/' . $id];
+    $conflicts = array_values(array_filter(steps_conflicts_read($userDir), static fn($c) => ($c['status'] ?? '') === 'pending'));
+    $conflicts[] = $conflict;
+    steps_conflicts_write($userDir, $conflicts);
+    return $conflict;
+}
+function steps_apply_payload(AppDatabase $db, string $userDir, array $payload, string $action, array $conflictDays): array {
+    $storePayload = steps_filter_payload_days($payload, $action === 'skip' ? array_column($conflictDays, 'date') : []);
+    $stored = hc_store_payload_json($userDir, $storePayload);
+    $stepsDaily = $stored['steps_daily'] ?? [];
+    if ($action === 'add') {
+        foreach ($conflictDays as $day) {
+            $date = (string)$day['date'];
+            if (isset($stepsDaily[$date])) $stepsDaily[$date] = (int)$day['server'] + (int)$day['phone'];
+        }
+    }
+    $batch = [];
+    foreach ($stepsDaily as $d => $c) {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) $batch[] = ['date' => $d, 'steps' => (int)$c];
+    }
+    if ($batch) upsertStepsBatch($db, $batch);
+    return ['stored' => $stored, 'steps_upserted' => count($batch)];
+}
 if ($method === 'GET') {
     if (strtolower((string)$sub) === 'profile') {
         $email = get_current_user_email();
@@ -45,6 +111,10 @@ if ($method === 'GET') {
         }
         exit(json_encode(['status' => 'success', 'profile' => $profile], JSON_UNESCAPED_UNICODE));
     }
+    if (strtolower((string)$sub) === 'conflicts') {
+        $pending = array_values(array_filter(steps_conflicts_read($userDir), static fn($c) => ($c['status'] ?? '') === 'pending'));
+        exit(json_encode(['status' => 'success', 'conflicts' => array_map('steps_conflict_public', $pending)], JSON_UNESCAPED_UNICODE));
+    }
     if (isset($_GET['settings']) || isset($_GET['get_settings'])) {
         $settings = loadUserSettings($userDb, $defaultSettings);
         exit(json_encode(['status' => 'success', 'settings' => $settings], JSON_UNESCAPED_UNICODE));
@@ -59,70 +129,48 @@ if ($method === 'GET') {
     if ($from === '' || $to === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $to)) {
         exit(json_encode(['status' => 'error', 'message' => 'from and to (YYYY-MM-DD) required'], JSON_UNESCAPED_UNICODE));
     }
-    if (strcmp($from, $to) > 0) {
-        [$from, $to] = [$to, $from];
-    }
+    if (strcmp($from, $to) > 0) [$from, $to] = [$to, $from];
     if (isset($_GET['metrics'])) {
         $metrics = hc_read_metrics_range($userDir, $from, $to);
-        exit(json_encode([
-            'status' => 'success',
-            'from' => $from,
-            'to' => $to,
-            'metrics' => $metrics,
-            'count' => count($metrics),
-        ], JSON_UNESCAPED_UNICODE));
+        exit(json_encode(['status' => 'success', 'from' => $from, 'to' => $to, 'metrics' => $metrics, 'count' => count($metrics)], JSON_UNESCAPED_UNICODE));
     }
-    $raw = loadStepsRange($userDb, $from, $to);
-    $rows = array_values($raw);
+    $rows = array_values(loadStepsRange($userDb, $from, $to));
     usort($rows, static fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
-    exit(json_encode([
-        'status' => 'success',
-        'from' => $from,
-        'to' => $to,
-        'steps' => $rows,
-        'count' => count($rows),
-    ], JSON_UNESCAPED_UNICODE));
+    exit(json_encode(['status' => 'success', 'from' => $from, 'to' => $to, 'steps' => $rows, 'count' => count($rows)], JSON_UNESCAPED_UNICODE));
 }
-
 if ($method === 'POST') {
     $contentLen = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
-    if ($contentLen > 0 && $contentLen > 8 * 1024 * 1024) {
-        public_api_json(['status' => 'error', 'message' => 'payload too large'], 413);
-    }
-    $subLower = strtolower($sub);
-    $okSub = $subLower === '' || $subLower === 'ingest' || $subLower === 'webhook' || $subLower === 'sync';
-    if (!$okSub) {
-        public_api_json(['status' => 'error', 'message' => 'unknown_post_path'], 404);
-    }
+    if ($contentLen > 0 && $contentLen > 8 * 1024 * 1024) public_api_json(['status' => 'error', 'message' => 'payload too large'], 413);
+    $subLower = strtolower((string)$sub);
+    if (!in_array($subLower, ['', 'ingest', 'webhook', 'sync', 'conflicts'], true)) public_api_json(['status' => 'error', 'message' => 'unknown_post_path'], 404);
     $payload = public_api_body();
-    if (!is_array($payload)) {
-        public_api_json(['status' => 'error', 'message' => 'invalid_json'], 400);
-    }
-    if (empty($payload['timestamp']) || empty($payload['app_version'])) {
-        public_api_json(['status' => 'error', 'message' => 'missing timestamp/app_version'], 400);
-    }
-
-    $stored = hc_store_payload_json($userDir, $payload);
-    $stepsDaily = $stored['steps_daily'] ?? [];
-
-    if (!empty($stepsDaily)) {
-        $batch = [];
-        foreach ($stepsDaily as $d => $c) {
-            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) continue;
-            $batch[] = ['date' => $d, 'steps' => (int)$c];
+    if (!is_array($payload)) public_api_json(['status' => 'error', 'message' => 'invalid_json'], 400);
+    if ($subLower === 'conflicts') {
+        $id = (string)($parts[2] ?? ($payload['id'] ?? ''));
+        $action = (string)($payload['action'] ?? '');
+        if ($id === '' || !in_array($action, ['skip', 'replace', 'add'], true)) public_api_json(['status' => 'error', 'message' => 'invalid_conflict_resolution'], 400);
+        $conflicts = steps_conflicts_read($userDir);
+        foreach ($conflicts as $idx => $conflict) {
+            if (($conflict['id'] ?? '') !== $id) continue;
+            if (($conflict['status'] ?? '') !== 'pending') exit(json_encode(['status' => 'success', 'applied' => false, 'message' => 'already_resolved'], JSON_UNESCAPED_UNICODE));
+            $result = steps_apply_payload($userDb, $userDir, $conflict['payload'] ?? [], $action, $conflict['days'] ?? []);
+            $conflicts[$idx]['status'] = 'resolved';
+            $conflicts[$idx]['resolved_at'] = time();
+            $conflicts[$idx]['resolution'] = $action;
+            steps_conflicts_write($userDir, $conflicts);
+            exit(json_encode(['status' => 'success', 'applied' => true, 'resolution' => $action, 'result' => $result], JSON_UNESCAPED_UNICODE));
         }
-        if (!empty($batch)) {
-            upsertStepsBatch($userDb, $batch);
-        }
+        public_api_json(['status' => 'error', 'message' => 'conflict_not_found'], 404);
     }
-
-    exit(json_encode([
-        'status' => 'success',
-        'stored' => [
-            'stored_days' => $stored['stored_days'] ?? [],
-        ],
-        'steps_upserted' => count($stepsDaily),
-    ], JSON_UNESCAPED_UNICODE));
+    if (empty($payload['timestamp']) || empty($payload['app_version'])) public_api_json(['status' => 'error', 'message' => 'missing timestamp/app_version'], 400);
+    $stepsDaily = hc_payload_extract_steps_daily($payload);
+    $conflictDays = steps_detect_conflicts($userDb, $stepsDaily);
+    if ($conflictDays) {
+        $conflict = steps_create_conflict($userDir, $payload, $conflictDays);
+        http_response_code(409);
+        exit(json_encode(['status' => 'conflict', 'conflict' => steps_conflict_public($conflict)], JSON_UNESCAPED_UNICODE));
+    }
+    $result = steps_apply_payload($userDb, $userDir, $payload, 'replace', []);
+    exit(json_encode(['status' => 'success', 'stored' => ['stored_days' => $result['stored']['stored_days'] ?? []], 'steps_upserted' => $result['steps_upserted'] ?? 0], JSON_UNESCAPED_UNICODE));
 }
-
 public_api_json(['status' => 'error', 'message' => 'method_not_allowed'], 405);

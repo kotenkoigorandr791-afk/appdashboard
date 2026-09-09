@@ -2,7 +2,9 @@ package com.stepmonitor.app
 
 import android.app.Application
 import androidx.work.BackoffPolicy
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -44,16 +46,19 @@ class HCWebhookApplication : Application() {
         // backoff when there is no connection, rather than deferring the job
         // indefinitely (which is what NetworkType.CONNECTED causes on Samsung
         // devices with aggressive battery management).
-        val syncWorkRequest = PeriodicWorkRequestBuilder<SyncWorker>(
+        val builder = PeriodicWorkRequestBuilder<SyncWorker>(
             repeatInterval = syncIntervalMinutes.toLong(),
             repeatIntervalTimeUnit = TimeUnit.MINUTES
         )
-            .setBackoffCriteria(
-                BackoffPolicy.EXPONENTIAL,
-                5,
-                TimeUnit.MINUTES
-            )
-            .build()
+        .setBackoffCriteria(
+            BackoffPolicy.EXPONENTIAL,
+            5,
+            TimeUnit.MINUTES
+        )
+        if (preferencesManager.isWifiOnly()) {
+            builder.setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.UNMETERED).build())
+        }
+        val syncWorkRequest = builder.build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             SYNC_WORK_NAME,

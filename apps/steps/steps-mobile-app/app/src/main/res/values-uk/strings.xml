@@ -437,4 +437,24 @@
     <string name="logs_sort_oldest">Спочатку старі</string>
     <string name="health_export_title">Експорт даних здоров’я</string>
     <string name="health_export_desc">Експорт локальних журналів синхронізації та даних надсилання здоров’я для діагностики.</string>
+    <string name="settings_network">Мережа</string>
+    <string name="settings_wifi_only">Використовувати лише Wi‑Fi</string>
+    <string name="settings_test_connection">Перевірити з’єднання</string>
+    <string name="settings_personalization">Персоналізація</string>
+    <string name="theme_auto">Авто</string>
+    <string name="theme_light">Світла</string>
+    <string name="theme_dark">Темна</string>
+    <string name="accent_blue">Синій</string>
+    <string name="accent_green">Зелений</string>
+    <string name="accent_teal">Бірюзовий</string>
+    <string name="accent_orange">Помаранчевий</string>
+    <string name="accent_red">Червоний</string>
+    <string name="accent_pink">Рожевий</string>
+    <string name="accent_purple">Фіолетовий</string>
+    <string name="accent_gray">Сірий</string>
+    <string name="conflict_title">Конфлікт синхронізації</string>
+    <string name="conflict_message">Знайдено різні значення кроків за %1$d дн. Виберіть, які дані залишити.</string>
+    <string name="conflict_skip">Пропустити телефон</string>
+    <string name="conflict_replace">Перезаписати</string>
+    <string name="conflict_add">Додати</string>
 </resources>

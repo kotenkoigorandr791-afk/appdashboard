@@ -1,6 +1,8 @@
 package com.stepmonitor.app
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.content.pm.PackageManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +107,9 @@ class SyncManager(private val context: Context) {
 
             if (enabledWebhookConfigs.isEmpty()) {
                 return@withContext Result.failure(Exception("No server connection configured"))
+            }
+            if (preferencesManager.isWifiOnly() && !isWifiConnected()) {
+                return@withContext Result.failure(Exception("Wi-Fi only sync is enabled"))
             }
 
             val enabledTypes = preferencesManager.getEnabledDataTypes()
@@ -248,6 +253,7 @@ class SyncManager(private val context: Context) {
                         }
                     } else {
                         lastFailure = result.exceptionOrNull()
+                        (lastFailure as? SyncConflictException)?.let { preferencesManager.setPendingConflictJson(it.conflictJson) }
                         val msg = "❌ ${config.url}: ${lastFailure?.message ?: "Error"}"
                         notifConfigs.forEach { nc ->
                             aggregatedNotifs.getOrPut(nc) { mutableListOf() }.add(msg)
@@ -335,6 +341,12 @@ class SyncManager(private val context: Context) {
             sexualActivity = if ("SEXUAL_ACTIVITY" in allowed) data.sexualActivity else emptyList(),
             basalBodyTemperature = if ("BASAL_BODY_TEMPERATURE" in allowed) data.basalBodyTemperature else emptyList()
         )
+    }
+    private fun isWifiConnected(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+        return caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 
     private fun countHealthData(data: HealthData): Int {

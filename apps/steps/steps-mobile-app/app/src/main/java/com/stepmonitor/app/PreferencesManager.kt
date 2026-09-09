@@ -52,6 +52,15 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCAL_FEEDBACK = "local_feedback"
         private const val KEY_FIRST_OPEN_TIME = "first_open_time"
         private const val KEY_WEEKLY_FEEDBACK_PROMPT_DISMISSED = "weekly_feedback_prompt_dismissed"
+        private const val KEY_WIFI_ONLY = "wifi_only"
+        private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_ACCENT_COLOR = "accent_color"
+        private const val KEY_STATS_CACHE_JSON = "stats_cache_json"
+        private const val KEY_STATS_CACHE_TIME = "stats_cache_time"
+        private const val KEY_PROFILE_CACHE_JSON = "profile_cache_json"
+        private const val KEY_PROFILE_CACHE_TIME = "profile_cache_time"
+        private const val KEY_ANDROID_STEPS_CACHE_PREFIX = "android_steps_cache_"
+        private const val KEY_PENDING_CONFLICT_JSON = "pending_conflict_json"
         private const val WEEKLY_FEEDBACK_PROMPT_MS = 7L * 24 * 60 * 60 * 1000
         val MAX_LOG_OPTIONS = listOf(50, 100, 500)
         private const val DEFAULT_MAX_LOGS = 100
@@ -543,6 +552,52 @@ class PreferencesManager(context: Context) {
 
     fun setWeeklyFeedbackPromptDismissed(dismissed: Boolean) {
         prefs.edit().putBoolean(KEY_WEEKLY_FEEDBACK_PROMPT_DISMISSED, dismissed).apply()
+    }
+    fun isWifiOnly(): Boolean = prefs.getBoolean(KEY_WIFI_ONLY, false)
+    fun setWifiOnly(value: Boolean) {
+        prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
+    }
+    fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "auto") ?: "auto"
+    fun setThemeMode(value: String) {
+        prefs.edit().putString(KEY_THEME_MODE, value).apply()
+    }
+    fun getAccentColor(): String = prefs.getString(KEY_ACCENT_COLOR, "blue") ?: "blue"
+    fun setAccentColor(value: String) {
+        prefs.edit().putString(KEY_ACCENT_COLOR, value).apply()
+    }
+    fun getStatsCache(maxAgeMs: Long): String? {
+        val savedAt = prefs.getLong(KEY_STATS_CACHE_TIME, 0)
+        if (System.currentTimeMillis() - savedAt > maxAgeMs) return null
+        return prefs.getString(KEY_STATS_CACHE_JSON, null)
+    }
+    fun setStatsCache(json: String) {
+        prefs.edit().putString(KEY_STATS_CACHE_JSON, json).putLong(KEY_STATS_CACHE_TIME, System.currentTimeMillis()).apply()
+    }
+    fun getProfileCache(maxAgeMs: Long): String? {
+        val savedAt = prefs.getLong(KEY_PROFILE_CACHE_TIME, 0)
+        if (System.currentTimeMillis() - savedAt > maxAgeMs) return null
+        return prefs.getString(KEY_PROFILE_CACHE_JSON, null)
+    }
+    fun setProfileCache(json: String) {
+        prefs.edit().putString(KEY_PROFILE_CACHE_JSON, json).putLong(KEY_PROFILE_CACHE_TIME, System.currentTimeMillis()).apply()
+    }
+    fun getAndroidStepsCache(date: String, maxAgeMs: Long): Long? {
+        val raw = prefs.getString(KEY_ANDROID_STEPS_CACHE_PREFIX + date, null) ?: return null
+        val parts = raw.split(":", limit = 2)
+        if (parts.size != 2) return null
+        val savedAt = parts[0].toLongOrNull() ?: return null
+        if (System.currentTimeMillis() - savedAt > maxAgeMs) return null
+        return parts[1].toLongOrNull()
+    }
+    fun setAndroidStepsCache(date: String, steps: Long) {
+        prefs.edit().putString(KEY_ANDROID_STEPS_CACHE_PREFIX + date, "${System.currentTimeMillis()}:$steps").apply()
+    }
+    fun getPendingConflictJson(): String? = prefs.getString(KEY_PENDING_CONFLICT_JSON, null)
+    fun setPendingConflictJson(json: String) {
+        prefs.edit().putString(KEY_PENDING_CONFLICT_JSON, json).apply()
+    }
+    fun clearPendingConflictJson() {
+        prefs.edit().remove(KEY_PENDING_CONFLICT_JSON).apply()
     }
 
     /** Debug only: backdate first open and clear dismiss so the weekly Home card shows. */

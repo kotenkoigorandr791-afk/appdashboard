@@ -437,4 +437,24 @@
     <string name="logs_sort_oldest">Спачатку старыя</string>
     <string name="health_export_title">Экспарт даных здароўя</string>
     <string name="health_export_desc">Экспарт лакальных журналаў сінхранізацыі і даных адпраўкі здароўя для дыягностыкі.</string>
+    <string name="settings_network">Сетка</string>
+    <string name="settings_wifi_only">Выкарыстоўваць толькі Wi‑Fi</string>
+    <string name="settings_test_connection">Праверыць злучэнне</string>
+    <string name="settings_personalization">Персаналізацыя</string>
+    <string name="theme_auto">Аўта</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Цёмная</string>
+    <string name="accent_blue">Сіні</string>
+    <string name="accent_green">Зялёны</string>
+    <string name="accent_teal">Бірузовы</string>
+    <string name="accent_orange">Аранжавы</string>
+    <string name="accent_red">Чырвоны</string>
+    <string name="accent_pink">Ружовы</string>
+    <string name="accent_purple">Фіялетавы</string>
+    <string name="accent_gray">Шэры</string>
+    <string name="conflict_title">Канфлікт сінхранізацыі</string>
+    <string name="conflict_message">Знойдзены розныя значэнні крокаў за %1$d дзён. Выберыце, якія даныя пакінуць.</string>
+    <string name="conflict_skip">Прапусціць тэлефон</string>
+    <string name="conflict_replace">Перазапісаць</string>
+    <string name="conflict_add">Дадаць</string>
 </resources>

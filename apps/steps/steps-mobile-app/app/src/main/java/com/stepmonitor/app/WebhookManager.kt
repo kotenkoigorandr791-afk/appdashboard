@@ -22,6 +22,10 @@ internal class HttpResponseException(
     val statusCode: Int,
     message: String
 ) : IOException(message)
+internal class SyncConflictException(
+    val conflictJson: String,
+    message: String
+) : IOException(message)
 
 class WebhookManager(
     private val webhookConfigs: List<WebhookConfig>,
@@ -102,23 +106,32 @@ class WebhookManager(
                         if (response.isSuccessful) {
                             logWebhookCall(config.url, timestamp, statusCode, true, null, System.currentTimeMillis() - timestamp)
                             return Result.success(Unit)
+                    } else {
+                        val body = response.body?.string().orEmpty()
+                        if (response.code == 409 && body.isNotBlank()) {
+                            val conflictException = SyncConflictException(body, "Sync conflict")
+                            lastException = conflictException
+                            errorMessage = conflictException.message
+                            shouldRetry = false
                         } else {
-                            val location = response.header("Location")
-                            val detail = buildString {
-                                append(response.message)
-                                if (response.code in 300..399 && !location.isNullOrBlank()) {
-                                    append(" Location=").append(location)
-                                }
+                        val location = response.header("Location")
+                        val detail = buildString {
+                            append(response.message)
+                            if (body.isNotBlank()) append(" ").append(body.take(300))
+                            if (response.code in 300..399 && !location.isNullOrBlank()) {
+                                append(" Location=").append(location)
+                            }
                             }
                             val httpException = HttpResponseException(
                                 response.code,
                                 "HTTP ${response.code}: $detail"
                             )
-                            lastException = httpException
-                            errorMessage = httpException.message
-                            shouldRetry = isRetryableException(httpException)
+                        lastException = httpException
+                        errorMessage = httpException.message
+                        shouldRetry = isRetryableException(httpException)
                         }
                     }
+                }
 
                     if (!shouldRetry) {
                         break

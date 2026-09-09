@@ -437,4 +437,24 @@
     <string name="logs_sort_oldest">Сначала старые</string>
     <string name="health_export_title">Экспорт данных здоровья</string>
     <string name="health_export_desc">Экспорт локальных логов синхронизации и данных отправки здоровья для диагностики.</string>
+    <string name="settings_network">Сеть</string>
+    <string name="settings_wifi_only">Использовать только Wi‑Fi</string>
+    <string name="settings_test_connection">Проверить соединение</string>
+    <string name="settings_personalization">Персонализация</string>
+    <string name="theme_auto">Авто</string>
+    <string name="theme_light">Светлая</string>
+    <string name="theme_dark">Тёмная</string>
+    <string name="accent_blue">Синий</string>
+    <string name="accent_green">Зелёный</string>
+    <string name="accent_teal">Бирюзовый</string>
+    <string name="accent_orange">Оранжевый</string>
+    <string name="accent_red">Красный</string>
+    <string name="accent_pink">Розовый</string>
+    <string name="accent_purple">Фиолетовый</string>
+    <string name="accent_gray">Серый</string>
+    <string name="conflict_title">Конфликт синхронизации</string>
+    <string name="conflict_message">Найдены разные значения шагов за %1$d дн. Выберите, какие данные оставить.</string>
+    <string name="conflict_skip">Пропустить телефон</string>
+    <string name="conflict_replace">Перезаписать</string>
+    <string name="conflict_add">Прибавить</string>
 </resources>

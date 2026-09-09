@@ -743,6 +743,59 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
                 </div>
             </div>
         </div>
+        <div id="stepmonitor-conflict-modal" style="display:none;position:fixed;inset:0;z-index:10070;background:rgba(6,10,16,.36);backdrop-filter:blur(18px);align-items:center;justify-content:center;padding:16px;">
+            <div style="width:min(560px,96vw);background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.28);padding:18px;">
+                <h2 style="margin:0 0 8px;font-size:20px;"><?php echo htmlspecialchars($translations['sync_conflict_title'] ?? 'Sync conflict'); ?></h2>
+                <p id="stepmonitor-conflict-message" style="margin:0 0 14px;opacity:.82;line-height:1.45;"></p>
+                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button type="button" class="excel-btn" data-conflict-action="skip" style="background:#6c757d;color:#fff;"><?php echo htmlspecialchars($translations['sync_conflict_skip'] ?? 'Skip phone data'); ?></button>
+                    <button type="button" class="excel-btn" data-conflict-action="replace" style="background:var(--primary-color);color:#fff;"><?php echo htmlspecialchars($translations['sync_conflict_replace'] ?? 'Replace server data'); ?></button>
+                    <button type="button" class="excel-btn" data-conflict-action="add" style="background:#16a34a;color:#fff;"><?php echo htmlspecialchars($translations['sync_conflict_add'] ?? 'Add values'); ?></button>
+                </div>
+            </div>
+        </div>
+        <script>
+        (function(){
+            const modal=document.getElementById('stepmonitor-conflict-modal');
+            const msg=document.getElementById('stepmonitor-conflict-message');
+            if(!modal||!msg) return;
+            let current=null;
+            function show(conflict){
+                current=conflict;
+                const days=Array.isArray(conflict.days)?conflict.days:[];
+                msg.textContent=<?php echo json_encode($translations['sync_conflict_message'] ?? 'Different step values were found for {count} day(s). Choose which data to keep.'); ?>.replace('{count}', String(days.length));
+                modal.style.display='flex';
+            }
+            async function poll(){
+                try{
+                    const res=await fetch('/api/steps/conflicts',{credentials:'same-origin'});
+                    const data=await res.json();
+                    const conflict=data&&Array.isArray(data.conflicts)?data.conflicts[0]:null;
+                    if(conflict&&!current) show(conflict);
+                }catch(e){}
+            }
+            modal.querySelectorAll('[data-conflict-action]').forEach(btn=>{
+                btn.addEventListener('click',async()=>{
+                    if(!current) return;
+                    const action=btn.getAttribute('data-conflict-action');
+                    btn.disabled=true;
+                    try{
+                        await fetch(current.resolution_url||('/api/steps/conflicts/'+encodeURIComponent(current.id)),{
+                            method:'POST',
+                            credentials:'same-origin',
+                            headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({action})
+                        });
+                    }catch(e){}
+                    current=null;
+                    modal.style.display='none';
+                    btn.disabled=false;
+                });
+            });
+            poll();
+            setInterval(poll,60000);
+        })();
+        </script>
 
         <script>
         (function(){
