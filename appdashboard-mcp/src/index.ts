@@ -105,7 +105,8 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
 function parsePort(argv: string[]): number {
   const index = argv.findIndex((arg) => arg === "--port" || arg.startsWith("--port="));
   if (index === -1) return 8808;
-  const raw = argv[index].includes("=") ? argv[index].split("=", 2)[1] : argv[index + 1];
+  const raw = argv[index]?.includes("=") ? argv[index].split("=", 2)[1] : argv[index + 1];
+  if (!raw) return 8808;
   const port = Number(raw);
   return Number.isInteger(port) && port > 0 && port < 65536 ? port : 8808;
 }
