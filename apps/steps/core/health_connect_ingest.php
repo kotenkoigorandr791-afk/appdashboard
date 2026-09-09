@@ -72,7 +72,7 @@ function hc_payload_extract_steps_daily(array $payload): array {
     $out = [];
     foreach ($stepsArr as $rec) {
         if (!is_array($rec)) continue;
-        $date = hc_safe_date_from_time_value($rec['start_time'] ?? ($rec['end_time'] ?? null));
+        $date = is_string($rec['date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$rec['date']) ? (string)$rec['date'] : hc_safe_date_from_time_value($rec['start_time'] ?? ($rec['end_time'] ?? null));
         if ($date === null) continue;
         $cnt = (int)($rec['count'] ?? 0);
         if ($cnt < 0) $cnt = 0;

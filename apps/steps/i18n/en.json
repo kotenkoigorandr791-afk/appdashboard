@@ -153,7 +153,7 @@
     "video_start_btn": "Start analysis",
     "video_wizard_forward": "Next",
     "video_progress": "Progress",
-    "video_meta_frames": "{cur} \/ {tot} frames",
+    "video_meta_frames": "{cur} / {tot} frames",
     "video_status_preparing": "Starting job…",
     "video_status_ffmpeg": "Extracting video frames",
     "video_status_ocr_n": "OCR on {n} frames",
@@ -174,7 +174,7 @@
     "video_err_stale_job": "This job is no longer active (no recent progress). Start a new analysis if needed.",
     "video_eta": "~{n} s left",
     "video_col_time": "Time in video",
-    "video_status_gap": "Refining gap {a}\/{b}…",
+    "video_status_gap": "Refining gap {a}/{b}…",
     "video_status_merge": "Finalizing",
     "video_file_reading": "Reading video in browser…",
     "video_file_uploading": "Sending to server…",
@@ -284,7 +284,7 @@
     "date_not_editable": "Date cannot be edited",
     "import_external_backup": "Import CSV backup",
     "external_backup_url": "Backup file URL",
-    "external_backup_url_placeholder": "https:\/\/other-server.com\/backup.csv",
+    "external_backup_url_placeholder": "https://other-server.com/backup.csv",
     "import_mode": "Import mode",
     "import_mode_merge": "Merge (keep existing)",
     "import_mode_replace": "Replace all data",
@@ -295,5 +295,10 @@
     "external_backup_file": "CSV backup file",
     "no_file_selected": "No file selected",
     "heart_rate": "Heart rate (bpm)",
-    "sleep": "Sleep (hours)"
+    "sleep": "Sleep (hours)",
+    "mobile_app_download": "Download mobile app",
+    "mobile_app_download_notice": "The mobile app download button was hidden. You can enable it again in settings.",
+    "mobile_app_button": "Mobile app button",
+    "mobile_app_button_show": "Show download button",
+    "mobile_app_devices": "Connected devices"
 }

@@ -153,7 +153,7 @@
     "video_start_btn": "Почати аналіз",
     "video_wizard_forward": "Далі",
     "video_progress": "Прогрес",
-    "video_meta_frames": "{cur} \/ {tot} кадрів",
+    "video_meta_frames": "{cur} / {tot} кадрів",
     "video_status_preparing": "Запуск…",
     "video_status_ffmpeg": "Витягування кадрів",
     "video_status_ocr_n": "OCR: {n} кадрів",
@@ -174,7 +174,7 @@
     "video_err_stale_job": "Завдання вже не виконується (немає оновлень). За потреби запустіть аналіз знову.",
     "video_eta": "~{n} с",
     "video_col_time": "Час на відео",
-    "video_status_gap": "Уточнення ділянки {a}\/{b}…",
+    "video_status_gap": "Уточнення ділянки {a}/{b}…",
     "video_status_merge": "Завершення",
     "video_file_reading": "Читання відео в браузері…",
     "video_file_uploading": "Відправка на сервер…",
@@ -284,7 +284,7 @@
     "date_not_editable": "Дату не можна редагувати",
     "import_external_backup": "Імпорт CSV резервної копії",
     "external_backup_url": "URL файлу резервної копії",
-    "external_backup_url_placeholder": "https:\/\/інший-сервер.com\/backup.csv",
+    "external_backup_url_placeholder": "https://інший-сервер.com/backup.csv",
     "import_mode": "Режим імпорту",
     "import_mode_merge": "Об'єднати (зберегти поточні)",
     "import_mode_replace": "Замінити всі дані",
@@ -295,5 +295,10 @@
     "external_backup_file": "CSV файл резервної копії",
     "no_file_selected": "Файл не вибрано",
     "heart_rate": "Серцевий ритм (уд/хв)",
-    "sleep": "Сон (години)"
+    "sleep": "Сон (години)",
+    "mobile_app_download": "Завантажити мобільний застосунок",
+    "mobile_app_download_notice": "Кнопку завантаження мобільного застосунку приховано. Її можна ввімкнути в налаштуваннях.",
+    "mobile_app_button": "Кнопка мобільного застосунку",
+    "mobile_app_button_show": "Показувати кнопку завантаження",
+    "mobile_app_devices": "Підключені пристрої"
 }
