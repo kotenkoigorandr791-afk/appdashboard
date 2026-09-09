@@ -50,6 +50,7 @@
     "date_asc": "Data (rosnąco)",
     "date_desc": "Data (malejąco)",
     "rows_per_page": "Wierszy na stronę",
+    "months_before_after": "Miesięcy przed i po",
     "start_date": "Data początkowa",
     "apply": "Zastosuj",
     "close": "Anuluj",

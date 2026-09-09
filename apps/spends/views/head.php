@@ -299,9 +299,9 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
         .table-toolbar .search-box { width:100%; height:40px; margin:0; padding:0 12px 0 38px; background:var(--surface-solid); border-radius:var(--radius-sm); line-height:40px; }
         .add-date-btn { padding:10px 16px; border-radius:var(--radius-sm); font-weight:800; }
-        .data-table-container { overflow-x:auto; margin:12px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 20px); overflow-y:auto; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
+        .data-table-container { overflow-x:auto; overflow-y:clip; margin:12px 0; max-width:100%; max-height:none; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
         .data-table { border-collapse:separate; border-spacing:0; }
-        .data-table th, .data-table td { border:0; border-bottom:1px solid var(--border-color); padding:8px 10px; min-width:92px; }
+        .data-table th, .data-table td { border:0; border-bottom:1px solid var(--border-color); border-left:1px solid var(--border-color); padding:8px 10px; min-width:92px; }
         .data-table th { background:color-mix(in srgb,var(--primary-color) 86%,#111); font-size:12px; font-weight:800; }
         .data-table td input:focus { outline:2px solid color-mix(in srgb,var(--primary-color) 64%,#fff); background:var(--surface-solid); border-radius:var(--radius-sm); }
         .settings-menu-bar { gap:4px; border:1px solid color-mix(in srgb,var(--border-color) 70%,var(--primary-color) 30%); border-radius:var(--radius-md); padding:4px; background:color-mix(in srgb,var(--surface-solid) 10%,rgba(127,127,127,.08)); }
@@ -314,9 +314,10 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .modal-close:hover { background:var(--primary-color); color:#fff; filter:none; border-color:var(--primary-color); }
         .modal:not(#import-modal):not(#bank-csv-import-modal) .modal-content { padding-top:64px!important; }
         #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
-        .table-modal .modal-content { width:min(1320px,96vw); height:min(86vh,900px); max-width:96vw; display:flex; flex-direction:column; overflow:hidden; }
+        .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; }
         .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; }
-        .table-modal .data-table-container { flex:1; min-height:0; max-height:none; margin:0; box-shadow:none; }
+        .table-modal .data-table-container { flex:none; min-height:unset; max-height:none; margin:0; box-shadow:none; }
+        .table-modal .data-table th { top:64px; }
         .notification { border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 18px 42px rgba(0,0,0,.2); }
         #pagination { margin:14px 0 0; }
         #pagination button { padding:8px 12px; border-radius:var(--radius-sm); font-weight:700; }
@@ -402,9 +403,9 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             }
 
             /* Make store header row sticky at top */
-            .data-table thead {
+            .table-modal .data-table thead {
                 position: sticky !important;
-                top: 0 !important;
+                top: 64px !important;
                 z-index: 10 !important;
             }
 
@@ -445,6 +446,13 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             #settings-modal .store-visibility-table td {
                 padding: 6px 4px !important;
             }
+            #backup-modal .modal-content { display:flex; flex-direction:column; justify-content:space-between; }
+            #backup-modal .form-row, #backup-modal h4 { margin:0; background:var(--group-block-bg); border:1px solid var(--border-color); }
+            #backup-modal .form-row { border-radius:var(--radius-md); padding:14px; flex:0 0 auto; }
+            #backup-modal h4 { border-radius:var(--radius-md) var(--radius-md) 0 0; border-bottom:none; padding:12px 14px 6px; flex:0 0 auto; }
+            #backup-modal h4 + .form-row, #backup-modal h4 + #backup-list { border-radius:0 0 var(--radius-md) var(--radius-md); border-top:none; }
+            #backup-modal .form-row + h4 { margin-top:12px; }
+            #backup-modal #backup-list { flex:1; min-height:0; max-height:none!important; margin:0; background:var(--group-block-bg); border:1px solid var(--border-color); border-radius:0 0 var(--radius-md) var(--radius-md); padding:8px; overflow-y:auto; }
         }
         *{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);}
         *::-webkit-scrollbar{width:10px;height:10px;}

@@ -476,7 +476,7 @@ function initDB(AppDatabase $db): void {
     try { $db->exec("ALTER TABLE users ADD COLUMN trusted_devices TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
+try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     $rootStmt = $db->prepare("INSERT INTO users (email,name,password,photo,role,verified,language,theme,color,trusted_devices,icon_sort_order,icon_style,wallpaper,must_change_password,created_at)
         VALUES('root@root','Root Administrator',:password,'default_avatar.png',2,1,'en','light','#007bff','[]','alpha','animated','default',1,:created_at)

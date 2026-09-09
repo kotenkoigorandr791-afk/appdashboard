@@ -107,3 +107,6 @@ opencode.json
 /apps/steps/steps-mobile-app/captures/
 /apps/steps/steps-mobile-app/.cxx/
 /downloads/stepmonitor-build.sha256
+
+# Task files (local only, not committed)
+/tasks/
