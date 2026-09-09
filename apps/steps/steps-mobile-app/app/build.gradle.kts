@@ -139,6 +139,8 @@ dependencies {
     implementation(libs.grpc.android)
     implementation(libs.protobuf.javalite)
     implementation(libs.javax.annotation)
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

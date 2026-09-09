@@ -570,7 +570,8 @@ class SyncManager(private val context: Context) {
                         add(buildJsonObject {
                             put("count", step.count)
                             put("start_time", step.startTime.toString())
-                            put("end_time", step.endTime.toString())
+                    put("end_time", step.endTime.toString())
+                    put("date", java.time.LocalDateTime.ofInstant(step.startTime, java.time.ZoneId.systemDefault()).toLocalDate().toString())
                             step.metadata?.let { meta -> putRecordMetadata(meta) }
                         })
                     }

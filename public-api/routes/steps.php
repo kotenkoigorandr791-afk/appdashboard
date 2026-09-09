@@ -27,6 +27,24 @@ $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 header('Content-Type: application/json; charset=utf-8');
 
 if ($method === 'GET') {
+    if (strtolower((string)$sub) === 'profile') {
+        $email = get_current_user_email();
+        $profile = ['email' => $email ?: '', 'name' => $email ?: 'StepMonitor', 'photo' => ''];
+        if ($email && function_exists('app_main_db')) {
+            try {
+                $mainDb = app_main_db();
+                $stmt = $mainDb->prepare('SELECT name, photo FROM users WHERE lower(email) = :email LIMIT 1');
+                $stmt->bindValue(':email', strtolower($email), PDO::PARAM_STR);
+                $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+                if ($row) {
+                    $profile['name'] = (string)($row['name'] ?: $profile['name']);
+                    $profile['photo'] = function_exists('app_avatar_src') ? app_avatar_src($row['photo'] ?? '') : (string)($row['photo'] ?? '');
+                }
+            } catch (Throwable $ignored) {
+            }
+        }
+        exit(json_encode(['status' => 'success', 'profile' => $profile], JSON_UNESCAPED_UNICODE));
+    }
     if (isset($_GET['settings']) || isset($_GET['get_settings'])) {
         $settings = loadUserSettings($userDb, $defaultSettings);
         exit(json_encode(['status' => 'success', 'settings' => $settings], JSON_UNESCAPED_UNICODE));

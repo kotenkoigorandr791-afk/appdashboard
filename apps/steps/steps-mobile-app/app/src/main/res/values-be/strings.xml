@@ -428,10 +428,13 @@
     <string name="auth_scan_qr">Сканаваць QR-код</string>
     <string name="auth_camera_unavailable">QR-сканер недаступны. Устаўце спасылку падключэння ўручную.</string>
     <string name="auth_invalid_link">Некарэктная спасылка падключэння</string>
+    <string name="auth_disconnect">Адключыцца</string>
+    <string name="settings_metrics">Даныя здароўя для сінхранізацыі</string>
+    <string name="stats_year_title">Крокі за апошні год</string>
+    <string name="action_copy">Капіяваць</string>
     <string name="logs_search">Пошук у логах</string>
     <string name="logs_sort_newest">Спачатку новыя</string>
     <string name="logs_sort_oldest">Спачатку старыя</string>
     <string name="health_export_title">Экспарт даных здароўя</string>
     <string name="health_export_desc">Экспарт лакальных журналаў сінхранізацыі і даных адпраўкі здароўя для дыягностыкі.</string>
 </resources>
-

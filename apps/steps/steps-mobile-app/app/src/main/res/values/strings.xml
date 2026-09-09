@@ -428,10 +428,13 @@
     <string name="auth_scan_qr">Scan QR code</string>
     <string name="auth_camera_unavailable">QR scanner is unavailable. Paste the connection link manually.</string>
     <string name="auth_invalid_link">Invalid connection link</string>
+    <string name="auth_disconnect">Disconnect</string>
+    <string name="settings_metrics">Health data to sync</string>
+    <string name="stats_year_title">Steps for the last year</string>
+    <string name="action_copy">Copy</string>
     <string name="logs_search">Search logs</string>
     <string name="logs_sort_newest">Newest first</string>
     <string name="logs_sort_oldest">Oldest first</string>
     <string name="health_export_title">Export health data</string>
     <string name="health_export_desc">Export local synchronization logs and health delivery data for diagnostics.</string>
 </resources>
-

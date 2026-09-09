@@ -428,10 +428,13 @@
     <string name="auth_scan_qr">Сканировать QR-код</string>
     <string name="auth_camera_unavailable">QR-сканер недоступен. Вставьте ссылку подключения вручную.</string>
     <string name="auth_invalid_link">Некорректная ссылка подключения</string>
+    <string name="auth_disconnect">Отключиться</string>
+    <string name="settings_metrics">Данные здоровья для синхронизации</string>
+    <string name="stats_year_title">Шаги за последний год</string>
+    <string name="action_copy">Копировать</string>
     <string name="logs_search">Поиск в логах</string>
     <string name="logs_sort_newest">Сначала новые</string>
     <string name="logs_sort_oldest">Сначала старые</string>
     <string name="health_export_title">Экспорт данных здоровья</string>
     <string name="health_export_desc">Экспорт локальных логов синхронизации и данных отправки здоровья для диагностики.</string>
 </resources>
-

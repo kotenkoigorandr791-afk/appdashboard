@@ -1,16 +1,12 @@
 package com.stepmonitor.app.screens
-import android.app.Activity
-import android.content.Intent
-import android.net.Uri
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,14 +14,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,11 +31,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.stepmonitor.app.HealthConnectManager
-import com.stepmonitor.app.HealthData
 import com.stepmonitor.app.HealthDataType
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
@@ -49,132 +45,159 @@ import com.stepmonitor.app.WebhookConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
-data class HealthDay(val rows: List<Pair<HealthDataType, Int>> = emptyList(), val error: String? = null)
+import java.time.format.DateTimeFormatter
+data class StatMetric(val type: HealthDataType, val value: String)
+data class StatsState(val byDay: Map<LocalDate, List<StatMetric>> = emptyMap(), val steps: Map<LocalDate, Long> = emptyMap(), val error: String? = null)
 @Composable
 fun StatisticsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
-    var offset by remember { mutableIntStateOf(0) }
-    var link by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf(if (prefs.getWebhookConfigs().any { it.isEnabled }) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting)) }
-    var connected by remember { mutableStateOf(prefs.getWebhookConfigs().any { it.isEnabled }) }
-    var day by remember { mutableStateOf(HealthDay()) }
-    val date = LocalDate.now().plusDays(offset.toLong())
-    fun connect(value: String) {
-        runCatching {
-            val uri = Uri.parse(value.trim())
-            val endpoint = uri.getQueryParameter("endpoint").orEmpty()
-            val token = uri.getQueryParameter("token").orEmpty()
-            require(endpoint.startsWith("http") && token.isNotBlank())
-            prefs.setWebhookConfigs(listOf(WebhookConfig(endpoint, "StepMonitor", mapOf("Authorization" to "Bearer $token"))))
-            prefs.setEnabledDataTypes(HealthDataType.values().toSet())
-            connected = true
-            status = context.getString(R.string.auth_connected)
-            link = ""
-        }.onFailure {
-            status = context.getString(R.string.auth_invalid_link)
-        }
+    var dayOffset by remember { mutableIntStateOf(0) }
+    var monthOffset by remember { mutableIntStateOf(0) }
+    var state by remember { mutableStateOf(StatsState()) }
+    var androidSteps by remember { mutableStateOf<Long?>(null) }
+    var androidStepsError by remember { mutableStateOf<String?>(null) }
+    val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
+    val selectedDate = LocalDate.now().plusDays(dayOffset.toLong())
+    val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
+    suspend fun load() {
+        state = fetchYearStats(config, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() })
     }
-    val scanner = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val scanned = result.data?.getStringExtra("SCAN_RESULT").orEmpty()
-            if (scanned.isNotBlank()) connect(scanned)
-        }
-    }
-    LaunchedEffect(connected, date) {
-        if (!connected) return@LaunchedEffect
-        day = readHealthDay(context, prefs, date)
-    }
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (!connected) {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.titleLarge)
-                    Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = {
-                        runCatching {
-                            scanner.launch(Intent("com.google.zxing.client.android.SCAN").putExtra("SCAN_MODE", "QR_CODE_MODE"))
-                        }.onFailure {
-                            Toast.makeText(context, context.getString(R.string.auth_camera_unavailable), Toast.LENGTH_LONG).show()
-                        }
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
-                        Text(stringResource(R.string.auth_scan_qr), modifier = Modifier.padding(start = 8.dp))
-                    }
-                    OutlinedTextField(value = link, onValueChange = { link = it }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.auth_link_label)) })
-                    Button(onClick = { connect(link) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.auth_connect)) }
-                }
+    suspend fun loadAndroidSteps() {
+        androidStepsError = null
+        readAndroidSteps(context, selectedDate)
+            .onSuccess { androidSteps = it }
+            .onFailure {
+                androidSteps = 0
+                androidStepsError = it.message
             }
-            return@Column
+    }
+    LaunchedEffect(config?.url) { load() }
+    LaunchedEffect(selectedDate) { loadAndroidSteps() }
+    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = { dayOffset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
+                    Spacer(Modifier.width(8.dp))
+                    Text(selectedDate.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { if (dayOffset < 0) dayOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+                }
+                Text("${stringResource(R.string.stats_steps)}: ${androidSteps ?: 0}", style = MaterialTheme.typography.headlineSmall)
+                androidStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            IconButton(onClick = { offset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
-            Spacer(Modifier.width(8.dp))
-            Text(date.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-            IconButton(onClick = { if (offset < 0) offset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = { if (monthOffset > -11) monthOffset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
+                    Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+                }
+                StepsChart(state.steps, chartMonth)
+            }
         }
-        Button(onClick = { scope.launch { day = readHealthDay(context, prefs, date) } }, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = { scope.launch { load(); loadAndroidSteps() } }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.dashboard_refresh))
         }
-        day.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(day.rows, key = { it.first.name }) { (type, count) ->
+            items(state.byDay[selectedDate].orEmpty(), key = { it.type.name }) { metric ->
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Text(count.toString(), style = MaterialTheme.typography.headlineSmall)
+                        Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(metric.value, style = MaterialTheme.typography.headlineSmall)
                     }
                 }
             }
         }
     }
 }
-private suspend fun readHealthDay(context: android.content.Context, prefs: PreferencesManager, date: LocalDate): HealthDay = withContext(Dispatchers.IO) {
+@Composable
+private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth) {
+    val color = MaterialTheme.colorScheme.primary
+    val days = remember(steps, month) {
+        (1..month.lengthOfMonth()).map { day -> month.atDay(day) to (steps[month.atDay(day)] ?: 0L) }
+    }
+    Canvas(Modifier.fillMaxWidth().height(170.dp)) {
+        val max = (days.maxOfOrNull { it.second } ?: 1L).coerceAtLeast(1L).toFloat()
+        val barWidth = size.width / 30f
+        days.take(30).forEachIndexed { index, item ->
+            val h = (item.second / max) * size.height
+            drawRect(color = if (item.second > 0) color else Color.LightGray.copy(alpha = 0.25f), topLeft = Offset(index * barWidth, size.height - h), size = Size((barWidth - 2f).coerceAtLeast(1f), h.coerceAtLeast(2f)))
+        }
+    }
+}
+private suspend fun readAndroidSteps(context: android.content.Context, date: LocalDate): Result<Long> = withContext(Dispatchers.IO) {
     runCatching {
         val zone = ZoneId.systemDefault()
         val start = date.atStartOfDay(zone).toInstant()
         val end = date.plusDays(1).atStartOfDay(zone).toInstant()
-        val enabled = prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }
-        HealthConnectManager(context).readHealthData(enabled, emptyMap(), start = start, end = end).getOrThrow().toRows()
-    }.fold(
-        onSuccess = { HealthDay(it) },
-        onFailure = { HealthDay(error = it.message ?: context.getString(R.string.sync_failed)) }
-    )
+        HealthConnectManager(context)
+            .readHealthData(setOf(HealthDataType.STEPS), emptyMap(), start = start, end = end)
+            .getOrThrow()
+            .steps
+            .sumOf { it.count }
+    }
 }
-private fun HealthData.toRows(): List<Pair<HealthDataType, Int>> = listOf(
-    HealthDataType.STEPS to steps.size,
-    HealthDataType.SLEEP to sleep.size,
-    HealthDataType.HEART_RATE to heartRate.size,
-    HealthDataType.HEART_RATE_VARIABILITY to heartRateVariability.size,
-    HealthDataType.DISTANCE to distance.size,
-    HealthDataType.ACTIVE_CALORIES to activeCalories.size,
-    HealthDataType.TOTAL_CALORIES to totalCalories.size,
-    HealthDataType.WEIGHT to weight.size,
-    HealthDataType.HEIGHT to height.size,
-    HealthDataType.BLOOD_PRESSURE to bloodPressure.size,
-    HealthDataType.BLOOD_GLUCOSE to bloodGlucose.size,
-    HealthDataType.OXYGEN_SATURATION to oxygenSaturation.size,
-    HealthDataType.BODY_TEMPERATURE to bodyTemperature.size,
-    HealthDataType.SKIN_TEMPERATURE to skinTemperature.size,
-    HealthDataType.RESPIRATORY_RATE to respiratoryRate.size,
-    HealthDataType.RESTING_HEART_RATE to restingHeartRate.size,
-    HealthDataType.EXERCISE to exercise.size,
-    HealthDataType.HYDRATION to hydration.size,
-    HealthDataType.NUTRITION to nutrition.size,
-    HealthDataType.BASAL_METABOLIC_RATE to basalMetabolicRate.size,
-    HealthDataType.BODY_FAT to bodyFat.size,
-    HealthDataType.LEAN_BODY_MASS to leanBodyMass.size,
-    HealthDataType.BODY_WATER_MASS to bodyWaterMass.size,
-    HealthDataType.VO2_MAX to vo2Max.size,
-    HealthDataType.BONE_MASS to boneMass.size,
-    HealthDataType.MENSTRUATION_FLOW to menstruationFlow.size,
-    HealthDataType.MENSTRUATION_PERIOD to menstruationPeriod.size,
-    HealthDataType.INTERMENSTRUAL_BLEEDING to intermenstrualBleeding.size,
-    HealthDataType.OVULATION_TEST to ovulationTest.size,
-    HealthDataType.CERVICAL_MUCUS to cervicalMucus.size,
-    HealthDataType.SEXUAL_ACTIVITY to sexualActivity.size,
-    HealthDataType.BASAL_BODY_TEMPERATURE to basalBodyTemperature.size
-).filter { it.second > 0 }
+private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDataType>): StatsState = withContext(Dispatchers.IO) {
+    if (config == null) return@withContext StatsState(error = "Not connected")
+    runCatching {
+        val to = LocalDate.now()
+        val from = to.minusDays(365)
+        val url = "${config.url}${if (config.url.contains("?")) "&" else "?"}from=$from&to=$to&metrics=1"
+        val builder = Request.Builder().url(url)
+        config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+        OkHttpClient().newCall(builder.build()).execute().use { response ->
+            if (!response.isSuccessful) error("HTTP ${response.code}")
+            parseServerMetrics(JSONObject(response.body?.string().orEmpty()).optJSONArray("metrics") ?: JSONArray(), enabled)
+        }
+    }.getOrElse { StatsState(error = it.message) }
+}
+private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>): StatsState {
+    val byDay = mutableMapOf<LocalDate, List<StatMetric>>()
+    val steps = mutableMapOf<LocalDate, Long>()
+    for (index in 0 until items.length()) {
+        val row = items.optJSONObject(index) ?: continue
+        val date = runCatching { LocalDate.parse(row.optString("date")) }.getOrNull() ?: continue
+        val day = row.optJSONObject("metrics") ?: continue
+        val rows = mutableListOf<StatMetric>()
+        fun metric(name: String): JSONObject? = day.optJSONObject(name)
+        fun total(name: String): Double {
+            val obj = metric(name) ?: return 0.0
+            val total = obj.optDouble("total", Double.NaN)
+            if (!total.isNaN()) return total
+            val meters = obj.optDouble("total_meters", Double.NaN)
+            return if (meters.isNaN()) 0.0 else meters
+        }
+        val stepTotal = total("steps").toLong()
+        if (HealthDataType.STEPS in enabled && stepTotal > 0) {
+            steps[date] = stepTotal
+            rows += StatMetric(HealthDataType.STEPS, stepTotal.toString())
+        }
+        val candidates = listOf(
+            HealthDataType.DISTANCE to ("distance" to "%.0f m".format(total("distance"))),
+            HealthDataType.ACTIVE_CALORIES to ("active_calories" to "%.0f kcal".format(total("active_calories"))),
+            HealthDataType.TOTAL_CALORIES to ("total_calories" to "%.0f kcal".format(total("total_calories"))),
+            HealthDataType.SLEEP to ("sleep" to "%.1f h".format(total("sleep") / 3600.0)),
+            HealthDataType.HEART_RATE to ("heart_rate" to "%.0f bpm".format(metric("heart_rate")?.optDouble("avg") ?: 0.0)),
+            HealthDataType.WEIGHT to ("weight" to "%.1f kg".format(metric("weight")?.optDouble("last") ?: 0.0)),
+            HealthDataType.BLOOD_PRESSURE to ("blood_pressure" to "%.0f mmHg".format(metric("blood_pressure")?.optDouble("last") ?: 0.0)),
+            HealthDataType.OXYGEN_SATURATION to ("oxygen_spo2" to "%.1f %%".format(metric("oxygen_spo2")?.optDouble("avg") ?: 0.0))
+        )
+        candidates.forEach { (type, pair) ->
+            val obj = metric(pair.first)
+            if (type in enabled && obj != null && obj.optInt("samples", 0) > 0) rows += StatMetric(type, pair.second)
+        }
+        byDay[date] = rows
+    }
+    return StatsState(byDay = byDay, steps = steps)
+}
