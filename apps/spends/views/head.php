@@ -249,7 +249,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .rates-table tr:hover { background:rgba(var(--primary-color-rgb),0.05); }
         .rate-positive { color:#2ed573; }
         .rate-negative { color:#ff4757; }
-        .currency-select { padding:8px 12px; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:6px; margin:10px 0; }
+        .currency-select { padding:8px 12px; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:6px; margin:10px 0; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
         .rate-chart-container { margin-top:20px; padding:15px; background:var(--group-block-bg); border-radius:8px; }
 
         /* Share modal styles */
@@ -283,9 +283,10 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             align-items:center;
             gap:12px;
             margin:12px 0;
+            flex-wrap:wrap;
         }
         .currency-selector { display:flex; justify-content:flex-start; gap:6px; flex-wrap:wrap; }
-        .currency-btn { background:var(--group-block-bg); color:var(--muted-text); border:1px solid var(--border-color); padding:9px 12px; border-radius:var(--radius-sm); font-weight:800; }
+        .currency-btn { background:var(--group-block-bg); color:var(--muted-text); border:1px solid var(--border-color); padding:9px 12px; border-radius:var(--radius-sm); font-weight:800; flex: 1 1 auto; min-width: 0; padding-inline: 4px; }
         .currency-btn:hover, .currency-btn.active { background:var(--primary-color); color:white; border-color:var(--primary-color); }
         .divider { height:1px; background:var(--border-color); margin:18px 0; }
         .controls-container { display:flex; justify-content:center; align-items:center; margin:12px 0; padding:0; border:0; background:transparent; box-shadow:none; }
@@ -342,20 +343,20 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             .chart-controls-row {
                 display:flex;
                 flex-direction: row !important;
-                flex-wrap: nowrap !important;
+                flex-wrap: wrap !important;
                 gap: 10px !important;
                 align-items: center !important;
                 justify-content: flex-start !important;
-                overflow-x: auto !important;
+                overflow-x: hidden !important;
             }
+            .currency-btn { flex: 1 1 auto; min-width: 0; padding-inline: 4px; }
             .chart-toggle-btn { justify-self: auto !important; margin-left: 0 !important; }
             .open-table-desktop { justify-self: auto !important; }
             .currency-selector { justify-self: auto !important; }
             .currency-selector {
-                flex-wrap: nowrap !important;
+                flex-wrap: wrap !important;
                 gap: 6px !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch;
+                overflow-x: hidden !important;
             }
             .controls-container { justify-content:center; flex-wrap:wrap; }
             .controls-container.open-table-mobile { width:100%; justify-content:stretch; }
@@ -435,7 +436,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             #ocr-analytics-modal h3 { font-size:18px; margin:0 42px 6px!important; }
             #ocr-analytics-modal .chart-nav-bottom { gap:8px; margin:0 0 6px!important; }
             #ocr-analytics-modal .chart-year-framed { min-width:92px; height:36px; padding:4px 10px; }
-            #ocr-analytics-modal .currency-select { margin:6px 0; }
+            #ocr-analytics-modal .currency-select { margin:6px 0; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
             #ocr-analytics-modal .rate-chart-container { padding:6px; }
 
             #settings-modal .modal-content { padding:64px 15px 15px!important; }
