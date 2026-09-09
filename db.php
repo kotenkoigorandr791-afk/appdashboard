@@ -9,14 +9,24 @@ require_once __DIR__ . '/lib/db_auth_security.php';
 require_once __DIR__ . '/lib/redis.php';
 define('DB_PATH', '/opt/AppDashboard/data/db.env');
 function appPasswordHash(string $password): string {
-    return password_hash($password, PASSWORD_ARGON2ID, [
+    $hash = password_hash($password, PASSWORD_ARGON2ID, [
         'memory_cost' => PASSWORD_ARGON2_DEFAULT_MEMORY_COST,
         'time_cost' => PASSWORD_ARGON2_DEFAULT_TIME_COST,
         'threads' => PASSWORD_ARGON2_DEFAULT_THREADS,
     ]);
+    if ($hash === false) {
+        error_log('appPasswordHash: ARGON2ID failed, falling back to BCRYPT for password hashing');
+        $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+    }
+    if ($hash === false) {
+        error_log('appPasswordHash: BCRYPT also failed, using emergency fallback');
+        $hash = '$2y$12$' . password_hash(bin2hex(random_bytes(16)), PASSWORD_BCRYPT);
+    }
+    return $hash;
 }
 function appPasswordVerify(string $password, string $hash): bool {
-    return $hash !== '' && password_verify($password, $hash);
+    if ($hash === '' || $hash === false) return false;
+    return password_verify($password, $hash);
 }
 function appPasswordNeedsRehash(string $hash): bool {
     return $hash === '' || password_needs_rehash($hash, PASSWORD_ARGON2ID, [

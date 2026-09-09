@@ -103,8 +103,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $users=loadUsers();
             if(isset($users[$email])&&appPasswordVerify($password, $users[$email]['password'])){
                 if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
-                    $users[$email]['password'] = appPasswordHash($password);
-                    upsertUser($email, $users[$email]);
+                    $newHash = appPasswordHash($password);
+                    if ($newHash !== '' && $newHash !== false) {
+                        $users[$email]['password'] = $newHash;
+                        upsertUser($email, $users[$email]);
+                    }
                 }
                 if($email!=='root@root'&&empty($users[$email]['verified'])){
                     $authError=$translations['email_not_verified'];
@@ -185,25 +188,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }else{
             $users=loadUsers();
             if(isset($users[$email])&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
-                $users[$email]['password']=appPasswordHash($password);
-                $users[$email]['must_change_password']=0;
-                upsertUser($email,$users[$email]);
-                $clearPasswordRequirement=getDB()->prepare("UPDATE users SET password=:password,must_change_password=0 WHERE email=:email");
-                $clearPasswordRequirement->bindValue(':password',$users[$email]['password']);
-                $clearPasswordRequirement->bindValue(':email',$email);
-                $clearPasswordRequirement->execute();
-                unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
-                resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
-                clearTrustedDeviceLogoutSuppression();
-                $_SESSION['user']=$users[$email];
-                $_SESSION['user']['email']=$email;
-                $_SESSION['auth_time']=time();
-                setLastActiveUser($email);
-                cleanupExpiredUserSessions($email);
-                addUserToActiveSessions($email,session_id(),$_SESSION['user']);
-                scheduleTrustedDevicePromptIfNeeded($email);
-                header('Location: '.takePostLoginRedirect('/main'));
-                exit;
+                $newHash = appPasswordHash($password);
+                if ($newHash === '' || $newHash === false) {
+                    $authError = 'Failed to hash password. Please try again.';
+                } else {
+                    $users[$email]['password'] = $newHash;
+                    $users[$email]['must_change_password']=0;
+                    upsertUser($email,$users[$email]);
+                    unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
+                    resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
+                    clearTrustedDeviceLogoutSuppression();
+                    $_SESSION['user']=$users[$email];
+                    $_SESSION['user']['email']=$email;
+                    $_SESSION['auth_time']=time();
+                    setLastActiveUser($email);
+                    cleanupExpiredUserSessions($email);
+                    addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                    scheduleTrustedDevicePromptIfNeeded($email);
+                    header('Location: '.takePostLoginRedirect('/main'));
+                    exit;
+                }
             }elseif(isset($users[$email])){
                 // If existing user is unverified, offer re-verification instead of error
                 if(empty($users[$email]['verified'])&&$email!=='root@root'){
@@ -455,13 +459,20 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $showResetForm=true;
                 $resetEmail=$email;
             }else{
-                $users[$email]['password']=appPasswordHash($newPassword);
-                $users[$email]['must_change_password']=0;
-                saveUsers($users);
-                unset($codes[$email]);
-                saveResetCodes($codes);
-                $authSuccess=$translations['password_reset_success'];
-                $showResetForm=false;
+                $newHash = appPasswordHash($newPassword);
+                if ($newHash === '' || $newHash === false) {
+                    $authError = 'Failed to hash password. Please try again.';
+                    $showResetForm=true;
+                    $resetEmail=$email;
+                } else {
+                    $users[$email]['password']=$newHash;
+                    $users[$email]['must_change_password']=0;
+                    saveUsers($users);
+                    unset($codes[$email]);
+                    saveResetCodes($codes);
+                    $authSuccess=$translations['password_reset_success'];
+                    $showResetForm=false;
+                }
             }
         }else{
             $authError=$translations['invalid_reset_code'];
@@ -499,18 +510,23 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }elseif(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
             $profileError=$translations[$passwordErrorKey];
         }else{
-            $users[$email]['password']=appPasswordHash($newPassword);
-            $users[$email]['must_change_password']=0;
-            saveUsers($users);
-            $_SESSION['user']=$users[$email];
-            $_SESSION['user']['email']=$email;
-            $_SESSION['auth_time']=time();
-            $sessionData=getUserFromActiveSessions(session_id());
-            if($sessionData){
-                $sessionData['user_data']=$_SESSION['user'];
-                addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+            $newHash = appPasswordHash($newPassword);
+            if ($newHash === '' || $newHash === false) {
+                $profileError = 'Failed to hash password. Please try again.';
+            } else {
+                $users[$email]['password']=$newHash;
+                $users[$email]['must_change_password']=0;
+                saveUsers($users);
+                $_SESSION['user']=$users[$email];
+                $_SESSION['user']['email']=$email;
+                $_SESSION['auth_time']=time();
+                $sessionData=getUserFromActiveSessions(session_id());
+                if($sessionData){
+                    $sessionData['user_data']=$_SESSION['user'];
+                    addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                }
+                $profileSuccess=$translations['password_changed'];
             }
-            $profileSuccess=$translations['password_changed'];
         }
     }
     if(isset($_POST['generate_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'){
@@ -2145,16 +2161,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 if(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
                     $response['message'] = $translations[$passwordErrorKey] ?? $passwordErrorKey;
                 }else{
-                    $users[$emailToReset]['password'] = appPasswordHash($newPassword);
-                    $users[$emailToReset]['must_change_password'] = 0;
-                    saveUsers($users);
-                    if($emailToReset === $currentUserEmail){
-                        $_SESSION['user'] = $users[$emailToReset];
-                        $_SESSION['user']['email'] = $emailToReset;
+                    $newHash = appPasswordHash($newPassword);
+                    if ($newHash === '' || $newHash === false) {
+                        $response['message'] = 'Failed to hash password. Please try again.';
+                    } else {
+                        $users[$emailToReset]['password'] = $newHash;
+                        $users[$emailToReset]['must_change_password'] = 0;
+                        saveUsers($users);
+                        if($emailToReset === $currentUserEmail){
+                            $_SESSION['user'] = $users[$emailToReset];
+                            $_SESSION['user']['email'] = $emailToReset;
+                        }
+                        $response['success'] = true;
+                        $response['message'] = $translations['password_reset_admin_success'] ?? 'Password reset successfully';
+                        $response['password'] = $newPassword;
                     }
-                    $response['success'] = true;
-                    $response['message'] = $translations['password_reset_admin_success'] ?? 'Password reset successfully';
-                    $response['password'] = $newPassword;
                 }
             }else{
                 $response['message'] = $translations['user_not_found'] ?? 'User not found';
