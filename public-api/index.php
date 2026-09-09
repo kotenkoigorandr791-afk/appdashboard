@@ -13,6 +13,10 @@ if ($section === 'auth') {
     require __DIR__ . '/routes/auth.php';
     exit;
 }
+if ($section === 'oauth') {
+    require __DIR__ . '/routes/oauth.php';
+    exit;
+}
 if ($section === 'apps') {
     require __DIR__ . '/routes/apps.php';
     exit;
