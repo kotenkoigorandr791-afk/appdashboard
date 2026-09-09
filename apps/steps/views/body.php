@@ -8,6 +8,47 @@ $stepmonitorMeta = is_file($stepmonitorMetaFile) ? (json_decode((string)file_get
 $stepmonitorVersion = (string)($stepmonitorMeta['hash'] ?? (is_file($stepmonitorApk) ? filemtime($stepmonitorApk) : ''));
 $stepmonitorAvailable = is_file($stepmonitorApk);
 $stepmonitorShow = $stepmonitorAvailable && (empty($userSettings['mobile_apk_hidden']) || (string)($userSettings['mobile_apk_seen_version'] ?? '') !== $stepmonitorVersion);
+$stepmonitorServerIp = (string)($_SERVER['SERVER_ADDR'] ?? '');
+if ($stepmonitorServerIp === '' || str_starts_with($stepmonitorServerIp, '127.') || $stepmonitorServerIp === '::1') {
+    $stepmonitorHostIps = function_exists('gethostbynamel') ? (gethostbynamel(gethostname()) ?: []) : [];
+    foreach ($stepmonitorHostIps as $candidateIp) {
+        $candidateIp = (string)$candidateIp;
+        if (str_starts_with($candidateIp, '192.168.') || str_starts_with($candidateIp, '10.') || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $candidateIp)) {
+            $stepmonitorServerIp = $candidateIp;
+            break;
+        }
+    }
+    foreach ($stepmonitorHostIps as $candidateIp) {
+        if ($stepmonitorServerIp === '' && !str_starts_with((string)$candidateIp, '127.')) {
+            $stepmonitorServerIp = (string)$candidateIp;
+            break;
+        }
+    }
+}
+$stepmonitorFallbackLanIp = '192.168.2.158';
+if ($stepmonitorServerIp === '' || str_starts_with($stepmonitorServerIp, '127.') || str_starts_with($stepmonitorServerIp, '172.17.') || str_starts_with($stepmonitorServerIp, '172.18.')) {
+    $stepmonitorServerIp = $stepmonitorFallbackLanIp;
+}
+$stepmonitorScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$stepmonitorPort = (string)($_SERVER['SERVER_PORT'] ?? '');
+$stepmonitorPortPart = ($stepmonitorPort !== '' && !in_array($stepmonitorPort, ['80', '443'], true)) ? ':' . $stepmonitorPort : '';
+$stepmonitorLanEndpoint = $stepmonitorServerIp !== '' ? $stepmonitorScheme . '://' . $stepmonitorServerIp . $stepmonitorPortPart . '/api/steps' : '';
+$stepmonitorDevices = [];
+if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
+    try {
+        $stepmonitorDb = app_main_db();
+        if (function_exists('ensureClientAuthTokensSchema')) {
+            ensureClientAuthTokensSchema($stepmonitorDb);
+        }
+        $stepmonitorStmt = $stepmonitorDb->prepare("SELECT device_name, platform, created_at, last_used_at FROM client_auth_tokens WHERE email = :email AND revoked = 0 AND expires_at > :now ORDER BY last_used_at DESC LIMIT 10");
+        $stepmonitorStmt->bindValue(':email', (string)$_SESSION['user']['email'], PDO::PARAM_STR);
+        $stepmonitorStmt->bindValue(':now', time(), PDO::PARAM_INT);
+        $stepmonitorStmt->execute();
+        $stepmonitorDevices = $stepmonitorStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    } catch (Throwable $ignored) {
+        $stepmonitorDevices = [];
+    }
+}
 ?>
     <div id="bg-layer" aria-hidden="true"></div>
     <script>(function(){var s=<?php echo json_encode($bgFull); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
@@ -677,6 +718,19 @@ $stepmonitorShow = $stepmonitorAvailable && (empty($userSettings['mobile_apk_hid
 
                     <p id="hc-token-err" style="display:none;margin:0;color:#ef4444;font-size:13px;"></p>
 
+                    <?php if (!empty($stepmonitorDevices)): ?>
+                    <div style="padding:12px;border:1px solid var(--border-color);border-radius:12px;background:rgba(0,0,0,.08);">
+                        <strong style="display:block;margin-bottom:8px;font-size:13px;"><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></strong>
+                        <div style="display:grid;gap:6px;font-size:13px;">
+                            <?php foreach ($stepmonitorDevices as $stepmonitorDevice): ?>
+                            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
+                                <span><?php echo htmlspecialchars((string)($stepmonitorDevice['device_name'] ?: ($stepmonitorDevice['platform'] ?: 'StepMonitor'))); ?></span>
+                                <span style="opacity:.7;"><?php echo !empty($stepmonitorDevice['last_used_at']) ? htmlspecialchars(date('Y-m-d H:i', (int)$stepmonitorDevice['last_used_at'])) : ''; ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                     <div id="hc-token-output" style="display:none;padding:12px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);border-radius:12px;background:color-mix(in srgb,#22c55e 16%,transparent);">
                         <strong style="display:block;margin-bottom:8px;font-size:13px;">Token</strong>
                         <code id="hc-token-value" style="display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></code>
@@ -707,7 +761,9 @@ $stepmonitorShow = $stepmonitorAvailable && (empty($userSettings['mobile_apk_hid
             const tokenLinkEl=document.getElementById('hc-token-link');
             const tokenCopyBtn=document.getElementById('hc-token-copy');
 
-            const endpoint=window.location.origin + '/api/steps';
+            const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint); ?>;
+            const currentHost=window.location.hostname;
+            const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
             if(endpointEl) endpointEl.textContent=endpoint;
 
             function showModal(){

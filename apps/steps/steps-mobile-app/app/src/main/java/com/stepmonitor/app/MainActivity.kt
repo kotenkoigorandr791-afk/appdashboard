@@ -17,8 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.StepsRecord
 import com.stepmonitor.app.screens.AboutScreen
 import com.stepmonitor.app.screens.ConfigurationScreen
 import com.stepmonitor.app.screens.LogsScreen
@@ -26,10 +24,15 @@ import com.stepmonitor.app.screens.StatisticsScreen
 import com.stepmonitor.app.ui.theme.HCWebhookTheme
 class MainActivity : AppCompatActivity() {
     private lateinit var preferencesManager: PreferencesManager
-    private val permissionLauncher = registerForActivityResult(androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) {}
+    private val permissionLauncher = registerForActivityResult(androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) {
+        preferencesManager.setKnownGrantedPermissions(it)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferencesManager = PreferencesManager(this)
+        if (preferencesManager.getWebhookConfigs().any { it.isEnabled } && preferencesManager.getEnabledDataTypes().isEmpty()) {
+            preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
+        }
         handleAuthIntent(intent)
         setContent { HCWebhookTheme { MainScreen() } }
     }
@@ -45,7 +48,7 @@ class MainActivity : AppCompatActivity() {
         val token = uri.getQueryParameter("token").orEmpty()
         if (endpoint.startsWith("http") && token.isNotBlank()) {
             preferencesManager.setWebhookConfigs(listOf(WebhookConfig(endpoint, "StepMonitor", mapOf("Authorization" to "Bearer $token"))))
-            preferencesManager.setEnabledDataTypes(setOf(HealthDataType.STEPS))
+            preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
             Toast.makeText(this, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
         }
     }
@@ -67,7 +70,7 @@ class MainActivity : AppCompatActivity() {
             when (selected) {
                 NavigationScreen.Home -> ConfigurationScreen(
                     modifier = Modifier.padding(padding),
-                    onRequestPermissions = { permissionLauncher.launch(setOf(HealthPermission.getReadPermission(StepsRecord::class))) }
+                    onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.ALL_PERMISSIONS) }
                 )
                 NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
                 NavigationScreen.Logs -> LogsScreen(Modifier.padding(padding))

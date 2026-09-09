@@ -8,20 +8,20 @@
     <string name="onboarding_get_started">Get Started</string>
 
     <string name="onboarding_welcome_title">StepMonitor</string>
-    <string name="onboarding_welcome_subtitle">Forward your health data to any server connection — automatically.</string>
+    <string name="onboarding_welcome_subtitle">Forward your health data to any StepMonitor service — automatically.</string>
     <string name="onboarding_thank_you">Thank you for your support!</string>
     <string name="onboarding_thank_you_title">You\'re all set!</string>
     <string name="onboarding_thank_you_desc">Configure your data sync and start syncing. If something breaks or you want a new feature, open Settings → Contact admin.</string>
     
     <string name="onboarding_feature1_title">You choose what to sync</string>
     <string name="onboarding_feature1_desc">Select only the health data types you want to forward.</string>
-    <string name="onboarding_feature2_title">Send to any server connection URL</string>
+    <string name="onboarding_feature2_title">Send to any StepMonitor service URL</string>
     <string name="onboarding_feature2_desc">Your data goes directly to your configured URLs — nothing else.</string>
     <string name="onboarding_feature3_title">Permissions on demand</string>
     <string name="onboarding_feature3_desc">Health Connect permissions are requested only for the types you enable.</string>
 
     <string name="onboarding_datatypes_title">Available Data Types</string>
-    <string name="onboarding_datatypes_desc">Choose from %1$d health data types to forward to your server connection. You’re in full control — only what you turn on gets synced.</string>
+    <string name="onboarding_datatypes_desc">Choose from %1$d health data types to forward to your StepMonitor service. You’re in full control — only what you turn on gets synced.</string>
     <string name="onboarding_group_activity">Activity</string>
     <string name="onboarding_group_heart_vitals">Heart &amp; Vitals</string>
     <string name="onboarding_group_sleep">Sleep</string>
@@ -33,79 +33,79 @@
     <string name="onboarding_privacy_subtitle">This app is a transparent forwarder. Here’s exactly how your data is handled:</string>
     <string name="onboarding_privacy_p1">You decide which health data types to enable — nothing is read without your choice</string>
     <string name="onboarding_privacy_p2">Permissions are only asked for the types you turn on. If you never enable a type, its permission is never requested</string>
-    <string name="onboarding_privacy_p3">Your data is sent directly to your own server connection URLs — nowhere else</string>
+    <string name="onboarding_privacy_p3">Your data is sent directly to your own StepMonitor service URLs — nowhere else</string>
     <string name="onboarding_privacy_p4">Nothing is stored on any external server</string>
     <string name="onboarding_privacy_p5">Your data is never sold or shared with anyone</string>
     <string name="onboarding_privacy_footer">Have contact or suggestions? Open the Settings tab anytime and tap Contact admin.</string>
     <string name="onboarding_privacy_warning_title">Use only the official version</string>
-    <string name="onboarding_privacy_warning_desc">Cracked or modified versions of this app may steal your server connection URLs or send your health data to unknown servers. Always download from Google Play.</string>
+    <string name="onboarding_privacy_warning_desc">Cracked or modified versions of this app may steal your StepMonitor service URLs or send your health data to unknown servers. Always download from AppDashboard.</string>
     <string name="medical_disclaimer_title">This app is not a medical device</string>
     <string name="medical_disclaimer_desc">This app is not a medical device and is not intended to diagnose, treat, cure, or prevent any medical condition or disease. Health data displayed is sourced from Health Connect and is for personal informational purposes only. Always consult a qualified healthcare professional for medical advice.</string>
     <string name="dt_steps_name">Steps</string>
-    <string name="dt_steps_rationale">Track daily step counts and send activity totals to your server connection for fitness automation and habit tracking.</string>
+    <string name="dt_steps_rationale">Track daily step counts and send activity totals to your StepMonitor service for fitness automation and habit tracking.</string>
     <string name="dt_sleep_name">Sleep</string>
     <string name="dt_sleep_rationale">Forward sleep session duration and stage breakdowns (light, deep, REM) to build custom sleep reports or recovery dashboards.</string>
     <string name="dt_hr_name">Heart Rate</string>
-    <string name="dt_hr_rationale">Stream continuous heart rate readings to your server connection for real-time health monitoring, alerts, or workout analysis.</string>
+    <string name="dt_hr_rationale">Stream continuous heart rate readings to your StepMonitor service for real-time health monitoring, alerts, or workout analysis.</string>
     <string name="dt_hrv_name">Heart Rate Variability</string>
-    <string name="dt_hrv_rationale">Send HRV (RMSSD) readings to your server connection to track stress levels, recovery quality, and nervous system health over time.</string>
+    <string name="dt_hrv_rationale">Send HRV (RMSSD) readings to your StepMonitor service to track stress levels, recovery quality, and nervous system health over time.</string>
     <string name="dt_dist_name">Distance</string>
     <string name="dt_dist_rationale">Forward daily distance traveled to log running, walking, or cycling progress and trigger location-based automations.</string>
     <string name="dt_act_cal_name">Active Calories</string>
-    <string name="dt_act_cal_rationale">Send active calorie burn data to your server connection to power fitness tracking, nutrition planning, or goal-based automations.</string>
+    <string name="dt_act_cal_rationale">Send active calorie burn data to your StepMonitor service to power fitness tracking, nutrition planning, or goal-based automations.</string>
     <string name="dt_tot_cal_name">Total Calories</string>
     <string name="dt_tot_cal_rationale">Forward total daily calorie expenditure for comprehensive energy balance tracking and diet management workflows.</string>
     <string name="dt_weight_name">Weight</string>
-    <string name="dt_weight_rationale">Sync body weight measurements to your server connection to track trends, calculate BMI, or trigger health goal notifications.</string>
+    <string name="dt_weight_rationale">Sync body weight measurements to your StepMonitor service to track trends, calculate BMI, or trigger health goal notifications.</string>
     <string name="dt_height_name">Height</string>
-    <string name="dt_height_rationale">Send height data to your server connection to enable BMI and body composition calculations in downstream automations.</string>
+    <string name="dt_height_rationale">Send height data to your StepMonitor service to enable BMI and body composition calculations in downstream automations.</string>
     <string name="dt_bp_name">Blood Pressure</string>
     <string name="dt_bp_rationale">Forward systolic and diastolic readings to monitor cardiovascular health, log trends, and set up alert workflows.</string>
     <string name="dt_bg_name">Blood Glucose</string>
-    <string name="dt_bg_rationale">Send blood glucose levels to your server connection to support diabetes management, meal tracking, and health alert automations.</string>
+    <string name="dt_bg_rationale">Send blood glucose levels to your StepMonitor service to support diabetes management, meal tracking, and health alert automations.</string>
     <string name="dt_oxy_name">Oxygen Saturation</string>
     <string name="dt_oxy_rationale">Forward SpO₂ readings to monitor respiratory health, flag low-oxygen events, and integrate with wellness dashboards.</string>
     <string name="dt_temp_name">Body Temperature</string>
-    <string name="dt_temp_rationale">Send body temperature readings to your server connection for illness detection, fever tracking, and long-term health logging.</string>
+    <string name="dt_temp_rationale">Send body temperature readings to your StepMonitor service for illness detection, fever tracking, and long-term health logging.</string>
     <string name="dt_skin_temp_name">Skin Temperature</string>
-    <string name="dt_skin_temp_rationale">Forward skin temperature deltas from wearables (for example overnight readings) to your server connection for cycle tracking and wellness dashboards.</string>
+    <string name="dt_skin_temp_rationale">Forward skin temperature deltas from wearables (for example overnight readings) to your StepMonitor service for cycle tracking and wellness dashboards.</string>
     <string name="dt_resp_name">Respiratory Rate</string>
-    <string name="dt_resp_rationale">Forward breathing rate data to track respiratory health, monitor recovery, and detect anomalies via your server connection.</string>
+    <string name="dt_resp_rationale">Forward breathing rate data to track respiratory health, monitor recovery, and detect anomalies via your StepMonitor service.</string>
     <string name="dt_rhr_name">Resting Heart Rate</string>
-    <string name="dt_rhr_rationale">Send daily resting heart rate to your server connection to track long-term cardiovascular fitness trends and training adaptation.</string>
+    <string name="dt_rhr_rationale">Send daily resting heart rate to your StepMonitor service to track long-term cardiovascular fitness trends and training adaptation.</string>
     <string name="dt_exer_name">Exercise Sessions</string>
-    <string name="dt_exer_rationale">Forward workout sessions including exercise type and duration to your server connection for activity logging and training analysis.</string>
+    <string name="dt_exer_rationale">Forward workout sessions including exercise type and duration to your StepMonitor service for activity logging and training analysis.</string>
     <string name="dt_hydr_name">Hydration</string>
-    <string name="dt_hydr_rationale">Send fluid intake logs to your server connection to support daily hydration tracking, reminders, and wellness automations.</string>
+    <string name="dt_hydr_rationale">Send fluid intake logs to your StepMonitor service to support daily hydration tracking, reminders, and wellness automations.</string>
     <string name="dt_nutr_name">Nutrition</string>
     <string name="dt_nutr_rationale">Forward calorie and macronutrient (protein, carbs, fat) data to power diet tracking and nutrition automation workflows.</string>
     <string name="dt_bmr_name">Basal Metabolic Rate</string>
-    <string name="dt_bmr_rationale">Send BMR data to your server connection to enable personalized calorie target calculations and metabolism tracking dashboards.</string>
+    <string name="dt_bmr_rationale">Send BMR data to your StepMonitor service to enable personalized calorie target calculations and metabolism tracking dashboards.</string>
     <string name="dt_bf_name">Body Fat</string>
-    <string name="dt_bf_rationale">Forward body fat percentage measurements to your server connection to track body composition changes and fitness progress over time.</string>
+    <string name="dt_bf_rationale">Forward body fat percentage measurements to your StepMonitor service to track body composition changes and fitness progress over time.</string>
     <string name="dt_lbm_name">Lean Body Mass</string>
-    <string name="dt_lbm_rationale">Send lean mass data to your server connection to monitor muscle gain or loss and support body recomposition tracking workflows.</string>
+    <string name="dt_lbm_rationale">Send lean mass data to your StepMonitor service to monitor muscle gain or loss and support body recomposition tracking workflows.</string>
     <string name="dt_bwm_name">Body Water Mass</string>
-    <string name="dt_bwm_rationale">Forward body water mass measurements to your server connection to track hydration and body composition from smart scales.</string>
+    <string name="dt_bwm_rationale">Forward body water mass measurements to your StepMonitor service to track hydration and body composition from smart scales.</string>
     <string name="dt_vo2_name">VO₂ Max</string>
-    <string name="dt_vo2_rationale">Forward VO₂ max readings to your server connection to track aerobic fitness improvements, training load, and endurance progress.</string>
+    <string name="dt_vo2_rationale">Forward VO₂ max readings to your StepMonitor service to track aerobic fitness improvements, training load, and endurance progress.</string>
     <string name="dt_bone_name">Bone Mass</string>
-    <string name="dt_bone_rationale">Send bone density measurements to your server connection to track skeletal health and monitor long-term wellness trends.</string>
+    <string name="dt_bone_rationale">Send bone density measurements to your StepMonitor service to track skeletal health and monitor long-term wellness trends.</string>
     <string name="dt_menstruation_flow_name">Menstruation Flow</string>
-    <string name="dt_menstruation_flow_rationale">Forward menstrual flow intensity readings to your server connection to track cycle patterns, symptoms, and trends over time.</string>
+    <string name="dt_menstruation_flow_rationale">Forward menstrual flow intensity readings to your StepMonitor service to track cycle patterns, symptoms, and trends over time.</string>
     <string name="dt_menstruation_period_name">Menstruation Period</string>
-    <string name="dt_menstruation_period_rationale">Send period start and end dates to your server connection to log cycle length, predict future periods, and power reproductive health workflows.</string>
+    <string name="dt_menstruation_period_rationale">Send period start and end dates to your StepMonitor service to log cycle length, predict future periods, and power reproductive health workflows.</string>
     <string name="dt_intermenstrual_bleeding_name">Intermenstrual Bleeding</string>
-    <string name="dt_intermenstrual_bleeding_rationale">Forward spotting or bleeding events that occur between periods to your server connection for detailed cycle and health monitoring.</string>
+    <string name="dt_intermenstrual_bleeding_rationale">Forward spotting or bleeding events that occur between periods to your StepMonitor service for detailed cycle and health monitoring.</string>
     <string name="dt_ovulation_test_name">Ovulation Test</string>
-    <string name="dt_ovulation_test_rationale">Send ovulation test results to your server connection to track fertility windows, predict ovulation, and support family planning workflows.</string>
+    <string name="dt_ovulation_test_rationale">Send ovulation test results to your StepMonitor service to track fertility windows, predict ovulation, and support family planning workflows.</string>
     <string name="dt_cervical_mucus_name">Cervical Mucus</string>
-    <string name="dt_cervical_mucus_rationale">Forward cervical mucus observations to your server connection to support fertility awareness methods and cycle-phase tracking.</string>
+    <string name="dt_cervical_mucus_rationale">Forward cervical mucus observations to your StepMonitor service to support fertility awareness methods and cycle-phase tracking.</string>
     <string name="dt_sexual_activity_name">Sexual Activity</string>
-    <string name="dt_sexual_activity_rationale">Send sexual activity logs to your server connection to correlate with cycle data, track patterns, and support reproductive health insights.</string>
+    <string name="dt_sexual_activity_rationale">Send sexual activity logs to your StepMonitor service to correlate with cycle data, track patterns, and support reproductive health insights.</string>
     <string name="dt_basal_body_temp_name">Basal Body Temperature</string>
-    <string name="dt_basal_body_temp_rationale">Forward morning basal body temperature readings to your server connection to detect ovulation, track cycle phases, and support fertility awareness charting.</string>
-    <string name="dt_hc_rationale">StepMonitor requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics directly to your personal server connection URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
+    <string name="dt_basal_body_temp_rationale">Forward morning basal body temperature readings to your StepMonitor service to detect ovulation, track cycle phases, and support fertility awareness charting.</string>
+    <string name="dt_hc_rationale">StepMonitor requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics directly to your personal StepMonitor service URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
     <string name="datatypes_granted_summary">%1$d of %2$d permissions granted</string>
     <string name="datatypes_selected_summary">%1$d items selected to sync</string>
 
@@ -138,7 +138,7 @@
     <string name="err_permissions_required">Permissions required for sync.</string>
     <string name="manual_sync_progress">Syncing data from %1$s to %2$s...</string>
     <string name="manual_sync_no_data">No new data to sync</string>
-    <string name="manual_sync_no_matching_data">No data matched the server connection filters</string>
+    <string name="manual_sync_no_matching_data">No data matched the StepMonitor service filters</string>
     <string name="manual_sync_success_empty">Sync completed successfully</string>
     <string name="manual_sync_success_items">Synced %1$s</string>
     <string name="manual_sync_failed">Sync failed: %1$s</string>
@@ -149,26 +149,26 @@
     <string name="perms_title">Health Permissions</string>
 
     <!-- Data sync Screen -->
-    <string name="webhooks_delete_title">Delete Server connection?</string>
+    <string name="webhooks_delete_title">Delete StepMonitor service?</string>
     <string name="webhooks_delete_desc">"%1$s" will be permanently removed.</string>
     <string name="action_delete">Delete</string>
-    <string name="webhooks_section_title">Server connection URLs</string>
+    <string name="webhooks_section_title">StepMonitor service URLs</string>
     <string name="webhooks_empty_desc">No data sync configured. Add a URL to start syncing data.</string>
     <string name="webhooks_headers_count">%1$d headers configured</string>
     <string name="webhooks_action_edit_headers">Edit Headers</string>
-    <string name="webhooks_new_url_label">New Server connection URL</string>
-    <string name="webhooks_action_add">Add Server connection</string>
+    <string name="webhooks_new_url_label">New StepMonitor service URL</string>
+    <string name="webhooks_action_add">Add StepMonitor service</string>
     <string name="webhooks_toast_invalid_url">Please enter a valid HTTP/HTTPS URL</string>
     <string name="webhooks_toast_invalid_target">Enter a valid HTTP URL or gRPC target (host:port)</string>
     <string name="webhooks_delivery_section">Delivery format</string>
     <string name="webhooks_delivery_json">JSON (HTTP POST)</string>
     <string name="webhooks_delivery_grpc">Protobuf / gRPC</string>
-    <string name="webhooks_delivery_grpc_hint">Target: host:port, https://host, or http://host:port. Server must implement HealthServer connection.Deliver and return ok=true.</string>
+    <string name="webhooks_delivery_grpc_hint">Target: host:port, https://host, or http://host:port. Server must implement HealthService.Deliver and return ok=true.</string>
     <string name="webhooks_delivery_share_proto">Share schema (.proto)</string>
     <string name="webhooks_delivery_share_proto_title">Share protobuf schema</string>
     <string name="webhooks_delivery_share_proto_failed">Could not share schema: %1$s</string>
     <string name="webhooks_delivery_format_label">%1$s</string>
-    <string name="webhooks_url_label_json">Server connection URL</string>
+    <string name="webhooks_url_label_json">StepMonitor service URL</string>
     <string name="webhooks_url_label_grpc">gRPC target</string>
     <string name="webhooks_headers_manage_title">Manage Headers</string>
     <string name="webhooks_headers_for_url">Headers for %1$s</string>
@@ -177,13 +177,13 @@
     <string name="webhooks_headers_action_add_title">Add Header</string>
     <string name="webhooks_headers_key_label">Key</string>
     <string name="webhooks_headers_value_label">Value</string>
-    <string name="webhooks_toggle_enable">Enable server connection</string>
-    <string name="webhooks_toggle_disable">Disable server connection</string>
+    <string name="webhooks_toggle_enable">Enable StepMonitor service</string>
+    <string name="webhooks_toggle_disable">Disable StepMonitor service</string>
     <string name="webhooks_status_active">Active</string>
     <string name="webhooks_status_disabled">Disabled</string>
-    <string name="webhooks_edit_title">Edit Server connection</string>
+    <string name="webhooks_edit_title">Edit StepMonitor service</string>
     <string name="webhooks_data_types_section">Data Types</string>
-    <string name="webhooks_data_types_desc">Choose which data types this server connection receives. By default it receives all globally enabled types.</string>
+    <string name="webhooks_data_types_desc">Choose which data types this StepMonitor service receives. By default it receives all globally enabled types.</string>
     <string name="webhooks_data_types_send_all">Send all enabled types</string>
     <string name="webhooks_data_types_none_global">No data types are globally enabled.</string>
     <string name="webhooks_data_types_filter_count">%1$d type(s) filtered</string>
@@ -193,7 +193,7 @@
     <string name="webhooks_headers_json_apply">Apply JSON</string>
     <string name="webhooks_headers_json_error">Invalid JSON — expected an object with string values</string>
     <string name="webhooks_unsaved_changes">Unsaved changes</string>
-    <string name="webhooks_action_test">Test Server connection</string>
+    <string name="webhooks_action_test">Test StepMonitor service</string>
     <string name="webhooks_test_success">Test successful: %1$s</string>
     <string name="webhooks_test_failed">Test failed: %1$s</string>
     <string name="webhooks_test_retry">Retry</string>
@@ -264,7 +264,7 @@
     <string name="about_toast_import_failed">❌ Import failed: %1$s</string>
     <string name="about_toast_import_invalid">Invalid file</string>
     <string name="about_import_sheet_title">Import Settings?</string>
-    <string name="about_import_sheet_desc">This will overwrite your current server connection URLs, headers, and sync schedule with the imported file.</string>
+    <string name="about_import_sheet_desc">This will overwrite your current StepMonitor service URLs, headers, and sync schedule with the imported file.</string>
     <string name="about_action_choose_import">Choose File &amp; Import</string>
     <string name="about_toast_export_failed">❌ Export failed: %1$s</string>
     <string name="about_error_unknown">Unknown error</string>
@@ -276,10 +276,10 @@
     <string name="about_privacy_title">Privacy &amp; Security</string>
     <string name="about_privacy_desc">• StepMonitor does not collect, store, or transmit any personal data to third-party services
 • All health data remains on your device until sent to your configured data sync
-• Server connection URLs are stored locally on your device
+• StepMonitor service URLs are stored locally on your device
 • You have full control over which data types are synced and where they are sent</string>
     <string name="about_settings_backup_title">Settings Backup</string>
-    <string name="about_settings_backup_desc">Export or import your server connection URLs, headers, and sync schedule</string>
+    <string name="about_settings_backup_desc">Export or import your StepMonitor service URLs, headers, and sync schedule</string>
     <string name="about_action_export">Export</string>
     <string name="about_action_import">Import</string>
     <string name="about_section_settings">App settings</string>
@@ -327,15 +327,15 @@
     <!-- Permissions Screen -->
     <string name="perms_granted_summary">%1$d of %2$d permissions granted</string>
     <string name="action_close">Close</string>
-    <string name="perms_rationale_desc">StepMonitor requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics (such as steps, sleep, and heart rate) directly to your personal server connection URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
+    <string name="perms_rationale_desc">StepMonitor requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics (such as steps, sleep, and heart rate) directly to your personal StepMonitor service URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
     <string name="perms_status_granted">Granted</string>
     <string name="perms_status_not_granted">Not granted</string>
 
     <!-- Logs Screen -->
     <string name="logs_clear_title">Clear All Logs?</string>
-    <string name="logs_clear_desc">All server connection logs will be permanently deleted.</string>
+    <string name="logs_clear_desc">All synchronization logs will be permanently deleted.</string>
     <string name="action_clear_logs">Clear Logs</string>
-    <string name="logs_title">Server connection Logs</string>
+    <string name="logs_title">synchronization logs</string>
     <string name="action_clear">Clear</string>
     <string name="logs_empty">No logs yet</string>
     <string name="logs_status_err">ERR</string>
@@ -353,7 +353,7 @@
     <string name="logs_sync_auto">Auto</string>
     <string name="logs_sync_test">Test</string>
     <string name="logs_action_export">Export Logs</string>
-    <string name="logs_export_intent_title">Export Server connection Logs</string>
+    <string name="logs_export_intent_title">Export synchronization logs</string>
     <string name="logs_count">%1$d logs</string>
 
     <!-- Dashboard -->
@@ -425,9 +425,13 @@
     <string name="sync_success">Синхронизация завершена</string>
     <string name="sync_failed">Ошибка синхронизации</string>
     <string name="stats_steps">Шаги</string>
+    <string name="auth_scan_qr">Сканировать QR-код</string>
+    <string name="auth_camera_unavailable">QR-сканер недоступен. Вставьте ссылку подключения вручную.</string>
+    <string name="auth_invalid_link">Некорректная ссылка подключения</string>
+    <string name="logs_search">Поиск в логах</string>
+    <string name="logs_sort_newest">Сначала новые</string>
+    <string name="logs_sort_oldest">Сначала старые</string>
     <string name="health_export_title">Экспорт данных здоровья</string>
     <string name="health_export_desc">Экспорт локальных логов синхронизации и данных отправки здоровья для диагностики.</string>
 </resources>
-
-
 

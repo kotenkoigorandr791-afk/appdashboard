@@ -1019,7 +1019,7 @@ class HealthConnectManager(private val context: Context) {
             val dayEnd = currentDate.plusDays(1).atStartOfDay(zone).toInstant()
 
             // Clamp to the actual lookback window
-            val queryStart = if (dayStart.isBefore(startTime)) startTime else dayStart
+            val queryStart = if (lastSync != null) dayStart else if (dayStart.isBefore(startTime)) startTime else dayStart
             val queryEnd = if (dayEnd.isAfter(endTime)) endTime else dayEnd
 
             // Skip empty clamps (exclusive end on midnight) and days before lastSync
