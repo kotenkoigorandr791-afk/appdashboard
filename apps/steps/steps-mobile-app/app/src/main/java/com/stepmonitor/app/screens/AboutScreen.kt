@@ -5,8 +5,10 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -24,11 +26,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -66,6 +76,7 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import java.io.File
 data class ServerProfile(val name: String = "", val email: String = "", val photo: String = "", val error: String? = null)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -80,6 +91,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
     var accentColor by remember { mutableStateOf(prefs.getAccentColor()) }
+    var accentExpanded by remember { mutableStateOf(false) }
     fun connect(value: String) {
         runCatching {
             val uri = Uri.parse(value.trim())
@@ -167,23 +179,44 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf("auto" to R.string.theme_auto, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEach { (value, label) ->
-                            TextButton(onClick = {
-                                themeMode = value
-                                prefs.setThemeMode(value)
-                                (context as? Activity)?.recreate()
-                            }) { Text((if (themeMode == value) "✓ " else "") + stringResource(label)) }
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        listOf("auto" to R.string.theme_auto, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEachIndexed { index, (value, label) ->
+                            SegmentedButton(
+                                selected = themeMode == value,
+                                onClick = {
+                                    themeMode = value
+                                    prefs.setThemeMode(value)
+                                    (context as? Activity)?.recreate()
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index, 3),
+                            ) {
+                                Text(stringResource(label))
+                            }
                         }
                     }
-                    listOf("blue", "green", "teal", "orange", "red", "pink", "purple", "gray").chunked(4).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            row.forEach { value ->
-                                TextButton(onClick = {
-                                    accentColor = value
-                                    prefs.setAccentColor(value)
-                                    (context as? Activity)?.recreate()
-                                }) { Text((if (accentColor == value) "✓ " else "") + stringResource(accentNameRes(value))) }
+                    Box {
+                        OutlinedButton(onClick = { accentExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                            Surface(color = accentColorValue(accentColor), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
+                            Spacer(Modifier.size(10.dp))
+                            Text(stringResource(accentNameRes(accentColor)))
+                        }
+                        DropdownMenu(expanded = accentExpanded, onDismissRequest = { accentExpanded = false }) {
+                            listOf("blue", "green", "teal", "orange", "red", "pink", "purple", "gray").forEach { value ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Surface(color = accentColorValue(value), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
+                                            Spacer(Modifier.size(10.dp))
+                                            Text(stringResource(accentNameRes(value)))
+                                        }
+                                    },
+                                    onClick = {
+                                        accentExpanded = false
+                                        accentColor = value
+                                        prefs.setAccentColor(value)
+                                        (context as? Activity)?.recreate()
+                                    }
+                                )
                             }
                         }
                     }
@@ -288,6 +321,16 @@ private fun accentNameRes(value: String): Int = when (value) {
     "purple" -> R.string.accent_purple
     "gray" -> R.string.accent_gray
     else -> R.string.accent_blue
+}
+private fun accentColorValue(value: String): Color = when (value) {
+    "green" -> Color(0xFF188038)
+    "teal" -> Color(0xFF00897B)
+    "orange" -> Color(0xFFE8710A)
+    "red" -> Color(0xFFD93025)
+    "pink" -> Color(0xFFD81B60)
+    "purple" -> Color(0xFF7E57C2)
+    "gray" -> Color(0xFF475569)
+    else -> Color(0xFF4285F4)
 }
 private const val PROFILE_CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000
 private fun absoluteProfileUrl(endpoint: String, photo: String): String {
