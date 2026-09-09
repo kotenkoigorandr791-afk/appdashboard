@@ -1,5 +1,14 @@
 <body>
-    <?php $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg'; ?>
+    <?php
+$bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
+$stepmonitorRoot = dirname(__DIR__, 3);
+$stepmonitorApk = $stepmonitorRoot . '/downloads/stepmonitor.apk';
+$stepmonitorMetaFile = $stepmonitorRoot . '/downloads/stepmonitor.json';
+$stepmonitorMeta = is_file($stepmonitorMetaFile) ? (json_decode((string)file_get_contents($stepmonitorMetaFile), true) ?: []) : [];
+$stepmonitorVersion = (string)($stepmonitorMeta['hash'] ?? (is_file($stepmonitorApk) ? filemtime($stepmonitorApk) : ''));
+$stepmonitorAvailable = is_file($stepmonitorApk);
+$stepmonitorShow = $stepmonitorAvailable && (empty($userSettings['mobile_apk_hidden']) || (string)($userSettings['mobile_apk_seen_version'] ?? '') !== $stepmonitorVersion);
+?>
     <div id="bg-layer" aria-hidden="true"></div>
     <script>(function(){var s=<?php echo json_encode($bgFull); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
     <div class="app-steps">
@@ -9,6 +18,7 @@
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
+                <?php if ($stepmonitorAvailable && $stepmonitorShow): ?><button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button><?php endif; ?>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-pie-icon lucide-chart-pie" aria-hidden="true" focusable="false">
@@ -289,6 +299,18 @@
                                 <span class="tile-icon"><i class="fas fa-birthday-cake"></i></span>
                                 <input type="date" name="birth_date" value="<?php echo $userSettings['birth_date']; ?>">
                                 <span></span>
+                            </div>
+                        </div>
+                        <div class="settings-tile">
+                            <div class="tile-title"><?php echo htmlspecialchars($translations['mobile_app_button'] ?? 'Mobile app button'); ?></div>
+                            <hr>
+                            <div class="tile-content">
+                                <span class="tile-icon"><i class="fas fa-mobile-screen-button"></i></span>
+                                <label style="display:flex;gap:8px;align-items:center;">
+                                    <input type="hidden" name="mobile_apk_hidden" value="1">
+                                    <input type="checkbox" name="mobile_apk_hidden" value="0" <?php echo empty($userSettings['mobile_apk_hidden']) ? 'checked' : ''; ?>>
+                                    <span><?php echo htmlspecialchars($translations['mobile_app_button_show'] ?? 'Show download button'); ?></span>
+                                </label>
                             </div>
                         </div>
                         <div class="save-button-container">
@@ -658,6 +680,8 @@
                     <div id="hc-token-output" style="display:none;padding:12px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);border-radius:12px;background:color-mix(in srgb,#22c55e 16%,transparent);">
                         <strong style="display:block;margin-bottom:8px;font-size:13px;">Token</strong>
                         <code id="hc-token-value" style="display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;"></code>
+                        <img id="hc-token-qr" alt="StepMonitor QR" style="display:none;width:220px;height:220px;margin:12px auto;border-radius:12px;background:#fff;padding:8px;">
+                        <a id="hc-token-link" href="#" style="display:none;word-break:break-all;color:var(--primary-color);font-size:13px;"></a>
                         <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:10px;">
                             <button type="button" id="hc-token-copy" style="border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:#16a34a;color:#fff;font-weight:700;font-size:13px;">Copy</button>
                         </div>
@@ -679,6 +703,8 @@
             const errEl=document.getElementById('hc-token-err');
             const outEl=document.getElementById('hc-token-output');
             const tokenValEl=document.getElementById('hc-token-value');
+            const tokenQrEl=document.getElementById('hc-token-qr');
+            const tokenLinkEl=document.getElementById('hc-token-link');
             const tokenCopyBtn=document.getElementById('hc-token-copy');
 
             const endpoint=window.location.origin + '/api/steps';
@@ -730,14 +756,36 @@
                     const data=await res.json().catch(()=>null);
                     if(!data||!data.success||!data.token) throw new Error(data.error||'Token generation failed');
 
+                    const deepLink='stepmonitor://auth?endpoint='+encodeURIComponent(endpoint)+'&token='+encodeURIComponent(data.token);
                     if(tokenValEl) tokenValEl.textContent=data.token;
+                    if(tokenQrEl){ tokenQrEl.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(deepLink); tokenQrEl.style.display='block'; }
+                    if(tokenLinkEl){ tokenLinkEl.href=deepLink; tokenLinkEl.textContent=deepLink; tokenLinkEl.style.display='block'; }
                     if(outEl) outEl.style.display='block';
-                    await copyText(data.token);
+                    await copyText(deepLink);
                 }catch(e){
                     setErr(String(e && e.message ? e.message : e));
                 }finally{
                     if(genBtn) genBtn.disabled=false;
                 }
+            });
+        })();
+        </script>
+        <script>
+        (function(){
+            const btn=document.getElementById('stepmonitor-apk-button');
+            if(!btn) return;
+            const version=<?php echo json_encode($stepmonitorVersion); ?>;
+            btn.addEventListener('click', async ()=>{
+                window.location.href='/downloads/stepmonitor.apk';
+                try{
+                    const fd=new FormData();
+                    fd.append('mobile_apk_state','1');
+                    fd.append('hidden','1');
+                    fd.append('version',version);
+                    await fetch(location.href,{method:'POST',body:fd,credentials:'same-origin'});
+                }catch(e){}
+                btn.remove();
+                if(typeof showAlert==='function') showAlert(<?php echo json_encode($translations['mobile_app_download_notice'] ?? 'The mobile app download button was hidden. You can enable it again in settings.'); ?>);
             });
         })();
         </script>

@@ -99,3 +99,11 @@ opencode.json
 .mcp-test-duplicati-src/
 .serena/
 /.opencode/
+/apps/steps/steps-mobile-app/.gradle/
+/apps/steps/steps-mobile-app/build/
+/apps/steps/steps-mobile-app/app/build/
+/apps/steps/steps-mobile-app/local.properties
+/apps/steps/steps-mobile-app/app/release.jks
+/apps/steps/steps-mobile-app/captures/
+/apps/steps/steps-mobile-app/.cxx/
+/downloads/stepmonitor-build.sha256
