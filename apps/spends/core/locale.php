@@ -32,6 +32,7 @@ if ($translations === []) $translations = [
     'date_asc'                => 'Date (Ascending)',
     'date_desc'               => 'Date (Descending)',
     'rows_per_page'           => 'Rows per Page',
+    'months_before_after'     => 'Months before and after',
     'start_date'              => 'Start Date',
     'apply'                   => 'Apply',
     'search_placeholder'      => 'Search by date...',

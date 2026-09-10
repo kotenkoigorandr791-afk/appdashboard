@@ -488,17 +488,19 @@ function restoreTableFilter(inpId, bodyId) {
 
 async function loadData(forceRefresh = false) {
     if (isFetching) {
-        fetchQueue.push(loadData);
+        if (!forceRefresh) {
+            fetchQueue.push(() => loadData(false));
+        }
         return;
     }
     isFetching = true;
     let timeoutId = null;
     try {
         const controller = new AbortController();
-        timeoutId = setTimeout(() => controller.abort(), 60000);
+        timeoutId = setTimeout(() => controller.abort(), forceRefresh ? 20000 : 8000);
         const url = new URL(serverMonitorUrl.href);
         url.searchParams.set('t', Date.now());
-        if (forceRefresh) {
+        if (forceRefresh === true) {
             url.searchParams.set('force_refresh', '1');
         }
         const response = await fetch(url.href, {
@@ -530,7 +532,7 @@ async function loadData(forceRefresh = false) {
             try {
                 const fallbackUrl = new URL(serverMonitorFallbackUrl.href);
                 fallbackUrl.searchParams.set('t', Date.now());
-                if (forceRefresh) {
+                if (forceRefresh === true) {
                     fallbackUrl.searchParams.set('force_refresh', '1');
                 }
                 const fallbackResponse = await fetch(fallbackUrl.href, { credentials: 'same-origin', cache: 'no-store', headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } });
@@ -551,7 +553,7 @@ async function loadData(forceRefresh = false) {
         }
         const isAbort = error && (error.name === 'AbortError' || String(error).includes('DOMException'));
         const isFetchFailure = error && (error.name === 'TypeError' || String(error.message || '').toLowerCase().includes('failed to fetch'));
-        const readableMessage = isAbort ? 'Request timed out (60s), retrying...' : isFetchFailure ? 'Connection failed, retrying...' : (error && error.message ? error.message : 'Unknown error');
+        const readableMessage = isAbort ? 'Request timed out, retrying...' : isFetchFailure ? 'Connection failed, retrying...' : (error && error.message ? error.message : 'Unknown error');
         if (retryCount <= maxRetries) {
             updateConnectionStatus('error', readableMessage);
             const statusEl = document.getElementById('connectionStatus');
@@ -575,7 +577,7 @@ async function loadData(forceRefresh = false) {
                     const next = fetchQueue.shift();
                     next();
                 } else {
-                    refreshData();
+                    loadData(false);
                 }
             }, 2000 * retryCount);
             return;
@@ -2497,9 +2499,8 @@ document.addEventListener('DOMContentLoaded', () => {
     drawCircle(swapChart, 0);
     drawCircle(networkChart, 0);
     
-    loadData();
-    
-    const intervalId = setInterval(loadData, UPDATE_INTERVAL);
+    loadData(false);
+    const intervalId = setInterval(() => loadData(false), UPDATE_INTERVAL);
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handleBeforeUnload);

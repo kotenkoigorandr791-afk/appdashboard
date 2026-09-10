@@ -720,8 +720,13 @@
                 const d = localDateFromYMD(entry.date);
                 if (!isNaN(d.getTime())) yearlyTotals.set(d.getFullYear(), (yearlyTotals.get(d.getFullYear()) || 0) + (Number(entry.steps) || 0));
             });
-            const yearlyLabels = Array.from(yearlyTotals.keys()).sort((a, b) => a - b);
+            const yearlyLabels = Array.from(yearlyTotals.keys()).sort((a, b) => a - b).filter(y => (yearlyTotals.get(y) || 0) > 0);
             const yearlyData = yearlyLabels.map(year => yearlyTotals.get(year));
+            if (!yearlyLabels.length) {
+                if (empty) empty.style.display = 'block';
+                if (grid) grid.style.display = 'none';
+                return;
+            }
             const totalAllYears = yearlyData.reduce((sum, value) => sum + value, 0);
             yearlyDistributionChart = new Chart(document.getElementById('stats-years-chart').getContext('2d'), {
                 type: 'pie',

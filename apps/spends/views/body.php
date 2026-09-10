@@ -331,8 +331,8 @@
                 </select>
             </div>
             <div class="form-row">
-                <label><?= htmlspecialchars($translations['rows_per_page']) ?>:</label>
-                <input type="number" id="rows-per-page" min="1" value="<?= $tableSettings['rows_per_page'] ?>">
+                <label><?= htmlspecialchars($translations['months_before_after']) ?>:</label>
+                <input type="number" id="months-window" min="0" value="<?= $tableSettings['months_window'] ?>">
             </div>
             <div class="form-row">
                 <label><?= htmlspecialchars($translations['start_date']) ?>:</label>

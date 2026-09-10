@@ -6,6 +6,8 @@ $defaultSettings = [
     'weight'        => 70,
     'stride_length' => 70,
     'birth_date'    => '1994-01-01',
+    'mobile_apk_hidden' => 0,
+    'mobile_apk_seen_version' => '',
 ];
 
 function loadUserSettings(AppDatabase $db, array $defaults): array {
@@ -23,6 +25,8 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
     $settings['weight']        = (int)($settings['weight']        ?? $defaults['weight']);
     $settings['stride_length'] = (int)($settings['stride_length'] ?? $defaults['stride_length']);
     $settings['birth_date']    = $settings['birth_date'] ?? $defaults['birth_date'];
+    $settings['mobile_apk_hidden'] = (int)($settings['mobile_apk_hidden'] ?? 0);
+    $settings['mobile_apk_seen_version'] = (string)($settings['mobile_apk_seen_version'] ?? '');
     try {
         $bd = new DateTime($settings['birth_date']);
         $settings['age'] = (new DateTime())->diff($bd)->y;
@@ -38,4 +42,3 @@ function saveUserSetting(AppDatabase $db, string $key, string $value): void {
     $stmt->bindValue(':v', $value, PDO::PARAM_STR);
     $stmt->execute();
 }
-

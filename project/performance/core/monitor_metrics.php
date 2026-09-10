@@ -1494,15 +1494,18 @@ function monitorDockerApiContainers(): array {
             if ($id === '' || isset($containers[$id])) continue;
             $names = $row['Names'] ?? [];
             $name = is_array($names) && isset($names[0]) ? ltrim((string)$names[0], '/') : substr($id, 0, 12);
-            $inspect = monitorDockerApiRequest('/containers/' . rawurlencode($id) . '/json', $source) ?? [];
-            $health = strtolower((string)($inspect['State']['Health']['Status'] ?? ''));
+            $statusText = (string)($row['Status'] ?? '');
+            $health = '';
+            if (preg_match('/\((?:health:\s*)?([a-z]+)\)/i', $statusText, $hm)) {
+                $health = strtolower($hm[1]);
+            }
             $containers[$id] = [
                 'id' => $id,
                 'short_id' => substr($id, 0, 12),
                 'name' => $name !== '' ? $name : substr($id, 0, 12),
                 'image' => (string)($row['Image'] ?? ''),
                 'state' => strtolower((string)($row['State'] ?? '')),
-                'status_text' => (string)($row['Status'] ?? ''),
+                'status_text' => $statusText,
                 'health' => $health,
                 'ports' => json_encode($row['Ports'] ?? [], JSON_UNESCAPED_UNICODE),
                 'created_at' => isset($row['Created']) ? date('Y-m-d H:i:s', (int)$row['Created']) : '',
@@ -1562,28 +1565,94 @@ function monitorDockerApiCpuPercent(array $stats): float {
 }
 
 function monitorDockerApiStats(array $containers): array {
-    $stats = [];
+    if (!function_exists('curl_multi_init') || $containers === []) {
+        return [];
+    }
+    $mh = curl_multi_init();
+    if ($mh === false) {
+        return [];
+    }
+    $handles = [];
     foreach ($containers as $container) {
         $id = (string)($container['id'] ?? '');
-        if ($id === '') continue;
-        $row = monitorDockerApiRequest('/containers/' . rawurlencode($id) . '/stats?stream=false', (string)($container['docker_socket'] ?? '') ?: null);
-        if (!is_array($row)) continue;
+        if ($id === '') {
+            continue;
+        }
+        $path = '/containers/' . rawurlencode($id) . '/stats?stream=false&one-shot=true';
+        $socketPath = (string)($container['docker_socket'] ?? '') ?: null;
+        $dockerHost = getenv('DOCKER_HOST');
+        $ch = null;
+        if (is_string($dockerHost) && preg_match('#^tcp://([^:]+):(\d+)$#', $dockerHost, $m)) {
+            $ch = curl_init('http://' . $m[1] . ':' . $m[2] . $path);
+        } else {
+            $socket = $socketPath ?: monitorDockerSocketPath();
+            if ($socket === null) {
+                continue;
+            }
+            $ch = curl_init('http://localhost' . $path);
+            if ($ch) {
+                curl_setopt($ch, CURLOPT_UNIX_SOCKET_PATH, $socket);
+            }
+        }
+        if (!$ch) {
+            continue;
+        }
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 3,
+            CURLOPT_CONNECTTIMEOUT => 1,
+        ]);
+        curl_multi_add_handle($mh, $ch);
+        $handles[$id] = $ch;
+    }
+    if ($handles === []) {
+        curl_multi_close($mh);
+        return [];
+    }
+    $running = null;
+    do {
+        $status = curl_multi_exec($mh, $running);
+        if ($running) {
+            curl_multi_select($mh, 0.2);
+        }
+    } while ($running && $status === CURLM_OK);
+    $stats = [];
+    foreach ($handles as $id => $ch) {
+        $raw = curl_multi_getcontent($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_multi_remove_handle($mh, $ch);
+        curl_close($ch);
+        if (!is_string($raw) || $raw === '' || $code < 200 || $code >= 300) {
+            continue;
+        }
+        $row = json_decode($raw, true);
+        if (!is_array($row)) {
+            continue;
+        }
         $memUsage = (float)($row['memory_stats']['usage'] ?? 0);
         $memLimit = (float)($row['memory_stats']['limit'] ?? 0);
         $rx = 0;
         $tx = 0;
         foreach (($row['networks'] ?? []) as $net) {
-            if (!is_array($net)) continue;
+            if (!is_array($net)) {
+                continue;
+            }
             $rx += (int)($net['rx_bytes'] ?? 0);
             $tx += (int)($net['tx_bytes'] ?? 0);
         }
         $blockRead = 0;
         $blockWrite = 0;
         foreach (($row['blkio_stats']['io_service_bytes_recursive'] ?? []) as $io) {
-            if (!is_array($io)) continue;
+            if (!is_array($io)) {
+                continue;
+            }
             $op = strtolower((string)($io['op'] ?? ''));
-            if ($op === 'read') $blockRead += (int)($io['value'] ?? 0);
-            if ($op === 'write') $blockWrite += (int)($io['value'] ?? 0);
+            if ($op === 'read') {
+                $blockRead += (int)($io['value'] ?? 0);
+            }
+            if ($op === 'write') {
+                $blockWrite += (int)($io['value'] ?? 0);
+            }
         }
         $stats[$id] = [
             'cpu_percent' => monitorDockerApiCpuPercent($row),
@@ -1594,6 +1663,7 @@ function monitorDockerApiStats(array $containers): array {
             'pids' => (int)($row['pids_stats']['current'] ?? 0),
         ];
     }
+    curl_multi_close($mh);
     return $stats;
 }
 

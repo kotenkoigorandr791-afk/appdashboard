@@ -76,9 +76,40 @@ if ($action !== '') {
 }
 
 $forceRefresh = isset($_GET['force_refresh']) && (string)$_GET['force_refresh'] === '1';
-$result = $forceRefresh && $_userRole >= 2
-    ? monitorCollectMetricsPayload(true, true)
-    : monitorFetchDisplayPayloadFromDb();
+$result = null;
+if ($forceRefresh && $_userRole >= 2) {
+    $lockPath = sys_get_temp_dir() . '/appdashboard-monitor-force-refresh.lock';
+    $lockFp = @fopen($lockPath, 'c+');
+    $shouldCollect = false;
+    if ($lockFp && flock($lockFp, LOCK_EX | LOCK_NB)) {
+        rewind($lockFp);
+        $rawLast = stream_get_contents($lockFp);
+        $lastRun = is_string($rawLast) ? (int)trim($rawLast) : 0;
+        if ((time() - $lastRun) >= 45) {
+            ftruncate($lockFp, 0);
+            rewind($lockFp);
+            fwrite($lockFp, (string)time());
+            fflush($lockFp);
+            $shouldCollect = true;
+        }
+        if ($shouldCollect) {
+            try {
+                $result = monitorCollectMetricsPayload(false, false);
+            } finally {
+                flock($lockFp, LOCK_UN);
+                fclose($lockFp);
+            }
+        } else {
+            flock($lockFp, LOCK_UN);
+            fclose($lockFp);
+        }
+    } elseif ($lockFp) {
+        fclose($lockFp);
+    }
+}
+if ($result === null) {
+    $result = monitorFetchDisplayPayloadFromDb();
+}
 
 $requestedEndpoint = isset($_GET['endpoint']) ? strtolower(trim((string)$_GET['endpoint'])) : '';
 if ($requestedEndpoint !== '') {

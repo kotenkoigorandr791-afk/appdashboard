@@ -1159,6 +1159,14 @@ function bindAuthLink(el) {
   window.addEventListener('resize', updateToastPositions);
   document.querySelectorAll('#themeToggle button').forEach(b => b.addEventListener('click', () => setTheme(b.dataset.theme)));
 
+  function updateToastGutter() {
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.documentElement.style.setProperty('--toast-gutter', scrollbarWidth + 'px');
+  }
+  updateToastGutter();
+  window.addEventListener('resize', updateToastGutter);
+  window.addEventListener('orientationchange', updateToastGutter);
+
   ['loginLink', 'registerLink', 'otpLink', 'drawerLoginLink', 'drawerRegisterLink', 'drawerOtpLink'].forEach(id => bindAuthLink($(id)));
   ['termsLink', 'privacyLink'].forEach(id => bindAuthLink($(id)));
 

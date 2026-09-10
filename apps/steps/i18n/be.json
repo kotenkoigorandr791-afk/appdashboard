@@ -153,7 +153,7 @@
     "video_start_btn": "Пачаць аналіз",
     "video_wizard_forward": "Далей",
     "video_progress": "Прагрэс",
-    "video_meta_frames": "{cur} \/ {tot} кадраў",
+    "video_meta_frames": "{cur} / {tot} кадраў",
     "video_status_preparing": "Запуск…",
     "video_status_ffmpeg": "Атрыманне кадраў",
     "video_status_ocr_n": "OCR: {n} кадраў",
@@ -174,7 +174,7 @@
     "video_err_stale_job": "Задача ўжо не выконваецца (няма абнаўленняў). Пры неабходнасці зноўку запусціце аналіз.",
     "video_eta": "~{n} с",
     "video_col_time": "Час на відэа",
-    "video_status_gap": "Удакладненне ўчастка {a}\/{b}…",
+    "video_status_gap": "Удакладненне ўчастка {a}/{b}…",
     "video_status_merge": "Завяршэнне",
     "video_file_reading": "Чытаем відэа ў браўзеры…",
     "video_file_uploading": "Адпраўка на сервер…",
@@ -284,7 +284,7 @@
     "date_not_editable": "Дату нельга рэдагаваць",
     "import_external_backup": "Імпарт CSV рэзервовай копіі",
     "external_backup_url": "URL файла рэзервовай копіі",
-    "external_backup_url_placeholder": "https:\/\/іншы-сервер.com\/backup.csv",
+    "external_backup_url_placeholder": "https://іншы-сервер.com/backup.csv",
     "import_mode": "Рэжым імпарту",
     "import_mode_merge": "Аб'яднаць (захаваць бягучыя)",
     "import_mode_replace": "Замяніць усе дадзеныя",
@@ -295,5 +295,10 @@
     "external_backup_file": "CSV файл рэзервовай копіі",
     "no_file_selected": "Файл не выбраны",
     "heart_rate": "Пульс (уд/мін)",
-    "sleep": "Сон (гадзіны)"
+    "sleep": "Сон (гадзіны)",
+    "mobile_app_download": "Спампаваць мабільную праграму",
+    "mobile_app_download_notice": "Кнопка спампоўвання мабільнай праграмы схаваная. Яе можна ўключыць у наладах.",
+    "mobile_app_button": "Кнопка мабільнай праграмы",
+    "mobile_app_button_show": "Паказваць кнопку спампоўвання",
+    "mobile_app_devices": "Падключаныя прылады"
 }

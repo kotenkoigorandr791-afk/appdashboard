@@ -69,12 +69,14 @@ services:
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"
       PHP_OPCACHE_ENABLE: "1"
+      COMPOSER_PROCESS_TIMEOUT: "3600"
       SSH_WS_PORT: "8765"
       SSH_WS_BIND: 127.0.0.1
       SMART_HOME_WS_PORT: "8766"
       SMART_HOME_WS_BIND: 127.0.0.1
     ports:
-      - "8080:80"
+      - "80:80"
+      - "127.0.0.1:8808:8808"
     volumes:
       - .:/var/www/AppDashboard
       - .:/var/www/apps-dashboard

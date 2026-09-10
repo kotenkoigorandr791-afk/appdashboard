@@ -456,6 +456,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $resetEmail=$email;
             }else{
                 $users[$email]['password']=appPasswordHash($newPassword);
+                $users[$email]['must_change_password']=0;
                 saveUsers($users);
                 unset($codes[$email]);
                 saveResetCodes($codes);

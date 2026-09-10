@@ -295,5 +295,10 @@
     "external_backup_file": "CSV záložní soubor",
     "no_file_selected": "Není vybrán soubor",
     "heart_rate": "Tep (bpm)",
-    "sleep": "Spánek (hodiny)"
+    "sleep": "Spánek (hodiny)",
+    "mobile_app_download": "Download mobile app",
+    "mobile_app_download_notice": "The mobile app download button was hidden. You can enable it again in settings.",
+    "mobile_app_button": "Mobile app button",
+    "mobile_app_button_show": "Show download button",
+    "mobile_app_devices": "Connected devices"
 }

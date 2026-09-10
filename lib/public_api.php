@@ -41,6 +41,10 @@ function public_api_bootstrap(): void {
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => public_api_is_https(), 'httponly' => true, 'samesite' => 'Strict']);
+        if (class_exists('Redis')) {
+            require_once __DIR__ . '/redis.php';
+            if (app_redis()) app_redis_configure_php_sessions();
+        }
         session_start();
     }
     public_api_cors();
@@ -96,6 +100,18 @@ function public_api_require_device_id(): string {
 function public_api_body(): array {
     $raw = file_get_contents('php://input');
     if ($raw === false || $raw === '') return [];
+    $data = json_decode($raw, true);
+    return is_array($data) ? $data : [];
+}
+function public_api_form_body(): array {
+    $raw = file_get_contents('php://input');
+    if ($raw === false || $raw === '') return is_array($_POST) ? $_POST : [];
+    $ct = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
+    if (str_contains($ct, 'application/x-www-form-urlencoded')) {
+        $data = [];
+        parse_str($raw, $data);
+        return is_array($data) ? $data : [];
+    }
     $data = json_decode($raw, true);
     return is_array($data) ? $data : [];
 }

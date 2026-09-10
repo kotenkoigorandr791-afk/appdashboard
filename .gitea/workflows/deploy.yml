@@ -38,7 +38,10 @@ jobs:
           docker exec appdashboard php -l /var/www/AppDashboard/apps/smart_home/SmartHomeWsHandler.php
           docker exec appdashboard chmod +x /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh /var/www/AppDashboard
+          docker exec appdashboard chmod +x /var/www/AppDashboard/deploy/scripts/build-stepmonitor-apk.sh
+          docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/build-stepmonitor-apk.sh /var/www/AppDashboard
           test -f /opt/docker/appdashboard/code/downloads/appdashboard-mcp.tgz
+          test -f /opt/docker/appdashboard/code/downloads/stepmonitor.apk
           docker exec appdashboard sh -c 'cd /var/www/AppDashboard && test "$(node -p "require(\"./appdashboard-mcp/package.json\").version")" = "$(node -p "require(\"./downloads/appdashboard-mcp.json\").version")"'
           sudo cp /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf /opt/docker/appdashboard/nginx/sites-available-runtime.conf
           sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-immich-theme-bridge-watch.sh

@@ -10,7 +10,6 @@ const REMOVE_COMMENTS = "/public-api/cloud/remove_comments.php";
 const TRANSCRIBE = "/public-api/cloud/transcription_api.php";
 const TRANSLATE = "/public-api/cloud/translate_api_simple.php";
 const TTS = "/public-api/cloud/tts_api.php";
-const AI = "/public-api/cloud/ai.php";
 
 const ROOT =
   "Storage root: main (default), documents, photos, archive, temp, trash, pdf, clientsync, or group_<id>.";
@@ -39,14 +38,6 @@ async function cloudGet(action: string, query: Record<string, string | number | 
 
 async function cloudForm(action: string, fields: Record<string, string | number | boolean | undefined | null | string[]>) {
   return apiFormPost(CLOUD, fields, { action });
-}
-
-async function agentTool(tool: string, args: Record<string, unknown>, root?: string) {
-  return cloudForm("ai_agent_tool", {
-    tool,
-    args: JSON.stringify(args),
-    root: root || undefined,
-  });
 }
 
 function streamUrl(action: string, root: string, path: string): string {
@@ -639,8 +630,8 @@ export const cloudTools: ToolDef[] = [
   {
     name: "cloud_compile_and_run",
     description:
-      "Compile and run Cloud code via compile.php (languages: c, cpp, py/python, java, m). Requires a virtual file_path.",
-    minRole: 0,
+      "Compile and run Cloud code via compile.php (languages: c, cpp, py/python, java, m). Requires a virtual file_path. Admin only.",
+    minRole: 2,
     inputSchema: {
       type: "object",
       properties: {
@@ -838,247 +829,6 @@ export const cloudTools: ToolDef[] = [
           user: args.user != null ? String(args.user) : "default",
         }),
       ),
-  },
-  {
-    name: "cloud_agent_chat",
-    description: "Cloud AI chat (completions proxy) with optional file context path.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        messages: {
-          type: "array",
-          items: {
-            type: "object",
-            properties: { role: { type: "string" }, content: { type: "string" } },
-            required: ["role", "content"],
-          },
-        },
-        message: { type: "string", description: "Shortcut single user message" },
-        file_path: { type: "string" },
-        root: rootProp,
-        model: { type: "string" },
-        stream: { type: "boolean" },
-      },
-    },
-    handler: async (args) => {
-      let messages = Array.isArray(args.messages) ? (args.messages as Array<{ role: string; content: string }>) : [];
-      if (!messages.length && args.message != null) {
-        messages = [{ role: "user", content: String(args.message) }];
-      }
-      if (args.file_path) {
-        const read = await agentTool(
-          "read_file",
-          { path: String(args.file_path).replace(/^\/+/, "") },
-          rootOf(args),
-        );
-        const content = typeof read?.content === "string" ? read.content : JSON.stringify(read);
-        messages = [
-          { role: "system", content: `File context (${args.file_path}):\n${content}` },
-          ...messages,
-        ];
-      }
-      return textResult(
-        await apiJsonPost(
-          AI,
-          {
-            messages,
-            model: String(args.model ?? "github/gpt-4o-mini"),
-            stream: args.stream === true,
-          },
-          { action: "ai_completions" },
-        ),
-      );
-    },
-  },
-  {
-    name: "cloud_agent_completion",
-    description: "AI code completion for a snippet.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        code: { type: "string" },
-        language: { type: "string" },
-        file_path: { type: "string" },
-        root: rootProp,
-        model: { type: "string" },
-      },
-      required: ["code"],
-    },
-    handler: async (args) => {
-      const language = args.language != null ? String(args.language) : "text";
-      return textResult(
-        await apiJsonPost(
-          AI,
-          {
-            stream: false,
-            model: String(args.model ?? "github/gpt-4o-mini"),
-            messages: [
-              {
-                role: "system",
-                content: `Complete the following ${language} code. Return only the completion text.`,
-              },
-              {
-                role: "user",
-                content:
-                  (args.file_path ? `File: ${args.file_path}\n` : "") +
-                  "```" +
-                  language +
-                  "\n" +
-                  String(args.code) +
-                  "\n```",
-              },
-            ],
-          },
-          { action: "ai_completions" },
-        ),
-      );
-    },
-  },
-  {
-    name: "cloud_agent_command",
-    description: "Run an allowed shell command in Cloud user storage context.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        command: { type: "string" },
-        cwd: { type: "string" },
-        root: rootProp,
-        timeout_seconds: { type: "number" },
-      },
-      required: ["command"],
-    },
-    handler: async (args) =>
-      textResult(
-        await agentTool(
-          "run_command",
-          {
-            command: String(args.command),
-            cwd: args.cwd != null ? String(args.cwd) : "",
-            timeout_seconds: args.timeout_seconds != null ? Number(args.timeout_seconds) : 20,
-          },
-          rootOf(args),
-        ),
-      ),
-  },
-  {
-    name: "cloud_agent_read",
-    description: "Read a Cloud file via AI agent tool (supports line slices).",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        root: rootProp,
-        path: pathProp,
-        offset_line: { type: "number" },
-        line_count: { type: "number" },
-        max_chars: { type: "number" },
-      },
-      required: ["path"],
-    },
-    handler: async (args) =>
-      textResult(
-        await agentTool(
-          "read_file",
-          {
-            path: pathOf(args),
-            offset_line: args.offset_line != null ? Number(args.offset_line) : 1,
-            line_count: args.line_count != null ? Number(args.line_count) : 200,
-            max_chars: args.max_chars != null ? Number(args.max_chars) : 32000,
-          },
-          rootOf(args),
-        ),
-      ),
-  },
-  {
-    name: "cloud_agent_write",
-    description: "Write a Cloud file via AI agent tool (overwrite/append/replace).",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        root: rootProp,
-        path: pathProp,
-        content: { type: "string" },
-        mode: { type: "string", description: "overwrite|append|replace" },
-        old_text: { type: "string" },
-        new_text: { type: "string" },
-        persist: { type: "boolean", description: "Persist immediately (default true)" },
-      },
-      required: ["path"],
-    },
-    handler: async (args) => {
-      const root = rootOf(args);
-      const path = pathOf(args);
-      const mode = String(args.mode ?? "overwrite");
-      if (mode === "replace") {
-        return textResult(
-          await agentTool(
-            "search_replace",
-            {
-              path,
-              old_text: String(args.old_text ?? ""),
-              new_text: String(args.new_text ?? ""),
-              persist: args.persist !== false,
-            },
-            root,
-          ),
-        );
-      }
-      let content = args.content != null ? String(args.content) : "";
-      if (mode === "append") {
-        const existing = await agentTool("read_file", { path, offset_line: 1, line_count: 100000 }, root);
-        const prev = typeof existing?.content === "string" ? existing.content : "";
-        content = prev + content;
-      }
-      return textResult(
-        await agentTool("write_file", { path, content, persist: args.persist !== false }, root),
-      );
-    },
-  },
-  {
-    name: "cloud_agent_search",
-    description: "Search text inside Cloud files (paths required; use list/mentions to choose files).",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        root: rootProp,
-        query: { type: "string" },
-        paths: { type: "array", items: { type: "string" } },
-        max_results: { type: "number" },
-      },
-      required: ["query", "paths"],
-    },
-    handler: async (args) => {
-      const root = rootOf(args);
-      const rawPaths = Array.isArray(args.paths) ? args.paths.map((p) => String(p).replace(/^\/+/, "")) : [];
-      const filePaths: string[] = [];
-      for (const p of rawPaths) {
-        const listing = await cloudGet("list", { root, path: p });
-        const items = Array.isArray(listing?.items) ? listing.items : null;
-        if (items) {
-          for (const it of items) {
-            if (it?.type === "file" && it?.path) filePaths.push(String(it.path).replace(/^\/+/, ""));
-          }
-          continue;
-        }
-        if (p) filePaths.push(p);
-      }
-      return textResult(
-        await agentTool(
-          "search_in_files",
-          {
-            query: String(args.query),
-            paths: filePaths.length ? filePaths : rawPaths,
-            max_results: args.max_results != null ? Number(args.max_results) : 80,
-          },
-          root,
-        ),
-      );
-    },
   },
   {
     name: "cloud_get_state",

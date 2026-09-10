@@ -1,7 +1,7 @@
 <?php
 $showDefaultAdminNotice=false;
 try{$defaultAdminUser=getUserByEmail('root@root');}catch(Throwable $e){$defaultAdminUser=null;}
-if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_password'])||appPasswordVerify('root',(string)($defaultAdminUser['password']??''))))$showDefaultAdminNotice=true;
+if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdminUser['password']??'')))$showDefaultAdminNotice=true;
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $language; ?>">
@@ -505,6 +505,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         #wallpaper-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:100090;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #wallpaper-modal-content{background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));width:min(720px,calc(100vw - 32px));max-height:min(85vh,720px);overflow:hidden;display:flex;flex-direction:column;position:relative;}
         #wallpaper-modal-content .modal-scroll-body{padding:48px 20px 20px;}
+        .modal-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border-color);}
+        .modal-header-left h2{margin:0;font-size:18px;font-weight:600;}
         .wallpaper-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;width:100%;}
         .wallpaper-open-btn{width:100%;height:32px;border:1px solid var(--border-color);border-radius:10px;background:color-mix(in srgb,var(--modal-bg) 70%,transparent);color:var(--text-color);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);overflow:hidden;position:relative;}
         .wallpaper-open-btn-preview{position:absolute;inset:0;opacity:0.35;background-size:cover;background-position:center;pointer-events:none;}
@@ -1388,6 +1390,7 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             box-sizing: border-box;
             box-shadow: none;
         }
@@ -1398,9 +1401,9 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         }
         .weather-selector .custom-select-selected span {
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            flex: 1 1 auto;
+            white-space: normal;
+            word-break: break-word;
             display: flex;
             align-items: center;
         }
@@ -1529,9 +1532,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
         }
         .weather-selection-item span {
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            word-break: break-word;
         }
         .weather-selection-item:last-child {
             border-bottom: none;
@@ -1794,9 +1796,8 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
             font-size: 13px;
             opacity: 0.75;
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow: visible;
         }
         .weather-day-temps {
             display: flex;
@@ -1823,14 +1824,12 @@ if($showLogin&&$defaultAdminUser&&(!empty($defaultAdminUser['must_change_passwor
             color: #2563eb;
             flex-shrink: 0;
             min-width: 72px;
-            max-width: 92px;
             padding: 5px 8px;
             border-radius: 999px;
             background: rgba(37, 99, 235, 0.12);
             border: 1px solid rgba(37, 99, 235, 0.18);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
         }
         .weather-day-precip.is-dry {
             color: var(--text-color);
@@ -3286,9 +3285,13 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 <?php $wpCatalog = ap_wallpaper_catalog(); ?>
 <div id="wallpaper-modal">
     <div id="wallpaper-modal-content">
-        <button id="close-wallpaper-modal" type="button" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;z-index:2;">&times;</button>
+        <div class="modal-header">
+            <div class="modal-header-left">
+                <h2><?php echo my_htmlspecialchars($translations['wallpaper_choose'] ?? 'Choose background'); ?></h2>
+            </div>
+            <button id="close-wallpaper-modal" type="button">&times;</button>
+        </div>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['wallpaper_choose'] ?? 'Choose background'); ?></h2>
             <div class="wallpaper-picker" id="wallpaper-picker">
 <?php foreach ($wpCatalog as $wpId => $wpMeta): ?>
                 <button type="button" class="wallpaper-option<?php echo ($savedWallpaper ?? 'default') === $wpId ? ' active' : ''; ?>" data-value="<?php echo my_htmlspecialchars($wpId); ?>"<?php if ($wpId !== 'default'): ?> style="<?php echo my_htmlspecialchars(ap_wallpaper_preview_style($wpId)); ?>"<?php endif; ?> title="<?php echo my_htmlspecialchars($translations[$wpMeta['i18n']] ?? $wpId); ?>"><span><?php echo my_htmlspecialchars($translations[$wpMeta['i18n']] ?? $wpId); ?></span></button>
