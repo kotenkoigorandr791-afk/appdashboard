@@ -457,4 +457,20 @@
     <string name="conflict_skip">Пропустити телефон</string>
     <string name="conflict_replace">Перезаписати</string>
     <string name="conflict_add">Додати</string>
+    <string name="conflict_resolve_success">Конфлікт вирішено: %1$s — HTTP %2$d</string>
+    <string name="conflict_resolve_error">Помилка вирішення: %1$s</string>
+    <string name="stats_tooltip_steps">кроків</string>
+    <string name="settings_test_connection_home">Перевірити з’єднання</string>
+    <string name="settings_test_connection_progress">Перевірка…</string>
+    <string name="settings_sync_mode">Режим синхронізації</string>
+    <string name="settings_sync_interval">Інтервал синхронізації</string>
+    <string name="settings_sync_time">Час синхронізації</string>
+    <string name="settings_sync_hours">%1$d год</string>
+    <string name="sync_interval_1h">1 година</string>
+    <string name="sync_interval_3h">3 години</string>
+    <string name="sync_interval_6h">6 годин</string>
+    <string name="sync_interval_12h">12 годин</string>
+    <string name="sync_interval_24h">24 години</string>
+    <string name="sync_interval_72h">72 години</string>
+    <string name="action_change">Змінити</string>
 </resources>

@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -36,11 +38,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.IOException
+import java.util.UUID
 class MainActivity : AppCompatActivity() {
     private lateinit var preferencesManager: PreferencesManager
-    private val permissionLauncher = registerForActivityResult(androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) {
-        preferencesManager.setKnownGrantedPermissions(it)
-    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferencesManager = PreferencesManager(this)
@@ -68,7 +69,11 @@ class MainActivity : AppCompatActivity() {
     }
     @Composable
     private fun MainScreen() {
-        var selected by remember { mutableStateOf<NavigationScreen>(NavigationScreen.Home) }
+        val navigationSaver = Saver<NavigationScreen, String>(
+            save = { it.route },
+            restore = { route -> bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home }
+        )
+        var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
         var pendingConflict by remember { mutableStateOf(preferencesManager.getPendingConflictJson()) }
         LaunchedEffect(Unit) {
             while (true) {
@@ -89,10 +94,7 @@ class MainActivity : AppCompatActivity() {
             }
         }) { padding ->
             when (selected) {
-                NavigationScreen.Home -> ConfigurationScreen(
-                    modifier = Modifier.padding(padding),
-                    onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.ALL_PERMISSIONS) }
-                )
+                NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
                 NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
                 NavigationScreen.Logs -> LogsScreen(Modifier.padding(padding))
                 NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
@@ -131,24 +133,50 @@ class MainActivity : AppCompatActivity() {
     }.getOrDefault(getString(R.string.conflict_message, 0))
     private fun resolveConflict(action: String, json: String) {
         preferencesManager.clearPendingConflictJson()
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launchCatching {
-            val obj = JSONObject(json).optJSONObject("conflict") ?: JSONObject(json)
-            val config = preferencesManager.getWebhookConfigs().firstOrNull { it.isEnabled }
-            val rawUrl = obj.optString("resolution_url").ifBlank {
-                val id = obj.optString("id")
-                "/api/steps/conflicts/$id"
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            val timestamp = System.currentTimeMillis()
+            var loggedUrl = ""
+            try {
+                val obj = JSONObject(json).optJSONObject("conflict") ?: JSONObject(json)
+                val config = preferencesManager.getWebhookConfigs().firstOrNull { it.isEnabled }
+                val rawUrl = obj.optString("resolution_url").ifBlank {
+                    val id = obj.optString("id")
+                    "/api/steps/conflicts/$id"
+                }
+                val url = if (rawUrl.startsWith("http")) rawUrl else {
+                    val base = Uri.parse(config?.url.orEmpty())
+                    "${base.scheme}://${base.authority}/${rawUrl.trimStart('/')}"
+                }
+                loggedUrl = url
+                val body = JSONObject().put("action", action).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val builder = Request.Builder().url(url).post(body)
+                config?.headers?.forEach { (key, value) -> builder.addHeader(key, value) }
+                OkHttpClient().newCall(builder.build()).execute().use { response ->
+                    if (response.isSuccessful) {
+                        addConflictLog(url, timestamp, response.code, true, getString(R.string.conflict_resolve_success, action, response.code))
+                    } else {
+                        addConflictLog(url, timestamp, response.code, false, getString(R.string.conflict_resolve_error, "HTTP ${response.code}"))
+                    }
+                }
+            } catch (e: IOException) {
+                addConflictLog(loggedUrl, timestamp, null, false, getString(R.string.conflict_resolve_error, e.message ?: "IOException"))
             }
-            val url = if (rawUrl.startsWith("http")) rawUrl else {
-                val base = Uri.parse(config?.url.orEmpty())
-                "${base.scheme}://${base.authority}/${rawUrl.trimStart('/')}"
-            }
-            val body = JSONObject().put("action", action).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-            val builder = Request.Builder().url(url).post(body)
-            config?.headers?.forEach { (key, value) -> builder.addHeader(key, value) }
-            OkHttpClient().newCall(builder.build()).execute().close()
         }
     }
-}
-private fun kotlinx.coroutines.CoroutineScope.launchCatching(block: suspend () -> Unit) {
-    launch(Dispatchers.IO) { runCatching { block() } }
+    private fun addConflictLog(url: String, timestamp: Long, statusCode: Int?, success: Boolean, errorMessage: String) {
+        preferencesManager.addWebhookLog(
+            WebhookLog(
+                id = UUID.randomUUID().toString(),
+                timestamp = timestamp,
+                url = url,
+                statusCode = statusCode,
+                success = success,
+                errorMessage = errorMessage,
+                dataType = "steps",
+                recordCount = null,
+                syncType = "conflict",
+                deliveryFormat = WebhookLog.FORMAT_JSON
+            )
+        )
+    }
 }

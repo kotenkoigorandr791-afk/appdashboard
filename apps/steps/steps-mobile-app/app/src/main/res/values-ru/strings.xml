@@ -437,6 +437,16 @@
     <string name="logs_sort_oldest">Сначала старые</string>
     <string name="health_export_title">Экспорт данных здоровья</string>
     <string name="health_export_desc">Экспорт локальных логов синхронизации и данных отправки здоровья для диагностики.</string>
+    <string name="export_data_types">Типы данных</string>
+    <string name="export_time_range">Временной диапазон</string>
+    <string name="export_format">Формат</string>
+    <string name="export_confirm">Экспорт</string>
+    <string name="export_range_24h">24 часа</string>
+    <string name="export_range_7d">7 дней</string>
+    <string name="export_range_30d">30 дней</string>
+    <string name="export_range_all">Все</string>
+    <string name="export_format_json">JSON</string>
+    <string name="export_format_csv">CSV</string>
     <string name="settings_network">Сеть</string>
     <string name="settings_wifi_only">Использовать только Wi‑Fi</string>
     <string name="settings_test_connection">Проверить соединение</string>
@@ -457,4 +467,20 @@
     <string name="conflict_skip">Пропустить телефон</string>
     <string name="conflict_replace">Перезаписать</string>
     <string name="conflict_add">Прибавить</string>
+    <string name="conflict_resolve_success">Конфликт разрешён: %1$s — HTTP %2$d</string>
+    <string name="conflict_resolve_error">Ошибка разрешения: %1$s</string>
+    <string name="stats_tooltip_steps">шагов</string>
+    <string name="settings_test_connection_home">Тестировать подключение</string>
+    <string name="settings_test_connection_progress">Проверка…</string>
+    <string name="settings_sync_mode">Режим синхронизации</string>
+    <string name="settings_sync_interval">Интервал синхронизации</string>
+    <string name="settings_sync_time">Время синхронизации</string>
+    <string name="settings_sync_hours">%1$d ч</string>
+    <string name="sync_interval_1h">1 час</string>
+    <string name="sync_interval_3h">3 часа</string>
+    <string name="sync_interval_6h">6 часов</string>
+    <string name="sync_interval_12h">12 часов</string>
+    <string name="sync_interval_24h">24 часа</string>
+    <string name="sync_interval_72h">72 часа</string>
+    <string name="action_change">Изменить</string>
 </resources>

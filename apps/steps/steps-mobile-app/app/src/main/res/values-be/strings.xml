@@ -457,4 +457,20 @@
     <string name="conflict_skip">Прапусціць тэлефон</string>
     <string name="conflict_replace">Перазапісаць</string>
     <string name="conflict_add">Дадаць</string>
+    <string name="conflict_resolve_success">Канфлікт вырашаны: %1$s — HTTP %2$d</string>
+    <string name="conflict_resolve_error">Памылка вырашэння: %1$s</string>
+    <string name="stats_tooltip_steps">крокаў</string>
+    <string name="settings_test_connection_home">Праверыць злучэнне</string>
+    <string name="settings_test_connection_progress">Праверка…</string>
+    <string name="settings_sync_mode">Рэжым сінхранізацыі</string>
+    <string name="settings_sync_interval">Інтэрвал сінхранізацыі</string>
+    <string name="settings_sync_time">Час сінхранізацыі</string>
+    <string name="settings_sync_hours">%1$d гадз</string>
+    <string name="sync_interval_1h">1 гадзіна</string>
+    <string name="sync_interval_3h">3 гадзіны</string>
+    <string name="sync_interval_6h">6 гадзін</string>
+    <string name="sync_interval_12h">12 гадзін</string>
+    <string name="sync_interval_24h">24 гадзіны</string>
+    <string name="sync_interval_72h">72 гадзіны</string>
+    <string name="action_change">Змяніць</string>
 </resources>
