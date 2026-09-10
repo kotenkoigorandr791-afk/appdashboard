@@ -270,6 +270,11 @@ if (
     }
 
     $user = getUserByEmail($email);
+    if ($user && !userNeedsPasswordSet($user) && empty($user['must_change_password'])) {
+        unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'], $_SESSION['pending_set_password_only']);
+        header('Location: /main');
+        exit;
+    }
     $pendingOAuthData = [
         'email' => (string)(($user['email'] ?? null) ?: $email),
         'name' => (string)(($user['name'] ?? null) ?: explode('@', $email)[0]),
