@@ -446,6 +446,23 @@ function sh_mqtt_mark_auth_dirty(): void {
     @file_put_contents(rtrim($dir, '/') . '/smarthome_mqtt_auth_dirty', (string)time());
 }
 
+function sh_find_token_index(AppDatabase $db, string $token): ?array {
+    if ($token === '') return null;
+    $stmt = $db->prepare('SELECT * FROM smarthome_token_index WHERE token = :tok');
+    $stmt->bindValue(':tok', $token, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    return $row ?: null;
+}
+
+function sh_upsert_token_index(AppDatabase $db, string $token, string $userEmail, string $deviceId): void {
+    if ($token === '') return;
+    $stmt = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, CURRENT_TIMESTAMP) ON CONFLICT (token) DO UPDATE SET user_email = EXCLUDED.user_email, device_id = EXCLUDED.device_id, updated_at = CURRENT_TIMESTAMP WHERE smarthome_token_index.user_email = EXCLUDED.user_email AND smarthome_token_index.device_id = EXCLUDED.device_id');
+    $stmt->bindValue(':tok', $token, PDO::PARAM_STR);
+    $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+    $stmt->execute();
+}
+
 function sh_mqtt_controls_map(array $device): array {
     $out = [];
     foreach (($device['controls'] ?? []) as $control) {
@@ -1792,9 +1809,7 @@ if ($action !== '') {
                     echo json_encode(['ok'=>false,'error'=>'Device token required'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
                     exit;
                 }
-                $ti = $db->prepare('SELECT * FROM smarthome_token_index WHERE token = :tok');
-                $ti->bindValue(':tok', $token, PDO::PARAM_STR);
-                $tiRow = $ti->execute()->fetch(PDO::FETCH_ASSOC);
+                $tiRow = sh_find_token_index($db, $token);
                 if ($tiRow) {
                     if (($tiRow['user_email'] ?? '') !== $userEmail) {
                         echo json_encode(['ok'=>false,'error'=>'Token already registered'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
@@ -1847,13 +1862,7 @@ if ($action !== '') {
                     $gu->bindValue(':em', $userEmail, PDO::PARAM_STR);
                     $gu->execute();
                 }
-                // Add token index
-                $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, :now)');
-                $ti->bindValue(':tok', $token, PDO::PARAM_STR);
-                $ti->bindValue(':em', $userEmail, PDO::PARAM_STR);
-                $ti->bindValue(':did', $slug, PDO::PARAM_STR);
-                $ti->bindValue(':now', $now, PDO::PARAM_STR);
-                $ti->execute();
+                sh_upsert_token_index($db, $token, $userEmail, $slug);
                 sh_mqtt_mark_auth_dirty();
                 // Log
                 sh_monitor_log($userEmail, $slug, 'device_created', ['name'=>$name, 'type'=>$type]);
@@ -1861,6 +1870,14 @@ if ($action !== '') {
                 if (!sh_device_can_configure($db, $deviceId, $userEmail)) {
                     echo json_encode(['ok'=>false,'error'=>'No permission'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
                     exit;
+                }
+                $newToken = trim((string)($payload['device_token'] ?? ''));
+                if ($newToken !== '') {
+                    $tiRow = sh_find_token_index($db, $newToken);
+                    if ($tiRow && (($tiRow['user_email'] ?? '') !== $userEmail || ($tiRow['device_id'] ?? '') !== $deviceId)) {
+                        echo json_encode(['ok'=>false,'error'=>'Token already registered'], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+                        exit;
+                    }
                 }
                 $stmt = $db->prepare("UPDATE smarthome_devices SET name=:name, room=:room, local_url=:local, server_domain=:sd, ap_domain=:ad, mqtt_topic=:mqtt, device_token=:token, notes=:notes, icon=:icon, icon_locked=1, category=:cat, status=:status, updated_at=CURRENT_TIMESTAMP WHERE id=:id AND user_email=:em");
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -1871,7 +1888,7 @@ if ($action !== '') {
                 $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
                 $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
                 $stmt->bindValue(':mqtt', trim((string)($payload['mqtt_topic'] ?? '')), PDO::PARAM_STR);
-                $stmt->bindValue(':token', trim((string)($payload['device_token'] ?? '')), PDO::PARAM_STR);
+                $stmt->bindValue(':token', $newToken, PDO::PARAM_STR);
                 $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), PDO::PARAM_STR);
                 $stmt->bindValue(':icon', trim((string)($payload['icon'] ?? 'smart-device')), PDO::PARAM_STR);
                 $stmt->bindValue(':cat', trim((string)($payload['category'] ?? '')), PDO::PARAM_STR);
@@ -1889,15 +1906,12 @@ if ($action !== '') {
                     $gu->bindValue(':em', $userEmail, PDO::PARAM_STR);
                     $gu->execute();
                 }
-                // Update token index if token changed
-                if (!empty($payload['device_token'])) {
-                    $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id, updated_at) VALUES (:tok, :em, :did, CURRENT_TIMESTAMP)');
-                    $ti->bindValue(':tok', trim((string)$payload['device_token']), PDO::PARAM_STR);
-                    $ti->bindValue(':em', $userEmail, PDO::PARAM_STR);
-                    $ti->bindValue(':did', $deviceId, PDO::PARAM_STR);
-                    $ti->execute();
-                    sh_mqtt_mark_auth_dirty();
-                }
+                $td = $db->prepare('DELETE FROM smarthome_token_index WHERE device_id = :did AND token <> :tok');
+                $td->bindValue(':did', $deviceId, PDO::PARAM_STR);
+                $td->bindValue(':tok', $newToken, PDO::PARAM_STR);
+                $td->execute();
+                sh_upsert_token_index($db, $newToken, $userEmail, $deviceId);
+                sh_mqtt_mark_auth_dirty();
             }
             $settings = sh_load_user_settings($db, $userEmail);
             $homeCtx = sh_resolve_home_context($db, $userEmail, $settings);
@@ -2485,11 +2499,7 @@ function sh_migrate_from_json(): void {
                 $stmt->execute();
                 // Token index
                 if (!empty($d['device_token'])) {
-                    $ti = $db->prepare('INSERT INTO smarthome_token_index (token, user_email, device_id) VALUES (:tok, :em, :did)');
-                    $ti->bindValue(':tok', $d['device_token'], PDO::PARAM_STR);
-                    $ti->bindValue(':em', $email, PDO::PARAM_STR);
-                    $ti->bindValue(':did', $id, PDO::PARAM_STR);
-                    $ti->execute();
+                    sh_upsert_token_index($db, (string)$d['device_token'], $email, $id);
                 }
             }
         }
