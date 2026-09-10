@@ -13,12 +13,13 @@ const CLOUD_AI_FETCH_MAX_BYTES = 20971520;
 const CLOUD_AI_FETCH_MAX_CHARS = 120000;
 const CLOUD_AI_BINARY_READ_MAX_BYTES = 262144;
 const CLOUD_AI_COMMAND_ALLOWLIST = [
-    'php', 'node', 'npm', 'npx', 'python', 'python3', 'pytest', 'composer', 'git',
-    'rg', 'grep', 'find', 'ls', 'cat', 'head', 'tail', 'wc', 'sed', 'awk', 'cut', 'tr', 'sort', 'uniq', 'diff',
-    'sh', 'bash', 'true', 'false', 'test', 'echo', 'printf', 'mkdir', 'cp', 'mv', 'touch', 'chmod',
-    'gcc', 'g++', 'cc', 'c++', 'clang', 'clang++', 'make', 'cmake', 'javac', 'java', 'rustc', 'go',
-    'dotnet', 'lua', 'perl', 'ruby', 'which', 'basename', 'dirname', 'realpath', 'pwd', 'env', 'base64',
-    'md5sum', 'sha256sum', 'stat', 'tee', 'xargs', 'timeout',
+    'ls', 'cat', 'head', 'tail', 'wc', 'sed', 'awk', 'cut', 'tr', 'sort', 'uniq', 'diff',
+    'grep', 'rg', 'find', 'stat', 'file', 'du', 'df',
+    'echo', 'printf', 'test', 'true', 'false',
+    'mkdir', 'cp', 'mv', 'touch', 'chmod', 'ln',
+    'which', 'basename', 'dirname', 'realpath', 'pwd', 'env',
+    'base64', 'md5sum', 'sha256sum', 'tee', 'xargs', 'timeout',
+    'git', 'composer',
 ];
 const CLOUD_AI_TEXT_EXTENSIONS = [
     'txt','md','markdown','json','jsonl','csv','tsv','xml','html','htm','css','scss','sass','less',

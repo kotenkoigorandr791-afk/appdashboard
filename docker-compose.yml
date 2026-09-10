@@ -76,6 +76,7 @@ services:
       SMART_HOME_WS_BIND: 127.0.0.1
     ports:
       - "80:80"
+      - "127.0.0.1:8808:8808"
     volumes:
       - .:/var/www/AppDashboard
       - .:/var/www/apps-dashboard

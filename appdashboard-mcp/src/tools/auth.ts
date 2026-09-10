@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { apiGet, shellAction, textResult } from "../api.js";
 import { setCachedRole } from "../auth.js";
 import { normalizeRole } from "../roles.js";
@@ -14,7 +13,10 @@ export const authTools: ToolDef[] = [
     inputSchema: empty,
     handler: async () => {
       const data = await apiGet("/public-api/auth/me");
-      if (data?.user?.role !== undefined) setCachedRole(normalizeRole(data.user.role));
+      if (data?.user?.role !== undefined) {
+        const role = normalizeRole(data.user.role);
+        setCachedRole(role);
+      }
       return textResult(data);
     },
   },

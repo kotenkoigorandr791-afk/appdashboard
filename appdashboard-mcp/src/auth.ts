@@ -318,15 +318,23 @@ export async function ensureAuth(options?: { interactive?: boolean; timeoutMs?: 
   }
   ensureDeviceId();
   const existing = loadCredentials();
-  if (getToken()) {
+   if (getToken()) {
     const me = await fetchMe();
     if (me) {
       const creds = loadCredentials();
-      return creds?.token ? creds : saveTokenCredentials(host, getToken(), me.role);
+      const token = creds?.token;
+      if (token) {
+        return creds;
+      }
+      return saveTokenCredentials(host, getToken(), me.role);
     }
   }
   if (interactive) console.error("[appdashboard-mcp] Token is required. Run setup with --token or set APPDASHBOARD_TOKEN.");
   return loadCredentials()?.token ? loadCredentials() : null;
+}
+
+export function getStore(): AuthContext | undefined {
+  return authStorage.getStore();
 }
 
 export function credentialsDir(): string {
