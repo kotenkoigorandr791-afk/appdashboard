@@ -36,6 +36,155 @@ if ($path === '/mcp' || $path === '/mcp/' || str_starts_with($path, '/mcp/')) {
     exit;
 }
 
+if ($path === '/oauth/approve') {
+    $clientId = trim((string)($_GET['client_id'] ?? ''));
+    $redirectUri = trim((string)($_GET['redirect_uri'] ?? ''));
+    $responseType = trim((string)($_GET['response_type'] ?? 'code'));
+    $scope = trim((string)($_GET['scope'] ?? 'mcp'));
+    $codeChallenge = trim((string)($_GET['code_challenge'] ?? ''));
+    $codeChallengeMethod = trim((string)($_GET['code_challenge_method'] ?? 'S256'));
+    $state = trim((string)($_GET['state'] ?? ''));
+    $oaParamsOk = $responseType === 'code'
+        && $clientId !== ''
+        && $redirectUri !== ''
+        && $codeChallenge !== ''
+        && in_array($codeChallengeMethod, ['S256', 'plain'], true)
+        && strlen($codeChallenge) >= 43 && strlen($codeChallenge) <= 128
+        && preg_match('/^[A-Za-z0-9._~-]+$/', $codeChallenge) === 1;
+    if (!$oaParamsOk) {
+        http_response_code(400);
+        echo '<!doctype html><html><body style="font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;padding:40px;"><h1>Invalid OAuth request</h1><p>Missing or malformed authorization parameters. Return to the application and start authorization again.</p></body></html>';
+        exit;
+    }
+    $oaScheme = 'http';
+    if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (string)($_SERVER['SERVER_PORT'] ?? '') === '443') $oaScheme = 'https';
+    $oaHost = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+    $oaBaseUrl = $oaScheme . '://' . $oaHost;
+    $oaLookupJson = @file_get_contents($oaBaseUrl . '/public-api/oauth/client?id=' . urlencode($clientId) . '&redirect_uri=' . urlencode($redirectUri));
+    $oaLookup = is_string($oaLookupJson) ? json_decode($oaLookupJson, true) : null;
+    $oaClientValid = is_array($oaLookup) && !empty($oaLookup['found']) && $oaLookup['redirect_ok'] === true;
+    $oaClientName = is_array($oaLookup) && !empty($oaLookup['client_name']) ? my_htmlspecialchars((string)$oaLookup['client_name']) : 'opencode';
+    if (!$oaClientValid) {
+        http_response_code(400);
+        echo '<!doctype html><html><body style="font-family:Arial,sans-serif;background:#0f172a;color:#e2e8f0;padding:40px;"><h1>Authorization denied</h1><p>The requesting application is unknown or its redirect URI is not allowed.</p></body></html>';
+        exit;
+    }
+    if (!clientAuthSessionOk()) {
+        setPostLoginRedirect($requestUri);
+        header('Location: /login');
+        exit;
+    }
+    $oaUserEmail = my_htmlspecialchars((string)($_SESSION['user']['email'] ?? ''));
+    $oaRoleLabel = ($_SESSION['user']['role'] ?? 0) == 2 ? 'Admin' : (($_SESSION['user']['role'] ?? 0) == 1 ? 'Manager' : 'Guest');
+    $oaPrimaryColor = my_htmlspecialchars((string)($config['color'] ?? '#2563eb'));
+    $oaRedirectSafe = my_htmlspecialchars($redirectUri);
+    ?>
+    <!doctype html>
+    <html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Authorize Application</title>
+        <link rel="icon" type="image/png" href="/icon.png">
+        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <style>
+            :root{
+                color-scheme: light dark;
+                --accent: <?php echo $oaPrimaryColor; ?>;
+                --bg: light-dark(#f3f5f7,#0f1115);
+                --card: light-dark(rgba(255,255,255,.82),rgba(24,26,32,.82));
+                --line: light-dark(rgba(20,24,31,.08),rgba(255,255,255,.08));
+                --text: light-dark(#1f2329,#f3f5f7);
+                --muted: light-dark(#5a6472,#a8b0bc);
+                --shadow: 0 24px 64px rgba(0,0,0,.18);
+            }
+            *{box-sizing:border-box}
+            body{
+                margin:0;min-height:100vh;font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+                background:linear-gradient(180deg, light-dark(#eef1f4,#0b0d10), var(--bg));
+                color:var(--text);display:flex;align-items:center;justify-content:center;padding:24px;
+            }
+            .card{
+                width:min(620px,100%);background:var(--card);border:1px solid var(--line);border-radius:24px;padding:32px;
+                box-shadow:var(--shadow);backdrop-filter:blur(18px);
+            }
+            .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.05));color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+            h1{font-size:30px;line-height:1.1;margin:14px 0 10px;word-break:break-word}
+            p{color:var(--muted);font-size:15px;line-height:1.6;margin:0}
+            .meta{margin:22px 0;padding:18px;border-radius:18px;background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.04));border:1px solid var(--line)}
+            .meta-row{display:flex;justify-content:space-between;gap:16px;padding:8px 0;word-break:break-word}
+            .meta-row span:first-child{color:var(--muted)}
+            .meta-row strong{text-align:right}
+            .scope{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);color:var(--muted);font-size:13px}
+            button{border:1px solid var(--line);border-radius:14px;padding:14px 18px;font:inherit;font-weight:700;cursor:pointer;background:light-dark(#23272f,#e5e9ef);color:light-dark(#fff,#111318);width:100%}
+            button[disabled]{opacity:.6;cursor:wait}
+            .secondary{margin-top:12px;background:transparent;color:var(--text)}
+            .status{margin-top:16px;min-height:24px;color:var(--muted)}
+            .ok{color:#2e7d32}.err{color:#c62828}
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <div class="pill">AppDashboard</div>
+            <h1>Authorize <?php echo $oaClientName; ?></h1>
+            <p>The application will be able to act on your behalf using your current account permissions.</p>
+            <div class="meta">
+                <div class="meta-row"><span>Signed in as</span><strong><?php echo $oaUserEmail; ?> (<?php echo $oaRoleLabel; ?>)</strong></div>
+                <div class="meta-row"><span>Application</span><strong><?php echo $oaClientName; ?></strong></div>
+                <div class="meta-row"><span>Redirect URI</span><strong><?php echo $oaRedirectSafe; ?></strong></div>
+                <div class="meta-row"><span>Scope</span><strong><?php echo my_htmlspecialchars($scope); ?></strong></div>
+                <div class="scope">You will be able to revoke this access at any time by changing your password or restoring all sessions.</div>
+            </div>
+            <button id="approveBtn" type="button">Authorize application</button>
+            <button class="secondary" id="denyBtn" type="button">Deny</button>
+            <div id="status" class="status"></div>
+        </div>
+        <script>
+        (function () {
+            const params = {
+                client_id: <?php echo json_encode($clientId, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+                redirect_uri: <?php echo json_encode($redirectUri, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+                code_challenge: <?php echo json_encode($codeChallenge, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+                code_challenge_method: <?php echo json_encode($codeChallengeMethod, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
+                state: <?php echo json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+            };
+            const statusEl = document.getElementById('status');
+            const approveBtn = document.getElementById('approveBtn');
+            const redirectWithError = () => {
+                const sep = params.redirect_uri.includes('?') ? '&' : '?';
+                window.location.href = params.redirect_uri + sep + 'error=access_denied&state=' + encodeURIComponent(params.state);
+            };
+            document.getElementById('denyBtn').addEventListener('click', () => {
+                approveBtn.disabled = true;
+                redirectWithError();
+            });
+            approveBtn.addEventListener('click', async () => {
+                approveBtn.disabled = true;
+                statusEl.textContent = 'Authorizing, please wait...';
+                try {
+                    const res = await fetch('/public-api/oauth/approve', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(params)
+                    });
+                    const data = await res.json();
+                    if (!data.ok) throw new Error(data.error || 'authorization_failed');
+                    const sep = data.redirect_uri.includes('?') ? '&' : '?';
+                    window.location.href = data.redirect_uri + sep + 'code=' + encodeURIComponent(data.code) + '&state=' + encodeURIComponent(data.state || '');
+                } catch (err) {
+                    statusEl.textContent = 'Failed to authorize: ' + err.message;
+                    statusEl.className = 'status err';
+                    approveBtn.disabled = false;
+                }
+            });
+        })();
+        </script>
+    </body>
+    </html>
+    <?php
+    exit;
+}
+
 if ($path === '/client-auth') {
     $requestId = trim((string)($_GET['request_id'] ?? ''));
     $browserToken = trim((string)($_GET['browser_token'] ?? ''));
