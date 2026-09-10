@@ -1390,6 +1390,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
             box-sizing: border-box;
             box-shadow: none;
         }
@@ -1400,9 +1401,9 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         }
         .weather-selector .custom-select-selected span {
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            flex: 1 1 auto;
+            white-space: normal;
+            word-break: break-word;
             display: flex;
             align-items: center;
         }
@@ -1531,9 +1532,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         }
         .weather-selection-item span {
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            word-break: break-word;
         }
         .weather-selection-item:last-child {
             border-bottom: none;
@@ -1796,9 +1796,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             font-size: 13px;
             opacity: 0.75;
             min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow: visible;
         }
         .weather-day-temps {
             display: flex;
@@ -1825,14 +1824,12 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             color: #2563eb;
             flex-shrink: 0;
             min-width: 72px;
-            max-width: 92px;
             padding: 5px 8px;
             border-radius: 999px;
             background: rgba(37, 99, 235, 0.12);
             border: 1px solid rgba(37, 99, 235, 0.18);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            overflow: visible;
         }
         .weather-day-precip.is-dry {
             color: var(--text-color);
