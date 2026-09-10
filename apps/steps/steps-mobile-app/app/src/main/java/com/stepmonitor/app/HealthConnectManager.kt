@@ -1,6 +1,7 @@
 package com.stepmonitor.app
 
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.permission.HealthPermission
 import kotlinx.coroutines.CancellationException
@@ -2039,12 +2040,16 @@ class HealthConnectManager(private val context: Context) {
     suspend fun hasPermissions(requiredPermissions: Set<String> = ALL_PERMISSIONS): Boolean {
         if (!isHealthConnectAvailable()) return false
         val granted = healthConnectClient.permissionController.getGrantedPermissions()
-        return requiredPermissions.all { it in granted }
+        return requiredPermissions.all { permission ->
+            permission in granted || context.packageManager.checkPermission(permission, context.packageName) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     suspend fun getGrantedPermissions(): Set<String> {
         if (!isHealthConnectAvailable()) return emptySet()
-        return healthConnectClient.permissionController.getGrantedPermissions()
+        return healthConnectClient.permissionController.getGrantedPermissions() + ALL_PERMISSIONS.filter { permission ->
+            context.packageManager.checkPermission(permission, context.packageName) == PackageManager.PERMISSION_GRANTED
+        }
     }
 
     suspend fun requestPermissions(permissions: Set<String>): android.content.Intent {

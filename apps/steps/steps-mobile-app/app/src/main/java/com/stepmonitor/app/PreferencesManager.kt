@@ -14,6 +14,8 @@ class PreferencesManager(context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    fun getSharedPreferences(): SharedPreferences = prefs
+
     companion object {
         private const val PREFS_NAME = "hc_webhook_prefs"
         private const val KEY_LAST_SYNC_TS_PREFIX = "last_sync_ts_"
@@ -598,6 +600,31 @@ class PreferencesManager(context: Context) {
     }
     fun clearPendingConflictJson() {
         prefs.edit().remove(KEY_PENDING_CONFLICT_JSON).apply()
+    }
+
+    fun clearServerDataCache() {
+        val editor = prefs.edit()
+
+        editor.remove(KEY_PROFILE_CACHE_JSON)
+        editor.remove(KEY_PROFILE_CACHE_TIME)
+
+        editor.remove(KEY_STATS_CACHE_JSON)
+        editor.remove(KEY_STATS_CACHE_TIME)
+
+        editor.remove(KEY_PENDING_CONFLICT_JSON)
+
+        editor.remove(KEY_LAST_SYNC_TIME)
+        editor.remove(KEY_LAST_SYNC_SUMMARY)
+
+        // last_sync_ts_<HealthDataType>
+        prefs.all.keys
+            .filter { it.startsWith(KEY_LAST_SYNC_TS_PREFIX) }
+            .forEach { editor.remove(it) }
+
+        editor.remove(KEY_LAST_STEPS_SYNC_TS)
+        editor.remove(KEY_LAST_SLEEP_SYNC_TS)
+
+        editor.apply()
     }
 
     /** Debug only: backdate first open and clear dismiss so the weekly Home card shows. */

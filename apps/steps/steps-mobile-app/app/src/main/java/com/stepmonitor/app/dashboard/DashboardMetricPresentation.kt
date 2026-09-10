@@ -20,15 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.stepmonitor.app.HealthDataType
 import com.stepmonitor.app.ui.theme.IconBackgroundBlue
-import com.stepmonitor.app.ui.theme.IconBackgroundGreen
+import com.stepmonitor.app.ui.theme.IconBackgroundCyan
+import com.stepmonitor.app.ui.theme.IconBackgroundMagenta
 import com.stepmonitor.app.ui.theme.IconBackgroundOrange
 import com.stepmonitor.app.ui.theme.IconBackgroundPurple
-import com.stepmonitor.app.ui.theme.IconBackgroundRed
 import com.stepmonitor.app.ui.theme.IconTintBlue
-import com.stepmonitor.app.ui.theme.IconTintGreen
+import com.stepmonitor.app.ui.theme.IconTintCyan
+import com.stepmonitor.app.ui.theme.IconTintMagenta
 import com.stepmonitor.app.ui.theme.IconTintOrange
 import com.stepmonitor.app.ui.theme.IconTintPurple
-import com.stepmonitor.app.ui.theme.IconTintRed
 
 data class DashboardMetricStyle(
     val icon: ImageVector,
@@ -42,34 +42,34 @@ object DashboardMetricPresentation {
         HealthDataType.STEPS -> style(Icons.AutoMirrored.Filled.DirectionsWalk, IconBackgroundOrange, IconTintOrange)
         HealthDataType.SLEEP -> style(Icons.Filled.Bedtime, IconBackgroundPurple, IconTintPurple)
         HealthDataType.HEART_RATE,
-        HealthDataType.RESTING_HEART_RATE -> style(Icons.Filled.Favorite, IconBackgroundRed, IconTintRed)
-        HealthDataType.HEART_RATE_VARIABILITY -> style(Icons.Filled.MonitorHeart, IconBackgroundRed, IconTintRed)
+        HealthDataType.RESTING_HEART_RATE -> style(Icons.Filled.Favorite, IconBackgroundMagenta, IconTintMagenta)
+        HealthDataType.HEART_RATE_VARIABILITY -> style(Icons.Filled.MonitorHeart, IconBackgroundMagenta, IconTintMagenta)
         HealthDataType.DISTANCE -> style(Icons.Filled.Navigation, IconBackgroundBlue, IconTintBlue)
         HealthDataType.ACTIVE_CALORIES,
-        HealthDataType.TOTAL_CALORIES -> style(Icons.Filled.LocalFireDepartment, IconBackgroundRed, IconTintRed)
+        HealthDataType.TOTAL_CALORIES -> style(Icons.Filled.LocalFireDepartment, IconBackgroundOrange, IconTintOrange)
         HealthDataType.WEIGHT,
         HealthDataType.LEAN_BODY_MASS,
         HealthDataType.BODY_WATER_MASS,
         HealthDataType.BONE_MASS -> style(Icons.Filled.Scale, IconBackgroundBlue, IconTintBlue)
-        HealthDataType.HEIGHT -> style(Icons.Filled.Speed, IconBackgroundGreen, IconTintGreen)
-        HealthDataType.BLOOD_PRESSURE -> style(Icons.Filled.MonitorHeart, IconBackgroundRed, IconTintRed)
+        HealthDataType.HEIGHT -> style(Icons.Filled.Speed, IconBackgroundCyan, IconTintCyan)
+        HealthDataType.BLOOD_PRESSURE -> style(Icons.Filled.MonitorHeart, IconBackgroundMagenta, IconTintMagenta)
         HealthDataType.BLOOD_GLUCOSE -> style(Icons.Filled.WaterDrop, IconBackgroundBlue, IconTintBlue)
         HealthDataType.OXYGEN_SATURATION -> style(Icons.Filled.Opacity, IconBackgroundBlue, IconTintBlue)
         HealthDataType.BODY_TEMPERATURE,
         HealthDataType.SKIN_TEMPERATURE -> style(Icons.Filled.Thermostat, IconBackgroundOrange, IconTintOrange)
         HealthDataType.RESPIRATORY_RATE -> style(Icons.Filled.Waves, IconBackgroundBlue, IconTintBlue)
-        HealthDataType.EXERCISE -> style(Icons.Filled.FitnessCenter, IconBackgroundGreen, IconTintGreen)
+        HealthDataType.EXERCISE -> style(Icons.Filled.FitnessCenter, IconBackgroundCyan, IconTintCyan)
         HealthDataType.HYDRATION -> style(Icons.Filled.WaterDrop, IconBackgroundBlue, IconTintBlue)
         HealthDataType.NUTRITION -> style(Icons.Filled.Restaurant, IconBackgroundOrange, IconTintOrange)
         HealthDataType.BASAL_METABOLIC_RATE -> style(Icons.Filled.LocalFireDepartment, IconBackgroundOrange, IconTintOrange)
         HealthDataType.BODY_FAT -> style(Icons.Filled.Spa, IconBackgroundPurple, IconTintPurple)
-        HealthDataType.VO2_MAX -> style(Icons.Filled.FitnessCenter, IconBackgroundGreen, IconTintGreen)
+        HealthDataType.VO2_MAX -> style(Icons.Filled.FitnessCenter, IconBackgroundCyan, IconTintCyan)
         HealthDataType.MENSTRUATION_FLOW,
         HealthDataType.MENSTRUATION_PERIOD,
         HealthDataType.INTERMENSTRUAL_BLEEDING,
         HealthDataType.OVULATION_TEST,
         HealthDataType.CERVICAL_MUCUS,
-        HealthDataType.SEXUAL_ACTIVITY -> style(Icons.Filled.Favorite, IconBackgroundRed, IconTintRed)
+        HealthDataType.SEXUAL_ACTIVITY -> style(Icons.Filled.Favorite, IconBackgroundMagenta, IconTintMagenta)
         HealthDataType.BASAL_BODY_TEMPERATURE -> style(Icons.Filled.Thermostat, IconBackgroundOrange, IconTintOrange)
     }
 
