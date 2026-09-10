@@ -67,11 +67,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--sidebar-bg);
+    background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 20px;
-    height: 52px;
+    padding: 0 12px;
+    height: 44px;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 #ap-topbar .ap-brand {
     display: flex;
@@ -107,16 +108,15 @@
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
-/* Close button — icon-only circle */
+/* Close button — matches .std-topbar-close */
 .ap-close-btn-style,
 #ap-close-btn {
-    width:36px;height:36px;background:none;border:1.5px solid var(--border-color);color:var(--text-color);border-radius:50%;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;flex:0 0 auto;flex-shrink:0;aspect-ratio:1;min-width:36px;min-height:36px;box-sizing:border-box;}
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:18px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;padding:0;line-height:1;box-sizing:border-box;}
 .ap-close-btn-style:hover,
 #ap-close-btn:hover {
-    background: color-mix(in srgb, #f85149 15%, transparent);
-    color: #f85149;
-    border-color: #f85149;
-    transform: rotate(90deg);
+    background: var(--danger, #ef4444);
+    color: #fff;
+    border-color: var(--danger, #ef4444);
 }
 
 /* Body */

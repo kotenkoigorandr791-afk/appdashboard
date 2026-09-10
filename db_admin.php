@@ -1263,7 +1263,7 @@ body{font-family:var(--font-ui);background:var(--bg);color:var(--text);font-size
 
 /* Layout */
 #app{display:flex;flex-direction:column;height:100vh;height:100dvh}
-#topbar{height:46px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:8px;flex-shrink:0;position:relative;z-index:100}
+#topbar{height:44px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:8px;flex-shrink:0;position:relative;z-index:100}
 @media (max-width: 768px) {
   #topbar{padding:0 8px;gap:6px}
 }

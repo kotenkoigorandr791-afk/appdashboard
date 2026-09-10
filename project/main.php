@@ -2130,7 +2130,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
                         Delete Chat
                     </button>
                     <?php endif; ?>
-                    <button id="close-chat-modal" style="background:rgba(255,255,255,0.1);border:none;font-size:28px;cursor:pointer;color:var(--text-color);padding:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,0,0,0.2)';this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';this.style.transform='rotate(0deg)';">&times;</button>
+                    <button id="close-chat-modal" class="std-topbar-close">&times;</button>
                 </div>
             </div>
 
@@ -4425,11 +4425,12 @@ var T=<?php echo json_encode([
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--sidebar-bg);
+    background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 20px;
-    height: 52px;
+    padding: 0 12px;
+    height: 44px;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 #ap-topbar .ap-brand {
     display: flex;
@@ -4465,28 +4466,27 @@ var T=<?php echo json_encode([
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
-/* Close button — icon-only circle */
+/* Close button — matches .std-topbar-close */
 #ap-close-btn {
-    width: 36px;
-    height: 36px;
-    background: none;
-    border: 1.5px solid var(--border-color);
-    color: var(--text-color);
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all .2s;
+    background: none;
+    border: 1.5px solid var(--border-color);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
     padding: 0;
 }
 #ap-close-btn:hover {
-    background: color-mix(in srgb, #f85149 15%, transparent);
-    color: #f85149;
-    border-color: #f85149;
-    transform: rotate(90deg);
+    background: var(--danger, #ef4444);
+    color: #fff;
+    border-color: var(--danger, #ef4444);
 }
 
 /* Body */

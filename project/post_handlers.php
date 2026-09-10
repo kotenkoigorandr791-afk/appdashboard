@@ -1418,9 +1418,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']??''); ?></div>
             <div class="ap-user-role"><?php echo my_htmlspecialchars($translations['admin']??'Admin'); ?></div>
         </div>
-        <button id="ap-close-btn" type="button">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
+        <button id="ap-close-btn" type="button" class="std-topbar-close">&times;</button>
     </div>
 </div>
 <div id="ap-body">

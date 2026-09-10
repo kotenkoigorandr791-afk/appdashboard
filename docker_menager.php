@@ -1207,6 +1207,7 @@ function ico($n) {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            height: 44px;
         }
         .page-title { font-size: 22px; font-weight: 600; }
         .connection-status {
