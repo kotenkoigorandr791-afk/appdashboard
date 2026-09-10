@@ -184,7 +184,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=$translations[$passwordErrorKey];
         }else{
             $users=loadUsers();
-            if(isset($users[$email])&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
+            $pendingSetPasswordData=$_SESSION['pending_oauth_data']??$_SESSION['pending_google_data']??null;
+            $canSetExistingPassword=!empty($_SESSION['pending_set_password_only'])&&is_array($pendingSetPasswordData)&&hash_equals(apNormalizeAuthEmail((string)($pendingSetPasswordData['email']??'')),$email);
+            if(isset($users[$email])&&$canSetExistingPassword&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
                 $users[$email]['password']=appPasswordHash($password);
                 $users[$email]['must_change_password']=0;
                 upsertUser($email,$users[$email]);
