@@ -226,7 +226,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         body.light-theme #sidebar{background:rgba(240,244,248,0.20);}
         #top-bar-title{font-weight:bold;font-size:18px;flex:1;min-width:0;text-align:center;position:absolute;left:50%;transform:translateX(-50%);}
         .std-topbar{display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--border-color);flex-shrink:0;box-sizing:border-box;}
-        .std-topbar-title{font-size:14px;font-weight:600;color:var(--text-color);margin:0;}
+        .std-topbar-title{font-size:16px;font-weight:700;color:var(--text-color);margin:0;}
         .std-topbar-close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:18px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;}
         .std-topbar-close:hover{background:var(--danger,#ef4444);color:#fff;border-color:var(--danger,#ef4444);}
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
@@ -326,6 +326,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .search-container.open #search-bar{opacity:1;transform:translateX(0);}
         #bottom-bar #support-chat-btn.app-page-chat{position:relative;top:auto;right:auto;left:auto;margin-left:8px;width:36px;height:36px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);box-shadow:none;color:var(--text-color);padding:0;border-radius:999px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transform:none;}
         #bottom-bar #support-chat-btn.app-page-chat:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
+        #bottom-bar #support-chat-btn.app-page-chat svg{width:20px;height:20px;opacity:0.65;}
         #bottom-bar .bottom-bar-actions .sidebar-button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);border-radius:999px;width:36px;height:36px;padding:0;box-shadow:none;margin:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         #bottom-bar .bottom-bar-actions .sidebar-button svg{width:20px;height:20px;opacity:0.65;}
         #bottom-bar .bottom-bar-actions .sidebar-button:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
@@ -2282,7 +2283,6 @@ endif; // showOtpPage
             </div>
             <?php else: ?>
             <div id="set-password-content" class="auth-content active">
-                <h2><?php echo my_htmlspecialchars($translations['set_password']); ?></h2>
                 <?php if(isset($_GET['new_oauth_user']) || isset($_GET['new_google_user'])): ?>
                 <div class="auth-error" style="margin-bottom:10px;">
                     <?php echo my_htmlspecialchars($translations['oauth_user_not_found'] ?? $translations['google_user_not_found']); ?>
@@ -2495,7 +2495,6 @@ endif; // showOtpPage
         </div>
         <div id="profile-content">
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['user_profile']); ?></h2>
             <?php if(isset($profileError)):?><div class="auth-error"><?php echo my_htmlspecialchars($profileError); ?></div><?php endif;?>
             <?php if(isset($profileSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($profileSuccess); ?></div><?php endif;?>
             <div class="profile-section">
@@ -2649,7 +2648,6 @@ endif; // showOtpPage
         </div>
         <form id="email-form" method="post" action="/main">
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['email_settings']); ?></h2>
             <?php if(isset($emailSettingsSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($emailSettingsSuccess); ?></div><?php endif;?>
             <?php if(isset($emailSettingsError)):?><div class="auth-error"><?php echo my_htmlspecialchars($emailSettingsError); ?></div><?php endif;?>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['google_client_id']); ?>:</label><input type="text" name="google_client_id" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['google_client_id']); ?>" required></div>
@@ -2675,7 +2673,6 @@ endif; // showOtpPage
             <button id="close-tg-bot" type="button" class="std-topbar-close">&times;</button>
         </div>
         <div id="tg-bot-content">
-            <h2 style="margin-bottom:4px;"><?php echo my_htmlspecialchars($translations['bot_settings'] ?? 'Bot Settings'); ?></h2>
             <p style="font-size:12px;color:#888;margin-bottom:20px;"><?php echo my_htmlspecialchars($translations['tg_bot_desc'] ?? 'Configure your Telegram bot to receive notifications about new registrations.'); ?></p>
 
             <div class="tg-bot-field">
@@ -2729,11 +2726,10 @@ endif; // showOtpPage
     <!-- Delete User Modal (admin only) -->
     <div id="delete-user-modal">
         <div class="std-topbar">
-            <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h3>
+            <h3 class="std-topbar-title" id="delete-user-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h3>
             <button id="close-delete-user" type="button" class="std-topbar-close">&times;</button>
         </div>
         <div id="delete-user-content">
-            <h2 id="delete-user-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h2>
             <p id="delete-user-email-display" style="color:#888;font-size:13px;margin-bottom:12px;"></p>
 
             <div id="delete-user-files-section">
@@ -2790,11 +2786,10 @@ endif; // showOtpPage
 
     <div id="reset-user-password-modal">
         <div class="std-topbar">
-            <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h3>
+            <h3 class="std-topbar-title" id="reset-user-password-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h3>
             <button id="close-reset-user-password" type="button" class="std-topbar-close">&times;</button>
         </div>
         <div id="reset-user-password-content">
-            <h2 id="reset-user-password-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h2>
             <p id="reset-user-password-email-display" style="color:#888;font-size:13px;margin-bottom:12px;"></p>
             <p style="font-size:13px;opacity:.8;margin:0 0 8px 0;"><?php echo my_htmlspecialchars($translations['reset_user_password_hint'] ?? 'A strong password will be set for this user. Share it securely after reset.'); ?></p>
             <div id="reset-password-form-section">
@@ -2834,7 +2829,6 @@ endif; // showOtpPage
                 <button id="close-users" type="button" class="std-topbar-close">&times;</button>
             </div>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['user_management']); ?></h2>
             <?php if(isset($userManagementSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($userManagementSuccess); ?></div><?php endif;?>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
                 <div class="users-search-container" style="flex:1;min-width:160px;margin-bottom:0;">
@@ -2893,7 +2887,6 @@ endif; // showOtpPage
                 <button id="close-sessions" type="button" class="std-topbar-close">&times;</button>
             </div>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['session_management']); ?></h2>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['active_sessions']); ?></h3><button id="refresh-sessions" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
             <?php if(isset($sessionManagementSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($sessionManagementSuccess); ?></div><?php endif;?>
             <div id="sessions-list-container">
@@ -3109,7 +3102,6 @@ endif; // showOtpPage
             <button id="close-settings" type="button" class="std-topbar-close">&times;</button>
         </div>
         <div class="modal-scroll-body">
-        <h2><?php echo my_htmlspecialchars($translations['settings_title']); ?></h2>
         <div class="settings-table">
                 <div class="settings-table-cell">
                     <label><?php echo my_htmlspecialchars($translations['language']); ?>:</label>
@@ -3414,8 +3406,16 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         radial-gradient(circle at 40% 80%, var(--chat-color-lighter) 0%, transparent 50%);
     animation: float 20s ease-in-out infinite;
 }
+@keyframes pulseSoft {
+    0%, 100% { box-shadow: 0 8px 24px var(--chat-color-shadow); }
+    50% { box-shadow: 0 8px 28px var(--chat-color-shadow), 0 0 0 6px var(--chat-color-ring); }
+}
 #support-chat-btn.has-unread {
-    animation: pulse 2s ease-in-out infinite;
+    animation: pulseSoft 2s ease-in-out infinite;
+}
+#bottom-bar #support-chat-btn.app-page-chat.has-unread,
+#bottom-bar #support-chat-btn.app-page-chat:hover{
+    animation: none;
 }
 .chat-messages-scroll {
     scrollbar-width: thin;
@@ -5295,7 +5295,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                         p.addEventListener('animationend',function(){this.remove();});
                     }
                     setTimeout(function(){readBtn.classList.remove('mark-read-done');},1500);
-                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(){loadNotifications(false);});
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(r){return r.json();}).then(function(d){if(d.ok){loadNotifications(false);}}).catch(function(err){console.error('Mark read failed:',err);});
                 });
             }
             if(list){
@@ -5304,7 +5304,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                     if(!row||!list.contains(row))return;
                     const id=Number(row.getAttribute('data-id'))||0;
                     if(!id)return;
-                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read',id:id})}).then(function(){loadNotifications(false);});
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read',id:id})}).then(function(r){return r.json();}).then(function(d){if(d.ok){loadNotifications(false);}}).catch(function(err){console.error('Mark read failed:',err);});
                 });
             }
             if(enableBtn){

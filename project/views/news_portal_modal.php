@@ -199,7 +199,7 @@ body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf
 #news-portal-overlay.active{display:flex;}
 /* Header */
 #npo-header{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border-color);background:var(--group-block-bg);flex-shrink:0;height:56px;}
-#npo-title{padding:0 20px;font-size:17px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#npo-title{padding:0 20px;font-size:16px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #npo-header-actions{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:16px;}
 #npo-tabs{display:flex;height:100%;gap:0;}
 .npo-tab{height:100%;padding:0 22px;border:none;background:none;color:var(--text-color);font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;opacity:.6;transition:opacity .15s,border-color .15s;white-space:nowrap;}
@@ -488,7 +488,6 @@ body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important
       </div>
     </div>
     <?php endif; ?>
-  </div>
   <div id="npo-sidebar-backdrop" aria-hidden="true"></div>
   <div id="npo-ctx-menu" class="npo-ctx-menu" role="menu"></div>
   <div id="npo-body">

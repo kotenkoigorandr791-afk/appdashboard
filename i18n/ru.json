@@ -718,5 +718,6 @@
     "welcome_message": "Добро пожаловать в оболочку. Выберите приложение из меню.",
     "welcome_user": "Добро пожаловать, ",
     "windows": "Windows",
-    "wrong_current_password": "Неверный текущий пароль"
+    "wrong_current_password": "Неверный текущий пароль",
+    "mark_read": "Отметить все как прочитанные"
 }

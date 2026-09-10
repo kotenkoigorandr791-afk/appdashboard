@@ -744,5 +744,6 @@
     "weather_select_city": "Wybierz miasto",
     "weather_location_settings": "Ustawienia lokalizacji",
     "weather_save": "Zapisz",
-    "weather_cancel": "Anuluj"
+    "weather_cancel": "Anuluj",
+    "mark_read": "Oznacz wszystkie jako przeczytane"
 }

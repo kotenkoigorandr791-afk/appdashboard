@@ -744,5 +744,6 @@
     "weather_select_city": "Vyberte město",
     "weather_location_settings": "Nastavení polohy",
     "weather_save": "Uložit",
-    "weather_cancel": "Zrušit"
+    "weather_cancel": "Zrušit",
+    "mark_read": "Označit vše jako přečtené"
 }

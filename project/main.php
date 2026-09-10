@@ -2103,7 +2103,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         <!-- Admin: Chat list sidebar (hidden by default, shown via hash) -->
         <div id="admin-chat-list" style="display:none;width:320px;min-height:0;flex-shrink:0;border-right:1px solid var(--border-color);flex-direction:column;position:relative;z-index:1;background:rgba(0,0,0,0.02);">
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:12px;">
-                <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text-color);flex:1;min-width:0;">Support Chats</h2>
+                <h2 style="margin:0;font-size:16px;font-weight:600;color:var(--text-color);flex:1;min-width:0;">Support Chats</h2>
                 <button type="button" id="admin-chat-list-close" title="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>" style="flex-shrink:0;width:40px;height:40px;border:none;border-radius:12px;background:rgba(255,255,255,0.12);color:var(--text-color);font-size:24px;line-height:1;cursor:pointer;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
             </div>
             <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;">
@@ -2121,7 +2121,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:10px;">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                     <button type="button" id="chat-admin-mobile-back" style="flex-shrink:0;width:40px;height:40px;border:none;border-radius:12px;background:rgba(255,255,255,0.12);color:var(--text-color);cursor:pointer;align-items:center;justify-content:center;padding:0;" title="<?php echo my_htmlspecialchars($translations['support_chat_back_list'] ?? 'Chats'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['support_chat_back_list'] ?? 'Back to chats'); ?>"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-                    <h2 id="chat-modal-title" style="margin:0;font-size:22px;font-weight:600;color:var(--text-color);background:linear-gradient(135deg, <?php echo $config['color']; ?> 0%, <?php echo $config['color']; ?>cc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_title'] ?? 'Chat with Support'); ?></h2>
+                    <h2 id="chat-modal-title" style="margin:0;font-size:16px;font-weight:600;color:var(--text-color);background:linear-gradient(135deg, <?php echo $config['color']; ?> 0%, <?php echo $config['color']; ?>cc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_title'] ?? 'Chat with Support'); ?></h2>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <?php if ($isAdmin): ?>
@@ -2333,8 +2333,12 @@ document.documentElement.style.setProperty('--chat-color-border', '<?php echo $c
         radial-gradient(circle at 40% 80%, var(--chat-color-lighter) 0%, transparent 50%);
     animation: float 20s ease-in-out infinite;
 }
+@keyframes pulseSoft {
+    0%, 100% { box-shadow: 0 8px 24px var(--chat-color-shadow); }
+    50% { box-shadow: 0 8px 28px var(--chat-color-shadow), 0 0 0 6px var(--chat-color-ring); }
+}
 #support-chat-btn.has-unread {
-    animation: pulse 2s ease-in-out infinite;
+    animation: pulseSoft 2s ease-in-out infinite;
 }
 .chat-messages-scroll {
     scrollbar-width: thin;

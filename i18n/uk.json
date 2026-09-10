@@ -679,5 +679,6 @@
     "weather_select_city": "Оберіть місто",
     "weather_location_settings": "Налаштування місцезнаходження",
     "weather_save": "Зберегти",
-    "weather_cancel": "Скасувати"
+    "weather_cancel": "Скасувати",
+    "mark_read": "Позначити все як прочитане"
 }
