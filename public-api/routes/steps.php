@@ -82,8 +82,14 @@ function steps_apply_payload(AppDatabase $db, string $userDir, array $payload, s
     if ($action === 'add') {
         foreach ($conflictDays as $day) {
             $date = (string)$day['date'];
-            if (isset($stepsDaily[$date])) $stepsDaily[$date] = (int)$day['server'] + (int)$day['phone'];
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) continue;
+            $stepsDaily[$date] = (int)$day['server'] + (int)$day['phone'];
+            $metrics = hc_read_day_metrics($userDir, $date);
+            $metrics['steps'] = array_merge($metrics['steps'] ?? ['samples' => 0], ['total' => $stepsDaily[$date]]);
+            $obj = ['date' => $date, 'metrics' => $metrics, 'steps_daily_total' => $stepsDaily[$date]];
+            hc_json_atomic_write(hc_health_days_dir($userDir) . '/' . $date . '.json', json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
         }
+        $stored['steps_daily'] = $stepsDaily;
     }
     $batch = [];
     foreach ($stepsDaily as $d => $c) {

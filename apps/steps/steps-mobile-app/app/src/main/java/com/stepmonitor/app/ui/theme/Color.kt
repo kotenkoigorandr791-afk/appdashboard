@@ -13,14 +13,14 @@ val LightBlue40 = Color(0xFF669DF6)
 
 // Icon background colors - circular backgrounds like Shizuku
 val IconBackgroundBlue = Color(0xFFE8F0FE)
-val IconBackgroundGreen = Color(0xFFE6F4EA)
+val IconBackgroundCyan = Color(0xFFE0F7FA)
 val IconBackgroundOrange = Color(0xFFFEF7E0)
 val IconBackgroundPurple = Color(0xFFF3E8FF)
-val IconBackgroundRed = Color(0xFFFCE8E6)
+val IconBackgroundMagenta = Color(0xFFFCE7F3)
 
 // Icon tint colors
 val IconTintBlue = Color(0xFF1967D2)
-val IconTintGreen = Color(0xFF137333)
+val IconTintCyan = Color(0xFF087EA4)
 val IconTintOrange = Color(0xFFE37400)
 val IconTintPurple = Color(0xFF7627BB)
-val IconTintRed = Color(0xFFC5221F)
+val IconTintMagenta = Color(0xFFBE185D)

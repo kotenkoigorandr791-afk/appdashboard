@@ -69,10 +69,8 @@ fun HCWebhookTheme(
     )
 }
 private fun accentColor(name: String, dark: Boolean) = when (name) {
-    "green" -> if (dark) androidx.compose.ui.graphics.Color(0xFF6DD58C) else androidx.compose.ui.graphics.Color(0xFF188038)
     "teal" -> if (dark) androidx.compose.ui.graphics.Color(0xFF78D9C4) else androidx.compose.ui.graphics.Color(0xFF00897B)
     "orange" -> if (dark) androidx.compose.ui.graphics.Color(0xFFFFB86C) else androidx.compose.ui.graphics.Color(0xFFE8710A)
-    "red" -> if (dark) androidx.compose.ui.graphics.Color(0xFFFF8A80) else androidx.compose.ui.graphics.Color(0xFFD93025)
     "pink" -> if (dark) androidx.compose.ui.graphics.Color(0xFFFF8BC7) else androidx.compose.ui.graphics.Color(0xFFD81B60)
     "purple" -> if (dark) androidx.compose.ui.graphics.Color(0xFFD0BCFF) else androidx.compose.ui.graphics.Color(0xFF7E57C2)
     "gray" -> if (dark) androidx.compose.ui.graphics.Color(0xFFCBD5E1) else androidx.compose.ui.graphics.Color(0xFF475569)

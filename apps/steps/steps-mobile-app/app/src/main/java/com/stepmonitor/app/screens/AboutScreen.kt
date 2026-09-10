@@ -4,6 +4,8 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,24 +13,31 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,11 +47,19 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,16 +68,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
 import androidx.core.content.FileProvider
+import androidx.health.connect.client.permission.HealthPermission
 import coil.compose.AsyncImage
+import com.stepmonitor.app.HCWebhookApplication
+import com.stepmonitor.app.HealthConnectManager
 import com.stepmonitor.app.HealthDataType
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
+import com.stepmonitor.app.ScheduledSync
+import com.stepmonitor.app.ScheduledSyncManager
+import com.stepmonitor.app.SyncMode
 import com.stepmonitor.app.WebhookConfig
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -80,6 +114,7 @@ data class ServerProfile(val name: String = "", val email: String = "", val phot
 @Composable
 fun AboutScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
@@ -87,11 +122,26 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var link by remember { mutableStateOf("") }
     var status by remember { mutableStateOf(if (configs.any { it.isEnabled }) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting)) }
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(PROFILE_CACHE_MAX_AGE_MS)) ?: ServerProfile()) }
+    var profilePhotoModel by remember { mutableStateOf(profile.photo.takeIf { it.isNotBlank() }) }
     var metricsExpanded by remember { mutableStateOf(false) }
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
     var accentColor by remember { mutableStateOf(prefs.getAccentColor()) }
     var accentExpanded by remember { mutableStateOf(false) }
+    var triggerWidth by remember { mutableStateOf(0.dp) }
+    var triggerBounds by remember { mutableStateOf(IntRect.Zero) }
+    var menuMaxHeight by remember { mutableStateOf(360.dp) }
+    var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
+    var permissionsSheetOpen by remember { mutableStateOf(false) }
+    var showExportSheet by remember { mutableStateOf(false) }
+    var exportSelectedTypes by remember { mutableStateOf(enabled) }
+    var exportRange by remember { mutableIntStateOf(0) }
+    var exportFormat by remember { mutableIntStateOf(0) }
+    var syncMode by remember { mutableStateOf(prefs.getSyncMode()) }
+    var syncInterval by remember { mutableStateOf(prefs.getSyncIntervalMinutes()) }
+    var scheduledSyncs by remember { mutableStateOf(prefs.getScheduledSyncs()) }
+    var intervalExpanded by remember { mutableStateOf(false) }
+    var scheduleToEdit by remember { mutableStateOf<ScheduledSync?>(null) }
     fun connect(value: String) {
         runCatching {
             val uri = Uri.parse(value.trim())
@@ -110,14 +160,45 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
         result.contents?.takeIf { it.isNotBlank() }?.let { connect(it) }
     }
+    val permissionLauncher = rememberLauncherForActivityResult(androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) { granted ->
+        grantedPermissions = granted
+        prefs.setKnownGrantedPermissions(granted)
+    }
+    LaunchedEffect(Unit) {
+        val actualGranted = HealthConnectManager(context).getGrantedPermissions()
+        grantedPermissions = actualGranted
+        prefs.setKnownGrantedPermissions(actualGranted)
+    }
+    fun applySyncSchedule(mode: SyncMode, interval: Int = syncInterval) {
+        prefs.setSyncMode(mode)
+        syncMode = mode
+        val app = context.applicationContext as? HCWebhookApplication
+        if (mode == SyncMode.INTERVAL) {
+            prefs.setSyncIntervalMinutes(interval)
+            syncInterval = interval
+            app?.scheduleSyncWork()
+            ScheduledSyncManager(context).cancelAllAlarms()
+        } else {
+            app?.cancelSyncWork()
+            ScheduledSyncManager(context).scheduleAllAlarms()
+        }
+    }
     LaunchedEffect(configs) {
         profile = profileFromJson(prefs.getProfileCache(PROFILE_CACHE_MAX_AGE_MS)) ?: fetchProfile(configs.firstOrNull { it.isEnabled }, prefs)
+        profilePhotoModel = profile.photo.takeIf { it.isNotBlank() }
     }
     LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AsyncImage(model = profile.photo.takeIf { it.isNotBlank() }, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(56.dp).clip(CircleShape))
+                    key(profile.photo) {
+                        AsyncImage(
+                            model = profile.photo.takeIf { it.isNotBlank() },
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(56.dp).clip(CircleShape)
+                        )
+                    }
                     Column(Modifier.weight(1f)) {
                         Text(profile.name.ifBlank { stringResource(R.string.app_name) }, style = MaterialTheme.typography.titleMedium)
                         Text(profile.email.ifBlank { profile.error ?: status }, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -130,32 +211,62 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.titleMedium)
                     Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = {
-                        scanner.launch(ScanOptions().apply {
-                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            setPrompt(context.getString(R.string.auth_scan_qr))
-                            setBeepEnabled(false)
-                            setOrientationLocked(false)
-                        })
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
-                        Text(stringResource(R.string.auth_scan_qr), modifier = Modifier.padding(start = 8.dp))
-                    }
-                    OutlinedTextField(value = link, onValueChange = { link = it }, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.auth_link_label)) })
-                    Button(onClick = { connect(link) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.auth_connect)) }
-                    OutlinedButton(onClick = {
-                        scope.launch {
-                            status = testConnection(configs.firstOrNull { it.isEnabled })
+                    if (configs.any { it.isEnabled }) {
+                        OutlinedButton(onClick = {
+                            scope.launch {
+                                status = testConnection(configs.firstOrNull { it.isEnabled })
+                            }
+                        }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_test_connection)) }
+                        OutlinedButton(onClick = {
+                            configs = emptyList()
+                            prefs.setWebhookConfigs(emptyList())
+                            prefs.clearServerDataCache()
+                            status = context.getString(R.string.auth_waiting)
+                            profile = ServerProfile()
+                            profilePhotoModel = null
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Filled.LinkOff, contentDescription = null)
+                            Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = 8.dp))
                         }
-                    }, enabled = configs.any { it.isEnabled }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_test_connection)) }
-                    OutlinedButton(onClick = {
-                        configs = emptyList()
-                        prefs.setWebhookConfigs(emptyList())
-                        status = context.getString(R.string.auth_waiting)
-                        profile = ServerProfile()
-                    }, enabled = configs.isNotEmpty(), modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.LinkOff, contentDescription = null)
-                        Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = 8.dp))
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(56.dp),
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.errorContainer
+                            ) {
+                                Icon(
+                                    Icons.Filled.LinkOff,
+                                    contentDescription = null,
+                                    modifier = Modifier.padding(12.dp),
+                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                )
+                            }
+                            Button(onClick = {
+                                scanner.launch(ScanOptions().apply {
+                                    setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                                    setPrompt(context.getString(R.string.auth_scan_qr))
+                                    setBeepEnabled(false)
+                                    setOrientationLocked(true)
+                                })
+                            }, modifier = Modifier.fillMaxWidth()) {
+                                Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
+                                Text(stringResource(R.string.auth_scan_qr), modifier = Modifier.padding(start = 8.dp))
+                            }
+                            OutlinedTextField(
+                                value = link,
+                                onValueChange = { link = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                label = { Text(stringResource(R.string.auth_link_label)) }
+                            )
+                            Button(onClick = { connect(link) }, modifier = Modifier.fillMaxWidth()) {
+                                Text(stringResource(R.string.auth_connect))
+                            }
+                        }
                     }
                 }
             }
@@ -165,12 +276,102 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.settings_network), style = MaterialTheme.typography.titleMedium)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = wifiOnly, onCheckedChange = {
+                        Text(stringResource(R.string.settings_wifi_only), modifier = Modifier.weight(1f))
+                        Switch(checked = wifiOnly, onCheckedChange = {
                             wifiOnly = it
                             prefs.setWifiOnly(it)
-                            (context.applicationContext as? com.stepmonitor.app.HCWebhookApplication)?.scheduleSyncWork()
+                            (context.applicationContext as? HCWebhookApplication)?.scheduleSyncWork()
                         })
-                        Text(stringResource(R.string.settings_wifi_only), modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.perms_title), style = MaterialTheme.typography.titleMedium)
+                    val grantedCount = HealthDataType.entries.count { type ->
+                        HealthPermission.getReadPermission(type.recordClass) in grantedPermissions
+                    }
+                    Text(
+                        stringResource(R.string.perms_granted_summary, grantedCount, HealthDataType.entries.size),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(onClick = { permissionLauncher.launch(HealthConnectManager.ALL_PERMISSIONS) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.action_grant_permissions))
+                    }
+                    OutlinedButton(onClick = { permissionsSheetOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.config_action_view_perms))
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_sync_interval), style = MaterialTheme.typography.titleMedium)
+                    val currentSyncMode = syncMode
+                    val currentInterval = syncInterval
+                    val currentLabel = if (currentSyncMode == SyncMode.SCHEDULED) {
+                        stringResource(R.string.config_sync_mode_scheduled)
+                    } else {
+                        intervalOptions.firstOrNull { it.first == currentInterval }?.let { stringResource(it.second) }
+                            ?: context.getString(R.string.settings_sync_hours, currentInterval / 60)
+                    }
+                    ExposedDropdownMenuBox(
+                        expanded = intervalExpanded,
+                        onExpandedChange = { intervalExpanded = !intervalExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = currentLabel,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text(stringResource(R.string.settings_sync_mode)) },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = intervalExpanded) },
+                            colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(expanded = intervalExpanded, onDismissRequest = { intervalExpanded = false }) {
+                            intervalOptions.forEach { (minutes, labelRes) ->
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(labelRes)) },
+                                    onClick = {
+                                        intervalExpanded = false
+                                        applySyncSchedule(SyncMode.INTERVAL, minutes)
+                                    }
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.config_sync_mode_scheduled)) },
+                                onClick = {
+                                    intervalExpanded = false
+                                    applySyncSchedule(SyncMode.SCHEDULED)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        if (syncMode == SyncMode.SCHEDULED) {
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.settings_sync_time), style = MaterialTheme.typography.titleMedium)
+                        scheduledSyncs.forEach { schedule ->
+                            Row(
+                                Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(schedule.getDisplayLabel(), modifier = Modifier.weight(1f))
+                                Text(schedule.getDisplayTime(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                TextButton(onClick = { scheduleToEdit = schedule }) {
+                                    Text(stringResource(R.string.action_change))
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -195,28 +396,70 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                         }
                     }
                     Box {
-                        OutlinedButton(onClick = { accentExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { accentExpanded = true },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onSizeChanged { triggerWidth = with(density) { it.width.toDp() } }
+                                .onGloballyPositioned {
+                                    triggerBounds = it.boundsInRoot().let { r ->
+                                        IntRect(r.left.roundToInt(), r.top.roundToInt(), r.right.roundToInt(), r.bottom.roundToInt())
+                                    }
+                                }
+                        ) {
                             Surface(color = accentColorValue(accentColor), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
                             Spacer(Modifier.size(10.dp))
                             Text(stringResource(accentNameRes(accentColor)))
+                            Spacer(Modifier.weight(1f))
+                            Icon(if (accentExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
                         }
-                        DropdownMenu(expanded = accentExpanded, onDismissRequest = { accentExpanded = false }) {
-                            listOf("blue", "green", "teal", "orange", "red", "pink", "purple", "gray").forEach { value ->
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Surface(color = accentColorValue(value), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
-                                            Spacer(Modifier.size(10.dp))
-                                            Text(stringResource(accentNameRes(value)))
-                                        }
-                                    },
-                                    onClick = {
-                                        accentExpanded = false
-                                        accentColor = value
-                                        prefs.setAccentColor(value)
-                                        (context as? Activity)?.recreate()
+                        if (accentExpanded && triggerBounds != IntRect.Zero) {
+                            Popup(
+                                onDismissRequest = { accentExpanded = false },
+                                popupPositionProvider = object : PopupPositionProvider {
+                                    override fun calculatePosition(
+                                        anchorBounds: IntRect,
+                                        windowSize: IntSize,
+                                        layoutDirection: LayoutDirection,
+                                        popupContentSize: IntSize
+                                    ): IntOffset {
+                                        val available = with(density) {
+                                        (windowSize.height - triggerBounds.bottom)
+                                            .coerceIn(80.dp.roundToPx(), windowSize.height)
                                     }
-                                )
+                                    menuMaxHeight = with(density) { available.toDp() }
+                                        return IntOffset(triggerBounds.left, triggerBounds.bottom)
+                                    }
+                                }
+                            ) {
+                                Surface(
+                                    modifier = Modifier.width(triggerWidth).heightIn(max = menuMaxHeight),
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    shadowElevation = 6.dp,
+                                    tonalElevation = 2.dp
+                                ) {
+                                    Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
+                                        listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
+                                            Row(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        accentExpanded = false
+                                                        accentColor = value
+                                                        prefs.setAccentColor(value)
+                                                        (context as? Activity)?.recreate()
+                                                    }
+                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Surface(color = accentColorValue(value), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
+                                                Spacer(Modifier.size(10.dp))
+                                                Text(stringResource(accentNameRes(value)), style = MaterialTheme.typography.bodyLarge)
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -254,23 +497,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.health_export_title), style = MaterialTheme.typography.titleMedium)
-                    Button(onClick = {
-                        val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
-                        val file = File(exportDir, "stepmonitor-health-export.json")
-                        val json = Json { prettyPrint = true }
-                        val payload = buildJsonObject {
-                            put("exportedAt", java.time.Instant.now().toString())
-                            put("enabledDataTypes", JsonArray(enabled.map { json.encodeToJsonElement(it.name) }))
-                            put("logs", json.encodeToJsonElement(prefs.getWebhookLogs()))
-                        }
-                        file.writeText(json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), payload))
-                        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(Intent.EXTRA_STREAM, uri)
-                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        }, context.getString(R.string.health_export_title)))
-                    }, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { showExportSheet = true }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Filled.Download, contentDescription = null)
                         Text(stringResource(R.string.health_export_title), modifier = Modifier.padding(start = 8.dp))
                     }
@@ -278,7 +505,113 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             }
         }
     }
+    if (permissionsSheetOpen) {
+        PermissionsBottomSheet(
+            grantedPermissionsSet = grantedPermissions,
+            onDismiss = { permissionsSheetOpen = false }
+        )
+    }
+    if (showExportSheet) {
+        val sheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { showExportSheet = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(stringResource(R.string.health_export_title), style = MaterialTheme.typography.titleLarge)
+
+                Text(stringResource(R.string.export_data_types), style = MaterialTheme.typography.titleSmall)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    HealthDataType.values().forEach { type ->
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(
+                                checked = type in exportSelectedTypes,
+                                onCheckedChange = {
+                                    exportSelectedTypes = if (it) exportSelectedTypes + type else exportSelectedTypes - type
+                                }
+                            )
+                            Text(stringResource(type.nameResId), modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+
+                Text(stringResource(R.string.export_time_range), style = MaterialTheme.typography.titleSmall)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val labels = listOf(
+                        R.string.export_range_24h,
+                        R.string.export_range_7d,
+                        R.string.export_range_30d,
+                        R.string.export_range_all
+                    )
+                    labels.forEachIndexed { idx, labelRes ->
+                        SegmentedButton(
+                            selected = exportRange == idx,
+                            onClick = { exportRange = idx },
+                            shape = SegmentedButtonDefaults.itemShape(idx, labels.size),
+                            modifier = Modifier.weight(1f)
+                        ) { Text(stringResource(labelRes), style = MaterialTheme.typography.labelSmall) }
+                    }
+                }
+
+                Text(stringResource(R.string.export_format), style = MaterialTheme.typography.titleSmall)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf(R.string.export_format_json, R.string.export_format_csv).forEachIndexed { idx, labelRes ->
+                        SegmentedButton(
+                            selected = exportFormat == idx,
+                            onClick = { exportFormat = idx },
+                            shape = SegmentedButtonDefaults.itemShape(idx, 2),
+                            modifier = Modifier.weight(1f)
+                        ) { Text(stringResource(labelRes)) }
+                    }
+                }
+
+                Button(
+                    onClick = {
+                        showExportSheet = false
+                        performExport(context, prefs, exportSelectedTypes, exportRange, exportFormat)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = exportSelectedTypes.isNotEmpty()
+                ) {
+                    Icon(Icons.Filled.Download, contentDescription = null)
+                    Text(stringResource(R.string.export_confirm), modifier = Modifier.padding(start = 8.dp))
+                }
+                Spacer(Modifier.heightIn(min = 16.dp))
+            }
+        }
+    }
+    scheduleToEdit?.let { target ->
+        val pickerState = rememberTimePickerState(initialHour = target.hour, initialMinute = target.minute, is24Hour = true)
+        AlertDialog(
+            onDismissRequest = { scheduleToEdit = null },
+            title = { Text(target.getDisplayLabel()) },
+            text = { TimePicker(state = pickerState) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val updated = scheduledSyncs.map { if (it.id == target.id) it.copy(hour = pickerState.hour, minute = pickerState.minute) else it }
+                    prefs.setScheduledSyncs(updated)
+                    scheduledSyncs = updated
+                    scheduleToEdit = null
+                    ScheduledSyncManager(context).scheduleAllAlarms()
+                }) { Text(stringResource(R.string.action_ok)) }
+            },
+            dismissButton = { TextButton(onClick = { scheduleToEdit = null }) { Text(stringResource(R.string.action_cancel)) } }
+        )
+    }
 }
+private val intervalOptions = listOf(
+    60 to R.string.sync_interval_1h,
+    180 to R.string.sync_interval_3h,
+    360 to R.string.sync_interval_6h,
+    720 to R.string.sync_interval_12h,
+    1440 to R.string.sync_interval_24h,
+    4320 to R.string.sync_interval_72h,
+)
 private suspend fun fetchProfile(config: WebhookConfig?, prefs: PreferencesManager): ServerProfile = withContext(Dispatchers.IO) {
     if (config == null) return@withContext ServerProfile()
     runCatching {
@@ -313,20 +646,16 @@ private fun profileFromJson(json: String?): ServerProfile? = runCatching {
     if (json.isNullOrBlank()) null else JSONObject(json).let { ServerProfile(it.optString("name"), it.optString("email"), it.optString("photo")) }
 }.getOrNull()
 private fun accentNameRes(value: String): Int = when (value) {
-    "green" -> R.string.accent_green
     "teal" -> R.string.accent_teal
     "orange" -> R.string.accent_orange
-    "red" -> R.string.accent_red
     "pink" -> R.string.accent_pink
     "purple" -> R.string.accent_purple
     "gray" -> R.string.accent_gray
     else -> R.string.accent_blue
 }
 private fun accentColorValue(value: String): Color = when (value) {
-    "green" -> Color(0xFF188038)
     "teal" -> Color(0xFF00897B)
     "orange" -> Color(0xFFE8710A)
-    "red" -> Color(0xFFD93025)
     "pink" -> Color(0xFFD81B60)
     "purple" -> Color(0xFF7E57C2)
     "gray" -> Color(0xFF475569)
@@ -337,4 +666,60 @@ private fun absoluteProfileUrl(endpoint: String, photo: String): String {
     if (photo.isBlank() || photo.startsWith("http")) return photo
     val uri = Uri.parse(endpoint)
     return "${uri.scheme}://${uri.authority}/${photo.trimStart('/')}"
+}
+private fun performExport(
+    context: android.content.Context,
+    prefs: PreferencesManager,
+    selectedTypes: Set<HealthDataType>,
+    rangeIndex: Int,
+    formatIndex: Int
+) {
+    val cutoffMs = when (rangeIndex) {
+        0 -> System.currentTimeMillis() - 24L * 60 * 60 * 1000
+        1 -> System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+        2 -> System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
+        else -> 0L
+    }
+    val logs = prefs.getWebhookLogs().filter { it.timestamp >= cutoffMs }
+    val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
+    if (formatIndex == 0) {
+        val file = File(exportDir, "stepmonitor-export.json")
+        val json = Json { prettyPrint = true }
+        val payload = buildJsonObject {
+            put("exportedAt", java.time.Instant.now().toString())
+            put("enabledDataTypes", JsonArray(selectedTypes.map { json.encodeToJsonElement(it.name) }))
+            put("logs", json.encodeToJsonElement(logs))
+        }
+        file.writeText(json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), payload))
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }, context.getString(R.string.export_confirm)))
+    } else {
+        val file = File(exportDir, "stepmonitor-export.csv")
+        val sb = StringBuilder()
+        sb.appendLine("timestamp,dataType,url,statusCode,success,syncType,errorMessage")
+        logs.forEach { log ->
+            sb.appendLine(
+                listOf(
+                    log.timestamp,
+                    log.dataType.orEmpty(),
+                    log.url,
+                    log.statusCode ?: "",
+                    log.success,
+                    log.syncType.orEmpty(),
+                    "\"${log.errorMessage.orEmpty().replace("\"", "\"\"")}\""
+                ).joinToString(",")
+            )
+        }
+        file.writeText(sb.toString())
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+            type = "text/csv"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }, context.getString(R.string.export_confirm)))
+    }
 }
