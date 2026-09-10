@@ -60,7 +60,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <title data-i18n="appTitle">File Space</title>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=31" />
+  <link rel="stylesheet" href="assets/styles.css?v=32" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -99,9 +99,6 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 #group-switcher-bar.hidden{display:none}
 .group-switcher-label{font-size:12px;color:var(--muted)}
 .group-switcher-select{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg)}
-.group-collab-presence{position:fixed;top:calc(var(--menu-button-toolbar-top,50px) + 8px);right:12px;z-index:1200;display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 12px;border-radius:10px;background:color-mix(in srgb,var(--panel) 88%,var(--bg));border:1px solid var(--border);font-size:12px;box-shadow:0 4px 16px rgba(0,0,0,.12)}
-.group-collab-presence.hidden{display:none}
-.group-presence-user{padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--presence-color,#3b82f6) 18%,transparent);border:1px solid color-mix(in srgb,var(--presence-color,#3b82f6) 45%,transparent)}
 .groups-members-table,.groups-history-table,.groups-overview-table{width:100%;border-collapse:collapse;font-size:13px;display:table;table-layout:fixed}
 #modal-groups-manage .modal-body table{display:table;width:100%;table-layout:fixed}
 #modal-groups-manage #groups-manage-body{width:100%}
@@ -243,7 +240,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=40"></script>
-<script defer src="assets/monaco-editor.js?v=10"></script>
+<script defer src="assets/monaco-editor.js?v=11"></script>
 
 
 </head>

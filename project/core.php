@@ -4,6 +4,14 @@ require_once APP_ROOT . '/storage_helper.php';
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
     return htmlspecialchars($string ?? '', $flags, $encoding, $double_encode);
 }
+function defaultAppIconSrc(): string {
+    static $src = null;
+    if ($src === null) {
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="di" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f7dff"/><stop offset="1" stop-color="#7a5cff"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#di)"/><g fill="#ffffff"><rect x="12" y="12" width="16" height="16" rx="4"/><rect x="36" y="12" width="16" height="16" rx="4"/><rect x="12" y="36" width="16" height="16" rx="4"/><rect x="36" y="36" width="16" height="16" rx="4"/></g></svg>';
+        $src = 'data:image/svg+xml;base64,' . base64_encode($svg);
+    }
+    return $src;
+}
 function app_avatar_src($photo): string {
     $src = trim((string)($photo ?: 'default_avatar.png'));
     if (preg_match('#^https://lh3\.googleusercontent\.com/#i', $src)) {

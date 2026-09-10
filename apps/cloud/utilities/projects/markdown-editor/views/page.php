@@ -594,7 +594,7 @@
     </div>
     <div class="status-message" id="statusMessage"></div>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.34.1/min/vs/loader.js"></script>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=2"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>

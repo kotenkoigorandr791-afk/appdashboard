@@ -1858,7 +1858,7 @@
   
   <!-- Monaco Editor Scripts -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=2"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
 
   

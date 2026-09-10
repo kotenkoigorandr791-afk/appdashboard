@@ -141,7 +141,7 @@ if(is_dir($appsFsDir)){
                 $icon=$appsDir.$folder.'/icon.png';
                 $iconMasked=false;
             }else{
-                $icon='default_icon.png';
+                $icon=defaultAppIconSrc();
                 $iconMasked=false;
             }
             $totalVisits=$visitStatsTotals[$folder]??0;

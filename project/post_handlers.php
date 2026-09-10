@@ -1358,7 +1358,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $_apName = $_apNameData[$language]??($_apNameData['en']??$_apFolder);
                 $_apIconSvg = $_apSubdir.'/icon.svg';
                 $_apIconPng = $_apSubdir.'/icon.png';
-                $_apIcon = file_exists($_apIconSvg) ? $_apIconSvg : (file_exists($_apIconPng) ? $_apIconPng : 'default_icon.png');
+                $_apIcon = file_exists($_apIconSvg) ? $_apIconSvg : (file_exists($_apIconPng) ? $_apIconPng : defaultAppIconSrc());
                 $_apTotalV = $_apVisitStats2[$_apFolder] ?? 0;
                 $_apMr = getAppMinRole($_apFolder);
                 $_apAccessApps[] = ['folder'=>$_apFolder,'name'=>$_apName,'icon'=>$_apIcon,'is_svg'=>(strtolower(pathinfo($_apIcon,PATHINFO_EXTENSION))==='svg'),'visits'=>(int)$_apTotalV,'min_role'=>$_apMr];

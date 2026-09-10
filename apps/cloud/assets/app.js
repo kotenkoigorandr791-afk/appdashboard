@@ -1941,6 +1941,7 @@ window.tabsState = tabsState;
 let tabPreviewHoverTimer = null;
 const RECENT_FILES_KEY = 'cloudRecentFiles';
 let recentFilesSelection = 0;
+let recentFilesPruning = false;
 function getViewerElement() {
     return document.getElementById('viewer');
 }
@@ -1950,6 +1951,33 @@ function loadRecentFiles() {
         return Array.isArray(rows) ? rows.filter((row) => row && row.path && row.type !== 'dir').slice(0, 12) : [];
     } catch (_) {
         return [];
+    }
+}
+async function pruneNonExistentRecentFiles() {
+    if (recentFilesPruning) return;
+    recentFilesPruning = true;
+    try {
+        const rows = loadRecentFiles();
+        if (!rows.length) return;
+        const checks = await Promise.all(rows.map(async (row) => {
+            try {
+                const res = await fetch(`api.php?action=file_info&path=${encodeURIComponent(row.path)}&root=${encodeURIComponent(row.root || 'main')}&v=${Date.now()}`, { cache: 'no-store' });
+                return { row, exists: res.ok };
+            } catch (_) {
+                return { row, exists: false };
+            }
+        }));
+        const existing = checks.filter((c) => c.exists).map((c) => c.row);
+        const removed = checks.length - existing.length;
+        if (removed > 0) {
+            localStorage.setItem(RECENT_FILES_KEY, JSON.stringify(existing));
+            recentFilesSelection = Math.max(0, Math.min(recentFilesSelection, existing.length - 1));
+            if (tabsState.tabs.length === 0) {
+                renderViewerEmptyState();
+            }
+        }
+    } finally {
+        recentFilesPruning = false;
     }
 }
 function saveRecentFile(path, root = null) {
@@ -2000,6 +2028,9 @@ function renderViewerEmptyState() {
     });
     viewer.appendChild(wrap);
     updateRecentFilesSelection();
+    if (!recentFilesPruning && rows.length > 0) {
+        pruneNonExistentRecentFiles();
+    }
 }
 function updateRecentFilesSelection() {
     document.querySelectorAll('.viewer-recent-item').forEach((item) => {
@@ -8876,10 +8907,6 @@ function requestMonacoCollabSync(tabId) {
 }
 function handleMonacoCollabSocketMessage(payload) {
     if (!payload || !payload.type) return;
-    if (payload.type === 'presence' && Array.isArray(payload.users) && window.cloudGroups?.updatePresenceBar) {
-        window.cloudGroups.updatePresenceBar(payload.users);
-        return;
-    }
     if (payload.type === 'sync' || payload.type === 'content_snapshot') {
         if (payload.clientId === monacoCollabSocketState.clientId) return;
         monacoCollabSessions.forEach((session, tabId) => {

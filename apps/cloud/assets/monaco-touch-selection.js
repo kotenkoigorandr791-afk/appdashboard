@@ -5,11 +5,15 @@
 (function () {
     const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
 
+    const _SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='32' viewBox='0 0 12 32'%3E%3Cpath d='M6 0 C6 0 0 14 0 20 C0 26.627 2.686 32 6 32 C9.314 32 12 26.627 12 20 C12 14 6 0 6 0 Z' fill='%23fff'/%3E%3C/svg%3E";
+    const TEARDROP_MASK = `-webkit-mask-image:url("${_SVG}");mask-image:url("${_SVG}");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;`;
+    const TEARDROP_MASK_IMPORTANT = `-webkit-mask-image:url("${_SVG}")!important;mask-image:url("${_SVG}")!important;-webkit-mask-size:100% 100%!important;mask-size:100% 100%!important;-webkit-mask-repeat:no-repeat!important;mask-repeat:no-repeat!important;`;
+
     let cssInjected = false;
     function injectCSS() {
         if (cssInjected) return;
         const style = document.createElement('style');
-        style.textContent = `.monaco-touch-selection-handles{pointer-events:none!important}.monaco-selection-handle{pointer-events:auto!important;touch-action:none!important;z-index:10000!important;width:12px!important;height:32px!important;background:#4A90D9!important;border:2px solid #fff!important;box-shadow:0 2px 6px rgba(0,0,0,0.35)!important;position:relative!important}.monaco-selection-handle-start{clip-path:path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z')!important;transform:translate(-50%,-30%)!important}.monaco-selection-handle-end{clip-path:path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z')!important;transform:translate(-50%,-20%)!important}.monaco-selection-handle::before{content:''!important;position:absolute!important;top:-15px!important;left:-15px!important;right:-15px!important;bottom:-15px!important;pointer-events:auto!important}.monaco-selection-handle:active{filter:brightness(1.2)}.monaco-selection-handle-start:active{transform:scale(1.25) translate(-50%,-30%)!important}.monaco-selection-handle-end:active{transform:scale(1.25) translate(-50%,-20%)!important}`;
+        style.textContent = `.monaco-touch-selection-handles{pointer-events:none!important}.monaco-selection-handle{pointer-events:auto!important;touch-action:none!important;z-index:10000!important;width:12px!important;height:32px!important;background:linear-gradient(180deg,#63a1e4 0%,#4a90d9 50%,#3478c5 100%)!important;border:2px solid rgba(255,255,255,0.9)!important;box-shadow:0 3px 8px rgba(0,0,0,0.4)!important;position:relative!important;${TEARDROP_MASK_IMPORTANT}}.monaco-selection-handle-start{transform:translate(-50%,-30%)!important}.monaco-selection-handle-end{transform:translate(-50%,-20%)!important}.monaco-selection-handle::before{content:''!important;position:absolute!important;top:-15px!important;left:-15px!important;right:-15px!important;bottom:-15px!important;pointer-events:auto!important}.monaco-selection-handle:active{filter:brightness(1.2)}.monaco-selection-handle-start:active{transform:scale(1.25) translate(-50%,-30%)!important}.monaco-selection-handle-end:active{transform:scale(1.25) translate(-50%,-20%)!important}`;
         document.head.appendChild(style);
         cssInjected = true;
     }
@@ -46,7 +50,7 @@
             selectionHandles.className = 'monaco-touch-selection-handles';
             selectionHandles.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:hidden;';
 
-            const handleBase = `position:absolute;width:12px;height:32px;background:#4A90D9;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.35);pointer-events:auto;touch-action:none;cursor:pointer;display:none;clip-path:path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z');position:relative;`;
+            const handleBase = `position:absolute;width:12px;height:32px;background:linear-gradient(180deg,#63a1e4 0%,#4a90d9 50%,#3478c5 100%);border:2px solid rgba(255,255,255,0.9);box-shadow:0 3px 8px rgba(0,0,0,0.4);pointer-events:auto;touch-action:none;cursor:pointer;display:none;${TEARDROP_MASK}position:relative;`;
             const startHandle = document.createElement('div');
             startHandle.className = 'monaco-selection-handle monaco-selection-handle-start';
             startHandle.style.cssText = handleBase + 'transform:translate(-50%,-30%);';

@@ -8,6 +8,8 @@ let monacoModelRefs = new Map(); // path -> active editor count
 let monacoTabModelPaths = new Map(); // tabId -> path
 let monacoIsTouchDevice = false;
 let monacoSelectionHandlesCSSInjected = false;
+const _MONACO_HANDLE_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='32' viewBox='0 0 12 32'%3E%3Cpath d='M6 0 C6 0 0 14 0 20 C0 26.627 2.686 32 6 32 C9.314 32 12 26.627 12 20 C12 14 6 0 6 0 Z' fill='%23fff'/%3E%3C/svg%3E";
+const _MONACO_HANDLE_MASK = `-webkit-mask-image:url("${_MONACO_HANDLE_SVG}");mask-image:url("${_MONACO_HANDLE_SVG}");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;`;
 let monacoAiEditDecorations = new Map(); // tabId -> decoration ids
 let monacoAiEditZones = new Map(); // tabId -> view zone ids
 let monacoRemoteCursorWidgets = new Map(); // tabId -> Map(clientId -> widget)
@@ -186,19 +188,23 @@ function monacoInjectSelectionHandlesCSS() {
             z-index: 10000 !important;
             width: 12px !important;
             height: 32px !important;
-            background: #4A90D9 !important;
-            border: 2px solid #fff !important;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.35) !important;
+            background: linear-gradient(180deg, #63a1e4 0%, #4a90d9 50%, #3478c5 100%) !important;
+            border: 2px solid rgba(255,255,255,0.9) !important;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
             position: relative !important;
+            -webkit-mask-image: url("${_MONACO_HANDLE_SVG}") !important;
+            mask-image: url("${_MONACO_HANDLE_SVG}") !important;
+            -webkit-mask-size: 100% 100% !important;
+            mask-size: 100% 100% !important;
+            -webkit-mask-repeat: no-repeat !important;
+            mask-repeat: no-repeat !important;
         }
-        /* Teardrop shape for the left handle (pointing down) */
+        /* Teardrop shape: left handle */
         .monaco-selection-handle-start {
-            clip-path: path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z') !important;
             transform: translate(-50%, -30%) !important;
         }
-        /* Teardrop shape for the right handle (pointing down, raised half a line) */
+        /* Teardrop shape: right handle */
         .monaco-selection-handle-end {
-            clip-path: path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z') !important;
             transform: translate(-50%, -20%) !important;
         }
         /* Enlarged click area for both handles */
@@ -221,8 +227,8 @@ function monacoInjectSelectionHandlesCSS() {
             transform: scale(1.25) translate(-50%, -20%) !important;
         }
         body[data-theme="dark"] .monaco-selection-handle {
-            background: #5A9AE6 !important;
-            border-color: #e0e0e0 !important;
+            background: linear-gradient(180deg, #7aaee9 0%, #5693d8 50%, #3e7cc8 100%) !important;
+            border-color: rgba(224,224,224,0.9) !important;
         }
         .monaco-spellcheck-error {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='4' viewBox='0 0 12 4'%3E%3Cpath d='M0 3 Q3 0 6 3 T12 3' fill='none' stroke='%23e53935' stroke-width='1.4'/%3E%3C/svg%3E") !important;
@@ -1880,12 +1886,12 @@ function monacoEnableTouchSelection(editor, container) {
             position: absolute;
             width: 12px;
             height: 32px;
-            background: #4A90D9;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            background: linear-gradient(180deg,#63a1e4 0%,#4a90d9 50%,#3478c5 100%);
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             pointer-events: auto;
             touch-action: none;
-            clip-path: path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z');
+            ${_MONACO_HANDLE_MASK}
             transform: translate(-50%, -30%);
             cursor: pointer;
             display: none;
@@ -1900,12 +1906,12 @@ function monacoEnableTouchSelection(editor, container) {
             position: absolute;
             width: 12px;
             height: 32px;
-            background: #4A90D9;
-            border: 2px solid #fff;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            background: linear-gradient(180deg,#63a1e4 0%,#4a90d9 50%,#3478c5 100%);
+            border: 2px solid rgba(255,255,255,0.9);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
             pointer-events: auto;
             touch-action: none;
-            clip-path: path('M6 0 C6 0, 0 14, 0 20 C0 26.627, 2.686 32, 6 32 C9.314 32, 12 26.627, 12 20 C12 14, 6 0, 6 0 Z');
+            ${_MONACO_HANDLE_MASK}
             transform: translate(-50%, -20%);
             cursor: pointer;
             display: none;

@@ -549,28 +549,7 @@
         if (!gid || !filePath) return;
         api('groups_log_activity', { group_id: gid, file_path: filePath, activity: 'open' }).catch(() => {});
     }
-    function initPresenceBar() {
-        if (document.getElementById('group-collab-presence')) return;
-        const bar = document.createElement('div');
-        bar.id = 'group-collab-presence';
-        bar.className = 'group-collab-presence hidden';
-        document.body.appendChild(bar);
-    }
-    function updatePresenceBar(users) {
-        const bar = document.getElementById('group-collab-presence');
-        if (!bar) return;
-        const root = typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : '';
-        if (!isGroupRoot(root) || !users?.length) {
-            bar.classList.add('hidden');
-            bar.innerHTML = '';
-            return;
-        }
-        bar.classList.remove('hidden');
-        bar.innerHTML = '<span class="group-presence-label">' + t('groupEditingNow') + ':</span> ' +
-            users.map((u) => '<span class="group-presence-user" style="--presence-color:' + escapeHtml(u.color || '#3b82f6') + '">' + escapeHtml(u.name || u.clientId || '?') + '</span>').join('');
-    }
     function init() {
-        initPresenceBar();
         document.getElementById('btn-root-groups')?.addEventListener('click', async () => {
             if (!state.groups.length) return;
             const root = typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main';
@@ -658,8 +637,7 @@
         getActiveGroup,
         updateSectionTitle,
         updateToolbarButton,
-        renderGroupSwitcher,
-        updatePresenceBar
+        renderGroupSwitcher
     };
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

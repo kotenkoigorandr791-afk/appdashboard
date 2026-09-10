@@ -322,12 +322,11 @@ apSshCryptoKey(): string
 
 ## Assets
 
-### default_avatar.png, default_icon.png, icon.png, share.png, google.png, privacy-terms.png
+### default_avatar.png, icon.png, share.png, google.png, privacy-terms.png
 
 **Purpose**: UI assets and icons.
 
 - `default_avatar.png` - Default user profile picture
-- `default_icon.png` - Default application icon
 - `icon.png` - Main application icon
 - `share.png` - Share functionality icon
 - `google.png` - Google OAuth button icon
