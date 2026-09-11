@@ -96,8 +96,9 @@
         .password-new-fields input:disabled{opacity:0.55;cursor:not-allowed;}
         body{margin:0;padding:0;font-family:Arial,sans-serif;background-color:var(--bg-color);color:var(--text-color);overflow:hidden;}
         html,body{margin:0;padding:0;overflow:hidden;height:100%;}
-        #top-bar{position:fixed;top:0;left:0;width:100%;height:50px;background-color:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;}
-        #top-bar-title{font-weight:bold;font-size:18px;margin-left:40px;flex:1;min-width:0;}
+        .std-topbar-title { font-size: 14px; font-weight: 600; margin: 0; line-height: 1; }
+        .std-topbar-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: 1.5px solid var(--border-color); border-radius: 50%; color: var(--text-secondary); font-size: 18px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; padding: 0; }
+        .std-topbar-close:hover { background: var(--danger, #ef4444); color: #fff; border-color: var(--danger, #ef4444); }
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
@@ -4440,11 +4441,11 @@ var T=<?php echo json_encode([
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
     color: var(--text-color);
-    text-transform: uppercase;
+    text-transform: none;
 }
 #ap-topbar .ap-brand svg { color: var(--primary-color); }
 #ap-topbar .ap-user-info {
@@ -4459,16 +4460,9 @@ var T=<?php echo json_encode([
     border: 2px solid var(--border-color);
     object-fit: cover;
 }
-#ap-topbar .ap-user-name { font-size: 13px; color: var(--text-color); opacity: .7; }
+#ap-topbar .ap-user-name { font-size: 14px; color: var(--text-color); opacity: .85; }
 #ap-topbar .ap-user-role {
-    font-size: 11px;
-    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
-    color: var(--primary-color);
-    border: 1px solid color-mix(in srgb, var(--primary-color) 40%, transparent);
-    border-radius: 12px;
-    padding: 2px 10px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    display: none;
 }
 /* Close button — matches .std-topbar-close */
 #ap-close-btn {
