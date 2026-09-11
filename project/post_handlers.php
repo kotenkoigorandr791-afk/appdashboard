@@ -1455,30 +1455,30 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_users_subtitle']??'View, edit roles, and delete registered users.'); ?></div>
             <!-- User Analytics Summary -->
             <div class="ap-card" style="margin-bottom:14px;">
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
-                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
-                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['total_users']??'Total Users'); ?></div>
-                        <div id="ap-analytics-total" style="font-size:22px;font-weight:700;margin-top:2px;"><?php echo count($_apAllU); ?></div>
+                <div class="ap-stat-grid">
+                    <div class="ap-stat-tile">
+                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['total_users']??'Total Users'); ?></div>
+                        <div id="ap-analytics-total" class="ap-stat-value"><?php echo count($_apAllU); ?></div>
                     </div>
-                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
-                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['verified_users']??'Verified'); ?></div>
-                        <div id="ap-analytics-verified" style="font-size:22px;font-weight:700;margin-top:2px;color:var(--primary-color);"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['verified']); })); ?></div>
+                    <div class="ap-stat-tile">
+                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['verified_users']??'Verified'); ?></div>
+                        <div id="ap-analytics-verified" class="ap-stat-value" style="color:var(--primary-color);"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['verified']); })); ?></div>
                     </div>
-                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
-                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['admins']??'Admins'); ?></div>
-                        <div id="ap-analytics-admins" style="font-size:22px;font-weight:700;margin-top:2px;color:#dc3545;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 2; })); ?></div>
+                    <div class="ap-stat-tile">
+                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['admins']??'Admins'); ?></div>
+                        <div id="ap-analytics-admins" class="ap-stat-value" style="color:#dc3545;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 2; })); ?></div>
                     </div>
-                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
-                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['managers']??'Managers'); ?></div>
-                        <div id="ap-analytics-managers" style="font-size:22px;font-weight:700;margin-top:2px;color:#ffc107;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 1; })); ?></div>
+                    <div class="ap-stat-tile">
+                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['managers']??'Managers'); ?></div>
+                        <div id="ap-analytics-managers" class="ap-stat-value" style="color:#ffc107;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 1; })); ?></div>
                     </div>
-                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
-                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['guests']??'Guests'); ?></div>
-                        <div id="ap-analytics-guests" style="font-size:22px;font-weight:700;margin-top:2px;color:#28a745;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 0; })); ?></div>
+                    <div class="ap-stat-tile">
+                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['guests']??'Guests'); ?></div>
+                        <div id="ap-analytics-guests" class="ap-stat-value" style="color:#28a745;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 0; })); ?></div>
                     </div>
-                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
-                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['pending_users']??'Pending'); ?></div>
-                        <div id="ap-analytics-pending" style="font-size:22px;font-weight:700;margin-top:2px;color:#ff9800;"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['_pending']); })); ?></div>
+                    <div class="ap-stat-tile">
+                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['pending_users']??'Pending'); ?></div>
+                        <div id="ap-analytics-pending" class="ap-stat-value" style="color:#ff9800;"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['_pending']); })); ?></div>
                     </div>
                 </div>
             </div>
@@ -2349,13 +2349,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(isset($_POST['save_user_roles'])){
         $currentUserEmail=$_SESSION['user']['email']??'';
         $isAjaxRoles = isset($_POST['ajax']);
-        if($currentUserEmail==='root@root'){
+        if($sessionIsAdmin){
             $users=loadUsers();
             $anyUpdated=false;
             // Roles
             if(isset($_POST['user_roles']) && is_array($_POST['user_roles'])){
                 foreach($_POST['user_roles'] as $email=>$role){
                     if($email==='root@root') continue;
+                    if($email !== $currentUserEmail && isset($users[$email]) && intval($users[$email]['role']) >= intval($role)){
+                        continue;
+                    }
                     if($email!==$currentUserEmail && isset($users[$email])){
                         $users[$email]['role']=intval($role);
                         $anyUpdated=true;

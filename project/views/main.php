@@ -221,13 +221,13 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         body.wallpaper-custom::before{opacity:0!important;}
         body.wallpaper-custom::after{content:'';position:fixed;inset:-8px;z-index:-1;pointer-events:none;background-image:var(--wallpaper-url);background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(3px);transform:scale(1.01);opacity:1;}
         #top-bar,#sidebar,#content{z-index:1;}
-        #top-bar{position:fixed;top:0;left:0;width:100%;height:44px;background:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));box-shadow:0 8px 28px rgba(0,0,0,0.08);}
+        #top-bar{position:fixed;top:0;left:0;width:100%;height:56px;background:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));box-shadow:0 8px 28px rgba(0,0,0,0.08);}
         body.light-theme #top-bar{background:rgba(240,244,248,0.20);}
         body.light-theme #sidebar{background:rgba(240,244,248,0.20);}
         #top-bar-title{font-weight:bold;font-size:18px;flex:1;min-width:0;text-align:center;position:absolute;left:50%;transform:translateX(-50%);}
-        .std-topbar{display:flex;align-items:center;justify-content:space-between;height:44px;padding:0 12px;background:var(--bg2);border-bottom:1px solid var(--border-color);flex-shrink:0;box-sizing:border-box;}
-        .std-topbar-title{font-size:16px;font-weight:700;color:var(--text-color);margin:0;}
-        .std-topbar-close{width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:18px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;}
+        .std-topbar{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--border-color);flex-shrink:0;box-sizing:border-box;}
+        .std-topbar-title{font-size:26px;font-weight:700;color:var(--text-color);margin:0;line-height:1.2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .std-topbar-close{width:40px;height:40px;margin-left:12px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:24px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;padding:0;line-height:1;text-align:center;}
         .std-topbar-close:hover{background:var(--danger,#ef4444);color:#fff;border-color:var(--danger,#ef4444);}
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #notifications-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
@@ -250,8 +250,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #home-root-button svg{width:22px;height:22px;}
         #home-root-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #menu-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
-        #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
-        #top-bar #notifications-btn{position:absolute;right:64px;top:5px;margin-left:0;}
+        #top-bar #support-chat-btn{position:absolute;right:16px;top:8px;margin-left:0;}
+        #top-bar #notifications-btn{position:absolute;right:64px;top:8px;margin-left:0;}
         #menu-button .menu-button-glyph{width:auto;height:auto;}
         #menu-button .menu-button-glyph svg{width:22px;height:22px;}
         <?php else: ?>
@@ -555,7 +555,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #policy-modal-overlay.active{display:flex;}
         #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);padding:6px;}
         #policy-modal iframe{flex:1;width:100%;border:none;border-radius:calc(var(--casa-radius) - 6px);}
-        #policy-modal-close{position:absolute;top:10px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:20px;cursor:pointer;z-index:30001;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;}
+        #policy-modal-close{position:absolute;top:16px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:26px;cursor:pointer;z-index:30001;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;padding:0;line-height:1;}
         #policy-modal-close:hover{opacity:0.7;}
         #stats-content{background:var(--modal-bg);padding:60px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:85vh;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #stats-nav-box{border:1px solid var(--border-color);border-radius:12px;padding:15px;margin-bottom:20px;background:var(--group-block-bg);flex-shrink:0;}
@@ -1246,7 +1246,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             align-items: center;
             gap: 16px;
             padding: 0 20px 0 20px;
-            height: 44px;
+            height: 60px;
             border-bottom: 1px solid var(--border-color);
             background: linear-gradient(180deg, color-mix(in srgb, var(--group-block-bg) 85%, transparent), transparent);
         }
@@ -1317,7 +1317,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         }
         .weather-settings-header h3 {
             margin: 0 0 18px 0;
-            font-size: 20px;
+            font-size: 28px;
             font-weight: 700;
             color: var(--text-color);
         }
@@ -1751,7 +1751,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             min-width: 0;
         }
         .weather-modal-title {
-            font-size: 13px;
+            font-size: 16px;
             font-weight: 600;
             letter-spacing: 0.04em;
             text-transform: uppercase;
@@ -1759,7 +1759,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             margin-bottom: 4px;
         }
         .weather-modal-city {
-            font-size: 22px;
+            font-size: 28px;
             font-weight: 700;
             line-height: 1.2;
         }

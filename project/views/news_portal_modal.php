@@ -198,8 +198,8 @@ body.theme-light #news-portal-overlay{background:#eef2f7;color:#1a2332;}
 body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf3;--app-item-bg:#dde4ec;--border-color:#cfd8e3;--text-color:#1a2332;--scrollbar-track:#e8edf3;--scrollbar-thumb:#b0bcc9;}
 #news-portal-overlay.active{display:flex;}
 /* Header */
-#npo-header{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border-color);background:var(--group-block-bg);flex-shrink:0;height:56px;}
-#npo-title{padding:0 20px;font-size:16px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#npo-header{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border-color);background:var(--group-block-bg);flex-shrink:0;height:60px;}
+  #npo-title{padding:0 20px;font-size:26px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #npo-header-actions{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:16px;}
 #npo-tabs{display:flex;height:100%;gap:0;}
 .npo-tab{height:100%;padding:0 22px;border:none;background:none;color:var(--text-color);font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;opacity:.6;transition:opacity .15s,border-color .15s;white-space:nowrap;}
@@ -627,7 +627,7 @@ body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important
     <div class="std-topbar">
       <div style="display:flex;align-items:center;gap:12px;flex:1;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color,#38bdf8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        <span style="font-size:16px;font-weight:700;"><?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News Writing Prompt'); ?></span>
+        <span style="font-size:26px;font-weight:700;"><?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News Writing Prompt'); ?></span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <button type="button" id="npo-prompt-refresh-btn" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--group-block-bg);color:var(--text-color);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">

@@ -69,8 +69,8 @@
     justify-content: space-between;
     background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 12px;
-    height: 44px;
+    padding: 0 16px;
+    height: 60px;
     flex-shrink: 0;
     box-sizing: border-box;
 }
@@ -78,7 +78,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: 1px;
     color: var(--text-color);
@@ -110,8 +110,8 @@
 }
 /* Close button — matches .std-topbar-close */
 .ap-close-btn-style,
-#ap-close-btn {
-    width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:18px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;padding:0;line-height:1;box-sizing:border-box;}
+    #ap-close-btn {
+        width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:24px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;padding:0;line-height:1;text-align:center;box-sizing:border-box;margin-left:12px;}
 .ap-close-btn-style:hover,
 #ap-close-btn:hover {
     background: var(--danger, #ef4444);
@@ -372,6 +372,43 @@
     opacity: .85;
 }
 .ap-card-title svg { color: var(--primary-color); }
+.ap-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+.ap-stat-tile {
+    background: var(--group-block-bg);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+.ap-stat-tile .ap-stat-label {
+    font-size: 11px;
+    opacity: .7;
+}
+.ap-stat-tile .ap-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+    .ap-stat-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    .ap-stat-tile {
+        padding: 8px 4px;
+    }
+    .ap-stat-tile .ap-stat-value {
+        font-size: 17px;
+    }
+    .ap-stat-tile .ap-stat-label {
+        font-size: 10px;
+    }
+}
 #ap-stats-range-controls { flex-wrap: wrap; }
 #ap-stats-range-controls > * { white-space: nowrap; flex-shrink: 0; }
 #ap-stats-range-controls input[type="date"] { flex-shrink: 1; }
