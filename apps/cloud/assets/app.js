@@ -7033,11 +7033,17 @@ async function buildTree(path) {
                 }
                 return true;
             });
-            const container = buildTreeFromFlatItems(visibleItems);
+            const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
+            const scopedItems = browsePath
+                ? visibleItems.filter((item) => {
+                    const p = String(item?.path || '');
+                    return p === browsePath || p.startsWith(browsePath + '/');
+                })
+                : visibleItems;
+            const container = buildTreeFromFlatItems(scopedItems);
             tree.appendChild(container);
             dedupeRenderedTreeNodesByPath(tree);
-            const browsePath = getTreeBrowsePath();
-            tree.classList.toggle('is-empty', countDirectTreeChildren(visibleItems, browsePath) === 0);
+            tree.classList.toggle('is-empty', countDirectTreeChildren(scopedItems, browsePath) === 0);
             scheduleTreeAutoShift();
             if (typeof updateTreeBrowseHeader === 'function') updateTreeBrowseHeader();
             if (typeof syncAllTreeChildrenGuides === 'function') syncAllTreeChildrenGuides(tree);
@@ -7481,7 +7487,7 @@ function renderTrashItems(items) {
     const viewer = document.getElementById('viewer');
     if (!viewer) return;
     if (!items.length) {
-        viewer.innerHTML = `<div class="trash-empty">${escapeHtml(t(i18n, 'trashEmpty') || 'Trash is empty')}</div>`;
+        viewer.innerHTML = `<div class="trash-empty"><span class="trash-empty-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 16h10l1-16" /><path d="M10 11v6" /><path d="M14 11v6" /></svg></span>${escapeHtml(t(i18n, 'trashEmpty') || 'Trash is empty')}</div>`;
         return;
     }
 

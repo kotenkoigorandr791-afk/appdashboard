@@ -1542,8 +1542,12 @@ function buildTreeFromFlatItems(flatItems) {
                         if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, true);
                         expandedFolders.add(getNodePath());
                     }
+                    await navigateTreeTo(getNodePath());
+                    // don't expand/collapse when entering browse mode
                     saveFolderState();
+                    return;
                 });
+
 
                 node.addEventListener('dblclick', (e) => {
                     e.stopPropagation();
