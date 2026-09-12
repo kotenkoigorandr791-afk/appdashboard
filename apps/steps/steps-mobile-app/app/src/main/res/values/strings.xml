@@ -483,4 +483,19 @@
     <string name="sync_interval_24h">24 hours</string>
     <string name="sync_interval_72h">72 hours</string>
     <string name="action_change">Change</string>
+    <!-- Next sync timer -->
+    <string name="next_sync_title">Next Sync</string>
+    <string name="next_sync_at">at %1$s</string>
+    <string name="next_sync_in">in %1$s</string>
+    <string name="next_sync_not_scheduled">No sync scheduled</string>
+    <string name="next_sync_not_synced_yet">Not synced yet</string>
+    <!-- Conflict remember -->
+    <string name="conflict_remember">Remember my choice</string>
+    <string name="settings_conflict_title">Conflict Resolution</string>
+    <string name="settings_conflict_remember">Remember choice</string>
+    <string name="settings_conflict_remember_desc">Automatically apply saved action without showing the dialog</string>
+    <string name="settings_conflict_default_action">Default action</string>
+    <string name="settings_conflict_forget">Clear memory (show dialog each time)</string>
+    <!-- Manual sync previous day -->
+    <string name="manual_sync_previous_day">Previous day</string>
 </resources>

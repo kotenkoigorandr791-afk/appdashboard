@@ -138,7 +138,30 @@ if ($method === 'GET') {
     if (strcmp($from, $to) > 0) [$from, $to] = [$to, $from];
     if (isset($_GET['metrics'])) {
         $metrics = hc_read_metrics_range($userDir, $from, $to);
-        exit(json_encode(['status' => 'success', 'from' => $from, 'to' => $to, 'metrics' => $metrics, 'count' => count($metrics)], JSON_UNESCAPED_UNICODE));
+        // Index by date for fast lookup
+        $metricsIndex = [];
+        foreach ($metrics as $entry) { $metricsIndex[(string)$entry['date']] = $entry; }
+        // Load SQLite steps for the full range to fill gaps in metric files
+        $sqliteRows = loadStepsRange($userDb, $from, $to);
+        $combined = [];
+        $cd = new DateTime($from);
+        $end = new DateTime($to);
+        while ($cd <= $end) {
+            $ds = $cd->format('Y-m-d');
+            $sqliteSteps = (int)($sqliteRows[$ds]['steps'] ?? 0);
+            if (isset($metricsIndex[$ds])) {
+                $entry = $metricsIndex[$ds];
+                // Prefer SQLite daily total for steps consistency with web chart
+                if ($sqliteSteps > 0 && empty($entry['metrics']['steps']['total'])) {
+                    $entry['metrics']['steps'] = array_merge($entry['metrics']['steps'] ?? ['samples' => 0], ['total' => $sqliteSteps]);
+                }
+                $combined[] = $entry;
+            } elseif ($sqliteSteps > 0) {
+                $combined[] = ['date' => $ds, 'metrics' => ['steps' => ['total' => $sqliteSteps, 'samples' => 0]]];
+            }
+            $cd->modify('+1 day');
+        }
+        exit(json_encode(['status' => 'success', 'from' => $from, 'to' => $to, 'metrics' => $combined, 'count' => count($combined)], JSON_UNESCAPED_UNICODE));
     }
     $rows = array_values(loadStepsRange($userDb, $from, $to));
     usort($rows, static fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));

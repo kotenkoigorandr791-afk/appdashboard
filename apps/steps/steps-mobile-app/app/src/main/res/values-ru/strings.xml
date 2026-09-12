@@ -483,4 +483,19 @@
     <string name="sync_interval_24h">24 часа</string>
     <string name="sync_interval_72h">72 часа</string>
     <string name="action_change">Изменить</string>
+    <!-- Next sync timer -->
+    <string name="next_sync_title">Следующая синхронизация</string>
+    <string name="next_sync_at">в %1$s</string>
+    <string name="next_sync_in">через %1$s</string>
+    <string name="next_sync_not_scheduled">Синхронизация не запланирована</string>
+    <string name="next_sync_not_synced_yet">Ещё не синхронизировано</string>
+    <!-- Conflict remember -->
+    <string name="conflict_remember">Запомнить мой выбор</string>
+    <string name="settings_conflict_title">Разрешение конфликтов</string>
+    <string name="settings_conflict_remember">Помнить выбор</string>
+    <string name="settings_conflict_remember_desc">Автоматически применять сохранённое действие без показа диалога</string>
+    <string name="settings_conflict_default_action">Действие по умолчанию</string>
+    <string name="settings_conflict_forget">Очистить память (показывать диалог каждый раз)</string>
+    <!-- Manual sync previous day -->
+    <string name="manual_sync_previous_day">Предыдущий день</string>
 </resources>

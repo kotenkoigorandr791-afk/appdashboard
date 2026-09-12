@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -52,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.CircularProgressIndicator
@@ -121,8 +123,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var link by remember { mutableStateOf("") }
     var status by remember { mutableStateOf(if (configs.any { it.isEnabled }) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting)) }
-    var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(PROFILE_CACHE_MAX_AGE_MS)) ?: ServerProfile()) }
-    var profilePhotoModel by remember { mutableStateOf(profile.photo.takeIf { it.isNotBlank() }) }
+    var testingConn by remember { mutableStateOf(false) }
+    var connResult by remember { mutableStateOf<Boolean?>(null) }
+    var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
+    var profilePhotoModel by remember { mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() }) }
     var metricsExpanded by remember { mutableStateOf(false) }
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
@@ -142,6 +146,9 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var scheduledSyncs by remember { mutableStateOf(prefs.getScheduledSyncs()) }
     var intervalExpanded by remember { mutableStateOf(false) }
     var scheduleToEdit by remember { mutableStateOf<ScheduledSync?>(null) }
+    var conflictRemember by remember { mutableStateOf(prefs.isConflictRememberEnabled()) }
+    var conflictDefaultAction by remember { mutableStateOf(prefs.getConflictDefaultAction() ?: "skip") }
+    var conflictActionExpanded by remember { mutableStateOf(false) }
     fun connect(value: String) {
         runCatching {
             val uri = Uri.parse(value.trim())
@@ -184,16 +191,27 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
     }
     LaunchedEffect(configs) {
-        profile = profileFromJson(prefs.getProfileCache(PROFILE_CACHE_MAX_AGE_MS)) ?: fetchProfile(configs.firstOrNull { it.isEnabled }, prefs)
-        profilePhotoModel = profile.photo.takeIf { it.isNotBlank() }
+        val config = configs.firstOrNull { it.isEnabled } ?: return@LaunchedEffect
+        // Only refetch if cache is older than PROFILE_REFRESH_MAX_AGE_MS (throttle)
+        if (prefs.getProfileCache(PROFILE_REFRESH_MAX_AGE_MS) != null) return@LaunchedEffect
+        val fetched = fetchProfile(config, prefs)
+        if (fetched.error == null) {
+            // Download photo to local file for genuine offline caching
+            if (fetched.photo.isNotBlank()) {
+                downloadAvatarFile(context, fetched.photo)
+            }
+            profile = fetched
+            profilePhotoModel = localAvatarFile(context).takeIf { it.exists() }?.absolutePath
+                ?: fetched.photo.takeIf { it.isNotBlank() }
+        }
     }
     LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    key(profile.photo) {
+                    key(profilePhotoModel) {
                         AsyncImage(
-                            model = profile.photo.takeIf { it.isNotBlank() },
+                            model = profilePhotoModel,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.size(56.dp).clip(CircleShape)
@@ -212,15 +230,39 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                     Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.titleMedium)
                     Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (configs.any { it.isEnabled }) {
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                status = testConnection(configs.firstOrNull { it.isEnabled })
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    testingConn = true
+                                    connResult = null
+                                    connResult = testConnection(configs.firstOrNull { it.isEnabled })
+                                    testingConn = false
+                                }
+                            },
+                            enabled = !testingConn,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = when (connResult) {
+                                    true -> Color(0xFF66BB6A)
+                                    false -> Color(0xFF9B1C31)
+                                    null -> MaterialTheme.colorScheme.primary
+                                }
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (testingConn) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                                Spacer(Modifier.size(8.dp))
+                                Text(stringResource(R.string.settings_test_connection_progress))
+                            } else {
+                                Icon(Icons.Filled.CloudDone, contentDescription = null)
+                                Text(stringResource(R.string.settings_test_connection), modifier = Modifier.padding(start = 8.dp))
                             }
-                        }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_test_connection)) }
+                        }
                         OutlinedButton(onClick = {
                             configs = emptyList()
                             prefs.setWebhookConfigs(emptyList())
                             prefs.clearServerDataCache()
+                            localAvatarFile(context).delete()
                             status = context.getString(R.string.auth_waiting)
                             profile = ServerProfile()
                             profilePhotoModel = null
@@ -371,6 +413,63 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                                     Text(stringResource(R.string.action_change))
                                 }
                             }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_conflict_title), style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_conflict_remember))
+                            Text(stringResource(R.string.settings_conflict_remember_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Switch(checked = conflictRemember, onCheckedChange = { checked ->
+                            conflictRemember = checked
+                            prefs.setConflictRememberEnabled(checked)
+                        })
+                    }
+                    if (conflictRemember) {
+                        val actionLabels = listOf(
+                            "skip" to stringResource(R.string.conflict_skip),
+                            "replace" to stringResource(R.string.conflict_replace),
+                            "add" to stringResource(R.string.conflict_add)
+                        )
+                        ExposedDropdownMenuBox(
+                            expanded = conflictActionExpanded,
+                            onExpandedChange = { conflictActionExpanded = !conflictActionExpanded },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = actionLabels.firstOrNull { it.first == conflictDefaultAction }?.second ?: conflictDefaultAction,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text(stringResource(R.string.settings_conflict_default_action)) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = conflictActionExpanded) },
+                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                modifier = Modifier.menuAnchor().fillMaxWidth()
+                            )
+                            ExposedDropdownMenu(expanded = conflictActionExpanded, onDismissRequest = { conflictActionExpanded = false }) {
+                                actionLabels.forEach { (value, label) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            conflictDefaultAction = value
+                                            prefs.setConflictDefaultAction(value)
+                                            conflictActionExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        TextButton(onClick = {
+                            conflictRemember = false
+                            prefs.setConflictRememberEnabled(false)
+                        }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.settings_conflict_forget))
                         }
                     }
                 }
@@ -631,16 +730,16 @@ private suspend fun fetchProfile(config: WebhookConfig?, prefs: PreferencesManag
         }
     }.getOrElse { ServerProfile(error = it.message) }
 }
-private suspend fun testConnection(config: WebhookConfig?): String = withContext(Dispatchers.IO) {
-    if (config == null) return@withContext "Not connected"
+private suspend fun testConnection(config: WebhookConfig?): Boolean = withContext(Dispatchers.IO) {
+    if (config == null) return@withContext false
     runCatching {
         val builder = Request.Builder().url(config.url.trimEnd('/') + "/profile")
         config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
         OkHttpClient().newCall(builder.build()).execute().use { response ->
             if (!response.isSuccessful) error("HTTP ${response.code}")
-            "Connection OK"
+            true
         }
-    }.getOrElse { "Connection failed: ${it.message}" }
+    }.getOrDefault(false)
 }
 private fun profileFromJson(json: String?): ServerProfile? = runCatching {
     if (json.isNullOrBlank()) null else JSONObject(json).let { ServerProfile(it.optString("name"), it.optString("email"), it.optString("photo")) }
@@ -662,6 +761,16 @@ private fun accentColorValue(value: String): Color = when (value) {
     else -> Color(0xFF4285F4)
 }
 private const val PROFILE_CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000
+private const val PROFILE_REFRESH_MAX_AGE_MS = 10L * 60 * 1000
+private fun localAvatarFile(context: android.content.Context) = java.io.File(context.filesDir, "avatar_cache.jpg")
+private fun downloadAvatarFile(context: android.content.Context, url: String) {
+    runCatching {
+        val req = okhttp3.Request.Builder().url(url).build()
+        okhttp3.OkHttpClient().newCall(req).execute().use { resp ->
+            if (resp.isSuccessful) resp.body?.bytes()?.let { localAvatarFile(context).writeBytes(it) }
+        }
+    }
+}
 private fun absoluteProfileUrl(endpoint: String, photo: String): String {
     if (photo.isBlank() || photo.startsWith("http")) return photo
     val uri = Uri.parse(endpoint)

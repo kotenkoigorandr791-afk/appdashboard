@@ -63,6 +63,8 @@ class PreferencesManager(context: Context) {
         private const val KEY_PROFILE_CACHE_TIME = "profile_cache_time"
         private const val KEY_ANDROID_STEPS_CACHE_PREFIX = "android_steps_cache_"
         private const val KEY_PENDING_CONFLICT_JSON = "pending_conflict_json"
+        private const val KEY_CONFLICT_REMEMBER = "conflict_remember"
+        private const val KEY_CONFLICT_DEFAULT_ACTION = "conflict_default_action"
         private const val WEEKLY_FEEDBACK_PROMPT_MS = 7L * 24 * 60 * 60 * 1000
         val MAX_LOG_OPTIONS = listOf(50, 100, 500)
         private const val DEFAULT_MAX_LOGS = 100
@@ -600,6 +602,16 @@ class PreferencesManager(context: Context) {
     }
     fun clearPendingConflictJson() {
         prefs.edit().remove(KEY_PENDING_CONFLICT_JSON).apply()
+    }
+
+    fun isConflictRememberEnabled(): Boolean = prefs.getBoolean(KEY_CONFLICT_REMEMBER, false)
+    fun setConflictRememberEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CONFLICT_REMEMBER, enabled).apply()
+        if (!enabled) prefs.edit().remove(KEY_CONFLICT_DEFAULT_ACTION).apply()
+    }
+    fun getConflictDefaultAction(): String? = prefs.getString(KEY_CONFLICT_DEFAULT_ACTION, null)
+    fun setConflictDefaultAction(action: String) {
+        prefs.edit().putString(KEY_CONFLICT_DEFAULT_ACTION, action).apply()
     }
 
     fun clearServerDataCache() {

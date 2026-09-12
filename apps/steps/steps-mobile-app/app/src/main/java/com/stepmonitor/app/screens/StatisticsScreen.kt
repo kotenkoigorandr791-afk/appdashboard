@@ -235,12 +235,13 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth) {
                 )
             }
             days.forEachIndexed { index, (_, count) ->
+                val gap = (barWidth * 0.10f).coerceAtLeast(2f)
                 val h = if (max > 0f) (count / max) * chartHeight else 0f
-                val x = leftPad + index * barWidth
+                val x = leftPad + index * barWidth + gap / 2f
                 drawRect(
                     color = if (count > 0) color else Color.LightGray.copy(alpha = 0.25f),
                     topLeft = Offset(x, baseY - h),
-                    size = Size((barWidth - 2f).coerceAtLeast(1f), h.coerceAtLeast(2f))
+                    size = Size((barWidth - gap).coerceAtLeast(1f), h.coerceAtLeast(2f))
                 )
             }
             paint.textAlign = android.graphics.Paint.Align.CENTER
@@ -297,26 +298,44 @@ private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDa
     if (config == null) return@withContext StatsState(error = "Not connected")
     if (!force) {
         prefs.getStatsCache(STATS_CACHE_MAX_AGE_MS)?.let {
-            return@withContext runCatching { parseServerMetrics(JSONObject(it).optJSONArray("metrics") ?: JSONArray(), enabled) }.getOrNull() ?: StatsState()
+            return@withContext runCatching { parseServerMetrics(JSONObject(it).optJSONArray("metrics") ?: JSONArray(), enabled, JSONObject(it).optJSONArray("steps") ?: JSONArray()) }.getOrNull() ?: StatsState()
         }
     }
     runCatching {
         val to = LocalDate.now()
         val from = to.minusDays(365)
-        val url = "${config.url}${if (config.url.contains("?")) "&" else "?"}from=$from&to=$to&metrics=1"
-        val builder = Request.Builder().url(url)
-        config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
-        OkHttpClient().newCall(builder.build()).execute().use { response ->
-            if (!response.isSuccessful) error("HTTP ${response.code}")
-            val body = response.body?.string().orEmpty()
-            prefs.setStatsCache(body)
-            parseServerMetrics(JSONObject(body).optJSONArray("metrics") ?: JSONArray(), enabled)
+        val baseUrl = config.url.trimEnd('/')
+        // metrics=1 gives per-day metric details (limited to days with metric files),
+        // the plain endpoint returns the full steps history from the server DB.
+        val metricsUrl = "$baseUrl${if (baseUrl.contains("?")) "&" else "?"}from=$from&to=$to&metrics=1"
+        val stepsUrl = "$baseUrl${if (baseUrl.contains("?")) "&" else "?"}from=$from&to=$to"
+        val client = OkHttpClient()
+        fun httpGet(url: String): String {
+            val builder = Request.Builder().url(url)
+            config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+            return client.newCall(builder.build()).execute().use { response ->
+                if (!response.isSuccessful) error("HTTP ${response.code}")
+                response.body?.string().orEmpty()
+            }
         }
+        val metricsBody = httpGet(metricsUrl)
+        val stepsBody = httpGet(stepsUrl)
+        val combined = JSONObject()
+            .put("metrics", JSONObject(metricsBody).optJSONArray("metrics"))
+            .put("steps", JSONObject(stepsBody).optJSONArray("steps"))
+        prefs.setStatsCache(combined.toString())
+        parseServerMetrics(combined.optJSONArray("metrics") ?: JSONArray(), enabled, combined.optJSONArray("steps") ?: JSONArray())
     }.getOrElse { StatsState(error = it.message) }
 }
-private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>): StatsState {
+private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, serverSteps: JSONArray = JSONArray()): StatsState {
     val byDay = mutableMapOf<LocalDate, List<StatMetric>>()
     val steps = mutableMapOf<LocalDate, Long>()
+    for (index in 0 until serverSteps.length()) {
+        val row = serverSteps.optJSONObject(index) ?: continue
+        val date = runCatching { LocalDate.parse(row.optString("date")) }.getOrNull() ?: continue
+        val s = row.optLong("steps", 0L)
+        if (HealthDataType.STEPS in enabled && s > 0) steps[date] = s
+    }
     for (index in 0 until items.length()) {
         val row = items.optJSONObject(index) ?: continue
         val date = runCatching { LocalDate.parse(row.optString("date")) }.getOrNull() ?: continue
@@ -333,7 +352,6 @@ private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>): 
         val stepTotal = total("steps").toLong()
         if (HealthDataType.STEPS in enabled && stepTotal > 0) {
             steps[date] = stepTotal
-            rows += StatMetric(HealthDataType.STEPS, stepTotal.toString())
         }
         val candidates = listOf(
             HealthDataType.DISTANCE to ("distance" to "%.0f m".format(total("distance"))),

@@ -7,8 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -22,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -81,6 +86,17 @@ class MainActivity : AppCompatActivity() {
                 delay(2_000)
             }
         }
+        // Auto-resolve if user saved a preference
+        LaunchedEffect(pendingConflict) {
+            val conflict = pendingConflict ?: return@LaunchedEffect
+            if (preferencesManager.isConflictRememberEnabled()) {
+                val action = preferencesManager.getConflictDefaultAction()
+                if (action != null) {
+                    resolveConflict(action, conflict)
+                    pendingConflict = null
+                }
+            }
+        }
         Scaffold(bottomBar = {
             NavigationBar {
                 bottomNavItems.forEach { screen ->
@@ -100,22 +116,53 @@ class MainActivity : AppCompatActivity() {
                 NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
             }
         }
-        pendingConflict?.let { conflictJson ->
+        val showConflict = pendingConflict != null &&
+            !(preferencesManager.isConflictRememberEnabled() && preferencesManager.getConflictDefaultAction() != null)
+        if (showConflict) {
+            val conflictJson = pendingConflict!!
+            var rememberChoice by remember { mutableStateOf(false) }
             AlertDialog(
                 onDismissRequest = {},
                 title = { Text(getString(R.string.conflict_title)) },
-                text = { Text(conflictSummary(conflictJson)) },
+                text = {
+                    androidx.compose.foundation.layout.Column {
+                        Text(conflictSummary(conflictJson))
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(
+                                checked = rememberChoice,
+                                onCheckedChange = { rememberChoice = it }
+                            )
+                            Text(getString(R.string.conflict_remember))
+                        }
+                    }
+                },
                 confirmButton = {
                     Row {
                         TextButton(onClick = {
+                            if (rememberChoice) {
+                                preferencesManager.setConflictRememberEnabled(true)
+                                preferencesManager.setConflictDefaultAction("skip")
+                            }
                             resolveConflict("skip", conflictJson)
                             pendingConflict = null
                         }) { Text(getString(R.string.conflict_skip)) }
                         TextButton(onClick = {
+                            if (rememberChoice) {
+                                preferencesManager.setConflictRememberEnabled(true)
+                                preferencesManager.setConflictDefaultAction("replace")
+                            }
                             resolveConflict("replace", conflictJson)
                             pendingConflict = null
                         }) { Text(getString(R.string.conflict_replace)) }
                         TextButton(onClick = {
+                            if (rememberChoice) {
+                                preferencesManager.setConflictRememberEnabled(true)
+                                preferencesManager.setConflictDefaultAction("add")
+                            }
                             resolveConflict("add", conflictJson)
                             pendingConflict = null
                         }) { Text(getString(R.string.conflict_add)) }
