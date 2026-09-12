@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -86,14 +87,33 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
+                Card(
                     modifier = Modifier.weight(1f),
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    label = { Text(stringResource(R.string.logs_search)) },
-                    singleLine = true
-                )
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(12.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                            label = { Text(stringResource(R.string.logs_search)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                    }
+                }
                 IconButton(onClick = {
                     newestFirst = !newestFirst
                     val msg = if (newestFirst) context.getString(R.string.logs_sort_newest) else context.getString(R.string.logs_sort_oldest)
@@ -156,14 +176,14 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                                             modifier = Modifier.padding(8.dp),
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 12.sp,
-                                            color = if (log.success) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 } else {
                                     Text(
                                         text = copyText.joinToString("\n"),
                                         modifier = Modifier.weight(1f),
-                                        color = if (log.success) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 IconButton(onClick = { copyLogMessage(context, copyText.joinToString("\n")) }) {

@@ -20,6 +20,52 @@ class ScheduledSyncManager(private val context: Context) {
     companion object {
         const val ACTION_SCHEDULED_SYNC = "com.stepmonitor.app.SCHEDULED_SYNC"
         const val EXTRA_SCHEDULE_ID = "schedule_id"
+
+        /** scheduleId used by the self-rescheduling INTERVAL-mode alarm chain. */
+        const val INTERVAL_BOUNDARY_ID = "interval_boundary"
+
+        private const val INTERVAL_REQUEST_CODE = 0x51DC
+        private const val MIN_REPEAT_MS = 15 * 60_000L
+    }
+
+    /**
+     * Schedule (or reschedule) the next INTERVAL-mode sync boundary.
+     *
+     * Companion to the periodic WorkManager job: it fires near the exact
+     * interval boundary and is Doze-friendly ([setAndAllowWhileIdle]), so syncs
+     * keep happening even after the app's process was killed. Each run in
+     * [SyncForegroundService] reschedules the chain, making it self-sustaining.
+     */
+    fun scheduleNextIntervalSync() {
+        if (preferencesManager.getSyncMode() != SyncMode.INTERVAL) {
+            return
+        }
+
+        val intervalMs = preferencesManager.getSyncIntervalMinutes() * 60_000L
+        val lastSync = preferencesManager.getEffectiveLastSyncAnchor()
+        val now = System.currentTimeMillis()
+        val base = if (lastSync != null) lastSync + intervalMs else now + intervalMs
+        // Never re-fire sooner than a grace period, even if lastSync is far in
+        // the past (e.g. the device stayed off during the whole interval).
+        val trigger = maxOf(base, now + MIN_REPEAT_MS)
+
+        val intent = Intent(context, ScheduledSyncReceiver::class.java).apply {
+            action = ACTION_SCHEDULED_SYNC
+            putExtra(EXTRA_SCHEDULE_ID, INTERVAL_BOUNDARY_ID)
+        }
+        val pendingIntent = buildAlarmPendingIntent(intent, INTERVAL_REQUEST_CODE)
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+    }
+
+    /**
+     * Cancel the INTERVAL-mode alarm chain (used when switching to SCHEDULED).
+     */
+    fun cancelIntervalSync() {
+        val intent = Intent(context, ScheduledSyncReceiver::class.java).apply {
+            action = ACTION_SCHEDULED_SYNC
+        }
+        val pendingIntent = buildAlarmPendingIntent(intent, INTERVAL_REQUEST_CODE)
+        alarmManager.cancel(pendingIntent)
     }
     
     /**

@@ -27,6 +27,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_ENABLED_DATA_TYPES = "enabled_data_types"
         private const val KEY_WEBHOOK_LOGS = "webhook_logs"
         private const val KEY_LAST_SYNC_TIME = "last_sync_time"
+        private const val KEY_LAST_SYNC_ATTEMPT_MS = "last_sync_attempt_ms"
         private const val KEY_LAST_SYNC_SUMMARY = "last_sync_summary"
         private const val DEFAULT_SYNC_INTERVAL_MINUTES = 60
         private const val MAX_LOGS = 100
@@ -57,6 +58,8 @@ class PreferencesManager(context: Context) {
         private const val KEY_WIFI_ONLY = "wifi_only"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_ACCENT_COLOR = "accent_color"
+        private const val KEY_APP_LANGUAGE = "app_language"
+        private const val KEY_PORTRAIT_ONLY = "portrait_only"
         private const val KEY_STATS_CACHE_JSON = "stats_cache_json"
         private const val KEY_STATS_CACHE_TIME = "stats_cache_time"
         private const val KEY_PROFILE_CACHE_JSON = "profile_cache_json"
@@ -303,6 +306,44 @@ class PreferencesManager(context: Context) {
     fun getLastSyncTime(): Long? {
         val timestamp = prefs.getLong(KEY_LAST_SYNC_TIME, -1)
         return if (timestamp == -1L) null else timestamp
+    }
+
+    /**
+     * The last moment a sync actually completed, persisted across restarts.
+     *
+     * Prefers the stored [getLastSyncTime]; when that was never written (e.g.
+     * older installs that synced before the key existed), falls back to the
+     * most recent successful webhook delivery so the next-sync countdown stays
+     * anchored to real history instead of resetting on every screen switch.
+     */
+    fun getEffectiveLastSyncTime(): Long? {
+        getLastSyncTime()?.let { return it }
+        return getWebhookLogs().asSequence()
+            .filter { it.success }
+            .maxOfOrNull { it.timestamp }
+    }
+
+    fun getLastSyncAttemptTime(): Long? {
+        val timestamp = prefs.getLong(KEY_LAST_SYNC_ATTEMPT_MS, -1)
+        return if (timestamp == -1L) null else timestamp
+    }
+
+    fun setLastSyncAttemptTime(timestamp: Long) {
+        prefs.edit().putLong(KEY_LAST_SYNC_ATTEMPT_MS, timestamp).apply()
+    }
+
+    /**
+     * Anchor for the next-sync countdown and the INTERVAL alarm chain.
+     *
+     * Uses the most recent sync activity (any attempt, success or server
+     * rejection). This keeps the 12h countdown advancing after every real sync
+     * even when the server answers 409 for a duplicate batch, instead of
+     * staying stuck on an old success timestamp and re-firing every few minutes.
+     */
+    fun getEffectiveLastSyncAnchor(): Long? {
+        getLastSyncTime()?.let { return it }
+        getLastSyncAttemptTime()?.let { return it }
+        return getEffectiveLastSyncTime()
     }
 
     fun setLastSyncTime(timestamp: Long) {
@@ -569,6 +610,14 @@ class PreferencesManager(context: Context) {
     fun setAccentColor(value: String) {
         prefs.edit().putString(KEY_ACCENT_COLOR, value).apply()
     }
+    fun getAppLanguage(): String = prefs.getString(KEY_APP_LANGUAGE, "en") ?: "en"
+    fun setAppLanguage(value: String) {
+        prefs.edit().putString(KEY_APP_LANGUAGE, value).apply()
+    }
+    fun isPortraitOnly(): Boolean = prefs.getBoolean(KEY_PORTRAIT_ONLY, false)
+    fun setPortraitOnly(value: Boolean) {
+        prefs.edit().putBoolean(KEY_PORTRAIT_ONLY, value).apply()
+    }
     fun getStatsCache(maxAgeMs: Long): String? {
         val savedAt = prefs.getLong(KEY_STATS_CACHE_TIME, 0)
         if (System.currentTimeMillis() - savedAt > maxAgeMs) return null
@@ -626,6 +675,7 @@ class PreferencesManager(context: Context) {
         editor.remove(KEY_PENDING_CONFLICT_JSON)
 
         editor.remove(KEY_LAST_SYNC_TIME)
+        editor.remove(KEY_LAST_SYNC_ATTEMPT_MS)
         editor.remove(KEY_LAST_SYNC_SUMMARY)
 
         // last_sync_ts_<HealthDataType>

@@ -103,17 +103,30 @@ class SyncForegroundService : Service() {
     }
 
     private fun rescheduleAlarmIfNeeded(scheduleId: String?) {
-        if (scheduleId == null) return
         val prefsManager = PreferencesManager(this)
-        val schedule = prefsManager.getScheduledSyncs().find { it.id == scheduleId }
-        if (schedule != null && schedule.enabled) {
-            ScheduledSyncManager(this).scheduleAlarm(schedule)
-            Log.d(TAG, "Rescheduled alarm for next day: $scheduleId")
+        when (prefsManager.getSyncMode()) {
+            SyncMode.INTERVAL -> {
+                // Keep the Doze-friendly interval chain alive after each run
+                // reached an interval boundary.
+                ScheduledSyncManager(this).scheduleNextIntervalSync()
+                Log.d(TAG, "Rescheduled interval sync alarm")
+            }
+            SyncMode.SCHEDULED -> {
+                if (scheduleId == null) return
+                val schedule = prefsManager.getScheduledSyncs().find { it.id == scheduleId }
+                if (schedule != null && schedule.enabled) {
+                    ScheduledSyncManager(this).scheduleAlarm(schedule)
+                    Log.d(TAG, "Rescheduled alarm for next day: $scheduleId")
+                }
+            }
         }
     }
 
     override fun onDestroy() {
         job.cancel()
+        // Never leave the transient sync notification hanging in the shade.
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        nm.cancel(NOTIFICATION_ID)
         super.onDestroy()
     }
 

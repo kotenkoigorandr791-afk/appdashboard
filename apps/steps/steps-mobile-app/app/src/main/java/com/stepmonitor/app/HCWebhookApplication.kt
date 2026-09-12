@@ -23,11 +23,14 @@ class HCWebhookApplication : Application() {
                 scheduleSyncWork()
                 // Cancel scheduled alarms if they were previously set
                 ScheduledSyncManager(this).cancelAllAlarms()
+                // (Re)start the Doze-friendly interval alarm chain
+                ScheduledSyncManager(this).scheduleNextIntervalSync()
             }
             SyncMode.SCHEDULED -> {
                 // Cancel WorkManager periodic sync if it was previously set
                 cancelSyncWork()
-                // Schedule guaranteed daily alarms (morning + evening)
+                // Guaranteed daily alarms (morning + evening)
+                ScheduledSyncManager(this).cancelIntervalSync()
                 ScheduledSyncManager(this).scheduleAllAlarms()
             }
         }

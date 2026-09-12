@@ -1,11 +1,12 @@
 package com.stepmonitor.app.screens
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -30,11 +32,16 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -44,6 +51,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -70,12 +78,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -83,19 +86,24 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
 import androidx.core.content.FileProvider
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.core.os.LocaleListCompat
 import coil.compose.AsyncImage
 import com.stepmonitor.app.HCWebhookApplication
 import com.stepmonitor.app.HealthConnectManager
 import com.stepmonitor.app.HealthDataType
+import com.stepmonitor.app.MainActivity
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
 import com.stepmonitor.app.ScheduledSync
 import com.stepmonitor.app.ScheduledSyncManager
 import com.stepmonitor.app.SyncMode
 import com.stepmonitor.app.WebhookConfig
+import com.stepmonitor.app.components.absoluteProfileUrl
+import com.stepmonitor.app.components.downloadAvatarFile
+import com.stepmonitor.app.components.localAvatarFile
+import com.stepmonitor.app.components.APP_LANGUAGES
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -116,7 +124,6 @@ data class ServerProfile(val name: String = "", val email: String = "", val phot
 @Composable
 fun AboutScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
@@ -132,9 +139,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
     var accentColor by remember { mutableStateOf(prefs.getAccentColor()) }
     var accentExpanded by remember { mutableStateOf(false) }
-    var triggerWidth by remember { mutableStateOf(0.dp) }
-    var triggerBounds by remember { mutableStateOf(IntRect.Zero) }
-    var menuMaxHeight by remember { mutableStateOf(360.dp) }
     var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
     var permissionsSheetOpen by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
@@ -149,6 +153,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var conflictRemember by remember { mutableStateOf(prefs.isConflictRememberEnabled()) }
     var conflictDefaultAction by remember { mutableStateOf(prefs.getConflictDefaultAction() ?: "skip") }
     var conflictActionExpanded by remember { mutableStateOf(false) }
+    var personalizationOpen by remember { mutableStateOf(false) }
+    var language by remember { mutableStateOf(prefs.getAppLanguage()) }
+    var portraitOnly by remember { mutableStateOf(prefs.isPortraitOnly()) }
+    var showRestartDialog by remember { mutableStateOf(false) }
     fun connect(value: String) {
         runCatching {
             val uri = Uri.parse(value.trim())
@@ -185,8 +193,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             syncInterval = interval
             app?.scheduleSyncWork()
             ScheduledSyncManager(context).cancelAllAlarms()
+            ScheduledSyncManager(context).scheduleNextIntervalSync()
         } else {
             app?.cancelSyncWork()
+            ScheduledSyncManager(context).cancelIntervalSync()
             ScheduledSyncManager(context).scheduleAllAlarms()
         }
     }
@@ -475,96 +485,17 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-        item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
-                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                        listOf("auto" to R.string.theme_auto, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEachIndexed { index, (value, label) ->
-                            SegmentedButton(
-                                selected = themeMode == value,
-                                onClick = {
-                                    themeMode = value
-                                    prefs.setThemeMode(value)
-                                    (context as? Activity)?.recreate()
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index, 3),
-                            ) {
-                                Text(stringResource(label))
-                            }
-                        }
-                    }
-                    Box {
-                        OutlinedButton(
-                            onClick = { accentExpanded = true },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onSizeChanged { triggerWidth = with(density) { it.width.toDp() } }
-                                .onGloballyPositioned {
-                                    triggerBounds = it.boundsInRoot().let { r ->
-                                        IntRect(r.left.roundToInt(), r.top.roundToInt(), r.right.roundToInt(), r.bottom.roundToInt())
-                                    }
-                                }
-                        ) {
-                            Surface(color = accentColorValue(accentColor), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
-                            Spacer(Modifier.size(10.dp))
-                            Text(stringResource(accentNameRes(accentColor)))
-                            Spacer(Modifier.weight(1f))
-                            Icon(if (accentExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
-                        }
-                        if (accentExpanded && triggerBounds != IntRect.Zero) {
-                            Popup(
-                                onDismissRequest = { accentExpanded = false },
-                                popupPositionProvider = object : PopupPositionProvider {
-                                    override fun calculatePosition(
-                                        anchorBounds: IntRect,
-                                        windowSize: IntSize,
-                                        layoutDirection: LayoutDirection,
-                                        popupContentSize: IntSize
-                                    ): IntOffset {
-                                        val available = with(density) {
-                                        (windowSize.height - triggerBounds.bottom)
-                                            .coerceIn(80.dp.roundToPx(), windowSize.height)
-                                    }
-                                    menuMaxHeight = with(density) { available.toDp() }
-                                        return IntOffset(triggerBounds.left, triggerBounds.bottom)
-                                    }
-                                }
-                            ) {
-                                Surface(
-                                    modifier = Modifier.width(triggerWidth).heightIn(max = menuMaxHeight),
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    shadowElevation = 6.dp,
-                                    tonalElevation = 2.dp
-                                ) {
-                                    Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 4.dp)) {
-                                        listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
-                                            Row(
-                                                Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable {
-                                                        accentExpanded = false
-                                                        accentColor = value
-                                                        prefs.setAccentColor(value)
-                                                        (context as? Activity)?.recreate()
-                                                    }
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Surface(color = accentColorValue(value), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
-                                                Spacer(Modifier.size(10.dp))
-                                                Text(stringResource(accentNameRes(value)), style = MaterialTheme.typography.bodyLarge)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+item {
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
+                Button(onClick = { personalizationOpen = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Filled.Settings, contentDescription = null)
+                    Text("Configure", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
+    }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -625,16 +556,24 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 Text(stringResource(R.string.health_export_title), style = MaterialTheme.typography.titleLarge)
 
                 Text(stringResource(R.string.export_data_types), style = MaterialTheme.typography.titleSmall)
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    HealthDataType.values().forEach { type ->
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(
-                                checked = type in exportSelectedTypes,
-                                onCheckedChange = {
-                                    exportSelectedTypes = if (it) exportSelectedTypes + type else exportSelectedTypes - type
-                                }
-                            )
-                            Text(stringResource(type.nameResId), modifier = Modifier.weight(1f))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                ) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        HealthDataType.values().forEach { type ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = type in exportSelectedTypes,
+                                    onCheckedChange = {
+                                        exportSelectedTypes = if (it) exportSelectedTypes + type else exportSelectedTypes - type
+                                    }
+                                )
+                                Text(stringResource(type.nameResId), modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
@@ -683,6 +622,142 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 Spacer(Modifier.heightIn(min = 16.dp))
             }
         }
+    }
+    if (personalizationOpen) {
+        val sheetState = rememberModalBottomSheetState()
+        ModalBottomSheet(
+            onDismissRequest = { personalizationOpen = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Personalization", style = MaterialTheme.typography.titleLarge)
+                HorizontalDivider()
+
+                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    listOf("auto" to R.string.theme_auto, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEachIndexed { index, (value, label) ->
+                        SegmentedButton(
+                            selected = themeMode == value,
+                            onClick = {
+                                themeMode = value
+                                prefs.setThemeMode(value)
+                                (context as? Activity)?.recreate()
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index, 3),
+                        ) {
+                            Text(stringResource(label))
+                        }
+                    }
+                }
+
+                Text("Accent color", style = MaterialTheme.typography.titleSmall)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box {
+                        OutlinedButton(
+                            onClick = { accentExpanded = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Surface(color = accentColorValue(accentColor), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
+                            Spacer(Modifier.size(10.dp))
+                            Text(stringResource(accentNameRes(accentColor)))
+                            Spacer(Modifier.weight(1f))
+                            Icon(if (accentExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
+                        }
+                        DropdownMenu(
+                            expanded = accentExpanded,
+                            onDismissRequest = { accentExpanded = false }
+                        ) {
+                            listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Surface(color = accentColorValue(value), shape = CircleShape, modifier = Modifier.size(18.dp), content = {})
+                                            Spacer(Modifier.size(10.dp))
+                                            Text(stringResource(accentNameRes(value)))
+                                        }
+                                    },
+                                    onClick = {
+                                        accentExpanded = false
+                                        accentColor = value
+                                        prefs.setAccentColor(value)
+                                        (context as? Activity)?.recreate()
+                                    },
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Text("Language", style = MaterialTheme.typography.titleSmall)
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    APP_LANGUAGES.forEach { (tag, name) ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val newLang = tag
+                                    language = newLang
+                                    prefs.setAppLanguage(newLang)
+                                    if (newLang.isEmpty()) {
+                                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
+                                    } else {
+                                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(newLang))
+                                    }
+                                    showRestartDialog = true
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = language == tag, onClick = null)
+                            Spacer(Modifier.size(12.dp))
+                            Text(name)
+                        }
+                    }
+                }
+
+                Text("Screen orientation", style = MaterialTheme.typography.titleSmall)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Portrait only", modifier = Modifier.weight(1f))
+                    Switch(checked = portraitOnly, onCheckedChange = {
+                        portraitOnly = it
+                        prefs.setPortraitOnly(it)
+                        (context as? Activity)?.requestedOrientation = if (it) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                    })
+                }
+
+                Spacer(Modifier.heightIn(min = 16.dp))
+            }
+        }
+    }
+    if (showRestartDialog) {
+        AlertDialog(
+            onDismissRequest = { showRestartDialog = false },
+            title = { Text("Language changed") },
+            text = { Text("Restart the app to apply the new language?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRestartDialog = false
+                    val restartIntent = Intent(context, MainActivity::class.java).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    }
+                    context.startActivity(restartIntent)
+                    Runtime.getRuntime().exit(0)
+                }) { Text("Restart") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRestartDialog = false }) { Text("Later") }
+            }
+        )
     }
     scheduleToEdit?.let { target ->
         val pickerState = rememberTimePickerState(initialHour = target.hour, initialMinute = target.minute, is24Hour = true)
@@ -762,20 +837,6 @@ private fun accentColorValue(value: String): Color = when (value) {
 }
 private const val PROFILE_CACHE_MAX_AGE_MS = 24L * 60 * 60 * 1000
 private const val PROFILE_REFRESH_MAX_AGE_MS = 10L * 60 * 1000
-private fun localAvatarFile(context: android.content.Context) = java.io.File(context.filesDir, "avatar_cache.jpg")
-private fun downloadAvatarFile(context: android.content.Context, url: String) {
-    runCatching {
-        val req = okhttp3.Request.Builder().url(url).build()
-        okhttp3.OkHttpClient().newCall(req).execute().use { resp ->
-            if (resp.isSuccessful) resp.body?.bytes()?.let { localAvatarFile(context).writeBytes(it) }
-        }
-    }
-}
-private fun absoluteProfileUrl(endpoint: String, photo: String): String {
-    if (photo.isBlank() || photo.startsWith("http")) return photo
-    val uri = Uri.parse(endpoint)
-    return "${uri.scheme}://${uri.authority}/${photo.trimStart('/')}"
-}
 private fun performExport(
     context: android.content.Context,
     prefs: PreferencesManager,

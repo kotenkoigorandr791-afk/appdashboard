@@ -2,6 +2,7 @@ package com.stepmonitor.app.screens
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -41,20 +43,24 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.stepmonitor.app.BuildConfig
 import com.stepmonitor.app.HealthDataType
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
-import com.stepmonitor.app.ScheduledSync
-import com.stepmonitor.app.SyncMode
 import com.stepmonitor.app.WebhookConfig
 import com.stepmonitor.app.components.ManualSyncCard
+import com.stepmonitor.app.components.computeNextSyncInfo
+import com.stepmonitor.app.components.formatSyncCountdown
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.Calendar
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 private enum class ConnectionTestResult { SUCCESS, FAILURE }
 
@@ -108,6 +114,35 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
         }
         NextSyncCard(prefs = prefs)
         ManualSyncCard()
+        BuildInfoCard()
+    }
+}
+
+@Composable
+private fun BuildInfoCard() {
+    val dateLabel = LocalDate.now().format(
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.getDefault())
+    )
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column {
+                Text(dateLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    stringResource(R.string.about_app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -120,54 +155,16 @@ private fun NextSyncCard(prefs: PreferencesManager) {
             now = System.currentTimeMillis()
         }
     }
-    val syncMode = prefs.getSyncMode()
-    val nextSyncMs: Long?
-    val periodMs: Long
-    val nextSyncLabel: String
-    when (syncMode) {
-        SyncMode.SCHEDULED -> {
-            val syncs = prefs.getScheduledSyncs().filter { it.enabled }
-            if (syncs.isEmpty()) return
-            var earliest = Long.MAX_VALUE
-            var earliestLabel = ""
-            for (s in syncs) {
-                val cal = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, s.hour)
-                    set(Calendar.MINUTE, s.minute)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                    if (timeInMillis <= now) add(Calendar.DAY_OF_YEAR, 1)
-                }
-                if (cal.timeInMillis < earliest) {
-                    earliest = cal.timeInMillis
-                    earliestLabel = s.getDisplayTime()
-                }
-            }
-            nextSyncMs = earliest
-            periodMs = 24L * 60 * 60 * 1000
-            nextSyncLabel = earliestLabel
-        }
-        SyncMode.INTERVAL -> {
-            val intervalMs = prefs.getSyncIntervalMinutes() * 60_000L
-            val lastSync = prefs.getLastSyncTime()
-            val anchor = if (lastSync != null) lastSync else remember { now }
-            nextSyncMs = anchor + intervalMs
-            periodMs = intervalMs
-            nextSyncLabel = ""
-        }
-    }
-    if (nextSyncMs == null) return
-    val remainingMs = (nextSyncMs - now).coerceAtLeast(0L)
-    val fraction = if (periodMs > 0) (remainingMs.toFloat() / periodMs).coerceIn(0f, 1f) else 0f
+    val info = computeNextSyncInfo(prefs, now) ?: return
+    val remainingMs = (info.nextSyncMs - now).coerceAtLeast(0L)
+    val fraction = if (info.periodMs > 0) (remainingMs.toFloat() / info.periodMs).coerceIn(0f, 1f) else 0f
     val animatedFraction by animateFloatAsState(
         targetValue = fraction,
         animationSpec = tween(durationMillis = 800, easing = LinearEasing),
         label = "syncProgress"
     )
-    val hours = remainingMs / 3600_000L
-    val minutes = (remainingMs % 3600_000L) / 60_000L
-    val seconds = (remainingMs % 60_000L) / 1000L
-    val timeStr = "%02d:%02d:%02d".format(hours, minutes, seconds)
+    val timeStr = formatSyncCountdown(remainingMs)
+    val nextSyncLabel = info.label
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth()
