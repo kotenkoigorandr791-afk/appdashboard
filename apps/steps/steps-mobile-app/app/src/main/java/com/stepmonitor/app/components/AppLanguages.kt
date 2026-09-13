@@ -7,7 +7,7 @@ package com.stepmonitor.app.components
  * `""` represents "follow the system locale" and clears any per-app override.
  */
 val APP_LANGUAGES: List<Pair<String, String>> = listOf(
-    "" to "System default",
+    "" to "",
     "en" to "English",
     "ru" to "Русский",
     "uk" to "Українська",

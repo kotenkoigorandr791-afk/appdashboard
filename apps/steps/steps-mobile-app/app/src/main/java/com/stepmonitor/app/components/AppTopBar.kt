@@ -139,7 +139,7 @@ fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier
                 )
             } else {
                 Text(
-                    "v${BuildConfig.VERSION_NAME}",
+                    stringResource(R.string.app_version_short, BuildConfig.VERSION_NAME),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,

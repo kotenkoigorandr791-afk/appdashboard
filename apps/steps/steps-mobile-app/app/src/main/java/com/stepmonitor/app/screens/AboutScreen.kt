@@ -491,7 +491,7 @@ item {
                 Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
                 Button(onClick = { personalizationOpen = true }, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text("Configure", modifier = Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.about_configure), modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
@@ -635,10 +635,10 @@ item {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Personalization", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.about_personalization), style = MaterialTheme.typography.titleLarge)
                 HorizontalDivider()
 
-                Text("Theme", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.about_theme), style = MaterialTheme.typography.titleSmall)
                 SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                     listOf("auto" to R.string.theme_auto, "light" to R.string.theme_light, "dark" to R.string.theme_dark).forEachIndexed { index, (value, label) ->
                         SegmentedButton(
@@ -655,7 +655,7 @@ item {
                     }
                 }
 
-                Text("Accent color", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.about_accent_color), style = MaterialTheme.typography.titleSmall)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Box {
                         OutlinedButton(
@@ -698,7 +698,7 @@ item {
                     }
                 }
 
-                Text("Language", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.about_language), style = MaterialTheme.typography.titleSmall)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     APP_LANGUAGES.forEach { (tag, name) ->
                         Row(
@@ -720,14 +720,14 @@ item {
                         ) {
                             RadioButton(selected = language == tag, onClick = null)
                             Spacer(Modifier.size(12.dp))
-                            Text(name)
+                            Text(if (tag.isEmpty()) stringResource(R.string.system_default) else name)
                         }
                     }
                 }
 
-                Text("Screen orientation", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.about_screen_orientation), style = MaterialTheme.typography.titleSmall)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Portrait only", modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.about_portrait_only), modifier = Modifier.weight(1f))
                     Switch(checked = portraitOnly, onCheckedChange = {
                         portraitOnly = it
                         prefs.setPortraitOnly(it)
@@ -742,8 +742,8 @@ item {
     if (showRestartDialog) {
         AlertDialog(
             onDismissRequest = { showRestartDialog = false },
-            title = { Text("Language changed") },
-            text = { Text("Restart the app to apply the new language?") },
+            title = { Text(stringResource(R.string.about_language_changed_title)) },
+            text = { Text(stringResource(R.string.about_language_changed_text)) },
             confirmButton = {
                 TextButton(onClick = {
                     showRestartDialog = false
@@ -752,10 +752,10 @@ item {
                     }
                     context.startActivity(restartIntent)
                     Runtime.getRuntime().exit(0)
-                }) { Text("Restart") }
+                }) { Text(stringResource(R.string.about_restart)) }
             },
             dismissButton = {
-                TextButton(onClick = { showRestartDialog = false }) { Text("Later") }
+                TextButton(onClick = { showRestartDialog = false }) { Text(stringResource(R.string.about_later)) }
             }
         )
     }

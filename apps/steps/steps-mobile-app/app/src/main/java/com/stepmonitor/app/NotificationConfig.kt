@@ -1,9 +1,12 @@
 package com.stepmonitor.app
 
+import android.content.Context
 import kotlinx.serialization.Serializable
 
 enum class NotificationProviderType {
     GOTIFY, NTFY, TELEGRAM, DISCORD, PUSHOVER, CUSTOM_HTTP, LOCAL_PUSH;
+
+    val displayNameRes: Int = 0
 
     val displayName: String
         get() = when (this) {
@@ -48,14 +51,14 @@ data class NotificationConfig(
     // Custom HTTP: body template — supports {title} {message} {status}
     val bodyTemplate: String = ""
 ) {
-    val displayIdentifier: String
-        get() = when (providerType) {
-            NotificationProviderType.GOTIFY      -> url.ifEmpty { "Configured" }
-            NotificationProviderType.NTFY        -> if (url.isNotEmpty() && topic.isNotEmpty()) "$url/$topic" else if (url.isNotEmpty()) url else if (topic.isNotEmpty()) topic else "Configured"
-            NotificationProviderType.TELEGRAM    -> if (chatId.isNotEmpty()) "Chat: $chatId" else "Configured"
-            NotificationProviderType.DISCORD     -> url.ifEmpty { "Configured" }
-            NotificationProviderType.PUSHOVER    -> if (userKey.isNotEmpty()) "User: $userKey" else "Configured"
-            NotificationProviderType.CUSTOM_HTTP -> url.ifEmpty { "Configured" }
-            NotificationProviderType.LOCAL_PUSH  -> "Android notification"
-        }
+
+    fun displayIdentifier(context: Context): String = when (providerType) {
+        NotificationProviderType.GOTIFY      -> url.ifEmpty { "Configured" }
+        NotificationProviderType.NTFY        -> if (url.isNotEmpty() && topic.isNotEmpty()) "$url/$topic" else if (url.isNotEmpty()) url else if (topic.isNotEmpty()) topic else "Configured"
+        NotificationProviderType.TELEGRAM    -> if (chatId.isNotEmpty()) "Chat: $chatId" else "Configured"
+        NotificationProviderType.DISCORD     -> url.ifEmpty { "Configured" }
+        NotificationProviderType.PUSHOVER    -> if (userKey.isNotEmpty()) "User: $userKey" else "Configured"
+        NotificationProviderType.CUSTOM_HTTP -> url.ifEmpty { "Configured" }
+        NotificationProviderType.LOCAL_PUSH  -> "Android notification"
+    }
 }

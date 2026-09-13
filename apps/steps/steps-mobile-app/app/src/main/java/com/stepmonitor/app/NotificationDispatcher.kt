@@ -36,7 +36,7 @@ class NotificationDispatcher {
         val start = System.currentTimeMillis()
         var code: Int? = null
         var error: String? = null
-        val requestUrl = config.displayIdentifier
+        val requestUrl = config.displayIdentifier(context)
 
         try {
             val request = buildRequest(config, title, message)
