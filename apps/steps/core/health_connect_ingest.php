@@ -40,6 +40,21 @@ function hc_safe_date_from_time_value(mixed $v): ?string {
 }
 
 function hc_extract_record_date(array $record): ?string {
+    // Sleep sessions in mobile payload don't provide a top-level start_time.
+    // Use the earliest stage start day so the chart matches the day the user
+    // actually started sleeping (not the day it ended).
+    if (array_key_exists('session_end_time', $record) && array_key_exists('stages', $record) && is_array($record['stages']) && !empty($record['stages'])) {
+        $stageDates = [];
+        foreach ($record['stages'] as $stage) {
+            if (!is_array($stage)) continue;
+            $d = hc_safe_date_from_time_value($stage['start_time'] ?? ($stage['time'] ?? null));
+            if ($d !== null) $stageDates[] = $d;
+        }
+        if ($stageDates) {
+            sort($stageDates);
+            return (string)$stageDates[0];
+        }
+    }
     foreach (['start_time', 'time', 'end_time', 'session_end_time', 'measurement_time'] as $k) {
         if (array_key_exists($k, $record)) {
             $d = hc_safe_date_from_time_value($record[$k]);
@@ -101,7 +116,9 @@ function hc_metric_type_config(): array {
         'active_calories' => ['kind' => 'sum',    'fields' => ['calories'],                       'total' => 'total',        'unit' => 'kcal'],
         'total_calories'  => ['kind' => 'sum',    'fields' => ['calories'],                       'total' => 'total',        'unit' => 'kcal'],
         'sleep'           => ['kind' => 'sum',    'fields' => ['duration_seconds', 'duration', 'duration_millis'], 'total' => 'total_seconds', 'unit' => 'seconds', 'scales' => ['duration_millis' => 0.001]],
-        'heart_rate'      => ['kind' => 'series', 'fields' => ['bpm', 'value', 'heart_rate'],     'unit' => 'bpm'],
+        // Mobile payload sometimes sends aggregate HR as { time, avg, min, max } (without bpm).
+        // Keep series aggregation but allow using whichever numeric field is present per record.
+        'heart_rate'      => ['kind' => 'series', 'fields' => ['avg', 'bpm', 'value', 'heart_rate'], 'unit' => 'bpm'],
         'weight'          => ['kind' => 'series', 'fields' => ['kilograms', 'weight_kg', 'weight', 'value'], 'unit' => 'kg'],
         'blood_pressure'  => ['kind' => 'series', 'fields' => ['systolic'],                       'unit' => 'mmHg'],
         'oxygen_spo2'     => ['kind' => 'series', 'fields' => ['percentage', 'value'],            'unit' => '%'],

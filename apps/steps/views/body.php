@@ -102,13 +102,13 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
         <img src="kkal.webp" alt="<?php echo htmlspecialchars($translations['calories']); ?>">
     </button>
     <button class="data-type-btn" data-type="heart_rate" title="<?php echo htmlspecialchars($translations['heart_rate'] ?? 'Heart rate'); ?>">
-        <i class="fas fa-heartbeat"></i>
+        <img src="heart_rate.png" alt="<?php echo htmlspecialchars($translations['heart_rate'] ?? 'Heart rate'); ?>" onerror="this.style.display='none'">
     </button>
     <button class="data-type-btn" data-type="sleep" title="<?php echo htmlspecialchars($translations['sleep'] ?? 'Sleep'); ?>">
-        <i class="fas fa-moon"></i>
+        <img src="sleep.png" alt="<?php echo htmlspecialchars($translations['sleep'] ?? 'Sleep'); ?>" onerror="this.style.display='none'">
     </button>
     <button class="data-type-btn" data-type="weight" title="<?php echo htmlspecialchars($translations['weight'] ?? 'Weight'); ?>">
-        <i class="fas fa-weight-hanging"></i>
+        <img src="weight.png" alt="<?php echo htmlspecialchars($translations['weight'] ?? 'Weight'); ?>" onerror="this.style.display='none'">
     </button>
 </div>
         
