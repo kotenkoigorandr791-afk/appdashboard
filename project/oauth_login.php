@@ -349,13 +349,13 @@ function oauthHandleLoginFlow(array $profile): void {
         $email = $linkedEmail;
     }
     linkOAuthConnection($email, $profile);
-    if (isset($users[$email]) && !empty($users[$email]['verified']) && !userNeedsPasswordSet($users[$email])) {
+    if (isset($users[$email]) && !empty($users[$email]['verified']) && !userNeedsPasswordSet($users[$email]) && empty($users[$email]['must_change_password'])) {
         oauthCompleteLogin($email, $users);
         header('Location: ' . takePostLoginRedirect('/main'));
         exit;
     }
     $isNewUser = !isset($users[$email]);
-    $needsPasswordOnly = isset($users[$email]) && !empty($users[$email]['verified']) && userNeedsPasswordSet($users[$email]);
+    $needsPasswordOnly = isset($users[$email]) && !empty($users[$email]['verified']) && (userNeedsPasswordSet($users[$email]) || !empty($users[$email]['must_change_password']));
     $_SESSION['pending_oauth_data'] = [
         'email' => $email,
         'name' => $profile['name'] ?: ($users[$email]['name'] ?? explode('@', $email)[0]),

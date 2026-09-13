@@ -31,7 +31,15 @@ if (PHP_SAPI === 'cli' && isset($argv[1])) {
 $config = in_array($action, ['ai_worker_run', 'ai_run_status', 'ai_run_cancel'], true)
     ? ['api_key' => '', 'api_endpoint' => '', 'default_model' => CLOUD_AI_DEFAULT_MODEL, 'models' => CLOUD_AI_DEFAULT_MODELS]
     : cloud_ai_load_config();
-if ((empty($config['api_key']) || empty($config['api_endpoint'])) && !in_array($action, ['ai_run_status', 'ai_run_cancel', 'ai_worker_run'], true)) {
+$noConfigActions = [
+    'ai_run_status', 'ai_run_cancel', 'ai_worker_run',
+    'ai_chat_sessions', 'ai_chat_load', 'ai_chat_append', 'ai_chat_clear',
+    'ai_chat_create', 'ai_chat_delete',
+    'ai_user_settings_get', 'ai_user_settings_set',
+    'ai_runtime_config',
+    'save_history', 'load_history', 'clear_history'
+];
+if ((empty($config['api_key']) || empty($config['api_endpoint'])) && !in_array($action, $noConfigActions, true)) {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['error' => 'Invalid AI configuration']);
     exit;

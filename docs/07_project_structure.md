@@ -19,7 +19,6 @@
 ├── composer.lock                      # Composer lock file
 ├── data/db.env                        # PostgreSQL credentials (appdashboard)
 ├── default_avatar.png                 # Default user avatar image
-├── default_icon.png                   # Default application icon
 ├── google.png                         # Google OAuth icon
 ├── google7cb515c0a41e4548.html        # Google Search Console verification
 ├── icon.png                           # Main application icon

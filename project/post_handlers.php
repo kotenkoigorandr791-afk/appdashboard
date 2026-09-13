@@ -184,7 +184,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=$translations[$passwordErrorKey];
         }else{
             $users=loadUsers();
-            if(isset($users[$email])&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
+            $pendingSetPasswordData=$_SESSION['pending_oauth_data']??$_SESSION['pending_google_data']??null;
+            $canSetExistingPassword=!empty($_SESSION['pending_set_password_only'])&&is_array($pendingSetPasswordData)&&hash_equals(apNormalizeAuthEmail((string)($pendingSetPasswordData['email']??'')),$email);
+            if(isset($users[$email])&&$canSetExistingPassword&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
                 $users[$email]['password']=appPasswordHash($password);
                 $users[$email]['must_change_password']=0;
                 upsertUser($email,$users[$email]);
@@ -1356,7 +1358,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $_apName = $_apNameData[$language]??($_apNameData['en']??$_apFolder);
                 $_apIconSvg = $_apSubdir.'/icon.svg';
                 $_apIconPng = $_apSubdir.'/icon.png';
-                $_apIcon = file_exists($_apIconSvg) ? $_apIconSvg : (file_exists($_apIconPng) ? $_apIconPng : 'default_icon.png');
+                $_apIcon = file_exists($_apIconSvg) ? $_apIconSvg : (file_exists($_apIconPng) ? $_apIconPng : defaultAppIconSrc());
                 $_apTotalV = $_apVisitStats2[$_apFolder] ?? 0;
                 $_apMr = getAppMinRole($_apFolder);
                 $_apAccessApps[] = ['folder'=>$_apFolder,'name'=>$_apName,'icon'=>$_apIcon,'is_svg'=>(strtolower(pathinfo($_apIcon,PATHINFO_EXTENSION))==='svg'),'visits'=>(int)$_apTotalV,'min_role'=>$_apMr];

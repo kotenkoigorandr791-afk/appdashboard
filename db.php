@@ -16,14 +16,19 @@ function appPasswordHash(string $password): string {
     ]);
 }
 function appPasswordVerify(string $password, string $hash): bool {
-    return $hash !== '' && password_verify($password, $hash);
+    return appPasswordIsArgon2idHash($hash) && password_verify($password, $hash);
 }
 function appPasswordNeedsRehash(string $hash): bool {
-    return $hash === '' || password_needs_rehash($hash, PASSWORD_ARGON2ID, [
+    return !appPasswordIsArgon2idHash($hash) || password_needs_rehash($hash, PASSWORD_ARGON2ID, [
         'memory_cost' => PASSWORD_ARGON2_DEFAULT_MEMORY_COST,
         'time_cost' => PASSWORD_ARGON2_DEFAULT_TIME_COST,
         'threads' => PASSWORD_ARGON2_DEFAULT_THREADS,
     ]);
+}
+function appPasswordIsArgon2idHash(string $hash): bool {
+    if ($hash === '') return false;
+    $info = password_get_info($hash);
+    return ($info['algo'] ?? null) === PASSWORD_ARGON2ID || ($info['algoName'] ?? '') === 'argon2id';
 }
 function appClearPendingPasswordFlow(): void {
     unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'], $_SESSION['pending_set_password_only']);
@@ -1122,8 +1127,7 @@ function userNeedsPasswordSet(?array $user): bool {
     if (!$user) return false;
     $hash = trim((string)($user['password'] ?? ''));
     if ($hash === '') return true;
-    $info = password_get_info($hash);
-    return (($info['algoName'] ?? 'unknown') === 'unknown');
+    return !appPasswordIsArgon2idHash($hash);
 }
 
 function getUserByEmail(string $email): ?array {

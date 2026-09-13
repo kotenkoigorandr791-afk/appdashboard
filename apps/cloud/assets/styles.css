@@ -215,7 +215,7 @@ body.tabs-empty:not(.trash-mode) .tabs-container,body.tabs-empty:not(.trash-mode
 .viewer textarea.editor{width:100%;height:100%;padding:16px;background:var(--code-bg);color:#e6e6e6;border:none;resize:none;font-family:monospace}
 .api-key-masked{-webkit-text-security:disc;text-security:disc}
 .trash-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;padding:18px;width:100%;height:100%;min-width:0;min-height:0;align-content:start;align-items:stretch;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track)}
-.trash-empty{display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--muted);font-size:15px}
+.trash-empty{display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--muted);font-size:15px;gap:10px}.trash-empty-icon{display:flex;align-items:center;justify-content:center}.trash-empty-icon svg{width:20px;height:20px}
 .trash-item{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:0;min-height:172px;height:100%;padding:10px 14px 14px;border:1px solid var(--border);border-radius:14px;background:color-mix(in srgb,var(--panel) 82%,var(--bg));cursor:pointer;user-select:none;outline:none;transition:transform .14s ease,border-color .14s ease,box-shadow .14s ease,background .14s ease;position:relative;touch-action:manipulation}
 .trash-item:hover{transform:translateY(-1px);border-color:var(--accent)}
 .trash-item:focus{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 26%,transparent)}
@@ -409,7 +409,7 @@ body[data-theme="dark"] .modal{background:rgba(32,32,32,0.72)}
 .modal-body table{width:100%;table-layout:auto;overflow-x:auto;display:block}
 .modal-body input,.modal-body textarea,.modal-body button{max-width:100%;box-sizing:border-box}
 .modal-footer{display:flex;justify-content:flex-end;gap:10px;padding:15px 20px;border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.lang-switcher{display:flex;border:1px solid var(--border);border-radius:4px;overflow:hidden;margin-right:8px}
+.lang-switcher{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-right:8px}
 .lang-option{padding:6px 8px;cursor:pointer;font-size:12px;font-weight:500;text-align:center;min-width:40px;background:var(--panel);color:var(--muted);border-right:1px solid var(--border);transition:all 0.2s ease;user-select:none}
 .lang-option:last-child{border-right:none}
 .lang-option:hover{background:color-mix(in srgb,var(--accent) 14%,var(--bg));color:var(--fg)}

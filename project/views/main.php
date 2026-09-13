@@ -3736,13 +3736,15 @@ var T=<?php echo json_encode([
                     const menuRect=menuButton.getBoundingClientRect();
                     hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
                         if(!isVisibleLayer(el,win))return false;
-                        hasLayer=true;
-                        return layerRects(el,win).some(rect=>rectsOverlap(menuRect,{
+                        if(el.closest('.drawer,.drawer-overlay,[class*="Drawer"],[class*="drawer"]'))return false;
+                        const overlaps=layerRects(el,win).some(rect=>rectsOverlap(menuRect,{
                             left:iframeRect.left+rect.left,
                             right:iframeRect.left+rect.right,
                             top:iframeRect.top+rect.top,
                             bottom:iframeRect.top+rect.bottom
                         }));
+                        if(overlaps)hasLayer=true;
+                        return overlaps;
                     });
                 }catch(e){}
                 document.body.classList.toggle('app-modal-open',hasLayer||hasOverlap);
