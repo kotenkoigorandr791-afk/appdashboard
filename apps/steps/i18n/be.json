@@ -300,5 +300,17 @@
     "mobile_app_download_notice": "Кнопка спампоўвання мабільнай праграмы схаваная. Яе можна ўключыць у наладах.",
     "mobile_app_button": "Кнопка мабільнай праграмы",
     "mobile_app_button_show": "Паказваць кнопку спампоўвання",
-    "mobile_app_devices": "Падключаныя прылады"
+    "mobile_app_devices": "Падключаныя прылады",
+    "copy": "Капіяваць",
+    "hc_token_title": "Аўтарызацыя Health Connect",
+    "hc_token_subtitle": "Выкарыстоўвайце токен ніжэй як Authorization: Bearer <token>.",
+    "hc_token_help_open": "Як выкарыстоўваць токен",
+    "hc_token_endpoint": "Endpoint",
+    "hc_token_name": "Назва токена",
+    "hc_token_generate": "Стварыць",
+    "hc_token_value_label": "Токен",
+    "hc_token_help_title": "Наладжванне токена",
+    "hc_token_help_step1": "Стварыце токен для мабільнай праграмы.",
+    "hc_token_help_step2": "Адскануйце QR-код або адкрыйце спасылку StepMonitor на тэлефоне.",
+    "hc_token_help_step3": "Праграма будзе адпраўляць даныя Health Connect на гэты серверны endpoint."
 }

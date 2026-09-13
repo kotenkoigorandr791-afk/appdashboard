@@ -18,6 +18,24 @@
         let currentRow = 0;
         let currentCol = 0;
         let isEditing = false;
+        (() => {
+            const selector = '.app-steps button, .hc-token-btn, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn';
+            const pressedSelector = selector.split(',').map(part => part.trim() + '.is-pressed').join(',');
+            const setPressed = (target, pressed) => {
+                const button = target && target.closest ? target.closest(selector) : null;
+                if (!button || button.disabled) return;
+                button.classList.toggle('is-pressed', pressed);
+            };
+            const clearPressed = () => document.querySelectorAll(pressedSelector).forEach(button => button.classList.remove('is-pressed'));
+            document.addEventListener('pointerdown', event => {
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                setPressed(event.target, true);
+            }, true);
+            document.addEventListener('pointerup', clearPressed, true);
+            document.addEventListener('pointercancel', clearPressed, true);
+            document.addEventListener('dragstart', clearPressed, true);
+            window.addEventListener('blur', clearPressed);
+        })();
 
         Chart.register(ChartZoom);
 

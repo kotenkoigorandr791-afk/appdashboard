@@ -300,5 +300,17 @@
     "mobile_app_download_notice": "The mobile app download button was hidden. You can enable it again in settings.",
     "mobile_app_button": "Mobile app button",
     "mobile_app_button_show": "Show download button",
-    "mobile_app_devices": "Connected devices"
+    "mobile_app_devices": "Podłączone urządzenia",
+    "copy": "Kopiuj",
+    "hc_token_title": "Autoryzacja Health Connect",
+    "hc_token_subtitle": "Użyj poniższego tokenu jako Authorization: Bearer <token>.",
+    "hc_token_help_open": "Jak użyć tokenu",
+    "hc_token_endpoint": "Endpoint",
+    "hc_token_name": "Nazwa tokenu",
+    "hc_token_generate": "Wygeneruj",
+    "hc_token_value_label": "Token",
+    "hc_token_help_title": "Konfiguracja tokenu",
+    "hc_token_help_step1": "Wygeneruj token dla aplikacji mobilnej.",
+    "hc_token_help_step2": "Zeskanuj kod QR albo otwórz link StepMonitor na telefonie.",
+    "hc_token_help_step3": "Aplikacja będzie wysyłać dane Health Connect do tego endpointu serwera."
 }
