@@ -22,7 +22,7 @@ ENV HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-home
 ENV XDG_CACHE_HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache
 ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx supervisor git curl ca-certificates sudo unzip zip p7zip-full mosquitto mosquitto-clients \
+    nginx libnginx-mod-http-modsecurity modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full mosquitto mosquitto-clients \
     libpq-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
     libxml2-dev libonig-dev libicu-dev ffmpeg tesseract-ocr tesseract-ocr-rus \
     tesseract-ocr-ukr smartmontools util-linux openssh-client \
@@ -60,7 +60,17 @@ RUN echo 'www-data ALL=(ALL) NOPASSWD: /usr/sbin/smartctl' > /etc/sudoers.d/www-
 RUN mkdir -p /run/php /var/log/supervisor /opt/AppDashboard/data /opt/ApplicationData/cloud_video_tmp/.hyperframes-home /opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm /var/www/.hyperframes \
     && chown -R www-data:www-data /run/php /opt/AppDashboard /opt/ApplicationData /var/www/.hyperframes \
     && su -s /bin/sh www-data -c 'hyperframes telemetry disable || true'
+RUN mkdir -p /etc/nginx/modsecurity /var/log/modsecurity \
+    && cp /etc/nginx/modsecurity.conf /etc/modsecurity/modsecurity.conf \
+    && cp /etc/nginx/unicode.mapping /etc/modsecurity/unicode.mapping \
+    && sed -i 's/^SecRuleEngine .*/SecRuleEngine On/; s/^SecRequestBodyLimit .*/SecRequestBodyLimit 67108864/; s/^SecRequestBodyNoFilesLimit .*/SecRequestBodyNoFilesLimit 1048576/; s/^SecRequestBodyLimitAction .*/SecRequestBodyLimitAction Reject/; s|^SecAuditLog .*|SecAuditLog /var/log/modsecurity/audit.log|; s/^SecAuditLogType .*/SecAuditLogType Serial/; s/^SecAuditEngine .*/SecAuditEngine RelevantOnly/; s/^SecAuditLogRelevantStatus .*/SecAuditLogRelevantStatus \"^(?:5|4(?!04))\"/; s/^SecAuditLogParts .*/SecAuditLogParts ABIJDEFHZ/' /etc/modsecurity/modsecurity.conf \
+    && if [ -f /usr/share/modsecurity-crs/crs-setup.conf.example ]; then cp /usr/share/modsecurity-crs/crs-setup.conf.example /etc/nginx/modsecurity/crs-setup.conf; elif [ -f /etc/modsecurity/crs/crs-setup.conf ]; then cp /etc/modsecurity/crs/crs-setup.conf /etc/nginx/modsecurity/crs-setup.conf; else touch /etc/nginx/modsecurity/crs-setup.conf; fi \
+    && if [ -d /usr/share/modsecurity-crs/rules ]; then printf 'Include /usr/share/modsecurity-crs/rules/*.conf\n' > /etc/nginx/modsecurity/owasp-crs.load; else printf 'Include /usr/share/owasp-modsecurity-crs/rules/*.conf\n' > /etc/nginx/modsecurity/owasp-crs.load; fi \
+    && chown -R www-data:adm /var/log/modsecurity \
+    && chmod 0775 /var/log/modsecurity
 COPY nginx/appdashboard.conf /etc/nginx/sites-available/appdashboard.conf
+COPY deploy/waf/appdashboard-modsecurity.conf /etc/nginx/modsecurity/appdashboard.conf
+COPY deploy/waf/appdashboard-crs-exclusions.conf /etc/nginx/modsecurity/appdashboard-crs-exclusions.conf
 COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY . /var/www/AppDashboard/
