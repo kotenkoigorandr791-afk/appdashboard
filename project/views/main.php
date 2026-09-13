@@ -221,10 +221,14 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         body.wallpaper-custom::before{opacity:0!important;}
         body.wallpaper-custom::after{content:'';position:fixed;inset:-8px;z-index:-1;pointer-events:none;background-image:var(--wallpaper-url);background-size:cover;background-position:center;background-repeat:no-repeat;filter:blur(3px);transform:scale(1.01);opacity:1;}
         #top-bar,#sidebar,#content{z-index:1;}
-        #top-bar{position:fixed;top:0;left:0;width:100%;height:54px;background:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));box-shadow:0 8px 28px rgba(0,0,0,0.08);}
+        #top-bar{position:fixed;top:0;left:0;width:100%;height:56px;background:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));box-shadow:0 8px 28px rgba(0,0,0,0.08);}
         body.light-theme #top-bar{background:rgba(240,244,248,0.20);}
         body.light-theme #sidebar{background:rgba(240,244,248,0.20);}
         #top-bar-title{font-weight:bold;font-size:18px;flex:1;min-width:0;text-align:center;position:absolute;left:50%;transform:translateX(-50%);}
+        .std-topbar{display:flex;align-items:center;justify-content:space-between;height:60px;padding:0 16px;background:var(--bg2);border-bottom:1px solid var(--border-color);flex-shrink:0;box-sizing:border-box;}
+        .std-topbar-title{font-size:26px;font-weight:700;color:var(--text-color);margin:0;line-height:1.2;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        .std-topbar-close{width:40px;height:40px;margin-left:12px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:24px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;padding:0;line-height:1;text-align:center;}
+        .std-topbar-close:hover{background:var(--danger,#ef4444);color:#fff;border-color:var(--danger,#ef4444);}
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #notifications-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #notifications-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
@@ -246,8 +250,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #home-root-button svg{width:22px;height:22px;}
         #home-root-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #menu-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
-        #top-bar #support-chat-btn{position:absolute;right:16px;top:5px;margin-left:0;}
-        #top-bar #notifications-btn{position:absolute;right:64px;top:5px;margin-left:0;}
+        #top-bar #support-chat-btn{position:absolute;right:16px;top:8px;margin-left:0;}
+        #top-bar #notifications-btn{position:absolute;right:64px;top:8px;margin-left:0;}
         #menu-button .menu-button-glyph{width:auto;height:auto;}
         #menu-button .menu-button-glyph svg{width:22px;height:22px;}
         <?php else: ?>
@@ -322,6 +326,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .search-container.open #search-bar{opacity:1;transform:translateX(0);}
         #bottom-bar #support-chat-btn.app-page-chat{position:relative;top:auto;right:auto;left:auto;margin-left:8px;width:36px;height:36px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);box-shadow:none;color:var(--text-color);padding:0;border-radius:999px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transform:none;}
         #bottom-bar #support-chat-btn.app-page-chat:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
+        #bottom-bar #support-chat-btn.app-page-chat svg{width:20px;height:20px;opacity:0.65;}
         #bottom-bar .bottom-bar-actions .sidebar-button{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);border-radius:999px;width:36px;height:36px;padding:0;box-shadow:none;margin:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);}
         #bottom-bar .bottom-bar-actions .sidebar-button svg{width:20px;height:20px;opacity:0.65;}
         #bottom-bar .bottom-bar-actions .sidebar-button:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
@@ -550,7 +555,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #policy-modal-overlay.active{display:flex;}
         #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);padding:6px;}
         #policy-modal iframe{flex:1;width:100%;border:none;border-radius:calc(var(--casa-radius) - 6px);}
-        #policy-modal-close{position:absolute;top:10px;right:14px;width:36px;height:36px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:20px;cursor:pointer;z-index:30001;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;}
+        #policy-modal-close{position:absolute;top:16px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:26px;cursor:pointer;z-index:30001;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;padding:0;line-height:1;}
         #policy-modal-close:hover{opacity:0.7;}
         #stats-content{background:var(--modal-bg);padding:60px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:85vh;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #stats-nav-box{border:1px solid var(--border-color);border-radius:12px;padding:15px;margin-bottom:20px;background:var(--group-block-bg);flex-shrink:0;}
@@ -1240,9 +1245,31 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             display: flex;
             align-items: center;
             gap: 16px;
-            padding: 24px 148px 20px 24px;
+            padding: 0 20px 0 20px;
+            height: 60px;
             border-bottom: 1px solid var(--border-color);
             background: linear-gradient(180deg, color-mix(in srgb, var(--group-block-bg) 85%, transparent), transparent);
+        }
+        .weather-modal-close-btn {
+            width: 40px;
+            height: 40px;
+            min-width: 40px;
+            min-height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            padding: 0;
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-size: 24px;
+            cursor: pointer;
+            margin-left: auto;
+        }
+        .weather-modal-close-btn:hover {
+            background: var(--bg-overlay);
         }
         .weather-modal-body {
             padding: 20px 24px;
@@ -1290,7 +1317,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         }
         .weather-settings-header h3 {
             margin: 0 0 18px 0;
-            font-size: 20px;
+            font-size: 28px;
             font-weight: 700;
             color: var(--text-color);
         }
@@ -1724,7 +1751,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             min-width: 0;
         }
         .weather-modal-title {
-            font-size: 13px;
+            font-size: 16px;
             font-weight: 600;
             letter-spacing: 0.04em;
             text-transform: uppercase;
@@ -1732,7 +1759,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             margin-bottom: 4px;
         }
         .weather-modal-city {
-            font-size: 22px;
+            font-size: 28px;
             font-weight: 700;
             line-height: 1.2;
         }
@@ -2230,6 +2257,10 @@ endif; // showOtpPage
 <div id="auth-modal">
     <div class="gradient-bg"></div>
     <div id="auth-form">
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['set_password'] ?? 'Set password'); ?></h2>
+            <button id="close-auth" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <?php if($path === '/register' && isset($pendingGoogleData) && $pendingGoogleData): ?>
             <div class="auth-tabs" style="display: none;"></div>
             <?php if(isset($showReVerifyForm)&&$showReVerifyForm): ?>
@@ -2252,7 +2283,6 @@ endif; // showOtpPage
             </div>
             <?php else: ?>
             <div id="set-password-content" class="auth-content active">
-                <h2><?php echo my_htmlspecialchars($translations['set_password']); ?></h2>
                 <?php if(isset($_GET['new_oauth_user']) || isset($_GET['new_google_user'])): ?>
                 <div class="auth-error" style="margin-bottom:10px;">
                     <?php echo my_htmlspecialchars($translations['oauth_user_not_found'] ?? $translations['google_user_not_found']); ?>
@@ -2459,10 +2489,12 @@ endif; // showOtpPage
 <?php if(isset($_SESSION['user'])):?>
     <?php $profileModalInitialOpen=isset($_GET['profile'])||isset($_POST['reset_photo'])||isset($_POST['oauth_unlink'])||isset($_GET['oauth_linked'])||isset($_GET['oauth_error']); ?>
     <div id="profile-modal"<?php echo $profileModalInitialOpen?' style="display:flex;"':''; ?>>
+        <div class="std-topbar">
+            <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['user_profile']); ?></h3>
+            <button id="close-profile" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <div id="profile-content">
-            <button id="close-profile" type="button">&times;</button>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['user_profile']); ?></h2>
             <?php if(isset($profileError)):?><div class="auth-error"><?php echo my_htmlspecialchars($profileError); ?></div><?php endif;?>
             <?php if(isset($profileSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($profileSuccess); ?></div><?php endif;?>
             <div class="profile-section">
@@ -2610,10 +2642,12 @@ endif; // showOtpPage
 <?php endif;?>
 <?php if($isRootUser):?>
     <div id="email-modal">
+        <div class="std-topbar">
+            <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['email_settings']); ?></h3>
+            <button id="close-email" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <form id="email-form" method="post" action="/main">
-            <button id="close-email" type="button">&times;</button>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['email_settings']); ?></h2>
             <?php if(isset($emailSettingsSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($emailSettingsSuccess); ?></div><?php endif;?>
             <?php if(isset($emailSettingsError)):?><div class="auth-error"><?php echo my_htmlspecialchars($emailSettingsError); ?></div><?php endif;?>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['google_client_id']); ?>:</label><input type="text" name="google_client_id" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['google_client_id']); ?>" required></div>
@@ -2634,9 +2668,11 @@ endif; // showOtpPage
     <!-- Telegram Bot Modal (admin only) -->
     <?php $tgCfg = loadTgBotConfig(); ?>
     <div id="tg-bot-modal">
+        <div class="std-topbar">
+            <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['bot_settings'] ?? 'Bot Settings'); ?></h3>
+            <button id="close-tg-bot" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <div id="tg-bot-content">
-            <button id="close-tg-bot" type="button">&times;</button>
-            <h2 style="margin-bottom:4px;"><?php echo my_htmlspecialchars($translations['bot_settings'] ?? 'Bot Settings'); ?></h2>
             <p style="font-size:12px;color:#888;margin-bottom:20px;"><?php echo my_htmlspecialchars($translations['tg_bot_desc'] ?? 'Configure your Telegram bot to receive notifications about new registrations.'); ?></p>
 
             <div class="tg-bot-field">
@@ -2689,9 +2725,11 @@ endif; // showOtpPage
 
     <!-- Delete User Modal (admin only) -->
     <div id="delete-user-modal">
+        <div class="std-topbar">
+            <h3 class="std-topbar-title" id="delete-user-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h3>
+            <button id="close-delete-user" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <div id="delete-user-content">
-            <button id="close-delete-user" type="button">&times;</button>
-            <h2 id="delete-user-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h2>
             <p id="delete-user-email-display" style="color:#888;font-size:13px;margin-bottom:12px;"></p>
 
             <div id="delete-user-files-section">
@@ -2747,9 +2785,11 @@ endif; // showOtpPage
     </div>
 
     <div id="reset-user-password-modal">
+        <div class="std-topbar">
+            <h3 class="std-topbar-title" id="reset-user-password-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h3>
+            <button id="close-reset-user-password" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <div id="reset-user-password-content">
-            <button id="close-reset-user-password" type="button">&times;</button>
-            <h2 id="reset-user-password-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h2>
             <p id="reset-user-password-email-display" style="color:#888;font-size:13px;margin-bottom:12px;"></p>
             <p style="font-size:13px;opacity:.8;margin:0 0 8px 0;"><?php echo my_htmlspecialchars($translations['reset_user_password_hint'] ?? 'A strong password will be set for this user. Share it securely after reset.'); ?></p>
             <div id="reset-password-form-section">
@@ -2784,9 +2824,11 @@ endif; // showOtpPage
 <?php if($isRootUser):?>
     <div id="users-modal">
         <div id="users-content">
-            <button id="close-users" type="button">&times;</button>
+            <div class="std-topbar">
+                <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['user_management']); ?></h2>
+                <button id="close-users" type="button" class="std-topbar-close">&times;</button>
+            </div>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['user_management']); ?></h2>
             <?php if(isset($userManagementSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($userManagementSuccess); ?></div><?php endif;?>
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
                 <div class="users-search-container" style="flex:1;min-width:160px;margin-bottom:0;">
@@ -2840,9 +2882,11 @@ endif; // showOtpPage
 <?php if(isset($_SESSION['user'])):?>
     <div id="sessions-modal">
         <div id="sessions-content">
-            <div class="modal-header"><div class="modal-header-left"><h2><?php echo my_htmlspecialchars($translations['session_management']); ?></h2></div><button id="close-sessions" type="button">&times;</button></div>
+            <div class="std-topbar">
+                <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['session_management']); ?></h2>
+                <button id="close-sessions" type="button" class="std-topbar-close">&times;</button>
+            </div>
         <div class="modal-scroll-body">
-            <h2><?php echo my_htmlspecialchars($translations['session_management']); ?></h2>
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['active_sessions']); ?></h3><button id="refresh-sessions" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
             <?php if(isset($sessionManagementSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($sessionManagementSuccess); ?></div><?php endif;?>
             <div id="sessions-list-container">
@@ -2907,8 +2951,10 @@ endif; // showOtpPage
 <?php endif;?>
 <div id="shared-files-modal">
     <div id="shared-files-content">
-        <button id="close-shared-files" type="button">&times;</button>
-        <h2 style="margin:0 0 12px 0;flex-shrink:0;"><?php echo my_htmlspecialchars($translations['shared_files_management']); ?></h2>
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['shared_files_management']); ?></h2>
+            <button id="close-shared-files" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <?php if(isset($sharedFilesSuccess)):?><div class="auth-success" style="flex-shrink:0;"><?php echo my_htmlspecialchars($sharedFilesSuccess); ?></div><?php endif;?>
         <div class="shared-files-header" style="flex-shrink:0;">
             <div class="shared-files-search-container">
@@ -2998,7 +3044,10 @@ endif; // showOtpPage
 </div>
 <div id="qr-modal">
     <div id="qr-content">
-        <div class="modal-header"><div class="modal-header-left"><h2><?php echo my_htmlspecialchars($translations['qr_code_title']); ?></h2></div><button id="close-qr" type="button">&times;</button></div>
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['qr_code_title']); ?></h2>
+            <button id="close-qr" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <div class="modal-scroll-body">
         <div class="qr-container">
             <p><?php echo my_htmlspecialchars($translations['qr_code'] ?? 'QR Code'); ?> · styled · rounded dots</p>
@@ -3048,9 +3097,11 @@ endif; // showOtpPage
 <?php endif;?>
 <div id="settings-modal">
     <form id="settings-form" method="post" action="/main">
-        <button id="close-settings" type="button">&times;</button>
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['settings_title']); ?></h2>
+            <button id="close-settings" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <div class="modal-scroll-body">
-        <h2><?php echo my_htmlspecialchars($translations['settings_title']); ?></h2>
         <div class="settings-table">
                 <div class="settings-table-cell">
                     <label><?php echo my_htmlspecialchars($translations['language']); ?>:</label>
@@ -3210,8 +3261,10 @@ endif; // showOtpPage
 </div>
 <div id="shortcuts-modal">
     <div id="shortcuts-content">
-        <button id="close-shortcuts" type="button">&times;</button>
-        <h2 style="margin:0 0 12px 0;"><?php echo my_htmlspecialchars($translations['keyboard_shortcuts'] ?? 'Keyboard Shortcuts'); ?></h2>
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['keyboard_shortcuts'] ?? 'Keyboard Shortcuts'); ?></h2>
+            <button id="close-shortcuts" type="button" class="std-topbar-close">&times;</button>
+        </div>
         <p style="margin:0 0 12px 0;opacity:.75;"><?php echo my_htmlspecialchars($translations['keyboard_shortcuts_desc'] ?? 'Hotkeys available on the home screen with app tiles.'); ?></p>
         <?php if (!empty($_guideEnabled)): ?>
         <button id="guide-reopen-btn" type="button" onclick="window.startOnboardingTour&&window.startOnboardingTour()" style="display:flex;align-items:center;gap:8px;margin:0 0 14px 0;padding:9px 16px;border-radius:12px;border:1px solid color-mix(in srgb,var(--primary-color) 45%,transparent);background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-color);font:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:background .2s;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg><?php echo my_htmlspecialchars($translations['guide_reopen'] ?? 'Watch guide'); ?></button>
@@ -3285,11 +3338,9 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 <?php $wpCatalog = ap_wallpaper_catalog(); ?>
 <div id="wallpaper-modal">
     <div id="wallpaper-modal-content">
-        <div class="modal-header">
-            <div class="modal-header-left">
-                <h2><?php echo my_htmlspecialchars($translations['wallpaper_choose'] ?? 'Choose background'); ?></h2>
-            </div>
-            <button id="close-wallpaper-modal" type="button">&times;</button>
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['wallpaper_choose'] ?? 'Choose background'); ?></h2>
+            <button id="close-wallpaper-modal" type="button" class="std-topbar-close">&times;</button>
         </div>
         <div class="modal-scroll-body">
             <div class="wallpaper-picker" id="wallpaper-picker">
@@ -3355,8 +3406,16 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         radial-gradient(circle at 40% 80%, var(--chat-color-lighter) 0%, transparent 50%);
     animation: float 20s ease-in-out infinite;
 }
+@keyframes pulseSoft {
+    0%, 100% { box-shadow: 0 8px 24px var(--chat-color-shadow); }
+    50% { box-shadow: 0 8px 28px var(--chat-color-shadow), 0 0 0 6px var(--chat-color-ring); }
+}
 #support-chat-btn.has-unread {
-    animation: pulse 2s ease-in-out infinite;
+    animation: pulseSoft 2s ease-in-out infinite;
+}
+#bottom-bar #support-chat-btn.app-page-chat.has-unread,
+#bottom-bar #support-chat-btn.app-page-chat:hover{
+    animation: none;
 }
 .chat-messages-scroll {
     scrollbar-width: thin;
@@ -3644,7 +3703,7 @@ var T=<?php echo json_encode([
         if(!overlay){
             overlay = document.createElement('div');
             overlay.id = 'policy-modal-overlay';
-            overlay.innerHTML = '<div id="policy-modal" style="position:relative;background:var(--modal-bg);"><button id="policy-modal-close" type="button">&times;</button><iframe src="'+url+'"></iframe></div>';
+            overlay.innerHTML = '<div id="policy-modal" style="position:relative;background:var(--modal-bg);"><div class="std-topbar"><h2 class="std-topbar-title">Policy</h2><button id="policy-modal-close" type="button" class="std-topbar-close">&times;</button></div><div class="modal-scroll-body"><iframe src="'+url+'"></iframe></div></div>';
             document.body.appendChild(overlay);
             overlay.addEventListener('click', e => { if(e.target === overlay) closePolicyModal(); });
             overlay.querySelector('#policy-modal-close').addEventListener('click', closePolicyModal);
@@ -5238,7 +5297,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                         p.addEventListener('animationend',function(){this.remove();});
                     }
                     setTimeout(function(){readBtn.classList.remove('mark-read-done');},1500);
-                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(){loadNotifications(false);});
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read'})}).then(function(r){return r.json();}).then(function(d){if(d.ok){loadNotifications(false);}}).catch(function(err){console.error('Mark read failed:',err);});
                 });
             }
             if(list){
@@ -5247,7 +5306,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                     if(!row||!list.contains(row))return;
                     const id=Number(row.getAttribute('data-id'))||0;
                     if(!id)return;
-                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read',id:id})}).then(function(){loadNotifications(false);});
+                    fetch('/main?api=notifications',{method:'POST',headers:notificationHeaders(),body:JSON.stringify({action:'mark_read',id:id})}).then(function(r){return r.json();}).then(function(d){if(d.ok){loadNotifications(false);}}).catch(function(err){console.error('Mark read failed:',err);});
                 });
             }
             if(enableBtn){

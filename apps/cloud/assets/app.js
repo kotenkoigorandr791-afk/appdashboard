@@ -2872,7 +2872,7 @@ function saveTabContent(tab) {
         tab.content = content;
     }
 }
-function closeTab(tabId) {
+async function closeTab(tabId) {
     hideTabPreview();
     
     const tabsBeforeClose = tabsState.tabs.length;
@@ -2881,7 +2881,11 @@ function closeTab(tabId) {
     
     const tab = tabsState.tabs[tabIndex];
     if (tab.modified) {
-        if (!confirm(t(i18n, 'closeModifiedTab'))) {
+        const result = await showConfirmModal(
+            t(i18n, 'unsavedChanges'),
+            t(i18n, 'closeModifiedTab')
+        );
+        if (!result.confirmed) {
             return;
         }
     }
@@ -2927,12 +2931,16 @@ function closeTab(tabId) {
         exitFullscreenMode();
     }
 }
-function closeAllTabs() {
+async function closeAllTabs() {
     if (tabsState.tabs.length === 0) return;
     
     const hasModifiedTabs = tabsState.tabs.some(tab => tab.modified);
     if (hasModifiedTabs) {
-        if (!confirm(t(i18n, 'closeAllModifiedTabs'))) {
+        const result = await showConfirmModal(
+            t(i18n, 'unsavedChanges'),
+            t(i18n, 'closeAllModifiedTabs')
+        );
+        if (!result.confirmed) {
             return;
         }
     }
@@ -10096,11 +10104,15 @@ function closeOnEscape(e) {
         });
     }
 }
-function closeOtherTabs(keepTabId) {
+async function closeOtherTabs(keepTabId) {
     const tabsToClose = tabsState.tabs.filter(tab => tab.id !== keepTabId);
     const hasModifiedTabs = tabsToClose.some(tab => tab.modified);
     if (hasModifiedTabs) {
-        if (!confirm(t(i18n, 'closeOtherModifiedTabs'))) {
+        const result = await showConfirmModal(
+            t(i18n, 'unsavedChanges'),
+            t(i18n, 'closeOtherModifiedTabs')
+        );
+        if (!result.confirmed) {
             return;
         }
     }

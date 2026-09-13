@@ -43,10 +43,13 @@
 <!-- ══ OTP Generator Modal ══════════════════════════════════════════════════ -->
 <div id="otp-gen-modal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(6,10,16,0.28);align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);">
   <div id="otp-gen-content" style="background:var(--modal-bg);padding:30px;border-radius:12px;width:90%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative;text-align:center;max-height:90vh;overflow-y:auto;">
-    <button onclick="closeOtpGeneratorModal()" style="position:absolute;top:10px;right:10px;background:none;border:none;color:#ff4444;font-size:22px;cursor:pointer;line-height:1;padding:4px;">&times;</button>
+    <div class="std-topbar">
+      <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['otp_gen_title']??'Generate One-Time PIN'); ?></h2>
+      <button onclick="closeOtpGeneratorModal()" style="position:absolute;top:0;right:0;width:40px;height:40px;min-width:40px;min-height:40px;border:none;background:transparent;color:#ff4444;font-size:24px;cursor:pointer;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
+    </div>
 
-    <!-- Title -->
-    <div style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--text-color);"><?php echo my_htmlspecialchars($translations['otp_gen_title']??'Generate One-Time PIN'); ?></div>
+    <!-- Subtitle -->
+    <p style="font-size:13px;opacity:.6;margin-bottom:20px;line-height:1.5;"><?php echo my_htmlspecialchars($translations['otp_gen_subtitle']??'Share this code to allow one-time login into your account.'); ?></p>
     <div style="font-size:13px;opacity:.6;margin-bottom:20px;line-height:1.5;"><?php echo my_htmlspecialchars($translations['otp_gen_subtitle']??'Share this code to allow one-time login into your account.'); ?></div>
 
     <!-- TTL selector -->

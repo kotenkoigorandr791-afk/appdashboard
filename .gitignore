@@ -111,3 +111,7 @@ opencode.json
 
 # Task files (local only, not committed)
 /tasks/
+
+# Test artifacts
+/tests/tmp/
+/tests/tests/tmp/
