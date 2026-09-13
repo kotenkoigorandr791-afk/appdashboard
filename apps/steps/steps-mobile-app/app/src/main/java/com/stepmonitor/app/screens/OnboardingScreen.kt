@@ -552,8 +552,9 @@ private fun FeatureRow(icon: ImageVector, title: String, description: String) {
 fun LanguageSelector() {
     var expanded by remember { mutableStateOf(false) }
 
+    val systemDefault = stringResource(R.string.system_default)
     val languages = listOf(
-        "" to "System Default",
+        "" to systemDefault,
         "en" to "English",
         "ta" to "தமிழ்", // Tamil
         "fr" to "Français", // French
@@ -568,7 +569,7 @@ fun LanguageSelector() {
 
     Box(modifier = Modifier.wrapContentSize(Alignment.TopEnd)) {
         IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Filled.Translate, contentDescription = "Select Language")
+            Icon(Icons.Filled.Translate, contentDescription = stringResource(R.string.onboarding_select_language_cd))
         }
         DropdownMenu(
             expanded = expanded,

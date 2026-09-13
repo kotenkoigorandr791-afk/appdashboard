@@ -300,5 +300,17 @@
     "mobile_app_download_notice": "Кнопка скачивания мобильного приложения скрыта. Ее можно включить в настройках.",
     "mobile_app_button": "Кнопка мобильного приложения",
     "mobile_app_button_show": "Показывать кнопку скачивания",
-    "mobile_app_devices": "Подключенные устройства"
+    "mobile_app_devices": "Подключенные устройства",
+    "copy": "Копировать",
+    "hc_token_title": "Авторизация Health Connect",
+    "hc_token_subtitle": "Используйте токен ниже как Authorization: Bearer <token>.",
+    "hc_token_help_open": "Как использовать токен",
+    "hc_token_endpoint": "Endpoint",
+    "hc_token_name": "Имя токена",
+    "hc_token_generate": "Создать",
+    "hc_token_value_label": "Токен",
+    "hc_token_help_title": "Настройка токена",
+    "hc_token_help_step1": "Создайте токен для мобильного приложения.",
+    "hc_token_help_step2": "Отсканируйте QR-код или откройте ссылку StepMonitor на телефоне.",
+    "hc_token_help_step3": "Приложение будет отправлять данные Health Connect на этот серверный endpoint."
 }

@@ -50,6 +50,42 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
         $stepmonitorDevices = [];
     }
 }
+$metricHasValue = static function (array $metrics, string $type): bool {
+    if ($type === 'distance') return isset($metrics['distance']['total_meters']) && is_numeric($metrics['distance']['total_meters']) && (float)$metrics['distance']['total_meters'] > 0;
+    if ($type === 'calories') {
+        $calories = $metrics['total_calories'] ?? $metrics['active_calories'] ?? null;
+        return is_array($calories) && isset($calories['total']) && is_numeric($calories['total']) && (float)$calories['total'] > 0;
+    }
+    if ($type === 'heart_rate') {
+        $heartRate = $metrics['heart_rate'] ?? null;
+        if (!is_array($heartRate)) return false;
+        $value = $heartRate['avg'] ?? $heartRate['last'] ?? null;
+        return is_numeric($value) && (float)$value > 0;
+    }
+    if ($type === 'sleep') return isset($metrics['sleep']['total_seconds']) && is_numeric($metrics['sleep']['total_seconds']) && (float)$metrics['sleep']['total_seconds'] > 0;
+    if ($type === 'weight') {
+        $weight = $metrics['weight'] ?? null;
+        if (!is_array($weight)) return false;
+        $value = $weight['last'] ?? $weight['avg'] ?? null;
+        return is_numeric($value) && (float)$value > 0;
+    }
+    return true;
+};
+$availableMetricTypes = ['steps' => true];
+foreach (($healthMetrics ?? []) as $healthDay) {
+    $metrics = is_array($healthDay['metrics'] ?? null) ? $healthDay['metrics'] : [];
+    foreach (['distance', 'calories', 'heart_rate', 'sleep', 'weight'] as $metricType) {
+        if (empty($availableMetricTypes[$metricType]) && $metricHasValue($metrics, $metricType)) $availableMetricTypes[$metricType] = true;
+    }
+}
+$metricButtons = [
+    'steps' => ['label' => $translations['steps'] ?? 'Steps', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#22c55e" d="M8.3 20.7c-1.7 0-3.1-1.2-3.1-2.8 0-1.4 1.1-2.2 2.3-2.2 1.5 0 3.8 1.3 3.8 2.8 0 1.3-1.1 2.2-3 2.2Z"/><path fill="#16a34a" d="M15.9 11.9c-1.8 0-3.1-1.2-3.1-2.8 0-1.4 1-2.2 2.3-2.2 1.5 0 3.8 1.3 3.8 2.8 0 1.3-1.1 2.2-3 2.2Z"/><path fill="#86efac" d="M6.9 14.2c-.9-1.9-.4-4.3 1.2-5.1 1.3-.7 2.8 0 3.4 1.2.8 1.6.1 4.6-1.5 5.4-1.2.6-2.4 0-3.1-1.5Z"/><path fill="#4ade80" d="M14.4 5.8c-.8-1.7-.4-3.8 1-4.5 1.2-.6 2.5 0 3 1.1.7 1.4.1 4.1-1.3 4.8-1.1.5-2.1-.1-2.7-1.4Z"/></svg>'],
+    'distance' => ['label' => $translations['distance_km'] ?? 'Distance', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#38bdf8" d="M4 17.2c3.1-6.6 7.3-10 12.4-10H20v3.6h-3.6c-3.6 0-6.5 2.4-8.9 7.2L6.8 20H3.2l.8-2.8Z"/><path fill="#0ea5e9" d="M17.5 5.2 22 9l-4.5 3.8V5.2Z"/><path fill="#f97316" d="M4 20.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z"/></svg>'],
+    'calories' => ['label' => $translations['calories'] ?? 'Calories', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#f97316" d="M12.5 22c-4.1 0-7.4-2.9-7.4-7.1 0-3.4 2-5.7 4.4-8.2.6 2 1.8 3.1 3.2 3.8.2-3 1.4-5.3 3.6-7.5.9 4.1 2.6 5.6 2.6 9.6 0 5.5-3.1 9.4-6.4 9.4Z"/><path fill="#fde047" d="M12.2 19.9c-1.9 0-3.6-1.4-3.6-3.7 0-1.7 1-3.1 2.4-4.5.3 1.4 1.1 2.2 2.3 2.7.2-1.5.8-2.8 1.9-4.1.6 2.3 1.2 3.4 1.2 5.3 0 2.7-1.8 4.3-4.2 4.3Z"/></svg>'],
+    'heart_rate' => ['label' => $translations['heart_rate'] ?? 'Heart rate', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fb7185" d="M12 21s-8.5-5.1-8.5-11.2A4.8 4.8 0 0 1 12 6.7a4.8 4.8 0 0 1 8.5 3.1C20.5 15.9 12 21 12 21Z"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.8 12h3l1.3-3.1 2.2 6.2 1.6-3.1h4.3"/></svg>'],
+    'sleep' => ['label' => $translations['sleep'] ?? 'Sleep', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#818cf8" d="M20.6 15.5A8.6 8.6 0 0 1 8.5 3.4 8.6 8.6 0 1 0 20.6 15.5Z"/><path fill="#facc15" d="m17.7 3.2.6 1.5 1.6.2-1.2 1 .3 1.6-1.3-.8-1.4.8.3-1.6-1.2-1 1.6-.2.7-1.5Z"/><path fill="#fef3c7" d="M12 8.2h4.4l-3 3.6h3v1.8h-6.1l3-3.6H12V8.2Z"/></svg>'],
+    'weight' => ['label' => $translations['weight'] ?? 'Weight', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="#a78bfa"/><path fill="#7c3aed" d="M8.2 9.5a4.4 4.4 0 0 1 7.6 0l-2.7 1.6a1.3 1.3 0 0 0-2.2 0L8.2 9.5Z"/><circle cx="12" cy="12" r="2.1" fill="#fff"/></svg>'],
+];
 ?>
     <div id="bg-layer" aria-hidden="true"></div>
     <script>(function(){var s=<?php echo json_encode($bgFull); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
@@ -92,25 +128,14 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
         </div>
         
         <div class="data-type-selector">
-    <button class="data-type-btn active" data-type="steps">
-        <img src="steps.webp" alt="<?php echo htmlspecialchars($translations['steps']); ?>">
-    </button>
-    <button class="data-type-btn" data-type="distance">
-        <img src="distance.webp" alt="<?php echo htmlspecialchars($translations['distance_km']); ?>">
-    </button>
-    <button class="data-type-btn" data-type="calories">
-        <img src="kkal.webp" alt="<?php echo htmlspecialchars($translations['calories']); ?>">
-    </button>
-    <button class="data-type-btn" data-type="heart_rate" title="<?php echo htmlspecialchars($translations['heart_rate'] ?? 'Heart rate'); ?>">
-        <i class="fas fa-heartbeat"></i>
-    </button>
-    <button class="data-type-btn" data-type="sleep" title="<?php echo htmlspecialchars($translations['sleep'] ?? 'Sleep'); ?>">
-        <i class="fas fa-moon"></i>
-    </button>
-    <button class="data-type-btn" data-type="weight" title="<?php echo htmlspecialchars($translations['weight'] ?? 'Weight'); ?>">
-        <i class="fas fa-weight-hanging"></i>
-    </button>
-</div>
+            <?php foreach ($metricButtons as $metricType => $metricButton): ?>
+            <?php if (!empty($availableMetricTypes[$metricType])): ?>
+            <button class="data-type-btn<?php echo $metricType === 'steps' ? ' active' : ''; ?>" data-type="<?php echo htmlspecialchars($metricType); ?>" title="<?php echo htmlspecialchars($metricButton['label']); ?>" aria-label="<?php echo htmlspecialchars($metricButton['label']); ?>">
+                <?php echo $metricButton['icon']; ?>
+            </button>
+            <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
         
         <div class="chart-container">
             <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_prev'] ?? 'Previous'); ?>">
@@ -693,23 +718,24 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
 
         <div id="hc-token-modal">
             <div class="hc-token-content">
-                <button type="button" id="hc-token-close" class="modal-close" aria-label="Close">×</button>
-                <h2>Health Connect authorization</h2>
-                <p class="hc-token-sub">Use the token below as <code>Authorization: Bearer &lt;token&gt;</code>.</p>
+                <button type="button" id="hc-token-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                <h2><?php echo htmlspecialchars($translations['hc_token_title'] ?? 'Health Connect authorization'); ?></h2>
+                <p class="hc-token-sub"><?php echo htmlspecialchars($translations['hc_token_subtitle'] ?? 'Use the token below as Authorization: Bearer <token>.'); ?></p>
+                <button type="button" id="hc-token-help-open" class="hc-token-link-btn"><?php echo htmlspecialchars($translations['hc_token_help_open'] ?? 'How to use this token'); ?></button>
                 <div class="hc-token-fields">
                     <div class="hc-token-row">
                         <div class="hc-token-field endpoint">
-                            <label>Endpoint</label>
+                            <label><?php echo htmlspecialchars($translations['hc_token_endpoint'] ?? 'Endpoint'); ?></label>
                             <pre id="hc-token-endpoint"></pre>
                         </div>
-                        <button type="button" id="hc-token-copy-endpoint" class="hc-token-btn">Copy</button>
+                        <button type="button" id="hc-token-copy-endpoint" class="hc-token-btn"><?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?></button>
                     </div>
                     <div class="hc-token-row">
                         <div class="hc-token-field">
-                            <label>Token name</label>
+                            <label><?php echo htmlspecialchars($translations['hc_token_name'] ?? 'Token name'); ?></label>
                             <input id="hc-token-name" type="text" maxlength="80" value="Health Connect" />
                         </div>
-                        <button type="button" id="hc-token-generate" class="hc-token-btn">Generate</button>
+                        <button type="button" id="hc-token-generate" class="hc-token-btn"><?php echo htmlspecialchars($translations['hc_token_generate'] ?? 'Generate'); ?></button>
                     </div>
                     <p id="hc-token-err"></p>
 
@@ -727,14 +753,25 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
                     </div>
                     <?php endif; ?>
                     <div id="hc-token-output">
-                        <strong>Token</strong>
+                        <strong><?php echo htmlspecialchars($translations['hc_token_value_label'] ?? 'Token'); ?></strong>
                         <code id="hc-token-value"></code>
                         <img id="hc-token-qr" alt="StepMonitor QR" style="display:none;width:220px;height:220px;margin:12px auto;border-radius:12px;background:#fff;padding:8px;">
                         <a id="hc-token-link" href="#" style="display:none;word-break:break-all;color:var(--primary-color);font-size:13px;"></a>
                         <div class="hc-token-actions">
-                            <button type="button" id="hc-token-copy" class="hc-token-btn">Copy</button>
+                            <button type="button" id="hc-token-copy" class="hc-token-btn"><?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?></button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        <div id="hc-token-help-modal" style="display:none;">
+            <div class="hc-token-content hc-token-help-content">
+                <button type="button" id="hc-token-help-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                <h2><?php echo htmlspecialchars($translations['hc_token_help_title'] ?? 'Token setup'); ?></h2>
+                <div class="hc-token-help-list">
+                    <p><?php echo htmlspecialchars($translations['hc_token_help_step1'] ?? 'Generate a token for the mobile app.'); ?></p>
+                    <p><?php echo htmlspecialchars($translations['hc_token_help_step2'] ?? 'Scan the QR code or open the StepMonitor link on your phone.'); ?></p>
+                    <p><?php echo htmlspecialchars($translations['hc_token_help_step3'] ?? 'The app will send Health Connect data to this server endpoint.'); ?></p>
                 </div>
             </div>
         </div>
@@ -798,6 +835,9 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
             const modal=document.getElementById('hc-token-modal');
             const closeBtn=document.getElementById('hc-token-close');
             if(!btn||!modal||!closeBtn) return;
+            const helpOpenBtn=document.getElementById('hc-token-help-open');
+            const helpModal=document.getElementById('hc-token-help-modal');
+            const helpCloseBtn=document.getElementById('hc-token-help-close');
             const endpointEl=document.getElementById('hc-token-endpoint');
             const endpointCopyBtn=document.getElementById('hc-token-copy-endpoint');
             const nameEl=document.getElementById('hc-token-name');
@@ -815,15 +855,30 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
             if(endpointEl) endpointEl.textContent=endpoint;
 
             function showModal(){
+                document.body.classList.add('modal-open');
                 modal.style.display='flex';
             }
             function hideModal(){
                 modal.style.display='none';
+                if(!helpModal || helpModal.style.display==='none') document.body.classList.remove('modal-open');
+            }
+            function showHelpModal(){
+                if(!helpModal) return;
+                document.body.classList.add('modal-open');
+                helpModal.style.display='flex';
+            }
+            function hideHelpModal(){
+                if(!helpModal) return;
+                helpModal.style.display='none';
+                if(modal.style.display==='none') document.body.classList.remove('modal-open');
             }
 
             btn.addEventListener('click', showModal);
             closeBtn.addEventListener('click', hideModal);
             modal.addEventListener('click', (e)=>{ if(e.target===modal) hideModal(); });
+            helpOpenBtn?.addEventListener('click', showHelpModal);
+            helpCloseBtn?.addEventListener('click', hideHelpModal);
+            helpModal?.addEventListener('click', (e)=>{ if(e.target===helpModal) hideHelpModal(); });
 
             function setErr(msg){
                 if(!errEl) return;
@@ -832,17 +887,24 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
                 errEl.style.display='block';
             }
 
-            async function copyText(text){
-                try{ await navigator.clipboard.writeText(text); return true; }catch(e){ return false; }
+            async function copyText(text, copyBtn){
+                try{
+                    await navigator.clipboard.writeText(text);
+                    if(copyBtn){
+                        copyBtn.classList.add('copied');
+                        window.setTimeout(()=>copyBtn.classList.remove('copied'),900);
+                    }
+                    return true;
+                }catch(e){ return false; }
             }
 
             endpointCopyBtn?.addEventListener('click', async ()=>{
-                await copyText(endpoint);
+                await copyText(endpoint, endpointCopyBtn);
             });
 
             tokenCopyBtn?.addEventListener('click', async ()=>{
                 const t=tokenValEl?.textContent?.trim()||'';
-                if(t) await copyText(t);
+                if(t) await copyText(t, tokenCopyBtn);
             });
 
             genBtn?.addEventListener('click', async ()=>{
@@ -865,7 +927,7 @@ if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
                     if(tokenQrEl){ tokenQrEl.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(deepLink); tokenQrEl.style.display='block'; }
                     if(tokenLinkEl){ tokenLinkEl.href=deepLink; tokenLinkEl.textContent=deepLink; tokenLinkEl.style.display='block'; }
                     if(outEl) outEl.style.display='block';
-                    await copyText(deepLink);
+                    await copyText(deepLink, genBtn);
                 }catch(e){
                     setErr(String(e && e.message ? e.message : e));
                 }finally{

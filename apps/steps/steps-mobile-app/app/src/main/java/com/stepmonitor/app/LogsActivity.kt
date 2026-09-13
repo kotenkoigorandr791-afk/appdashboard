@@ -11,12 +11,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.stepmonitor.app.ui.theme.HCWebhookTheme
+import com.stepmonitor.app.components.localizedLogLabel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.stepmonitor.app.R
 
 class LogsActivity : ComponentActivity() {
 
@@ -41,12 +44,12 @@ class LogsActivity : ComponentActivity() {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Logs") },
+                    title = { Text(stringResource(R.string.logs_title)) },
                     navigationIcon = {
                         IconButton(onClick = { finish() }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
+                                contentDescription = stringResource(R.string.logs_back_cd)
                             )
                         }
                     },
@@ -56,7 +59,7 @@ class LogsActivity : ComponentActivity() {
                                 preferencesManager.clearWebhookLogs()
                                 logs = emptyList()
                             }) {
-                                Text("Clear")
+                                Text(stringResource(R.string.logs_clear))
                             }
                         }
                     }
@@ -72,7 +75,7 @@ class LogsActivity : ComponentActivity() {
                     contentAlignment = androidx.compose.ui.Alignment.Center
                 ) {
                     Text(
-                        "No sync logs yet",
+                        stringResource(R.string.logs_empty),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -145,11 +148,7 @@ class LogsActivity : ComponentActivity() {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        if (log.success) {
-                            "Success • ${log.statusCode ?: "?"}"
-                        } else {
-                            "Failed • ${log.statusCode ?: "Error"}"
-                        },
+                        "${if (log.success) stringResource(R.string.logs_row_ok) else stringResource(R.string.logs_row_err)} • ${log.statusCode ?: "?"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = if (log.success) {
                             MaterialTheme.colorScheme.onPrimaryContainer
@@ -160,7 +159,7 @@ class LogsActivity : ComponentActivity() {
 
                     if (log.dataType != null && log.recordCount != null) {
                         Text(
-                            "${log.dataType}: ${log.recordCount}",
+                            "${localizedLogLabel(log.dataType, log.syncType) ?: log.dataType}: ${log.recordCount}",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (log.success) {
                                 MaterialTheme.colorScheme.onPrimaryContainer

@@ -1,14 +1,21 @@
 package com.stepmonitor.app
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -22,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -29,6 +37,8 @@ import com.stepmonitor.app.screens.AboutScreen
 import com.stepmonitor.app.screens.ConfigurationScreen
 import com.stepmonitor.app.screens.LogsScreen
 import com.stepmonitor.app.screens.StatisticsScreen
+import com.stepmonitor.app.components.AppBackground
+import com.stepmonitor.app.components.AppTopBar
 import com.stepmonitor.app.ui.theme.HCWebhookTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -42,12 +52,18 @@ import java.io.IOException
 import java.util.UUID
 class MainActivity : AppCompatActivity() {
     private lateinit var preferencesManager: PreferencesManager
+    companion object {
+        private const val KEY_APP_LANGUAGE = "app_language"
+        private const val KEY_PORTRAIT_ONLY = "portrait_only"
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         preferencesManager = PreferencesManager(this)
         if (preferencesManager.getWebhookConfigs().any { it.isEnabled } && preferencesManager.getEnabledDataTypes().isEmpty()) {
             preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
         }
+        applyLanguage(preferencesManager.getAppLanguage())
+        applyPortraitMode(preferencesManager.isPortraitOnly())
         handleAuthIntent(intent)
         setContent { HCWebhookTheme { MainScreen() } }
     }
@@ -81,7 +97,25 @@ class MainActivity : AppCompatActivity() {
                 delay(2_000)
             }
         }
-        Scaffold(bottomBar = {
+        // Auto-resolve if user saved a preference
+        LaunchedEffect(pendingConflict) {
+            val conflict = pendingConflict ?: return@LaunchedEffect
+            if (preferencesManager.isConflictRememberEnabled()) {
+                val action = preferencesManager.getConflictDefaultAction()
+                if (action != null) {
+                    resolveConflict(action, conflict)
+                    pendingConflict = null
+                }
+            }
+        }
+        Scaffold(
+            topBar = {
+                AppTopBar(
+                    showTimer = selected != NavigationScreen.Home,
+                    onProfileClick = { selected = NavigationScreen.About }
+                )
+            },
+            bottomBar = {
             NavigationBar {
                 bottomNavItems.forEach { screen ->
                     NavigationBarItem(
@@ -93,29 +127,62 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }) { padding ->
-            when (selected) {
-                NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
-                NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
-                NavigationScreen.Logs -> LogsScreen(Modifier.padding(padding))
-                NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+            AppBackground {
+                when (selected) {
+                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
+                    NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
+                    NavigationScreen.Logs -> LogsScreen(Modifier.padding(padding))
+                    NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+                }
             }
         }
-        pendingConflict?.let { conflictJson ->
+        val showConflict = pendingConflict != null &&
+            !(preferencesManager.isConflictRememberEnabled() && preferencesManager.getConflictDefaultAction() != null)
+        if (showConflict) {
+            val conflictJson = pendingConflict!!
+            var rememberChoice by remember { mutableStateOf(false) }
             AlertDialog(
                 onDismissRequest = {},
                 title = { Text(getString(R.string.conflict_title)) },
-                text = { Text(conflictSummary(conflictJson)) },
+                text = {
+                    androidx.compose.foundation.layout.Column {
+                        Text(conflictSummary(conflictJson))
+                        Spacer(Modifier.height(8.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Checkbox(
+                                checked = rememberChoice,
+                                onCheckedChange = { rememberChoice = it }
+                            )
+                            Text(getString(R.string.conflict_remember))
+                        }
+                    }
+                },
                 confirmButton = {
                     Row {
                         TextButton(onClick = {
+                            if (rememberChoice) {
+                                preferencesManager.setConflictRememberEnabled(true)
+                                preferencesManager.setConflictDefaultAction("skip")
+                            }
                             resolveConflict("skip", conflictJson)
                             pendingConflict = null
                         }) { Text(getString(R.string.conflict_skip)) }
                         TextButton(onClick = {
+                            if (rememberChoice) {
+                                preferencesManager.setConflictRememberEnabled(true)
+                                preferencesManager.setConflictDefaultAction("replace")
+                            }
                             resolveConflict("replace", conflictJson)
                             pendingConflict = null
                         }) { Text(getString(R.string.conflict_replace)) }
                         TextButton(onClick = {
+                            if (rememberChoice) {
+                                preferencesManager.setConflictRememberEnabled(true)
+                                preferencesManager.setConflictDefaultAction("add")
+                            }
                             resolveConflict("add", conflictJson)
                             pendingConflict = null
                         }) { Text(getString(R.string.conflict_add)) }
@@ -178,5 +245,17 @@ class MainActivity : AppCompatActivity() {
                 deliveryFormat = WebhookLog.FORMAT_JSON
             )
         )
+    }
+
+    private fun applyLanguage(lang: String) {
+        if (lang.isEmpty()) {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
+        } else {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(lang))
+        }
+    }
+
+    private fun applyPortraitMode(portraitOnly: Boolean) {
+        requestedOrientation = if (portraitOnly) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
     }
 }

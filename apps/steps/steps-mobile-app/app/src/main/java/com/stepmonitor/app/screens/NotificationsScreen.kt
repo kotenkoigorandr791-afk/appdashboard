@@ -18,10 +18,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.stepmonitor.app.*
+import com.stepmonitor.app.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,18 +49,18 @@ fun NotificationsScreen(onBack: () -> Unit) {
         contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
-                title = { Text("Notifications") },
+                title = { Text(stringResource(R.string.notifications_title)) },
                 windowInsets = WindowInsets(0.dp),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.logs_back_cd))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showProviderPicker = true }) {
-                Icon(Icons.Filled.Add, "Add Notification")
+                Icon(Icons.Filled.Add, stringResource(R.string.notifications_add_notification))
             }
         }
     ) { padding ->
@@ -70,7 +72,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "No notification providers configured.",
+                    text = stringResource(R.string.notifications_empty),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -98,7 +100,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                         fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = config.displayIdentifier,
+                                        text = config.displayIdentifier(context),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -113,7 +115,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                         }
                                     )
                                     IconButton(onClick = { editingConfig = config }) {
-                                        Icon(Icons.Filled.Edit, "Edit")
+                                        Icon(Icons.Filled.Edit, stringResource(R.string.notifications_edit))
                                     }
                                 }
                             }
@@ -132,7 +134,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                         .padding(bottom = 32.dp)
                 ) {
                     Text(
-                        "Select Provider",
+                        text = stringResource(R.string.notifications_select_provider),
                         style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(16.dp)
                     )
@@ -177,7 +179,10 @@ fun NotificationsScreen(onBack: () -> Unit) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        "${config.providerType.displayName} Configuration",
+                        text = stringResource(
+                            R.string.notifications_provider_configuration,
+                            config.providerType.displayName,
+                        ),
                         style = MaterialTheme.typography.titleMedium
                     )
 
@@ -186,13 +191,13 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = editUrl,
                                 onValueChange = { editUrl = it },
-                                label = { Text("Server URL (e.g., https://gotify.example.com)") },
+                                label = { Text(stringResource(R.string.notifications_label_server_url_gotify)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = editToken,
                                 onValueChange = { editToken = it },
-                                label = { Text("App Token") },
+                                label = { Text(stringResource(R.string.notifications_label_app_token)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -200,13 +205,13 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = editUrl,
                                 onValueChange = { editUrl = it },
-                                label = { Text("Server URL (e.g., https://ntfy.sh)") },
+                                label = { Text(stringResource(R.string.notifications_label_server_url_ntfy)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = editTopic,
                                 onValueChange = { editTopic = it },
-                                label = { Text("Topic Name") },
+                                label = { Text(stringResource(R.string.notifications_label_topic_name)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -214,13 +219,13 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = editToken,
                                 onValueChange = { editToken = it },
-                                label = { Text("Bot Token") },
+                                label = { Text(stringResource(R.string.notifications_label_bot_token)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = editChatId,
                                 onValueChange = { editChatId = it },
-                                label = { Text("Chat ID") },
+                                label = { Text(stringResource(R.string.notifications_label_chat_id)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -228,7 +233,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = editUrl,
                                 onValueChange = { editUrl = it },
-                                label = { Text("Webhook URL") },
+                                label = { Text(stringResource(R.string.notifications_label_webhook_url)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -236,13 +241,13 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = editToken,
                                 onValueChange = { editToken = it },
-                                label = { Text("App Token") },
+                                label = { Text(stringResource(R.string.notifications_label_app_token)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = editUserKey,
                                 onValueChange = { editUserKey = it },
-                                label = { Text("User Key") },
+                                label = { Text(stringResource(R.string.notifications_label_user_key)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -250,14 +255,14 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             OutlinedTextField(
                                 value = editUrl,
                                 onValueChange = { editUrl = it },
-                                label = { Text("Endpoint URL") },
+                                label = { Text(stringResource(R.string.notifications_label_endpoint_url)) },
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
                                 value = editBodyTemplate,
                                 onValueChange = { editBodyTemplate = it },
-                                label = { Text("Body Template (JSON)") },
-                                placeholder = { Text("{\"title\":\"{title}\",\"message\":\"{message}\"}") },
+                                label = { Text(stringResource(R.string.notifications_label_body_template_json)) },
+                                placeholder = { Text(stringResource(R.string.notifications_placeholder_body_template_json)) },
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 3
                             )
@@ -271,10 +276,10 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                 }
                             }
                             HorizontalDivider()
-                            Text("Headers", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.notifications_headers), style = MaterialTheme.typography.labelMedium)
                             if (editHeaders.isEmpty()) {
                                 Text(
-                                    "No headers added",
+                                    stringResource(R.string.notifications_headers_empty),
                                     style = MaterialTheme.typography.bodySmall,
                                     fontStyle = FontStyle.Italic,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -302,18 +307,18 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                OutlinedTextField(
-                                    value = newHeaderKey,
-                                    onValueChange = { newHeaderKey = it },
-                                    label = { Text("Key") },
+                            OutlinedTextField(
+                                value = newHeaderKey,
+                                onValueChange = { newHeaderKey = it },
+                                label = { Text(stringResource(R.string.notifications_label_key)) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                     textStyle = MaterialTheme.typography.bodySmall
                                 )
-                                OutlinedTextField(
-                                    value = newHeaderValue,
-                                    onValueChange = { newHeaderValue = it },
-                                    label = { Text("Value") },
+                            OutlinedTextField(
+                                value = newHeaderValue,
+                                onValueChange = { newHeaderValue = it },
+                                label = { Text(stringResource(R.string.notifications_label_value)) },
                                     modifier = Modifier.weight(1f),
                                     singleLine = true,
                                     textStyle = MaterialTheme.typography.bodySmall
@@ -329,12 +334,12 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Add Header")
+                                Text(stringResource(R.string.notifications_add_header))
                             }
                         }
                         NotificationProviderType.LOCAL_PUSH -> {
                             Text(
-                                "Posts an Android system notification after each sync. Tap it to open logs.",
+                                stringResource(R.string.notifications_local_push_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -363,22 +368,22 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                         NotificationDispatcher().dispatch(
                                             context,
                                             testConfig,
-                                            "Test Notification",
-                                            "This is a test message from StepMonitor."
+                                            context.getString(R.string.notifications_test_title),
+                                            context.getString(R.string.notifications_test_message)
                                         )
                                     }
                                     testLoading = false
-                                    Toast.makeText(context, "Test notification dispatched", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.notifications_test_dispatched_toast), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             enabled = !testLoading,
                             modifier = Modifier.weight(1f)
                         ) {
-                            if (testLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            Text("Test")
+                             if (testLoading) {
+                                 CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                                 Spacer(Modifier.width(8.dp))
+                             }
+                             Text(stringResource(R.string.notifications_test))
                         }
 
                         Button(
@@ -398,11 +403,11 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                 } else {
                                     notificationConfigs + newConfig
                                 }
-                                editingConfig = null
+                                 editingConfig = null
                             },
                             modifier = Modifier.weight(1f)
                         ) {
-                            Text("Save")
+                            Text(stringResource(R.string.settings_save))
                         }
                     }
 
@@ -413,11 +418,11 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                 editingConfig = null
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Filled.Delete, "Delete", modifier = Modifier.size(16.dp))
+                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                         ) {
+                            Icon(Icons.Filled.Delete, stringResource(R.string.notifications_delete), modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Delete Configuration")
+                            Text(stringResource(R.string.notifications_delete_configuration))
                         }
                     }
                 }

@@ -44,6 +44,8 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                         // WorkManager survives reboots on its own, but re-enqueue
                         // to be safe and pick up any interval changes.
                         (context.applicationContext as? HCWebhookApplication)?.scheduleSyncWork()
+                        // Rebuild the interval alarm chain lost on reboot.
+                        ScheduledSyncManager(context).scheduleNextIntervalSync()
                     }
                 }
             }

@@ -18,6 +18,24 @@
         let currentRow = 0;
         let currentCol = 0;
         let isEditing = false;
+        (() => {
+            const selector = '.app-steps button, .hc-token-btn, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn';
+            const pressedSelector = selector.split(',').map(part => part.trim() + '.is-pressed').join(',');
+            const setPressed = (target, pressed) => {
+                const button = target && target.closest ? target.closest(selector) : null;
+                if (!button || button.disabled) return;
+                button.classList.toggle('is-pressed', pressed);
+            };
+            const clearPressed = () => document.querySelectorAll(pressedSelector).forEach(button => button.classList.remove('is-pressed'));
+            document.addEventListener('pointerdown', event => {
+                if (event.pointerType === 'mouse' && event.button !== 0) return;
+                setPressed(event.target, true);
+            }, true);
+            document.addEventListener('pointerup', clearPressed, true);
+            document.addEventListener('pointercancel', clearPressed, true);
+            document.addEventListener('dragstart', clearPressed, true);
+            window.addEventListener('blur', clearPressed);
+        })();
 
         Chart.register(ChartZoom);
 
@@ -176,6 +194,53 @@
             return null;
         };
         const avgOf = vals => { const v = vals.filter(x => x !== null && Number.isFinite(x)); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
+
+        const hasRealMetricForDate = (dateStr, dataType) => {
+            const m = healthMap[dateStr] || {};
+            if (dataType === 'distance') return !!(m.distance && Number.isFinite(m.distance.total_meters) && m.distance.total_meters > 0);
+            if (dataType === 'calories') {
+                const c = m.total_calories || m.active_calories;
+                return !!(c && Number.isFinite(c.total) && c.total > 0);
+            }
+            if (dataType === 'heart_rate') {
+                const hr = m.heart_rate;
+                const v = hr ? (Number.isFinite(hr.avg) ? hr.avg : (Number.isFinite(hr.last) ? hr.last : null)) : null;
+                return v !== null && v > 0;
+            }
+            if (dataType === 'sleep') return !!(m.sleep && Number.isFinite(m.sleep.total_seconds) && m.sleep.total_seconds > 0);
+            if (dataType === 'weight') {
+                const w = m.weight;
+                const v = w ? (Number.isFinite(w.last) ? w.last : (Number.isFinite(w.avg) ? w.avg : null)) : null;
+                return v !== null && v > 0;
+            }
+            return true;
+        };
+
+        // Hide buttons when there is no corresponding metric on server.
+        // This prevents showing empty charts (e.g. no sleep data => no sleep button).
+        const hideEmptyDataTypeButtons = () => {
+            const candidates = ['distance', 'calories', 'heart_rate', 'sleep', 'weight'];
+            const hasAny = (dt) => stepsData.some(entry => hasRealMetricForDate(entry.date, dt));
+
+            const stepsBtn = document.querySelector('.data-type-btn[data-type="steps"]');
+            const ensureActive = () => {
+                document.querySelectorAll('.data-type-btn').forEach(b => b.classList.remove('active'));
+                if (currentDataType === 'steps' && stepsBtn) stepsBtn.classList.add('active');
+            };
+
+            candidates.forEach(dt => {
+                const btn = document.querySelector(`.data-type-btn[data-type="${dt}"]`);
+                if (!btn) return;
+                if (!hasAny(dt)) {
+                    btn.style.display = 'none';
+                    if (currentDataType === dt) {
+                        currentDataType = 'steps';
+                        ensureActive();
+                        renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                    }
+                }
+            });
+        };
 
         // Function to show alert
         function showAlert(message, isConfirm = false, options = {}) {
@@ -1662,27 +1727,47 @@
 
             let html = '';
 
-            backups.forEach((backup, index) => {
-                const fileSize = (backup.size / 1024).toFixed(2);
-                html += `
-                    <div class="backup-item">
-                        <div class="backup-info">
-                            <div class="backup-name">${backup.name}</div>
-                            <div class="backup-details">
-                                ${backup.date} | ${fileSize} KB
-                            </div>
-                        </div>
-                        <div class="backup-actions">
-                            <button class="backup-btn restore" data-file="${backup.name}">
-                                <i class="fas fa-history"></i> ${translations.restore || 'Restore'}
-                            </button>
-                            <button class="backup-btn delete" data-file="${backup.name}">
-                                <i class="fas fa-trash"></i> ${translations.delete || 'Delete'}
-                            </button>
-                        </div>
-                    </div>
-                `;
-            });
+            const lblName = translations.backup_name || 'Backup';
+            const lblDate = translations.date || 'Date';
+            const lblSize = translations.size || 'Size';
+            const lblActions = translations.actions || 'Actions';
+
+            html = `
+                <div class="backup-table-wrap">
+                    <table class="backup-table">
+                        <thead>
+                            <tr>
+                                <th>${lblName}</th>
+                                <th>${lblDate}</th>
+                                <th>${lblSize}</th>
+                                <th>${lblActions}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${backups.map(backup => {
+                                const fileSize = (backup.size / 1024).toFixed(2);
+                                return `
+                                    <tr>
+                                        <td class="backup-name" data-label="${lblName}">${backup.name}</td>
+                                        <td data-label="${lblDate}">${backup.date}</td>
+                                        <td data-label="${lblSize}">${fileSize} KB</td>
+                                        <td class="actions-cell" data-label="${lblActions}">
+                                            <div class="backup-actions">
+                                                <button class="backup-btn restore" data-file="${backup.name}">
+                                                    <i class="fas fa-history"></i> ${translations.restore || 'Restore'}
+                                                </button>
+                                                <button class="backup-btn delete" data-file="${backup.name}">
+                                                    <i class="fas fa-trash"></i> ${translations.delete || 'Delete'}
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
 
             container.innerHTML = html;
 
@@ -2796,6 +2881,7 @@
             updateCalendar(currentLocale);
             updateStatsNotification();
             updateGoalNotification();
+            hideEmptyDataTypeButtons();
             workerStartRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
 

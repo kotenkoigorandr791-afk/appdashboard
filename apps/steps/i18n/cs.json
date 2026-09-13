@@ -300,5 +300,17 @@
     "mobile_app_download_notice": "The mobile app download button was hidden. You can enable it again in settings.",
     "mobile_app_button": "Mobile app button",
     "mobile_app_button_show": "Show download button",
-    "mobile_app_devices": "Connected devices"
+    "mobile_app_devices": "Připojená zařízení",
+    "copy": "Kopírovat",
+    "hc_token_title": "Autorizace Health Connect",
+    "hc_token_subtitle": "Použijte token níže jako Authorization: Bearer <token>.",
+    "hc_token_help_open": "Jak token použít",
+    "hc_token_endpoint": "Endpoint",
+    "hc_token_name": "Název tokenu",
+    "hc_token_generate": "Vygenerovat",
+    "hc_token_value_label": "Token",
+    "hc_token_help_title": "Nastavení tokenu",
+    "hc_token_help_step1": "Vygenerujte token pro mobilní aplikaci.",
+    "hc_token_help_step2": "Naskenujte QR kód nebo otevřete odkaz StepMonitor v telefonu.",
+    "hc_token_help_step3": "Aplikace bude odesílat data Health Connect na tento serverový endpoint."
 }

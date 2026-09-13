@@ -300,5 +300,17 @@
     "mobile_app_download_notice": "Кнопку завантаження мобільного застосунку приховано. Її можна ввімкнути в налаштуваннях.",
     "mobile_app_button": "Кнопка мобільного застосунку",
     "mobile_app_button_show": "Показувати кнопку завантаження",
-    "mobile_app_devices": "Підключені пристрої"
+    "mobile_app_devices": "Підключені пристрої",
+    "copy": "Копіювати",
+    "hc_token_title": "Авторизація Health Connect",
+    "hc_token_subtitle": "Використовуйте токен нижче як Authorization: Bearer <token>.",
+    "hc_token_help_open": "Як використовувати токен",
+    "hc_token_endpoint": "Endpoint",
+    "hc_token_name": "Назва токена",
+    "hc_token_generate": "Створити",
+    "hc_token_value_label": "Токен",
+    "hc_token_help_title": "Налаштування токена",
+    "hc_token_help_step1": "Створіть токен для мобільного застосунку.",
+    "hc_token_help_step2": "Відскануйте QR-код або відкрийте посилання StepMonitor на телефоні.",
+    "hc_token_help_step3": "Застосунок надсилатиме дані Health Connect на цей серверний endpoint."
 }

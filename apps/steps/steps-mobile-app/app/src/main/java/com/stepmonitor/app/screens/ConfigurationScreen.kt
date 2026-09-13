@@ -1,6 +1,12 @@
 package com.stepmonitor.app.screens
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -9,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -16,28 +24,43 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProgressIndicatorDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.stepmonitor.app.BuildConfig
 import com.stepmonitor.app.HealthDataType
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
 import com.stepmonitor.app.WebhookConfig
 import com.stepmonitor.app.components.ManualSyncCard
+import com.stepmonitor.app.components.computeNextSyncInfo
+import com.stepmonitor.app.components.formatSyncCountdown
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 private enum class ConnectionTestResult { SUCCESS, FAILURE }
 
@@ -71,8 +94,8 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
                     enabled = connected && !testing,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = when (testResult) {
-                            ConnectionTestResult.SUCCESS -> Color(0xFF2563EB)
-                            ConnectionTestResult.FAILURE -> Color(0xFFF59E0B)
+                            ConnectionTestResult.SUCCESS -> Color(0xFF66BB6A)
+                            ConnectionTestResult.FAILURE -> Color(0xFF9B1C31)
                             null -> MaterialTheme.colorScheme.primary
                         }
                     ),
@@ -89,7 +112,105 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
+        NextSyncCard(prefs = prefs)
         ManualSyncCard()
+        BuildInfoCard()
+    }
+}
+
+@Composable
+private fun BuildInfoCard() {
+    val dateLabel = LocalDate.now().format(
+        DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.getDefault())
+    )
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Filled.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary
+            )
+            Column {
+                Text(dateLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    stringResource(R.string.about_app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextSyncCard(prefs: PreferencesManager) {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1_000)
+            now = System.currentTimeMillis()
+        }
+    }
+    val info = computeNextSyncInfo(prefs, now) ?: return
+    val remainingMs = (info.nextSyncMs - now).coerceAtLeast(0L)
+    val fraction = if (info.periodMs > 0) (remainingMs.toFloat() / info.periodMs).coerceIn(0f, 1f) else 0f
+    val animatedFraction by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = tween(durationMillis = 800, easing = LinearEasing),
+        label = "syncProgress"
+    )
+    val timeStr = formatSyncCountdown(remainingMs)
+    val nextSyncLabel = info.label
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(64.dp)) {
+                CircularProgressIndicator(
+                    progress = { animatedFraction },
+                    modifier = Modifier.size(64.dp),
+                    strokeWidth = 5.dp,
+                    trackColor = MaterialTheme.colorScheme.outlineVariant,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Icon(
+                    Icons.Filled.Schedule,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(R.string.next_sync_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    timeStr,
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                if (nextSyncLabel.isNotBlank()) {
+                    Text(
+                        stringResource(R.string.next_sync_at, nextSyncLabel),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
     }
 }
 

@@ -1,11 +1,17 @@
 <resources>
     <string name="app_name">StepMonitor</string>
+    <string name="app_version_short">v%1$s</string>
     <string name="onboarding_skip_dialog_title">Skip Introduction?</string>
     <string name="onboarding_skip_dialog_text">You can view it again anytime from the Settings screen.</string>
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_cancel">Cancel</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_get_started">Get Started</string>
+
+    <string name="onboarding_select_language_cd">Select Language</string>
+    <!-- notifications_select_provider declared once in legacy block -->
+    <!-- (deprecated legacy keys) -->
+    <!-- moved to bottom legacy block -->
 
     <string name="onboarding_welcome_title">StepMonitor</string>
     <string name="onboarding_welcome_subtitle">Forward your health data to any StepMonitor service — automatically.</string>
@@ -338,6 +344,9 @@
     <string name="logs_title">synchronization logs</string>
     <string name="action_clear">Clear</string>
     <string name="logs_empty">No logs yet</string>
+    <string name="logs_row_http_label">HTTP</string>
+    <string name="logs_row_ok">OK</string>
+    <string name="logs_row_err">ERR</string>
     <string name="logs_status_err">ERR</string>
     <string name="logs_filter_all">All</string>
     <string name="logs_filter_success">Success</string>
@@ -352,6 +361,9 @@
     <string name="logs_sync_manual">Manual</string>
     <string name="logs_sync_auto">Auto</string>
     <string name="logs_sync_test">Test</string>
+    <string name="logs_sync_conflict">Conflict</string>
+    <string name="logs_sync_notification">Notification</string>
+    <string name="system_default">System default</string>
     <string name="logs_action_export">Export Logs</string>
     <string name="logs_export_intent_title">Export synchronization logs</string>
     <string name="logs_count">%1$d logs</string>
@@ -483,4 +495,70 @@
     <string name="sync_interval_24h">24 hours</string>
     <string name="sync_interval_72h">72 hours</string>
     <string name="action_change">Change</string>
+    <!-- Next sync timer -->
+    <string name="next_sync_title">Next Sync</string>
+    <string name="next_sync_at">at %1$s</string>
+    <string name="next_sync_in">in %1$s</string>
+    <string name="next_sync_not_scheduled">No sync scheduled</string>
+    <string name="next_sync_not_synced_yet">Not synced yet</string>
+    <!-- Conflict remember -->
+    <string name="conflict_remember">Remember my choice</string>
+    <string name="settings_conflict_title">Conflict Resolution</string>
+    <string name="settings_conflict_remember">Remember choice</string>
+    <string name="settings_conflict_remember_desc">Automatically apply saved action without showing the dialog</string>
+    <string name="settings_conflict_default_action">Default action</string>
+    <string name="settings_conflict_forget">Clear memory (show dialog each time)</string>
+    <!-- Manual sync previous day -->
+    <string name="manual_sync_previous_day">Previous day</string>
+
+    <!-- Logs Activity (legacy keys used by stringResource in Activities/Screens) -->
+    <string name="logs_back_cd">Back</string>
+    <string name="logs_clear">Clear</string>
+
+    <!-- Notifications (legacy keys used by stringResource in NotificationsScreen). Keep only the bottom block to avoid duplicate resources. -->
+    <!-- About/About screen (legacy keys used by stringResource in AboutScreen) -->
+    <string name="about_configure">Configure</string>
+    <string name="about_personalization">Personalization</string>
+    <string name="about_theme">Theme</string>
+    <string name="about_accent_color">Accent color</string>
+    <string name="about_language">Language</string>
+    <string name="about_screen_orientation">Screen orientation</string>
+    <string name="about_portrait_only">Portrait only</string>
+    <string name="about_language_changed_title">Language changed</string>
+    <string name="about_language_changed_text">Restart the app to apply the new language?</string>
+    <string name="about_restart">Restart</string>
+    <string name="about_later">Later</string>
+
+    <!-- Notifications screen (legacy keys used by stringResource in NotificationsScreen) -->
+    <string name="notifications_title">Notifications</string>
+    <string name="notifications_select_provider">Select Provider</string>
+    <string name="notifications_provider_configuration">%1$s Configuration</string>
+    <string name="notifications_add_notification">Add Notification</string>
+    <string name="notifications_empty">No notification providers configured.</string>
+    <string name="notifications_configuration_format">%1$s Configuration</string>
+    <string name="notifications_label_server_url_gotify">Server URL (e.g., https://gotify.example.com)</string>
+    <string name="notifications_label_server_url_ntfy">Server URL (e.g., https://ntfy.sh)</string>
+    <string name="notifications_label_app_token">App Token</string>
+    <string name="notifications_label_topic_name">Topic Name</string>
+    <string name="notifications_label_bot_token">Bot Token</string>
+    <string name="notifications_label_chat_id">Chat ID</string>
+    <string name="notifications_label_webhook_url">Webhook URL</string>
+    <string name="notifications_label_user_key">User Key</string>
+    <string name="notifications_label_endpoint_url">Endpoint URL</string>
+    <string name="notifications_label_body_template_json">Body Template (JSON)</string>
+    <string name="notifications_placeholder_body_template_json">{"title":"{title}","message":"{message}"}</string>
+    <string name="notifications_headers">Headers</string>
+    <string name="notifications_headers_empty">No headers added</string>
+    <string name="notifications_label_key">Key</string>
+    <string name="notifications_label_value">Value</string>
+    <string name="notifications_add_header">Add Header</string>
+    <string name="notifications_edit">Edit</string>
+    <string name="notifications_delete">Delete</string>
+    <string name="notifications_local_push_desc">Posts an Android system notification after each sync. Tap it to open logs.</string>
+    <string name="notifications_test">Test</string>
+    <string name="notifications_test_dispatched_toast">Test notification dispatched</string>
+    <string name="notifications_test_title">Test Notification</string>
+    <string name="notifications_test_message">This is a test message from StepMonitor.</string>
+    <string name="notifications_delete_configuration">Delete Configuration</string>
+    <string name="settings_save">Save</string>
 </resources>

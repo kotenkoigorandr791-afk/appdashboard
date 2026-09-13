@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
+import com.stepmonitor.app.components.localizedLogLabel
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -80,20 +82,45 @@ fun LogsScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxSize().padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(stringResource(R.string.nav_logs), style = MaterialTheme.typography.titleLarge)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { query = it },
-                    modifier = Modifier.weight(1f),
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                    label = { Text(stringResource(R.string.logs_search)) },
-                    singleLine = true
+                Text(
+                    stringResource(R.string.nav_logs),
+                    style = MaterialTheme.typography.titleLarge,
+                    maxLines = 1,
+                    softWrap = false
                 )
+                Card(
+                    modifier = Modifier.weight(1f),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    shape = RoundedCornerShape(28.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(4.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                            label = { Text(stringResource(R.string.logs_search)) },
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.outline,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            ),
+                            shape = RoundedCornerShape(28.dp)
+                        )
+                    }
+                }
                 IconButton(onClick = {
                     newestFirst = !newestFirst
                     val msg = if (newestFirst) context.getString(R.string.logs_sort_newest) else context.getString(R.string.logs_sort_oldest)
@@ -135,13 +162,15 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                 Card(colors = CardDefaults.cardColors(containerColor = if (log.success) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.errorContainer)) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Row(Modifier.fillMaxWidth()) {
-                            Text(log.dataType ?: log.syncType ?: stringResource(R.string.nav_logs), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                            Text(localizedLogLabel(log.dataType, log.syncType) ?: stringResource(R.string.nav_logs), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                             IconButton(onClick = { expandedId = if (expanded) null else log.id }) {
                                 Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
                             }
                         }
                         Text(log.url, style = MaterialTheme.typography.bodyMedium)
-                        Text("${formatLogTime(log.timestamp)} · ${log.statusCode?.let { "HTTP $it" } ?: if (log.success) "OK" else "ERR"}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val statusText = log.statusCode?.let { "${stringResource(R.string.logs_row_http_label)} $it" }
+                            ?: if (log.success) stringResource(R.string.logs_row_ok) else stringResource(R.string.logs_row_err)
+                        Text("${formatLogTime(log.timestamp)} · $statusText", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         if (expanded) {
                             val copyText = blockText.ifEmpty { listOf(log.url) }
                             Row(Modifier.fillMaxWidth()) {
@@ -156,14 +185,14 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                                             modifier = Modifier.padding(8.dp),
                                             fontFamily = FontFamily.Monospace,
                                             fontSize = 12.sp,
-                                            color = if (log.success) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                                            color = MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 } else {
                                     Text(
                                         text = copyText.joinToString("\n"),
                                         modifier = Modifier.weight(1f),
-                                        color = if (log.success) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.error
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
                                 IconButton(onClick = { copyLogMessage(context, copyText.joinToString("\n")) }) {
@@ -211,5 +240,10 @@ private fun prettyJson(text: String?): String {
 }
 private fun formatLogTime(timestamp: Long): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(timestamp))
 private fun copyLogMessage(context: Context, message: String) {
-    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("StepMonitor log", message))
+    (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(
+        ClipData.newPlainText(
+            context.getString(R.string.app_name),
+            message
+        )
+    )
 }
