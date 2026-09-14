@@ -221,6 +221,7 @@ $metricButtons = [
         <div id="info-modal" style="display:none;">
             <div class="info-content">
                 <button class="modal-close">×</button>
+                <div class="info-scroll">
                 <div class="info-header">
                     <div class="info-header-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -299,6 +300,7 @@ $metricButtons = [
                         <h3><?php echo htmlspecialchars($translations['info_card_backup_title'] ?? 'Backup & Restore'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_backup_text'] ?? 'Keep your data safe with automatic backups and the ability to restore to any previous point.'); ?></p>
                     </div>
+                </div>
                 </div>
             </div>
         </div>

@@ -1579,6 +1579,23 @@ function openAdminPanel(target){
 function closeAdminPanel(){overlay.classList.remove('ap-edge-omniroute');overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
 
 /* ── AJAX load ── */
+const AP_UNAUTH='__ap_unauthenticated__';
+function apIsUnauthorizedText(t){
+    t=String(t||'');
+    return /id="auth-modal"|id="auth-form"/i.test(t)
+        || /(not authorized|unauthorized|not authenticated|session[^<]{0,40}(expired|invalid)|не авториз|истекла|сессия[^<]{0,40}истекл)/i.test(t);
+}
+function apShowUnauthorizedMsg(){
+    if(skeleton){
+        var sp=skeleton.querySelector('svg');
+        if(sp) sp.style.display='none';
+    }
+    var msgEl=document.getElementById('ap-loading-msg');
+    if(msgEl){
+        msgEl.style.opacity='1';
+        msgEl.innerHTML='Session expired. Please <a href="/login" style="color:var(--primary-color);text-decoration:underline;">log in again</a>.';
+    }
+}
 function loadPanel(target, year){
     var fd=new FormData();
     fd.append('get_admin_panel','1');
@@ -1587,8 +1604,12 @@ function loadPanel(target, year){
     var msgEl=document.getElementById('ap-loading-msg');
     fetch('/main',{method:'POST',body:fd})
         .then(function(r){
-            if(!r.ok) return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,300));});
+            if(!r.ok) return r.text().then(function(t){
+                if(r.status===401||r.status===403||apIsUnauthorizedText(t)) throw new Error(AP_UNAUTH);
+                throw new Error('HTTP '+r.status+': '+t.substring(0,300));
+            });
             return r.text().then(function(t){
+                if(apIsUnauthorizedText(t)) throw new Error(AP_UNAUTH);
                 // Strip any leading PHP warnings/notices before the JSON
                 var jsonStart = t.indexOf('{');
                 if(jsonStart > 0){ t = t.substring(jsonStart); }
@@ -1597,7 +1618,10 @@ function loadPanel(target, year){
             });
         })
         .then(function(d){
-            if(!d||!d.success){if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;}
+            if(!d||!d.success){
+                if(d&&!d.success&&/(not authorized|unauthorized|not authenticated|не авториз)/i.test(d.error||'')) {apShowUnauthorizedMsg();return;}
+                if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;
+            }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
             // Store available years from backend
@@ -1611,7 +1635,7 @@ function loadPanel(target, year){
             openPanel(target||'ap-users');
             wireEvents();
         })
-        .catch(function(err){if(msgEl)msgEl.textContent='Error: '+(err.message||'Unknown error');console.error('[AdminPanel]',err);});
+        .catch(function(err){if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();}else if(msgEl){msgEl.textContent='Error: '+(err.message||'Unknown error');}console.error('[AdminPanel]',err);});
 }
 
 /* Reload stats data for a specific year */

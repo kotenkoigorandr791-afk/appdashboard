@@ -6,21 +6,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
         :root {
-            --bg-light: #f5f5f5; --text-light: #111111;
-            --bg-dark: #121212; --text-dark: #f5f5f5;
+            --bg-light: #eef4ff; --text-light: #16233b;
+            --bg-dark: #0b1220; --text-dark: #e6edf9;
             --accent: #007bff; --card-bg-light: #ffffff;
-            --card-bg-dark: #1e1e1e; --border-light: #dddddd;
-            --border-dark: #333333;
+            --card-bg-dark: #141f38; --border-light: #cfddf3;
+            --border-dark: #2b3c61;
         }
-        html[data-theme="light"] body {background-color: var(--bg-light); color: var(--text-light);}
-        html[data-theme="dark"] body {background-color: var(--bg-dark); color: var(--text-dark);}
-        html[data-theme="light"] .card {background-color: var(--card-bg-light); border-color: var(--border-light);}
-        html[data-theme="dark"] .card {background-color: var(--card-bg-dark); border-color: var(--border-dark);}
+        html[data-theme="light"] {
+            scrollbar-color: #b6c6e0 #eef4ff;
+            scrollbar-width: thin;
+        }
+        html[data-theme="dark"] {
+            scrollbar-color: #3b5490 #0a1122;
+            scrollbar-width: thin;
+        }
+        html[data-theme="light"]::-webkit-scrollbar { width: 11px; height: 11px; }
+        html[data-theme="light"]::-webkit-scrollbar-track { background: #eef4ff; }
+        html[data-theme="light"]::-webkit-scrollbar-thumb { background: #b6c6e0; border-radius: 6px; border: 2px solid #eef4ff; }
+        html[data-theme="dark"]::-webkit-scrollbar { width: 11px; height: 11px; }
+        html[data-theme="dark"]::-webkit-scrollbar-track { background: #0a1122; }
+        html[data-theme="dark"]::-webkit-scrollbar-thumb { background: #334d85; border-radius: 6px; border: 2px solid #0a1122; }
+        html[data-theme="dark"]::-webkit-scrollbar-thumb:hover { background: #3f5c9e; }
+        html[data-theme="light"] body {
+            background-color: var(--bg-light);
+            color: var(--text-light);
+            background-image: linear-gradient(180deg, #e0edff 0%, #eef4ff 45%, #f5f9ff 100%);
+            background-attachment: fixed;
+        }
+        html[data-theme="dark"] body {
+            background-color: var(--bg-dark);
+            color: var(--text-dark);
+            background-image: radial-gradient(1100px 540px at 18% -12%, rgba(0,123,255,0.22), transparent 60%), linear-gradient(180deg, #0d1728 0%, #0a1122 100%);
+            background-attachment: fixed;
+        }
+        html[data-theme="light"] .card {background-color: var(--card-bg-light); border-color: var(--border-light); box-shadow: 0 10px 30px rgba(21,74,163,0.10);}
+        html[data-theme="dark"] .card {background-color: var(--card-bg-dark); border-color: var(--border-dark); box-shadow: 0 12px 34px rgba(0,0,0,0.35);}
         body {margin: 0; font-family: system-ui, sans-serif; line-height: 1.6;}
         header {display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid rgba(0,0,0,0.08); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 10;}
+        html[data-theme="light"] header {background: rgba(255,255,255,0.72); border-bottom-color: rgba(0,123,255,0.16);}
+        html[data-theme="dark"] header {background: rgba(10,17,34,0.78); border-bottom-color: rgba(0,123,255,0.28);}
         .title {font-size: 1.1rem; font-weight: 600;}
         .controls {display: flex; gap: 10px; align-items: center;}
         select, button {border-radius: 999px; border: 1px solid rgba(0,0,0,0.15); padding: 6px 10px; font-size: 0.9rem; background: transparent; color: inherit; cursor: pointer;}
+        html[data-theme="light"] select, html[data-theme="light"] button {border-color: rgba(0,123,255,0.28);}
         button {display: inline-flex; align-items: center; gap: 6px;}
         button .dot {width: 10px; height: 10px; border-radius: 50%;}
         .back-home-btn {
@@ -43,15 +71,13 @@
         a:hover {text-decoration: underline;}
         ul {padding-left: 20px;}
         .muted {opacity: 0.7; font-size: 0.85rem;}
-        .feature-list {background: rgba(0,123,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--accent);}
+        .feature-list {background: rgba(0,123,255,0.06); padding: 15px; border-radius: 8px; border-left: 4px solid var(--accent);}
         .warning {background: rgba(255,193,7,0.1); border-left-color: #ffc107; padding: 15px; border-radius: 8px; margin: 15px 0;}
-        /* Dropdown styles in the dark theme */
         html[data-theme="dark"] select {
             background-color: var(--card-bg-dark);
             color: var(--text-dark);
             border-color: var(--border-dark);
         }
-
         html[data-theme="dark"] select option {
             background-color: var(--card-bg-dark);
             color: var(--text-dark);

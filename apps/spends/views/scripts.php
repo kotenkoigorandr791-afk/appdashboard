@@ -54,12 +54,14 @@ function filterTable() {
 }
 
 function loadPage() {
+    const monthRange = getMonthDateRange();
     const params = new URLSearchParams({
         get_expenses_page: 1,
         search: searchTerm,
-        months_window: tableSettings.months_window,
-        sort: tableSettings.sort_by,
-        start_date: tableSettings.start_date || ''
+        months_window: 0,
+        sort: 'date_asc',
+        start_date: monthRange.start_date,
+        end_date: monthRange.end_date
     });
 
     fetch('?' + params.toString())
@@ -145,6 +147,81 @@ function loadPage() {
 function renderPagination() {
     const p = document.getElementById('pagination');
     if (p) { p.innerHTML = ''; p.style.display = 'none'; }
+}
+
+// ══ Month pagination ═══════════════════════════════════════════════════════
+let currentMonth = null;
+let currentYear = null;
+
+function getMonthData() {
+    const now = new Date();
+    if (!currentMonth) currentMonth = now.getMonth();
+    if (!currentYear) currentYear = now.getFullYear();
+    return { month: currentMonth, year: currentYear };
+}
+
+function renderMonthPagination() {
+    const container = document.getElementById('month-pagination');
+    if (!container) return;
+    container.innerHTML = '';
+
+    const { month, year } = getMonthData();
+    const monthNamesShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    // Prev month button
+    const prevBtn = document.createElement('button');
+    prevBtn.innerHTML = '◀';
+    prevBtn.title = 'Previous month';
+    prevBtn.onclick = () => { navigateMonth(-1); };
+    container.appendChild(prevBtn);
+
+    // Current month label
+    const label = document.createElement('span');
+    label.className = 'month-pagination-label';
+    label.textContent = monthNamesShort[month] + ' ' + year;
+    container.appendChild(label);
+
+    // Next month button
+    const nextBtn = document.createElement('button');
+    nextBtn.innerHTML = '▶';
+    nextBtn.title = 'Next month';
+    nextBtn.onclick = () => { navigateMonth(1); };
+    container.appendChild(nextBtn);
+
+    // Today button
+    const todayBtn = document.createElement('button');
+    todayBtn.textContent = 'Today';
+    todayBtn.style.marginLeft = '8px';
+    const now = new Date();
+    if (month === now.getMonth() && year === now.getFullYear()) {
+        todayBtn.disabled = true;
+    }
+    todayBtn.onclick = () => { currentMonth = null; currentYear = null; loadPageWithMonth(); };
+    container.appendChild(todayBtn);
+}
+
+function navigateMonth(direction) {
+    const { month, year } = getMonthData();
+    currentMonth = month + direction;
+    currentYear = year;
+    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    loadPageWithMonth();
+}
+
+function loadPageWithMonth() {
+    renderMonthPagination();
+    loadPage();
+}
+
+function getMonthDateRange() {
+    const { month, year } = getMonthData();
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+    return {
+        start_date: start.toISOString().slice(0, 10),
+        end_date: end.toISOString().slice(0, 10)
+    };
 }
 
 // ══ Expense save ════════════════════════════════════════════════════════════
@@ -756,9 +833,12 @@ function scheduleSaveTableSettings(){
 function saveTableSettingsNow(){
     const f=new FormData();
     f.append('save_table_settings','1');
-    f.append('sort_by',document.getElementById('sort-by').value);
-    f.append('months_window',document.getElementById('months-window').value);
-    f.append('start_date',document.getElementById('start-date').value);
+    const sb=document.getElementById('sort-by');
+    if(sb)f.append('sort_by',sb.value);
+    const mw=document.getElementById('months-window');
+    if(mw)f.append('months_window',mw.value);
+    const sd=document.getElementById('start-date');
+    if(sd)f.append('start_date',sd.value);
     document.querySelectorAll('.visibility-toggle').forEach(btn=>{
         const sid=btn.getAttribute('data-store-id');
         const vis=btn.getAttribute('data-visible')==='true';
@@ -766,9 +846,6 @@ function saveTableSettingsNow(){
     });
     fetch('',{method:'POST',body:f}).then(r=>r.json()).then(d=>{
         if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}
-        tableSettings.sort_by=document.getElementById('sort-by').value;
-        tableSettings.months_window=Math.max(0,parseInt(document.getElementById('months-window').value,10)||1);
-        tableSettings.start_date=document.getElementById('start-date').value||'';
         document.querySelectorAll('.visibility-toggle').forEach(btn=>{
             const id=btn.getAttribute('data-store-id');
             const v=btn.getAttribute('data-visible')==='true';
@@ -943,40 +1020,11 @@ function applyStoreToSettingsUI(s, withPhoto) {
             list.appendChild(d);
         }
     }
-    const vtb = document.querySelector('.store-visibility-table tbody');
-    if (!vtb) return;
-    const tr0 = vtb.querySelector('tr');
-    const oldVisBtn = vtb.querySelector('.visibility-toggle[data-store-id="' + idStr + '"]');
-    if (oldVisBtn) {
-        const tr = oldVisBtn.closest('tr');
-        tr.querySelector('td').textContent = s.name;
-        oldVisBtn.setAttribute('data-visible', s.visible ? 'true' : 'false');
-        oldVisBtn.innerHTML = s.visible ? visEyeSvg : visEyeOffSvg;
-        oldVisBtn.onclick = () => toggleStoreVisibility(oldVisBtn);
-    } else if (tr0) {
-        const tr = tr0.cloneNode(true);
-        tr.querySelector('td').textContent = s.name;
-        const vb = tr.querySelector('.visibility-toggle');
-        vb.setAttribute('data-store-id', s.id);
-        vb.setAttribute('data-visible', s.visible ? 'true' : 'false');
-        vb.innerHTML = s.visible ? visEyeSvg : visEyeOffSvg;
-        vb.onclick = () => toggleStoreVisibility(vb);
-        vtb.appendChild(tr);
-    } else {
-        const tr = document.createElement('tr');
-        const td1 = document.createElement('td');
-        td1.textContent = s.name;
-        const td2 = document.createElement('td');
-        const vb = document.createElement('button');
-        vb.className = 'visibility-toggle';
-        vb.setAttribute('data-store-id', s.id);
-        vb.setAttribute('data-visible', s.visible ? 'true' : 'false');
-        vb.innerHTML = s.visible ? visEyeSvg : visEyeOffSvg;
-        vb.onclick = () => toggleStoreVisibility(vb);
-        td2.appendChild(vb);
-        tr.appendChild(td1);
-        tr.appendChild(td2);
-        vtb.appendChild(tr);
+    const vtBtn = row ? row.querySelector('.visibility-toggle') : document.querySelector('.store-item[data-store-id="' + idStr + '"] .visibility-toggle');
+    if (vtBtn) {
+        vtBtn.setAttribute('data-visible', s.visible ? 'true' : 'false');
+        vtBtn.innerHTML = s.visible ? visEyeSvg : visEyeOffSvg;
+        vtBtn.onclick = () => toggleStoreVisibility(vtBtn);
     }
 }
 function saveStore(){
@@ -1496,12 +1544,6 @@ document.addEventListener('DOMContentLoaded',function(){
         scheduleSaveBudgetSettings();
         updateChart();
     });
-    const sb=document.getElementById('sort-by');
-    if(sb)sb.addEventListener('change',scheduleSaveTableSettings);
-    const mw=document.getElementById('months-window');
-    if(mw){mw.addEventListener('input',scheduleSaveTableSettings);mw.addEventListener('change',scheduleSaveTableSettings);}
-    const sd=document.getElementById('start-date');
-    if(sd)sd.addEventListener('change',scheduleSaveTableSettings);
     const bdm=document.getElementById('bulk-delete-mode');
     const syncBulkDeletePanels=()=>{
         const r=document.getElementById('bulk-delete-range-fields');
@@ -1551,7 +1593,8 @@ document.addEventListener('DOMContentLoaded',function(){
         el.addEventListener('wheel',e=>{e.preventDefault();changeDateValue(id.replace('date-',''),e.deltaY>0?-1:1);});
     });
 
-    renderPagination();
+    renderMonthPagination();
+    loadPage();
 
     function toggleIncomeColumnVisibility() {
         const showIncomes = document.getElementById('show-incomes-toggle').checked;

@@ -108,15 +108,21 @@ if (isset($_GET['get_expenses_page'])) {
     $monthsWindow = max(0, (int)($_GET['months_window'] ?? 1));
     $sort         = $_GET['sort'] ?? 'date_asc';
     $startDate    = trim($_GET['start_date'] ?? '');
+    $endDate      = trim($_GET['end_date'] ?? '');
     $sortDir      = $sort === 'date_desc' ? 'DESC' : 'ASC';
-    $today = date('Y-m-d');
-    $todayObj = new DateTime($today);
-    $startObj = (clone $todayObj)->modify("-{$monthsWindow} months")->modify('first day of this month');
-    $endObj   = (clone $todayObj)->modify("+{$monthsWindow} months")->modify('last day of this month');
-    $rangeStart = $startObj->format('Y-m-d');
-    $rangeEnd   = $endObj->format('Y-m-d');
-    if ($startDate && strcmp($startDate, $rangeStart) > 0) {
+    if ($startDate && $endDate) {
         $rangeStart = $startDate;
+        $rangeEnd   = $endDate;
+    } else {
+        $today = date('Y-m-d');
+        $todayObj = new DateTime($today);
+        $startObj = (clone $todayObj)->modify("-{$monthsWindow} months")->modify('first day of this month');
+        $endObj   = (clone $todayObj)->modify("+{$monthsWindow} months")->modify('last day of this month');
+        $rangeStart = $startObj->format('Y-m-d');
+        $rangeEnd   = $endObj->format('Y-m-d');
+        if ($startDate && strcmp($startDate, $rangeStart) > 0) {
+            $rangeStart = $startDate;
+        }
     }
     if (strcmp($rangeStart, $rangeEnd) > 0) {
         exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'totalPages' => 1]));
@@ -361,9 +367,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     if (empty($_FILES['bank_csv_file']) || (int) ($_FILES['bank_csv_file']['error'] ?? 0) !== UPLOAD_ERR_OK) {
         exit(json_encode(['status' => 'error', 'message' => 'upload']));
     }
-    require_once __DIR__ . '/../utils/BankStatementImport.php';
+    require_once __DIR__ . '/../utils/BankStatementParser.php';
     $sz = (int) ($_FILES['bank_csv_file']['size'] ?? 0);
-    if ($sz <= 0 || $sz > BankStatementImport::MAX_BYTES) {
+    if ($sz <= 0 || $sz > BankStatementParser::MAX_BYTES) {
         exit(json_encode(['status' => 'error', 'message' => 'file_too_large']));
     }
     $tmpDir = $userDir . '/bank_import';
@@ -372,7 +378,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     }
     @chmod($tmpDir, SPENDS_RUNTIME_DIR_MODE);
     $token = bin2hex(random_bytes(16));
-    $dest = $tmpDir . '/' . $token . '.csv';
+    $origName = $_FILES['bank_csv_file']['name'] ?? 'statement';
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['csv', 'xml', 'ofx', 'qfx', 'mt940', 'sta', 'pdf'], true)) {
+        $ext = 'csv';
+    }
+    $dest = $tmpDir . '/' . $token . '.' . $ext;
     if (!move_uploaded_file($_FILES['bank_csv_file']['tmp_name'], $dest)) {
         exit(json_encode(['status' => 'error', 'message' => 'move']));
     }
@@ -389,7 +400,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
         $base = (string) ($userSettings['currency'] ?? 'USD');
-        $res = BankStatementImport::analyze($udb, $dest, $storeNames, $base);
+        $parsed = BankStatementParser::parse($dest);
+        $res = BankStatementParser::toLegacyFormat($parsed, $storeNames, $base);
         $_SESSION['bank_csv_sessions'][$token] = ['path' => $dest, 'user' => $currentUser, 'ts' => time()];
         $res['token'] = $token;
         exit(json_encode($res));
@@ -401,6 +413,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     header('Content-Type: application/json; charset=UTF-8');
+    require_once __DIR__ . '/../utils/BankStatementParser.php';
     require_once __DIR__ . '/../utils/BankStatementImport.php';
     $payload = json_decode((string) ($_POST['bank_csv_apply'] ?? ''), true);
     if (!is_array($payload)) {
@@ -414,14 +427,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     if ($token === '' || strlen($token) < 16) {
         exit(json_encode(['status' => 'error', 'message' => 'bad_token']));
     }
-    $path = $userDir . '/bank_import/' . $token . '.csv';
-    if (!is_file($path) && isset($_SESSION['bank_csv_sessions'][$token])) {
+    $path = null;
+    if (isset($_SESSION['bank_csv_sessions'][$token])) {
         $meta = $_SESSION['bank_csv_sessions'][$token];
         if (($meta['user'] ?? '') === $currentUser && !empty($meta['path']) && is_file($meta['path'])) {
             $path = (string) $meta['path'];
         }
     }
-    if (!is_file($path)) {
+    if ($path === null) {
         exit(json_encode(['status' => 'error', 'message' => 'session']));
     }
     if (!is_array($exclude)) {
@@ -436,9 +449,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
         $base = (string) ($userSettings['currency'] ?? 'USD');
-        $parsed = BankStatementImport::readCsv($path);
-        $built = BankStatementImport::buildTransactions($parsed, $storeNames, $base);
-        $tx = $built['transactions'];
+        $parsed = BankStatementParser::parse($path);
+        $legacy = BankStatementParser::toLegacyFormat($parsed, $storeNames, $base);
+        $tx = $legacy['transactions'];
         BankStatementImport::markDuplicates($udb, $tx);
         BankStatementImport::apply($udb, $tx, $exclude, $storeMap, $conflictMode, $conflictDates);
         @unlink($path);

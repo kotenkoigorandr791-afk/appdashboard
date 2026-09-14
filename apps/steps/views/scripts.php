@@ -557,6 +557,7 @@
             const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
             const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
             const seriesType = isSeriesType(dataType);
+            const hideChartLabels = window.matchMedia('(max-width: 768px)').matches;
             const fmtAxis = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
             const fmtTooltip = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
 
@@ -594,11 +595,12 @@
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
                             ticks: {
+                                display: !hideChartLabels,
                                 color: isDarkTheme ? '#fff' : '#000',
                                 callback: (v) => fmtAxis(v)
                             },
                             title: {
-                                display: true,
+                                display: !hideChartLabels,
                                 text: unitLabel,
                                 color: isDarkTheme ? '#fff' : '#000'
                             }
@@ -606,9 +608,9 @@
                         x: {
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
-                            ticks: { color: isDarkTheme ? '#fff' : '#000' },
+                            ticks: { display: !hideChartLabels, color: isDarkTheme ? '#fff' : '#000' },
                             title: {
-                                display: true,
+                                display: !hideChartLabels,
                                 text: translations.time || 'Time',
                                 color: isDarkTheme ? '#fff' : '#000'
                             }
@@ -792,7 +794,11 @@
                 if (grid) grid.style.display = 'none';
                 return;
             }
+            const yearlySection = document.querySelector('#stats-modal .stats-card');
+            const hasMultipleYears = yearlyLabels.length >= 2;
+            if (yearlySection) yearlySection.style.display = hasMultipleYears ? '' : 'none';
             const totalAllYears = yearlyData.reduce((sum, value) => sum + value, 0);
+            if (hasMultipleYears) {
             yearlyDistributionChart = new Chart(document.getElementById('stats-years-chart').getContext('2d'), {
                 type: 'pie',
                 data: {
@@ -822,6 +828,7 @@
                     }
                 }
             });
+            }
             const year = new Date().getFullYear();
             const monthly = Array.from({ length: 12 }, () => 0);
             stepsData.forEach(entry => {
@@ -2884,6 +2891,14 @@
             hideEmptyDataTypeButtons();
             workerStartRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
+            let chartLabelsHideState = window.matchMedia('(max-width: 768px)').matches;
+            window.addEventListener('resize', function() {
+                const state = window.matchMedia('(max-width: 768px)').matches;
+                if (state !== chartLabelsHideState) {
+                    chartLabelsHideState = state;
+                    renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                }
+            });
 
             // Handlers for info button
             document.getElementById('info-button').addEventListener('click', () => {

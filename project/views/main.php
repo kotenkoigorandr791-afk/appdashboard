@@ -554,9 +554,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #policy-modal-overlay{display:none;position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);justify-content:center;align-items:center;}
         #policy-modal-overlay.active{display:flex;}
         #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);padding:6px;}
-        #policy-modal iframe{flex:1;width:100%;border:none;border-radius:calc(var(--casa-radius) - 6px);}
-        #policy-modal-close{position:absolute;top:16px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:var(--modal-bg);color:var(--text-color);font-size:26px;cursor:pointer;z-index:30001;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);transition:opacity 0.2s;padding:0;line-height:1;}
-        #policy-modal-close:hover{opacity:0.7;}
+        #policy-modal .modal-scroll-body{display:flex;padding:0;}
+        #policy-modal iframe{flex:1;width:100%;height:100%;min-height:0;border:none;border-radius:0 0 calc(var(--casa-radius) - 6px) calc(var(--casa-radius) - 6px);}
         #stats-content{background:var(--modal-bg);padding:60px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:85vh;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #stats-nav-box{border:1px solid var(--border-color);border-radius:12px;padding:15px;margin-bottom:20px;background:var(--group-block-bg);flex-shrink:0;}
         .stats-nav-buttons{display:flex;flex-direction:column;gap:15px;justify-content:center;align-items:center;}
@@ -2257,11 +2256,11 @@ endif; // showOtpPage
 <div id="auth-modal">
     <div class="gradient-bg"></div>
     <div id="auth-form">
-        <div class="std-topbar">
-            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['set_password'] ?? 'Set password'); ?></h2>
-            <button id="close-auth" type="button" class="std-topbar-close">&times;</button>
-        </div>
         <?php if($path === '/register' && isset($pendingGoogleData) && $pendingGoogleData): ?>
+            <div class="std-topbar">
+                <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['set_password'] ?? 'Set password'); ?></h2>
+                <button id="close-auth" type="button" class="std-topbar-close">&times;</button>
+            </div>
             <div class="auth-tabs" style="display: none;"></div>
             <?php if(isset($showReVerifyForm)&&$showReVerifyForm): ?>
             <div id="set-password-content" class="auth-content active" style="text-align:center;">
@@ -5566,6 +5565,9 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
         if(settingsModal){settingsModal.addEventListener('click',(e)=>{if(e.target===settingsModal){settingsModal.style.display='none';}});}
+        if(closeAuth){closeAuth.addEventListener('click',()=>{if(authModal){authModal.style.display='none';}});}
+        if(closeAuth){closeAuth.addEventListener('click',()=>{if(authModal)authModal.style.display='none';});}
+        if(authModal){authModal.addEventListener('click',(e)=>{if(e.target===authModal){authModal.style.display='none';}});}
         (function(){
             function initCustomSelect(wrapId,inputId){
                 var wrap=document.getElementById(wrapId);

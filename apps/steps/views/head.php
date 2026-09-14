@@ -469,15 +469,17 @@
         .chart-nav:hover { background: var(--primary-color); color: #fff; }
         .chart-nav:disabled { opacity: 0.3; cursor: not-allowed; background: var(--group-block-bg); color: var(--text-color); }
         .chart-nav:disabled:hover { background: var(--group-block-bg); color: var(--text-color); }
-        .chart-main { position: relative; flex: 1 1 auto; min-width: 0; max-width: none; width: 100%; padding-top: 46px; display: flex; flex-direction: column; }
+        .chart-main { position: relative; flex: 1 1 auto; min-width: 0; max-width: none; width: 100%; padding-top: 60px; display: flex; flex-direction: column; }
         .chart-label {
             position: absolute;
             top: 0;
             left: 0;
+            right: 0;
+            width: 100%;
             transform: none;
             font-size: clamp(20px, 2.2vw, 34px);
             font-weight: 800;
-            text-align: left;
+            text-align: center;
             pointer-events: none;
             padding: 0 0 12px;
             border: 1px solid var(--border-color);
@@ -490,7 +492,7 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
-        .chart-wrapper { position: relative; width: 100%; max-width: none; margin: 0 auto; flex: 1 1 auto; min-height: 340px; }
+        .chart-wrapper { position: relative; width: 100%; max-width: none; margin: 0 auto; flex: 1 1 auto; min-height: 340px; box-sizing: border-box; padding-top: 8px; }
         #steps-chart { width: 100%; height: 100%; min-height: 340px; max-width: none; display: block; }
         .calendar-container { grid-area: calendar; margin-top: 0; width: 100%; margin-left: auto; margin-right: auto; min-width: 0; }
         .calendar-header { display: flex; gap: 8px; justify-content: stretch; }
@@ -596,6 +598,8 @@
             object-fit: cover;
             border-radius: calc(var(--radius-sm) - 3px);
             box-sizing: border-box;
+            display: block;
+            flex-shrink: 0;
         }
 
         /* Modal windows for mobile */
@@ -666,8 +670,21 @@
             align-items: stretch;
         }
         #info-modal .info-content {
+            overflow: hidden;
+            overflow-x: hidden;
+            padding: 0 !important;
+        }
+        #info-modal .info-scroll {
             overflow-y: auto;
             overflow-x: hidden;
+            border-radius: inherit;
+            max-height: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 20px;
+            padding: 22px;
+            box-sizing: border-box;
         }
         #info-modal .modal-close {
             position: absolute;
@@ -982,6 +999,7 @@
             padding: 14px 16px;
             border-radius: 10px;
             font-size: 14px;
+            border: 1px solid var(--border-color);
         }
         .settings-chart-preview-grid {
             display: grid;
@@ -1659,8 +1677,9 @@
         .data-type-btn i { font-size: 26px; color: var(--text-color); transition: transform 0.18s ease, color 0.18s ease; }
         .data-type-btn:hover i { transform: scale(1.06); color: var(--primary-color); }
 
-        .chart-type-btn { background: var(--primary-color); color: #fff; border: none; padding: 8px; margin: 5px 0; cursor: pointer; border-radius: 4px; font-size: 14px; display: flex; align-items: center; }
-        .chart-type-btn.active, .chart-type-btn:hover { opacity: 0.9; }
+        .chart-type-btn { background: var(--surface-solid); color: var(--text-color); border: 1px solid var(--border-color); padding: 8px; margin: 5px 0; cursor: pointer; border-radius: 4px; font-size: 14px; display: flex; align-items: center; transition: all 0.16s ease; }
+        .chart-type-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); }
+        .chart-type-btn:hover:not(.active) { border-color: var(--primary-color); color: var(--primary-color); }
         .chart-type-btn span { margin-left: 5px; }
 
         .notification {
@@ -2107,6 +2126,8 @@
                 object-fit: cover;
                 border-radius: calc(var(--radius-sm) - 3px);
                 box-sizing: border-box;
+                display: block;
+                flex-shrink: 0;
             }
             .app-main {
                 flex: 1 1 auto;
@@ -2145,9 +2166,9 @@
             }
             .goal-icon { width: 12px; height: 12px; right: 2px; left: auto; bottom: 2px; top: auto; transform: none; }
 
-            .chart-wrapper { width: 100%; height: 240px; min-height: 240px; position: relative; overflow: hidden; box-sizing: border-box; }
+            .chart-wrapper { width: 100%; height: 240px; min-height: 240px; position: relative; overflow: hidden; box-sizing: border-box; padding-top: 4px; }
             .chart-container { max-width: 100%; min-height: 310px; padding: 8px; box-sizing: border-box; flex-direction: row; align-items: stretch; gap: 5px; }
-            .chart-main { max-width: none; padding-top: 38px; }
+            .chart-main { max-width: none; padding-top: 46px; }
             .chart-label { font-size: 20px; }
             #steps-chart { width: 100% !important; height: 100% !important; min-height: 240px; }
             .chart-nav { width: 28px; height: 52px; font-size: 14px; }
@@ -2262,8 +2283,8 @@
             #excel-modal .excel-actions .excel-btn {
                 width: auto;
             }
-            #info-modal .info-content {
-                overflow-y: auto;
+            #info-modal .info-scroll {
+                padding: 14px;
             }
             .info-header {
                 grid-template-columns: 1fr;
@@ -2477,8 +2498,7 @@ color: #fff !important;
 box-shadow: 0 10px 24px rgba(22,163,74,0.26);
 }
 .data-type-selector {
-grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
-width: min(100%, 430px);
+grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
 }
 .data-type-btn {
 height: 72px;
@@ -2546,6 +2566,7 @@ color: var(--primary-color);
 border-color: color-mix(in srgb, var(--primary-color) 36%, var(--border-color));
 }
 #hc-token-modal .hc-token-content, #hc-token-help-modal .hc-token-content {
+position: relative;
 width: min(620px, 100%);
 padding: 24px;
 }
@@ -2602,8 +2623,8 @@ border-radius: 0 !important;
 padding: 16px !important;
 }
 .data-type-selector {
-grid-template-columns: repeat(auto-fit, minmax(56px, 1fr));
-width: min(100%, 360px);
+grid-template-columns: repeat(2, minmax(0, 1fr));
+width: min(100%, 320px);
 }
 .data-type-btn {
 height: 58px;

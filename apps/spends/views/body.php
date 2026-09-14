@@ -231,6 +231,7 @@
             </table>
         </div>
         <div id="pagination"></div>
+        <div class="month-pagination" id="month-pagination"></div>
     </div>
 </div>
 <div id="ocr-analytics-modal" class="modal">
@@ -284,7 +285,6 @@
         <h3><?= htmlspecialchars($translations['settings_title']) ?></h3>
         <div class="settings-menu-bar">
             <button type="button" class="settings-menu-btn active" data-settings-section="stores" onclick="switchSettingsSection('stores')"><?= htmlspecialchars($translations['stores']) ?></button>
-            <button type="button" class="settings-menu-btn" data-settings-section="table" onclick="switchSettingsSection('table')"><?= htmlspecialchars($translations['table_settings']) ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="chart" onclick="switchSettingsSection('chart')"><?= htmlspecialchars($translations['chart_settings'] ?? 'Chart') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="delete" onclick="switchSettingsSection('delete')"><?= htmlspecialchars($translations['data_deletion'] ?? 'Data deletion') ?></button>
         </div>
@@ -310,6 +310,13 @@
                     <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>">
                         <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
                         <span style="flex:1;"><?= htmlspecialchars($store['name']) ?></span>
+                        <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)" title="<?= htmlspecialchars($translations['visible'] ?? 'Visible') ?>">
+                            <?php if ($store['visible']): ?>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                            <?php else: ?>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
+                            <?php endif; ?>
+                        </button>
                         <button class="edit-store-btn" onclick="showAddEditStoreModal('<?= $store['id'] ?>','<?= htmlspecialchars($store['name'],ENT_QUOTES) ?>',<?= $store['visible']?'true':'false' ?>)">
                             <?= htmlspecialchars($translations['edit_store']) ?>
                         </button>
@@ -321,42 +328,6 @@
                 <?php endforeach; ?>
             </div>
             <button class="add-store-btn" onclick="showAddEditStoreModal()">+ <?= htmlspecialchars($translations['add_store']) ?></button>
-        </div>
-        <div class="settings-section" id="settings-section-table">
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['sort_by']) ?>:</label>
-                <select id="sort-by">
-                    <option value="date_asc" <?= $tableSettings['sort_by']==='date_asc'?'selected':'' ?>><?= htmlspecialchars($translations['date_asc']) ?></option>
-                    <option value="date_desc" <?= $tableSettings['sort_by']==='date_desc'?'selected':'' ?>><?= htmlspecialchars($translations['date_desc']) ?></option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['months_before_after']) ?>:</label>
-                <input type="number" id="months-window" min="0" value="<?= $tableSettings['months_window'] ?>">
-            </div>
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['start_date']) ?>:</label>
-                <input type="date" id="start-date" value="<?= $tableSettings['start_date'] ?>">
-            </div>
-            <table class="store-visibility-table">
-                <thead><th><?= htmlspecialchars($translations['store_name']) ?></th><th><?= htmlspecialchars($translations['visible']) ?></th></thead>
-                <tbody>
-                    <?php foreach ($userSettings['stores'] as $store): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($store['name']) ?></td>
-                            <td>
-                                <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)">
-                                    <?php if ($store['visible']): ?>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                                    <?php else: ?>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
-                                    <?php endif; ?>
-                                </button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
         </div>
         <div class="settings-section" id="settings-section-chart">
             <div class="form-row">

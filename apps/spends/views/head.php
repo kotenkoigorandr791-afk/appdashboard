@@ -171,7 +171,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .modal-close { position:absolute; top:12px; right:12px; border:none; font-size:22px; cursor:pointer; color:#fff; width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,rgba(var(--primary-color-rgb),.9),rgba(var(--primary-color-rgb),.65)); border:1px solid rgba(255,255,255,.35); box-shadow:0 10px 24px rgba(0,0,0,.28); }
         .modal-close:hover { filter:brightness(1.08); }
         .store-list { margin:10px 0; max-width:600px; }
-        .store-item { display:flex; align-items:center; gap:10px; margin:5px 0; padding:10px; background:var(--group-block-bg); border-radius:4px; }
+        .store-item { display:flex; align-items:center; gap:10px; margin:5px 0; padding:10px; background:var(--group-block-bg); border-radius:var(--radius-sm); }
         .store-item input, .modal-content input, .modal-content select { flex:1; padding:8px; margin:5px 0; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:4px; }
         .store-item input:focus, .modal-content input:focus, .modal-content select:focus { outline:1px solid var(--primary-color); background:var(--modal-bg); }
         .add-store-btn, .edit-store-btn { background:var(--primary-color); color:white; border:none; padding:8px 12px; cursor:pointer; margin:5px 0; border-radius:4px; transition:opacity 0.2s; }
@@ -300,7 +300,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
         .table-toolbar .search-box { width:100%; height:40px; margin:0; padding:0 12px 0 38px; background:var(--surface-solid); border-radius:var(--radius-sm); line-height:40px; }
         .add-date-btn { padding:10px 16px; border-radius:var(--radius-sm); font-weight:800; }
-        .data-table-container { overflow-x:auto; overflow-y:clip; margin:12px 0; max-width:100%; max-height:none; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
+        .data-table-container { overflow-x:auto; overflow-y:auto; margin:12px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 40px); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
         .data-table { border-collapse:separate; border-spacing:0; }
         .data-table th, .data-table td { border:0; border-bottom:1px solid var(--border-color); border-left:1px solid var(--border-color); padding:8px 10px; min-width:92px; }
         .data-table th { background:color-mix(in srgb,var(--primary-color) 86%,#111); font-size:12px; font-weight:800; }
@@ -315,13 +315,19 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .modal-close:hover { background:var(--primary-color); color:#fff; filter:none; border-color:var(--primary-color); }
         .modal:not(#import-modal):not(#bank-csv-import-modal) .modal-content { padding-top:64px!important; }
         #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
-        .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; }
-        .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; }
-        .table-modal .data-table-container { flex:none; min-height:unset; max-height:none; margin:0; box-shadow:none; }
-        .table-modal .data-table th { top:64px; }
+        .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow:hidden; }
+        .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; flex-shrink:0; }
+        .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow-y:auto; }
+        .table-modal .data-table th { position:sticky; top:0; z-index:10; }
         .notification { border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 18px 42px rgba(0,0,0,.2); }
         #pagination { margin:14px 0 0; }
         #pagination button { padding:8px 12px; border-radius:var(--radius-sm); font-weight:700; }
+        .month-pagination { display:flex; align-items:center; justify-content:center; gap:6px; margin:14px 0 0; flex-wrap:wrap; }
+        .month-pagination button { background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); padding:8px 12px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; transition:all .15s ease; }
+        .month-pagination button:hover:not(:disabled) { background:rgba(var(--primary-color-rgb),.15); border-color:rgba(var(--primary-color-rgb),.4); }
+        .month-pagination button.active { background:var(--primary-color); color:#fff; border-color:var(--primary-color); }
+        .month-pagination button:disabled { opacity:.35; cursor:default; }
+        .month-pagination-label { font-size:13px; font-weight:700; color:var(--text-color); padding:0 6px; white-space:nowrap; }
         .chart-year-framed { padding:8px 16px; border:1px solid var(--border-color); border-radius:var(--radius-md); font-weight:800; color:var(--text-color); margin-bottom:12px; background:var(--modal-bg); box-shadow:0 12px 30px rgba(0,0,0,.1); backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
         .rate-chart-container { border:1px solid var(--border-color); border-radius:var(--radius-md); }
 
@@ -406,7 +412,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             /* Make store header row sticky at top */
             .table-modal .data-table thead {
                 position: sticky !important;
-                top: 64px !important;
+                top: 0 !important;
                 z-index: 10 !important;
             }
 
