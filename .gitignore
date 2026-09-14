@@ -54,6 +54,7 @@ graphify-out/
 /apps/spends/utils/ocr_jobs/
 /apps/spends/utils/results/
 /apps/spends/utils/tests/
+/apps/spends/utils/.venv/
 /apps/spends/users/
 /apps/spends/global_settings.json
 /apps/spends/*.xlsx
