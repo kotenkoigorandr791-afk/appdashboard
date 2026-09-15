@@ -3835,6 +3835,7 @@ var T=<?php echo json_encode([
         let tooltipTimeout;
         let activeTooltip = null;
         const authModal=document.getElementById('auth-modal');
+        const closeAuth=document.getElementById('close-auth');
         const authTabs=document.querySelectorAll('.auth-tab');
         const authContents=document.querySelectorAll('.auth-content');
         const showForgotLink=document.getElementById('show-forgot');
@@ -5566,7 +5567,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
         if(settingsModal){settingsModal.addEventListener('click',(e)=>{if(e.target===settingsModal){settingsModal.style.display='none';}});}
         if(closeAuth){closeAuth.addEventListener('click',()=>{if(authModal){authModal.style.display='none';}});}
-        if(closeAuth){closeAuth.addEventListener('click',()=>{if(authModal)authModal.style.display='none';});}
         if(authModal){authModal.addEventListener('click',(e)=>{if(e.target===authModal){authModal.style.display='none';}});}
         (function(){
             function initCustomSelect(wrapId,inputId){

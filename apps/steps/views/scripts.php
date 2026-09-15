@@ -557,7 +557,7 @@
             const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
             const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
             const seriesType = isSeriesType(dataType);
-            const hideChartLabels = window.matchMedia('(max-width: 768px)').matches;
+            const hideChartTitles = window.matchMedia('(max-width: 768px)').matches;
             const fmtAxis = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
             const fmtTooltip = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
 
@@ -595,12 +595,12 @@
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
                             ticks: {
-                                display: !hideChartLabels,
+                                display: true,
                                 color: isDarkTheme ? '#fff' : '#000',
                                 callback: (v) => fmtAxis(v)
                             },
                             title: {
-                                display: !hideChartLabels,
+                                display: !hideChartTitles,
                                 text: unitLabel,
                                 color: isDarkTheme ? '#fff' : '#000'
                             }
@@ -608,9 +608,9 @@
                         x: {
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
-                            ticks: { display: !hideChartLabels, color: isDarkTheme ? '#fff' : '#000' },
+                            ticks: { display: true, color: isDarkTheme ? '#fff' : '#000' },
                             title: {
-                                display: !hideChartLabels,
+                                display: !hideChartTitles,
                                 text: translations.time || 'Time',
                                 color: isDarkTheme ? '#fff' : '#000'
                             }
@@ -3039,6 +3039,7 @@
                 if (!event || !event.data || typeof event.data !== 'object') return;
                 if (event.data.type === 'takeout-guide-image-open') openGlobalImageViewer(event.data.src || '', event.data.alt || '');
                 else if (event.data.type === 'takeout-guide-image-close') closeGlobalImageViewer();
+                else if (event.data.type === 'takeout-guide-close') closeModal('guide-expand-modal');
             });
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && globalImageViewerOpen) closeGlobalImageViewer();
@@ -3297,17 +3298,18 @@
             }
             const zeepGuideSegment = document.getElementById('zeep-guide-segment');
             const zeepGuideToggle = document.getElementById('zeep-guide-toggle');
-            if (zeepGuideSegment && zeepGuideToggle) {
-                zeepGuideToggle.addEventListener('click', () => {
-                    const collapsed = zeepGuideSegment.classList.toggle('is-collapsed');
-                    zeepGuideToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-                });
-            }
             function openGuideExpand(which) {
-                const src = document.getElementById(which === 'zeep' ? 'zeep-guide-frame' : 'takeout-guide-frame');
                 const frame = document.getElementById('guide-expand-frame');
                 const title = document.getElementById('guide-expand-title-text');
-                if (frame && src) { frame.src = src.src; frame.title = src.title || ''; }
+                const lang = <?php echo json_encode($language); ?>;
+                const theme = <?php echo json_encode($theme); ?>;
+                const color = <?php echo json_encode($color); ?>;
+                const guidePath = which === 'zeep'
+                    ? `instruction/zeep_life_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`
+                    : `instruction/takeout_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+                if (frame) {
+                    frame.src = guidePath;
+                }
                 if (title) {
                     title.textContent = which === 'zeep'
                         ? (translations.zeep_guide_title || 'How to export Zeep Life data')
@@ -3315,10 +3317,12 @@
                 }
                 openModal('guide-expand-modal');
             }
-            const zeepGuideExpand = document.getElementById('zeep-guide-expand');
-            if (zeepGuideExpand) zeepGuideExpand.addEventListener('click', () => openGuideExpand('zeep'));
-            const takeoutGuideExpand = document.getElementById('takeout-guide-expand');
-            if (takeoutGuideExpand) takeoutGuideExpand.addEventListener('click', () => openGuideExpand('takeout'));
+            const zeepGuideOpenBtn = document.getElementById('zeep-guide-open-btn');
+            if (zeepGuideOpenBtn) zeepGuideOpenBtn.addEventListener('click', () => openGuideExpand('zeep'));
+            const takeoutGuideOpenBtn = document.getElementById('takeout-guide-open-btn');
+            if (takeoutGuideOpenBtn) takeoutGuideOpenBtn.addEventListener('click', () => openGuideExpand('takeout'));
+            const guideExpandBackBtn = document.getElementById('guide-expand-back-btn');
+            if (guideExpandBackBtn) guideExpandBackBtn.addEventListener('click', () => closeModal('guide-expand-modal'));
             [['video-confirm-phone-guide-segment','video-confirm-phone-guide-toggle']].forEach(function(pair) {
                 const seg = document.getElementById(pair[0]);
                 const btn = document.getElementById(pair[1]);
@@ -3336,6 +3340,15 @@
 
             // Download backup button
             document.getElementById('download-backup')?.addEventListener('click', downloadBackup);
+            document.getElementById('toggle-import-backup')?.addEventListener('click', () => {
+                const importSection = document.querySelector('.settings-backup-import');
+                if (!importSection) return;
+                const isHidden = window.getComputedStyle(importSection).display === 'none';
+                importSection.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    importSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
             document.getElementById('import-external-backup-btn')?.addEventListener('click', importExternalBackup);
 
             // Search button
