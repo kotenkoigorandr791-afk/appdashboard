@@ -299,7 +299,7 @@ function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mo
     ksort($daySteps);
     $existing = steps_worker_existing_dates_map($db, array_keys($daySteps));
     $replaceStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
-    $insertStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
+    $insertStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO NOTHING');
     $n = 0;
     foreach ($daySteps as $d => $s) {
         if ($allowZero ? $s < 0 : $s <= 0) continue;
@@ -334,7 +334,7 @@ function steps_worker_conflicts_app_db(AppDatabase $db, array $daySteps): int {
         $stmt = $db->prepare('SELECT steps FROM steps WHERE date = :d');
         $stmt->bindValue(':d', (string)$day, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($row !== null && (int)$row['steps'] !== (int)$steps) $n++;
+        if (is_array($row) && (int)$row['steps'] !== (int)$steps) $n++;
     }
     return $n;
 }

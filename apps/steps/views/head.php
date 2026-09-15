@@ -52,7 +52,7 @@
         .calendar-selector-box select,
         .calendar-header select,
         .goal-summary,
-        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content,
+        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .mobile-app-content,
         .settings-tab-bar,
         .settings-tab.active,
         .add-tab-bar,
@@ -625,7 +625,7 @@
         }
 
         /* Modal windows for mobile */
-        #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #alert-modal {
+        #info-modal, #stats-modal, #settings-modal, #add-steps-modal, #user-modal, #add-user-modal, #video-confirm-modal, #video-confirm-gaps-modal, #excel-modal, #excel-hotkeys-modal, #backups-modal, #alert-modal, #mobile-app-modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -673,7 +673,7 @@
             z-index: 10001;
         }
 
-        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content {
+        .settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .mobile-app-content {
             background: var(--modal-bg);
             padding: 24px;
             border-radius: var(--radius-lg);
@@ -1898,6 +1898,189 @@
             flex-grow: 1;
         }
 
+        .info-app-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 10px 0 0;
+            border-top: 1px solid var(--border-color);
+            font-size: 14px;
+        }
+        .info-app-toggle-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .info-app-open {
+            padding: 6px 12px;
+            border: 1px solid color-mix(in srgb, var(--primary-color) 36%, var(--border-color));
+            border-radius: 8px;
+            background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-solid));
+            color: var(--primary-color);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.18s ease, color 0.18s ease;
+        }
+        .info-app-open:hover:not(:disabled) { background: color-mix(in srgb, var(--primary-color) 20%, var(--surface-solid)); }
+        .info-app-open:disabled { opacity: 0.55; cursor: not-allowed; }
+        .info-app-toggle.is-unavailable {
+            opacity: 0.55;
+            pointer-events: none;
+        }
+
+        .app-switch {
+            position: relative;
+            display: inline-flex;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .app-switch input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            margin: 0;
+        }
+        .app-switch-track {
+            position: relative;
+            width: 46px;
+            height: 26px;
+            border-radius: 999px;
+            background: var(--muted-text, #9aa3ad);
+            border: 1px solid var(--border-color);
+            transition: background 0.2s ease;
+            box-sizing: border-box;
+        }
+        .app-switch-track::after {
+            content: "";
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.35);
+            transition: transform 0.2s ease;
+        }
+        .app-switch input:checked + .app-switch-track {
+            background: var(--primary-color, #3D8BFF);
+            border-color: var(--primary-color, #3D8BFF);
+        }
+        .app-switch input:checked + .app-switch-track::after {
+            transform: translateX(20px);
+        }
+        .app-switch input:focus-visible + .app-switch-track {
+            outline: 2px solid var(--primary-color, #3D8BFF);
+            outline-offset: 2px;
+        }
+        .app-switch input:disabled + .app-switch-track {
+            opacity: 0.5;
+        }
+
+        .mobile-app-content {
+            max-width: 900px;
+        }
+        .mobile-app-subtitle {
+            margin: 0;
+            color: var(--muted-text, var(--text-color));
+            line-height: 1.5;
+        }
+        .mobile-app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+        }
+        .mobile-app-footer {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            padding-top: 4px;
+        }
+        .mobile-app-download-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            min-height: 46px;
+            padding: 10px 28px;
+            border: none;
+            border-radius: 12px;
+            background: var(--primary-color, #3D8BFF);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: filter 0.18s ease, transform 0.18s ease;
+        }
+        .mobile-app-download-btn:hover:not(:disabled) {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+        }
+        .mobile-app-download-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+        }
+
+        .app-toast {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            z-index: 10050;
+            max-width: min(480px, calc(100vw - 32px));
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-sizing: border-box;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(20, 26, 34, 0.82);
+            -webkit-backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px);
+            color: #fff;
+            font-size: 14px;
+            line-height: 1.4;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+            animation: appToastIn 0.25s ease;
+        }
+        .app-toast span { flex-grow: 1; }
+        .app-toast-hide {
+            flex-shrink: 0;
+            padding: 6px 12px;
+            border: 1px solid rgba(255,255,255,0.45);
+            border-radius: 8px;
+            background: transparent;
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .app-toast-hide:hover { background: rgba(255,255,255,0.16); }
+        .app-toast-close {
+            flex-shrink: 0;
+            width: 26px;
+            height: 26px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: rgba(255,255,255,0.75);
+            font-size: 18px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .app-toast-close:hover { background: rgba(255,255,255,0.16); color: #fff; }
+        .app-toast-leave { opacity: 0; transform: translateX(-50%) translateY(8px); transition: opacity 0.2s ease, transform 0.2s ease; }
+        @keyframes appToastIn {
+            from { opacity: 0; transform: translateX(-50%) translateY(12px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
         .hotkey {
             display: inline-block;
             padding: 2px 6px;
@@ -2270,7 +2453,7 @@
                 justify-content: center;
                 flex: 1 1 auto;
             }
-            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content {
+            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content, .mobile-app-content {
                 width: 100dvw !important;
                 max-width: 100dvw !important;
                 height: 100dvh !important;
@@ -2281,7 +2464,7 @@
                 overflow: auto;
                 overflow-x: hidden;
             }
-            #info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal) {
+            #info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
                 width: 100dvw !important;
                 height: 100dvh !important;
                 padding: 0 !important;
@@ -2662,7 +2845,7 @@ transition: transform 0.18s ease;
 .data-type-btn:hover svg, .data-type-btn.active svg {
 transform: scale(1.08);
 }
-#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal) {
+#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
 position: fixed;
 inset: 0;
 display: none;
@@ -2679,7 +2862,7 @@ overflow: hidden;
 #hc-token-help-modal {
 z-index: 10010;
 }
-.settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content {
+.settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content, .mobile-app-content {
 width: min(920px, 100%);
 max-width: calc(100vw - 32px);
 max-height: calc(100dvh - 32px);
@@ -2776,12 +2959,12 @@ background: var(--group-block-bg);
 line-height: 1.45;
 }
 @media (max-width: 640px) {
-#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal) {
+#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
 padding: 0 !important;
 align-items: stretch !important;
 justify-content: stretch !important;
 }
-.settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content {
+.settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content, .mobile-app-content {
 width: 100dvw !important;
 max-width: 100dvw !important;
 height: 100dvh !important;

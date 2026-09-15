@@ -96,7 +96,7 @@ $metricButtons = [
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
-                <?php if ($stepmonitorAvailable && $stepmonitorShow): ?><button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button><?php endif; ?>
+                <?php if ($stepmonitorAvailable): ?><button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"<?php echo $stepmonitorShow ? '' : ' style="display:none;"'; ?>><i class="fas fa-mobile-screen-button"></i></button><?php endif; ?>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-pie-icon lucide-chart-pie" aria-hidden="true" focusable="false">
@@ -300,11 +300,105 @@ $metricButtons = [
                         <h3><?php echo htmlspecialchars($translations['info_card_backup_title'] ?? 'Backup & Restore'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_backup_text'] ?? 'Keep your data safe with automatic backups and the ability to restore to any previous point.'); ?></p>
                     </div>
+                <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                                <line x1="2" y1="12" x2="5" y2="12"></line>
+                                <line x1="5" y1="9" x2="5" y2="15"></line>
+                                <line x1="15" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                        <div class="info-app-toggle <?php echo $stepmonitorAvailable ? '' : 'is-unavailable'; ?>">
+                            <span><?php echo htmlspecialchars($translations['mobile_app_show_in_header'] ?? 'Show download button in header'); ?></span>
+                            <span class="info-app-toggle-controls">
+                                <button type="button" id="info-mobile-app-open" class="info-app-open" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>><?php echo htmlspecialchars($translations['mobile_app_open'] ?? 'Open app'); ?></button>
+                                <label class="app-switch">
+                                    <input type="checkbox" id="mobile-app-btn-toggle" <?php echo $stepmonitorShow ? 'checked' : ''; ?> <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
+                                    <span class="app-switch-track"></span>
+                                </label>
+                            </span>
+                        </div>
+                    </div>
                 </div>
                 </div>
             </div>
         </div>
         
+        <!-- Mobile App Modal -->
+        <div id="mobile-app-modal" style="display:none;">
+            <div class="mobile-app-content">
+                <button class="modal-close">×</button>
+                <div class="info-header">
+                    <div class="info-header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="7" y="2" width="10" height="20" rx="2" ry="2"/>
+                            <line x1="2" y1="12" x2="5" y2="12"/>
+                            <line x1="5" y1="9" x2="5" y2="15"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h2>
+                    </div>
+                </div>
+                <p class="mobile-app-subtitle"><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                <div class="mobile-app-grid">
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><polyline points="2 12 15 12 18 9"/><path d="M6 6h12v12"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_sync_title'] ?? 'Health Connect Sync'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_sync_desc'] ?? 'Automatically sync your steps with Health Connect on Android.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_qr_title'] ?? 'QR Pairing'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_qr_desc'] ?? 'Scan a QR code to pair the app with this dashboard in seconds.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_secure_title'] ?? 'Secure Token Auth'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_secure_desc'] ?? 'Use a generated token for secure, password-free authentication.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_offline_title'] ?? 'Offline Tracking'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_offline_desc'] ?? 'Track steps even without an internet connection.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_devices_desc'] ?? 'Sync data from multiple wearables and fitness trackers.'); ?></p>
+                    </div>
+                </div>
+                <div class="mobile-app-footer">
+                    <button id="mobile-app-download-btn" type="button" class="mobile-app-download-btn" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
+                        <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Settings Modal -->
         <div id="settings-modal" style="display:none;">
             <div class="settings-content">
@@ -367,18 +461,6 @@ $metricButtons = [
                                 <span class="tile-icon"><i class="fas fa-birthday-cake"></i></span>
                                 <input type="date" name="birth_date" value="<?php echo $userSettings['birth_date']; ?>">
                                 <span></span>
-                            </div>
-                        </div>
-                        <div class="settings-tile">
-                            <div class="tile-title"><?php echo htmlspecialchars($translations['mobile_app_button'] ?? 'Mobile app button'); ?></div>
-                            <hr>
-                            <div class="tile-content">
-                                <span class="tile-icon"><i class="fas fa-mobile-screen-button"></i></span>
-                                <label style="display:flex;gap:8px;align-items:center;">
-                                    <input type="hidden" name="mobile_apk_hidden" value="1">
-                                    <input type="checkbox" name="mobile_apk_hidden" value="0" <?php echo empty($userSettings['mobile_apk_hidden']) ? 'checked' : ''; ?>>
-                                    <span><?php echo htmlspecialchars($translations['mobile_app_button_show'] ?? 'Show download button'); ?></span>
-                                </label>
                             </div>
                         </div>
                         <div class="save-button-container">
@@ -941,21 +1023,86 @@ $metricButtons = [
         </script>
         <script>
         (function(){
-            const btn=document.getElementById('stepmonitor-apk-button');
-            if(!btn) return;
+            const headerBtn=document.getElementById('stepmonitor-apk-button');
             const version=<?php echo json_encode($stepmonitorVersion); ?>;
-            btn.addEventListener('click', async ()=>{
-                window.location.href='/downloads/stepmonitor.apk';
+            const modal=document.getElementById('mobile-app-modal');
+            const dlBtn=document.getElementById('mobile-app-download-btn');
+            const toggle=document.getElementById('mobile-app-btn-toggle');
+
+            function persistState(visible){
                 try{
                     const fd=new FormData();
                     fd.append('mobile_apk_state','1');
-                    fd.append('hidden','1');
+                    fd.append('hidden', visible?'0':'1');
                     fd.append('version',version);
-                    await fetch(location.href,{method:'POST',body:fd,credentials:'same-origin'});
+                    fetch(location.href,{method:'POST',body:fd,credentials:'same-origin'});
                 }catch(e){}
-                btn.remove();
-                if(typeof showAlert==='function') showAlert(<?php echo json_encode($translations['mobile_app_download_notice'] ?? 'The mobile app download button was hidden. You can enable it again in settings.'); ?>);
-            });
+            }
+            function setHeaderBtnVisible(visible){
+                if(headerBtn) headerBtn.style.display=visible?'':'none';
+            }
+            function showToast(){
+                const old=document.getElementById('mobile-app-toast');
+                if(old) old.remove();
+                const tip=<?php echo json_encode($translations['mobile_app_hide_toast'] ?? 'The download button can be hidden. You can re-enable it in the Info window.'); ?>;
+                const hideLabel=<?php echo json_encode($translations['mobile_app_hide_btn'] ?? 'Hide button'); ?>;
+                const t=document.createElement('div');
+                t.id='mobile-app-toast';
+                t.className='app-toast';
+                t.innerHTML='<span>'+tip+'</span><button type="button" class="app-toast-hide">'+hideLabel+'</button><button type="button" class="app-toast-close" aria-label="Close">×</button>';
+                document.body.appendChild(t);
+                let timer=null;
+                function dismiss(){
+                    if(t.isConnected) t.classList.add('app-toast-leave');
+                    setTimeout(()=>{ if(t.isConnected) t.remove(); },220);
+                }
+                function killTimer(){ if(timer){ window.clearTimeout(timer); timer=null; } }
+                t.querySelector('.app-toast-close').addEventListener('click', dismiss);
+                t.querySelector('.app-toast-hide').addEventListener('click', ()=>{
+                    killTimer();
+                    setHeaderBtnVisible(false);
+                    if(toggle) toggle.checked=false;
+                    persistState(false);
+                    dismiss();
+                });
+                t.addEventListener('mouseenter', killTimer);
+                t.addEventListener('mouseleave', ()=>{
+                    if(!timer) timer=window.setTimeout(dismiss,6000);
+                });
+                timer=window.setTimeout(dismiss,6000);
+            }
+
+            if(headerBtn){
+                headerBtn.addEventListener('click', ()=>{
+                    if(typeof openModal==='function') openModal('mobile-app-modal');
+                    else if(modal){ modal.style.display='flex'; modal.firstElementChild.classList.add('modal-content'); document.body.classList.add('modal-open'); }
+                });
+            }
+            if(dlBtn){
+                dlBtn.addEventListener('click', ()=>{
+                    const a=document.createElement('a');
+                    a.href='/downloads/stepmonitor.apk';
+                    a.download='stepmonitor.apk';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    persistState(!headerBtn || headerBtn.style.display!=='none');
+                    showToast();
+                });
+            }
+            if(toggle){
+                toggle.addEventListener('change', ()=>{
+                    setHeaderBtnVisible(toggle.checked);
+                    persistState(toggle.checked);
+                });
+            }
+            const openBtn=document.getElementById('info-mobile-app-open');
+            if(openBtn){
+                openBtn.addEventListener('click', ()=>{
+                    if(typeof openModal==='function') openModal('mobile-app-modal');
+                    else if(modal){ modal.style.display='flex'; modal.firstElementChild.classList.add('modal-content'); document.body.classList.add('modal-open'); }
+                });
+            }
         })();
         </script>
     </div>

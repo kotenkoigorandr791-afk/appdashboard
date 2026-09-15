@@ -12,6 +12,9 @@
         let currentView = 'year', currentDataType = 'steps', currentDate = new Date(), chart = null;
         let yearlyDistributionChart = null, monthlyIntensityChart = null;
         let currentChartType = 'bar';
+        let stepsDataVersion = '';
+        let stepsDataRefreshTimer = null;
+        let stepsDataRefreshBusy = false;
         try { const _ct = localStorage.getItem(chartTypeStorageKey()); if (_ct === 'bar' || _ct === 'line') currentChartType = _ct; } catch (e) {}
         let selectedCells = new Set();
         let editingCell = null;
@@ -444,7 +447,7 @@
         }
 
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal'];
             const any = ids.some(id => { const m = document.getElementById(id); return m && window.getComputedStyle(m).display === 'flex'; });
             if (any) document.body.classList.add('modal-open');
             else document.body.classList.remove('modal-open');
@@ -2881,6 +2884,44 @@
             const n = document.getElementById('video-recognition-notification');
             if (n) n.style.display = 'none';
         }
+        function computeStepsDataVersion() {
+            let sum = 0, maxDate = '';
+            stepsData.forEach(function(entry) {
+                if (entry.date > maxDate) maxDate = entry.date;
+                sum += parseInt(entry.steps, 10) || 0;
+            });
+            return String(stepsData.length) + '|' + maxDate + '|' + String(sum);
+        }
+        async function refreshStepsDataIfChanged() {
+            if (stepsDataRefreshBusy || document.hidden || editingCell) return;
+            stepsDataRefreshBusy = true;
+            try {
+                const fd = new FormData();
+                fd.append('get_steps_updates', '1');
+                fd.append('version', stepsDataVersion || computeStepsDataVersion());
+                const data = await fetch('', { method: 'POST', body: fd, credentials: 'same-origin' }).then(r => r.json());
+                if (data && data.status === 'success') {
+                    stepsDataVersion = data.version || stepsDataVersion;
+                    if (data.changed && Array.isArray(data.steps)) {
+                        stepsData = data.steps;
+                        renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                        updateCalendar(currentLocale);
+                        updateStatsNotification();
+                        updateGoalNotification();
+                        hideEmptyDataTypeButtons();
+                        if (document.getElementById('excel-table')) renderExcelTable(tablePage);
+                    }
+                }
+            } catch (e) {
+            } finally {
+                stepsDataRefreshBusy = false;
+            }
+        }
+        function startStepsDataRefreshLoop() {
+            if (stepsDataRefreshTimer) clearInterval(stepsDataRefreshTimer);
+            stepsDataVersion = computeStepsDataVersion();
+            stepsDataRefreshTimer = setInterval(refreshStepsDataIfChanged, 60000);
+        }
 
         // App initialization
         function initApp() {
@@ -2890,7 +2931,8 @@
             updateGoalNotification();
             hideEmptyDataTypeButtons();
             workerStartRefreshLoop();
-            document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
+            startStepsDataRefreshLoop();
+            document.addEventListener('visibilitychange', function() { if (!document.hidden) { workerRefreshStates(); refreshStepsDataIfChanged(); } });
             let chartLabelsHideState = window.matchMedia('(max-width: 768px)').matches;
             window.addEventListener('resize', function() {
                 const state = window.matchMedia('(max-width: 768px)').matches;

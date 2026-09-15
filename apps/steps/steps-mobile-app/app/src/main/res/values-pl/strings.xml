@@ -1,9 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">StepMonitor</string>
     <string name="onboarding_skip_dialog_title">Skip Introduction?</string>
     <string name="onboarding_skip_dialog_text">You can view it again anytime from the Settings screen.</string>
     <string name="onboarding_skip">Skip</string>
-    <string name="onboarding_cancel">Cancel</string>
+    <string name="onboarding_cancel">Anuluj</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_get_started">Get Started</string>
 
@@ -127,7 +128,7 @@
     <string name="manual_sync_all_webhooks">All data sync</string>
     <string name="manual_sync_btn">Sync Now</string>
     <string name="action_ok">OK</string>
-    <string name="action_cancel">Cancel</string>
+    <string name="action_cancel">Anuluj</string>
     <string name="manual_sync_syncing">Syncing...</string>
     <string name="err_end_date_before_start">End date must be greater than or equal to start date.</string>
     <string name="err_end_date_future">End date cannot be in the future.</string>
@@ -148,7 +149,7 @@
     <string name="config_manage_hc">Zarządzaj w Health Connect</string>
     <string name="perms_title">Health Permissions</string>
 
-    <!-- Data sync Screen -->
+    
     <string name="webhooks_delete_title">Delete StepMonitor service?</string>
     <string name="webhooks_delete_desc">"%1$s" will be permanently removed.</string>
     <string name="action_delete">Delete</string>
@@ -201,7 +202,7 @@
     <string name="webhooks_retry_failed">Retry failed: %1$s</string>
     <string name="action_save">Save</string>
 
-    <!-- Configuration Screen -->
+    
     <string name="config_perms_checking">Checking permissions…</string>
     <string name="config_hc_not_found_title">Health Connect Not Found</string>
     <string name="config_hc_not_found_desc">Health Connect is required to sync your health data with this app.</string>
@@ -259,7 +260,7 @@
     <string name="config_local_http_status_desc">Available on your network at http://&lt;device-ip&gt;:%1$d</string>
     <string name="config_local_http_off_hint">Optional: expose Health Connect JSON on your Wi-Fi for local scripts and tools. Tap to turn on or change the port.</string>
 
-    <!-- About Screen -->
+    
     <string name="about_toast_import_success">✅ Settings imported successfully</string>
     <string name="about_toast_import_failed">❌ Import failed: %1$s</string>
     <string name="about_toast_import_invalid">Invalid file</string>
@@ -307,7 +308,7 @@
     <string name="about_link_changelog">What\'s New</string>
     <string name="about_link_changelog_desc">Release history and updates</string>
 
-    <!-- Changelog -->
+    
     <string name="changelog_title">What\'s New</string>
     <string name="changelog_label">Changelog</string>
     <string name="changelog_heading">Release history</string>
@@ -324,14 +325,14 @@
     <string name="local_http_server_notification_title">Local HTTP server is running</string>
     <string name="local_http_server_notification_text">Endpoint active on port %1$d</string>
 
-    <!-- Permissions Screen -->
+    
     <string name="perms_granted_summary">%1$d of %2$d permissions granted</string>
     <string name="action_close">Close</string>
     <string name="perms_rationale_desc">StepMonitor requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics (such as steps, sleep, and heart rate) directly to your personal StepMonitor service URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
     <string name="perms_status_granted">Granted</string>
     <string name="perms_status_not_granted">Not granted</string>
 
-    <!-- Logs Screen -->
+    
     <string name="logs_clear_title">Clear All Logs?</string>
     <string name="logs_clear_desc">All synchronization logs will be permanently deleted.</string>
     <string name="action_clear_logs">Clear Logs</string>
@@ -359,7 +360,7 @@
     <string name="logs_export_intent_title">Export synchronization logs</string>
     <string name="logs_count">%1$d logs</string>
 
-    <!-- Dashboard -->
+    
     <string name="dashboard_title">Dashboard</string>
     <string name="dashboard_refresh">Refresh dashboard</string>
     <string name="dashboard_sub_today">today</string>
@@ -388,18 +389,18 @@
     <string name="dashboard_no_permissions">Grant Health Connect permissions on Home to view today\'s stats.</string>
     <string name="dashboard_load_error">Could not load health data. Try again.</string>
 
-    <!-- Navigation Items -->
+    
     <string name="nav_home">Home</string>
     <string name="nav_logs">Logs</string>
     <string name="nav_about">Settings</string>
     
-    <!-- Notifications -->
+    
     <string name="about_notifications_title">Notifications</string>
     <string name="about_notifications_desc">Configure Gotify, ntfy, Telegram, Discord, Pushover</string>
     <string name="webhooks_notification_section">Notify on Success/Failure</string>
     <string name="webhooks_notification_none">None</string>
 
-    <!-- Battery Optimization Banner -->
+    
     <string name="battery_banner_title">Battery Optimization Active</string>
     <string name="battery_banner_desc">Android may delay or skip background syncs. Disable battery optimization for reliable automatic syncing.</string>
     <string name="battery_banner_action_fix">Fix Now</string>
@@ -408,10 +409,10 @@
     <string name="battery_banner_dialog_title">Disable Battery Optimization</string>
     <string name="battery_banner_dialog_desc">Tap \"Allow\" in the system dialog to let StepMonitor run in the background without restrictions.</string>
 
-    <!-- Exact Alarm Warning -->
+    
     <string name="exact_alarm_warning">Exact alarms not permitted — scheduled times may drift. Tap to enable in settings.</string>
 
-    <!-- Sync Foreground Service -->
+    
     <string name="sync_service_channel_name">Background Sync</string>
     <string name="sync_service_channel_desc">Shown briefly while syncing health data in the background</string>
     <string name="sync_service_notification_title">Syncing health data…</string>
@@ -486,28 +487,28 @@
     <string name="sync_interval_24h">24 hours</string>
     <string name="sync_interval_72h">72 hours</string>
     <string name="action_change">Change</string>
-    <!-- Next sync timer -->
+    
     <string name="next_sync_title">Next Sync</string>
     <string name="next_sync_at">at %1$s</string>
     <string name="next_sync_in">in %1$s</string>
     <string name="next_sync_not_scheduled">No sync scheduled</string>
     <string name="next_sync_not_synced_yet">Not synced yet</string>
-    <!-- Conflict remember -->
+    
     <string name="conflict_remember">Remember my choice</string>
     <string name="settings_conflict_title">Conflict Resolution</string>
     <string name="settings_conflict_remember">Remember choice</string>
     <string name="settings_conflict_remember_desc">Automatically apply saved action without showing the dialog</string>
     <string name="settings_conflict_default_action">Default action</string>
     <string name="settings_conflict_forget">Clear memory (show dialog each time)</string>
-    <!-- Manual sync previous day -->
-    <string name="manual_sync_previous_day">Previous day</string>
+    
+    <string name="manual_sync_previous_day">Poprzedni dzień</string>
 
-    <!-- Logs Screen (row status labels) -->
+    
     <string name="logs_row_http_label">HTTP</string>
     <string name="logs_row_ok">OK</string>
     <string name="logs_row_err">BŁĄD</string>
 
-    <!-- Notifications -->
+    
     <string name="notifications_title">Powiadomienia</string>
     <string name="notifications_select_provider">Wybierz dostawcę</string>
     <string name="notifications_provider_configuration">%1$s Konfiguracja</string>
@@ -525,7 +526,7 @@
     <string name="settings_save">Zapisz</string>
     <string name="logs_back_cd">Wstecz</string>
 
-    <!-- About (personalization) -->
+    
     <string name="about_configure">Konfiguracja</string>
     <string name="about_personalization">Personalizacja</string>
     <string name="about_theme">Motyw</string>
@@ -538,7 +539,7 @@
     <string name="about_restart">Uruchom ponownie</string>
     <string name="about_later">Później</string>
 
-    <!-- Notifications fields -->
+    
     <string name="notifications_test">Test</string>
     <string name="notifications_test_dispatched_toast">Wysłano testowe powiadomienie</string>
     <string name="notifications_label_server_url_gotify">URL serwera (np. https://gotify.example.com)</string>
@@ -555,4 +556,4 @@
     <string name="notifications_label_key">Klucz</string>
     <string name="notifications_label_value">Wartość</string>
     <string name="notifications_local_push_desc">Wyśle powiadomienie systemowe Android po każdej synchronizacji. Stuknij, aby otworzyć logi.</string>
-</resources>
+<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string></resources>

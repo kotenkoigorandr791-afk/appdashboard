@@ -23,7 +23,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             saveUserSetting($userDb, 'weight',        (string)(filter_var($_POST['weight'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 70));
             saveUserSetting($userDb, 'stride_length', (string)(filter_var($_POST['stride_length'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 70));
             saveUserSetting($userDb, 'birth_date',    $_POST['birth_date'] ?? '1994-01-01');
-            saveUserSetting($userDb, 'mobile_apk_hidden', !empty($_POST['mobile_apk_hidden']) ? '1' : '0');
             $userDb->exec('COMMIT');
         } catch (Exception $e) {
             $userDb->exec('ROLLBACK');
@@ -197,6 +196,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = loadStepsPage($userDb, $page, TABLE_PAGE_SIZE, $filterOp, $filterVal, $filterValTo, $dateFrom, $dateTo);
         exit(json_encode(['status' => 'success'] + $result));
     }
+    if (isset($_POST['get_steps_updates'])) {
+        $row = $userDb->query('SELECT COUNT(*) AS count, COALESCE(MAX(date), \'\') AS max_date, COALESCE(SUM(steps), 0) AS total_steps FROM steps')->fetch(PDO::FETCH_ASSOC);
+        $version = (string)($row['count'] ?? 0) . '|' . (string)($row['max_date'] ?? '') . '|' . (string)($row['total_steps'] ?? 0);
+        if ((string)($_POST['version'] ?? '') === $version) {
+            exit(json_encode(['status' => 'success', 'changed' => false, 'version' => $version]));
+        }
+        $today = (new DateTime())->format('Y-m-d');
+        [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
+        $from = $earliestInDB ?? $today;
+        $to = ($latestInDB && strcmp($latestInDB, $today) > 0) ? $latestInDB : $today;
+        $rows = array_values(loadStepsRange($userDb, $from, $to));
+        exit(json_encode(['status' => 'success', 'changed' => true, 'version' => $version, 'steps' => $rows]));
+    }
 
     // Create backup
     if (isset($_POST['create_backup'])) {
@@ -298,4 +310,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     exit(json_encode(['status' => 'error', 'message' => $translations['invalid_request'] ?? 'Invalid request']));
 }
-

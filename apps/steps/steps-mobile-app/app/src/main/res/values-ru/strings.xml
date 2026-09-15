@@ -1,9 +1,10 @@
+<?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">StepMonitor</string>
     <string name="onboarding_skip_dialog_title">Skip Introduction?</string>
     <string name="onboarding_skip_dialog_text">You can view it again anytime from the Settings screen.</string>
     <string name="onboarding_skip">Skip</string>
-    <string name="onboarding_cancel">Cancel</string>
+    <string name="onboarding_cancel">Отмена</string>
     <string name="onboarding_next">Next</string>
     <string name="onboarding_get_started">Get Started</string>
 
@@ -127,7 +128,7 @@
     <string name="manual_sync_all_webhooks">Все источники синхронизации</string>
     <string name="manual_sync_btn">Синхронизировать сейчас</string>
     <string name="action_ok">OK</string>
-    <string name="action_cancel">Cancel</string>
+    <string name="action_cancel">Отмена</string>
     <string name="manual_sync_syncing">Синхронизация…</string>
     <string name="err_end_date_before_start">Дата конца должна быть больше или равна дате начала.</string>
     <string name="err_end_date_future">Дата конца не может быть в будущем.</string>
@@ -148,7 +149,7 @@
     <string name="config_manage_hc">Управлять в Health Connect</string>
     <string name="perms_title">Разрешения Health</string>
 
-    <!-- Data sync Screen -->
+    
     <string name="webhooks_delete_title">Delete StepMonitor service?</string>
     <string name="webhooks_delete_desc">"%1$s" will be permanently removed.</string>
     <string name="action_delete">Delete</string>
@@ -201,7 +202,7 @@
     <string name="webhooks_retry_failed">Retry failed: %1$s</string>
     <string name="action_save">Save</string>
 
-    <!-- Configuration Screen -->
+    
     <string name="config_perms_checking">Checking permissions…</string>
     <string name="config_hc_not_found_title">Health Connect Not Found</string>
     <string name="config_hc_not_found_desc">Health Connect is required to sync your health data with this app.</string>
@@ -259,7 +260,7 @@
     <string name="config_local_http_status_desc">Available on your network at http://&lt;device-ip&gt;:%1$d</string>
     <string name="config_local_http_off_hint">Optional: expose Health Connect JSON on your Wi-Fi for local scripts and tools. Tap to turn on or change the port.</string>
 
-    <!-- About Screen -->
+    
     <string name="about_toast_import_success">✅ Settings imported successfully</string>
     <string name="about_toast_import_failed">❌ Import failed: %1$s</string>
     <string name="about_toast_import_invalid">Invalid file</string>
@@ -307,7 +308,7 @@
     <string name="about_link_changelog">What\'s New</string>
     <string name="about_link_changelog_desc">Release history and updates</string>
 
-    <!-- Changelog -->
+    
     <string name="changelog_title">What\'s New</string>
     <string name="changelog_label">Changelog</string>
     <string name="changelog_heading">Release history</string>
@@ -324,14 +325,14 @@
     <string name="local_http_server_notification_title">Local HTTP server is running</string>
     <string name="local_http_server_notification_text">Endpoint active on port %1$d</string>
 
-    <!-- Permissions Screen -->
+    
     <string name="perms_granted_summary">%1$d из %2$d разрешений получено</string>
     <string name="action_close">Закрыть</string>
     <string name="perms_rationale_desc">StepMonitor запрашивает доступ к вашим данным здоровья и фитнеса. Эти данные используются только для работы приложения: безопасной отправки выбранных метрик (шаги, сон, пульс и т.д.) на ваши персональные адреса сервиса StepMonitor. Мы не продаем и не передаем ваши данные третьим лицам. Запрашиваться и синхронизироваться будут только те типы данных, которые вы выбрали ниже.</string>
     <string name="perms_status_granted">Разрешено</string>
     <string name="perms_status_not_granted">Не разрешено</string>
 
-    <!-- Logs Screen -->
+    
     <string name="logs_clear_title">Очистить все логи?</string>
     <string name="logs_clear_desc">Все логи синхронизаций будут безвозвратно удалены.</string>
     <string name="action_clear_logs">Очистить логи</string>
@@ -359,7 +360,7 @@
     <string name="logs_export_intent_title">Экспорт логов синхронизации</string>
     <string name="logs_count">%1$d logs</string>
 
-    <!-- Dashboard -->
+    
     <string name="dashboard_title">Панель</string>
     <string name="dashboard_refresh">Обновить панель</string>
     <string name="dashboard_sub_today">сегодня</string>
@@ -388,19 +389,19 @@
     <string name="dashboard_no_permissions">Разрешите доступ Health Connect на Главной, чтобы увидеть сегодняшнюю статистику.</string>
     <string name="dashboard_load_error">Не удалось загрузить данные здоровья. Попробуйте ещё раз.</string>
 
-    <!-- Navigation Items -->
+    
     <string name="nav_home">Главная</string>
     <string name="nav_statistics">Статистика</string>
     <string name="nav_logs">Логи</string>
     <string name="nav_about">Настройки</string>
     
-    <!-- Notifications -->
+    
     <string name="about_notifications_title">Уведомления</string>
     <string name="about_notifications_desc">Настройка Gotify, ntfy, Telegram, Discord, Pushover</string>
     <string name="webhooks_notification_section">Уведомлять об успехе/ошибке</string>
     <string name="webhooks_notification_none">Нет</string>
 
-    <!-- Battery Optimization Banner -->
+    
     <string name="battery_banner_title">Battery Optimization Active</string>
     <string name="battery_banner_desc">Android may delay or skip background syncs. Disable battery optimization for reliable automatic syncing.</string>
     <string name="battery_banner_action_fix">Fix Now</string>
@@ -409,10 +410,10 @@
     <string name="battery_banner_dialog_title">Disable Battery Optimization</string>
     <string name="battery_banner_dialog_desc">Tap \"Allow\" in the system dialog to let StepMonitor run in the background without restrictions.</string>
 
-    <!-- Exact Alarm Warning -->
+    
     <string name="exact_alarm_warning">Exact alarms not permitted — scheduled times may drift. Tap to enable in settings.</string>
 
-    <!-- Sync Foreground Service -->
+    
     <string name="sync_service_channel_name">Background Sync</string>
     <string name="sync_service_channel_desc">Shown briefly while syncing health data in the background</string>
     <string name="sync_service_notification_title">Syncing health data…</string>
@@ -486,23 +487,23 @@
     <string name="sync_interval_24h">24 часа</string>
     <string name="sync_interval_72h">72 часа</string>
     <string name="action_change">Изменить</string>
-    <!-- Next sync timer -->
+    
     <string name="next_sync_title">Следующая синхронизация</string>
     <string name="next_sync_at">в %1$s</string>
     <string name="next_sync_in">через %1$s</string>
     <string name="next_sync_not_scheduled">Синхронизация не запланирована</string>
     <string name="next_sync_not_synced_yet">Ещё не синхронизировано</string>
-    <!-- Conflict remember -->
+    
     <string name="conflict_remember">Запомнить мой выбор</string>
     <string name="settings_conflict_title">Разрешение конфликтов</string>
     <string name="settings_conflict_remember">Помнить выбор</string>
     <string name="settings_conflict_remember_desc">Автоматически применять сохранённое действие без показа диалога</string>
     <string name="settings_conflict_default_action">Действие по умолчанию</string>
     <string name="settings_conflict_forget">Очистить память (показывать диалог каждый раз)</string>
-    <!-- Manual sync previous day -->
+    
     <string name="manual_sync_previous_day">Предыдущий день</string>
 
-    <!-- Notifications -->
+    
     <string name="notifications_title">Уведомления</string>
     <string name="notifications_empty">Уведомления не настроены</string>
     <string name="notifications_add_notification">Добавить уведомление</string>
@@ -533,7 +534,7 @@
     <string name="notifications_test_message">Это тестовое сообщение от StepMonitor.</string>
     <string name="notifications_test_dispatched_toast">Тестовое уведомление отправлено</string>
 
-    <!-- About / Personalization -->
+    
     <string name="about_configure">Настроить</string>
     <string name="about_personalization">Персонализация</string>
     <string name="about_theme">Тема</string>
@@ -545,11 +546,11 @@
     <string name="about_language_changed_text">Нужно перезапустить приложение, чтобы изменения вступили в силу.</string>
     <string name="about_restart">Перезапустить</string>
     <string name="about_later">Позже</string>
-    <!-- Logs -->
+    
     <string name="logs_row_http_label">HTTP</string>
     <string name="logs_row_ok">ОК</string>
     <string name="logs_row_err">ОШИБКА</string>
     <string name="logs_back_cd">Назад</string>
     <string name="settings_save">Сохранить</string>
 
-</resources>
+<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string></resources>
