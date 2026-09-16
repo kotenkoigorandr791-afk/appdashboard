@@ -171,7 +171,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .modal-close { position:absolute; top:12px; right:12px; border:none; font-size:22px; cursor:pointer; color:#fff; width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg,rgba(var(--primary-color-rgb),.9),rgba(var(--primary-color-rgb),.65)); border:1px solid rgba(255,255,255,.35); box-shadow:0 10px 24px rgba(0,0,0,.28); }
         .modal-close:hover { filter:brightness(1.08); }
         .store-list { margin:10px 0; max-width:600px; }
-        .store-item { display:flex; align-items:center; gap:10px; margin:5px 0; padding:10px; background:var(--group-block-bg); border-radius:4px; }
+        .store-item { display:flex; align-items:center; gap:10px; margin:5px 0; padding:10px; background:var(--group-block-bg); border-radius:var(--radius-sm); }
         .store-item input, .modal-content input, .modal-content select { flex:1; padding:8px; margin:5px 0; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:4px; }
         .store-item input:focus, .modal-content input:focus, .modal-content select:focus { outline:1px solid var(--primary-color); background:var(--modal-bg); }
         .add-store-btn, .edit-store-btn { background:var(--primary-color); color:white; border:none; padding:8px 12px; cursor:pointer; margin:5px 0; border-radius:4px; transition:opacity 0.2s; }
@@ -249,7 +249,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .rates-table tr:hover { background:rgba(var(--primary-color-rgb),0.05); }
         .rate-positive { color:#2ed573; }
         .rate-negative { color:#ff4757; }
-        .currency-select { padding:8px 12px; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:6px; margin:10px 0; }
+        .currency-select { padding:8px 12px; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:6px; margin:10px 0; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
         .rate-chart-container { margin-top:20px; padding:15px; background:var(--group-block-bg); border-radius:8px; }
 
         /* Share modal styles */
@@ -283,9 +283,10 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             align-items:center;
             gap:12px;
             margin:12px 0;
+            flex-wrap:wrap;
         }
         .currency-selector { display:flex; justify-content:flex-start; gap:6px; flex-wrap:wrap; }
-        .currency-btn { background:var(--group-block-bg); color:var(--muted-text); border:1px solid var(--border-color); padding:9px 12px; border-radius:var(--radius-sm); font-weight:800; }
+        .currency-btn { background:var(--group-block-bg); color:var(--muted-text); border:1px solid var(--border-color); padding:9px 12px; border-radius:var(--radius-sm); font-weight:800; flex: 1 1 auto; min-width: 0; padding-inline: 4px; }
         .currency-btn:hover, .currency-btn.active { background:var(--primary-color); color:white; border-color:var(--primary-color); }
         .divider { height:1px; background:var(--border-color); margin:18px 0; }
         .controls-container { display:flex; justify-content:center; align-items:center; margin:12px 0; padding:0; border:0; background:transparent; box-shadow:none; }
@@ -299,7 +300,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
         .table-toolbar .search-box { width:100%; height:40px; margin:0; padding:0 12px 0 38px; background:var(--surface-solid); border-radius:var(--radius-sm); line-height:40px; }
         .add-date-btn { padding:10px 16px; border-radius:var(--radius-sm); font-weight:800; }
-        .data-table-container { overflow-x:auto; overflow-y:clip; margin:12px 0; max-width:100%; max-height:none; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
+        .data-table-container { overflow-x:auto; overflow-y:auto; margin:12px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 40px); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
         .data-table { border-collapse:separate; border-spacing:0; }
         .data-table th, .data-table td { border:0; border-bottom:1px solid var(--border-color); border-left:1px solid var(--border-color); padding:8px 10px; min-width:92px; }
         .data-table th { background:color-mix(in srgb,var(--primary-color) 86%,#111); font-size:12px; font-weight:800; }
@@ -314,13 +315,27 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .modal-close:hover { background:var(--primary-color); color:#fff; filter:none; border-color:var(--primary-color); }
         .modal:not(#import-modal):not(#bank-csv-import-modal) .modal-content { padding-top:64px!important; }
         #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
-        .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow-y:auto; overflow-x:hidden; }
-        .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; }
-        .table-modal .data-table-container { flex:none; min-height:unset; max-height:none; margin:0; box-shadow:none; }
-        .table-modal .data-table th { top:64px; }
+        .modal { inset:0; width:auto; height:auto; background:rgba(10,14,18,.48); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); z-index:10000; padding:16px; overflow:hidden; }
+        .modal-content { width:min(920px,100%); max-width:calc(100vw - 32px); max-height:calc(100dvh - 32px); height:auto; border:1px solid var(--border-color); border-radius:18px; box-shadow:var(--shadow-soft); background:color-mix(in srgb,var(--modal-bg) 92%,var(--surface-solid)); padding:64px 22px 22px; overflow:auto; }
+        .modal-close { top:12px!important; right:12px!important; width:38px; height:38px; border-radius:12px; background:color-mix(in srgb,var(--surface-solid) 72%,transparent); border:1px solid var(--border-color); color:var(--muted-text); }
+        .modal-close:hover { background:color-mix(in srgb,var(--primary-color) 12%,var(--surface-solid)); color:var(--primary-color); border-color:color-mix(in srgb,var(--primary-color) 36%,var(--border-color)); }
+        #import-modal, #bank-csv-import-modal { background:rgba(10,14,18,.48); padding:16px!important; align-items:center; justify-content:center; }
+        #import-modal .modal-content, #bank-csv-import-modal .modal-content { width:min(1120px,calc(100vw - 32px))!important; height:calc(100dvh - 32px)!important; max-width:calc(100vw - 32px)!important; max-height:calc(100dvh - 32px)!important; border-radius:18px!important; padding:0!important; overflow:hidden; }
+        #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
+        #import-modal .modal-content::before, #bank-csv-import-modal .modal-content::before { border-radius:18px 18px 0 0; }
+        .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow:hidden; }
+        .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; flex-shrink:0; }
+        .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow-y:auto; }
+        .table-modal .data-table th { position:sticky; top:0; z-index:10; }
         .notification { border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 18px 42px rgba(0,0,0,.2); }
         #pagination { margin:14px 0 0; }
         #pagination button { padding:8px 12px; border-radius:var(--radius-sm); font-weight:700; }
+        .month-pagination { display:flex; align-items:center; justify-content:center; gap:6px; margin:14px 0 0; flex-wrap:wrap; }
+        .month-pagination button { background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); padding:8px 12px; border-radius:var(--radius-sm); font-weight:700; cursor:pointer; transition:all .15s ease; }
+        .month-pagination button:hover:not(:disabled) { background:rgba(var(--primary-color-rgb),.15); border-color:rgba(var(--primary-color-rgb),.4); }
+        .month-pagination button.active { background:var(--primary-color); color:#fff; border-color:var(--primary-color); }
+        .month-pagination button:disabled { opacity:.35; cursor:default; }
+        .month-pagination-label { font-size:13px; font-weight:700; color:var(--text-color); padding:0 6px; white-space:nowrap; }
         .chart-year-framed { padding:8px 16px; border:1px solid var(--border-color); border-radius:var(--radius-md); font-weight:800; color:var(--text-color); margin-bottom:12px; background:var(--modal-bg); box-shadow:0 12px 30px rgba(0,0,0,.1); backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
         .rate-chart-container { border:1px solid var(--border-color); border-radius:var(--radius-md); }
 
@@ -342,20 +357,20 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             .chart-controls-row {
                 display:flex;
                 flex-direction: row !important;
-                flex-wrap: nowrap !important;
+                flex-wrap: wrap !important;
                 gap: 10px !important;
                 align-items: center !important;
                 justify-content: flex-start !important;
-                overflow-x: auto !important;
+                overflow-x: hidden !important;
             }
+            .currency-btn { flex: 1 1 auto; min-width: 0; padding-inline: 4px; }
             .chart-toggle-btn { justify-self: auto !important; margin-left: 0 !important; }
             .open-table-desktop { justify-self: auto !important; }
             .currency-selector { justify-self: auto !important; }
             .currency-selector {
-                flex-wrap: nowrap !important;
+                flex-wrap: wrap !important;
                 gap: 6px !important;
-                overflow-x: auto !important;
-                -webkit-overflow-scrolling: touch;
+                overflow-x: hidden !important;
             }
             .controls-container { justify-content:center; flex-wrap:wrap; }
             .controls-container.open-table-mobile { width:100%; justify-content:stretch; }
@@ -405,7 +420,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             /* Make store header row sticky at top */
             .table-modal .data-table thead {
                 position: sticky !important;
-                top: 64px !important;
+                top: 0 !important;
                 z-index: 10 !important;
             }
 
@@ -435,7 +450,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             #ocr-analytics-modal h3 { font-size:18px; margin:0 42px 6px!important; }
             #ocr-analytics-modal .chart-nav-bottom { gap:8px; margin:0 0 6px!important; }
             #ocr-analytics-modal .chart-year-framed { min-width:92px; height:36px; padding:4px 10px; }
-            #ocr-analytics-modal .currency-select { margin:6px 0; }
+            #ocr-analytics-modal .currency-select { margin:6px 0; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
             #ocr-analytics-modal .rate-chart-container { padding:6px; }
 
             #settings-modal .modal-content { padding:64px 15px 15px!important; }

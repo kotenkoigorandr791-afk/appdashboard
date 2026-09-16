@@ -67,17 +67,18 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--sidebar-bg);
+    background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 20px;
-    height: 52px;
+    padding: 0 16px;
+    height: 60px;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 #ap-topbar .ap-brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 15px;
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: 1px;
     color: var(--text-color);
@@ -107,16 +108,15 @@
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
-/* Close button — icon-only circle */
+/* Close button — matches .std-topbar-close */
 .ap-close-btn-style,
-#ap-close-btn {
-    width:36px;height:36px;background:none;border:1.5px solid var(--border-color);color:var(--text-color);border-radius:50%;cursor:pointer;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;transition:all .2s;padding:0;flex:0 0 auto;flex-shrink:0;aspect-ratio:1;min-width:36px;min-height:36px;box-sizing:border-box;}
+    #ap-close-btn {
+        width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:none;border:1.5px solid var(--border-color);border-radius:50%;color:var(--text-secondary);font-size:24px;cursor:pointer;transition:background 0.15s,color 0.15s;flex-shrink:0;padding:0;line-height:1;text-align:center;box-sizing:border-box;margin-left:12px;}
 .ap-close-btn-style:hover,
 #ap-close-btn:hover {
-    background: color-mix(in srgb, #f85149 15%, transparent);
-    color: #f85149;
-    border-color: #f85149;
-    transform: rotate(90deg);
+    background: var(--danger, #ef4444);
+    color: #fff;
+    border-color: var(--danger, #ef4444);
 }
 
 /* Body */
@@ -372,6 +372,43 @@
     opacity: .85;
 }
 .ap-card-title svg { color: var(--primary-color); }
+.ap-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+}
+.ap-stat-tile {
+    background: var(--group-block-bg);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
+.ap-stat-tile .ap-stat-label {
+    font-size: 11px;
+    opacity: .7;
+}
+.ap-stat-tile .ap-stat-value {
+    font-size: 22px;
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+@media (max-width: 768px) {
+    .ap-stat-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    .ap-stat-tile {
+        padding: 8px 4px;
+    }
+    .ap-stat-tile .ap-stat-value {
+        font-size: 17px;
+    }
+    .ap-stat-tile .ap-stat-label {
+        font-size: 10px;
+    }
+}
 #ap-stats-range-controls { flex-wrap: wrap; }
 #ap-stats-range-controls > * { white-space: nowrap; flex-shrink: 0; }
 #ap-stats-range-controls input[type="date"] { flex-shrink: 1; }
@@ -1542,6 +1579,23 @@ function openAdminPanel(target){
 function closeAdminPanel(){overlay.classList.remove('ap-edge-omniroute');overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
 
 /* ── AJAX load ── */
+const AP_UNAUTH='__ap_unauthenticated__';
+function apIsUnauthorizedText(t){
+    t=String(t||'');
+    return /id="auth-modal"|id="auth-form"/i.test(t)
+        || /(not authorized|unauthorized|not authenticated|session[^<]{0,40}(expired|invalid)|не авториз|истекла|сессия[^<]{0,40}истекл)/i.test(t);
+}
+function apShowUnauthorizedMsg(){
+    if(skeleton){
+        var sp=skeleton.querySelector('svg');
+        if(sp) sp.style.display='none';
+    }
+    var msgEl=document.getElementById('ap-loading-msg');
+    if(msgEl){
+        msgEl.style.opacity='1';
+        msgEl.innerHTML='Session expired. Please <a href="/login" style="color:var(--primary-color);text-decoration:underline;">log in again</a>.';
+    }
+}
 function loadPanel(target, year){
     var fd=new FormData();
     fd.append('get_admin_panel','1');
@@ -1550,8 +1604,12 @@ function loadPanel(target, year){
     var msgEl=document.getElementById('ap-loading-msg');
     fetch('/main',{method:'POST',body:fd})
         .then(function(r){
-            if(!r.ok) return r.text().then(function(t){throw new Error('HTTP '+r.status+': '+t.substring(0,300));});
+            if(!r.ok) return r.text().then(function(t){
+                if(r.status===401||r.status===403||apIsUnauthorizedText(t)) throw new Error(AP_UNAUTH);
+                throw new Error('HTTP '+r.status+': '+t.substring(0,300));
+            });
             return r.text().then(function(t){
+                if(apIsUnauthorizedText(t)) throw new Error(AP_UNAUTH);
                 // Strip any leading PHP warnings/notices before the JSON
                 var jsonStart = t.indexOf('{');
                 if(jsonStart > 0){ t = t.substring(jsonStart); }
@@ -1560,7 +1618,10 @@ function loadPanel(target, year){
             });
         })
         .then(function(d){
-            if(!d||!d.success){if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;}
+            if(!d||!d.success){
+                if(d&&!d.success&&/(not authorized|unauthorized|not authenticated|не авториз)/i.test(d.error||'')) {apShowUnauthorizedMsg();return;}
+                if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;
+            }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
             // Store available years from backend
@@ -1574,7 +1635,7 @@ function loadPanel(target, year){
             openPanel(target||'ap-users');
             wireEvents();
         })
-        .catch(function(err){if(msgEl)msgEl.textContent='Error: '+(err.message||'Unknown error');console.error('[AdminPanel]',err);});
+        .catch(function(err){if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();}else if(msgEl){msgEl.textContent='Error: '+(err.message||'Unknown error');}console.error('[AdminPanel]',err);});
 }
 
 /* Reload stats data for a specific year */

@@ -12,6 +12,9 @@
         let currentView = 'year', currentDataType = 'steps', currentDate = new Date(), chart = null;
         let yearlyDistributionChart = null, monthlyIntensityChart = null;
         let currentChartType = 'bar';
+        let stepsDataVersion = '';
+        let stepsDataRefreshTimer = null;
+        let stepsDataRefreshBusy = false;
         try { const _ct = localStorage.getItem(chartTypeStorageKey()); if (_ct === 'bar' || _ct === 'line') currentChartType = _ct; } catch (e) {}
         let selectedCells = new Set();
         let editingCell = null;
@@ -444,7 +447,7 @@
         }
 
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal'];
             const any = ids.some(id => { const m = document.getElementById(id); return m && window.getComputedStyle(m).display === 'flex'; });
             if (any) document.body.classList.add('modal-open');
             else document.body.classList.remove('modal-open');
@@ -557,6 +560,7 @@
             const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
             const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
             const seriesType = isSeriesType(dataType);
+            const hideChartTitles = window.matchMedia('(max-width: 768px)').matches;
             const fmtAxis = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
             const fmtTooltip = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
 
@@ -594,11 +598,12 @@
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
                             ticks: {
+                                display: true,
                                 color: isDarkTheme ? '#fff' : '#000',
                                 callback: (v) => fmtAxis(v)
                             },
                             title: {
-                                display: true,
+                                display: !hideChartTitles,
                                 text: unitLabel,
                                 color: isDarkTheme ? '#fff' : '#000'
                             }
@@ -606,9 +611,9 @@
                         x: {
                             grid: { color: chartGridColor },
                             border: { color: chartGridColor },
-                            ticks: { color: isDarkTheme ? '#fff' : '#000' },
+                            ticks: { display: true, color: isDarkTheme ? '#fff' : '#000' },
                             title: {
-                                display: true,
+                                display: !hideChartTitles,
                                 text: translations.time || 'Time',
                                 color: isDarkTheme ? '#fff' : '#000'
                             }
@@ -792,7 +797,11 @@
                 if (grid) grid.style.display = 'none';
                 return;
             }
+            const yearlySection = document.querySelector('#stats-modal .stats-card');
+            const hasMultipleYears = yearlyLabels.length >= 2;
+            if (yearlySection) yearlySection.style.display = hasMultipleYears ? '' : 'none';
             const totalAllYears = yearlyData.reduce((sum, value) => sum + value, 0);
+            if (hasMultipleYears) {
             yearlyDistributionChart = new Chart(document.getElementById('stats-years-chart').getContext('2d'), {
                 type: 'pie',
                 data: {
@@ -822,6 +831,7 @@
                     }
                 }
             });
+            }
             const year = new Date().getFullYear();
             const monthly = Array.from({ length: 12 }, () => 0);
             stepsData.forEach(entry => {
@@ -2874,6 +2884,44 @@
             const n = document.getElementById('video-recognition-notification');
             if (n) n.style.display = 'none';
         }
+        function computeStepsDataVersion() {
+            let sum = 0, maxDate = '';
+            stepsData.forEach(function(entry) {
+                if (entry.date > maxDate) maxDate = entry.date;
+                sum += parseInt(entry.steps, 10) || 0;
+            });
+            return String(stepsData.length) + '|' + maxDate + '|' + String(sum);
+        }
+        async function refreshStepsDataIfChanged() {
+            if (stepsDataRefreshBusy || document.hidden || editingCell) return;
+            stepsDataRefreshBusy = true;
+            try {
+                const fd = new FormData();
+                fd.append('get_steps_updates', '1');
+                fd.append('version', stepsDataVersion || computeStepsDataVersion());
+                const data = await fetch('', { method: 'POST', body: fd, credentials: 'same-origin' }).then(r => r.json());
+                if (data && data.status === 'success') {
+                    stepsDataVersion = data.version || stepsDataVersion;
+                    if (data.changed && Array.isArray(data.steps)) {
+                        stepsData = data.steps;
+                        renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                        updateCalendar(currentLocale);
+                        updateStatsNotification();
+                        updateGoalNotification();
+                        hideEmptyDataTypeButtons();
+                        if (document.getElementById('excel-table')) renderExcelTable(tablePage);
+                    }
+                }
+            } catch (e) {
+            } finally {
+                stepsDataRefreshBusy = false;
+            }
+        }
+        function startStepsDataRefreshLoop() {
+            if (stepsDataRefreshTimer) clearInterval(stepsDataRefreshTimer);
+            stepsDataVersion = computeStepsDataVersion();
+            stepsDataRefreshTimer = setInterval(refreshStepsDataIfChanged, 60000);
+        }
 
         // App initialization
         function initApp() {
@@ -2883,7 +2931,16 @@
             updateGoalNotification();
             hideEmptyDataTypeButtons();
             workerStartRefreshLoop();
-            document.addEventListener('visibilitychange', function() { if (!document.hidden) workerRefreshStates(); });
+            startStepsDataRefreshLoop();
+            document.addEventListener('visibilitychange', function() { if (!document.hidden) { workerRefreshStates(); refreshStepsDataIfChanged(); } });
+            let chartLabelsHideState = window.matchMedia('(max-width: 768px)').matches;
+            window.addEventListener('resize', function() {
+                const state = window.matchMedia('(max-width: 768px)').matches;
+                if (state !== chartLabelsHideState) {
+                    chartLabelsHideState = state;
+                    renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                }
+            });
 
             // Handlers for info button
             document.getElementById('info-button').addEventListener('click', () => {
@@ -3024,6 +3081,7 @@
                 if (!event || !event.data || typeof event.data !== 'object') return;
                 if (event.data.type === 'takeout-guide-image-open') openGlobalImageViewer(event.data.src || '', event.data.alt || '');
                 else if (event.data.type === 'takeout-guide-image-close') closeGlobalImageViewer();
+                else if (event.data.type === 'takeout-guide-close') closeModal('guide-expand-modal');
             });
             document.addEventListener('keydown', function(e) {
                 if (e.key === 'Escape' && globalImageViewerOpen) closeGlobalImageViewer();
@@ -3282,17 +3340,18 @@
             }
             const zeepGuideSegment = document.getElementById('zeep-guide-segment');
             const zeepGuideToggle = document.getElementById('zeep-guide-toggle');
-            if (zeepGuideSegment && zeepGuideToggle) {
-                zeepGuideToggle.addEventListener('click', () => {
-                    const collapsed = zeepGuideSegment.classList.toggle('is-collapsed');
-                    zeepGuideToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-                });
-            }
             function openGuideExpand(which) {
-                const src = document.getElementById(which === 'zeep' ? 'zeep-guide-frame' : 'takeout-guide-frame');
                 const frame = document.getElementById('guide-expand-frame');
                 const title = document.getElementById('guide-expand-title-text');
-                if (frame && src) { frame.src = src.src; frame.title = src.title || ''; }
+                const lang = <?php echo json_encode($language); ?>;
+                const theme = <?php echo json_encode($theme); ?>;
+                const color = <?php echo json_encode($color); ?>;
+                const guidePath = which === 'zeep'
+                    ? `instruction/zeep_life_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`
+                    : `instruction/takeout_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+                if (frame) {
+                    frame.src = guidePath;
+                }
                 if (title) {
                     title.textContent = which === 'zeep'
                         ? (translations.zeep_guide_title || 'How to export Zeep Life data')
@@ -3300,10 +3359,12 @@
                 }
                 openModal('guide-expand-modal');
             }
-            const zeepGuideExpand = document.getElementById('zeep-guide-expand');
-            if (zeepGuideExpand) zeepGuideExpand.addEventListener('click', () => openGuideExpand('zeep'));
-            const takeoutGuideExpand = document.getElementById('takeout-guide-expand');
-            if (takeoutGuideExpand) takeoutGuideExpand.addEventListener('click', () => openGuideExpand('takeout'));
+            const zeepGuideOpenBtn = document.getElementById('zeep-guide-open-btn');
+            if (zeepGuideOpenBtn) zeepGuideOpenBtn.addEventListener('click', () => openGuideExpand('zeep'));
+            const takeoutGuideOpenBtn = document.getElementById('takeout-guide-open-btn');
+            if (takeoutGuideOpenBtn) takeoutGuideOpenBtn.addEventListener('click', () => openGuideExpand('takeout'));
+            const guideExpandBackBtn = document.getElementById('guide-expand-back-btn');
+            if (guideExpandBackBtn) guideExpandBackBtn.addEventListener('click', () => closeModal('guide-expand-modal'));
             [['video-confirm-phone-guide-segment','video-confirm-phone-guide-toggle']].forEach(function(pair) {
                 const seg = document.getElementById(pair[0]);
                 const btn = document.getElementById(pair[1]);
@@ -3321,6 +3382,15 @@
 
             // Download backup button
             document.getElementById('download-backup')?.addEventListener('click', downloadBackup);
+            document.getElementById('toggle-import-backup')?.addEventListener('click', () => {
+                const importSection = document.querySelector('.settings-backup-import');
+                if (!importSection) return;
+                const isHidden = window.getComputedStyle(importSection).display === 'none';
+                importSection.style.display = isHidden ? 'block' : 'none';
+                if (isHidden) {
+                    importSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
             document.getElementById('import-external-backup-btn')?.addEventListener('click', importExternalBackup);
 
             // Search button

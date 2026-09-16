@@ -24,7 +24,7 @@
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('confirm-delete-modal')">×</button>
         <h3><?= htmlspecialchars($translations['confirm_delete_store'] ?? 'Confirm Delete') ?></h3>
-        <p id="confirm-delete-message">Are you sure?</p>
+        <p id="confirm-delete-message"><?= htmlspecialchars($translations['are_you_sure'] ?? 'Are you sure?') ?></p>
         <div class="button-group">
             <button class="confirm-btn" onclick="executeDelete()"><?= htmlspecialchars($translations['delete']) ?></button>
             <button class="cancel-btn" onclick="closeModal('confirm-delete-modal')"><?= htmlspecialchars($translations['close'] ?? 'Cancel') ?></button>
@@ -118,7 +118,7 @@
             <button class="header-btn" onclick="showModal('settings-modal')" title="<?= htmlspecialchars($translations['settings_title'].' · '.$translations['table_settings']) ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
             </button>
-            <button class="header-btn" onclick="showModal('backup-modal')" title="Backup">
+            <button class="header-btn" onclick="showModal('backup-modal')" title="<?= htmlspecialchars($translations['backup_management']) ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
             </button>
             <button class="header-btn" onclick="showShareModal()" title="<?= htmlspecialchars($translations['share_chart']) ?>">
@@ -128,7 +128,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
             </button>
             <button class="header-btn profile-avatar-btn" type="button" title="<?= htmlspecialchars($translations['user_management']) ?>">
-                <img src="<?= $profilePhoto ?>" class="user-icon" alt="User Profile">
+                <img src="<?= $profilePhoto ?>" class="user-icon" alt="<?= htmlspecialchars($translations['user_profile']) ?>">
             </button>
         </div>
     </div>
@@ -231,6 +231,7 @@
             </table>
         </div>
         <div id="pagination"></div>
+        <div class="month-pagination" id="month-pagination"></div>
     </div>
 </div>
 <div id="ocr-analytics-modal" class="modal">
@@ -284,7 +285,6 @@
         <h3><?= htmlspecialchars($translations['settings_title']) ?></h3>
         <div class="settings-menu-bar">
             <button type="button" class="settings-menu-btn active" data-settings-section="stores" onclick="switchSettingsSection('stores')"><?= htmlspecialchars($translations['stores']) ?></button>
-            <button type="button" class="settings-menu-btn" data-settings-section="table" onclick="switchSettingsSection('table')"><?= htmlspecialchars($translations['table_settings']) ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="chart" onclick="switchSettingsSection('chart')"><?= htmlspecialchars($translations['chart_settings'] ?? 'Chart') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="delete" onclick="switchSettingsSection('delete')"><?= htmlspecialchars($translations['data_deletion'] ?? 'Data deletion') ?></button>
         </div>
@@ -310,6 +310,13 @@
                     <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>">
                         <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
                         <span style="flex:1;"><?= htmlspecialchars($store['name']) ?></span>
+                        <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)" title="<?= htmlspecialchars($translations['visible'] ?? 'Visible') ?>">
+                            <?php if ($store['visible']): ?>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                            <?php else: ?>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
+                            <?php endif; ?>
+                        </button>
                         <button class="edit-store-btn" onclick="showAddEditStoreModal('<?= $store['id'] ?>','<?= htmlspecialchars($store['name'],ENT_QUOTES) ?>',<?= $store['visible']?'true':'false' ?>)">
                             <?= htmlspecialchars($translations['edit_store']) ?>
                         </button>
@@ -321,42 +328,6 @@
                 <?php endforeach; ?>
             </div>
             <button class="add-store-btn" onclick="showAddEditStoreModal()">+ <?= htmlspecialchars($translations['add_store']) ?></button>
-        </div>
-        <div class="settings-section" id="settings-section-table">
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['sort_by']) ?>:</label>
-                <select id="sort-by">
-                    <option value="date_asc" <?= $tableSettings['sort_by']==='date_asc'?'selected':'' ?>><?= htmlspecialchars($translations['date_asc']) ?></option>
-                    <option value="date_desc" <?= $tableSettings['sort_by']==='date_desc'?'selected':'' ?>><?= htmlspecialchars($translations['date_desc']) ?></option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['months_before_after']) ?>:</label>
-                <input type="number" id="months-window" min="0" value="<?= $tableSettings['months_window'] ?>">
-            </div>
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['start_date']) ?>:</label>
-                <input type="date" id="start-date" value="<?= $tableSettings['start_date'] ?>">
-            </div>
-            <table class="store-visibility-table">
-                <thead><th><?= htmlspecialchars($translations['store_name']) ?></th><th><?= htmlspecialchars($translations['visible']) ?></th></thead>
-                <tbody>
-                    <?php foreach ($userSettings['stores'] as $store): ?>
-                        <tr>
-                            <td><?= htmlspecialchars($store['name']) ?></td>
-                            <td>
-                                <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)">
-                                    <?php if ($store['visible']): ?>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                                    <?php else: ?>
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
-                                    <?php endif; ?>
-                                </button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
         </div>
         <div class="settings-section" id="settings-section-chart">
             <div class="form-row">
@@ -448,7 +419,7 @@
             <label><?= htmlspecialchars($translations['store_photo']) ?>:</label>
             <input type="file" id="store-photo-input" accept="image/*" onchange="previewStorePhoto(this)">
         </div>
-        <img id="store-photo-preview" src="" alt="Preview" style="display:none;max-width:200px;max-height:200px;margin:10px 0;">
+        <img id="store-photo-preview" src="" alt="<?= htmlspecialchars($translations['preview'] ?? 'Preview') ?>" style="display:none;max-width:200px;max-height:200px;margin:10px 0;">
         <button id="crop-store-btn" onclick="cropStorePhoto()" style="display:none;margin:10px 0;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['crop_photo']) ?></button>
         <button onclick="saveStore()" style="margin-top:10px;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['save']) ?></button>
     </div>
@@ -571,7 +542,7 @@
 <div id="view-backup-modal" class="modal">
     <div class="modal-content" style="max-width:95%;max-height:95vh;width:auto;">
         <button class="modal-close" onclick="closeModal('view-backup-modal')">×</button>
-        <h3 style="margin-top:0;color:var(--text-color);">Backup Preview</h3>
+        <h3 style="margin-top:0;color:var(--text-color);"><?= htmlspecialchars($translations['backup_preview'] ?? 'Backup Preview') ?></h3>
         <div id="backup-preview" style="overflow:auto;max-height:80vh;background:var(--bg-color);padding:10px;border-radius:5px;"></div>
     </div>
 </div>

@@ -692,7 +692,7 @@ body {
 .topbar {
     grid-column: 1/-1;
     display: flex; align-items: center; justify-content: space-between;
-    padding: 0 24px; height: 56px;
+    padding: 0 24px; height: 44px;
     background: var(--bg-raised);
     border-bottom: 1px solid var(--border);
     position: sticky; top:0; z-index:100;
@@ -898,7 +898,7 @@ body.bd-embed .main { overflow-y:auto; overflow-x:hidden; -webkit-overflow-scrol
 body.bd-embed #section-logs .card { height:calc(100vh - 150px); display:flex; flex-direction:column; }
 body.bd-embed #section-logs .logs-wrap { flex:1; min-height:220px; max-height:none; }
 body.bd-embed .stats-grid { margin-bottom:12px; gap:8px; }
-body.bd-embed .topbar { height:52px; padding:0 12px; flex-wrap:wrap; }
+body.bd-embed .topbar { height:44px; padding:0 12px; flex-wrap:wrap; }
 body.bd-embed .card-header { padding:12px 14px; }
 body.bd-embed .card-body { padding:14px; }
 body.bd-embed .table-wrap { margin:0; }
@@ -1443,7 +1443,7 @@ body.bd-embed .wizard-modal-box {
     .sidebar { display: none; position: fixed; top: 56px; left: 0; width: min(280px, 92vw); height: calc(100vh - 56px); z-index: 400; background: var(--bg-base); transform: translateX(-100%); transition: transform 0.2s; box-shadow: var(--shadow-lg); }
     .sidebar.open { display: flex; transform: translateX(0); }
     .main { padding: 12px 14px; gap: 14px; min-height: calc(100vh - 56px); }
-    .topbar { padding: 0 10px; height: auto; min-height: 52px; gap: 8px; flex-wrap: wrap; }
+    .topbar { padding: 0 10px; height: 44px; min-height: 44px; gap: 8px; flex-wrap: wrap; }
     .menu-toggle { display: flex; }
     .topbar-right { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     .status-pill { padding: 4px 10px; font-size: 11px; }
@@ -1556,7 +1556,7 @@ body.bd-embed .wizard-modal-box {
     #logsModalContent .log-msg { width: 100%; }
 }
 @media (max-width:480px) {
-    .topbar { padding: 0 8px; }
+    .topbar { padding: 0 8px; height: 44px; }
     .brand h1 { font-size: 13px; }
     .brand-icon { width: 18px; height: 18px; }
     .status-pill { display: none; }

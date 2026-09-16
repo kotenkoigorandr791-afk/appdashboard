@@ -13,8 +13,16 @@ import unicodedata
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request,urlopen
 import os
+os.environ.setdefault("TOKENIZERS_PARALLELISM","false")
+os.environ.setdefault("OMP_NUM_THREADS","2")
+os.environ.setdefault("MKL_NUM_THREADS","2")
+if "HF_HOME" not in os.environ:
+    for _hf_home in ("/opt/ApplicationData/huggingface", str(Path.home()/".cache/huggingface")):
+        if Path(_hf_home).exists():
+            os.environ["HF_HOME"]=_hf_home
+            break
 try:
     from merchant_classifier import MerchantClassifier,normalize_text
 except ModuleNotFoundError:
@@ -28,12 +36,32 @@ AMOUNT_OCR_PART=rf"(?:{OCR_DIGIT}+)[.,](?:{OCR_DIGIT}{{2}})(?!(?:{OCR_DIGIT}))"
 LEGAL_SUFFIXES={"stiftung","co","ko","kg","sp","z","oo","ltd","llc","inc","gmbh","sro","s.r.o","sa","s.a","ooo","тов","пп","фоп"}
 _EASYOCR_READER=None
 _MERCHANT_CLASSIFIER=None
+_AI_CONFIG=None
+_AI_MATCH_CACHE={}
+_VLM_MODEL=None
+_VLM_PROCESSOR=None
+VLM_MODEL_ID=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
+VLM_MAX_PIXELS=int(os.environ.get("SPENDS_OCR_VLM_MAX_PIXELS","1048576"))
+VLM_MAX_NEW_TOKENS=int(os.environ.get("SPENDS_OCR_VLM_MAX_NEW_TOKENS","768"))
+class OcrCancelled(Exception):
+    pass
 def now_iso():
     return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 def write_status(path,payload):
     tmp=path.with_suffix(path.suffix+".tmp")
     tmp.write_text(json.dumps(payload,ensure_ascii=False,indent=2),encoding="utf-8")
     tmp.replace(path)
+def read_status(path):
+    try:
+        data=json.loads(path.read_text(encoding="utf-8"))
+        return data if isinstance(data,dict) else {}
+    except Exception:
+        return {}
+def update_status(path,updates):
+    data=read_status(path)
+    data.update(updates)
+    data["updated_at"]=now_iso()
+    write_status(path,data)
 def normalize_space(value):
     return re.sub(r"\s+"," ",value).strip()
 def strip_diacritics(value):
@@ -75,6 +103,182 @@ def canonical_merchant(value):
     return normalize_space(" ".join(tokens))
 def display_catalog_merchant(value):
     return normalize_space(str(value or "").replace("_"," "))
+def load_ai_config():
+    global _AI_CONFIG
+    if _AI_CONFIG is not None:
+        return _AI_CONFIG
+    _AI_CONFIG={}
+    try:
+        from pg_db import get_conn
+        conn=get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT key,value FROM app_ai_config WHERE key IN ('api_key','api_endpoint','default_model','models')")
+                rows=cur.fetchall()
+            cfg={}
+            for row in rows:
+                key=row["key"] if isinstance(row,dict) else row[0]
+                value=row["value"] if isinstance(row,dict) else row[1]
+                if value:
+                    cfg[str(key)]=str(value)
+            endpoint=cfg.get("api_endpoint") or "https://ai.serverkherson.xyz/v1/chat/completions"
+            if "/chat/completions" not in endpoint:
+                endpoint=endpoint.rstrip("/")+"/chat/completions"
+            models=[]
+            raw_models=cfg.get("models","").strip()
+            if raw_models:
+                try:
+                    parsed=json.loads(raw_models)
+                    if isinstance(parsed,list):
+                        models=[normalize_space(str(item)) for item in parsed if normalize_space(str(item))]
+                except Exception:
+                    models=[normalize_space(item) for item in re.split(r"[\r\n,]+",raw_models) if normalize_space(item)]
+            model=models[0] if models else normalize_space(cfg.get("default_model",""))
+            if not model:
+                model="github/gpt-4o-mini"
+            _AI_CONFIG={"api_key":cfg.get("api_key",""),"api_endpoint":endpoint,"model":model}
+        finally:
+            conn.close()
+    except Exception:
+        _AI_CONFIG={}
+    return _AI_CONFIG
+def extract_json_object(text):
+    text=str(text or "").strip()
+    if not text:
+        return None
+    if text.startswith("```"):
+        text=re.sub(r"^```(?:json)?\s*|\s*```$","",text,flags=re.I|re.S).strip()
+    if not text.startswith("{"):
+        m=re.search(r"\{[\s\S]*\}",text)
+        if not m:
+            return None
+        text=m.group(0)
+    try:
+        data=json.loads(text)
+        return data if isinstance(data,dict) else None
+    except Exception:
+        return None
+def extract_json_payload(text):
+    text=str(text or "").strip()
+    if not text:
+        return None
+    if text.startswith("```"):
+        text=re.sub(r"^```(?:json)?\s*|\s*```$","",text,flags=re.I|re.S).strip()
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+    candidates=re.findall(r"(\[[\s\S]*\]|\{[\s\S]*\})",text)
+    for candidate in candidates:
+        try:
+            return json.loads(candidate)
+        except Exception:
+            continue
+    return None
+def get_vlm():
+    global _VLM_MODEL,_VLM_PROCESSOR
+    if _VLM_MODEL is not None and _VLM_PROCESSOR is not None:
+        return _VLM_MODEL,_VLM_PROCESSOR
+    import torch
+    from transformers import AutoProcessor,Qwen2_5_VLForConditionalGeneration
+    _VLM_PROCESSOR=AutoProcessor.from_pretrained(VLM_MODEL_ID,trust_remote_code=True)
+    dtype=torch.float16 if torch.cuda.is_available() else torch.bfloat16
+    offload_folder=Path(os.environ.get("HF_HOME",str(Path.home()/".cache/huggingface")))/"spends_ocr_offload"
+    offload_folder.mkdir(parents=True,exist_ok=True)
+    _VLM_MODEL=Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL_ID,torch_dtype=dtype,device_map="auto",trust_remote_code=True,low_cpu_mem_usage=True,offload_folder=str(offload_folder),offload_state_dict=True)
+    _VLM_MODEL.eval()
+    return _VLM_MODEL,_VLM_PROCESSOR
+def vlm_recognize_image(path,existing_stores,base_currency,default_date):
+    model,processor=get_vlm()
+    from qwen_vl_utils import process_vision_info
+    stores=[str(x) for x in existing_stores if str(x).strip()]
+    prompt={
+        "task":"Read this receipt or wallet screenshot and extract expense transactions. Compare merchant names with existing_stores yourself. If a merchant is the same as a listed store, copy that store exactly into store. If no existing store clearly matches, set store to null and suggest a clean store name. Return JSON only.",
+        "existing_stores":stores[:500],
+        "base_currency":base_currency,
+        "default_date":default_date,
+        "schema":{"transactions":[{"date":"YYYY-MM-DD or null","merchant_raw":"text read from image","store":"exact existing store or null","amount":0.0,"currency":"ISO 4217 or empty","confidence":0.0,"suggested_store":"optional"}]},
+        "rules":["Use default_date if the image has no date.","Use base_currency if currency is not visible.","Do not invent expenses.","Only choose a store from existing_stores when it is clearly the same merchant.","Return no markdown, only JSON."]}
+    messages=[{"role":"user","content":[{"type":"image","image":str(path),"max_pixels":VLM_MAX_PIXELS},{"type":"text","text":json.dumps(prompt,ensure_ascii=False)}]}]
+    text=processor.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
+    image_inputs,video_inputs=process_vision_info(messages)
+    inputs=processor(text=[text],images=image_inputs,videos=video_inputs,padding=True,return_tensors="pt")
+    device=next(model.parameters()).device
+    inputs={k:(v.to(device) if hasattr(v,"to") else v) for k,v in inputs.items()}
+    import torch
+    with torch.inference_mode():
+        generated=model.generate(**inputs,max_new_tokens=VLM_MAX_NEW_TOKENS,do_sample=False)
+    generated_trimmed=[out[len(inp):] for inp,out in zip(inputs["input_ids"],generated)]
+    output=processor.batch_decode(generated_trimmed,skip_special_tokens=True,clean_up_tokenization_spaces=False)[0]
+    del generated,generated_trimmed,inputs
+    data=extract_json_payload(output)
+    if isinstance(data,dict):
+        txs=data.get("transactions",[])
+    elif isinstance(data,list):
+        txs=data
+    else:
+        raise RuntimeError("vlm_invalid_json")
+    result=[]
+    store_set=set(stores)
+    for row in txs if isinstance(txs,list) else []:
+        if not isinstance(row,dict):
+            continue
+        merchant=normalize_space(row.get("merchant_raw") or row.get("merchant") or "")
+        store=normalize_space(row.get("store") or "")
+        suggested=normalize_space(row.get("suggested_store") or "")
+        currency=str(row.get("currency") or base_currency).upper().strip()
+        if currency not in SUPPORTED_CURRENCIES:
+            currency=base_currency
+        try:
+            amount=float(str(row.get("amount") or "0").replace(",","."))
+        except ValueError:
+            amount=0.0
+        date=normalize_space(row.get("date") or "") or default_date
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$",date):
+            date=default_date
+        if amount<=0 or not (merchant or store or suggested):
+            continue
+        if store and store not in store_set:
+            suggested=suggested or store
+            store=""
+        try:
+            confidence=float(row.get("confidence") or 0.0)
+        except ValueError:
+            confidence=0.0
+        result.append({"date":date,"merchant_raw":merchant or store or suggested,"store":store,"amount":round(amount,2),"currency":currency,"confidence":max(0.0,min(confidence,1.0)),"suggested_store":suggested})
+    return result,output
+def ai_resolve_store_match(merchant,existing,ocr_text=""):
+    cfg=load_ai_config()
+    if not cfg or not cfg.get("api_key") or not existing:
+        return None
+    cache_key=(normalize_space(merchant).casefold(),tuple(existing))
+    if cache_key in _AI_MATCH_CACHE:
+        return _AI_MATCH_CACHE[cache_key]
+    stores=[str(x) for x in existing if str(x).strip()]
+    prompt={"merchant_from_ocr":merchant,"existing_stores":stores[:300],"ocr_text_excerpt":str(ocr_text or "")[:6000],"task":"Match merchant_from_ocr to exactly one existing store only if it is clearly the same merchant. If no existing store fits, suggest a clean store name to create. Return JSON only: {\"action\":\"match|create|unknown\",\"store\":\"...\",\"confidence\":0.0}. For action=match store must be copied exactly from existing_stores."}
+    payload={"model":cfg["model"],"messages":[{"role":"system","content":"You normalize OCR merchant names for an expense tracker. Return strict JSON only."},{"role":"user","content":json.dumps(prompt,ensure_ascii=False)}],"temperature":0.0,"max_tokens":300,"stream":False}
+    try:
+        req=Request(cfg["api_endpoint"],data=json.dumps(payload,ensure_ascii=False).encode("utf-8"),headers={"Content-Type":"application/json","Authorization":"Bearer "+cfg["api_key"]},method="POST")
+        with urlopen(req,timeout=25) as resp:
+            raw=resp.read().decode("utf-8","replace")
+        decoded=json.loads(raw)
+        content=decoded.get("choices",[{}])[0].get("message",{}).get("content","")
+        data=extract_json_object(content)
+        if not data:
+            return None
+        action=str(data.get("action","")).lower()
+        store=normalize_space(str(data.get("store","")))
+        confidence=float(data.get("confidence") or 0.0)
+        result=None
+        if action=="match" and store in stores and confidence>=0.72:
+            result={"matched":store,"confidence":confidence,"ai_matched":True}
+        elif action=="create" and store and confidence>=0.55:
+            result={"matched":None,"confidence":confidence,"suggested_store":store,"ai_matched":True}
+        _AI_MATCH_CACHE[cache_key]=result
+        return result
+    except Exception:
+        _AI_MATCH_CACHE[cache_key]=None
+        return None
 def get_merchant_classifier():
     global _MERCHANT_CLASSIFIER
     if _MERCHANT_CLASSIFIER is None:
@@ -559,7 +763,7 @@ def best_store_label_match(label,existing,min_score=0.84):
             score=ratio
             best=name
     return (best,score) if score>=min_score else (None,score)
-def resolve_store_match(merchant,existing):
+def resolve_store_match(merchant,existing,ocr_text=""):
     matched,score=best_store_label_match(merchant,existing)
     if matched:
         return {"matched":matched,"confidence":score}
@@ -580,6 +784,13 @@ def resolve_store_match(merchant,existing):
         if alias:
             payload["matched_alias"]=alias
         return payload
+    ai_match=ai_resolve_store_match(merchant,existing,ocr_text)
+    if ai_match:
+        if suggested and not ai_match.get("suggested_store"):
+            ai_match["suggested_store"]=suggested
+        if alias:
+            ai_match["matched_alias"]=alias
+        return ai_match
     payload={"matched":None,"confidence":max(score,classifier_result.score if suggested else 0.0)}
     if suggested:
         payload["suggested_store"]=suggested
@@ -624,6 +835,35 @@ def ensure_db_schema(conn):
         conn.execute("ALTER TABLE expenses ADD COLUMN entry_source TEXT NOT NULL DEFAULT 'manual'")
     if "ocr_raw_store" not in cols:
         conn.execute("ALTER TABLE expenses ADD COLUMN ocr_raw_store TEXT")
+def queue_jobs(root):
+    jobs=[]
+    for status_file in root.glob("*/*/status.json"):
+        status=read_status(status_file)
+        state=str(status.get("state") or "")
+        if state in {"queued","processing"}:
+            jobs.append(status_file.parent)
+    return sorted(jobs,key=lambda p:p.name)
+def queue_position(job_dir):
+    jobs=queue_jobs(job_dir.parent.parent)
+    try:
+        return jobs.index(job_dir)+1
+    except ValueError:
+        return 1
+def lock_ocr_worker(job_dir,status_path,base_status,check_cancel):
+    lock_path=job_dir.parent.parent/"expense_ocr_worker.lock"
+    lock_file=open(lock_path,"w")
+    import fcntl
+    while True:
+        check_cancel()
+        try:
+            fcntl.flock(lock_file,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            return lock_file
+        except BlockingIOError:
+            pos=queue_position(job_dir)
+            payload=dict(base_status)
+            payload.update({"state":"queued","phase":"queued","queue_position":pos,"message":"queued","updated_at":now_iso()})
+            write_status(status_path,payload)
+            time.sleep(2)
 def process(job_dir,user_email,base_currency):
     uploads=sorted((job_dir/"uploads").glob("*"))
     status_path=job_dir/"status.json"
@@ -634,9 +874,13 @@ def process(job_dir,user_email,base_currency):
     ocr_chunks=[]
     added_count=0
     duplicate_count=0
-    status={"state":"processing","progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[],"updated_at":now_iso()}
+    def check_cancel():
+        if (job_dir/"cancel_requested").exists():
+            raise OcrCancelled("canceled")
+    status={"state":"queued","phase":"queued","queue_position":queue_position(job_dir),"progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[],"updated_at":now_iso()}
     write_status(status_path,status)
     def push_progress(done_images,image_fraction):
+        check_cancel()
         if not uploads:
             pct=100
             processed=0
@@ -644,7 +888,10 @@ def process(job_dir,user_email,base_currency):
             frac=max(0.0,min(float(image_fraction),1.0))
             pct=round(((done_images+frac)/len(uploads))*100,2)
             processed=min(done_images,len(uploads))
-        write_status(status_path,{"state":"processing","progress":{"total":len(uploads),"processed":processed,"percent":pct},"base_currency":base_currency,"warnings":warnings[-20:],"records":records[-100:],"recognized":recognized[-100:],"unresolved":unresolved[-50:],"added_count":added_count,"duplicate_count":duplicate_count,"updated_at":now_iso()})
+        write_status(status_path,{"state":"processing","phase":"processing","queue_position":0,"progress":{"total":len(uploads),"processed":processed,"percent":pct},"base_currency":base_currency,"warnings":warnings[-20:],"records":records[-100:],"recognized":recognized[-100:],"unresolved":unresolved[-50:],"added_count":added_count,"duplicate_count":duplicate_count,"updated_at":now_iso()})
+    lock_file=lock_ocr_worker(job_dir,status_path,status,check_cancel)
+    update_status(status_path,{"state":"processing","phase":"loading_model","queue_position":0,"message":"loading_model","progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[]})
+    get_vlm()
     rates={base_currency:1.0}
     try:
         rates.update(fetch_rates(base_currency))
@@ -659,21 +906,21 @@ def process(job_dir,user_email,base_currency):
     staged_signatures=set()
     seen_upload_transactions={}
     for i,img in enumerate(uploads,start=1):
+        check_cancel()
         dedup_seen=set()
         push_progress(i-1,0.02)
         try:
-            text=ocr_image(img,progress_cb=lambda f:push_progress(i-1,0.05+0.8*f))
-            push_progress(i-1,0.87)
-            ocr_chunks.append(f"=== {img.name} ===\n{text}")
-            lines=[normalize_space(x) for x in text.splitlines() if normalize_space(x)]
-            image_currency=infer_currency_from_text(text,base_currency)
             default_date=datetime.utcnow().strftime("%Y-%m-%d")
-            txs=extract_wallet_transactions(lines,default_date)
+            txs,vlm_output=vlm_recognize_image(img,existing_stores,base_currency,default_date)
+            push_progress(i-1,0.87)
+            ocr_chunks.append(f"=== {img.name} ===\n{vlm_output}")
             push_progress(i-1,0.93)
             found=len(txs)>0
-            for date,merchant,amount,currency in txs:
-                if currency not in SUPPORTED_CURRENCIES and image_currency:
-                    currency=image_currency
+            for tx in txs:
+                date=tx["date"]
+                merchant=tx["merchant_raw"]
+                amount=tx["amount"]
+                currency=tx["currency"]
                 raw_norm=normalize_space(merchant)
                 tx_key=(date,canonical_merchant(raw_norm) or normalize_text(raw_norm),round(float(amount),2),currency)
                 seen_image=seen_upload_transactions.get(tx_key)
@@ -682,15 +929,12 @@ def process(job_dir,user_email,base_currency):
                     recognized.append({"date":date,"merchant_raw":raw_norm,"amount":round(amount,2),"currency":currency,"status":"duplicate"})
                     continue
                 seen_upload_transactions.setdefault(tx_key,i)
-                store_resolution=resolve_store_match(merchant,existing_stores)
-                matched=store_resolution.get("matched")
-                score=store_resolution.get("confidence",0.0)
+                matched=tx.get("store") or ""
+                score=tx.get("confidence",0.0)
                 if not matched:
                     item={"date":date,"merchant_raw":merchant,"amount":round(amount,2),"currency":currency,"confidence":round(score,2)}
-                    if store_resolution.get("suggested_store"):
-                        item["suggested_store"]=store_resolution["suggested_store"]
-                    if store_resolution.get("matched_alias"):
-                        item["matched_alias"]=store_resolution["matched_alias"]
+                    if tx.get("suggested_store"):
+                        item["suggested_store"]=tx["suggested_store"]
                     unresolved.append(item)
                     recognized.append({"date":date,"merchant_raw":raw_norm,"amount":round(amount,2),"currency":currency,"status":"unresolved"})
                     continue
@@ -731,9 +975,12 @@ def process(job_dir,user_email,base_currency):
             if not found:
                 warnings.append({"code":"no_amount_in_file","file":img.name})
         except Exception as exc:
+            if isinstance(exc,OcrCancelled):
+                raise
             warnings.append({"code":"file_error","file":img.name,"message":str(exc)})
             ocr_chunks.append(f"=== {img.name} ===\n[error] {str(exc)}")
         push_progress(i,1)
+    check_cancel()
     for (date,merchant),amount in grouped.items():
         raw=" | ".join(sorted(x for x in grouped_raw.get((date,merchant),set()) if x))
         conn.execute("INSERT INTO expenses(date,store,amount,entry_source,ocr_raw_store) VALUES(?,?,?,?,?) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='ocr',ocr_raw_store=CASE WHEN COALESCE(expenses.ocr_raw_store,'')='' THEN excluded.ocr_raw_store WHEN COALESCE(excluded.ocr_raw_store,'')='' THEN expenses.ocr_raw_store ELSE expenses.ocr_raw_store||' | '||excluded.ocr_raw_store END",(date,merchant,amount,"ocr",raw))
@@ -753,6 +1000,8 @@ def main():
     status_path=job_dir/"status.json"
     try:
         process(job_dir,args.user_email,args.base_currency.upper())
+    except OcrCancelled:
+        write_status(status_path,{"state":"canceled","message":"canceled","updated_at":now_iso()})
     except Exception as exc:
         write_status(status_path,{"state":"error","message":str(exc),"updated_at":now_iso()})
 if __name__=="__main__":

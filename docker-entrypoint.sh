@@ -22,6 +22,15 @@ else
     printf 'opcache.revalidate_freq=30\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
+APP_WAF_RULE_ENGINE="${APP_WAF_RULE_ENGINE:-On}"
+case "$APP_WAF_RULE_ENGINE" in
+  On|DetectionOnly|Off) ;;
+  *) APP_WAF_RULE_ENGINE=On ;;
+esac
+mkdir -p /etc/nginx/modsecurity /var/log/modsecurity
+printf 'SecRuleEngine %s\n' "$APP_WAF_RULE_ENGINE" > /etc/nginx/modsecurity/appdashboard-engine.conf
+chown -R www-data:adm /var/log/modsecurity 2>/dev/null || true
+chmod 0775 /var/log/modsecurity 2>/dev/null || true
 {
   printf 'upload_max_filesize=%s\n' "${PHP_UPLOAD_MAX_FILESIZE:-64M}"
   printf 'post_max_size=%s\n' "${PHP_POST_MAX_SIZE:-64M}"
@@ -66,8 +75,8 @@ if [ -d "$APP_ROOT/uploads" ] && [ ! -L "$APP_ROOT/uploads" ]; then
   cp -a "$APP_ROOT/uploads/." "$UPLOADS_BASE_DIR/" 2>/dev/null || true
   rm -rf "$APP_ROOT/uploads"
 fi
-[ -e "$APP_ROOT/data" ] || ln -s "$APPDATA_DATA_DIR" "$APP_ROOT/data"
-[ -e "$APP_ROOT/uploads" ] || ln -s "$UPLOADS_BASE_DIR" "$APP_ROOT/uploads"
+[ -e "$APP_ROOT/data" ] || [ -L "$APP_ROOT/data" ] || ln -s "$APPDATA_DATA_DIR" "$APP_ROOT/data"
+[ -e "$APP_ROOT/uploads" ] || [ -L "$APP_ROOT/uploads" ] || ln -s "$UPLOADS_BASE_DIR" "$APP_ROOT/uploads"
 chown -R www-data:www-data "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot 2>/dev/null || true
 chmod -R 0775 "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
 find "$APPDATA_DATA_DIR/.ssh" -type d -exec chmod 0700 {} \; 2>/dev/null || true
@@ -164,6 +173,27 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   fi
   if [ -f /var/www/AppDashboard/apps/steps/utils/requirements.txt ] && ! "$VENV/bin/python3" -c 'import pyzipper, psycopg2' 2>/dev/null; then
     "$VENV/bin/pip" install -q -r /var/www/AppDashboard/apps/steps/utils/requirements.txt || true
+  fi
+  SPENDS_VENV=/var/www/AppDashboard/apps/spends/utils/.venv
+  if [ ! -d "$SPENDS_VENV" ]; then
+    python3 -m venv "$SPENDS_VENV"
+  fi
+  if [ ! -x "$SPENDS_VENV/bin/pip" ]; then
+    python3 -m venv --clear "$SPENDS_VENV"
+  fi
+  "$SPENDS_VENV/bin/python3" -m ensurepip --upgrade >/dev/null 2>&1 || true
+  if [ -f /var/www/AppDashboard/apps/spends/utils/requirements-ocr.txt ] && ! "$SPENDS_VENV/bin/python3" -c 'import torch, transformers, qwen_vl_utils, PIL, numpy, psycopg2' 2>/dev/null; then
+    "$SPENDS_VENV/bin/python3" -m pip install -q -r /var/www/AppDashboard/apps/spends/utils/requirements-ocr.txt || true
+  fi
+  export HF_HOME="${HF_HOME:-/opt/ApplicationData/huggingface}"
+  mkdir -p "$HF_HOME"
+  if "$SPENDS_VENV/bin/python3" -c 'import transformers, qwen_vl_utils, huggingface_hub' 2>/dev/null; then
+    "$SPENDS_VENV/bin/python3" - <<'PY' || true
+import os
+from huggingface_hub import snapshot_download
+model=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
+snapshot_download(model,ignore_patterns=["*.msgpack","*.h5","*.ot","*.onnx"])
+PY
   fi
   BOT_VENV=/var/www/AppDashboard/bot/.venv
   if [ ! -d "$BOT_VENV" ]; then

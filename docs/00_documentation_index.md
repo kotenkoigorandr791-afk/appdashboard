@@ -176,3 +176,4 @@ Supported agents: Cursor, Claude Desktop, VS Code, OpenCode
 | MCP HTTP | Check `supervisord.conf` for `appdashboard-mcp-http` |
 
 Prefer nginx/Docker logs under the deployment host, not Apache.
+WAF: see [29_waf.md](29_waf.md).

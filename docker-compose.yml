@@ -68,6 +68,7 @@ services:
       REDIS_PREFIX: "appdashboard:"
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"
+      APP_WAF_RULE_ENGINE: "${APP_WAF_RULE_ENGINE:-On}"
       PHP_OPCACHE_ENABLE: "1"
       COMPOSER_PROCESS_TIMEOUT: "3600"
       SSH_WS_PORT: "8765"
@@ -85,6 +86,7 @@ services:
       - appdashboard-appdata:/opt/ApplicationData
       - appdashboard-logs:/var/log/nginx
       - appdashboard-logs:/var/log/bot
+      - appdashboard-waf-logs:/var/log/modsecurity
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -381,6 +383,7 @@ services:
 
 volumes:
   appdashboard-logs:
+  appdashboard-waf-logs:
   appdashboard-data:
   appdashboard-appdata:
   appdashboard-db-data:

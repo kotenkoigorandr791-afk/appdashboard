@@ -198,8 +198,8 @@ body.theme-light #news-portal-overlay{background:#eef2f7;color:#1a2332;}
 body.theme-light #news-portal-overlay{--modal-bg:#ffffff;--group-block-bg:#e8edf3;--app-item-bg:#dde4ec;--border-color:#cfd8e3;--text-color:#1a2332;--scrollbar-track:#e8edf3;--scrollbar-thumb:#b0bcc9;}
 #news-portal-overlay.active{display:flex;}
 /* Header */
-#npo-header{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border-color);background:var(--group-block-bg);flex-shrink:0;height:56px;}
-#npo-title{padding:0 20px;font-size:17px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#npo-header{display:flex;align-items:center;gap:0;padding:0;border-bottom:1px solid var(--border-color);background:var(--group-block-bg);flex-shrink:0;height:60px;}
+  #npo-title{padding:0 20px;font-size:26px;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 #npo-header-actions{display:flex;align-items:center;gap:10px;margin-left:auto;margin-right:16px;}
 #npo-tabs{display:flex;height:100%;gap:0;}
 .npo-tab{height:100%;padding:0 22px;border:none;background:none;color:var(--text-color);font-size:14px;font-weight:600;cursor:pointer;border-bottom:3px solid transparent;opacity:.6;transition:opacity .15s,border-color .15s;white-space:nowrap;}
@@ -449,18 +449,20 @@ body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important
 </style>
 
 <div id="news-portal-overlay">
-  <div id="npo-header">
-    <button id="npo-menu-btn" type="button" aria-label="<?php echo my_htmlspecialchars($translations['menu'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['menu'] ?? 'Menu'); ?>">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-    </button>
-    <div id="npo-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></div>
-    <?php if ($newsCanEdit): ?>
-    <button id="npo-add-btn" type="button">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <?php echo my_htmlspecialchars($translations['news_add'] ?? 'Add news'); ?>
-    </button>
-    <?php endif; ?>
-    <div id="npo-header-actions">
+  <div class="std-topbar">
+    <div style="display:flex;align-items:center;gap:12px;flex:1;">
+      <button id="npo-menu-btn" type="button" aria-label="<?php echo my_htmlspecialchars($translations['menu'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['menu'] ?? 'Menu'); ?>">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div id="npo-title"><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></div>
+      <?php if ($newsCanEdit): ?>
+      <button id="npo-add-btn" type="button">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <?php echo my_htmlspecialchars($translations['news_add'] ?? 'Add news'); ?>
+      </button>
+      <?php endif; ?>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
       <?php if ($newsCanEdit): ?>
       <button id="npo-settings-btn" type="button" aria-label="<?php echo my_htmlspecialchars($translations['settings_title'] ?? 'Settings'); ?>">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14 12.94a7.43 7.43 0 0 0 .05-.94 7.43 7.43 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.18 7.18 0 0 0-1.63-.94L14.39 2.8a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.18 7.18 0 0 0-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.65 8.86a.5.5 0 0 0 .12.64l2.03 1.58a7.43 7.43 0 0 0-.05.94c0 .32.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.05.71 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.23 1.13-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58zM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z"/></svg>
@@ -469,8 +471,9 @@ body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
       </button>
       <?php endif; ?>
-      <button id="npo-back" type="button" class="ap-close-btn-style">&times;</button>
+      <button id="npo-back" type="button" class="std-topbar-close">&times;</button>
     </div>
+  </div>
     <?php if ($newsCanEdit): ?>
     <div id="npo-settings-popover">
       <div class="npo-settings-field">
@@ -485,7 +488,6 @@ body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important
       </div>
     </div>
     <?php endif; ?>
-  </div>
   <div id="npo-sidebar-backdrop" aria-hidden="true"></div>
   <div id="npo-ctx-menu" class="npo-ctx-menu" role="menu"></div>
   <div id="npo-body">
@@ -622,18 +624,22 @@ body.theme-light #npo-prompt-preview pre .hljs-function{color:#7c3aed !important
 <!-- ── News Writing Prompt Modal ──────────────────────────────────────────── -->
 <div id="npo-prompt-modal" style="display:none;position:fixed;inset:0;z-index:13000;background:rgba(6,10,16,0.48);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);justify-content:center;align-items:center;">
   <div style="background:var(--modal-bg);border:1px solid var(--border-color);border-radius:16px;width:min(700px,calc(100vw - 32px));max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.38);overflow:hidden;">
-    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border-color);flex-shrink:0;">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color,#38bdf8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span style="font-size:16px;font-weight:700;flex:1;"><?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News Writing Prompt'); ?></span>
-      <button type="button" id="npo-prompt-refresh-btn" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--group-block-bg);color:var(--text-color);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-        <?php echo my_htmlspecialchars($translations['refresh_token'] ?? 'Refresh token'); ?>
-      </button>
-      <button type="button" id="npo-prompt-copy-btn" style="padding:6px 14px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        <?php echo my_htmlspecialchars($translations['copy'] ?? 'Copy'); ?>
-      </button>
-      <button type="button" id="npo-prompt-close" style="width:32px;height:32px;border:none;background:none;color:var(--text-color);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.55;">&times;</button>
+    <div class="std-topbar">
+      <div style="display:flex;align-items:center;gap:12px;flex:1;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--primary-color,#38bdf8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span style="font-size:26px;font-weight:700;"><?php echo my_htmlspecialchars($translations['news_writing_prompt'] ?? 'News Writing Prompt'); ?></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button type="button" id="npo-prompt-refresh-btn" style="padding:6px 12px;border:1px solid var(--border-color);border-radius:8px;background:var(--group-block-bg);color:var(--text-color);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          <?php echo my_htmlspecialchars($translations['refresh_token'] ?? 'Refresh token'); ?>
+        </button>
+        <button type="button" id="npo-prompt-copy-btn" style="padding:6px 14px;background:var(--primary-color,#38bdf8);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <?php echo my_htmlspecialchars($translations['copy'] ?? 'Copy'); ?>
+        </button>
+        <button type="button" id="npo-prompt-close" style="width:40px;height:40px;min-width:40px;min-height:40px;border:none;background:transparent;color:var(--text-color);font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.55;" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
+      </div>
     </div>
     <div id="npo-prompt-toolbar" style="padding:12px 20px 10px;flex-shrink:0;">
       <div class="npo-prompt-toggle">
