@@ -103,11 +103,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $users=loadUsers();
             if(isset($users[$email])&&appPasswordVerify($password, $users[$email]['password'])){
                 if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
-                    $newHash = appPasswordHash($password);
-                    if ($newHash !== '' && $newHash !== false) {
-                        $users[$email]['password'] = $newHash;
-                        upsertUser($email, $users[$email]);
-                    }
+                    $users[$email]['password'] = appPasswordHash($password);
+                    upsertUser($email, $users[$email]);
                 }
                 if($email!=='root@root'&&empty($users[$email]['verified'])){
                     $authError=$translations['email_not_verified'];
@@ -187,33 +184,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=$translations[$passwordErrorKey];
         }else{
             $users=loadUsers();
-            $pendingSetPasswordData=$_SESSION['pending_oauth_data']??$_SESSION['pending_google_data']??null;
-            $canSetExistingPassword=!empty($_SESSION['pending_set_password_only'])&&is_array($pendingSetPasswordData)&&hash_equals(apNormalizeAuthEmail((string)($pendingSetPasswordData['email']??'')),$email);
-            if(isset($users[$email])&&$canSetExistingPassword&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
-                $newHash = appPasswordHash($password);
-                if ($newHash === '' || $newHash === false) {
-                    $authError = 'Failed to hash password. Please try again.';
-                } else {
-                    $users[$email]['password'] = $newHash;
-                    $users[$email]['must_change_password']=0;
-                    upsertUser($email,$users[$email]);
-                    $clearPasswordRequirement=getDB()->prepare("UPDATE users SET password=:password,must_change_password=0 WHERE email=:email");
-                    $clearPasswordRequirement->bindValue(':password',$newHash);
-                    $clearPasswordRequirement->bindValue(':email',$email);
-                    $clearPasswordRequirement->execute();
-                    unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
-                    resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
-                    clearTrustedDeviceLogoutSuppression();
-                    $_SESSION['user']=$users[$email];
-                    $_SESSION['user']['email']=$email;
-                    $_SESSION['auth_time']=time();
-                    setLastActiveUser($email);
-                    cleanupExpiredUserSessions($email);
-                    addUserToActiveSessions($email,session_id(),$_SESSION['user']);
-                    scheduleTrustedDevicePromptIfNeeded($email);
-                    header('Location: '.takePostLoginRedirect('/main'));
-                    exit;
-                }
+            if(isset($users[$email])&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
+                $users[$email]['password']=appPasswordHash($password);
+                $users[$email]['must_change_password']=0;
+                upsertUser($email,$users[$email]);
+                $clearPasswordRequirement=getDB()->prepare("UPDATE users SET password=:password,must_change_password=0 WHERE email=:email");
+                $clearPasswordRequirement->bindValue(':password',$users[$email]['password']);
+                $clearPasswordRequirement->bindValue(':email',$email);
+                $clearPasswordRequirement->execute();
+                unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
+                resetFailedAttempts(trim(explode(',',($_SERVER['HTTP_X_FORWARDED_FOR']??$_SERVER['REMOTE_ADDR']??'0.0.0.0'))[0]),'login');
+                clearTrustedDeviceLogoutSuppression();
+                $_SESSION['user']=$users[$email];
+                $_SESSION['user']['email']=$email;
+                $_SESSION['auth_time']=time();
+                setLastActiveUser($email);
+                cleanupExpiredUserSessions($email);
+                addUserToActiveSessions($email,session_id(),$_SESSION['user']);
+                scheduleTrustedDevicePromptIfNeeded($email);
+                header('Location: '.takePostLoginRedirect('/main'));
+                exit;
             }elseif(isset($users[$email])){
                 // If existing user is unverified, offer re-verification instead of error
                 if(empty($users[$email]['verified'])&&$email!=='root@root'){
@@ -465,20 +455,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $showResetForm=true;
                 $resetEmail=$email;
             }else{
-                $newHash = appPasswordHash($newPassword);
-                if ($newHash === '' || $newHash === false) {
-                    $authError = 'Failed to hash password. Please try again.';
-                    $showResetForm=true;
-                    $resetEmail=$email;
-                } else {
-                    $users[$email]['password']=$newHash;
-                    $users[$email]['must_change_password']=0;
-                    saveUsers($users);
-                    unset($codes[$email]);
-                    saveResetCodes($codes);
-                    $authSuccess=$translations['password_reset_success'];
-                    $showResetForm=false;
-                }
+                $users[$email]['password']=appPasswordHash($newPassword);
+                saveUsers($users);
+                unset($codes[$email]);
+                saveResetCodes($codes);
+                $authSuccess=$translations['password_reset_success'];
+                $showResetForm=false;
             }
         }else{
             $authError=$translations['invalid_reset_code'];
@@ -516,23 +498,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }elseif(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
             $profileError=$translations[$passwordErrorKey];
         }else{
-            $newHash = appPasswordHash($newPassword);
-            if ($newHash === '' || $newHash === false) {
-                $profileError = 'Failed to hash password. Please try again.';
-            } else {
-                $users[$email]['password']=$newHash;
-                $users[$email]['must_change_password']=0;
-                saveUsers($users);
-                $_SESSION['user']=$users[$email];
-                $_SESSION['user']['email']=$email;
-                $_SESSION['auth_time']=time();
-                $sessionData=getUserFromActiveSessions(session_id());
-                if($sessionData){
-                    $sessionData['user_data']=$_SESSION['user'];
-                    addUserToActiveSessions($email,session_id(),$_SESSION['user']);
-                }
-                $profileSuccess=$translations['password_changed'];
+            $users[$email]['password']=appPasswordHash($newPassword);
+            $users[$email]['must_change_password']=0;
+            saveUsers($users);
+            $_SESSION['user']=$users[$email];
+            $_SESSION['user']['email']=$email;
+            $_SESSION['auth_time']=time();
+            $sessionData=getUserFromActiveSessions(session_id());
+            if($sessionData){
+                $sessionData['user_data']=$_SESSION['user'];
+                addUserToActiveSessions($email,session_id(),$_SESSION['user']);
             }
+            $profileSuccess=$translations['password_changed'];
         }
     }
     if(isset($_POST['generate_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'){
@@ -1378,7 +1355,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $_apName = $_apNameData[$language]??($_apNameData['en']??$_apFolder);
                 $_apIconSvg = $_apSubdir.'/icon.svg';
                 $_apIconPng = $_apSubdir.'/icon.png';
-                $_apIcon = file_exists($_apIconSvg) ? $_apIconSvg : (file_exists($_apIconPng) ? $_apIconPng : defaultAppIconSrc());
+                $_apIcon = file_exists($_apIconSvg) ? $_apIconSvg : (file_exists($_apIconPng) ? $_apIconPng : 'default_icon.png');
                 $_apTotalV = $_apVisitStats2[$_apFolder] ?? 0;
                 $_apMr = getAppMinRole($_apFolder);
                 $_apAccessApps[] = ['folder'=>$_apFolder,'name'=>$_apName,'icon'=>$_apIcon,'is_svg'=>(strtolower(pathinfo($_apIcon,PATHINFO_EXTENSION))==='svg'),'visits'=>(int)$_apTotalV,'min_role'=>$_apMr];
@@ -1424,7 +1401,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']??''); ?></div>
             <div class="ap-user-role"><?php echo my_htmlspecialchars($translations['admin']??'Admin'); ?></div>
         </div>
-        <button id="ap-close-btn" type="button" class="std-topbar-close">&times;</button>
+        <button id="ap-close-btn" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
     </div>
 </div>
 <div id="ap-body">
@@ -1461,30 +1440,30 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_users_subtitle']??'View, edit roles, and delete registered users.'); ?></div>
             <!-- User Analytics Summary -->
             <div class="ap-card" style="margin-bottom:14px;">
-                <div class="ap-stat-grid">
-                    <div class="ap-stat-tile">
-                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['total_users']??'Total Users'); ?></div>
-                        <div id="ap-analytics-total" class="ap-stat-value"><?php echo count($_apAllU); ?></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;">
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['total_users']??'Total Users'); ?></div>
+                        <div id="ap-analytics-total" style="font-size:22px;font-weight:700;margin-top:2px;"><?php echo count($_apAllU); ?></div>
                     </div>
-                    <div class="ap-stat-tile">
-                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['verified_users']??'Verified'); ?></div>
-                        <div id="ap-analytics-verified" class="ap-stat-value" style="color:var(--primary-color);"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['verified']); })); ?></div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['verified_users']??'Verified'); ?></div>
+                        <div id="ap-analytics-verified" style="font-size:22px;font-weight:700;margin-top:2px;color:var(--primary-color);"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['verified']); })); ?></div>
                     </div>
-                    <div class="ap-stat-tile">
-                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['admins']??'Admins'); ?></div>
-                        <div id="ap-analytics-admins" class="ap-stat-value" style="color:#dc3545;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 2; })); ?></div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['admins']??'Admins'); ?></div>
+                        <div id="ap-analytics-admins" style="font-size:22px;font-weight:700;margin-top:2px;color:#dc3545;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 2; })); ?></div>
                     </div>
-                    <div class="ap-stat-tile">
-                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['managers']??'Managers'); ?></div>
-                        <div id="ap-analytics-managers" class="ap-stat-value" style="color:#ffc107;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 1; })); ?></div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['managers']??'Managers'); ?></div>
+                        <div id="ap-analytics-managers" style="font-size:22px;font-weight:700;margin-top:2px;color:#ffc107;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 1; })); ?></div>
                     </div>
-                    <div class="ap-stat-tile">
-                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['guests']??'Guests'); ?></div>
-                        <div id="ap-analytics-guests" class="ap-stat-value" style="color:#28a745;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 0; })); ?></div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['guests']??'Guests'); ?></div>
+                        <div id="ap-analytics-guests" style="font-size:22px;font-weight:700;margin-top:2px;color:#28a745;"><?php echo count(array_filter($_apAllU, function($u) { return ($u['role'] ?? 0) == 0; })); ?></div>
                     </div>
-                    <div class="ap-stat-tile">
-                        <div class="ap-stat-label"><?php echo my_htmlspecialchars($translations['pending_users']??'Pending'); ?></div>
-                        <div id="ap-analytics-pending" class="ap-stat-value" style="color:#ff9800;"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['_pending']); })); ?></div>
+                    <div style="background:var(--group-block-bg);padding:12px;border-radius:8px;border:1px solid var(--border-color);text-align:center;">
+                        <div style="font-size:11px;opacity:.7;"><?php echo my_htmlspecialchars($translations['pending_users']??'Pending'); ?></div>
+                        <div id="ap-analytics-pending" style="font-size:22px;font-weight:700;margin-top:2px;color:#ff9800;"><?php echo count(array_filter($_apAllU, function($u) { return !empty($u['_pending']); })); ?></div>
                     </div>
                 </div>
             </div>
@@ -2165,21 +2144,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 if(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
                     $response['message'] = $translations[$passwordErrorKey] ?? $passwordErrorKey;
                 }else{
-                    $newHash = appPasswordHash($newPassword);
-                    if ($newHash === '' || $newHash === false) {
-                        $response['message'] = 'Failed to hash password. Please try again.';
-                    } else {
-                        $users[$emailToReset]['password'] = $newHash;
-                        $users[$emailToReset]['must_change_password'] = 0;
-                        saveUsers($users);
-                        if($emailToReset === $currentUserEmail){
-                            $_SESSION['user'] = $users[$emailToReset];
-                            $_SESSION['user']['email'] = $emailToReset;
-                        }
-                        $response['success'] = true;
-                        $response['message'] = $translations['password_reset_admin_success'] ?? 'Password reset successfully';
-                        $response['password'] = $newPassword;
+                    $users[$emailToReset]['password'] = appPasswordHash($newPassword);
+                    $users[$emailToReset]['must_change_password'] = 0;
+                    saveUsers($users);
+                    if($emailToReset === $currentUserEmail){
+                        $_SESSION['user'] = $users[$emailToReset];
+                        $_SESSION['user']['email'] = $emailToReset;
                     }
+                    $response['success'] = true;
+                    $response['message'] = $translations['password_reset_admin_success'] ?? 'Password reset successfully';
+                    $response['password'] = $newPassword;
                 }
             }else{
                 $response['message'] = $translations['user_not_found'] ?? 'User not found';
@@ -2355,16 +2329,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(isset($_POST['save_user_roles'])){
         $currentUserEmail=$_SESSION['user']['email']??'';
         $isAjaxRoles = isset($_POST['ajax']);
-        if($sessionIsAdmin){
+        if($currentUserEmail==='root@root'){
             $users=loadUsers();
             $anyUpdated=false;
             // Roles
             if(isset($_POST['user_roles']) && is_array($_POST['user_roles'])){
                 foreach($_POST['user_roles'] as $email=>$role){
                     if($email==='root@root') continue;
-                    if($email !== $currentUserEmail && isset($users[$email]) && intval($users[$email]['role']) >= intval($role)){
-                        continue;
-                    }
                     if($email!==$currentUserEmail && isset($users[$email])){
                         $users[$email]['role']=intval($role);
                         $anyUpdated=true;

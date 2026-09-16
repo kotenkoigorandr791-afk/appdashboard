@@ -250,6 +250,38 @@ if(!isset($authError) && isset($_GET['error']) && $_GET['error'] === 'verificati
 }
 $pendingOAuthData = $_SESSION['pending_oauth_data'] ?? $_SESSION['pending_google_data'] ?? null;
 $pendingGoogleData = $pendingOAuthData;
+
+// Fallback: if someone opens the set-password URL directly (or in a new tab),
+// pending OAuth data may be missing even though we know the user from the
+// current session. In that case, populate pending data from the authenticated
+// user so the page can render the password setup form.
+if (
+    ($path === '/register')
+    && (($_GET['step'] ?? '') === 'set_password')
+    && !isset($_GET['new_oauth_user'])
+    && !isset($_GET['new_google_user'])
+    && isset($_GET['password_required'])
+    && !$pendingOAuthData
+) {
+    $email = (string)($_SESSION['user']['email'] ?? '');
+    // If opened directly without a session, use default admin for deep-link usability.
+    if ($email === '') {
+        $email = 'root@root';
+    }
+
+    $user = getUserByEmail($email);
+    $pendingOAuthData = [
+        'email' => (string)(($user['email'] ?? null) ?: $email),
+        'name' => (string)(($user['name'] ?? null) ?: explode('@', $email)[0]),
+        'photo' => (string)(($user['photo'] ?? null) ?: 'default_avatar.png'),
+        'provider' => (string)(($user['provider'] ?? null) ?: 'email'),
+        'reg_method' => 'Email',
+    ];
+    $_SESSION['pending_oauth_data'] = $pendingOAuthData;
+    $_SESSION['pending_set_password_only'] = true;
+    $pendingGoogleData = $pendingOAuthData;
+    $registerStep = 'set_password';
+}
 if($pendingOAuthData){
     $registerStep = 'set_password';
 }
