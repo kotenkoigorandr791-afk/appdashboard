@@ -227,6 +227,9 @@ function smart_log_bootstrap(string $appId): void {
         if (!(error_reporting() & $errno)) {
             return false;
         }
+        if (in_array($errno, [E_DEPRECATED, E_USER_DEPRECATED], true)) {
+            return false;
+        }
         $lvl = smart_log_errno_level($errno);
         $msg = $errstr . ' in ' . $errfile . ':' . $errline;
         smart_log_write(smart_log_app_id(), $lvl, $msg, $errfile, $errline, false);

@@ -3,6 +3,7 @@ function app_sentry_bootstrap(string $appId): void
 {
     static $booted = false;
     $root = defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__);
+    error_reporting(error_reporting() & ~E_DEPRECATED & ~E_USER_DEPRECATED);
     if (!$booted) {
         foreach ([$root . '/vendor/autoload.php', $root . '/apps/cloud/vendor/autoload.php', $root . '/webssh/vendor/autoload.php'] as $autoload) {
             if (!function_exists('Sentry\\init') && is_file($autoload)) {
@@ -18,6 +19,14 @@ function app_sentry_bootstrap(string $appId): void
             'environment' => (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production')),
             'release' => (string)(getenv('SENTRY_RELEASE') ?: ''),
             'traces_sample_rate' => (float)(getenv('SENTRY_TRACES_SAMPLE_RATE') ?: 0.1),
+            'error_types' => E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED,
+            'before_send' => static function ($event, $hint = null) {
+                $exception = is_object($hint) && property_exists($hint, 'exception') ? $hint->exception : null;
+                if ($exception instanceof ErrorException && in_array($exception->getSeverity(), [E_DEPRECATED, E_USER_DEPRECATED], true)) {
+                    return null;
+                }
+                return $event;
+            },
         ]);
         $booted = true;
     }

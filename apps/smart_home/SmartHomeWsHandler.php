@@ -280,7 +280,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     public function onOpen(ConnectionInterface $conn): void
     {
-        $this->clients->attach($conn, [
+        $this->clients->offsetSet($conn, [
             'role' => null,
             'user_email' => null,
             'device_id' => null,
@@ -291,7 +291,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     public function onMessage(ConnectionInterface $conn, $msg): void
     {
-        if (!$this->clients->contains($conn)) {
+        if (!$this->clients->offsetExists($conn)) {
             return;
         }
         $state = $this->clients[$conn];
@@ -336,14 +336,14 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     public function onClose(ConnectionInterface $conn): void
     {
-        if (!$this->clients->contains($conn)) {
+        if (!$this->clients->offsetExists($conn)) {
             return;
         }
         $state = $this->clients[$conn];
         if (($state['role'] ?? null) === 'device' && !empty($state['user_email']) && !empty($state['device_id'])) {
             $this->setDeviceTunnelStatus((string)$state['user_email'], (string)$state['device_id'], false);
         }
-        $this->clients->detach($conn);
+        $this->clients->offsetUnset($conn);
     }
 
     public function onError(ConnectionInterface $conn, \Exception $e): void
