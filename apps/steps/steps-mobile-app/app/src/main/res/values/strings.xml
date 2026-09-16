@@ -482,6 +482,7 @@
     <string name="conflict_resolve_success">Conflict resolved: %1$s — HTTP %2$d</string>
     <string name="conflict_resolve_error">Failed to resolve conflict: %1$s</string>
     <string name="stats_tooltip_steps">steps</string>
+    <string name="stats_local_data">Showing data from this device (no server connection)</string>
     <string name="settings_test_connection_home">Test connection</string>
     <string name="settings_test_connection_progress">Testing…</string>
     <string name="settings_sync_mode">Sync mode</string>
