@@ -826,6 +826,7 @@ function renderWeeklyForecast() {
             '<div class="weather-modal-city">' + escHtml(city) + '</div>' +
             '<div class="weather-modal-current">' + escHtml(currentLine) + '</div>' +
         '</div>' +
+        '<button type="button" class="std-topbar-close weather-modal-close-btn" onclick="closeWeatherModal()" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>' +
     '</div>' +
     '<div class="weather-modal-body">' +
     '<div class="weather-weekly">';

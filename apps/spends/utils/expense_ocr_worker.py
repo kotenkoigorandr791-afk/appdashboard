@@ -13,7 +13,7 @@ import unicodedata
 from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
-from urllib.request import urlopen
+from urllib.request import Request,urlopen
 import os
 try:
     from merchant_classifier import MerchantClassifier,normalize_text
@@ -28,6 +28,10 @@ AMOUNT_OCR_PART=rf"(?:{OCR_DIGIT}+)[.,](?:{OCR_DIGIT}{{2}})(?!(?:{OCR_DIGIT}))"
 LEGAL_SUFFIXES={"stiftung","co","ko","kg","sp","z","oo","ltd","llc","inc","gmbh","sro","s.r.o","sa","s.a","ooo","тов","пп","фоп"}
 _EASYOCR_READER=None
 _MERCHANT_CLASSIFIER=None
+_AI_CONFIG=None
+_AI_MATCH_CACHE={}
+class OcrCancelled(Exception):
+    pass
 def now_iso():
     return datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 def write_status(path,payload):
@@ -75,6 +79,93 @@ def canonical_merchant(value):
     return normalize_space(" ".join(tokens))
 def display_catalog_merchant(value):
     return normalize_space(str(value or "").replace("_"," "))
+def load_ai_config():
+    global _AI_CONFIG
+    if _AI_CONFIG is not None:
+        return _AI_CONFIG
+    _AI_CONFIG={}
+    try:
+        from pg_db import get_conn
+        conn=get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("SELECT key,value FROM app_ai_config WHERE key IN ('api_key','api_endpoint','default_model','models')")
+                rows=cur.fetchall()
+            cfg={}
+            for row in rows:
+                key=row["key"] if isinstance(row,dict) else row[0]
+                value=row["value"] if isinstance(row,dict) else row[1]
+                if value:
+                    cfg[str(key)]=str(value)
+            endpoint=cfg.get("api_endpoint") or "https://ai.serverkherson.xyz/v1/chat/completions"
+            if "/chat/completions" not in endpoint:
+                endpoint=endpoint.rstrip("/")+"/chat/completions"
+            models=[]
+            raw_models=cfg.get("models","").strip()
+            if raw_models:
+                try:
+                    parsed=json.loads(raw_models)
+                    if isinstance(parsed,list):
+                        models=[normalize_space(str(item)) for item in parsed if normalize_space(str(item))]
+                except Exception:
+                    models=[normalize_space(item) for item in re.split(r"[\r\n,]+",raw_models) if normalize_space(item)]
+            model=models[0] if models else normalize_space(cfg.get("default_model",""))
+            if not model:
+                model="github/gpt-4o-mini"
+            _AI_CONFIG={"api_key":cfg.get("api_key",""),"api_endpoint":endpoint,"model":model}
+        finally:
+            conn.close()
+    except Exception:
+        _AI_CONFIG={}
+    return _AI_CONFIG
+def extract_json_object(text):
+    text=str(text or "").strip()
+    if not text:
+        return None
+    if text.startswith("```"):
+        text=re.sub(r"^```(?:json)?\s*|\s*```$","",text,flags=re.I|re.S).strip()
+    if not text.startswith("{"):
+        m=re.search(r"\{[\s\S]*\}",text)
+        if not m:
+            return None
+        text=m.group(0)
+    try:
+        data=json.loads(text)
+        return data if isinstance(data,dict) else None
+    except Exception:
+        return None
+def ai_resolve_store_match(merchant,existing,ocr_text=""):
+    cfg=load_ai_config()
+    if not cfg or not cfg.get("api_key") or not existing:
+        return None
+    cache_key=(normalize_space(merchant).casefold(),tuple(existing))
+    if cache_key in _AI_MATCH_CACHE:
+        return _AI_MATCH_CACHE[cache_key]
+    stores=[str(x) for x in existing if str(x).strip()]
+    prompt={"merchant_from_ocr":merchant,"existing_stores":stores[:300],"ocr_text_excerpt":str(ocr_text or "")[:6000],"task":"Match merchant_from_ocr to exactly one existing store only if it is clearly the same merchant. If no existing store fits, suggest a clean store name to create. Return JSON only: {\"action\":\"match|create|unknown\",\"store\":\"...\",\"confidence\":0.0}. For action=match store must be copied exactly from existing_stores."}
+    payload={"model":cfg["model"],"messages":[{"role":"system","content":"You normalize OCR merchant names for an expense tracker. Return strict JSON only."},{"role":"user","content":json.dumps(prompt,ensure_ascii=False)}],"temperature":0.0,"max_tokens":300,"stream":False}
+    try:
+        req=Request(cfg["api_endpoint"],data=json.dumps(payload,ensure_ascii=False).encode("utf-8"),headers={"Content-Type":"application/json","Authorization":"Bearer "+cfg["api_key"]},method="POST")
+        with urlopen(req,timeout=25) as resp:
+            raw=resp.read().decode("utf-8","replace")
+        decoded=json.loads(raw)
+        content=decoded.get("choices",[{}])[0].get("message",{}).get("content","")
+        data=extract_json_object(content)
+        if not data:
+            return None
+        action=str(data.get("action","")).lower()
+        store=normalize_space(str(data.get("store","")))
+        confidence=float(data.get("confidence") or 0.0)
+        result=None
+        if action=="match" and store in stores and confidence>=0.72:
+            result={"matched":store,"confidence":confidence,"ai_matched":True}
+        elif action=="create" and store and confidence>=0.55:
+            result={"matched":None,"confidence":confidence,"suggested_store":store,"ai_matched":True}
+        _AI_MATCH_CACHE[cache_key]=result
+        return result
+    except Exception:
+        _AI_MATCH_CACHE[cache_key]=None
+        return None
 def get_merchant_classifier():
     global _MERCHANT_CLASSIFIER
     if _MERCHANT_CLASSIFIER is None:
@@ -559,7 +650,7 @@ def best_store_label_match(label,existing,min_score=0.84):
             score=ratio
             best=name
     return (best,score) if score>=min_score else (None,score)
-def resolve_store_match(merchant,existing):
+def resolve_store_match(merchant,existing,ocr_text=""):
     matched,score=best_store_label_match(merchant,existing)
     if matched:
         return {"matched":matched,"confidence":score}
@@ -580,6 +671,13 @@ def resolve_store_match(merchant,existing):
         if alias:
             payload["matched_alias"]=alias
         return payload
+    ai_match=ai_resolve_store_match(merchant,existing,ocr_text)
+    if ai_match:
+        if suggested and not ai_match.get("suggested_store"):
+            ai_match["suggested_store"]=suggested
+        if alias:
+            ai_match["matched_alias"]=alias
+        return ai_match
     payload={"matched":None,"confidence":max(score,classifier_result.score if suggested else 0.0)}
     if suggested:
         payload["suggested_store"]=suggested
@@ -634,9 +732,13 @@ def process(job_dir,user_email,base_currency):
     ocr_chunks=[]
     added_count=0
     duplicate_count=0
+    def check_cancel():
+        if (job_dir/"cancel_requested").exists():
+            raise OcrCancelled("canceled")
     status={"state":"processing","progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[],"updated_at":now_iso()}
     write_status(status_path,status)
     def push_progress(done_images,image_fraction):
+        check_cancel()
         if not uploads:
             pct=100
             processed=0
@@ -659,6 +761,7 @@ def process(job_dir,user_email,base_currency):
     staged_signatures=set()
     seen_upload_transactions={}
     for i,img in enumerate(uploads,start=1):
+        check_cancel()
         dedup_seen=set()
         push_progress(i-1,0.02)
         try:
@@ -682,7 +785,7 @@ def process(job_dir,user_email,base_currency):
                     recognized.append({"date":date,"merchant_raw":raw_norm,"amount":round(amount,2),"currency":currency,"status":"duplicate"})
                     continue
                 seen_upload_transactions.setdefault(tx_key,i)
-                store_resolution=resolve_store_match(merchant,existing_stores)
+                store_resolution=resolve_store_match(merchant,existing_stores,text)
                 matched=store_resolution.get("matched")
                 score=store_resolution.get("confidence",0.0)
                 if not matched:
@@ -731,9 +834,12 @@ def process(job_dir,user_email,base_currency):
             if not found:
                 warnings.append({"code":"no_amount_in_file","file":img.name})
         except Exception as exc:
+            if isinstance(exc,OcrCancelled):
+                raise
             warnings.append({"code":"file_error","file":img.name,"message":str(exc)})
             ocr_chunks.append(f"=== {img.name} ===\n[error] {str(exc)}")
         push_progress(i,1)
+    check_cancel()
     for (date,merchant),amount in grouped.items():
         raw=" | ".join(sorted(x for x in grouped_raw.get((date,merchant),set()) if x))
         conn.execute("INSERT INTO expenses(date,store,amount,entry_source,ocr_raw_store) VALUES(?,?,?,?,?) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='ocr',ocr_raw_store=CASE WHEN COALESCE(expenses.ocr_raw_store,'')='' THEN excluded.ocr_raw_store WHEN COALESCE(excluded.ocr_raw_store,'')='' THEN expenses.ocr_raw_store ELSE expenses.ocr_raw_store||' | '||excluded.ocr_raw_store END",(date,merchant,amount,"ocr",raw))
@@ -753,6 +859,8 @@ def main():
     status_path=job_dir/"status.json"
     try:
         process(job_dir,args.user_email,args.base_currency.upper())
+    except OcrCancelled:
+        write_status(status_path,{"state":"canceled","message":"canceled","updated_at":now_iso()})
     except Exception as exc:
         write_status(status_path,{"state":"error","message":str(exc),"updated_at":now_iso()})
 if __name__=="__main__":

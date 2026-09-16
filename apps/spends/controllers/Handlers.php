@@ -1,5 +1,9 @@
 <?php
 // ─── AJAX / POST handlers ──────────────────────────────────────────────────────
+$__t = static function (string $key): string {
+    global $translations;
+    return $translations[$key] ?? $key;
+};
 if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
     exit(json_encode([
         'status' => 'success',
@@ -14,7 +18,7 @@ if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
 if (isset($_GET['get_expense_meta'])) {
     $date = trim($_GET['date'] ?? '');
     $store = trim($_GET['store'] ?? '');
-    if ($date === '' || $store === '') exit(json_encode(['status'=>'error','message'=>'Invalid data']));
+    if ($date === '' || $store === '') exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
     $st = $udb->prepare("SELECT entry_source, ocr_raw_store FROM expenses WHERE date=:d AND store=:s LIMIT 1");
     $st->bindValue(':d', $date);
     $st->bindValue(':s', $store);
@@ -108,15 +112,21 @@ if (isset($_GET['get_expenses_page'])) {
     $monthsWindow = max(0, (int)($_GET['months_window'] ?? 1));
     $sort         = $_GET['sort'] ?? 'date_asc';
     $startDate    = trim($_GET['start_date'] ?? '');
+    $endDate      = trim($_GET['end_date'] ?? '');
     $sortDir      = $sort === 'date_desc' ? 'DESC' : 'ASC';
-    $today = date('Y-m-d');
-    $todayObj = new DateTime($today);
-    $startObj = (clone $todayObj)->modify("-{$monthsWindow} months")->modify('first day of this month');
-    $endObj   = (clone $todayObj)->modify("+{$monthsWindow} months")->modify('last day of this month');
-    $rangeStart = $startObj->format('Y-m-d');
-    $rangeEnd   = $endObj->format('Y-m-d');
-    if ($startDate && strcmp($startDate, $rangeStart) > 0) {
+    if ($startDate && $endDate) {
         $rangeStart = $startDate;
+        $rangeEnd   = $endDate;
+    } else {
+        $today = date('Y-m-d');
+        $todayObj = new DateTime($today);
+        $startObj = (clone $todayObj)->modify("-{$monthsWindow} months")->modify('first day of this month');
+        $endObj   = (clone $todayObj)->modify("+{$monthsWindow} months")->modify('last day of this month');
+        $rangeStart = $startObj->format('Y-m-d');
+        $rangeEnd   = $endObj->format('Y-m-d');
+        if ($startDate && strcmp($startDate, $rangeStart) > 0) {
+            $rangeStart = $startDate;
+        }
     }
     if (strcmp($rangeStart, $rangeEnd) > 0) {
         exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'totalPages' => 1]));
@@ -173,7 +183,7 @@ if (isset($_GET['get_expenses_page'])) {
 // ─── Year data for chart (AJAX) ────────────────────────────────────────────────
 if (isset($_GET['year_data'])) {
     $year = (int)($_GET['year_data']);
-    if ($year < 2000 || $year > 2100) exit(json_encode(['status'=>'error','message'=>'Invalid year']));
+    if ($year < 2000 || $year > 2100) exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_year')]));
 
     $yearStoreNames = array_map(fn($s) => $s['name'], $userSettings['stores']);
     $yearDates = listCalendarDaysInclusive(sprintf('%04d-01-01', $year), sprintf('%04d-12-31', $year));
@@ -205,7 +215,7 @@ if (isset($_POST['add_date_ajax'])) {
         $st = $udb->prepare('SELECT COUNT(*) FROM expenses WHERE date=:d');
         $st->bindValue(':d', $date);
         $exists = (int)$st->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
-        if ($exists) exit(json_encode(['status'=>'error','message'=>'Date already exists']));
+        if ($exists) exit(json_encode(['status'=>'error','message'=>$__t('msg_date_exists')]));
 
         $stores = dbGetStores($udb);
         $udb->exec('BEGIN');
@@ -219,15 +229,15 @@ if (isset($_POST['add_date_ajax'])) {
         $inc->bindValue(':d', $date);
         $inc->execute();
         $udb->exec('COMMIT');
-        exit(json_encode(['status'=>'success','message'=>'Date added successfully','date'=>$date]));
+        exit(json_encode(['status'=>'success','message'=>$__t('date_added'),'date'=>$date]));
     }
-    exit(json_encode(['status'=>'error','message'=>'Invalid date format']));
+    exit(json_encode(['status'=>'error','message'=>$__t('invalid_date_format')]));
 }
 
 if (isset($_POST['add_edit_store'])) {
     $storeId   = $_POST['store_id']   ?? (string)time();
     $storeName = trim($_POST['store_name'] ?? '');
-    if (empty($storeName)) exit(json_encode(['status'=>'error','message'=>'Store name is required']));
+    if (empty($storeName)) exit(json_encode(['status'=>'error','message'=>$__t('store_name_required')]));
 
     $existing = $udb->prepare('SELECT id, name FROM stores WHERE id=:id');
     $existing->bindValue(':id', $storeId);
@@ -315,7 +325,7 @@ if (isset($_POST['delete_store'])) {
     $uDir = APPS_DATA_DIR . $safe;
     $photo= "$uDir/store_$fn.jpg";
     if (file_exists($photo)) unlink($photo);
-    exit(json_encode(['status'=>'success','message'=>'Store deleted successfully']));
+    exit(json_encode(['status'=>'success','message'=>$__t('delete_store_ok')]));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['settings'])) {
@@ -341,7 +351,7 @@ if (isset($_POST['update_expense'])) {
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
-    exit(json_encode(['status'=>'error','message'=>'Invalid data']));
+    exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
 }
 if (isset($_POST['update_income'])) {
     $date = $_POST['date'] ?? '';
@@ -353,18 +363,18 @@ if (isset($_POST['update_income'])) {
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
-    exit(json_encode(['status'=>'error','message'=>'Invalid income data']));
+    exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) {
     header('Content-Type: application/json; charset=UTF-8');
     if (empty($_FILES['bank_csv_file']) || (int) ($_FILES['bank_csv_file']['error'] ?? 0) !== UPLOAD_ERR_OK) {
-        exit(json_encode(['status' => 'error', 'message' => 'upload']));
+        exit(json_encode(['status' => 'error', 'message' => $__t('upload_error')]));
     }
-    require_once __DIR__ . '/../utils/BankStatementImport.php';
+    require_once __DIR__ . '/../utils/BankStatementParser.php';
     $sz = (int) ($_FILES['bank_csv_file']['size'] ?? 0);
-    if ($sz <= 0 || $sz > BankStatementImport::MAX_BYTES) {
-        exit(json_encode(['status' => 'error', 'message' => 'file_too_large']));
+    if ($sz <= 0 || $sz > BankStatementParser::MAX_BYTES) {
+        exit(json_encode(['status' => 'error', 'message' => $__t('msg_file_too_large')]));
     }
     $tmpDir = $userDir . '/bank_import';
     if (!is_dir($tmpDir)) {
@@ -372,9 +382,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     }
     @chmod($tmpDir, SPENDS_RUNTIME_DIR_MODE);
     $token = bin2hex(random_bytes(16));
-    $dest = $tmpDir . '/' . $token . '.csv';
+    $origName = $_FILES['bank_csv_file']['name'] ?? 'statement';
+    $ext = strtolower(pathinfo($origName, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['csv', 'xml', 'ofx', 'qfx', 'mt940', 'sta', 'pdf'], true)) {
+        $ext = 'csv';
+    }
+    $dest = $tmpDir . '/' . $token . '.' . $ext;
     if (!move_uploaded_file($_FILES['bank_csv_file']['tmp_name'], $dest)) {
-        exit(json_encode(['status' => 'error', 'message' => 'move']));
+        exit(json_encode(['status' => 'error', 'message' => $__t('msg_move_failed')]));
     }
     if (!isset($_SESSION['bank_csv_sessions']) || !is_array($_SESSION['bank_csv_sessions'])) {
         $_SESSION['bank_csv_sessions'] = [];
@@ -389,7 +404,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
         $base = (string) ($userSettings['currency'] ?? 'USD');
-        $res = BankStatementImport::analyze($udb, $dest, $storeNames, $base);
+        $parsed = BankStatementParser::parse($dest);
+        $res = BankStatementParser::toLegacyFormat($parsed, $storeNames, $base);
         $_SESSION['bank_csv_sessions'][$token] = ['path' => $dest, 'user' => $currentUser, 'ts' => time()];
         $res['token'] = $token;
         exit(json_encode($res));
@@ -401,10 +417,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     header('Content-Type: application/json; charset=UTF-8');
+    require_once __DIR__ . '/../utils/BankStatementParser.php';
     require_once __DIR__ . '/../utils/BankStatementImport.php';
     $payload = json_decode((string) ($_POST['bank_csv_apply'] ?? ''), true);
     if (!is_array($payload)) {
-        exit(json_encode(['status' => 'error', 'message' => 'bad_json']));
+        exit(json_encode(['status' => 'error', 'message' => $__t('msg_bad_json')]));
     }
     $token = preg_replace('/[^a-f0-9]/', '', (string) ($payload['token'] ?? ''));
     $exclude = $payload['exclude_group_keys'] ?? [];
@@ -412,17 +429,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     $conflictMode = ($payload['conflict_mode'] ?? 'skip') === 'replace' ? 'replace' : 'skip';
     $conflictDates = $payload['conflict_dates'] ?? [];
     if ($token === '' || strlen($token) < 16) {
-        exit(json_encode(['status' => 'error', 'message' => 'bad_token']));
+        exit(json_encode(['status' => 'error', 'message' => $__t('msg_bad_token')]));
     }
-    $path = $userDir . '/bank_import/' . $token . '.csv';
-    if (!is_file($path) && isset($_SESSION['bank_csv_sessions'][$token])) {
+    $path = null;
+    if (isset($_SESSION['bank_csv_sessions'][$token])) {
         $meta = $_SESSION['bank_csv_sessions'][$token];
         if (($meta['user'] ?? '') === $currentUser && !empty($meta['path']) && is_file($meta['path'])) {
             $path = (string) $meta['path'];
         }
     }
-    if (!is_file($path)) {
-        exit(json_encode(['status' => 'error', 'message' => 'session']));
+    if ($path === null) {
+        exit(json_encode(['status' => 'error', 'message' => $__t('msg_session')]));
     }
     if (!is_array($exclude)) {
         $exclude = [];
@@ -436,9 +453,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
         $base = (string) ($userSettings['currency'] ?? 'USD');
-        $parsed = BankStatementImport::readCsv($path);
-        $built = BankStatementImport::buildTransactions($parsed, $storeNames, $base);
-        $tx = $built['transactions'];
+        $parsed = BankStatementParser::parse($path);
+        $legacy = BankStatementParser::toLegacyFormat($parsed, $storeNames, $base);
+        $tx = $legacy['transactions'];
         BankStatementImport::markDuplicates($udb, $tx);
         BankStatementImport::apply($udb, $tx, $exclude, $storeMap, $conflictMode, $conflictDates);
         @unlink($path);
@@ -547,7 +564,7 @@ if (isset($_POST['backup_action'])) {
     elseif ($action === 'organize') {
         $csv = exportExpensesToCSV($udb, $allStores);
         $_SESSION['organized_data'] = $csv;
-        exit(json_encode(['status'=>'success','message'=>'Data organized successfully']));
+        exit(json_encode(['status'=>'success','message'=>$__t('msg_organized_ok')]));
     }
     elseif ($action === 'save' && isset($_POST['backup_name'])) {
         $name       = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['backup_name']);
@@ -559,19 +576,19 @@ if (isset($_POST['backup_action'])) {
             unset($_SESSION['organized_data']);
         }
         if ($csv === null || $csv === '') {
-            exit(json_encode(['status'=>'error','message'=>'No organized data to save']));
+            exit(json_encode(['status'=>'error','message'=>$__t('msg_no_organized_data')]));
         }
         file_put_contents($backupPath, $csv);
-        exit(json_encode(['status'=>'success','message'=>'Backup saved successfully']));
+        exit(json_encode(['status'=>'success','message'=>$__t('msg_backup_saved')]));
     }
     elseif ($action === 'restore' && isset($_POST['backup_file'])) {
         $backupFile = basename($_POST['backup_file']);
         $backupPath = "$userBackupDir/$backupFile";
-        if (!file_exists($backupPath)) exit(json_encode(['status'=>'error','message'=>'Backup file not found']));
+        if (!file_exists($backupPath)) exit(json_encode(['status'=>'error','message'=>$__t('msg_backup_not_found')]));
 
         $fh = fopen($backupPath, 'r');
         $headers = fgetcsv($fh);
-        if (!$headers) { fclose($fh); exit(json_encode(['status'=>'error','message'=>'Invalid CSV'])); }
+        if (!$headers) { fclose($fh); exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_csv')])); }
         $csvStores = array_slice($headers, 1);
 
         foreach ($csvStores as $sn) {
@@ -605,12 +622,12 @@ if (isset($_POST['backup_action'])) {
         }
         $udb->exec('COMMIT');
         fclose($fh);
-        exit(json_encode(['status'=>'success','message'=>'Backup restored successfully']));
+        exit(json_encode(['status'=>'success','message'=>$__t('backup_restored')]));
     }
     elseif ($action === 'delete' && isset($_POST['backup_file'])) {
         $backupPath = "$userBackupDir/" . basename($_POST['backup_file']);
-        if (file_exists($backupPath)) { unlink($backupPath); exit(json_encode(['status'=>'success','message'=>'Backup deleted successfully'])); }
-        exit(json_encode(['status'=>'error','message'=>'Backup file not found']));
+        if (file_exists($backupPath)) { unlink($backupPath); exit(json_encode(['status'=>'success','message'=>$__t('backup_deleted')])); }
+        exit(json_encode(['status'=>'error','message'=>$__t('msg_backup_not_found')]));
     }
     elseif ($action === 'download' && isset($_POST['backup_file'])) {
         $backupPath = "$userBackupDir/" . basename($_POST['backup_file']);
@@ -620,26 +637,26 @@ if (isset($_POST['backup_action'])) {
             header('Content-Length: ' . filesize($backupPath));
             readfile($backupPath); exit;
         }
-        exit(json_encode(['status'=>'error','message'=>'Backup file not found']));
+        exit(json_encode(['status'=>'error','message'=>$__t('msg_backup_not_found')]));
     }
     elseif ($action === 'upload' && isset($_FILES['backup_file'])) {
         $uploaded = $_FILES['backup_file'];
-        if ($uploaded['error'] !== UPLOAD_ERR_OK) exit(json_encode(['status'=>'error','message'=>'File upload error']));
+        if ($uploaded['error'] !== UPLOAD_ERR_OK) exit(json_encode(['status'=>'error','message'=>$__t('upload_error')]));
         $fn   = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($uploaded['name']));
         $ftype= mime_content_type($uploaded['tmp_name']);
         if ($ftype === 'text/csv' || $ftype === 'text/plain' || str_contains($fn, '.csv')) {
             if (move_uploaded_file($uploaded['tmp_name'], "$userBackupDir/$fn"))
-                exit(json_encode(['status'=>'success','message'=>'Backup uploaded successfully']));
-            exit(json_encode(['status'=>'error','message'=>'Failed to move uploaded file']));
+                exit(json_encode(['status'=>'success','message'=>$__t('backup_uploaded')]));
+            exit(json_encode(['status'=>'error','message'=>$__t('msg_move_failed')]));
         }
-        exit(json_encode(['status'=>'error','message'=>'Only CSV files are allowed']));
+        exit(json_encode(['status'=>'error','message'=>$__t('msg_csv_only')]));
     }
-    exit(json_encode(['status'=>'error','message'=>'Invalid backup action']));
+    exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_backup_action')]));
 }
 
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    exit(json_encode(['status'=>'error','message'=>'Invalid request']));
+    exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_request')]));
 }
 
 if (isset($_GET['download_backup'])) {

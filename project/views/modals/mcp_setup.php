@@ -108,9 +108,11 @@ try{
 </style>
 <div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title"<?php echo $mcpModalInitialOpen?' style="display:flex;"':''; ?> data-initial-tab="<?php echo my_htmlspecialchars($mcpInitialTab); ?>">
     <div id="mcp-setup-content">
-        <button type="button" id="close-mcp-setup" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
+        <div class="std-topbar">
+            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($mcpT['title']); ?></h2>
+            <button type="button" id="close-mcp-setup" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>" class="std-topbar-close">&times;</button>
+        </div>
         <div class="mcp-setup-scroll">
-            <h2 id="mcp-setup-title" style="margin:0 0 8px;font-size:22px;"><?php echo my_htmlspecialchars($mcpT['title']); ?></h2>
             <p class="mcp-setup-lead"><?php echo my_htmlspecialchars($mcpT['subtitle']); ?></p>
             <div class="mcp-setup-meta">
                 <span class="mcp-setup-pill" id="mcp-setup-version">—</span>

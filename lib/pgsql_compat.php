@@ -42,6 +42,11 @@ final class AppDatabaseStatement {
         $this->stmt->bindValue($name, $value, $type);
         return true;
     }
+    public function reset(): bool {
+        $this->bindings = [];
+        $this->stmt = $this->pdo->prepare($this->sql);
+        return true;
+    }
     private function reprepare(): void {
         $this->db->reconnect();
         $this->pdo = $this->db->getPdo();

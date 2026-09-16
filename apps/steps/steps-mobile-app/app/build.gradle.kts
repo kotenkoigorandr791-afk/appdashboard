@@ -7,7 +7,7 @@ plugins {
 
 val appVersionMajor = 1
 val appVersionMinor = 9
-val appVersionPatch = 20
+val appVersionPatch = 21
 val appVersionCode = (appVersionMajor * 10000) + (appVersionMinor * 100) + appVersionPatch
 val appVersionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
 
@@ -23,7 +23,7 @@ android {
         versionName = appVersionName
 
         androidResources {
-            localeFilters += listOf("en", "ta", "fr", "de", "es", "pt", "zh", "ja", "ko", "it", "ru", "uk", "be")
+            localeFilters += listOf("en", "ta", "fr", "de", "es", "pt", "zh", "ja", "ko", "it", "ru", "uk", "be", "pl", "cs")
         }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

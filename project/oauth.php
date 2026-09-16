@@ -166,12 +166,21 @@ function oauth_redirect_uri_allowed(array $client, string $redirectUri): bool {
 function oauth_upsert_client(string $clientId, string $clientSecret, string $name, array $redirectUris): void {
     $db = getDB();
     ensureOAuthProviderSchema($db);
-    $stmt = $db->prepare("INSERT INTO oauth_clients(client_id,client_secret_hash,name,redirect_uris) VALUES(:c,:h,:n,:r)");
+    $hash = appPasswordHash($clientSecret);
+    $uris = implode("\n", $redirectUris);
+    $stmt = $db->prepare("INSERT INTO oauth_clients(client_id,client_secret_hash,name,redirect_uris) VALUES(:c,:h,:n,:r) ON CONFLICT (client_id) DO UPDATE SET client_secret_hash = EXCLUDED.client_secret_hash, name = EXCLUDED.name, redirect_uris = EXCLUDED.redirect_uris");
     $stmt->bindValue(':c', $clientId);
-    $stmt->bindValue(':h', appPasswordHash($clientSecret));
+    $stmt->bindValue(':h', $hash);
     $stmt->bindValue(':n', $name);
-    $stmt->bindValue(':r', implode("\n", $redirectUris));
+    $stmt->bindValue(':r', $uris);
     $stmt->execute();
+}
+function oauth_verify_client_secret(string $secret, string $hash): bool {
+    if ($secret === '' || $hash === '') return false;
+    if (appPasswordIsArgon2idHash($hash)) return password_verify($secret, $hash);
+    $info = password_get_info($hash);
+    if (($info['algoName'] ?? '') === 'bcrypt') return password_verify($secret, $hash);
+    return false;
 }
 
 function oauth_create_auth_code(AppDatabase $db, string $clientId, string $email, string $redirectUri, string $scope, string $nonce, string $codeChallenge, string $codeChallengeMethod, int $authTime): string {
@@ -291,7 +300,15 @@ function oauth_verify_access_token(string $jwt): ?array {
 }
 
 function oauth_extract_client_credentials(): array {
-    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+    $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    if ($auth === '' && function_exists('getallheaders')) {
+        foreach (getallheaders() ?: [] as $name => $value) {
+            if (strcasecmp((string)$name, 'Authorization') === 0) {
+                $auth = (string)$value;
+                break;
+            }
+        }
+    }
     if (stripos($auth, 'Basic ') === 0) {
         $decoded = base64_decode(substr($auth, 6), true);
         if ($decoded !== false && str_contains($decoded, ':')) {
@@ -383,10 +400,17 @@ function oauth_route_token(): void {
     ensureOAuthProviderSchema($db);
     [$clientId, $clientSecret] = oauth_extract_client_credentials();
     $client = oauth_find_client($db, $clientId);
-    if (!$client || !appPasswordVerify($clientSecret, (string)$client['client_secret_hash'])) {
+    $storedHash = (string)($client['client_secret_hash'] ?? '');
+    if (!$client || !oauth_verify_client_secret($clientSecret, $storedHash)) {
         http_response_code(401);
         echo json_encode(['error' => 'invalid_client']);
         exit;
+    }
+    if ($clientSecret !== '' && appPasswordNeedsRehash($storedHash)) {
+        $up = $db->prepare('UPDATE oauth_clients SET client_secret_hash = :h WHERE client_id = :c');
+        $up->bindValue(':h', appPasswordHash($clientSecret));
+        $up->bindValue(':c', (string)$client['client_id']);
+        $up->execute();
     }
     $grantType = (string)($_POST['grant_type'] ?? '');
     if ($grantType === 'authorization_code') {

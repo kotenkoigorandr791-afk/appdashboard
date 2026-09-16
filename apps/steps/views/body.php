@@ -79,11 +79,11 @@ foreach (($healthMetrics ?? []) as $healthDay) {
     }
 }
 $metricButtons = [
-    'steps' => ['label' => $translations['steps'] ?? 'Steps', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#22c55e" d="M8.3 20.7c-1.7 0-3.1-1.2-3.1-2.8 0-1.4 1.1-2.2 2.3-2.2 1.5 0 3.8 1.3 3.8 2.8 0 1.3-1.1 2.2-3 2.2Z"/><path fill="#16a34a" d="M15.9 11.9c-1.8 0-3.1-1.2-3.1-2.8 0-1.4 1-2.2 2.3-2.2 1.5 0 3.8 1.3 3.8 2.8 0 1.3-1.1 2.2-3 2.2Z"/><path fill="#86efac" d="M6.9 14.2c-.9-1.9-.4-4.3 1.2-5.1 1.3-.7 2.8 0 3.4 1.2.8 1.6.1 4.6-1.5 5.4-1.2.6-2.4 0-3.1-1.5Z"/><path fill="#4ade80" d="M14.4 5.8c-.8-1.7-.4-3.8 1-4.5 1.2-.6 2.5 0 3 1.1.7 1.4.1 4.1-1.3 4.8-1.1.5-2.1-.1-2.7-1.4Z"/></svg>'],
-    'distance' => ['label' => $translations['distance_km'] ?? 'Distance', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#38bdf8" d="M4 17.2c3.1-6.6 7.3-10 12.4-10H20v3.6h-3.6c-3.6 0-6.5 2.4-8.9 7.2L6.8 20H3.2l.8-2.8Z"/><path fill="#0ea5e9" d="M17.5 5.2 22 9l-4.5 3.8V5.2Z"/><path fill="#f97316" d="M4 20.6a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2Z"/></svg>'],
-    'calories' => ['label' => $translations['calories'] ?? 'Calories', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#f97316" d="M12.5 22c-4.1 0-7.4-2.9-7.4-7.1 0-3.4 2-5.7 4.4-8.2.6 2 1.8 3.1 3.2 3.8.2-3 1.4-5.3 3.6-7.5.9 4.1 2.6 5.6 2.6 9.6 0 5.5-3.1 9.4-6.4 9.4Z"/><path fill="#fde047" d="M12.2 19.9c-1.9 0-3.6-1.4-3.6-3.7 0-1.7 1-3.1 2.4-4.5.3 1.4 1.1 2.2 2.3 2.7.2-1.5.8-2.8 1.9-4.1.6 2.3 1.2 3.4 1.2 5.3 0 2.7-1.8 4.3-4.2 4.3Z"/></svg>'],
-    'heart_rate' => ['label' => $translations['heart_rate'] ?? 'Heart rate', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#fb7185" d="M12 21s-8.5-5.1-8.5-11.2A4.8 4.8 0 0 1 12 6.7a4.8 4.8 0 0 1 8.5 3.1C20.5 15.9 12 21 12 21Z"/><path fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.8 12h3l1.3-3.1 2.2 6.2 1.6-3.1h4.3"/></svg>'],
-    'sleep' => ['label' => $translations['sleep'] ?? 'Sleep', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#818cf8" d="M20.6 15.5A8.6 8.6 0 0 1 8.5 3.4 8.6 8.6 0 1 0 20.6 15.5Z"/><path fill="#facc15" d="m17.7 3.2.6 1.5 1.6.2-1.2 1 .3 1.6-1.3-.8-1.4.8.3-1.6-1.2-1 1.6-.2.7-1.5Z"/><path fill="#fef3c7" d="M12 8.2h4.4l-3 3.6h3v1.8h-6.1l3-3.6H12V8.2Z"/></svg>'],
+    'steps' => ['label' => $translations['steps'] ?? 'Steps', 'icon' => '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#3D8BFF"/><rect x="16" y="16" width="32" height="32" rx="8" fill="#FFFFFF"/><circle cx="32" cy="34" r="9" fill="none" stroke="#3D8BFF" stroke-width="2.6"/><path d="M32 34 L36 27" stroke="#3D8BFF" stroke-width="2.6" stroke-linecap="round"/><circle cx="32" cy="34" r="1.8" fill="#3D8BFF"/><path d="M26 20 h12 l-2 4 h-8 Z" fill="#3D8BFF"/></svg>'],
+    'distance' => ['label' => $translations['distance_km'] ?? 'Distance', 'icon' => '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#22B573"/><path d="M17 28 A15 15 0 1 1 47 28 C47 39 32 51 32 51 C32 51 17 39 17 28 Z" fill="#FFFFFF"/><circle cx="32" cy="28" r="6" fill="#22B573"/></svg>'],
+    'calories' => ['label' => $translations['calories'] ?? 'Calories', 'icon' => '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#FF6B4A"/><path d="M32 14 C38 22 44 28 44 36 C44 43.7 38.8 50 32 50 C25.2 50 20 43.7 20 36 C20 28 26 22 32 14 Z" fill="#FFD24C"/><path d="M32 26 C35 31 38 35 38 39 C38 43.4 35.3 46 32 46 C28.7 46 26 43.4 26 39 C26 35 29 31 32 26 Z" fill="#FF8A3D"/></svg>'],
+    'heart_rate' => ['label' => $translations['heart_rate'] ?? 'Heart rate', 'icon' => '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#F44778"/><path d="M32 48.5 C20 40.5 13 33.5 13 26 C13 20 17.5 15.5 23 15.5 C27 15.5 30 18 32 21.5 C34 18 37 15.5 41 15.5 C46.5 15.5 51 20 51 26 C51 33.5 44 40.5 32 48.5 Z" fill="#FFFFFF"/><polyline points="18,31.5 24,31.5 27,24.5 31,38.5 34,31.5 46,31.5" fill="none" stroke="#F44778" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>'],
+    'sleep' => ['label' => $translations['sleep'] ?? 'Sleep', 'icon' => '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="#4C5FD5"/><path d="M40 18 C31 18 24 25 24 34 C24 43 31 50 40 50 C44.5 50 48.6 48.2 51.5 45.2 C47.9 46.6 43.9 46.6 40.1 44.9 C33.6 42 30 35.3 31.4 28.4 C32.4 23.6 35.8 19.9 40.2 18.3 C40.1 18.2 40.1 18.1 40 18 Z" fill="#FFE9A8"/><circle cx="19" cy="20" r="1.8" fill="#FFFFFF"/><circle cx="15" cy="30" r="1.2" fill="#FFFFFF"/><circle cx="46" cy="16" r="1.4" fill="#FFFFFF"/><path d="M15 42 h4 M17 40 v4" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round"/></svg>'],
     'weight' => ['label' => $translations['weight'] ?? 'Weight', 'icon' => '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="5" fill="#a78bfa"/><path fill="#7c3aed" d="M8.2 9.5a4.4 4.4 0 0 1 7.6 0l-2.7 1.6a1.3 1.3 0 0 0-2.2 0L8.2 9.5Z"/><circle cx="12" cy="12" r="2.1" fill="#fff"/></svg>'],
 ];
 ?>
@@ -96,7 +96,7 @@ $metricButtons = [
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
-                <?php if ($stepmonitorAvailable && $stepmonitorShow): ?><button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button><?php endif; ?>
+                <?php if ($stepmonitorAvailable): ?><button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"<?php echo $stepmonitorShow ? '' : ' style="display:none;"'; ?>><i class="fas fa-mobile-screen-button"></i></button><?php endif; ?>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-pie-icon lucide-chart-pie" aria-hidden="true" focusable="false">
@@ -221,6 +221,7 @@ $metricButtons = [
         <div id="info-modal" style="display:none;">
             <div class="info-content">
                 <button class="modal-close">×</button>
+                <div class="info-scroll">
                 <div class="info-header">
                     <div class="info-header-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -299,10 +300,105 @@ $metricButtons = [
                         <h3><?php echo htmlspecialchars($translations['info_card_backup_title'] ?? 'Backup & Restore'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_backup_text'] ?? 'Keep your data safe with automatic backups and the ability to restore to any previous point.'); ?></p>
                     </div>
+                <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
+                                <line x1="2" y1="12" x2="5" y2="12"></line>
+                                <line x1="5" y1="9" x2="5" y2="15"></line>
+                                <line x1="15" y1="9" x2="15" y2="15"></line>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                        <div class="info-app-toggle <?php echo $stepmonitorAvailable ? '' : 'is-unavailable'; ?>">
+                            <span><?php echo htmlspecialchars($translations['mobile_app_show_in_header'] ?? 'Show download button in header'); ?></span>
+                            <span class="info-app-toggle-controls">
+                                <button type="button" id="info-mobile-app-open" class="info-app-open" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>><?php echo htmlspecialchars($translations['mobile_app_open'] ?? 'Open app'); ?></button>
+                                <label class="app-switch">
+                                    <input type="checkbox" id="mobile-app-btn-toggle" <?php echo $stepmonitorShow ? 'checked' : ''; ?> <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
+                                    <span class="app-switch-track"></span>
+                                </label>
+                            </span>
+                        </div>
+                    </div>
+                </div>
                 </div>
             </div>
         </div>
         
+        <!-- Mobile App Modal -->
+        <div id="mobile-app-modal" style="display:none;">
+            <div class="mobile-app-content">
+                <button class="modal-close">×</button>
+                <div class="info-header">
+                    <div class="info-header-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="7" y="2" width="10" height="20" rx="2" ry="2"/>
+                            <line x1="2" y1="12" x2="5" y2="12"/>
+                            <line x1="5" y1="9" x2="5" y2="15"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h2>
+                    </div>
+                </div>
+                <p class="mobile-app-subtitle"><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                <div class="mobile-app-grid">
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/><polyline points="2 12 15 12 18 9"/><path d="M6 6h12v12"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_sync_title'] ?? 'Health Connect Sync'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_sync_desc'] ?? 'Automatically sync your steps with Health Connect on Android.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_qr_title'] ?? 'QR Pairing'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_qr_desc'] ?? 'Scan a QR code to pair the app with this dashboard in seconds.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_secure_title'] ?? 'Secure Token Auth'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_secure_desc'] ?? 'Use a generated token for secure, password-free authentication.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_offline_title'] ?? 'Offline Tracking'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_offline_desc'] ?? 'Track steps even without an internet connection.'); ?></p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                            </svg>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_devices_desc'] ?? 'Sync data from multiple wearables and fitness trackers.'); ?></p>
+                    </div>
+                </div>
+                <div class="mobile-app-footer">
+                    <button id="mobile-app-download-btn" type="button" class="mobile-app-download-btn" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
+                        <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Settings Modal -->
         <div id="settings-modal" style="display:none;">
             <div class="settings-content">
@@ -367,18 +463,6 @@ $metricButtons = [
                                 <span></span>
                             </div>
                         </div>
-                        <div class="settings-tile">
-                            <div class="tile-title"><?php echo htmlspecialchars($translations['mobile_app_button'] ?? 'Mobile app button'); ?></div>
-                            <hr>
-                            <div class="tile-content">
-                                <span class="tile-icon"><i class="fas fa-mobile-screen-button"></i></span>
-                                <label style="display:flex;gap:8px;align-items:center;">
-                                    <input type="hidden" name="mobile_apk_hidden" value="1">
-                                    <input type="checkbox" name="mobile_apk_hidden" value="0" <?php echo empty($userSettings['mobile_apk_hidden']) ? 'checked' : ''; ?>>
-                                    <span><?php echo htmlspecialchars($translations['mobile_app_button_show'] ?? 'Show download button'); ?></span>
-                                </label>
-                            </div>
-                        </div>
                         <div class="save-button-container">
                             <button type="submit" class="save-button">
                                 <i class="fas fa-save"></i> <?php echo htmlspecialchars($translations['save']); ?>
@@ -420,9 +504,12 @@ $metricButtons = [
                         <button class="excel-btn download" id="download-backup" type="button">
                             <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['download_backup'] ?? 'Download Backup'); ?>
                         </button>
+                        <button id="toggle-import-backup" class="excel-btn" type="button" style="background: var(--primary-color); color: #fff;">
+                            <i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['import_external_btn'] ?? 'Import'); ?>
+                        </button>
                     </div>
                     <div class="backups-list" id="backups-list"></div>
-                    <div class="settings-backup-import">
+                    <div class="settings-backup-import" style="display: none;">
                         <h3><i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['import_external_backup'] ?? 'Import CSV backup'); ?></h3>
                         <div class="settings-backup-import-grid">
                             <div>
@@ -526,23 +613,15 @@ $metricButtons = [
                                     <p id="zl-meta"></p>
                                     <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="zl-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
-                                <section class="va-segment takeout-guide-segment is-collapsed" id="zeep-guide-segment" data-step-section="1">
-                                    <div class="takeout-guide-head">
-                                        <span><i class="fas fa-map-signs"></i> <?php echo htmlspecialchars($translations['zeep_guide_title'] ?? 'How to export Zeep Life data'); ?></span>
-                                        <div class="takeout-guide-actions">
-                                            <button type="button" class="takeout-guide-expand" id="zeep-guide-expand" aria-label="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>" title="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>"><i class="fas fa-expand"></i></button>
-                                            <button type="button" class="takeout-guide-toggle" id="zeep-guide-toggle" aria-expanded="false" title="<?php echo htmlspecialchars($translations['show'] ?? 'Show'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                <section class="va-segment takeout-guide-segment" id="zeep-guide-segment" data-step-section="1">
+                                    <button type="button" class="takeout-guide-card-btn" id="zeep-guide-open-btn">
+                                        <div class="takeout-guide-card-icon"><i class="fas fa-book-open"></i></div>
+                                        <div class="takeout-guide-card-text">
+                                            <strong><?php echo htmlspecialchars($translations['zeep_guide_title'] ?? 'How to export Zeep Life data'); ?></strong>
+                                            <span><?php echo htmlspecialchars($translations['zeep_guide_btn_sub'] ?? 'Step-by-step instruction with screenshots'); ?></span>
                                         </div>
-                                    </div>
-                                    <div class="takeout-guide-body">
-                                        <iframe
-                                            id="zeep-guide-frame"
-                                            name="steps-zeep-guide"
-                                            loading="lazy"
-                                            title="<?php echo htmlspecialchars($translations['zeep_guide_iframe_title'] ?? 'Zeep Life instruction'); ?>"
-                                            src="instruction/zeep_life_guide.html?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($theme); ?>&color=<?php echo urlencode($color); ?>"
-                                        ></iframe>
-                                    </div>
+                                        <i class="fas fa-chevron-right takeout-guide-card-arrow"></i>
+                                    </button>
                                 </section>
                             </div>
                         </div>
@@ -602,23 +681,15 @@ $metricButtons = [
                                     <p id="ft-meta"></p>
                                     <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
                                 </section>
-                                <section class="va-segment takeout-guide-segment is-collapsed" id="takeout-guide-segment">
-                                    <div class="takeout-guide-head">
-                                        <span><i class="fas fa-map-signs"></i> <?php echo htmlspecialchars($translations['takeout_guide_title'] ?? 'How to create a Google Takeout archive'); ?></span>
-                                        <div class="takeout-guide-actions">
-                                            <button type="button" class="takeout-guide-expand" id="takeout-guide-expand" aria-label="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>" title="<?php echo htmlspecialchars($translations['expand'] ?? 'Expand'); ?>"><i class="fas fa-expand"></i></button>
-                                            <button type="button" class="takeout-guide-toggle" id="takeout-guide-toggle" aria-expanded="false" title="<?php echo htmlspecialchars($translations['show'] ?? 'Show'); ?>"><i class="fas fa-chevron-down"></i></button>
+                                <section class="va-segment takeout-guide-segment" id="takeout-guide-segment">
+                                    <button type="button" class="takeout-guide-card-btn" id="takeout-guide-open-btn">
+                                        <div class="takeout-guide-card-icon"><i class="fas fa-book-open"></i></div>
+                                        <div class="takeout-guide-card-text">
+                                            <strong><?php echo htmlspecialchars($translations['takeout_guide_title'] ?? 'How to create a Google Takeout archive'); ?></strong>
+                                            <span><?php echo htmlspecialchars($translations['takeout_guide_btn_sub'] ?? 'Step-by-step instruction with screenshots'); ?></span>
                                         </div>
-                                    </div>
-                                    <div class="takeout-guide-body">
-                                        <iframe
-                                            id="takeout-guide-frame"
-                                            name="steps-takeout-guide"
-                                            loading="lazy"
-                                            title="<?php echo htmlspecialchars($translations['takeout_guide_iframe_title'] ?? 'Takeout instruction'); ?>"
-                                            src="instruction/takeout_guide.html?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($theme); ?>&color=<?php echo urlencode($color); ?>"
-                                        ></iframe>
-                                    </div>
+                                        <i class="fas fa-chevron-right takeout-guide-card-arrow"></i>
+                                    </button>
                                 </section>
                             </div>
                         </div>
@@ -628,8 +699,14 @@ $metricButtons = [
         </div>
         <div id="guide-expand-modal" style="display:none;">
             <div class="guide-expand-content">
-                <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
-                <h2 class="guide-expand-title"><i class="fas fa-map-signs"></i> <span id="guide-expand-title-text"></span></h2>
+                <div class="guide-expand-topbar">
+                    <button type="button" id="guide-expand-back-btn" class="guide-expand-back-btn">
+                        <i class="fas fa-arrow-left"></i>
+                        <span><?php echo htmlspecialchars($translations['back'] ?? 'Back'); ?></span>
+                    </button>
+                    <h2 class="guide-expand-title"><i class="fas fa-book-open"></i> <span id="guide-expand-title-text"></span></h2>
+                    <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                </div>
                 <div class="guide-expand-frame-wrap">
                     <iframe id="guide-expand-frame" name="steps-guide-expand" loading="lazy"></iframe>
                 </div>
@@ -721,7 +798,14 @@ $metricButtons = [
                 <button type="button" id="hc-token-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
                 <h2><?php echo htmlspecialchars($translations['hc_token_title'] ?? 'Health Connect authorization'); ?></h2>
                 <p class="hc-token-sub"><?php echo htmlspecialchars($translations['hc_token_subtitle'] ?? 'Use the token below as Authorization: Bearer <token>.'); ?></p>
-                <button type="button" id="hc-token-help-open" class="hc-token-link-btn"><?php echo htmlspecialchars($translations['hc_token_help_open'] ?? 'How to use this token'); ?></button>
+                 <button type="button" id="hc-token-help-open" class="hc-token-link-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <?php echo htmlspecialchars($translations['hc_token_help_open'] ?? 'How to use this token'); ?>
+                </button>
                 <div class="hc-token-fields">
                     <div class="hc-token-row">
                         <div class="hc-token-field endpoint">
@@ -857,6 +941,7 @@ $metricButtons = [
             function showModal(){
                 document.body.classList.add('modal-open');
                 modal.style.display='flex';
+                modal.firstElementChild.classList.add('modal-content');
             }
             function hideModal(){
                 modal.style.display='none';
@@ -938,21 +1023,86 @@ $metricButtons = [
         </script>
         <script>
         (function(){
-            const btn=document.getElementById('stepmonitor-apk-button');
-            if(!btn) return;
+            const headerBtn=document.getElementById('stepmonitor-apk-button');
             const version=<?php echo json_encode($stepmonitorVersion); ?>;
-            btn.addEventListener('click', async ()=>{
-                window.location.href='/downloads/stepmonitor.apk';
+            const modal=document.getElementById('mobile-app-modal');
+            const dlBtn=document.getElementById('mobile-app-download-btn');
+            const toggle=document.getElementById('mobile-app-btn-toggle');
+
+            function persistState(visible){
                 try{
                     const fd=new FormData();
                     fd.append('mobile_apk_state','1');
-                    fd.append('hidden','1');
+                    fd.append('hidden', visible?'0':'1');
                     fd.append('version',version);
-                    await fetch(location.href,{method:'POST',body:fd,credentials:'same-origin'});
+                    fetch(location.href,{method:'POST',body:fd,credentials:'same-origin'});
                 }catch(e){}
-                btn.remove();
-                if(typeof showAlert==='function') showAlert(<?php echo json_encode($translations['mobile_app_download_notice'] ?? 'The mobile app download button was hidden. You can enable it again in settings.'); ?>);
-            });
+            }
+            function setHeaderBtnVisible(visible){
+                if(headerBtn) headerBtn.style.display=visible?'':'none';
+            }
+            function showToast(){
+                const old=document.getElementById('mobile-app-toast');
+                if(old) old.remove();
+                const tip=<?php echo json_encode($translations['mobile_app_hide_toast'] ?? 'The download button can be hidden. You can re-enable it in the Info window.'); ?>;
+                const hideLabel=<?php echo json_encode($translations['mobile_app_hide_btn'] ?? 'Hide button'); ?>;
+                const t=document.createElement('div');
+                t.id='mobile-app-toast';
+                t.className='app-toast';
+                t.innerHTML='<span>'+tip+'</span><button type="button" class="app-toast-hide">'+hideLabel+'</button><button type="button" class="app-toast-close" aria-label="Close">×</button>';
+                document.body.appendChild(t);
+                let timer=null;
+                function dismiss(){
+                    if(t.isConnected) t.classList.add('app-toast-leave');
+                    setTimeout(()=>{ if(t.isConnected) t.remove(); },220);
+                }
+                function killTimer(){ if(timer){ window.clearTimeout(timer); timer=null; } }
+                t.querySelector('.app-toast-close').addEventListener('click', dismiss);
+                t.querySelector('.app-toast-hide').addEventListener('click', ()=>{
+                    killTimer();
+                    setHeaderBtnVisible(false);
+                    if(toggle) toggle.checked=false;
+                    persistState(false);
+                    dismiss();
+                });
+                t.addEventListener('mouseenter', killTimer);
+                t.addEventListener('mouseleave', ()=>{
+                    if(!timer) timer=window.setTimeout(dismiss,6000);
+                });
+                timer=window.setTimeout(dismiss,6000);
+            }
+
+            if(headerBtn){
+                headerBtn.addEventListener('click', ()=>{
+                    if(typeof openModal==='function') openModal('mobile-app-modal');
+                    else if(modal){ modal.style.display='flex'; modal.firstElementChild.classList.add('modal-content'); document.body.classList.add('modal-open'); }
+                });
+            }
+            if(dlBtn){
+                dlBtn.addEventListener('click', ()=>{
+                    const a=document.createElement('a');
+                    a.href='/downloads/stepmonitor.apk';
+                    a.download='stepmonitor.apk';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    persistState(!headerBtn || headerBtn.style.display!=='none');
+                    showToast();
+                });
+            }
+            if(toggle){
+                toggle.addEventListener('change', ()=>{
+                    setHeaderBtnVisible(toggle.checked);
+                    persistState(toggle.checked);
+                });
+            }
+            const openBtn=document.getElementById('info-mobile-app-open');
+            if(openBtn){
+                openBtn.addEventListener('click', ()=>{
+                    if(typeof openModal==='function') openModal('mobile-app-modal');
+                    else if(modal){ modal.style.display='flex'; modal.firstElementChild.classList.add('modal-content'); document.body.classList.add('modal-open'); }
+                });
+            }
         })();
         </script>
     </div>

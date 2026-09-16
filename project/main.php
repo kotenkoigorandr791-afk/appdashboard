@@ -96,8 +96,9 @@
         .password-new-fields input:disabled{opacity:0.55;cursor:not-allowed;}
         body{margin:0;padding:0;font-family:Arial,sans-serif;background-color:var(--bg-color);color:var(--text-color);overflow:hidden;}
         html,body{margin:0;padding:0;overflow:hidden;height:100%;}
-        #top-bar{position:fixed;top:0;left:0;width:100%;height:50px;background-color:var(--sidebar-bg);border-bottom:1px solid var(--border-color);display:flex;align-items:center;padding:0 16px 0 20px;box-sizing:border-box;z-index:998;gap:12px;}
-        #top-bar-title{font-weight:bold;font-size:18px;margin-left:40px;flex:1;min-width:0;}
+        .std-topbar-title { font-size: 14px; font-weight: 600; margin: 0; line-height: 1; }
+        .std-topbar-close { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: none; border: 1.5px solid var(--border-color); border-radius: 50%; color: var(--text-secondary); font-size: 18px; cursor: pointer; transition: background 0.15s, color 0.15s; flex-shrink: 0; padding: 0; }
+        .std-topbar-close:hover { background: var(--danger, #ef4444); color: #fff; border-color: var(--danger, #ef4444); }
         #support-chat-btn{position:relative;top:auto;right:auto;margin-left:auto;flex-shrink:0;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);}
         #support-chat-btn:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
         #support-chat-btn svg{width:22px;height:22px;stroke:currentColor;}
@@ -2103,7 +2104,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
         <!-- Admin: Chat list sidebar (hidden by default, shown via hash) -->
         <div id="admin-chat-list" style="display:none;width:320px;min-height:0;flex-shrink:0;border-right:1px solid var(--border-color);flex-direction:column;position:relative;z-index:1;background:rgba(0,0,0,0.02);">
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:12px;">
-                <h2 style="margin:0;font-size:20px;font-weight:600;color:var(--text-color);flex:1;min-width:0;">Support Chats</h2>
+                <h2 style="margin:0;font-size:16px;font-weight:600;color:var(--text-color);flex:1;min-width:0;">Support Chats</h2>
                 <button type="button" id="admin-chat-list-close" title="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>" style="flex-shrink:0;width:40px;height:40px;border:none;border-radius:12px;background:rgba(255,255,255,0.12);color:var(--text-color);font-size:24px;line-height:1;cursor:pointer;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>
             </div>
             <div style="flex:1;min-height:0;overflow-y:auto;padding:16px;">
@@ -2121,7 +2122,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:10px;">
                 <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
                     <button type="button" id="chat-admin-mobile-back" style="flex-shrink:0;width:40px;height:40px;border:none;border-radius:12px;background:rgba(255,255,255,0.12);color:var(--text-color);cursor:pointer;align-items:center;justify-content:center;padding:0;" title="<?php echo my_htmlspecialchars($translations['support_chat_back_list'] ?? 'Chats'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['support_chat_back_list'] ?? 'Back to chats'); ?>"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
-                    <h2 id="chat-modal-title" style="margin:0;font-size:22px;font-weight:600;color:var(--text-color);background:linear-gradient(135deg, <?php echo $config['color']; ?> 0%, <?php echo $config['color']; ?>cc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_title'] ?? 'Chat with Support'); ?></h2>
+                    <h2 id="chat-modal-title" style="margin:0;font-size:16px;font-weight:600;color:var(--text-color);background:linear-gradient(135deg, <?php echo $config['color']; ?> 0%, <?php echo $config['color']; ?>cc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_title'] ?? 'Chat with Support'); ?></h2>
                 </div>
                 <div style="display:flex;gap:8px;align-items:center;">
                     <?php if ($isAdmin): ?>
@@ -2130,7 +2131,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
                         Delete Chat
                     </button>
                     <?php endif; ?>
-                    <button id="close-chat-modal" style="background:rgba(255,255,255,0.1);border:none;font-size:28px;cursor:pointer;color:var(--text-color);padding:0;width:40px;height:40px;display:flex;align-items:center;justify-content:center;border-radius:12px;transition:all 0.2s;" onmouseover="this.style.background='rgba(255,0,0,0.2)';this.style.transform='rotate(90deg)';" onmouseout="this.style.background='rgba(255,255,255,0.1)';this.style.transform='rotate(0deg)';">&times;</button>
+                    <button id="close-chat-modal" class="std-topbar-close">&times;</button>
                 </div>
             </div>
 
@@ -2333,8 +2334,12 @@ document.documentElement.style.setProperty('--chat-color-border', '<?php echo $c
         radial-gradient(circle at 40% 80%, var(--chat-color-lighter) 0%, transparent 50%);
     animation: float 20s ease-in-out infinite;
 }
+@keyframes pulseSoft {
+    0%, 100% { box-shadow: 0 8px 24px var(--chat-color-shadow); }
+    50% { box-shadow: 0 8px 28px var(--chat-color-shadow), 0 0 0 6px var(--chat-color-ring); }
+}
 #support-chat-btn.has-unread {
-    animation: pulse 2s ease-in-out infinite;
+    animation: pulseSoft 2s ease-in-out infinite;
 }
 .chat-messages-scroll {
     scrollbar-width: thin;
@@ -4425,21 +4430,22 @@ var T=<?php echo json_encode([
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: var(--sidebar-bg);
+    background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 20px;
-    height: 52px;
+    padding: 0 12px;
+    height: 44px;
     flex-shrink: 0;
+    box-sizing: border-box;
 }
 #ap-topbar .ap-brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 1px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0;
     color: var(--text-color);
-    text-transform: uppercase;
+    text-transform: none;
 }
 #ap-topbar .ap-brand svg { color: var(--primary-color); }
 #ap-topbar .ap-user-info {
@@ -4454,39 +4460,31 @@ var T=<?php echo json_encode([
     border: 2px solid var(--border-color);
     object-fit: cover;
 }
-#ap-topbar .ap-user-name { font-size: 13px; color: var(--text-color); opacity: .7; }
+#ap-topbar .ap-user-name { font-size: 14px; color: var(--text-color); opacity: .85; }
 #ap-topbar .ap-user-role {
-    font-size: 11px;
-    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
-    color: var(--primary-color);
-    border: 1px solid color-mix(in srgb, var(--primary-color) 40%, transparent);
-    border-radius: 12px;
-    padding: 2px 10px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    display: none;
 }
-/* Close button — icon-only circle */
+/* Close button — matches .std-topbar-close */
 #ap-close-btn {
-    width: 36px;
-    height: 36px;
-    background: none;
-    border: 1.5px solid var(--border-color);
-    color: var(--text-color);
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 18px;
-    line-height: 1;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all .2s;
+    background: none;
+    border: 1.5px solid var(--border-color);
+    border-radius: 50%;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
     padding: 0;
 }
 #ap-close-btn:hover {
-    background: color-mix(in srgb, #f85149 15%, transparent);
-    color: #f85149;
-    border-color: #f85149;
-    transform: rotate(90deg);
+    background: var(--danger, #ef4444);
+    color: #fff;
+    border-color: var(--danger, #ef4444);
 }
 
 /* Body */

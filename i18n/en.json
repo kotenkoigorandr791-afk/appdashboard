@@ -712,5 +712,6 @@
     "welcome_message": "Welcome to the Shell. Select an app from the menu.",
     "welcome_user": "Welcome, ",
     "windows": "Windows",
-    "wrong_current_password": "Wrong current password"
+    "wrong_current_password": "Wrong current password",
+    "mark_read": "Mark all as read"
 }
