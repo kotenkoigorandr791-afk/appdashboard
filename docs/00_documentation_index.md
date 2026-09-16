@@ -31,7 +31,7 @@
 | **[17_viewer_app_detailed.md](17_viewer_app_detailed.md)** | Network Viewer |
 | **[18_gitea_sso_bridge.md](18_gitea_sso_bridge.md)** | Gitea SSO bridge |
 | **[19_immich_sso_bridge.md](19_immich_sso_bridge.md)** | Immich SSO bridge |
-| **[20_plane_sso_bridge.md](20_plane_sso_bridge.md)** | Plane SSO bridge |
+| **[kanboard embedded app](kanboard embedded app)** | Plane SSO bridge |
 | **[21_smart_home_app_detailed.md](21_smart_home_app_detailed.md)** | Smart Home (WS + MQTT) |
 
 ### System & Services Documentation
@@ -57,7 +57,7 @@
 │   ├── immich/
 │   ├── lopaka/
 │   ├── media_viewer/
-│   ├── plane/
+│   ├── kanboard/
 │   ├── recipes/
 │   ├── smart_home/
 │   ├── spends/
@@ -116,7 +116,7 @@
 | **viewer** | Network device dashboard |
 | **gitea** | SSO bridge to Gitea |
 | **immich** | SSO bridge to Immich |
-| **plane** | SSO bridge to Plane |
+| **kanboard** | Embedded Kanboard |
 | **smart_home** | Smart home (WS + MQTT) |
 
 Admin server monitor lives in `project/performance/` (not under `apps/`).

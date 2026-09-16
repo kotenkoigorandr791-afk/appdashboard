@@ -181,6 +181,6 @@ Public API defaults to HTTPS-only unless `PUBLIC_API_REQUIRE_HTTPS` is set to `0
 
 - [25_appdashboard_mcp.md](25_appdashboard_mcp.md) - MCP server authentication
 - [08_cloud_app_detailed.md](08_cloud_app_detailed.md) - Cloud app API contracts
-- [20_plane_sso_bridge.md](20_plane_sso_bridge.md) - Plane integration via integrations.php
+- [apps/kanboard](apps/kanboard) - Kanboard integration via integrations.php
 - [21_smart_home_app_detailed.md](21_smart_home_app_detailed.md) - Smart Home API received via integrations
 - [06_detailed_applications_documentation.md](06_detailed_applications_documentation.md) - Full app documentation

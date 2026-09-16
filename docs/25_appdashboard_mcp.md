@@ -4,7 +4,7 @@
 
 ## Overview
 
-**appdashboard-mcp** is a Model Context Protocol (MCP) server that provides access to AppDashboard functionality from AI agent environments like Cursor, Claude Desktop, VS Code, OpenCode, and Agora. It exposes tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Plane) through a single unified MCP package.
+**appdashboard-mcp** is a Model Context Protocol (MCP) server that provides access to AppDashboard functionality from AI agent environments like Cursor, Claude Desktop, VS Code, OpenCode, and Agora. It exposes tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Kanboard) through a single unified MCP package.
 
 ## Platform
 
@@ -13,7 +13,7 @@ AppDashboard hosts the MCP server prebuilt and served via HTTP (`/mcp/download`)
 ## Features
 
 - **Unified MCP server**: Single package exposes tools for service shell + all 13 apps
-- **Auto-authentication**: Immich, Gitea, Plane API credentials managed automatically via dashboard integrations
+- **Auto-authentication**: Immich, Gitea, Kanboard API credentials managed automatically via dashboard integrations
 - **Multi-agent support**: Compatible with Cursor, Claude Desktop, VS Code, OpenCode, Agora
 - **HTTP transport**: Servers on port 8808 with WebSocket upgrade support
 - **Per-user auth tokens**: JWT tokens stored in dashboard database, never exposed to tools
@@ -31,9 +31,9 @@ AppDashboard hosts the MCP server prebuilt and served via HTTP (`/mcp/download`)
 | `steps_*` | Steps counter |
 | `immich_*` | Immich photo library |
 | `gitea_*` | Gitea git forge |
-| `plane_*` | Plane project management |
+| `kanboard_*` | Kanboard project management |
 
-All `steps_*`, `immich_*`, `gitea_*`, and `plane_*` tools are available to any authenticated user (no Admin role required).
+All `steps_*`, `immich_*`, `gitea_*`, and `kanboard_*` tools are available to any authenticated user (no Admin role required).
 
 ## Installation
 
@@ -119,13 +119,13 @@ npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent opencode --url h
 
 ## Integration API
 
-### Automatic Immich / Gitea / Plane Credentials
+### Automatic Immich / Gitea / Kanboard Credentials
 
-After first `login`, Immich, Gitea, and Plane tools do **not** ask for API keys or tokens. On first use the MCP client calls:
+After first `login`, Immich, Gitea, and Kanboard tools do **not** ask for API keys or tokens. On first use the MCP client calls:
 
 - `GET /public-api/integrations/immich` → `{ url, api_key }`
 - `GET /public-api/integrations/gitea` → `{ url, access_token }`
-- `GET /public-api/integrations/plane` → `{ url, api_key, workspace_slug }`
+- `GET /public-api/integrations/kanboard` → `{ url, api_key, workspace_slug }`
 
 The dashboard creates (or reuses) a per-user key named **MCP** and returns it. Credentials are cached in the MCP process memory and never printed by the tools themselves.
 

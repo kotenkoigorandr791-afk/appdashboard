@@ -1,17 +1,26 @@
 {
     "require": {
-        "phpmailer/phpmailer": "^7.0",
-        "google/apiclient": "^2.19",
+        "christian-riesen/otp": "^1.4",
         "firebase/php-jwt": "^7.0",
-        "phpseclib/phpseclib": "^3.0.54",
-        "guzzlehttp/psr7": "^2.13",
+        "google/apiclient": "^2.19",
         "guzzlehttp/guzzle": "^7.15",
+        "guzzlehttp/psr7": "^2.13",
         "php-mqtt/client": "^2.3",
-        "sentry/sentry": "^4.31"
+        "phpmailer/phpmailer": "^7.0",
+        "phpseclib/phpseclib": "^3.0.54",
+        "pimple/pimple": "^3.5",
+        "sentry/sentry": "^4.31",
+        "symfony/console": "^5.4|^6.0|^7.0",
+        "symfony/event-dispatcher-contracts": "^2|^3",
+        "symfony/finder": "^5.4|^6.0|^7.0",
+        "symfony/service-contracts": "^2|^3",
+        "symfony/string": "^5.4|^6.0|^7.0"
     },
     "config": {
         "audit": {
             "ignore": ["true"]
-        }
+        },
+        "optimize-autoloader": true,
+        "sort-packages": true
     }
 }
