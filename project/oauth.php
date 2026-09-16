@@ -831,20 +831,32 @@ function oauth_gitea_db(): ?PDO {
     static $tried = false;
     if ($tried) return $pdo;
     $tried = true;
-    $hosts = ['127.0.0.1', 'host.docker.internal'];
+    $hosts = array_values(array_filter([
+        getenv('GITEA_DB_HOST') ?: null,
+        'gitea-db',
+        '127.0.0.1',
+        'host.docker.internal',
+    ]));
     foreach (['172.17.0.1', '172.19.0.1'] as $extra) {
         if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
+    $passwords = array_values(array_unique(array_filter([
+        getenv('GITEA_DB_PASSWORD') ?: null,
+        'gitea_dev_password',
+        'gitea',
+    ])));
     foreach ($hosts as $host) {
         if (!oauth_pgsql_reachable($host, 5432)) continue;
-        try {
-            $pdo = new PDO(sprintf('pgsql:host=%s;port=%d;dbname=gitea', $host, 5432), 'gitea', 'gitea', [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_TIMEOUT => 3,
-            ]);
-            return $pdo;
-        } catch (\Exception $e) {
-            $pdo = null;
+        foreach ($passwords as $password) {
+            try {
+                $pdo = new PDO(sprintf('pgsql:host=%s;port=%d;dbname=gitea', $host, 5432), 'gitea', $password, [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_TIMEOUT => 3,
+                ]);
+                return $pdo;
+            } catch (\Exception $e) {
+                $pdo = null;
+            }
         }
     }
     return null;
@@ -934,7 +946,7 @@ function oauth_ensure_dawarich_user(string $email, string $name, bool $isAdmin, 
 function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, string $theme, string $photo = ''): void {
     $pdo = oauth_gitea_db();
     if (!$pdo) return;
-    $giteaTheme = $theme === 'dark' ? 'gitea-dark' : 'gitea-light';
+    $giteaTheme = $theme === 'auto' ? 'gitea-auto' : ($theme === 'dark' ? 'gitea-dark' : 'gitea-light');
     $username = oauth_sanitize_username(strstr($email, '@', true) ?: $email);
     $avatar = '';
     $photo = trim($photo);
@@ -1097,7 +1109,7 @@ function oauth_provision_user_services(string $email, array $user = []): void {
     }
     $name = trim((string)($user['name'] ?? ''));
     $isAdmin = (int)($user['role'] ?? 0) >= 2;
-    $theme = in_array((string)($user['theme'] ?? ''), ['light', 'dark'], true) ? (string)$user['theme'] : 'light';
+    $theme = in_array((string)($user['theme'] ?? ''), ['light', 'dark', 'auto'], true) ? (string)$user['theme'] : 'light';
     $photo = (string)($user['photo'] ?? '');
     $avatar = oauth_user_picture_url($photo);
     oauth_ensure_immich_user($email, $name !== '' ? $name : $email, $isAdmin);
