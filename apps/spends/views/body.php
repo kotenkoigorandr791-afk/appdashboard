@@ -268,7 +268,7 @@
         </div>
     </div>
 </div>
-<input type="file" id="bank-csv-input" accept=".csv,text/csv" style="display:none;">
+<input type="file" id="bank-csv-input" accept=".csv,.ofx,.qfx,.mt940,.sta,.xml,text/csv,application/xml" style="display:none;">
 <div class="notification-container" id="notification-container"></div>
 <div id="amount-currency-popover" class="amount-currency-popover" style="display:none" role="listbox" aria-hidden="true"></div>
 

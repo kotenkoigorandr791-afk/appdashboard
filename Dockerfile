@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
     && python3 -m pip install --break-system-packages --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu torch \
     && python3 -m pip install --break-system-packages --no-cache-dir gTTS openai-whisper pillow numpy scipy opencv-python-headless rembg onnxruntime psycopg2-binary \
-    && python3 -m pip install --break-system-packages --no-cache-dir 'bankstatementparser[excel,hybrid,hybrid-plus,hybrid-vision,enrichment]' \
+    && python3 -m pip install --break-system-packages --no-cache-dir 'bankstatementparser[excel]' \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pgsql gd zip mbstring intl bcmath sockets \
     && pecl install redis \

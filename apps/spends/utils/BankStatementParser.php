@@ -2,320 +2,244 @@
 declare(strict_types=1);
 
 /**
- * PHP wrapper for bankstatementparser Python library
- * Supports multiple formats: CAMT, PAIN.001, CSV, OFX, QFX, MT940, PDF
+ * Bridge to the Python statement parser (parser_bridge.py).
+ *
+ * All parsing happens in Python:
+ *   - CSV  -> universal built-in engine (any bank, auto-detected
+ *     encoding/delimiter/columns, EN/DE/FR/ES/PL/UK/RU/... headers)
+ *   - CAMT / PAIN.001 / OFX / QFX / MT940 -> bankstatementparser
+ *
+ * No PHP-side CSV parsing, no automatic package installation.
  */
 final class BankStatementParser
 {
-    private const PYTHON_VENV = '/var/www/AppDashboard/apps/spends/utils/.venv';
-    private const PYTHON_BIN = self::PYTHON_VENV . '/bin/python3';
     private const PARSER_SCRIPT = __DIR__ . '/parser_bridge.py';
-    
-    public const MAX_BYTES = 67108864; // 64MB (increased from 15MB)
-    
-    private static ?bool $initialized = null;
-    
+
+    /** Preferred interpreter inside the parser venv (if present). */
+    private const VENV_PYTHON = __DIR__ . '/.venv-parser/bin/python3';
+
+    public const MAX_BYTES = 67108864; // 64MB
+
     /**
-     * Ensure Python environment is initialized
+     * Resolve the Python interpreter used for parsing.
+     * Order: dedicated parser venv, system python3 (used inside the
+     * Docker image where bankstatementparser is preinstalled).
      */
-    private static function ensureInitialized(): void
+    public static function pythonBin(): string
     {
-        if (self::$initialized !== null) {
-            return;
+        if (is_file(self::VENV_PYTHON) && is_executable(self::VENV_PYTHON)) {
+            return self::VENV_PYTHON;
         }
-        
-        // Check if venv exists
-        if (!is_dir(self::PYTHON_VENV)) {
-            exec('python3 -m venv ' . escapeshellarg(self::PYTHON_VENV) . ' 2>&1', $output, $ret);
-            if ($ret !== 0) {
-                throw new RuntimeException('Failed to create Python venv: ' . implode("\n", $output));
-            }
-        }
-        
-        // Check if bankstatementparser is installed
-        $checkCmd = self::PYTHON_BIN . ' -c "import bankstatementparser" 2>&1';
-        exec($checkCmd, $output, $ret);
-        
-        if ($ret !== 0) {
-            // Install bankstatementparser with all extras
-            $pipCmd = self::PYTHON_BIN . ' -m pip install --quiet "bankstatementparser[excel,hybrid,hybrid-plus,hybrid-vision,enrichment]" 2>&1';
-            exec($pipCmd, $pipOutput, $pipRet);
-            if ($pipRet !== 0) {
-                throw new RuntimeException('Failed to install bankstatementparser: ' . implode("\n", $pipOutput));
-            }
-        }
-        
-        self::$initialized = true;
+        return 'python3';
     }
-    
+
     /**
-     * Parse bank statement file
-     * 
-     * @param string $filePath Path to statement file
-     * @param array $options Additional options
-     * @return array Parsed transactions and metadata
+     * Parse bank statement file into the legacy JSON structure.
+     *
+     * @return array{status:string,transactions:list<array>,groups:list<array>,
+     *   duplicate_count:int,row_count:int,confidence:float,
+     *   source_format:string,source_method:string,engine:string,
+     *   detection:array|null,verification:array|null,warnings:list<string>}
      */
     public static function parse(string $filePath, array $options = []): array
     {
-        self::ensureInitialized();
-        
         if (!file_exists($filePath)) {
             throw new InvalidArgumentException("File not found: $filePath");
         }
-        
         if (filesize($filePath) > self::MAX_BYTES) {
             throw new InvalidArgumentException('File too large (max 64MB)');
         }
-        
-        // Create temporary output file for JSON result
+
         $outputFile = tempnam(sys_get_temp_dir(), 'bsp_result_');
-        
+        if ($outputFile === false) {
+            throw new RuntimeException('Failed to create temp output file');
+        }
+
         $cmd = sprintf(
             '%s %s %s %s 2>&1',
-            escapeshellarg(self::PYTHON_BIN),
+            escapeshellarg(self::pythonBin()),
             escapeshellarg(self::PARSER_SCRIPT),
             escapeshellarg($filePath),
             escapeshellarg($outputFile)
         );
-        
+
+        $output = [];
         exec($cmd, $output, $ret);
-        
+
         if ($ret !== 0) {
             @unlink($outputFile);
-            throw new RuntimeException('Parser failed: ' . implode("\n", $output));
+            throw new RuntimeException(
+                'Parser failed: ' . implode("\n", array_slice($output, 0, 20))
+            );
         }
-        
+
         if (!file_exists($outputFile)) {
             throw new RuntimeException('Parser did not produce output file');
         }
-        
+
         $json = file_get_contents($outputFile);
         unlink($outputFile);
-        
+
         if ($json === false) {
             throw new RuntimeException('Failed to read parser output');
         }
-        
+
         $result = json_decode($json, true);
-        
-        if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new RuntimeException('Invalid JSON from parser: ' . json_last_error_msg());
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($result)) {
+            throw new RuntimeException(
+                'Invalid JSON from parser: ' . json_last_error_msg()
+            );
         }
-        
+
         return $result;
     }
-    
+
     /**
-     * Detect statement format
-     * 
-     * @param string $filePath Path to statement file
-     * @return string Format name (csv, camt, ofx, qfx, mt940, pdf, unknown)
+     * Detect statement format (informational).
      */
     public static function detectFormat(string $filePath): string
     {
-        self::ensureInitialized();
-        
-        if (!file_exists($filePath)) {
-            throw new InvalidArgumentException("File not found: $filePath");
-        }
-        
-        $cmd = sprintf(
-            '%s -c "from bankstatementparser import detect_statement_format; print(detect_statement_format(%s))" 2>&1',
-            escapeshellarg(self::PYTHON_BIN),
-            escapeshellarg($filePath)
-        );
-        
-        exec($cmd, $output, $ret);
-        
-        if ($ret !== 0 || empty($output)) {
-            return 'unknown';
-        }
-        
-        return trim($output[0]);
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        return in_array($ext, ['csv', 'xml', 'ofx', 'qfx', 'mt940', 'sta', 'pdf'], true)
+            ? $ext
+            : 'unknown';
     }
-    
+
     /**
-     * Convert parsed result to legacy format compatible with BankStatementImport
-     * 
-     * @param array $parsed Result from parse()
-     * @param array $storeNames Existing store names for matching
-     * @param string $baseCurrency Base currency for the user
-     * @return array Compatible format for existing code
+     * Map parser output to the structure consumed by the bank import UI.
+     *
+     * @param array $parsed result of parse()
+     * @param array $storeNames existing store names for best-match hints
      */
-    public static function toLegacyFormat(array $parsed, array $storeNames = [], string $baseCurrency = 'PLN'): array
-    {
+    public static function toLegacyFormat(
+        array $parsed,
+        array $storeNames = [],
+        string $baseCurrency = 'USD'
+    ): array {
         $transactions = [];
         $groups = [];
         $duplicateCount = 0;
-        $seenSignatures = [];
-        
-        foreach ($parsed['transactions'] as $tx) {
+        $seen = [];
+
+        foreach ($parsed['transactions'] ?? [] as $tx) {
             $date = $tx['date'] ?? null;
-            $amount = $tx['amount'] ?? 0;
-            $description = $tx['description'] ?? '';
-            $currency = $tx['currency'] ?? $baseCurrency;
-            
-            if (!$date) {
+            if (!is_string($date) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
                 continue;
             }
-            
-            // Determine if income or expense
-            $isIncome = $amount > 0;
-            $absAmount = abs($amount);
-            
-            // Extract merchant name
-            $merchantRaw = self::extractMerchant($tx);
-            
-            // Find best matching store
+            $amount = (float) ($tx['amount'] ?? 0);
+            if ($amount <= 0.0) {
+                continue;
+            }
+            $isIncome = (bool) ($tx['income'] ?? false);
+            $merchantRaw = trim((string) ($tx['merchant_raw'] ?? ''));
+            if ($merchantRaw === '') {
+                $merchantRaw = '—';
+            }
+            $amount = round($amount, 2);
             $storeDefault = self::bestStoreMatch($merchantRaw, $storeNames);
-            
-            // Create signature for deduplication
-            $signature = md5($date . '|' . $merchantRaw . '|' . $absAmount);
-            
-            if (isset($seenSignatures[$signature])) {
+            $signature = (string) ($tx['signature'] ?? md5(
+                $date . '|' . $merchantRaw . '|' . $amount . '|' . ($isIncome ? 'i' : 'e')
+            ));
+            if (isset($seen[$signature])) {
                 $duplicateCount++;
                 continue;
             }
-            
-            $seenSignatures[$signature] = true;
-            
-            // Create transaction in legacy format
-            $transaction = [
+            $seen[$signature] = true;
+
+            $groupKey = (string) ($tx['group_key'] ?? (($isIncome ? 'in:' : 'ex:') . $merchantRaw));
+
+            $transactions[] = [
                 'date' => $date,
                 'income' => $isIncome,
-                'amount' => $absAmount,
-                'currency' => $currency,
+                'amount' => $amount,
+                'currency' => (string) ($tx['currency'] ?? ''),
                 'merchant_raw' => $merchantRaw,
-                'category' => $tx['category'] ?? '',
+                'category' => (string) ($tx['category'] ?? ''),
                 'store_default' => $storeDefault,
-                'group_key' => $date . '|' . $storeDefault,
+                'group_key' => $groupKey,
                 'signature' => $signature,
-                'confidence' => $tx['confidence'] ?? 1.0,
-                'source_method' => $tx['source_method'] ?? 'deterministic',
+                'confidence' => (float) ($tx['confidence'] ?? 1.0),
+                'source_method' => (string) ($tx['source_method'] ?? 'deterministic'),
             ];
-            
-            $transactions[] = $transaction;
-            
-            // Group by date + store
-            $groupKey = $transaction['group_key'];
+
             if (!isset($groups[$groupKey])) {
+                $label = $merchantRaw;
+                $cat = (string) ($tx['category'] ?? '');
+                if ($cat !== '') {
+                    $label .= ' · ' . $cat;
+                }
                 $groups[$groupKey] = [
-                    'date' => $date,
-                    'store' => $storeDefault,
-                    'items' => [],
-                    'total' => 0,
+                    'key' => $groupKey,
+                    'label' => $label,
+                    'income' => $isIncome,
+                    'count' => 0,
+                    'total' => 0.0,
+                    'dates' => [],
                 ];
             }
-            
-            $groups[$groupKey]['items'][] = $transaction;
-            $groups[$groupKey]['total'] += ($isIncome ? $absAmount : -$absAmount);
+            $groups[$groupKey]['count']++;
+            $groups[$groupKey]['total'] += $amount;
+            if (!in_array($date, $groups[$groupKey]['dates'], true) && count($groups[$groupKey]['dates']) < 40) {
+                $groups[$groupKey]['dates'][] = $date;
+            }
         }
-        
+
+        foreach ($groups as &$g) {
+            sort($g['dates']);
+            $g['total'] = round($g['total'], 2);
+        }
+        unset($g);
+
+        $detection = $parsed['detection'] ?? null;
+
         return [
             'status' => 'success',
             'transactions' => $transactions,
             'groups' => array_values($groups),
             'duplicate_count' => $duplicateCount,
-            'row_count' => count($parsed['transactions']),
-            'confidence' => $parsed['confidence'] ?? 1.0,
-            'source_format' => $parsed['source_format'] ?? 'unknown',
-            'source_method' => $parsed['source_method'] ?? 'deterministic',
+            'row_count' => count($transactions),
+            'confidence' => (float) ($parsed['confidence'] ?? 1.0),
+            'source_format' => (string) ($parsed['source_format'] ?? 'unknown'),
+            'source_method' => (string) ($parsed['source_method'] ?? 'deterministic'),
+            'engine' => (string) ($parsed['engine'] ?? 'unknown'),
+            'detection' => is_array($detection) ? $detection : null,
             'verification' => $parsed['verification'] ?? null,
         ];
     }
-    
+
     /**
-     * Extract merchant name from transaction
-     */
-    private static function extractMerchant(array $tx): string
-    {
-        $description = $tx['description'] ?? '';
-        $creditor = $tx['creditor_name'] ?? '';
-        $debtor = $tx['debtor_name'] ?? '';
-        $category = $tx['category'] ?? '';
-        
-        // Priority: creditor > debtor > description > category
-        if (!empty($creditor) && $creditor !== '***REDACTED***') {
-            return self::normalizeMerchant($creditor);
-        }
-        
-        if (!empty($debtor) && $debtor !== '***REDACTED***') {
-            return self::normalizeMerchant($debtor);
-        }
-        
-        if (!empty($description)) {
-            return self::normalizeMerchant($description);
-        }
-        
-        if (!empty($category)) {
-            return self::normalizeMerchant($category);
-        }
-        
-        return 'Unknown';
-    }
-    
-    /**
-     * Normalize merchant name
-     */
-    private static function normalizeMerchant(string $name): string
-    {
-        $name = trim($name);
-        $name = preg_replace('/\s+/u', ' ', $name);
-        
-        // Remove common prefixes
-        $name = preg_replace('/^(Payment to|Transfer to|From|To|Payment|Transfer)\s+/i', '', $name);
-        
-        // Truncate at 100 chars
-        if (mb_strlen($name, 'UTF-8') > 100) {
-            $name = mb_substr($name, 0, 100, 'UTF-8');
-        }
-        
-        return $name;
-    }
-    
-    /**
-     * Find best matching store from existing store names
+     * Find best matching user store for a merchant label (hint for UI).
      */
     private static function bestStoreMatch(string $label, array $storeNames): string
     {
-        if (empty($storeNames)) {
+        if ($storeNames === []) {
             return $label;
         }
-        
-        $label = mb_strtolower($label, 'UTF-8');
-        $bestMatch = null;
-        $bestScore = 0;
-        
-        foreach ($storeNames as $storeName) {
-            $store = mb_strtolower($storeName, 'UTF-8');
-            
-            // Exact match
-            if ($label === $store) {
-                return $storeName;
+        $norm = static function (string $s): string {
+            $s = trim($s);
+            if (function_exists('mb_strtolower')) {
+                $s = mb_strtolower($s, 'UTF-8');
+            } else {
+                $s = strtolower($s);
             }
-            
-            // Contains match
-            if (mb_strpos($label, $store) !== false || mb_strpos($store, $label) !== false) {
-                $score = max(mb_strlen($store, 'UTF-8'), mb_strlen($label, 'UTF-8'));
-                if ($score > $bestScore) {
-                    $bestScore = $score;
-                    $bestMatch = $storeName;
-                }
-            }
-            
-            // Levenshtein similarity (only for short strings)
-            if (strlen($label) < 100 && strlen($store) < 100) {
-                $dist = levenshtein($label, $store);
-                $maxLen = max(strlen($label), strlen($store));
-                $similarity = 1 - ($dist / $maxLen);
-                
-                if ($similarity > 0.7 && $similarity > ($bestScore / 100)) {
-                    $bestScore = (int)($similarity * 100);
-                    $bestMatch = $storeName;
-                }
+            return (string) preg_replace('/\s+/u', ' ', $s);
+        };
+        $nk = $norm($label);
+        foreach ($storeNames as $sn) {
+            if ($norm((string) $sn) === $nk) {
+                return (string) $sn;
             }
         }
-        
-        return $bestMatch ?? $label;
+        $best = null;
+        $bestPct = 0.0;
+        foreach ($storeNames as $sn) {
+            $pct = 0.0;
+            similar_text($nk, $norm((string) $sn), $pct);
+            if ($pct > $bestPct) {
+                $bestPct = $pct;
+                $best = (string) $sn;
+            }
+        }
+        return ($best !== null && $bestPct >= 40.0) ? $best : $label;
     }
 }

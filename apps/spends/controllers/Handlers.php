@@ -410,11 +410,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
         $res['token'] = $token;
         // Pre-computed DB duplicates for the analysis view.
         $res['duplicate_count'] = bankImportMarkDuplicates($udb, $res['transactions']);
+        $res['conflict_dates'] = bankImportConflictDates($udb, $res['transactions']);
         exit(json_encode($res));
     } catch (Throwable $e) {
         @unlink($dest);
         exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
     }
+}
+
+/**
+ * Dates where the DB already holds expense data that differs from the
+ * import (multiset comparison of store|amount per date).
+ *
+ * @return list<string>
+ */
+function bankImportConflictDates(AppDatabase $udb, array $tx): array
+{
+    $dbByDate = [];
+    $stAll = $udb->query("SELECT DISTINCT date FROM expenses WHERE ABS(amount)>0.0001");
+    while ($row = $stAll->fetch(PDO::FETCH_ASSOC)) {
+        $dbByDate[(string) $row['date']] = true;
+    }
+    if ($dbByDate === []) {
+        return [];
+    }
+
+    $datesSeen = [];
+    foreach ($tx as $t) {
+        $datesSeen[(string) $t['date']] = true;
+    }
+
+    $conflicts = [];
+    foreach (array_keys($datesSeen) as $d) {
+        if (!isset($dbByDate[$d])) {
+            continue;
+        }
+        $st = $udb->prepare('SELECT store, ROUND(amount::numeric,2) AS a FROM expenses WHERE date=:d AND ABS(amount)>0.0001');
+        $st->bindValue(':d', $d);
+        $r = $st->execute();
+        $dbList = [];
+        while ($row = $r->fetch(PDO::FETCH_ASSOC)) {
+            $dbList[] = mb_strtolower(trim((string) $row['store']), 'UTF-8') . '|' . number_format((float) $row['a'], 2, '.', '');
+        }
+        sort($dbList);
+
+        $imList = [];
+        foreach ($tx as $t) {
+            if ($t['date'] !== $d || !empty($t['income']) || !empty($t['duplicate'])) {
+                continue;
+            }
+            $store = (string) ($t['store_default'] ?? $t['merchant_raw']);
+            $imList[] = mb_strtolower(trim($store), 'UTF-8') . '|' . number_format((float) $t['amount'], 2, '.', '');
+        }
+        sort($imList);
+        if ($imList === [] || $imList === $dbList) {
+            continue;
+        }
+        $conflicts[] = $d;
+    }
+    return $conflicts;
 }
 
 /**
