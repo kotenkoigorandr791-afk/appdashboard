@@ -5,6 +5,8 @@ if (php_sapi_name() !== 'cli') {
 }
 
 require dirname(__DIR__, 2) . '/webssh/vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php';
+app_sentry_bootstrap('smart_home_ws');
 require __DIR__ . '/SmartHomeWsHandler.php';
 
 use Ratchet\Http\HttpServer;

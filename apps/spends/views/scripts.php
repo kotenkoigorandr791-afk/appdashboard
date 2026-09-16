@@ -34,7 +34,8 @@ const t=(key,fallback='')=>translations[key]||fallback;
 
 // ══ Modal helpers ═══════════════════════════════════════════════════════════
 function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
-function showModal(id) { document.getElementById(id).style.display='flex'; syncModalBodyState(); }
+function setupModalChrome(){document.querySelectorAll('.modal-content').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
+function showModal(id) { setupModalChrome(); document.getElementById(id).style.display='flex'; syncModalBodyState(); }
 function closeModal(id) { document.getElementById(id).style.display='none'; syncModalBodyState(); }
 
 // ══ Notification ═══════════════════════════════════════════════════════════
@@ -625,20 +626,235 @@ function loadExchangeRates() {
 }
 
 function displayRatesTable(base, rates) {
-    const tbody = document.getElementById('rates-tbody');
-    const currencies = ['USD', 'EUR', 'UAH', 'PLN', 'BYN'];
-    let html = '';
-    currencies.forEach(cur => {
-        if (cur === base) return;
-        const rate = rates[cur] ? rates[cur].toFixed(4) : 'N/A';
-        const usdRate = rates['USD'] ? (1 / rates['USD']).toFixed(4) : 'N/A';
-        html += `<tr>
-            <td><strong>${cur}</strong></td>
-            <td>${rate} ${base}</td>
-            <td class="${rates['USD'] && rates['USD'] > 1 ? 'rate-positive' : 'rate-negative'}">${usdRate} USD</td>
-        </tr>`;
+    drawSpiderWeb(base, rates);
+}
+
+function drawSpiderWeb(base, rates) {
+    const canvas = document.getElementById('rates-spider-canvas');
+    const tooltip = document.getElementById('rates-spider-tooltip');
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    
+    // Stop any existing animation
+    if (canvas._animationId) {
+        cancelAnimationFrame(canvas._animationId);
+        canvas._animationId = null;
+    }
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, width, height);
+    
+    // Currencies (excluding base)
+    const currencies = ['USD', 'EUR', 'UAH', 'PLN', 'BYN'].filter(c => c !== base);
+    
+    // Convert to EUR as center (1 EUR = base)
+    const eurRates = {};
+    if (base === 'EUR') {
+        currencies.forEach(cur => {
+            eurRates[cur] = rates[cur] || 1;
+        });
+    } else {
+        // Convert rates through base currency to EUR
+        const eurToBase = rates['EUR'] || 1;
+        currencies.forEach(cur => {
+            if (cur === 'EUR') {
+                eurRates[cur] = 1 / eurToBase;
+            } else {
+                eurRates[cur] = (rates[cur] || 1) / eurToBase;
+            }
+        });
+    }
+    
+    // Node data - horizontal X shape layout
+    const nodes = [];
+    const radius = 140;
+    
+    // Define X shape positions: top-left, top-right, bottom-right, bottom-left
+    const xPositions = [
+        { angle: Math.PI * 0.75, label: 'top-left' },     // Upper left
+        { angle: Math.PI * 0.25, label: 'top-right' },    // Upper right
+        { angle: -Math.PI * 0.25, label: 'bottom-right' }, // Lower right
+        { angle: -Math.PI * 0.75, label: 'bottom-left' }   // Lower left
+    ];
+    
+    currencies.forEach((cur, index) => {
+        if (index < xPositions.length) {
+            const pos = xPositions[index];
+            nodes.push({
+                currency: cur,
+                rate: eurRates[cur],
+                x: centerX + Math.cos(pos.angle) * radius,
+                y: centerY + Math.sin(pos.angle) * radius,
+                angle: pos.angle,
+                label: pos.label
+            });
+        }
     });
-    tbody.innerHTML = html;
+    
+    // Animation state
+    let animationProgress = 1; // Start fully drawn to avoid flicker
+    let hoveredNode = null;
+    
+    // Mouse tracking
+    canvas.onmousemove = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        
+        let prevHovered = hoveredNode;
+        hoveredNode = null;
+        
+        nodes.forEach(node => {
+            const dist = Math.sqrt((mouseX - node.x) ** 2 + (mouseY - node.y) ** 2);
+            if (dist < 35) {
+                hoveredNode = node;
+                tooltip.style.opacity = '1';
+                tooltip.style.left = `${e.clientX - rect.left + 15}px`;
+                tooltip.style.top = `${e.clientY - rect.top + 15}px`;
+                tooltip.innerHTML = `<strong>${node.currency}</strong><br>1 EUR = ${node.rate.toFixed(4)} ${node.currency}`;
+            }
+        });
+        
+        if (!hoveredNode) {
+            tooltip.style.opacity = '0';
+        }
+        
+        if (prevHovered !== hoveredNode) {
+            draw();
+        }
+    };
+    
+    canvas.onmouseleave = () => {
+        hoveredNode = null;
+        tooltip.style.opacity = '0';
+        draw();
+    };
+    
+    function draw() {
+        ctx.clearRect(0, 0, width, height);
+        
+        // Draw connection lines with soft gradient and blur
+        nodes.forEach(node => {
+            const gradient = ctx.createLinearGradient(centerX, centerY, node.x, node.y);
+            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
+            gradient.addColorStop(1, 'rgba(147, 51, 234, 0.2)');
+            
+            // Soft blur for edges
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = hoveredNode === node ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.2)';
+            
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(node.x, node.y);
+            ctx.strokeStyle = hoveredNode === node ? 'rgba(59, 130, 246, 0.6)' : gradient;
+            ctx.lineWidth = hoveredNode === node ? 2 : 1.5;
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+        });
+        
+        // Draw center node (EUR) with soft edges
+        const centerRadius = 40;
+        
+        // Outer glow
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = 'rgba(59, 130, 246, 0.4)';
+        
+        const centerGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, centerRadius);
+        centerGradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+        centerGradient.addColorStop(0.7, 'rgba(37, 99, 235, 0.6)');
+        centerGradient.addColorStop(1, 'rgba(37, 99, 235, 0.1)');
+        
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, centerRadius, 0, Math.PI * 2);
+        ctx.fillStyle = centerGradient;
+        ctx.fill();
+        
+        ctx.shadowBlur = 0;
+        
+        // EUR text
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('EUR', centerX, centerY - 6);
+        ctx.font = '12px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.fillText('1.0000', centerX, centerY + 10);
+        
+        // Draw currency nodes with soft edges
+        nodes.forEach(node => {
+            const nodeRadius = hoveredNode === node ? 34 : 30;
+            const nodeX = node.x;
+            const nodeY = node.y;
+            
+            // Soft glow
+            ctx.shadowBlur = hoveredNode === node ? 12 : 8;
+            ctx.shadowColor = hoveredNode === node ? 'rgba(147, 51, 234, 0.5)' : 'rgba(147, 51, 234, 0.3)';
+            
+            // Node gradient with soft edges
+            const nodeGradient = ctx.createRadialGradient(nodeX, nodeY, 0, nodeX, nodeY, nodeRadius);
+            nodeGradient.addColorStop(0, 'rgba(147, 51, 234, 0.7)');
+            nodeGradient.addColorStop(0.7, 'rgba(126, 34, 206, 0.5)');
+            nodeGradient.addColorStop(1, 'rgba(126, 34, 206, 0.1)');
+            
+            ctx.beginPath();
+            ctx.arc(nodeX, nodeY, nodeRadius, 0, Math.PI * 2);
+            ctx.fillStyle = nodeGradient;
+            ctx.fill();
+            
+            ctx.shadowBlur = 0;
+            
+            // Currency text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(node.currency, nodeX, nodeY - 6);
+            
+            // Rate text
+            ctx.font = '11px system-ui, -apple-system, sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.fillText(node.rate.toFixed(2), nodeX, nodeY + 8);
+        });
+    }
+    
+    // Initial draw without animation
+    draw();
+    
+    // Optional: subtle continuous animation for particles (very slow)
+    let particleTime = 0;
+    function animateParticles() {
+        if (!canvas.isConnected) return;
+        
+        particleTime += 0.003;
+        
+        // Only redraw particles if needed
+        nodes.forEach((node, index) => {
+            const offset = (particleTime + index * 0.25) % 1;
+            const px = centerX + (node.x - centerX) * offset;
+            const py = centerY + (node.y - centerY) * offset;
+            
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = 'rgba(147, 197, 253, 0.5)';
+            ctx.beginPath();
+            ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+            const alpha = Math.sin(offset * Math.PI) * 0.2;
+            ctx.fillStyle = `rgba(147, 197, 253, ${alpha})`;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        });
+        
+        canvas._animationId = requestAnimationFrame(animateParticles);
+    }
+    
+    // Start subtle particle animation
+    canvas._animationId = requestAnimationFrame(animateParticles);
 }
 
 function updateRateChart() {
@@ -1485,7 +1701,8 @@ function handleTableNavigation(e){
 
 // ══ DOMContentLoaded ═══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
-    loadAvailableYears().then(()=>{updateChart();});
+setupModalChrome();
+loadAvailableYears().then(()=>{updateChart();});
     highlightCurrentDate();
     setInterval(highlightCurrentDate,60000);
     document.addEventListener('keydown',handleTableNavigation);

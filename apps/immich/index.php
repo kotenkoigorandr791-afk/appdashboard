@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 define('APP_ROOT', dirname(__DIR__, 2));
+require_once APP_ROOT . '/lib/sentry_bootstrap.php';
+app_sentry_bootstrap('immich');
 require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';

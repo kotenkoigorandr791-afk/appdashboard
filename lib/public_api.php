@@ -1,5 +1,7 @@
 <?php
 if (!defined('APP_ROOT')) define('APP_ROOT', dirname(__DIR__));
+require_once APP_ROOT . '/lib/sentry_bootstrap.php';
+app_sentry_bootstrap('public-api');
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/lib/public_api_auth.php';
 function public_api_json(array $data, int $status = 200): void {

@@ -408,6 +408,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
         $res = BankStatementParser::toLegacyFormat($parsed, $storeNames, $base);
         $_SESSION['bank_csv_sessions'][$token] = ['path' => $dest, 'user' => $currentUser, 'ts' => time()];
         $res['token'] = $token;
+        // Pre-computed DB duplicates for the analysis view.
+        $res['duplicate_count'] = bankImportMarkDuplicates($udb, $res['transactions']);
         exit(json_encode($res));
     } catch (Throwable $e) {
         @unlink($dest);
@@ -415,10 +417,150 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
     }
 }
 
+/**
+ * Flag transactions already present in the DB (same date, store and
+ * amount). Expenses only; income rows are never marked as duplicates.
+ */
+function bankImportMarkDuplicates(AppDatabase $udb, array &$tx): int
+{
+    $dup = 0;
+    foreach ($tx as &$t) {
+        $t['duplicate'] = false;
+        if (!empty($t['income'])) {
+            continue;
+        }
+        $chk = $udb->prepare('SELECT 1 FROM expenses WHERE date=:d AND store=:s AND ABS(ROUND(amount::numeric,2)-:a)<0.02 LIMIT 1');
+        $chk->bindValue(':d', $t['date']);
+        $chk->bindValue(':s', $t['store_default']);
+        $chk->bindValue(':a', $t['amount'], PDO::PARAM_STR);
+        if ($chk->execute()->fetch()) {
+            $t['duplicate'] = true;
+            $dup++;
+        }
+    }
+    unset($t);
+    return $dup;
+}
+
+/**
+ * Persist the parsed transactions: expenses are aggregated per
+ * date+store, income is summed per date. Conflicting dates (days that
+ * already have expenses) are skipped or replaced per user choice.
+ */
+function bankImportApply(AppDatabase $udb, array $tx, array $excludeGroupKeys, array $storeMap, string $conflictMode, array $conflictDates): void
+{
+    $conflictSet = [];
+    foreach ($conflictDates as $d) {
+        $conflictSet[(string) $d] = true;
+    }
+    $exclude = [];
+    foreach ($excludeGroupKeys as $k) {
+        $exclude[(string) $k] = true;
+    }
+
+    $aggExp = [];
+    $aggInc = [];
+    foreach ($tx as $t) {
+        if (!empty($t['duplicate']) || isset($exclude[$t['group_key']])) {
+            continue;
+        }
+        $d = $t['date'];
+        if (!empty($t['income'])) {
+            $aggInc[$d] = ($aggInc[$d] ?? 0.0) + (float) $t['amount'];
+            continue;
+        }
+        $store = trim((string) ($storeMap[$t['group_key']] ?? $t['store_default']));
+        if ($store === '') {
+            $store = (string) $t['merchant_raw'];
+        }
+        $aggExp[$d][$store] = ($aggExp[$d][$store] ?? 0.0) + (float) $t['amount'];
+    }
+
+    $replaceDays = [];
+    if ($conflictMode === 'replace') {
+        foreach ($conflictDates as $d) {
+            $replaceDays[(string) $d] = true;
+        }
+    }
+
+    $udb->exec('BEGIN');
+    try {
+        foreach (array_keys($replaceDays) as $d) {
+            $del = $udb->prepare('DELETE FROM expenses WHERE date=:d');
+            $del->bindValue(':d', $d);
+            $del->execute();
+        }
+        foreach ($aggExp as $d => $byStore) {
+            if ($conflictMode === 'skip' && isset($conflictSet[$d])) {
+                continue;
+            }
+            foreach ($byStore as $store => $amt) {
+                $amt = round((float) $amt, 2);
+                if ($amt < 0.0001) {
+                    continue;
+                }
+                bankImportEnsureStore($udb, $store);
+                if (isset($replaceDays[$d])) {
+                    $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO NOTHING");
+                } else {
+                    $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2),entry_source='manual',ocr_raw_store=NULL");
+                }
+                $ins->bindValue(':d', $d);
+                $ins->bindValue(':s', $store);
+                $ins->bindValue(':a', $amt, PDO::PARAM_STR);
+                $ins->execute();
+            }
+        }
+        foreach ($aggInc as $d => $sum) {
+            if ($conflictMode === 'skip' && isset($conflictSet[$d])) {
+                continue;
+            }
+            $sum = round((float) $sum, 2);
+            if ($sum < 0.0001) {
+                continue;
+            }
+            if (isset($replaceDays[$d])) {
+                $deli = $udb->prepare('DELETE FROM incomes WHERE date=:d');
+                $deli->bindValue(':d', $d);
+                $deli->execute();
+                $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO NOTHING');
+            } else {
+                $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO UPDATE SET amount=ROUND((incomes.amount+excluded.amount)::numeric,2)');
+            }
+            $ins->bindValue(':d', $d);
+            $ins->bindValue(':a', $sum, PDO::PARAM_STR);
+            $ins->execute();
+        }
+        $udb->exec('COMMIT');
+    } catch (Throwable $e) {
+        $udb->exec('ROLLBACK');
+        throw $e;
+    }
+}
+
+function bankImportEnsureStore(AppDatabase $udb, string $name): void
+{
+    $name = trim($name);
+    if ($name === '') {
+        return;
+    }
+    $chk = $udb->prepare('SELECT id FROM stores WHERE name=:n LIMIT 1');
+    $chk->bindValue(':n', $name);
+    if ($chk->execute()->fetch()) {
+        return;
+    }
+    $maxOrd = (int) $udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
+    $id = 's_' . bin2hex(random_bytes(8));
+    $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO NOTHING');
+    $st->bindValue(':id', $id);
+    $st->bindValue(':n', $name);
+    $st->bindValue(':o', $maxOrd, PDO::PARAM_INT);
+    $st->execute();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
     header('Content-Type: application/json; charset=UTF-8');
     require_once __DIR__ . '/../utils/BankStatementParser.php';
-    require_once __DIR__ . '/../utils/BankStatementImport.php';
     $payload = json_decode((string) ($_POST['bank_csv_apply'] ?? ''), true);
     if (!is_array($payload)) {
         exit(json_encode(['status' => 'error', 'message' => $__t('msg_bad_json')]));
@@ -456,8 +598,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
         $parsed = BankStatementParser::parse($path);
         $legacy = BankStatementParser::toLegacyFormat($parsed, $storeNames, $base);
         $tx = $legacy['transactions'];
-        BankStatementImport::markDuplicates($udb, $tx);
-        BankStatementImport::apply($udb, $tx, $exclude, $storeMap, $conflictMode, $conflictDates);
+        bankImportMarkDuplicates($udb, $tx);
+        bankImportApply($udb, $tx, $exclude, $storeMap, $conflictMode, $conflictDates);
         @unlink($path);
         unset($_SESSION['bank_csv_sessions'][$token]);
         exit(json_encode(['status' => 'success']));

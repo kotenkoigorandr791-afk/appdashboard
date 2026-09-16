@@ -11,7 +11,7 @@
     </div>
 </div>
 <div id="unresolved-modal" class="modal">
-    <div class="modal-content" style="max-width:760px;width:92%;">
+    <div class="modal-content">
         <button class="modal-close" onclick="closeModal('unresolved-modal')">×</button>
         <h3 style="margin-top:0;"><?= htmlspecialchars($translations['ocr_unresolved_title'] ?? 'Unresolved stores') ?></h3>
         <div id="unresolved-list" style="max-height:50vh;overflow:auto;"></div>
@@ -32,8 +32,8 @@
     </div>
 </div>
 <div id="confirm-restore-backup-modal" class="modal confirm-modal" style="z-index:2001;">
-    <div class="modal-content" style="max-width:420px;border-radius:12px;position:relative;padding-top:8px;">
-        <button class="modal-close" onclick="pendingRestoreFile=null;closeModal('confirm-restore-backup-modal')" style="position:absolute;right:10px;top:10px;">×</button>
+    <div class="modal-content" style="max-width:min(420px,calc(100vw - 32px));">
+        <button class="modal-close" onclick="pendingRestoreFile=null;closeModal('confirm-restore-backup-modal')">×</button>
         <div class="restore-confirm-icon" aria-hidden="true">
             <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.95;">
                 <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
@@ -53,14 +53,14 @@
 
 <!-- Exchange Rates Modal -->
 <div id="exchange-rates-modal" class="modal">
-    <div class="modal-content" style="width:90%;max-width:1000px;">
+    <div class="modal-content" style="max-width:min(1000px,calc(100vw - 32px));">
         <button class="modal-close" onclick="closeModal('exchange-rates-modal')">×</button>
         <h3 style="margin-top:0;color:var(--text-color);"><?= htmlspecialchars($translations['exchange_rates']) ?></h3>
         <div class="form-row">
             <label><?= htmlspecialchars($translations['base_currency']) ?>:</label>
             <select id="base-currency-select" class="currency-select" onchange="loadExchangeRates()">
+                <option value="EUR" selected>EUR</option>
                 <option value="USD">USD</option>
-                <option value="EUR">EUR</option>
                 <option value="UAH">UAH</option>
                 <option value="PLN">PLN</option>
                 <option value="BYN">BYN</option>
@@ -70,15 +70,9 @@
             <div class="rates-spinner"></div>
             <p style="margin-top:12px;font-size:14px;opacity:.8;"><?= htmlspecialchars($translations['loading_rates'] ?? 'Loading exchange rates...') ?></p>
         </div>
-        <div id="rates-table-container">
-            <table class="rates-table" id="rates-table">
-                <thead>
-                    <tr><th><?= htmlspecialchars($translations['currency']) ?></th><th><?= htmlspecialchars($translations['rate']) ?></th><th><?= htmlspecialchars($translations['vs_usd']) ?></th></tr>
-                </thead>
-                <tbody id="rates-tbody">
-                    <tr><td colspan="3" style="text-align:center;"><?= htmlspecialchars($translations['no_data']) ?></td></tr>
-                </tbody>
-            </table>
+        <div id="rates-spider-container" style="position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;margin:16px 0;">
+            <canvas id="rates-spider-canvas" width="600" height="400" style="max-width:100%;height:auto;"></canvas>
+            <div id="rates-spider-tooltip" style="position:absolute;background:rgba(0,0,0,0.85);color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;pointer-events:none;opacity:0;transition:opacity 0.2s;backdrop-filter:blur(8px);"></div>
         </div>
         <div class="rate-chart-container">
             <h4><?= htmlspecialchars($translations['rate_chart']) ?></h4>
@@ -283,11 +277,12 @@
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('settings-modal')">×</button>
         <h3><?= htmlspecialchars($translations['settings_title']) ?></h3>
-        <div class="settings-menu-bar">
+        <nav class="settings-menu-bar">
             <button type="button" class="settings-menu-btn active" data-settings-section="stores" onclick="switchSettingsSection('stores')"><?= htmlspecialchars($translations['stores']) ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="chart" onclick="switchSettingsSection('chart')"><?= htmlspecialchars($translations['chart_settings'] ?? 'Chart') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="delete" onclick="switchSettingsSection('delete')"><?= htmlspecialchars($translations['data_deletion'] ?? 'Data deletion') ?></button>
-        </div>
+            <div id="indicator"></div>
+        </nav>
         <div class="settings-section active" id="settings-section-stores">
             <div class="form-row">
                 <label><?= htmlspecialchars($translations['monthly_budget']) ?>:</label>
@@ -437,7 +432,7 @@
 
 <!-- Share Chart Modal -->
 <div id="share-modal" class="modal">
-    <div class="modal-content share-modal-content" style="max-width:600px;">
+    <div class="modal-content share-modal-content" style="max-width:min(600px,calc(100vw - 32px));">
         <button class="modal-close" onclick="closeModal('share-modal')">×</button>
         <h3><?= htmlspecialchars($translations['share_chart']) ?></h3>
         <div class="share-chart-container">
@@ -490,7 +485,7 @@
 
 <!-- Backup Modal -->
 <div id="backup-modal" class="modal">
-    <div class="modal-content" style="max-width:800px;">
+    <div class="modal-content" style="max-width:min(800px,calc(100vw - 32px));">
         <button class="modal-close" onclick="closeModal('backup-modal')">×</button>
         <h3><?= htmlspecialchars($translations['backup_management']) ?></h3>
         <div class="form-row">
@@ -540,9 +535,9 @@
 
 <!-- View Backup Modal -->
 <div id="view-backup-modal" class="modal">
-    <div class="modal-content" style="max-width:95%;max-height:95vh;width:auto;">
+    <div class="modal-content" style="max-width:min(95%,calc(100vw - 32px));max-height:calc(100dvh - 32px);">
         <button class="modal-close" onclick="closeModal('view-backup-modal')">×</button>
         <h3 style="margin-top:0;color:var(--text-color);"><?= htmlspecialchars($translations['backup_preview'] ?? 'Backup Preview') ?></h3>
-        <div id="backup-preview" style="overflow:auto;max-height:80vh;background:var(--bg-color);padding:10px;border-radius:5px;"></div>
+        <div id="backup-preview" style="overflow:auto;max-height:calc(80vh - 100px);background:var(--bg-color);padding:10px;border-radius:5px;"></div>
     </div>
 </div>

@@ -27,6 +27,9 @@ export default defineConfig({
   ],
   use: {
     baseURL,
+    launchOptions: {
+      args: ['--disable-setuid-sandbox'],
+    },
     actionTimeout: 15000,
     navigationTimeout: 30000,
     ignoreHTTPSErrors: true,
