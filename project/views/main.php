@@ -858,7 +858,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             .chartjs-legend{font-size:10px!important;}
             #content{padding-top:0;height:100dvh;min-height:100dvh;max-height:100dvh;}
             #app-iframe{height:100dvh;min-height:100dvh;max-height:100dvh;}
-            #profile-content{width:95%;padding:15px 10px;margin:5% auto;}
+            #profile-content{width:95%;height:90%;padding:0;margin:5% auto;}
             #app-grid{padding-top:calc(70px + 12px);grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;height:100%;max-height:100%;padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));}
             #bottom-bar{gap:5px;}
             .search-container:hover{width:100px;}
@@ -2488,11 +2488,11 @@ endif; // showOtpPage
 <?php if(isset($_SESSION['user'])):?>
     <?php $profileModalInitialOpen=isset($_GET['profile'])||isset($_POST['reset_photo'])||isset($_POST['oauth_unlink'])||isset($_GET['oauth_linked'])||isset($_GET['oauth_error']); ?>
     <div id="profile-modal"<?php echo $profileModalInitialOpen?' style="display:flex;"':''; ?>>
-        <div class="std-topbar">
-            <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['user_profile']); ?></h3>
-            <button id="close-profile" type="button" class="std-topbar-close">&times;</button>
-        </div>
         <div id="profile-content">
+            <div class="std-topbar">
+                <h3 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['user_profile']); ?></h3>
+                <button id="close-profile" type="button" class="std-topbar-close">&times;</button>
+            </div>
         <div class="modal-scroll-body">
             <?php if(isset($profileError)):?><div class="auth-error"><?php echo my_htmlspecialchars($profileError); ?></div><?php endif;?>
             <?php if(isset($profileSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($profileSuccess); ?></div><?php endif;?>

@@ -2023,6 +2023,25 @@
             opacity: 0.55;
             cursor: not-allowed;
         }
+        .mobile-app-version-info {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 6px;
+            font-size: 13px;
+            color: var(--muted-text, rgba(244,247,242,0.68));
+            opacity: 0.85;
+        }
+        .mobile-app-version-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .mobile-app-version-item i {
+            font-size: 12px;
+        }
 
         .app-toast {
             position: fixed;

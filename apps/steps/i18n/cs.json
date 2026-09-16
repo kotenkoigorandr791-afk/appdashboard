@@ -331,5 +331,6 @@
     "mobile_app_hide_toast": "Tlačítko stahování bylo skryto. Můžete ho znovu zapnout v okně informací.",
     "mobile_app_show_in_header": "Zobrazit tlačítko stahování v hlavičce",
     "info_card_mobile_text": "Nainstalujte doprovodnou aplikaci pro Android, aby se kroky a zdravotní data z telefonu synchronizovala na tento dashboard.",
-    "mobile_app_open": "Otevřít aplikaci"
+    "mobile_app_open": "Otevřít aplikaci",
+    "mobile_app_version_updated": "Aktualizováno"
 }

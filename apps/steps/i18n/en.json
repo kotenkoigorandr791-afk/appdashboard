@@ -331,5 +331,6 @@
     "mobile_app_hide_toast": "The download button has been hidden. You can re-enable it in the Info window.",
     "mobile_app_show_in_header": "Show download button in header",
     "info_card_mobile_text": "Install the companion Android app to sync steps and health data from your phone to this dashboard.",
-    "mobile_app_open": "Open app"
+    "mobile_app_open": "Open app",
+    "mobile_app_version_updated": "Updated"
 }
