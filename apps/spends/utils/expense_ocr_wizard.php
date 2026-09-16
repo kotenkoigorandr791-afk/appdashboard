@@ -145,6 +145,11 @@ if(!function_exists('ocrIcon')){function ocrIcon($name){$icons=['upload'=>'<svg 
 .ocrw-crop-actions{flex-direction:row!important;flex-wrap:nowrap;align-items:stretch;}
 .ocrw-crop-actions .ocrw-btn{flex:1 1 0;width:auto;min-width:0;white-space:normal;}
 .ocrw-crop-actions .ocrw-btn:disabled{background:var(--line)!important;color:var(--muted)!important;border-color:var(--line)!important;box-shadow:none!important;filter:grayscale(1);}
+/* Sidebar mode: keep actions under thumbs */
+.ocrw-crop-sidebar .ocrw-crop-actions{flex-direction:column!important;flex-wrap:nowrap!important;align-items:stretch;}
+.ocrw-crop-sidebar .ocrw-crop-actions .ocrw-btn{width:100%;flex:0 0 auto;}
+.ocrw-crop-sidebar .ocrw-thumb-list{flex:1 1 auto;min-height:0;}
+.ocrw-crop-sidebar .ocrw-btn-row.ocrw-crop-actions{margin-top:auto!important;}
 @media (max-width:640px){.ocrw-crop-actions{gap:8px;}.ocrw-crop-actions .ocrw-btn{padding:10px 7px;font-size:12px;}}
 </style>
 <div class="ocrw-shell">
@@ -164,7 +169,7 @@ if(!function_exists('ocrIcon')){function ocrIcon($name){$icons=['upload'=>'<svg 
 <section class="ocrw-card ocrw-panel" data-ocr-panel="2">
 <div class="ocrw-panel-head"><div><h2><?= htmlspecialchars($ocrT['step_crop']) ?></h2><p><?= htmlspecialchars($ocrT['crop_hint']) ?></p></div><div class="ocrw-badge" data-ocr-role="crop-progress-badge">0/0</div></div>
 <div class="ocrw-empty" data-ocr-role="crop-empty"><?= htmlspecialchars($ocrT['crop_empty']) ?></div>
-<div class="ocrw-crop-layout ocrw-hidden" data-ocr-role="crop-layout"><div class="ocrw-crop-stage"><div class="ocrw-crop-frame"><img data-ocr-role="crop-image" alt=""></div><div class="ocrw-btn-row ocrw-crop-actions"><button class="ocrw-btn ocrw-btn-primary" data-ocr-role="crop-apply" type="button"><?= ocrIcon('crop') ?><?= htmlspecialchars($ocrT['apply_crop']) ?></button><button class="ocrw-btn ocrw-btn-secondary" data-ocr-role="crop-reset" type="button"><?= ocrIcon('reset') ?><?= htmlspecialchars($ocrT['reset_crop']) ?></button><button class="ocrw-btn ocrw-btn-secondary" data-ocr-role="crop-skip" type="button"><?= ocrIcon('skip') ?><?= htmlspecialchars($ocrT['skip_crop']) ?></button><button class="ocrw-btn ocrw-btn-primary" data-ocr-role="crop-continue" type="button"><?= ocrIcon('scan') ?><?= htmlspecialchars($ocrT['start_scan']) ?></button></div></div><div class="ocrw-crop-sidebar"><div class="ocrw-crop-stat"><strong data-ocr-role="crop-current-name"><?= htmlspecialchars($ocrT['photo']) ?></strong><div class="ocrw-note" data-ocr-role="crop-current-note"><?= htmlspecialchars($ocrT['crop_hint']) ?></div></div><div class="ocrw-thumb-list" data-ocr-role="crop-thumbs"></div></div></div>
+<div class="ocrw-crop-layout ocrw-hidden" data-ocr-role="crop-layout"><div class="ocrw-crop-stage"><div class="ocrw-crop-frame"><img data-ocr-role="crop-image" alt=""></div></div><div class="ocrw-crop-sidebar"><div class="ocrw-crop-stat"><strong data-ocr-role="crop-current-name"><?= htmlspecialchars($ocrT['photo']) ?></strong><div class="ocrw-note" data-ocr-role="crop-current-note"><?= htmlspecialchars($ocrT['crop_hint']) ?></div></div><div class="ocrw-thumb-list" data-ocr-role="crop-thumbs"></div><div class="ocrw-btn-row ocrw-crop-actions"><button class="ocrw-btn ocrw-btn-secondary" data-ocr-role="crop-reset" type="button"><?= ocrIcon('reset') ?><?= htmlspecialchars($ocrT['reset_crop']) ?></button><button class="ocrw-btn ocrw-btn-primary" data-ocr-role="crop-continue" type="button"><?= ocrIcon('scan') ?><?= htmlspecialchars($ocrT['start_scan']) ?></button></div></div></div>
 </section>
 <section class="ocrw-card ocrw-panel" data-ocr-panel="3">
 <div class="ocrw-panel-head"><div><h2><?= htmlspecialchars($ocrT['processing_title']) ?></h2><p><?= htmlspecialchars($ocrT['processing_hint']) ?></p></div><div class="ocrw-badge" data-ocr-role="scan-currency"><?= htmlspecialchars($ocrT['currency']) ?>: <?= htmlspecialchars($ocrBaseCurrency) ?></div></div>
