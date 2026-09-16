@@ -13,17 +13,16 @@ CASES = []
 
 def case(name, content, encoding="utf-8", expect_rows=None,
          expect_income=None, expect_expense=None, expect_total_in=None,
-         expect_total_out=None, expect_merchants=None, expect_groups=None):
+         expect_total_out=None, expect_merchants=None):
     CASES.append(dict(name=name, content=content, encoding=encoding,
                       expect_rows=expect_rows, expect_income=expect_income,
                       expect_expense=expect_expense,
                       expect_total_in=expect_total_in,
                       expect_total_out=expect_total_out,
-                      expect_merchants=expect_merchants or [],
-                      expect_groups=expect_groups))
+                      expect_merchants=expect_merchants or []))
 
 
-# 1. Monobank (UA) — semicolon-free, quoted headers, em-dash placeholders
+# 1. Monobank (UA) — quoted headers, em-dash placeholders, MCC column
 case("monobank_ua", '''"Дата i час операції","Деталі операції",MCC,"Сума в валюті картки (UAH)","Сума в валюті операції",Валюта,Курс,"Сума комісій (UAH)","Сума кешбеку (UAH)","Залишок після операції"
 "16.09.2026 12:50:48",АТБ,5411,-562.39,-562.39,UAH,—,—,5.62,100325.41
 "16.09.2026 12:22:07","Термінал mono",4829,2000.0,2000.0,UAH,—,—,—,100887.8
@@ -32,7 +31,7 @@ case("monobank_ua", '''"Дата i час операції","Деталі опе
      expect_total_in=2000.0, expect_total_out=739.51,
      expect_merchants=["АТБ", "Термінал mono", "Фора"])
 
-# 2. PKO BP style (PL) — semicolon delimiter, comma decimals, operator column
+# 2. PKO BP style (PL) — semicolon delimiter, comma decimals, + amounts
 case("pko_bp_pl", '''Data operacji;Data księgowania;Opis operacji;Kwota;Saldo po operacji
 2026-09-10;2026-09-10;BIEDRONKA 1234 WARSZAWA;-45,20;1500,00
 2026-09-09;2026-09-09;PRZELEW PRZYCHODZĄCY KOWALSKI;+1200,00;1545,20
@@ -40,7 +39,7 @@ case("pko_bp_pl", '''Data operacji;Data księgowania;Opis operacji;Kwota;Saldo p
 ''', expect_rows=3, expect_income=1, expect_expense=2,
      expect_total_in=1200.0, expect_total_out=195.20)
 
-# 3. German bank — comma decimal, dot thousands, Empfänger/Zahlungspflichtiger
+# 3. German bank — comma decimal, Empfänger/Zahlungspflichtiger
 case("german_bank", '''Buchungstag;Wertstellung;Zahlungspflichtiger;Zahlungsempfänger;Buchungstext;Verwendungszweck;Betrag;Währung;Saldo
 01.09.2026;01.09.2026;;REWE SAGT DANKE;Lastschrift;Einkauf;-56,78;EUR;2000,00
 02.09.2026;02.09.2026;MAX MUSTERMANN;;Gutschrift;Miete September;850,00;EUR;2056,78
@@ -136,7 +135,7 @@ for c in CASES:
             chk(any(t["merchant_raw"] == m for t in txs),
                 f"merchant {m!r} not found")
         print(f"PASS {c['name']}: rows={len(txs)} in={tin} out={tout} "
-              f"groups={len(d['groups'])} det={json.dumps(d.get('detection', {}), ensure_ascii=False)[:110]}")
+              f"groups={len(d['groups'])}")
     except Exception as e:
         failures.append(c["name"])
         print(f"FAIL {c['name']}: {e}")
