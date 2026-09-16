@@ -3,6 +3,7 @@
         "phpoffice/phpword": "^1.4",
         "phpoffice/phpspreadsheet": "^5.1",
         "phpoffice/phppresentation": "^0.9.0",
-        "sabre/dav": "^4.7"
+        "sabre/dav": "^4.7",
+        "sentry/sentry": "^4.31"
     }
 }

@@ -221,6 +221,8 @@ function smart_log_bootstrap(string $appId): void {
     if (!defined('SMART_LOG_APP_ID')) {
         define('SMART_LOG_APP_ID', $appId);
     }
+    require_once __DIR__ . '/lib/sentry_bootstrap.php';
+    app_sentry_bootstrap($appId);
     set_error_handler(static function (int $errno, string $errstr, string $errfile, int $errline): bool {
         if (!(error_reporting() & $errno)) {
             return false;
@@ -228,11 +230,13 @@ function smart_log_bootstrap(string $appId): void {
         $lvl = smart_log_errno_level($errno);
         $msg = $errstr . ' in ' . $errfile . ':' . $errline;
         smart_log_write(smart_log_app_id(), $lvl, $msg, $errfile, $errline, false);
+        app_sentry_capture_exception(new ErrorException($errstr, 0, $errno, $errfile, $errline));
         return false;
     });
     set_exception_handler(static function (Throwable $e): void {
         $msg = 'Uncaught ' . get_class($e) . ': ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
         smart_log_write(smart_log_app_id(), 'error', $msg, $e->getFile(), $e->getLine(), true);
+        app_sentry_capture_exception($e);
         smart_log_render_exception($e);
     });
     register_shutdown_function(static function (): void {
@@ -244,10 +248,11 @@ function smart_log_bootstrap(string $appId): void {
         if (!in_array($t, [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
             return;
         }
-        $file = (string)($err['file'] ?? '');
-        $line = (int)($err['line'] ?? 0);
-        $msg = (string)($err['message'] ?? '') . ' in ' . $file . ':' . $line;
-        smart_log_write(smart_log_app_id(), 'critical', $msg, $file, $line ?: null, true);
+    $file = (string)($err['file'] ?? '');
+    $line = (int)($err['line'] ?? 0);
+    $msg = (string)($err['message'] ?? '') . ' in ' . $file . ':' . $line;
+    smart_log_write(smart_log_app_id(), 'critical', $msg, $file, $line ?: null, true);
+    app_sentry_capture_exception(new ErrorException((string)($err['message'] ?? ''), 0, (int)$t, $file, $line));
     });
 }
 function smart_log_bootstrap_auto(string $callerDir): void {

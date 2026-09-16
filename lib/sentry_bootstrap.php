@@ -1,0 +1,41 @@
+<?php
+function app_sentry_bootstrap(string $appId): void
+{
+    static $booted = false;
+    $root = defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__);
+    if (!$booted) {
+        foreach ([$root . '/vendor/autoload.php', $root . '/apps/cloud/vendor/autoload.php', $root . '/webssh/vendor/autoload.php'] as $autoload) {
+            if (!function_exists('Sentry\\init') && is_file($autoload)) {
+                require_once $autoload;
+            }
+        }
+        if (!function_exists('Sentry\\init')) {
+            $booted = true;
+            return;
+        }
+        \Sentry\init([
+            'dsn' => (string)(getenv('SENTRY_DSN') ?: 'https://d1dce542fdd62eb4e5cc6dae1a4cc7ac@o4512096935280640.ingest.de.sentry.io/4512096937902160'),
+            'environment' => (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production')),
+            'release' => (string)(getenv('SENTRY_RELEASE') ?: ''),
+            'traces_sample_rate' => (float)(getenv('SENTRY_TRACES_SAMPLE_RATE') ?: 0.1),
+        ]);
+        $booted = true;
+    }
+    if (function_exists('Sentry\\configureScope')) {
+        \Sentry\configureScope(static function ($scope) use ($appId): void {
+            if (method_exists($scope, 'setTag')) {
+                $scope->setTag('app', $appId);
+            }
+        });
+    }
+}
+function app_sentry_capture_exception(Throwable $exception): void
+{
+    if (!function_exists('Sentry\\captureException')) {
+        return;
+    }
+    try {
+        \Sentry\captureException($exception);
+    } catch (Throwable) {
+    }
+}
