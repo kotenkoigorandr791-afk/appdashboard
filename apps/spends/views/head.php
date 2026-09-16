@@ -323,6 +323,30 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         #import-modal .modal-content, #bank-csv-import-modal .modal-content { width:min(1120px,calc(100vw - 32px))!important; height:calc(100dvh - 32px)!important; max-width:calc(100vw - 32px)!important; max-height:calc(100dvh - 32px)!important; border-radius:18px!important; padding:0!important; overflow:hidden; }
         #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
         #import-modal .modal-content::before, #bank-csv-import-modal .modal-content::before { border-radius:18px 18px 0 0; }
+        /* Import (OCR wizard) needs an opaque top bar; also prevent scrollbar overlap */
+        #import-modal .modal-content::before{
+            content:""!important;
+            height:52px!important;
+            background:var(--surface-solid)!important;
+            opacity:1!important;
+            border-bottom:1px solid var(--border-color)!important;
+            pointer-events:none;
+            z-index:50;
+        }
+        #import-modal .ocr-shell{
+            z-index:1;
+        }
+        #import-modal .ocr-shell-close{
+            top:26px!important; /* 52px bar height / 2 */
+            transform:translateY(-50%)!important;
+        }
+        #import-modal .ocrw-shell{
+            scrollbar-gutter:stable both-edges;
+            -webkit-scrollbar-gutter:stable both-edges;
+            position:relative;
+            z-index:1;
+            padding-top:68px!important;
+        }
         .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow:hidden; }
         .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; flex-shrink:0; }
         .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow-y:auto; }

@@ -80,6 +80,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     var dayOffset by remember { mutableIntStateOf(0) }
     var monthOffset by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf(StatsState()) }
+    var localMonthSteps by remember { mutableStateOf<Map<LocalDate, Long>>(emptyMap()) }
     var androidSteps by remember { mutableStateOf<Long?>(null) }
     var androidStepsError by remember { mutableStateOf<String?>(null) }
     var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
@@ -88,6 +89,9 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
     suspend fun load(force: Boolean = false) {
         state = fetchYearStats(config, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force)
+    }
+    suspend fun loadLocalMonth() {
+        localMonthSteps = readAndroidMonthSteps(context, chartMonth)
     }
     suspend fun loadAndroidSteps(force: Boolean = false) {
         androidStepsError = null
@@ -110,14 +114,16 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
             if (newUrl != currentConfigUrl) {
                 currentConfigUrl = newUrl
                 state = StatsState()
-                if (newUrl != null) load()
+                load()
             }
             delay(2_000)
         }
     }
     LaunchedEffect(currentConfigUrl) {
-        if (currentConfigUrl != null) load()
-        else state = StatsState()
+        load()
+    }
+    LaunchedEffect(chartMonth, currentConfigUrl) {
+        loadLocalMonth()
     }
     LaunchedEffect(selectedDate) {
         while (true) {
@@ -145,10 +151,13 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
                 }
-                StepsChart(state.steps, chartMonth)
+                StepsChart(localMonthSteps + state.steps, chartMonth)
             }
         }
-        Button(onClick = { scope.launch { load(true); loadAndroidSteps(true) } }, modifier = Modifier.fillMaxWidth()) {
+        if (currentConfigUrl == null && (localMonthSteps.isNotEmpty() || state.steps.isNotEmpty())) {
+            Text(stringResource(R.string.stats_local_data), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        Button(onClick = { scope.launch { load(true); loadAndroidSteps(true); loadLocalMonth() } }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.dashboard_refresh))
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -294,8 +303,43 @@ private suspend fun readAndroidSteps(context: android.content.Context, date: Loc
             .also { PreferencesManager(context).setAndroidStepsCache(date.toString(), it) }
     }
 }
+private fun cachedMonthSteps(month: YearMonth, prefs: PreferencesManager): Map<LocalDate, Long> {
+    val result = mutableMapOf<LocalDate, Long>()
+    for (day in 1..month.lengthOfMonth()) {
+        val date = month.atDay(day)
+        prefs.getAndroidStepsCache(date.toString(), Long.MAX_VALUE)?.let { result[date] = it }
+    }
+    return result
+}
+private suspend fun readAndroidMonthSteps(context: android.content.Context, month: YearMonth): Map<LocalDate, Long> = withContext(Dispatchers.IO) {
+    val prefs = PreferencesManager(context)
+    runCatching {
+        val manager = HealthConnectManager(context)
+        if (HealthConnectManager.grantedDataTypes(manager.getGrantedPermissions()).none { it == HealthDataType.STEPS }) {
+            return@runCatching cachedMonthSteps(month, prefs)
+        }
+        val zone = ZoneId.systemDefault()
+        manager.readHealthData(
+            enabledTypes = setOf(HealthDataType.STEPS),
+            lastSyncTimestamps = emptyMap(),
+            start = month.atDay(1).atStartOfDay(zone).toInstant(),
+            end = month.plusMonths(1).atDay(1).atStartOfDay(zone).toInstant()
+        )
+            .getOrThrow()
+            .steps
+            .groupBy { it.startTime.atZone(zone).toLocalDate() }
+            .mapValues { (_, records) -> records.sumOf { it.count } }
+            .also { map -> map.forEach { (date, count) -> prefs.setAndroidStepsCache(date.toString(), count) } }
+    }.getOrElse { cachedMonthSteps(month, prefs) }
+}
 private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDataType>, prefs: PreferencesManager, force: Boolean = false): StatsState = withContext(Dispatchers.IO) {
-    if (config == null) return@withContext StatsState(error = "Not connected")
+    if (config == null) {
+        return@withContext prefs.getStatsCache(Long.MAX_VALUE)?.let { json ->
+            runCatching {
+                parseServerMetrics(JSONObject(json).optJSONArray("metrics") ?: JSONArray(), enabled, JSONObject(json).optJSONArray("steps") ?: JSONArray())
+            }.getOrNull() ?: StatsState()
+        } ?: StatsState()
+    }
     if (!force) {
         prefs.getStatsCache(STATS_CACHE_MAX_AGE_MS)?.let {
             return@withContext runCatching { parseServerMetrics(JSONObject(it).optJSONArray("metrics") ?: JSONArray(), enabled, JSONObject(it).optJSONArray("steps") ?: JSONArray()) }.getOrNull() ?: StatsState()

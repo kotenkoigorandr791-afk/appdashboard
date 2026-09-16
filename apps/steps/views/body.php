@@ -6,6 +6,8 @@ $stepmonitorApk = $stepmonitorRoot . '/downloads/stepmonitor.apk';
 $stepmonitorMetaFile = $stepmonitorRoot . '/downloads/stepmonitor.json';
 $stepmonitorMeta = is_file($stepmonitorMetaFile) ? (json_decode((string)file_get_contents($stepmonitorMetaFile), true) ?: []) : [];
 $stepmonitorVersion = (string)($stepmonitorMeta['hash'] ?? (is_file($stepmonitorApk) ? filemtime($stepmonitorApk) : ''));
+$stepmonitorVersionName = (string)($stepmonitorMeta['version'] ?? '');
+$stepmonitorBuiltAt = (int)($stepmonitorMeta['built_at'] ?? 0);
 $stepmonitorAvailable = is_file($stepmonitorApk);
 $stepmonitorShow = $stepmonitorAvailable && (empty($userSettings['mobile_apk_hidden']) || (string)($userSettings['mobile_apk_seen_version'] ?? '') !== $stepmonitorVersion);
 $stepmonitorServerIp = (string)($_SERVER['SERVER_ADDR'] ?? '');
@@ -395,6 +397,16 @@ $metricButtons = [
                     <button id="mobile-app-download-btn" type="button" class="mobile-app-download-btn" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
                         <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
                     </button>
+                    <?php if ($stepmonitorVersionName !== '' || $stepmonitorBuiltAt > 0): ?>
+                    <div class="mobile-app-version-info">
+                        <?php if ($stepmonitorVersionName !== ''): ?>
+                        <span class="mobile-app-version-item"><i class="fas fa-code-branch"></i> v<?php echo htmlspecialchars($stepmonitorVersionName); ?></span>
+                        <?php endif; ?>
+                        <?php if ($stepmonitorBuiltAt > 0): ?>
+                        <span class="mobile-app-version-item"><i class="far fa-clock"></i> <?php echo htmlspecialchars($translations['mobile_app_version_updated'] ?? 'Updated'); ?> <?php echo htmlspecialchars(date('d.m.Y', $stepmonitorBuiltAt)); ?></span>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>

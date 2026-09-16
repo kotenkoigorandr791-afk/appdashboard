@@ -6,7 +6,8 @@
         "phpseclib/phpseclib": "^3.0.54",
         "guzzlehttp/psr7": "^2.13",
         "guzzlehttp/guzzle": "^7.15",
-        "php-mqtt/client": "^2.3"
+        "php-mqtt/client": "^2.3",
+        "sentry/sentry": "^4.31"
     },
     "config": {
         "audit": {

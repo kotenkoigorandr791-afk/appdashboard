@@ -341,8 +341,8 @@ class PreferencesManager(context: Context) {
      * staying stuck on an old success timestamp and re-firing every few minutes.
      */
     fun getEffectiveLastSyncAnchor(): Long? {
-        getLastSyncTime()?.let { return it }
         getLastSyncAttemptTime()?.let { return it }
+        getLastSyncTime()?.let { return it }
         return getEffectiveLastSyncTime()
     }
 

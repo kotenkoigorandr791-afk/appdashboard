@@ -3,6 +3,8 @@ if (php_sapi_name() !== 'cli') {
     exit(1);
 }
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
+require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php';
+app_sentry_bootstrap('smart_home_mqtt');
 require_once dirname(__DIR__, 2) . '/lib/app_db.php';
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;

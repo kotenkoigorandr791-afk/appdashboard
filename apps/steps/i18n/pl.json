@@ -331,5 +331,6 @@
     "mobile_app_hide_toast": "Przycisk pobierania został ukryty. Możesz go włączyć ponownie w oknie informacji.",
     "mobile_app_show_in_header": "Pokaż przycisk pobierania w nagłówku",
     "info_card_mobile_text": "Zainstaluj towarzyszącą aplikację Android, aby synchronizować kroki i dane zdrowotne z telefonu z tym panelem.",
-    "mobile_app_open": "Otwórz aplikację"
+    "mobile_app_open": "Otwórz aplikację",
+    "mobile_app_version_updated": "Zaktualizowano"
 }
