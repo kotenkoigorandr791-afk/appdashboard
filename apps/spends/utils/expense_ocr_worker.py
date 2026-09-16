@@ -5,9 +5,10 @@ import json
 import re
 import sys
 import os
+import subprocess
+import tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib'))
 from pg_sqlite_compat import connect_user
-import subprocess
 import time
 import unicodedata
 from datetime import datetime
@@ -34,15 +35,15 @@ WALLET_AMOUNT_FRAC=re.compile(r"^\d+\.\d{2}$")
 OCR_DIGIT=r"[\dOЗзOoI]"
 AMOUNT_OCR_PART=rf"(?:{OCR_DIGIT}+)[.,](?:{OCR_DIGIT}{{2}})(?!(?:{OCR_DIGIT}))"
 LEGAL_SUFFIXES={"stiftung","co","ko","kg","sp","z","oo","ltd","llc","inc","gmbh","sro","s.r.o","sa","s.a","ooo","тов","пп","фоп"}
-_EASYOCR_READER=None
 _MERCHANT_CLASSIFIER=None
 _AI_CONFIG=None
 _AI_MATCH_CACHE={}
 _VLM_MODEL=None
 _VLM_PROCESSOR=None
 VLM_MODEL_ID=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
-VLM_MAX_PIXELS=int(os.environ.get("SPENDS_OCR_VLM_MAX_PIXELS","1048576"))
-VLM_MAX_NEW_TOKENS=int(os.environ.get("SPENDS_OCR_VLM_MAX_NEW_TOKENS","768"))
+VLM_MAX_PIXELS=int(os.environ.get("SPENDS_OCR_VLM_MAX_PIXELS","196608"))
+VLM_MAX_NEW_TOKENS=int(os.environ.get("SPENDS_OCR_VLM_MAX_NEW_TOKENS","1024"))
+VLM_MAX_SECONDS=float(os.environ.get("SPENDS_OCR_VLM_MAX_SECONDS","285"))
 class OcrCancelled(Exception):
     pass
 def now_iso():
@@ -181,72 +182,177 @@ def get_vlm():
         return _VLM_MODEL,_VLM_PROCESSOR
     import torch
     from transformers import AutoProcessor,Qwen2_5_VLForConditionalGeneration
+    torch.set_num_threads(int(os.environ.get("SPENDS_OCR_TORCH_THREADS","2")))
     _VLM_PROCESSOR=AutoProcessor.from_pretrained(VLM_MODEL_ID,trust_remote_code=True)
-    dtype=torch.float16 if torch.cuda.is_available() else torch.bfloat16
-    offload_folder=Path(os.environ.get("HF_HOME",str(Path.home()/".cache/huggingface")))/"spends_ocr_offload"
-    offload_folder.mkdir(parents=True,exist_ok=True)
-    _VLM_MODEL=Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL_ID,torch_dtype=dtype,device_map="auto",trust_remote_code=True,low_cpu_mem_usage=True,offload_folder=str(offload_folder),offload_state_dict=True)
+    if torch.cuda.is_available():
+        _VLM_MODEL=Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL_ID,torch_dtype=torch.float16,device_map="auto",trust_remote_code=True,low_cpu_mem_usage=True)
+    else:
+        _VLM_MODEL=Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL_ID,torch_dtype=torch.bfloat16,trust_remote_code=True,low_cpu_mem_usage=True)
     _VLM_MODEL.eval()
     return _VLM_MODEL,_VLM_PROCESSOR
-def vlm_recognize_image(path,existing_stores,base_currency,default_date):
+def prepare_vlm_image(path):
+    from PIL import Image
+    image=Image.open(path).convert("RGB")
+    width,height=image.size
+    if height/float(max(width,1))>1.55 and height>1200:
+        image=image.crop((0,int(height*0.10),width,int(height*0.99)))
+        width,height=image.size
+    max_pixels=max(65536,VLM_MAX_PIXELS)
+    pixels=width*height
+    if pixels>max_pixels:
+        scale=(max_pixels/float(pixels))**0.5
+        image=image.resize((max(1,int(width*scale)),max(1,int(height*scale))),Image.Resampling.LANCZOS)
+    tmp=tempfile.NamedTemporaryFile(prefix="spends-vlm-",suffix=".jpg",delete=False)
+    tmp_path=Path(tmp.name)
+    tmp.close()
+    image.save(tmp_path,"JPEG",quality=92,optimize=True)
+    return tmp_path
+
+def extract_partial_vlm_rows(output):
+    rows=[]
+    for line in str(output or "").splitlines():
+        item=line.strip().strip("`").rstrip(",")
+        if not item or item.lower() in {"json","csv","tsv"}:
+            continue
+        if item.startswith("[") and item.endswith("]") and item != "[":
+            try:
+                row=json.loads(item)
+            except Exception:
+                row=None
+            if isinstance(row,list) and len(row)>=4:
+                rows.append(row)
+                continue
+        sep="|" if "|" in item else ("\t" if "\t" in item else None)
+        if not sep:
+            continue
+        parts=[x.strip() for x in item.split(sep)]
+        if len(parts)<5 or not re.search(r"\d",parts[3]):
+            continue
+        store="" if len(parts)<3 or parts[2] in {"?","-","null","None"} else parts[2]
+        new_store="" if len(parts)<6 or parts[5] in {"?","-","null","None"} else parts[5]
+        rows.append([parts[0],parts[1],store,parts[3],parts[4],0.95,new_store])
+    return rows
+
+def parse_vlm_transactions(data,output,stores,base_currency,default_date):
+    if isinstance(data,dict):
+        txs=data.get("transactions",[])
+    elif isinstance(data,list):
+        txs=data
+    else:
+        txs=extract_partial_vlm_rows(output)
+        if not txs:
+            return [],output or "vlm_invalid_json"
+    result=[]
+    store_set=set(stores)
+    store_lookup={normalize_text(x):x for x in stores}
+    for row in txs if isinstance(txs,list) else []:
+        if isinstance(row,list):
+            date=normalize_space(row[0] if len(row)>0 else "") or default_date
+            merchant=normalize_space((row[1] if len(row)>1 else "") or "")
+            store=normalize_space(row[2] if len(row)>2 and row[2] is not None else "")
+            try:
+                amount=float(str(row[3] if len(row)>3 else "0").replace(",","."))
+            except ValueError:
+                amount=0.0
+            currency=str(row[4] if len(row)>4 and row[4] else base_currency).upper().strip()
+            try:
+                confidence=float(row[5] if len(row)>5 else 0.0)
+            except ValueError:
+                confidence=0.0
+            suggested=normalize_space((row[6] if len(row)>6 else "") or "")
+        elif isinstance(row,dict):
+            merchant=normalize_space(row.get("merchant_raw") or row.get("merchant") or row.get("m") or "")
+            store=normalize_space(row.get("store") or row.get("s") or "")
+            suggested=normalize_space(row.get("suggested_store") or row.get("suggested") or row.get("n") or "")
+            currency=str(row.get("currency") or row.get("c") or base_currency).upper().strip()
+            try:
+                amount=float(str(row.get("amount",row.get("a",0)) or "0").replace(",","."))
+            except ValueError:
+                amount=0.0
+            date=normalize_space(row.get("date") or row.get("d") or "") or default_date
+            try:
+                confidence=float(row.get("confidence",row.get("q",0.0)) or 0.0)
+            except ValueError:
+                confidence=0.0
+        else:
+            continue
+        if currency not in SUPPORTED_CURRENCIES:
+            currency=base_currency
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$",date):
+            date=default_date
+        if amount<=0 or not (merchant or store or suggested):
+            continue
+        if store and store not in store_set:
+            matched_store=store_lookup.get(normalize_text(store))
+            if matched_store:
+                store=matched_store
+            else:
+                suggested=suggested or store
+                store=""
+        result.append({"date":date,"merchant_raw":merchant or store or suggested,"store":store,"amount":round(amount,2),"currency":currency,"confidence":max(0.0,min(confidence,1.0)),"suggested_store":suggested})
+    return result,output
+
+def vlm_recognize_image_local(path,existing_stores,base_currency,default_date,raw_file=None,json_file=None):
     model,processor=get_vlm()
     from qwen_vl_utils import process_vision_info
     stores=[str(x) for x in existing_stores if str(x).strip()]
-    prompt={
-        "task":"Read this receipt or wallet screenshot and extract expense transactions. Compare merchant names with existing_stores yourself. If a merchant is the same as a listed store, copy that store exactly into store. If no existing store clearly matches, set store to null and suggest a clean store name. Return JSON only.",
-        "existing_stores":stores[:500],
-        "base_currency":base_currency,
-        "default_date":default_date,
-        "schema":{"transactions":[{"date":"YYYY-MM-DD or null","merchant_raw":"text read from image","store":"exact existing store or null","amount":0.0,"currency":"ISO 4217 or empty","confidence":0.0,"suggested_store":"optional"}]},
-        "rules":["Use default_date if the image has no date.","Use base_currency if currency is not visible.","Do not invent expenses.","Only choose a store from existing_stores when it is clearly the same merchant.","Return no markdown, only JSON."]}
-    messages=[{"role":"user","content":[{"type":"image","image":str(path),"max_pixels":VLM_MAX_PIXELS},{"type":"text","text":json.dumps(prompt,ensure_ascii=False)}]}]
+    prompt={"task":"Read every visible expense transaction card from the image. Match merchant names to stores. Return one strict JSON object only, no markdown.","stores":stores[:300],"currency":base_currency,"default_date":default_date,"schema":{"transactions":[{"date":"YYYY-MM-DD","merchant_raw":"text from image","store":"exact store from stores or null","amount":0.0,"currency":base_currency,"confidence":0.0,"suggested_store":"clean name when store is null"}]},"rules":["Preserve visible dates and years.","If year is missing use the year from default_date.","Use exact store from stores only when clearly same merchant.","Do not invent transactions."]}
+    messages=[{"role":"user","content":[{"type":"image","image":str(path),"max_pixels":VLM_MAX_PIXELS},{"type":"text","text":json.dumps(prompt,ensure_ascii=False,separators=(",",":"))}]}]
     text=processor.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
     image_inputs,video_inputs=process_vision_info(messages)
     inputs=processor(text=[text],images=image_inputs,videos=video_inputs,padding=True,return_tensors="pt")
     device=next(model.parameters()).device
     inputs={k:(v.to(device) if hasattr(v,"to") else v) for k,v in inputs.items()}
     import torch
-    with torch.inference_mode():
-        generated=model.generate(**inputs,max_new_tokens=VLM_MAX_NEW_TOKENS,do_sample=False)
-    generated_trimmed=[out[len(inp):] for inp,out in zip(inputs["input_ids"],generated)]
-    output=processor.batch_decode(generated_trimmed,skip_special_tokens=True,clean_up_tokenization_spaces=False)[0]
-    del generated,generated_trimmed,inputs
+    from threading import Thread
+    from transformers import TextIteratorStreamer
+    streamer=TextIteratorStreamer(processor.tokenizer,skip_prompt=True,skip_special_tokens=True,clean_up_tokenization_spaces=False)
+    kwargs=dict(inputs,max_new_tokens=VLM_MAX_NEW_TOKENS,do_sample=False,streamer=streamer)
+    chunks=[]
+    if raw_file:
+        Path(raw_file).write_text("",encoding="utf-8")
+    def generate():
+        with torch.inference_mode():
+            model.generate(**kwargs)
+    thread=Thread(target=generate,daemon=True)
+    thread.start()
+    for chunk in streamer:
+        chunks.append(chunk)
+        if raw_file:
+            with open(raw_file,"a",encoding="utf-8") as f:
+                f.write(chunk)
+                f.flush()
+    thread.join()
+    output="".join(chunks)
+    del inputs
     data=extract_json_payload(output)
-    if isinstance(data,dict):
-        txs=data.get("transactions",[])
-    elif isinstance(data,list):
-        txs=data
-    else:
-        raise RuntimeError("vlm_invalid_json")
-    result=[]
-    store_set=set(stores)
-    for row in txs if isinstance(txs,list) else []:
-        if not isinstance(row,dict):
-            continue
-        merchant=normalize_space(row.get("merchant_raw") or row.get("merchant") or "")
-        store=normalize_space(row.get("store") or "")
-        suggested=normalize_space(row.get("suggested_store") or "")
-        currency=str(row.get("currency") or base_currency).upper().strip()
-        if currency not in SUPPORTED_CURRENCIES:
-            currency=base_currency
+    rows,raw=parse_vlm_transactions(data,output,stores,base_currency,default_date)
+    if json_file:
+        Path(json_file).write_text(json.dumps({"model":VLM_MODEL_ID,"image":Path(path).name,"base_currency":base_currency,"default_date":default_date,"transactions":rows,"raw":output},ensure_ascii=False,indent=2),encoding="utf-8")
+    return rows,raw
+
+def vlm_recognize_image(path,existing_stores,base_currency,default_date):
+    prepared=prepare_vlm_image(path)
+    out_dir=path.parent.parent/"vlm_outputs"
+    out_dir.mkdir(parents=True,exist_ok=True)
+    raw_path=out_dir/f"{path.stem}.response.md"
+    json_path=out_dir/f"{path.stem}.parsed.json"
+    try:
+        cmd=[sys.executable,str(Path(__file__).resolve()),"--vlm-once",str(prepared),"--vlm-stores-json",json.dumps([str(x) for x in existing_stores if str(x).strip()],ensure_ascii=False),"--vlm-base-currency",base_currency,"--vlm-default-date",default_date,"--vlm-raw-file",str(raw_path),"--vlm-json-file",str(json_path)]
+        completed=subprocess.run(cmd,capture_output=True,text=True,env={**os.environ,"SPENDS_OCR_VLM_CHILD":"1"})
+        if completed.returncode!=0:
+            raw=raw_path.read_text(encoding="utf-8") if raw_path.exists() else ""
+            rows,_=parse_vlm_transactions(extract_json_payload(raw),raw,[str(x) for x in existing_stores if str(x).strip()],base_currency,default_date)
+            if rows:
+                return rows,raw
+            raise RuntimeError((completed.stderr or completed.stdout or raw or "vlm_failed")[-2000:])
+        payload=json.loads(completed.stdout.strip())
+        return payload.get("rows",[]),payload.get("raw","")
+    finally:
         try:
-            amount=float(str(row.get("amount") or "0").replace(",","."))
-        except ValueError:
-            amount=0.0
-        date=normalize_space(row.get("date") or "") or default_date
-        if not re.match(r"^\d{4}-\d{2}-\d{2}$",date):
-            date=default_date
-        if amount<=0 or not (merchant or store or suggested):
-            continue
-        if store and store not in store_set:
-            suggested=suggested or store
-            store=""
-        try:
-            confidence=float(row.get("confidence") or 0.0)
-        except ValueError:
-            confidence=0.0
-        result.append({"date":date,"merchant_raw":merchant or store or suggested,"store":store,"amount":round(amount,2),"currency":currency,"confidence":max(0.0,min(confidence,1.0)),"suggested_store":suggested})
-    return result,output
+            prepared.unlink()
+        except Exception:
+            pass
 def ai_resolve_store_match(merchant,existing,ocr_text=""):
     cfg=load_ai_config()
     if not cfg or not cfg.get("api_key") or not existing:
@@ -539,196 +645,12 @@ def parse_date(text,default_date):
             except ValueError:
                 pass
     return default_date
-def tesseract_tsv_words(path):
-    tesseract_bin=os.environ.get("TESSERACT_BIN","tesseract")
-    cmd=[tesseract_bin,str(path),"stdout","-l","eng+ukr+rus","--psm","6","tsv"]
-    res=subprocess.run(cmd,capture_output=True,text=True,check=False)
-    if res.returncode!=0:
-        return []
-    words=[]
-    for row in res.stdout.splitlines()[1:]:
-        cols=row.split("\t")
-        if len(cols)<12:
-            continue
-        text=normalize_space(cols[11])
-        if not text:
-            continue
-        try:
-            left,top,width,height=int(cols[6]),int(cols[7]),int(cols[8]),int(cols[9])
-            conf=float(cols[10])
-        except ValueError:
-            continue
-        words.append({"text":text,"left":left,"top":top,"right":left+width,"bottom":top+height,"conf":conf})
-    return words
-def group_words_by_line(words):
-    rows=[]
-    for word in sorted(words,key=lambda w:(w["top"],w["left"])):
-        cy=(word["top"]+word["bottom"])/2
-        placed=False
-        for row in rows:
-            if abs(row["cy"]-cy)<=18:
-                row["words"].append(word)
-                row["cy"]=(row["cy"]*(len(row["words"])-1)+cy)/len(row["words"])
-                placed=True
-                break
-        if not placed:
-            rows.append({"cy":cy,"words":[word]})
-    lines=[]
-    for row in rows:
-        text=normalize_space(" ".join(w["text"] for w in sorted(row["words"],key=lambda w:w["left"])))
-        if text:
-            lines.append(text)
-    return lines
-def merchant_quality(text):
-    s=normalize_space(text)
-    if not s:
-        return -100
-    letters=sum(1 for c in s if c.isalpha())
-    bad=sum(1 for c in s if c in "\\/|<>^~" or c.isdigit())
-    mixed=sum(1 for token in s.split() if re.search(r"[A-Za-z]",token) and re.search(r"[\u0400-\u04ff]",token))
-    script_mix=1 if re.search(r"[A-Za-z]",s) and re.search(r"[\u0400-\u04ff]",s) else 0
-    return letters*2-bad*4-mixed*3-script_mix*6-len(re.findall(r"\b\w{1,2}\b",s))
-def ocr_crop_text(path,box):
-    try:
-        from PIL import Image
-        im=Image.open(str(path)).convert("L")
-        x1,y1,x2,y2=[max(0,int(v)) for v in box]
-        if x2<=x1 or y2<=y1:
-            return ""
-        crop=im.crop((x1,y1,x2,y2))
-        scale=3 if max(crop.size)<700 else 2
-        crop=crop.resize((crop.size[0]*scale,crop.size[1]*scale),Image.Resampling.LANCZOS)
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".png",delete=False) as tmp:
-            tmp_path=tmp.name
-            crop.save(tmp_path)
-        try:
-            res=subprocess.run([os.environ.get("TESSERACT_BIN","tesseract"),tmp_path,"stdout","-l","eng+ukr+rus","--psm","6"],capture_output=True,text=True,check=False)
-        finally:
-            try:
-                os.unlink(tmp_path)
-            except OSError:
-                pass
-        if res.returncode!=0:
-            return ""
-        lines=[normalize_space(x) for x in res.stdout.splitlines() if normalize_space(x)]
-        lines=[x for x in lines if not parse_month_day_line(x) and not parse_amount_line_only(x)]
-        return normalize_space(" ".join(lines))
-    except Exception:
-        return ""
-def wallet_text_from_tsv_words(words,path=None):
-    amount_words=[w for w in words if w["left"]>=650 and parse_amount_line_only(w["text"])]
-    if len(amount_words)<3:
-        return ""
-    lines=[]
-    sorted_amounts=sorted(amount_words,key=lambda w:w["top"])
-    for idx,amount_word in enumerate(sorted_amounts):
-        next_top=sorted_amounts[idx+1]["top"] if idx+1<len(sorted_amounts) else amount_word["top"]+260
-        card_bottom=(amount_word["top"]+next_top)/2
-        date_line=""
-        date_top=card_bottom
-        for word in sorted([w for w in words if 240<=w["left"]<=390 and amount_word["top"]<w["top"]<card_bottom],key=lambda w:(w["top"],w["left"])):
-            same_line=[w for w in words if abs(((w["top"]+w["bottom"])/2)-((word["top"]+word["bottom"])/2))<=18 and 240<=w["left"]<=390]
-            candidate=normalize_space(" ".join(w["text"] for w in sorted(same_line,key=lambda w:w["left"])))
-            normalized_date=normalize_wallet_date_line(candidate)
-            if normalized_date:
-                date_line=normalized_date
-                date_top=word["top"]
-                break
-        merchant_words=[w for w in words if 240<=w["left"]<700 and amount_word["top"]-80<=w["top"]<date_top-4 and not parse_amount_line_only(w["text"]) and not parse_month_day_line(w["text"]) and w["conf"]>=20]
-        merchant=clean_wallet_merchant(" ".join(group_words_by_line(merchant_words)))
-        if path is not None:
-            crop_merchant=clean_wallet_merchant(ocr_crop_text(path,(240,amount_word["top"]-95,700,date_top-2)))
-            if is_valid_merchant_line(crop_merchant) and merchant_quality(crop_merchant)>merchant_quality(merchant):
-                merchant=crop_merchant
-        if not merchant or not is_valid_merchant_line(merchant):
-            continue
-        lines.extend([merchant,amount_word["text"]])
-        if date_line:
-            lines.append(date_line)
-    return "\n".join(lines)
-def ocr_image(path,progress_cb=None):
-    global _EASYOCR_READER
-    easyocr_err=None
-    tsv_text=wallet_text_from_tsv_words(tesseract_tsv_words(path),path)
-    if tsv_text:
-        if progress_cb:
-            progress_cb(1.0)
-        return tsv_text
-    try:
-        import easyocr
-        if _EASYOCR_READER is None:
-            _EASYOCR_READER=easyocr.Reader(["en","uk","ru"],gpu=False,verbose=False)
-        arr=None
-        try:
-            from PIL import Image
-            import numpy as np
-            im=Image.open(str(path)).convert("RGB")
-            w,h=im.size
-            if max(w,h)<1400:
-                im=im.resize((min(w*2,4000),min(h*2,4000)),Image.Resampling.LANCZOS)
-            arr=np.array(im)
-        except Exception:
-            arr=None
-        chunks=[]
-        if arr is not None:
-            h=arr.shape[0]
-            if h>1200:
-                chunk_h=min(1200,max(700,h//3))
-                overlap=120
-                start=0
-                while start<h:
-                    end=min(h,start+chunk_h)
-                    chunks.append(arr[start:end,:,:])
-                    if end>=h:
-                        break
-                    start=max(0,end-overlap)
-            else:
-                chunks.append(arr)
-        texts=[]
-        if chunks:
-            for idx,chunk in enumerate(chunks):
-                out=_EASYOCR_READER.readtext(chunk,detail=0,paragraph=False,width_ths=0.9,height_ths=0.9)
-                texts.extend([x.strip() for x in out if str(x).strip()])
-                if progress_cb:
-                    progress_cb((idx+1)/len(chunks))
-        else:
-            out=_EASYOCR_READER.readtext(str(path),detail=0,paragraph=False,width_ths=0.9,height_ths=0.9)
-            texts=[x.strip() for x in out if str(x).strip()]
-            if progress_cb:
-                progress_cb(1.0)
-        uniq=[]
-        seen=set()
-        for line in texts:
-            key=normalize_space(line).lower()
-            if not key or key in seen:
-                continue
-            seen.add(key)
-            uniq.append(line)
-        text="\n".join(uniq)
-        if text:
-            return text
-    except Exception as exc:
-        easyocr_err=str(exc)
-    tesseract_bin=os.environ.get("TESSERACT_BIN","tesseract")
-    cmd=[tesseract_bin,str(path),"stdout","-l","eng+ukr+rus","--psm","6"]
-    try:
-        res=subprocess.run(cmd,capture_output=True,text=True,check=False)
-    except FileNotFoundError:
-        detail=f": {easyocr_err}" if easyocr_err else ""
-        raise RuntimeError(f"easyocr_not_available_and_tesseract_missing{detail}")
-    if res.returncode!=0:
-        raise RuntimeError(res.stderr.strip() or f"ocr failed {path.name}")
-    if progress_cb:
-        progress_cb(1.0)
-    return res.stdout
 def ocr_signature(date,store,amount,raw):
     payload=f"{date}|{normalize_space(store).lower()}|{amount:.2f}|{normalize_space(raw).lower()}"
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 def register_ocr_entry(conn,signature,date,store,amount,raw,image_name):
-    before=conn.total_changes
-    conn.execute("INSERT OR IGNORE INTO ocr_entries(signature,date,store,amount,ocr_raw_store,image_name,created_at) VALUES(?,?,?,?,?,?,?)",(signature,date,store,amount,raw,image_name,now_iso()))
-    return conn.total_changes>before
+    cur=conn.execute("INSERT INTO ocr_entries(signature,date,store,amount,ocr_raw_store,image_name,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT (signature) DO NOTHING RETURNING signature",(signature,date,store,amount,raw,image_name,now_iso()))
+    return cur.fetchone() is not None
 def best_store_match(merchant,existing,min_score=0.72):
     if not existing:
         return None,0.0
@@ -816,9 +738,15 @@ def ensure_store(conn,name):
     conn.execute("INSERT OR IGNORE INTO stores(id,name,visible,sort_order) VALUES(?,?,1,?)",(str(int(time.time()*1000)),name,int(max_ord)))
 def upsert_expense(conn,date,store,amount):
     conn.execute("INSERT INTO expenses(date,store,amount) VALUES(?,?,?) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2)",(date,store,amount))
+def db_row_value(row,key,index=0):
+    if isinstance(row,dict):
+        return row.get(key)
+    return row[index]
+
 def load_existing_stores(conn):
     try:
-        return [r[0] for r in conn.execute("SELECT name FROM stores").fetchall() if r[0]]
+        rows=conn.execute("SELECT name FROM stores ORDER BY sort_order ASC, id ASC").fetchall()
+        return [str(db_row_value(r,"name") or "") for r in rows if db_row_value(r,"name")]
     except Exception:
         return []
 def ensure_db_schema(conn):
@@ -875,7 +803,7 @@ def process(job_dir,user_email,base_currency):
     added_count=0
     duplicate_count=0
     def check_cancel():
-        if (job_dir/"cancel_requested").exists():
+        if not job_dir.exists() or (job_dir/"cancel_requested").exists():
             raise OcrCancelled("canceled")
     status={"state":"queued","phase":"queued","queue_position":queue_position(job_dir),"progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[],"updated_at":now_iso()}
     write_status(status_path,status)
@@ -891,7 +819,6 @@ def process(job_dir,user_email,base_currency):
         write_status(status_path,{"state":"processing","phase":"processing","queue_position":0,"progress":{"total":len(uploads),"processed":processed,"percent":pct},"base_currency":base_currency,"warnings":warnings[-20:],"records":records[-100:],"recognized":recognized[-100:],"unresolved":unresolved[-50:],"added_count":added_count,"duplicate_count":duplicate_count,"updated_at":now_iso()})
     lock_file=lock_ocr_worker(job_dir,status_path,status,check_cancel)
     update_status(status_path,{"state":"processing","phase":"loading_model","queue_position":0,"message":"loading_model","progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[]})
-    get_vlm()
     rates={base_currency:1.0}
     try:
         rates.update(fetch_rates(base_currency))
@@ -992,17 +919,34 @@ def process(job_dir,user_email,base_currency):
     write_status(status_path,final)
 def main():
     parser=argparse.ArgumentParser()
-    parser.add_argument("--job-dir",required=True)
-    parser.add_argument("--user-email",required=True)
-    parser.add_argument("--base-currency",required=True)
+    parser.add_argument("--job-dir")
+    parser.add_argument("--user-email")
+    parser.add_argument("--base-currency")
+    parser.add_argument("--vlm-once")
+    parser.add_argument("--vlm-stores-json",default="[]")
+    parser.add_argument("--vlm-base-currency",default="")
+    parser.add_argument("--vlm-default-date",default="")
+    parser.add_argument("--vlm-raw-file",default="")
+    parser.add_argument("--vlm-json-file",default="")
     args=parser.parse_args()
+    if args.vlm_once:
+        stores=json.loads(args.vlm_stores_json or "[]")
+        base=(args.vlm_base_currency or "USD").upper()
+        default_date=args.vlm_default_date or datetime.utcnow().strftime("%Y-%m-%d")
+        rows,raw=vlm_recognize_image_local(Path(args.vlm_once),stores,base,default_date,args.vlm_raw_file or None,args.vlm_json_file or None)
+        print(json.dumps({"rows":rows,"raw":raw},ensure_ascii=False))
+        return
+    if not args.job_dir or not args.user_email or not args.base_currency:
+        parser.error("--job-dir, --user-email and --base-currency are required")
     job_dir=Path(args.job_dir)
     status_path=job_dir/"status.json"
     try:
         process(job_dir,args.user_email,args.base_currency.upper())
     except OcrCancelled:
-        write_status(status_path,{"state":"canceled","message":"canceled","updated_at":now_iso()})
+        if status_path.parent.exists():
+            write_status(status_path,{"state":"canceled","message":"canceled","updated_at":now_iso()})
     except Exception as exc:
-        write_status(status_path,{"state":"error","message":str(exc),"updated_at":now_iso()})
+        if status_path.parent.exists():
+            write_status(status_path,{"state":"error","message":str(exc),"updated_at":now_iso()})
 if __name__=="__main__":
     main()

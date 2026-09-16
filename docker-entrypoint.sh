@@ -187,8 +187,10 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   fi
   export HF_HOME="${HF_HOME:-/opt/ApplicationData/huggingface}"
   mkdir -p "$HF_HOME"
+  chown -R www-data:www-data "$HF_HOME" 2>/dev/null || true
+  chmod -R ug+rwX "$HF_HOME" 2>/dev/null || true
   if "$SPENDS_VENV/bin/python3" -c 'import transformers, qwen_vl_utils, huggingface_hub' 2>/dev/null; then
-    "$SPENDS_VENV/bin/python3" - <<'PY' || true
+    su -s /bin/sh www-data -c "HF_HOME='$HF_HOME' '$SPENDS_VENV/bin/python3' -" <<'PY' || true
 import os
 from huggingface_hub import snapshot_download
 model=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
