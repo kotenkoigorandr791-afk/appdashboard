@@ -69,13 +69,76 @@ function ensureOAuthProviderSchema(AppDatabase $db): void {
     )");
 }
 
+function oauth_request_scheme(): string {
+    $forwardedProto = strtolower(trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+    $https = $forwardedProto === 'https'
+        || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443');
+    return $https ? 'https' : 'http';
+}
+
+function oauth_request_host(): string {
+    $forwardedHost = trim(explode(',', (string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? ''))[0]);
+    return $forwardedHost !== '' ? $forwardedHost : (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+}
+
+function oauth_public_origin(): string {
+    $configured = function_exists('getConfig') ? rtrim(trim(getConfig('app_public_base_url', '')), '/') : '';
+    return $configured !== '' ? $configured : oauth_request_scheme() . '://' . oauth_request_host();
+}
+
 function oauth_issuer(): string {
-    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
-    $scheme = $https ? 'https' : 'http';
-    $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
-    return $scheme . '://' . $host;
+    return oauth_public_origin();
+}
+
+function oauth_service_url(string $key, string $default): string {
+    $configured = function_exists('getConfig') ? rtrim(trim(getConfig($key, '')), '/') : '';
+    return $configured !== '' ? $configured : rtrim($default, '/');
+}
+
+function oauth_external_app_url(string $app): string {
+    return match ($app) {
+        'gitea' => oauth_service_url('gitea_url', 'https://git.serverkherson.xyz'),
+        'immich' => oauth_service_url('immich_url', 'https://photo.serverkherson.xyz'),
+        'plane' => oauth_service_url('plane_url', 'https://plane.serverkherson.xyz'),
+        'dawarich' => oauth_service_url('dawarich_url', 'https://dawarich.serverkherson.xyz'),
+        default => oauth_public_origin(),
+    };
+}
+
+function oauth_redirect_html(string $url): void {
+    header('Content-Type: text/html; charset=utf-8');
+    echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($url) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
+    exit;
+}
+
+function oauth_login_url(): string {
+    return oauth_public_origin() . '/login';
+}
+
+function oauth_bridge_url(string $next): string {
+    return oauth_public_origin() . '/oauth-bridge?t=' . urlencode(oauth_create_bridge_token(session_id())) . '&next=' . urlencode($next);
+}
+
+function oauth_app_return_url(string $app, string $theme = ''): string {
+    $qs = http_build_query(array_filter([
+        'app' => $app,
+        'lang' => (string)($_GET['lang'] ?? ''),
+        'theme' => $theme,
+        'color' => (string)($_GET['color'] ?? ''),
+    ], static fn($value): bool => $value !== ''));
+    return '/main' . ($qs !== '' ? '?' . $qs : '');
+}
+
+function oauth_app_bridge_url(string $app, string $theme = ''): string {
+    return oauth_bridge_url(oauth_app_return_url($app, $theme));
+}
+
+function oauth_dashboard_photo_url(string $photo): string {
+    $photo = trim($photo);
+    if ($photo === '' || $photo === 'default_avatar.png') return '';
+    if (preg_match('#^https?://#i', $photo)) return $photo;
+    return oauth_public_origin() . '/' . ltrim($photo, '/');
 }
 
 function oauth_base64url_encode(string $data): string {
@@ -177,8 +240,8 @@ function oauth_upsert_client(string $clientId, string $clientSecret, string $nam
 }
 function oauth_verify_client_secret(string $secret, string $hash): bool {
     if ($secret === '' || $hash === '') return false;
-    if (appPasswordIsArgon2idHash($hash)) return password_verify($secret, $hash);
     $info = password_get_info($hash);
+    if (($info['algoName'] ?? '') === 'argon2id') return password_verify($secret, $hash);
     if (($info['algoName'] ?? '') === 'bcrypt') return password_verify($secret, $hash);
     return false;
 }
@@ -396,61 +459,68 @@ function oauth_route_authorize(): void {
 function oauth_route_token(): void {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
-    $db = getDB();
-    ensureOAuthProviderSchema($db);
-    [$clientId, $clientSecret] = oauth_extract_client_credentials();
-    $client = oauth_find_client($db, $clientId);
-    $storedHash = (string)($client['client_secret_hash'] ?? '');
-    if (!$client || !oauth_verify_client_secret($clientSecret, $storedHash)) {
-        http_response_code(401);
-        echo json_encode(['error' => 'invalid_client']);
+    try {
+        $db = getDB();
+        ensureOAuthProviderSchema($db);
+        [$clientId, $clientSecret] = oauth_extract_client_credentials();
+        $client = oauth_find_client($db, $clientId);
+        $storedHash = is_array($client) ? (string)($client['client_secret_hash'] ?? '') : '';
+        if (!$client || !oauth_verify_client_secret($clientSecret, $storedHash)) {
+            http_response_code(401);
+            echo json_encode(['error' => 'invalid_client']);
+            exit;
+        }
+        if ($clientSecret !== '' && appPasswordNeedsRehash($storedHash)) {
+            $up = $db->prepare('UPDATE oauth_clients SET client_secret_hash = :h WHERE client_id = :c');
+            $up->bindValue(':h', appPasswordHash($clientSecret));
+            $up->bindValue(':c', (string)$client['client_id']);
+            $up->execute();
+        }
+        $grantType = (string)($_POST['grant_type'] ?? '');
+        if ($grantType === 'authorization_code') {
+            $code = (string)($_POST['code'] ?? '');
+            $redirectUri = (string)($_POST['redirect_uri'] ?? '');
+            $codeVerifier = (string)($_POST['code_verifier'] ?? '');
+            $row = oauth_consume_auth_code($db, $code, $client['client_id'], $redirectUri, $codeVerifier);
+            if (!$row) {
+                http_response_code(400);
+                echo json_encode(['error' => 'invalid_grant']);
+                exit;
+            }
+            $user = getUserByEmail((string)$row['email']);
+            if (!$user) {
+                http_response_code(400);
+                echo json_encode(['error' => 'invalid_grant']);
+                exit;
+            }
+            echo json_encode(oauth_issue_tokens($client, $user, (string)$row['scope'], (string)$row['nonce'], (int)$row['auth_time']));
+            exit;
+        }
+        if ($grantType === 'refresh_token') {
+            $row = oauth_consume_refresh_token($db, (string)($_POST['refresh_token'] ?? ''), $client['client_id']);
+            if (!$row) {
+                http_response_code(400);
+                echo json_encode(['error' => 'invalid_grant']);
+                exit;
+            }
+            $user = getUserByEmail((string)$row['email']);
+            if (!$user) {
+                http_response_code(400);
+                echo json_encode(['error' => 'invalid_grant']);
+                exit;
+            }
+            echo json_encode(oauth_issue_tokens($client, $user, (string)$row['scope'], '', time()));
+            exit;
+        }
+        http_response_code(400);
+        echo json_encode(['error' => 'unsupported_grant_type']);
+        exit;
+    } catch (Throwable $e) {
+        error_log('OAuth token error: ' . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['error' => 'server_error']);
         exit;
     }
-    if ($clientSecret !== '' && appPasswordNeedsRehash($storedHash)) {
-        $up = $db->prepare('UPDATE oauth_clients SET client_secret_hash = :h WHERE client_id = :c');
-        $up->bindValue(':h', appPasswordHash($clientSecret));
-        $up->bindValue(':c', (string)$client['client_id']);
-        $up->execute();
-    }
-    $grantType = (string)($_POST['grant_type'] ?? '');
-    if ($grantType === 'authorization_code') {
-        $code = (string)($_POST['code'] ?? '');
-        $redirectUri = (string)($_POST['redirect_uri'] ?? '');
-        $codeVerifier = (string)($_POST['code_verifier'] ?? '');
-        $row = oauth_consume_auth_code($db, $code, $client['client_id'], $redirectUri, $codeVerifier);
-        if (!$row) {
-            http_response_code(400);
-            echo json_encode(['error' => 'invalid_grant']);
-            exit;
-        }
-        $user = getUserByEmail((string)$row['email']);
-        if (!$user) {
-            http_response_code(400);
-            echo json_encode(['error' => 'invalid_grant']);
-            exit;
-        }
-        echo json_encode(oauth_issue_tokens($client, $user, (string)$row['scope'], (string)$row['nonce'], (int)$row['auth_time']));
-        exit;
-    }
-    if ($grantType === 'refresh_token') {
-        $row = oauth_consume_refresh_token($db, (string)($_POST['refresh_token'] ?? ''), $client['client_id']);
-        if (!$row) {
-            http_response_code(400);
-            echo json_encode(['error' => 'invalid_grant']);
-            exit;
-        }
-        $user = getUserByEmail((string)$row['email']);
-        if (!$user) {
-            http_response_code(400);
-            echo json_encode(['error' => 'invalid_grant']);
-            exit;
-        }
-        echo json_encode(oauth_issue_tokens($client, $user, (string)$row['scope'], '', time()));
-        exit;
-    }
-    http_response_code(400);
-    echo json_encode(['error' => 'unsupported_grant_type']);
-    exit;
 }
 
 function oauth_route_userinfo(): void {
@@ -631,7 +701,7 @@ function oauth_sync_immich_dawarich(string $email): void {
         }
     }
     if ($immichUserId === null) return;
-    $immichUrl = 'https://photo.serverkherson.xyz';
+    $immichUrl = oauth_external_app_url('immich');
     $token = '';
     $existing = is_array($dawarichSettings) ? trim((string)($dawarichSettings['immich_api_key'] ?? '')) : '';
     if ($existing !== '' && $immich) {
@@ -869,7 +939,7 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
     $avatar = '';
     $photo = trim($photo);
     if ($photo !== '' && $photo !== 'default_avatar.png') {
-        $avatar = preg_match('#^https?://#i', $photo) ? $photo : ('https://serverkherson.xyz/' . ltrim($photo, '/'));
+    $avatar = oauth_dashboard_photo_url($photo);
     }
     try {
         $stmt = $pdo->prepare('SELECT id FROM "user" WHERE lower(email) = lower(:email) LIMIT 1');
