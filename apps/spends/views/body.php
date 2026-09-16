@@ -24,7 +24,7 @@
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('confirm-delete-modal')">×</button>
         <h3><?= htmlspecialchars($translations['confirm_delete_store'] ?? 'Confirm Delete') ?></h3>
-        <p id="confirm-delete-message">Are you sure?</p>
+        <p id="confirm-delete-message"><?= htmlspecialchars($translations['are_you_sure'] ?? 'Are you sure?') ?></p>
         <div class="button-group">
             <button class="confirm-btn" onclick="executeDelete()"><?= htmlspecialchars($translations['delete']) ?></button>
             <button class="cancel-btn" onclick="closeModal('confirm-delete-modal')"><?= htmlspecialchars($translations['close'] ?? 'Cancel') ?></button>
@@ -118,7 +118,7 @@
             <button class="header-btn" onclick="showModal('settings-modal')" title="<?= htmlspecialchars($translations['settings_title'].' · '.$translations['table_settings']) ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
             </button>
-            <button class="header-btn" onclick="showModal('backup-modal')" title="Backup">
+            <button class="header-btn" onclick="showModal('backup-modal')" title="<?= htmlspecialchars($translations['backup_management']) ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 12v7H5v-7H3v7c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-7h-2zm-6 .67l2.59-2.58L17 11.5l-5 5-5-5 1.41-1.41L11 12.67V3h2z"/></svg>
             </button>
             <button class="header-btn" onclick="showShareModal()" title="<?= htmlspecialchars($translations['share_chart']) ?>">
@@ -128,7 +128,7 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>
             </button>
             <button class="header-btn profile-avatar-btn" type="button" title="<?= htmlspecialchars($translations['user_management']) ?>">
-                <img src="<?= $profilePhoto ?>" class="user-icon" alt="User Profile">
+                <img src="<?= $profilePhoto ?>" class="user-icon" alt="<?= htmlspecialchars($translations['user_profile']) ?>">
             </button>
         </div>
     </div>
@@ -419,7 +419,7 @@
             <label><?= htmlspecialchars($translations['store_photo']) ?>:</label>
             <input type="file" id="store-photo-input" accept="image/*" onchange="previewStorePhoto(this)">
         </div>
-        <img id="store-photo-preview" src="" alt="Preview" style="display:none;max-width:200px;max-height:200px;margin:10px 0;">
+        <img id="store-photo-preview" src="" alt="<?= htmlspecialchars($translations['preview'] ?? 'Preview') ?>" style="display:none;max-width:200px;max-height:200px;margin:10px 0;">
         <button id="crop-store-btn" onclick="cropStorePhoto()" style="display:none;margin:10px 0;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['crop_photo']) ?></button>
         <button onclick="saveStore()" style="margin-top:10px;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['save']) ?></button>
     </div>
@@ -542,7 +542,7 @@
 <div id="view-backup-modal" class="modal">
     <div class="modal-content" style="max-width:95%;max-height:95vh;width:auto;">
         <button class="modal-close" onclick="closeModal('view-backup-modal')">×</button>
-        <h3 style="margin-top:0;color:var(--text-color);">Backup Preview</h3>
+        <h3 style="margin-top:0;color:var(--text-color);"><?= htmlspecialchars($translations['backup_preview'] ?? 'Backup Preview') ?></h3>
         <div id="backup-preview" style="overflow:auto;max-height:80vh;background:var(--bg-color);padding:10px;border-radius:5px;"></div>
     </div>
 </div>

@@ -174,6 +174,17 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   if [ -f /var/www/AppDashboard/apps/steps/utils/requirements.txt ] && ! "$VENV/bin/python3" -c 'import pyzipper, psycopg2' 2>/dev/null; then
     "$VENV/bin/pip" install -q -r /var/www/AppDashboard/apps/steps/utils/requirements.txt || true
   fi
+  SPENDS_VENV=/var/www/AppDashboard/apps/spends/utils/.venv
+  if [ ! -d "$SPENDS_VENV" ]; then
+    python3 -m venv "$SPENDS_VENV"
+  fi
+  if [ ! -x "$SPENDS_VENV/bin/pip" ]; then
+    python3 -m venv --clear "$SPENDS_VENV"
+  fi
+  "$SPENDS_VENV/bin/python3" -m ensurepip --upgrade >/dev/null 2>&1 || true
+  if [ -f /var/www/AppDashboard/apps/spends/utils/requirements-ocr.txt ] && ! "$SPENDS_VENV/bin/python3" -c 'import easyocr, PIL, numpy, psycopg2' 2>/dev/null; then
+    "$SPENDS_VENV/bin/python3" -m pip install -q -r /var/www/AppDashboard/apps/spends/utils/requirements-ocr.txt || true
+  fi
   BOT_VENV=/var/www/AppDashboard/bot/.venv
   if [ ! -d "$BOT_VENV" ]; then
     python3 -m venv "$BOT_VENV"

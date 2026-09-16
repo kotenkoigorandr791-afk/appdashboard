@@ -166,12 +166,12 @@ function renderMonthPagination() {
     container.innerHTML = '';
 
     const { month, year } = getMonthData();
-    const monthNamesShort = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monthNamesShort = monthNames.map(n=>n.slice(0,3));
 
     // Prev month button
     const prevBtn = document.createElement('button');
     prevBtn.innerHTML = '◀';
-    prevBtn.title = 'Previous month';
+    prevBtn.title = t('prev_month','Previous month');
     prevBtn.onclick = () => { navigateMonth(-1); };
     container.appendChild(prevBtn);
 
@@ -184,13 +184,13 @@ function renderMonthPagination() {
     // Next month button
     const nextBtn = document.createElement('button');
     nextBtn.innerHTML = '▶';
-    nextBtn.title = 'Next month';
+    nextBtn.title = t('next_month','Next month');
     nextBtn.onclick = () => { navigateMonth(1); };
     container.appendChild(nextBtn);
 
     // Today button
     const todayBtn = document.createElement('button');
-    todayBtn.textContent = 'Today';
+    todayBtn.textContent = t('today','Today');
     todayBtn.style.marginLeft = '8px';
     const now = new Date();
     if (month === now.getMonth() && year === now.getFullYear()) {
@@ -547,8 +547,8 @@ function updateChart() {
     }
     chart=new Chart(ctx,{type:'line',data:{labels:months,datasets},options:{responsive:true,maintainAspectRatio:false,
         interaction:{mode:'index',intersect:false},
-        scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`Amount (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
-               x:{title:{display:true,text:'Month',color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
+        scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
+               x:{title:{display:true,text:t('chart_month','Month'),color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
         plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
                  tooltip:{mode:'index',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
@@ -700,8 +700,8 @@ function buildOCRAnalyticsChart(payload,selectedStore){
         const stores=[...new Set(monthly.map(r=>r.store))];
         const datasets=stores.map((store,i)=>({type:'bar',label:store,data:labels.map(ym=>{const row=monthly.find(r=>r.ym===ym&&r.store===store);return row?Number(row.amount_sum):0;}),backgroundColor:storeColors[i%storeColors.length]+'55',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
         const intensity=labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((s,r)=>s+Number(r.intensity||0),0));
-        datasets.push({type:'line',label:'Intensity',data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.3,pointRadius:3});
-        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:'Amount',color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},title:{display:true,text:'Intensity',color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'}},x:{ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+        datasets.push({type:'line',label:t('chart_intensity','Intensity'),data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.3,pointRadius:3});
+        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:t('chart_amount','Amount'),color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},title:{display:true,text:t('chart_intensity','Intensity'),color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'}},x:{ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
         return;
     }
     const labels=[...new Set(daily.map(r=>r.date))].sort();
@@ -1029,7 +1029,7 @@ function applyStoreToSettingsUI(s, withPhoto) {
 }
 function saveStore(){
     const name=document.getElementById('store-name-input').value.trim();
-    if(!name){showNotification((translations.store_name||'Store name')+' is required','error');return;}
+    if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}
     const withPhoto=!!storePhotoFile;
     const pendingRaw=pendingOCRStoreRaw;
     const fd=new FormData();
@@ -1151,7 +1151,7 @@ function executeRestoreBackup(){
     .then(r=>r.json()).then(d=>{if(d.status==='success'){showNotification(t('backup_restored','Backup restored'),'success');setTimeout(()=>location.reload(),1000);}else showNotification(d.message||t('error_generic','Error'),'error');});
 }
 function deleteBackup(fn){
-    if(!confirm('Are you sure you want to delete this backup?'))return;
+    if(!confirm(t('confirm_delete_backup','Are you sure you want to delete this backup?')))return;
     fetch('',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({backup_action:'delete',backup_file:fn})})
     .then(r=>r.json()).then(d=>{if(d.status==='success'){showNotification(t('backup_deleted','Backup deleted'),'success');setTimeout(()=>location.reload(),1000);}else showNotification(d.message||t('error_generic','Error'),'error');});
 }
@@ -1166,9 +1166,9 @@ function viewBackup(fn) {
     fetch(`backups/${safeUser}/${fn}`).then(r=>r.text()).then(data=>{
         const preview=document.getElementById('backup-preview');
         const lines=data.trim().split('\n');
-        if(!lines.length){preview.innerHTML='<div style="text-align:center;padding:20px;color:#666;">Empty backup</div>';showModal('view-backup-modal');return;}
+        if(!lines.length){preview.innerHTML=`<div style="text-align:center;padding:20px;color:#666;">${t('empty_backup','Empty backup')}</div>`;showModal('view-backup-modal');return;}
         const headers=lines[0].split(',').map(h=>h.trim());
-        let html=`<div style="margin-bottom:20px;"><h4 style="margin:0 0 5px;color:var(--text-color);">${fn}</h4><div style="font-size:12px;color:#666;">${lines.length-1} records</div></div><div style="overflow:auto;max-height:65vh;"><table style="width:100%;border-collapse:collapse;color:var(--text-color);font-size:14px;"><thead><tr style="background:var(--primary-color);color:white;">`;
+        let html=`<div style="margin-bottom:20px;"><h4 style="margin:0 0 5px;color:var(--text-color);">${fn}</h4><div style="font-size:12px;color:#666;">${t('record_count','{count} records').replace('{count}',lines.length-1)}</div></div><div style="overflow:auto;max-height:65vh;"><table style="width:100%;border-collapse:collapse;color:var(--text-color);font-size:14px;"><thead><tr style="background:var(--primary-color);color:white;">`;
         headers.forEach(h=>html+=`<th style="padding:12px;text-align:left;border:1px solid var(--border-color);font-weight:bold;">${h}</th>`);
         html+='</tr></thead><tbody>';
         let total=0;
@@ -1186,13 +1186,12 @@ function viewBackup(fn) {
             html+='</tr>';
         }
         html+='</tbody>';
-        if(total>0)html+=`<tfoot><tr style="background:var(--primary-color);color:white;"><td colspan="${headers.length}" style="padding:12px;text-align:right;font-weight:bold;">Total:</td><td style="padding:12px;text-align:right;font-family:monospace;font-weight:bold;">${total.toFixed(2)}</td></tr></tfoot>`;
+        if(total>0)html+=`<tfoot><tr style="background:var(--primary-color);color:white;"><td colspan="${headers.length}" style="padding:12px;text-align:right;font-weight:bold;">${t('total_label','Total:')}</td><td style="padding:12px;text-align:right;font-family:monospace;font-weight:bold;">${total.toFixed(2)}</td></tr></tfoot>`;
         html+='</table></div>';
         preview.innerHTML=html;showModal('view-backup-modal');
     }).catch(e=>showNotification(`${t('error_loading_backup','Error loading backup')}: ${e}`,'error'));
 }
 function formatDateWithMonthName(s){
-    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
     s=s.replace(/['"]/g,'');
     let d;
     if(s.match(/^\d{4}-\d{2}-\d{2}$/)){const p=s.split('-');d=new Date(p[0],p[1]-1,p[2]);}
@@ -1200,7 +1199,7 @@ function formatDateWithMonthName(s){
     else if(s.match(/^\d{2}-\d{2}-\d{2}$/)){const p=s.split('-');d=new Date('20'+p[2],p[1]-1,p[0]);}
     else d=new Date(s);
     if(isNaN(d)) return s;
-    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 function openImportModal(){
@@ -1369,7 +1368,7 @@ function getShareChartData(){
     return cd;
 }
 function shareChartOptions(isMobile,titleSize){
-    return {responsive:false,maintainAspectRatio:false,animation:false,scales:{y:{beginAtZero:true,title:{display:true,text:`Amount (${chartCurrency})`,color:'#333'},ticks:{color:'#333'}},x:{title:{display:true,text:'Month',color:'#333'},ticks:{color:'#333'}}},plugins:{legend:{labels:{color:'#333'}},title:{display:true,text:`Expense Tracker - ${currentChartYear}`,color:'#333',font:{size:titleSize||(isMobile?14:18),weight:'bold'}}}};
+    return {responsive:false,maintainAspectRatio:false,animation:false,scales:{y:{beginAtZero:true,title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'#333'},ticks:{color:'#333'}},x:{title:{display:true,text:t('chart_month','Month'),color:'#333'},ticks:{color:'#333'}}},plugins:{legend:{labels:{color:'#333'}},title:{display:true,text:`${t('expense_tracker_title','Expense Tracker')} - ${currentChartYear}`,color:'#333',font:{size:titleSize||(isMobile?14:18),weight:'bold'}}}};
 }
 function renderShareChartCanvas(width,height,isMobile,titleSize){
     const canvas=document.createElement('canvas');

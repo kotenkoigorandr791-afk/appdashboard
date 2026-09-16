@@ -315,6 +315,14 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .modal-close:hover { background:var(--primary-color); color:#fff; filter:none; border-color:var(--primary-color); }
         .modal:not(#import-modal):not(#bank-csv-import-modal) .modal-content { padding-top:64px!important; }
         #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
+        .modal { inset:0; width:auto; height:auto; background:rgba(10,14,18,.48); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); z-index:10000; padding:16px; overflow:hidden; }
+        .modal-content { width:min(920px,100%); max-width:calc(100vw - 32px); max-height:calc(100dvh - 32px); height:auto; border:1px solid var(--border-color); border-radius:18px; box-shadow:var(--shadow-soft); background:color-mix(in srgb,var(--modal-bg) 92%,var(--surface-solid)); padding:64px 22px 22px; overflow:auto; }
+        .modal-close { top:12px!important; right:12px!important; width:38px; height:38px; border-radius:12px; background:color-mix(in srgb,var(--surface-solid) 72%,transparent); border:1px solid var(--border-color); color:var(--muted-text); }
+        .modal-close:hover { background:color-mix(in srgb,var(--primary-color) 12%,var(--surface-solid)); color:var(--primary-color); border-color:color-mix(in srgb,var(--primary-color) 36%,var(--border-color)); }
+        #import-modal, #bank-csv-import-modal { background:rgba(10,14,18,.48); padding:16px!important; align-items:center; justify-content:center; }
+        #import-modal .modal-content, #bank-csv-import-modal .modal-content { width:min(1120px,calc(100vw - 32px))!important; height:calc(100dvh - 32px)!important; max-width:calc(100vw - 32px)!important; max-height:calc(100dvh - 32px)!important; border-radius:18px!important; padding:0!important; overflow:hidden; }
+        #bank-csv-import-modal .modal-content { padding:64px 12px 14px!important; }
+        #import-modal .modal-content::before, #bank-csv-import-modal .modal-content::before { border-radius:18px 18px 0 0; }
         .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow:hidden; }
         .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; flex-shrink:0; }
         .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow-y:auto; }
