@@ -3298,6 +3298,7 @@ endif; // showOtpPage
         </div>
     </div>
 </div>
+<?php require __DIR__ . '/partials/monaco_loader.php'; ?>
 <?php require __DIR__ . '/news_portal_modal.php'; ?>
 <?php
 $selectedAppData=null;

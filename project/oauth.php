@@ -83,9 +83,31 @@ function oauth_request_host(): string {
     return $forwardedHost !== '' ? $forwardedHost : (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
 }
 
+function oauth_is_loopback_origin(string $origin): bool {
+    if ($origin === '') {
+        return true;
+    }
+    $host = strtolower((string)(parse_url($origin, PHP_URL_HOST) ?: ''));
+    return $host === 'localhost' || $host === '127.0.0.1' || $host === '::1';
+}
+
 function oauth_public_origin(): string {
+    $request = rtrim(oauth_request_scheme() . '://' . oauth_request_host(), '/');
     $configured = function_exists('getConfig') ? rtrim(trim(getConfig('app_public_base_url', '')), '/') : '';
-    return $configured !== '' ? $configured : oauth_request_scheme() . '://' . oauth_request_host();
+    $fromEnv = function_exists('app_public_url') ? rtrim(app_public_url(''), '/') : '';
+    // Prefer a real public origin: never advertise localhost issuer to external OIDC clients.
+    foreach ([$configured, $fromEnv, $request] as $candidate) {
+        if ($candidate !== '' && !oauth_is_loopback_origin($candidate)) {
+            return $candidate;
+        }
+    }
+    if ($configured !== '') {
+        return $configured;
+    }
+    if ($fromEnv !== '') {
+        return $fromEnv;
+    }
+    return $request !== '' ? $request : 'http://localhost';
 }
 
 function oauth_issuer(): string {

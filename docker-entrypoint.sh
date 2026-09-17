@@ -267,9 +267,17 @@ $seed = [
   "docker_domain" => app_subdomain_host("docker"),
   "search_engine_url" => app_public_url("search"),
 ];
+$isLoopback = static function (string $url): bool {
+  if ($url === "") return true;
+  $host = strtolower((string)(parse_url($url, PHP_URL_HOST) ?: $url));
+  return $host === "localhost" || $host === "127.0.0.1" || $host === "::1" || str_ends_with($host, ".localhost");
+};
 foreach ($seed as $k => $v) {
   $cur = trim((string)getConfig($k, ""));
-  if ($cur === "" && $v !== "") { setConfig($k, $v); }
+  if ($v === "") continue;
+  if ($cur === "" || ($isLoopback($cur) && !$isLoopback($v))) {
+    setConfig($k, $v);
+  }
 }
 ' >/var/log/supervisor/domain-seed.log 2>&1 || true
 fi
