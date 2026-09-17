@@ -207,4 +207,7 @@ fi
 if [ -f /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php ]; then
   /usr/local/bin/php /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php --once >/var/log/supervisor/smart-home-mqtt-auth-boot.log 2>&1 || true
 fi
+if [ -f /var/www/AppDashboard/supervisord.conf ]; then
+  cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
+fi
 exec "$@"

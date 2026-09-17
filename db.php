@@ -1539,6 +1539,7 @@ function removeUserFromActiveSessions(string $email, ?string $sessionId = null):
 }
 
 function getUserActiveSessions(string $email): array {
+    cleanupExpiredUserSessions($email);
     if ($redis = app_redis()) {
         $out = [];
         $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
@@ -1573,9 +1574,20 @@ function getUserActiveSessions(string $email): array {
 function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 60): int {
     if ($redis = app_redis()) {
         $deleted = 0;
+        $cutoff = time() - $authTimeout;
         $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
         foreach ($redis->sMembers($setKey) ?: [] as $sid) {
-            if (!$redis->exists(app_redis_key('active_session:' . (string)$sid))) {
+            $key = app_redis_key('active_session:' . (string)$sid);
+            $raw = $redis->get($key);
+            if (!$raw) {
+                $redis->sRem($setKey, $sid);
+                $deleted++;
+                continue;
+            }
+            $row = json_decode((string)$raw, true);
+            $lastActivity = is_array($row) ? (int)($row['last_activity'] ?? 0) : 0;
+            if ($lastActivity < $cutoff) {
+                $redis->del($key);
                 $redis->sRem($setKey, $sid);
                 $deleted++;
             }
@@ -1588,6 +1600,71 @@ function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 
     $stmt->bindValue(':email', $email);
     $stmt->bindValue(':cutoff', $cutoff, PDO::PARAM_INT);
     $stmt->execute();
+    return $db->changes();
+}
+
+/**
+ * Delete expired sessions for all users (Redis + DB).
+ * Returns number of deleted session records / orphan index entries.
+ */
+function cleanupAllExpiredSessions(int $authTimeout = 12 * 60 * 60): int {
+    if ($redis = app_redis()) {
+        $deleted = 0;
+        $cutoff = time() - $authTimeout;
+        $it = null;
+        $prefix = app_redis_key('active_session:');
+        while (($keys = $redis->scan($it, $prefix . '*', 100)) !== false) {
+            foreach ($keys as $key) {
+                $raw = $redis->get((string)$key);
+                if (!$raw) {
+                    $redis->del((string)$key);
+                    $deleted++;
+                    continue;
+                }
+                $row = json_decode((string)$raw, true);
+                if (!is_array($row)) {
+                    $redis->del((string)$key);
+                    $deleted++;
+                    continue;
+                }
+                if ((int)($row['last_activity'] ?? 0) >= $cutoff) {
+                    continue;
+                }
+                $sid = (string)($row['session_id'] ?? substr((string)$key, strlen($prefix)));
+                $email = (string)($row['email'] ?? '');
+                $redis->del((string)$key);
+                if ($email !== '') {
+                    $redis->sRem(app_redis_key('active_sessions_by_email:' . strtolower($email)), $sid);
+                }
+                $deleted++;
+            }
+            if ($it === 0) {
+                break;
+            }
+        }
+        $setIt = null;
+        $setPrefix = app_redis_key('active_sessions_by_email:');
+        while (($setKeys = $redis->scan($setIt, $setPrefix . '*', 100)) !== false) {
+            foreach ($setKeys as $setKey) {
+                foreach ($redis->sMembers((string)$setKey) ?: [] as $sid) {
+                    if (!$redis->exists(app_redis_key('active_session:' . (string)$sid))) {
+                        $redis->sRem((string)$setKey, $sid);
+                        $deleted++;
+                    }
+                }
+                if ((int)$redis->sCard((string)$setKey) === 0) {
+                    $redis->del((string)$setKey);
+                }
+            }
+            if ($setIt === 0) {
+                break;
+            }
+        }
+        return $deleted;
+    }
+    $db = getDB();
+    $cutoff = time() - $authTimeout;
+    $db->exec('DELETE FROM active_sessions WHERE last_activity < ' . (int)$cutoff);
     return $db->changes();
 }
 
@@ -1666,16 +1743,23 @@ function ensureAuthenticatedSession(): bool {
 
 /** Fetch a single session row — fast single-row lookup */
 function getUserFromActiveSessions(string $sessionId): ?array {
+    $authTimeout = 12 * 3600;
     if ($redis = app_redis()) {
         $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
         if ($raw) {
             $row = json_decode((string)$raw, true);
-            if (is_array($row)) return $row;
+            if (is_array($row)) {
+                $lastActivity = (int)($row['last_activity'] ?? 0);
+                if ($lastActivity > 0 && (time() - $lastActivity) > $authTimeout) {
+                    removeUserFromActiveSessions((string)($row['email'] ?? ''), $sessionId);
+                } else {
+                    return $row;
+                }
+            }
         }
         // Fallback to DB if Redis doesn't have the key
     }
     $db          = getDB();
-    $authTimeout = 8 * 3600;
     $stmt        = $db->prepare("SELECT * FROM active_sessions WHERE session_id=:sid LIMIT 1");
     $stmt->bindValue(':sid', $sessionId);
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);

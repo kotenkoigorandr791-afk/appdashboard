@@ -1757,11 +1757,10 @@ endif; // showOtpPage
                 <?php if(empty($activeSessions)):?><p><?php echo my_htmlspecialchars($translations['no_active_sessions']); ?></p>
                 <?php else:?>
                     <table class="sessions-table">
-                        <thead><tr><th><?php echo my_htmlspecialchars($translations['session_id']); ?></th><th><?php echo my_htmlspecialchars($translations['device']); ?></th><th><?php echo my_htmlspecialchars($translations['browser']); ?></th><th><?php echo my_htmlspecialchars($translations['login_time']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['ip_address']); ?></th><th><?php echo my_htmlspecialchars($translations['terminate_session']); ?></th></tr></thead>
+                        <thead><tr><th><?php echo my_htmlspecialchars($translations['device']); ?></th><th><?php echo my_htmlspecialchars($translations['browser']); ?></th><th><?php echo my_htmlspecialchars($translations['login_time']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['ip_address']); ?></th><th><?php echo my_htmlspecialchars($translations['terminate_session']); ?></th></tr></thead>
                         <tbody>
                         <?php foreach($activeSessions as $sessionId=>$session):?>
                             <tr class="<?php echo $sessionId===session_id()?'current-session':''; ?>">
-                                <td><?php echo my_htmlspecialchars(substr($sessionId,0,10).'...'); ?><?php if($sessionId===session_id()):?><span style="color:var(--primary-color);font-weight:bold;">(<?php echo my_htmlspecialchars($translations['current_session']); ?>)</span><?php endif;?></td>
                                 <td><div class="device-browser-item"><?php $device=$session['device']??'unknown_device';$deviceClass=$device.'-icon';$deviceText=$translations[$device]??$translations['unknown_device'];?><div class="device-icon <?php echo $deviceClass; ?>"><?php if($device==='windows'):?><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.801"/></svg><?php elseif($device==='linux'):?><svg role="img" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" id="Linux--Streamline-Simple-Icons" height="24" width="24">
   <desc>
     Linux Streamline Icon: https://streamlinehq.com
