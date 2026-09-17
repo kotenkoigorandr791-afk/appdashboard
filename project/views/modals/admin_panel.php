@@ -1664,9 +1664,16 @@ function apCsrfToken(){
 }
 function apRememberCsrf(token){
     if(!token) return;
+    if(typeof window.__AP_REMEMBER_CSRF__==='function'){ window.__AP_REMEMBER_CSRF__(token); return; }
     window.__AP_CSRF__=String(token);
     var meta=document.querySelector('meta[name="csrf-token"]');
     if(meta) meta.setAttribute('content', String(token));
+}
+function apRefreshCsrf(){
+    return fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'})
+        .then(function(r){ return r.json().catch(function(){ return null; }); })
+        .then(function(d){ if(d&&d.csrf) apRememberCsrf(d.csrf); return d; })
+        .catch(function(){ return null; });
 }
 function apAdminFd(fields){
     var fd=new FormData();
@@ -1675,7 +1682,7 @@ function apAdminFd(fields){
     if(t){ fd.append('_csrf', t); }
     return fd;
 }
-function apAdminFetch(fields){
+function apAdminFetch(fields, retried){
     var t=apCsrfToken();
     var headers={};
     if(t){ headers['X-CSRF-TOKEN']=t; }
@@ -1687,6 +1694,9 @@ function apAdminFetch(fields){
     }).then(function(r){
         return r.json().then(function(d){
             if(d&&d.csrf) apRememberCsrf(d.csrf);
+            if(d&&d.error==='csrf_forbidden'&&!retried){
+                return apRefreshCsrf().then(function(){ return apAdminFetch(fields, true); });
+            }
             return d;
         }).catch(function(){
             return {success:false,error:'invalid_response',status:r.status};
@@ -1720,19 +1730,22 @@ function openAdminPanel(target){
     overlay.classList.add('active');
     document.body.style.overflow='hidden';
     window._apPendingPanel = target||'ap-users';
-    if(apLoaded){ openPanel(window._apPendingPanel); return; }
     skeleton.style.display='flex'; dynRoot.style.display='none';
     apGateHide();
-    apGateStatus().then(function(d){
+    apRefreshCsrf().then(function(){ return apGateStatus(); }).then(function(d){
         if(d&&d.csrf) apRememberCsrf(d.csrf);
-        if(d&&d.authenticated){ loadPanel(window._apPendingPanel); return; }
+        if(d&&d.authenticated){
+            if(apLoaded){ openPanel(window._apPendingPanel); return; }
+            loadPanel(window._apPendingPanel); return;
+        }
+        apLoaded=false;
         if(d&&d.is_admin===false){ apShowUnauthorizedMsg(); return; }
         if(d&&d.error==='csrf_forbidden'){
             apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>);
             return;
         }
         apGateShow('');
-    }).catch(function(){ apGateShow(''); });
+    }).catch(function(){ apLoaded=false; apGateShow(''); });
 }
 function closeAdminPanel(){
     overlay.classList.remove('ap-edge-omniroute');
@@ -4443,7 +4456,7 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
         var pass=pwd?pwd.value:'';
         if(!pass){ apGateShow(<?php echo json_encode($translations['password_required'] ?? 'Password required'); ?>); return; }
         submit.disabled=true;
-        apGateLogin(pass).then(function(d){
+        apRefreshCsrf().then(function(){ return apGateLogin(pass); }).then(function(d){
             submit.disabled=false;
             if(d&&d.csrf) apRememberCsrf(d.csrf);
             if(d&&d.success){ apGateHide(); loadPanel(window._apPendingPanel||'ap-users'); return; }
