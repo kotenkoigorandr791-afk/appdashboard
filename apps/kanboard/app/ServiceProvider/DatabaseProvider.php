@@ -26,15 +26,26 @@ class DatabaseProvider implements ServiceProviderInterface
     public function register(Container $container)
     {
         $container['db'] = $this->getInstance();
+        $pdo = $container['db']->getConnection();
+        $schema = (defined('DB_SCHEMA') && is_string(DB_SCHEMA) && DB_SCHEMA !== '')
+            ? (preg_replace('/[^a-zA-Z0-9_]/', '', DB_SCHEMA) ?: 'kanboard')
+            : 'kanboard';
 
-        if (defined('DB_SCHEMA') && is_string(DB_SCHEMA) && DB_SCHEMA !== '' && DB_SCHEMA !== 'public') {
-            $schema = preg_replace('/[^a-zA-Z0-9_]/', '', DB_SCHEMA) ?: 'kanboard';
-            $container['db']->execute('CREATE SCHEMA IF NOT EXISTS ' . $schema);
-            $container['db']->execute('SET search_path TO ' . $schema . ', public');
+        if (function_exists('kanboard_prepare_migrations')) {
+            kanboard_prepare_migrations($pdo, $schema);
+        } else {
+            $pdo->exec('CREATE SCHEMA IF NOT EXISTS ' . $schema);
+            $pdo->exec('SET search_path TO ' . $schema);
         }
 
-        if (DB_RUN_MIGRATIONS) {
-            self::runMigrations($container['db']);
+        try {
+            if (DB_RUN_MIGRATIONS) {
+                self::runMigrations($container['db']);
+            }
+        } finally {
+            if (function_exists('kanboard_finish_migrations')) {
+                kanboard_finish_migrations($pdo);
+            }
         }
 
         if (DEBUG) {

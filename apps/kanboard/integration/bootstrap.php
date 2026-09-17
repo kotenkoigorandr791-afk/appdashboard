@@ -207,7 +207,57 @@ function kanboard_apply_schema(PDO $pdo, ?string $schema = null): void
     $schema = $schema ?? (string)(kanboard_db_resolve()['schema'] ?? 'kanboard');
     $schema = preg_replace('/[^a-zA-Z0-9_]/', '', $schema) ?: 'kanboard';
     $pdo->exec('CREATE SCHEMA IF NOT EXISTS ' . $schema);
-    $pdo->exec('SET search_path TO ' . $schema . ', public');
+    // Only the dedicated schema — never include public (AppDashboard has public.config/users).
+    $pdo->exec('SET search_path TO ' . $schema);
+}
+
+/**
+ * Serialize migrations and repair a half-applied schema so version_1 can run cleanly.
+ */
+function kanboard_prepare_migrations(PDO $pdo, string $schema): void
+{
+    $schema = preg_replace('/[^a-zA-Z0-9_]/', '', $schema) ?: 'kanboard';
+    $pdo->exec('SELECT pg_advisory_lock(872014201)');
+    try {
+        $pdo->exec('CREATE SCHEMA IF NOT EXISTS ' . $schema);
+        $pdo->exec('SET search_path TO ' . $schema);
+        $pdo->exec('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER DEFAULT 0)');
+        $version = (int)$pdo->query('SELECT version FROM schema_version LIMIT 1')->fetchColumn();
+        if ($version <= 0) {
+            $hasRow = (bool)$pdo->query('SELECT 1 FROM schema_version LIMIT 1')->fetchColumn();
+            if (!$hasRow) {
+                $pdo->exec('INSERT INTO schema_version (version) VALUES (0)');
+            }
+            // Incomplete migrate leaves orphan types/tables (e.g. type "config") and breaks version_1.
+            $objects = (int)$pdo->query(
+                "SELECT COUNT(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = " . $pdo->quote($schema) . " AND c.relkind IN ('r','v','m','S','c') AND c.relname <> 'schema_version'"
+            )->fetchColumn();
+            $types = (int)$pdo->query(
+                "SELECT COUNT(*) FROM pg_type t JOIN pg_namespace n ON n.oid = t.typnamespace WHERE n.nspname = " . $pdo->quote($schema) . " AND t.typtype = 'c' AND t.typname <> 'schema_version'"
+            )->fetchColumn();
+            if ($objects > 0 || $types > 0) {
+                $pdo->exec('DROP SCHEMA ' . $schema . ' CASCADE');
+                $pdo->exec('CREATE SCHEMA ' . $schema);
+                $pdo->exec('SET search_path TO ' . $schema);
+                $pdo->exec('CREATE TABLE schema_version (version INTEGER DEFAULT 0)');
+                $pdo->exec('INSERT INTO schema_version (version) VALUES (0)');
+            }
+        }
+    } catch (Throwable $e) {
+        try {
+            $pdo->exec('SELECT pg_advisory_unlock(872014201)');
+        } catch (Throwable $ignored) {
+        }
+        throw $e;
+    }
+}
+
+function kanboard_finish_migrations(PDO $pdo): void
+{
+    try {
+        $pdo->exec('SELECT pg_advisory_unlock(872014201)');
+    } catch (Throwable $ignored) {
+    }
 }
 
 function kanboard_ensure_database(): void
