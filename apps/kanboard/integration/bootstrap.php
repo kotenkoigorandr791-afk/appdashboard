@@ -166,34 +166,81 @@ function kanboard_bridge_color(): string
     return (string)($GLOBALS['APPDASHBOARD_KB_COLOR'] ?? '#2563eb');
 }
 
-function kanboard_ensure_database(): void
+function kanboard_db_resolve(): array
 {
     require_once dirname(__DIR__, 3) . '/lib/db_config.php';
     $cfg = app_db_load_config();
-    $host = (string)($cfg['host'] ?? '127.0.0.1');
-    if ($host === '127.0.0.1' || $host === 'localhost') {
-        $dockerHost = getenv('DB_HOST');
+    $host = trim((string)($cfg['host'] ?? ''));
+    $dockerHost = getenv('DB_HOST');
+    $inDocker = is_file('/.dockerenv') || getenv('APP_IN_DOCKER') === '1';
+    if ($host === '' || $host === '127.0.0.1' || $host === 'localhost') {
         if (is_string($dockerHost) && $dockerHost !== '') {
             $host = $dockerHost;
-        } elseif (is_file('/.dockerenv') || getenv('APP_IN_DOCKER') === '1') {
+        } elseif ($inDocker) {
             $host = 'appdashboard-db';
+        } else {
+            $host = '127.0.0.1';
         }
     }
-    $port = (int)($cfg['port'] ?? 5432);
-    $user = (string)($cfg['user'] ?? 'appdashboard');
-    $pass = (string)($cfg['password'] ?? '');
-    $dbname = getenv('KANBOARD_DB_NAME') ?: 'kanboard';
-    $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, $port, (string)($cfg['name'] ?? 'appdashboard'));
+    $schema = getenv('KANBOARD_DB_SCHEMA');
+    if (!is_string($schema) || trim($schema) === '') {
+        $schema = 'kanboard';
+    }
+    $schema = preg_replace('/[^a-zA-Z0-9_]/', '', $schema) ?: 'kanboard';
+    // Same database as the main AppDashboard container; isolate via schema.
+    $database = trim((string)($cfg['name'] ?? 'appdashboard'));
+    if ($database === '') {
+        $database = 'appdashboard';
+    }
+    return [
+        'host' => $host,
+        'port' => (int)($cfg['port'] ?? 5432),
+        'user' => (string)($cfg['user'] ?? 'appdashboard'),
+        'password' => (string)($cfg['password'] ?? ''),
+        'database' => $database,
+        'schema' => $schema,
+    ];
+}
+
+function kanboard_apply_schema(PDO $pdo, ?string $schema = null): void
+{
+    $schema = $schema ?? (string)(kanboard_db_resolve()['schema'] ?? 'kanboard');
+    $schema = preg_replace('/[^a-zA-Z0-9_]/', '', $schema) ?: 'kanboard';
+    $pdo->exec('CREATE SCHEMA IF NOT EXISTS ' . $schema);
+    $pdo->exec('SET search_path TO ' . $schema . ', public');
+}
+
+function kanboard_ensure_database(): void
+{
+    $db = kanboard_db_resolve();
+    $dsn = sprintf('pgsql:host=%s;port=%d;dbname=%s', $db['host'], $db['port'], $db['database']);
     try {
-        $pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]);
-        $st = $pdo->prepare('SELECT 1 FROM pg_database WHERE datname = :n');
-        $st->execute([':n' => $dbname]);
-        if (!$st->fetchColumn()) {
-            $safe = preg_replace('/[^a-zA-Z0-9_]/', '', $dbname) ?: 'kanboard';
-            $pdo->exec('CREATE DATABASE ' . $safe);
-        }
+        $pdo = new PDO($dsn, $db['user'], $db['password'], [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_TIMEOUT => 5,
+        ]);
+        kanboard_apply_schema($pdo, $db['schema']);
     } catch (Throwable $e) {
         error_log('kanboard_ensure_database: ' . $e->getMessage());
+    }
+}
+
+function kanboard_pdo(): ?PDO
+{
+    kanboard_ensure_database();
+    $db = kanboard_db_resolve();
+    try {
+        $pdo = new PDO(
+            sprintf('pgsql:host=%s;port=%d;dbname=%s', $db['host'], $db['port'], $db['database']),
+            $db['user'],
+            $db['password'],
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]
+        );
+        kanboard_apply_schema($pdo, $db['schema']);
+        return $pdo;
+    } catch (Throwable $e) {
+        error_log('kanboard_pdo: ' . $e->getMessage());
+        return null;
     }
 }
 

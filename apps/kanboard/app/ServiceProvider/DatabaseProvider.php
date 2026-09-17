@@ -27,6 +27,12 @@ class DatabaseProvider implements ServiceProviderInterface
     {
         $container['db'] = $this->getInstance();
 
+        if (defined('DB_SCHEMA') && is_string(DB_SCHEMA) && DB_SCHEMA !== '' && DB_SCHEMA !== 'public') {
+            $schema = preg_replace('/[^a-zA-Z0-9_]/', '', DB_SCHEMA) ?: 'kanboard';
+            $container['db']->execute('CREATE SCHEMA IF NOT EXISTS ' . $schema);
+            $container['db']->execute('SET search_path TO ' . $schema . ', public');
+        }
+
         if (DB_RUN_MIGRATIONS) {
             self::runMigrations($container['db']);
         }
