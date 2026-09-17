@@ -603,6 +603,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             body.rail-autohide #content.has-app-rail.rail-collapsed #app-icon-rail{pointer-events:auto;}
             body.rail-autohide #content.has-app-rail.rail-collapsed #app-icon-rail::after{content:'';position:absolute;top:0;right:calc(-1 * (12px - var(--rail-peek)));width:12px;height:100%;}
             body.rail-autohide.rail-collapsed #menu-button{pointer-events:none;}
+            body.rail-autohide #content.has-app-rail.rail-collapsed #app-icon-rail{background:color-mix(in srgb,var(--primary-color) 30%,transparent);border-right-color:color-mix(in srgb,var(--primary-color) 55%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--primary-color) 28%,transparent);}
         }
         .app-rail-link{display:flex;align-items:center;justify-content:center;width:var(--rail-icon);height:var(--rail-icon);border-radius:8px;flex-shrink:0;text-decoration:none;color:var(--text-color);background:transparent;transition:background-color 0.2s,transform 0.15s;}
         .app-rail-link:hover{background:color-mix(in srgb,var(--primary-color) 22%,transparent);transform:translateY(-1px);}
@@ -991,7 +992,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             font-size: 12px;
             color: #f59e0b;
             cursor: default;
-            max-width: 100%;
+            max-width: 166px;
             text-align: center;
             line-height: 1.4;
             word-wrap: break-word;

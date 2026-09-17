@@ -608,19 +608,50 @@ function jsonOut(array $d): void {
     echo json_encode($d, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     exit;
 }
+function pgIdent(string $name): string {
+    return '"' . str_replace('"', '""', $name) . '"';
+}
+function pgParseTableRef(string $ref): array {
+    $ref = trim($ref);
+    if ($ref !== '' && preg_match('/^"((?:[^"]|"")*)"\s*\.\s*"((?:[^"]|"")*)"$/', $ref, $m)) {
+        return [str_replace('""', '"', $m[1]), str_replace('""', '"', $m[2])];
+    }
+    // schema may contain dots (e.g. steps_*_example.com); table is the last segment
+    if ($ref !== '' && str_contains($ref, '.')) {
+        $pos = strrpos($ref, '.');
+        $schema = trim(substr($ref, 0, $pos));
+        $table = trim(substr($ref, $pos + 1));
+        if ($schema !== '' && $table !== '') {
+            return [$schema, $table];
+        }
+    }
+    return ['public', $ref];
+}
+function pgQualIdent(string $ref): string {
+    [$schema, $table] = pgParseTableRef($ref);
+    return pgIdent($schema) . '.' . pgIdent($table);
+}
+function pgTableLabel(string $schema, string $table): string {
+    return ($schema === '' || $schema === 'public') ? $table : ($schema . '.' . $table);
+}
 function getTables(): array {
+    return array_column(getTablesWithCounts(), 'name');
+}
+function getTablesWithCounts(): array {
     global $db;
-    $res = $db->query("SELECT table_name AS name FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' ORDER BY table_name");
+    $res = $db->query("SELECT n.nspname AS schema, c.relname AS name, GREATEST(c.reltuples::bigint, 0) AS estimate FROM pg_catalog.pg_class c JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace WHERE c.relkind = 'r' AND n.nspname NOT IN ('pg_catalog','information_schema','pg_toast') ORDER BY CASE WHEN n.nspname='public' THEN 0 ELSE 1 END, n.nspname, c.relname");
     $out = [];
-    while ($r = $res->fetch(PDO::FETCH_ASSOC)) $out[] = $r['name'];
+    while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
+        $out[] = ['name' => pgTableLabel((string)$r['schema'], (string)$r['name']), 'count' => (int)$r['estimate']];
+    }
     return $out;
 }
 function getReportSchemaObjects(): array {
     global $db;
-    $res = $db->query("SELECT table_name AS name, CASE WHEN table_type='VIEW' THEN 'view' ELSE 'table' END AS type FROM information_schema.tables WHERE table_schema='public' ORDER BY CASE WHEN table_type='BASE TABLE' THEN 0 ELSE 1 END, table_name");
+    $res = $db->query("SELECT table_schema AS schema, table_name AS name, CASE WHEN table_type='VIEW' THEN 'view' ELSE 'table' END AS type FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog','information_schema','pg_toast') ORDER BY CASE WHEN table_type='BASE TABLE' THEN 0 ELSE 1 END, CASE WHEN table_schema='public' THEN 0 ELSE 1 END, table_schema, table_name");
     $out = [];
     while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
-        $out[] = ['name' => $r['name'], 'kind' => $r['type'] === 'view' ? 'view' : 'table'];
+        $out[] = ['name' => pgTableLabel((string)$r['schema'], (string)$r['name']), 'kind' => $r['type'] === 'view' ? 'view' : 'table'];
     }
     return $out;
 }
@@ -630,25 +661,27 @@ function dbReportCellTooLarge($val, int $maxBytes): bool {
     $s = is_string($val) ? $val : (string)$val;
     return strlen($s) > $maxBytes;
 }
-function pgIdent(string $name): string {
-    return '"' . str_replace('"', '""', $name) . '"';
-}
 function pgTableExists(string $table): bool {
     global $db;
-    $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:n LIMIT 1");
-    $stmt->bindValue(':n', $table, PDO::PARAM_STR);
+    [$schema, $name] = pgParseTableRef($table);
+    $stmt = $db->prepare("SELECT 1 FROM information_schema.tables WHERE table_schema=:s AND table_name=:n LIMIT 1");
+    $stmt->bindValue(':s', $schema, PDO::PARAM_STR);
+    $stmt->bindValue(':n', $name, PDO::PARAM_STR);
     return (bool)$stmt->execute()->fetch(PDO::FETCH_ASSOC);
 }
 function getTableInfo(string $table): array {
     global $db;
-    $safe = pgIdent($table);
-    $stmt = $db->prepare("SELECT ordinal_position - 1 AS cid, column_name AS name, data_type AS type, CASE WHEN is_nullable='NO' THEN 1 ELSE 0 END AS notnull, COALESCE(column_default, '') AS dflt_value, CASE WHEN EXISTS (SELECT 1 FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON kcu.constraint_name=tc.constraint_name AND kcu.table_schema=tc.table_schema AND kcu.table_name=tc.table_name WHERE tc.table_schema='public' AND tc.table_name=c.table_name AND tc.constraint_type='PRIMARY KEY' AND kcu.column_name=c.column_name) THEN 1 ELSE 0 END AS pk FROM information_schema.columns c WHERE table_schema='public' AND table_name=:n ORDER BY ordinal_position");
-    $stmt->bindValue(':n', $table, PDO::PARAM_STR);
+    [$schema, $name] = pgParseTableRef($table);
+    $safe = pgQualIdent($table);
+    $stmt = $db->prepare("SELECT ordinal_position - 1 AS cid, column_name AS name, data_type AS type, CASE WHEN is_nullable='NO' THEN 1 ELSE 0 END AS notnull, COALESCE(column_default, '') AS dflt_value, CASE WHEN EXISTS (SELECT 1 FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON kcu.constraint_name=tc.constraint_name AND kcu.table_schema=tc.table_schema AND kcu.table_name=tc.table_name WHERE tc.table_schema=c.table_schema AND tc.table_name=c.table_name AND tc.constraint_type='PRIMARY KEY' AND kcu.column_name=c.column_name) THEN 1 ELSE 0 END AS pk FROM information_schema.columns c WHERE table_schema=:s AND table_name=:n ORDER BY ordinal_position");
+    $stmt->bindValue(':s', $schema, PDO::PARAM_STR);
+    $stmt->bindValue(':n', $name, PDO::PARAM_STR);
     $cols = []; $r = $stmt->execute();
     while ($row = $r->fetch(PDO::FETCH_ASSOC)) $cols[] = $row;
     $count = (int)$db->query("SELECT COUNT(*) FROM $safe")->fetchColumn();
-    $idxStmt = $db->prepare("SELECT indexname AS name, indexdef AS sql FROM pg_catalog.pg_indexes WHERE schemaname='public' AND tablename=:n ORDER BY indexname");
-    $idxStmt->bindValue(':n', $table, PDO::PARAM_STR);
+    $idxStmt = $db->prepare("SELECT indexname AS name, indexdef AS sql FROM pg_catalog.pg_indexes WHERE schemaname=:s AND tablename=:n ORDER BY indexname");
+    $idxStmt->bindValue(':s', $schema, PDO::PARAM_STR);
+    $idxStmt->bindValue(':n', $name, PDO::PARAM_STR);
     $idxRes = $idxStmt->execute();
     $indexes = [];
     while ($idx = $idxRes->fetch(PDO::FETCH_ASSOC)) {
@@ -656,15 +689,16 @@ function getTableInfo(string $table): array {
         $idxCols = isset($m[1]) ? array_map('trim', explode(',', $m[1])) : [];
         $indexes[] = ['name'=>$idx['name'], 'unique'=>str_contains((string)$idx['sql'], 'UNIQUE INDEX'), 'cols'=>$idxCols];
     }
-    $fkStmt = $db->prepare("SELECT kcu.column_name AS \"from\", ccu.table_name AS \"table\", ccu.column_name AS \"to\", rc.update_rule AS on_update, rc.delete_rule AS on_delete FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name=tc.constraint_name AND ccu.table_schema=tc.table_schema LEFT JOIN information_schema.referential_constraints rc ON rc.constraint_name=tc.constraint_name AND rc.constraint_schema=tc.table_schema WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_schema='public' AND tc.table_name=:n ORDER BY kcu.ordinal_position");
-    $fkStmt->bindValue(':n', $table, PDO::PARAM_STR);
+    $fkStmt = $db->prepare("SELECT kcu.column_name AS \"from\", CASE WHEN ccu.table_schema='public' THEN ccu.table_name ELSE ccu.table_schema || '.' || ccu.table_name END AS \"table\", ccu.column_name AS \"to\", rc.update_rule AS on_update, rc.delete_rule AS on_delete FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name AND tc.table_schema=kcu.table_schema JOIN information_schema.constraint_column_usage ccu ON ccu.constraint_name=tc.constraint_name AND ccu.table_schema=tc.table_schema LEFT JOIN information_schema.referential_constraints rc ON rc.constraint_name=tc.constraint_name AND rc.constraint_schema=tc.table_schema WHERE tc.constraint_type='FOREIGN KEY' AND tc.table_schema=:s AND tc.table_name=:n ORDER BY kcu.ordinal_position");
+    $fkStmt->bindValue(':s', $schema, PDO::PARAM_STR);
+    $fkStmt->bindValue(':n', $name, PDO::PARAM_STR);
     $fkRes = $fkStmt->execute();
     $fks = [];
     while ($fk = $fkRes->fetch(PDO::FETCH_ASSOC)) {
         $fks[] = ['from'=>$fk['from'], 'table'=>$fk['table'], 'to'=>$fk['to']];
     }
     $ddl = '';
-    return ['columns'=>$cols,'count'=>$count,'indexes'=>$indexes,'fks'=>$fks,'ddl'=>$ddl];
+    return ['columns'=>$cols,'count'=>$count,'indexes'=>$indexes,'fks'=>$fks,'ddl'=>$ddl,'schema'=>$schema,'table'=>$name];
 }
 
 // ── Get schema for autocomplete ────────────────────────────────────────────────
@@ -763,11 +797,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     }
 
     if ($action==='list_tables') {
-        $out = [];
-        foreach (getTables() as $t) {
-            $out[] = ['name'=>$t,'count'=>(int)$db->query("SELECT COUNT(*) FROM " . pgIdent($t))->fetchColumn()];
-        }
-        jsonOut(['success'=>true,'tables'=>$out]);
+        jsonOut(['success'=>true,'tables'=>getTablesWithCounts()]);
     }
 
     if ($action==='table_info') {
@@ -782,7 +812,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $search = trim($_POST['search']??'');
         $sortC  = $_POST['sort_col']??''; $sortD = strtoupper($_POST['sort_dir']??'ASC')==='DESC'?'DESC':'ASC';
         if (!$table) jsonOut(['success'=>false,'error'=>'No table']);
-        $safe = pgIdent($table); $offset=($page-1)*$limit;
+        $safe = pgQualIdent($table); $offset=($page-1)*$limit;
         $info = getTableInfo($table); $cols = array_column($info['columns'],'name');
         $where = '';
         if ($search!=='') {
@@ -801,7 +831,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $table=$_POST['table']??''; $pkCol=$_POST['pk_col']??''; $pkVal=$_POST['pk_val']??'';
         $col=$_POST['col']??''; $val=$_POST['val']??null;
         if (!$table||!$pkCol||!$col) jsonOut(['success'=>false,'error'=>'Missing params']);
-        $stmt=$db->prepare("UPDATE ".pgIdent($table)." SET ".pgIdent($col)."=:v WHERE ".pgIdent($pkCol)."=:pk");
+        $stmt=$db->prepare("UPDATE ".pgQualIdent($table)." SET ".pgIdent($col)."=:v WHERE ".pgIdent($pkCol)."=:pk");
         $stmt->bindValue(':v',$val===''?null:$val); $stmt->bindValue(':pk',$pkVal); $stmt->execute();
         jsonOut(['success'=>true,'changed'=>$db->changes()]);
     }
@@ -809,7 +839,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='delete_row') {
         $table=$_POST['table']??''; $pkCol=$_POST['pk_col']??''; $pkVal=$_POST['pk_val']??'';
         if (!$table||!$pkCol) jsonOut(['success'=>false,'error'=>'Missing params']);
-        $stmt=$db->prepare("DELETE FROM ".pgIdent($table)." WHERE ".pgIdent($pkCol)."=:pk");
+        $stmt=$db->prepare("DELETE FROM ".pgQualIdent($table)." WHERE ".pgIdent($pkCol)."=:pk");
         $stmt->bindValue(':pk',$pkVal); $stmt->execute();
         jsonOut(['success'=>true,'changed'=>$db->changes()]);
     }
@@ -817,7 +847,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     if ($action==='insert_row') {
         $table=$_POST['table']??''; $data=json_decode($_POST['data']??'{}',true);
         if (!$table||!$data) jsonOut(['success'=>false,'error'=>'Missing params']);
-        $safe=pgIdent($table);
+        $safe=pgQualIdent($table);
         $cs=implode(',',array_map(fn($c)=>pgIdent($c),array_keys($data)));
         $ps=implode(',',array_map(fn($i)=>":v$i",range(0,count($data)-1)));
         $stmt=$db->prepare("INSERT INTO $safe ($cs) VALUES ($ps)");
@@ -883,8 +913,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
     }
 
     if ($action==='db_stats') {
-        $tables=getTables(); $counts=[];
-        foreach($tables as $t){$counts[$t]=(int)$db->query("SELECT COUNT(*) FROM " . pgIdent($t))->fetchColumn();}
+        $counts=[];
+        foreach(getTablesWithCounts() as $t){$counts[$t['name']]=$t['count'];}
         $pdo = $db->getPdo();
         $size = (int)$pdo->query("SELECT pg_database_size(current_database())")->fetchColumn();
         jsonOut(['success'=>true,'file_size'=>$size,'file_modified'=>time(),'page_count'=>0,'page_size'=>8192,'free_pages'=>0,'table_counts'=>$counts,'engine'=>'postgresql','db_label'=>app_db_dsn_label()]);
@@ -966,13 +996,13 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         if (!$isRoot) jsonOut(['success'=>false,'error'=>'Only root@root']);
         $tableName = trim($_POST['table_name'] ?? '');
         if (!$tableName) jsonOut(['success'=>false,'error'=>'No table']);
-        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $tableName)) {
+        [$schema, $name] = pgParseTableRef($tableName);
+        if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $schema) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) {
             jsonOut(['success'=>false,'error'=>'Invalid table name']);
         }
-        $safe = $tableName;
         if (!pgTableExists($tableName)) jsonOut(['success'=>false,'error'=>'Table not found']);
         try {
-            $db->exec("DROP TABLE " . pgIdent($safe));
+            $db->exec("DROP TABLE " . pgQualIdent($tableName));
             jsonOut(['success'=>true]);
         } catch(Exception $e) {
             jsonOut(['success'=>false,'error'=>$e->getMessage()]);
@@ -987,10 +1017,12 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $tables = getTables();
         $sizes = [];
         foreach ($tables as $t) {
-            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', (string)$t)) continue;
-            $count = (int)$db->query("SELECT COUNT(*) FROM " . pgIdent($t))->fetchColumn();
-            $stmtIC = $db->prepare("SELECT COUNT(*) AS c FROM pg_catalog.pg_indexes WHERE schemaname='public' AND tablename = :n");
-            $stmtIC->bindValue(':n', $t, PDO::PARAM_STR);
+            [$schema, $name] = pgParseTableRef((string)$t);
+            if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $schema) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $name)) continue;
+            $count = (int)$db->query("SELECT COUNT(*) FROM " . pgQualIdent($t))->fetchColumn();
+            $stmtIC = $db->prepare("SELECT COUNT(*) AS c FROM pg_catalog.pg_indexes WHERE schemaname=:s AND tablename = :n");
+            $stmtIC->bindValue(':s', $schema, PDO::PARAM_STR);
+            $stmtIC->bindValue(':n', $name, PDO::PARAM_STR);
             $rowIC = $stmtIC->execute()->fetch(PDO::FETCH_ASSOC);
             $idxCount = (int)($rowIC['c'] ?? 0);
             $sizes[] = [
@@ -2418,7 +2450,9 @@ async function api(action, extra={}) {
   fd.append('db_source', currentDbSource || 'postgres');
   Object.entries(extra).forEach(([k,v]) => fd.append(k, String(v)));
   const r = await fetch(location.href, { method:'POST', body:fd });
-  return r.json();
+  const text = await r.text();
+  try { return JSON.parse(text); }
+  catch (e) { return { success:false, error: text.slice(0, 200) || ('HTTP '+r.status) }; }
 }
 
 // ── Notify ────────────────────────────────────────────────────────────────────
@@ -2515,7 +2549,11 @@ function showView(id) {
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 async function loadTables() {
-  const d = await api('list_tables'); if (!d.success) return;
+  const d = await api('list_tables');
+  if (!d.success) {
+    document.getElementById('table-list').innerHTML = `<div class="empty" style="height:60px;font-size:11px;">${esc(d.error||'error')}</div>`;
+    return;
+  }
   S.tables = d.tables; refreshTableList();
 }
 function tableStackKey(name) { const i = name.indexOf('_'); return i === -1 ? name : name.slice(0, i); }

@@ -1701,7 +1701,12 @@ function openAdminPanel(target){
     apRefreshCsrf().then(function(){ return apGateStatus(); }).then(function(d){
         if(d&&d.csrf) apRememberCsrf(d.csrf);
         if(d&&d.authenticated){
-            if(apLoaded){ openPanel(window._apPendingPanel); return; }
+            if(apLoaded){
+                if(skeleton) skeleton.style.display='none';
+                if(dynRoot) dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
+                openPanel(window._apPendingPanel);
+                return;
+            }
             loadPanel(window._apPendingPanel); return;
         }
         apLoaded=false;

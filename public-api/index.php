@@ -1,6 +1,6 @@
 <?php
-define('APP_ROOT', dirname(__DIR__));
-define('PUBLIC_API', true);
+if (!defined('APP_ROOT')) define('APP_ROOT', dirname(__DIR__));
+if (!defined('PUBLIC_API')) define('PUBLIC_API', true);
 require_once APP_ROOT . '/lib/public_api.php';
 public_api_bootstrap();
 $parts = public_api_parse_path();
