@@ -139,7 +139,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
     header('Location: /default_avatar.png', true, 302);
     exit;
 }
-const PASSWORD_MIN_LENGTH = 6;
+const PASSWORD_MIN_LENGTH = 8;
 function validatePasswordPolicy(string $password): ?string {
     if (mb_strlen($password) < PASSWORD_MIN_LENGTH) return 'password_too_short';
     if (!preg_match('/\p{L}/u', $password)) return 'password_needs_letter';
@@ -349,6 +349,9 @@ function loginUserSession(string $email, array $users): bool {
     return true;
 }
 function scheduleTrustedDevicePromptIfNeeded(string $email): void {
+    if ($email === 'root@root') return;
+    $user = getUserByEmail($email);
+    if ($user && (int)($user['role'] ?? 0) >= 2) return;
     $fp = getDeviceFingerprint();
     $isTrusted = isTrustedDevice($email, $fp);
     if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
@@ -1766,6 +1769,14 @@ $defaultTranslations=['search_placeholder'=>'Search apps...','settings_title'=>'
     'docker_manager_subtitle'=>'Manage Docker containers, images, and services.'];
 $defaultTranslations['keyboard_shortcuts'] = 'Keyboard Shortcuts';
 $defaultTranslations['default_admin_password_notice'] = 'First start: sign in with the default administrator account and change the password.';
+
+$defaultTranslations['password_too_short'] = 'Password must be at least 8 characters';
+$defaultTranslations['password_too_short_admin'] = 'Administrator password must be at least 10 characters';
+$defaultTranslations['password_too_common'] = 'Password is too common or weak';
+$defaultTranslations['admin_ip_forbidden'] = 'Administrator access is not allowed from this IP.';
+$defaultTranslations['admin_otp_forbidden'] = 'One-time PIN login is disabled for administrators.';
+$defaultTranslations['ap_security_title'] = 'Security';
+$defaultTranslations['ap_security_subtitle'] = 'TOTP, step-up confirmation, and admin IP allowlist.';
 $defaultTranslations['guide_reopen'] = 'Watch guide';
 $defaultTranslations['keyboard_shortcuts_desc'] = 'Hotkeys available on the home screen with app tiles.';
 $defaultTranslations['keyboard_shortcuts_hint'] = 'View hotkeys';

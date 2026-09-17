@@ -8,9 +8,11 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+    <meta name="csrf-token" content="<?php echo htmlspecialchars(apSecCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <link rel="icon" href="/project/views/icon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES); ?>;(function(){var t=window.__AP_CSRF__;if(!t)return;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){n.headers=new Headers(n.headers||{});if(!n.headers.has('X-CSRF-TOKEN'))n.headers.set('X-CSRF-TOKEN',t);}return f.call(this,i,n);};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;if(form.querySelector('input[name="_csrf"]'))return;var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
     <?php require_once APP_ROOT . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('dashboard'); ?>
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>

@@ -13,6 +13,8 @@ require_once APP_ROOT . '/lib/app_session.php';
 require_once APP_ROOT . '/storage_helper.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
+require_once APP_ROOT . '/lib/admin_security.php';
+adminSecurityEnsureSchema();
 require_once APP_ROOT . '/bot/tg_mini_auth.php';
 if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
     tgMiniRestoreSessionFromCookie();
@@ -81,6 +83,24 @@ if (!function_exists('apSecCsrfCheck')) {
             $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $_SERVER['HTTP_X_CSRF'] ?? ''
         );
         return $sent !== '' && hash_equals($expected, $sent);
+    }
+}
+if (!function_exists('apSecRequireCsrf')) {
+    function apSecRequireCsrf(): void {
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        if (!in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) return;
+        if (apSecCsrfCheck()) return;
+        if (!headers_sent()) {
+            http_response_code(403);
+            header('Content-Type: application/json; charset=utf-8');
+        }
+        echo json_encode(['ok' => false, 'success' => false, 'error' => 'csrf_forbidden']);
+        exit;
+    }
+}
+if (!function_exists('apSecCsrfField')) {
+    function apSecCsrfField(): string {
+        return '<input type="hidden" name="_csrf" value="' . htmlspecialchars(apSecCsrfToken(), ENT_QUOTES, 'UTF-8') . '">';
     }
 }
 if (!function_exists('apSecSafeFileExt')) {

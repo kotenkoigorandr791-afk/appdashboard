@@ -1349,7 +1349,7 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
 };
 
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager','security':'ap-security'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
 function injectOmniRouteTheme(){
@@ -2515,7 +2515,91 @@ function wireEvents(){
     dynRoot.querySelectorAll('.ap-nav-btn').forEach(function(b){b.addEventListener('click',function(ev){
         var pid=this.dataset.panel;
         openPanel(pid);
+        if(pid==='ap-security') apSecurityRefresh();
     });});
+    window.apEnsureStepup=function(done){
+        var fd=new FormData();fd.append('admin_security_status','1');fd.append('ajax','1');
+        return fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+            if(d&&d.stepup_valid){ if(typeof done==='function') done(); return true; }
+            openPanel('ap-security');
+            var box=dynRoot.querySelector('#ap-sec-stepup-box'); if(box) box.style.display='block';
+            var st=dynRoot.querySelector('#ap-sec-status'); if(st) st.textContent='Confirm identity to continue.';
+            return false;
+        }).catch(function(){return false;});
+    };
+    function apSecPost(action, extra){
+        var fd=new FormData();fd.append(action,'1');fd.append('ajax','1');
+        if(extra) Object.keys(extra).forEach(function(k){fd.append(k,extra[k]);});
+        return fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();});
+    }
+    function apSecurityRefresh(){
+        apSecPost('admin_security_status').then(function(d){
+            var el=dynRoot.querySelector('#ap-sec-totp-status');
+            if(el) el.textContent=(d.totp_enabled?'TOTP enabled':'TOTP not enabled')+(d.stepup_valid?' · step-up active':' · step-up required for sensitive actions')+(d.totp_required?' · TOTP required':'');
+            var ta=dynRoot.querySelector('#ap-sec-ip-allowlist'); if(ta) ta.value=d.ip_allowlist||'';
+        });
+    }
+    var setupBtn=dynRoot.querySelector('#ap-sec-totp-setup');
+    if(setupBtn) setupBtn.addEventListener('click',function(){
+        apSecPost('admin_totp_setup').then(function(d){
+            var box=dynRoot.querySelector('#ap-sec-totp-setup-box'); if(box) box.style.display='block';
+            var sec=dynRoot.querySelector('#ap-sec-totp-secret'); if(sec) sec.textContent=d.secret||'';
+        });
+    });
+    var confBtn=dynRoot.querySelector('#ap-sec-totp-confirm');
+    if(confBtn) confBtn.addEventListener('click',function(){
+        var code=(dynRoot.querySelector('#ap-sec-totp-code')||{}).value||'';
+        apSecPost('admin_totp_confirm',{code:code}).then(function(d){
+            var st=dynRoot.querySelector('#ap-sec-status');
+            if(st) st.textContent=d.success?'TOTP enabled':'Error: '+(d.error||'failed');
+            if(d.success) apSecurityRefresh();
+        });
+    });
+    var stepBtn=dynRoot.querySelector('#ap-sec-stepup');
+    if(stepBtn) stepBtn.addEventListener('click',function(){
+        var box=dynRoot.querySelector('#ap-sec-stepup-box'); if(box) box.style.display='block';
+    });
+    var stepGo=dynRoot.querySelector('#ap-sec-stepup-go');
+    if(stepGo) stepGo.addEventListener('click',function(){
+        var password=(dynRoot.querySelector('#ap-sec-stepup-password')||{}).value||'';
+        var code=(dynRoot.querySelector('#ap-sec-stepup-code')||{}).value||'';
+        apSecPost('admin_stepup',{password:password,code:code}).then(function(d){
+            var st=dynRoot.querySelector('#ap-sec-status');
+            if(st) st.textContent=d.success?'Unlocked':'Error: '+(d.error||'failed');
+            if(d.success) apSecurityRefresh();
+        });
+    });
+    var disBtn=dynRoot.querySelector('#ap-sec-totp-disable');
+    if(disBtn) disBtn.addEventListener('click',function(){
+        apSecPost('admin_totp_disable').then(function(d){
+            var st=dynRoot.querySelector('#ap-sec-status');
+            if(st) st.textContent=d.success?'TOTP disabled':'Error: '+(d.error||'failed');
+            if(d.success) apSecurityRefresh();
+        });
+    });
+    var ipSave=dynRoot.querySelector('#ap-sec-ip-save');
+    if(ipSave) ipSave.addEventListener('click',function(){
+        var allowlist=(dynRoot.querySelector('#ap-sec-ip-allowlist')||{}).value||'';
+        apSecPost('save_admin_ip_allowlist',{allowlist:allowlist}).then(function(d){
+            var st=dynRoot.querySelector('#ap-sec-status');
+            if(st) st.textContent=d.success?'Allowlist saved':'Error: '+(d.error||'failed');
+        });
+    });
+    var _apFetch=window.fetch;
+    if(!_apFetch._apStepupWrapped){
+        window.fetch=function(i,n){
+            return _apFetch.call(this,i,n).then(function(r){
+                if(r.status!==403) return r;
+                return r.clone().json().then(function(d){
+                    if(d&&(d.stepup_required||d.error==='stepup_required')){
+                        if(typeof window.apEnsureStepup==='function') window.apEnsureStepup();
+                    }
+                    return r;
+                }).catch(function(){return r;});
+            });
+        };
+        window.fetch._apStepupWrapped=true;
+    }
     (function(){
         var apSidebar = dynRoot.querySelector('#ap-sidebar');
         var activeNavTooltipBtn = null;

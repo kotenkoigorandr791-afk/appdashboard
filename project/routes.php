@@ -375,11 +375,17 @@ if($path==='/database'){
         exit;
     }
     $sessionIsAdminDb = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
-    if(!$sessionIsAdminDb){
+    if(!$sessionIsAdminDb || !adminHasCapability('database') || !adminIpAllowed()){
         http_response_code(403);
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>403 Forbidden</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>403 Forbidden</h1></body></html>';
         exit;
     }
+    if (!adminStepupValid()) {
+        http_response_code(403);
+        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Step-up required</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>Re-authentication required</h1><p>Open Admin Panel and confirm your identity, then retry.</p><a href="/main">Back</a></body></html>';
+        exit;
+    }
+    adminAuditLog('database_access', '/database', 'ok');
     
     // Pass URL parameters to db_admin.php via global variables
     $_GET['theme'] = $_GET['theme'] ?? $config['theme'];
@@ -453,7 +459,7 @@ if($path==='/verify'){
 if(isset($_GET['fm_serve']) && isset($_SESSION['user'])){
     // Serve a file for preview (images/video/audio) — admin only
     $sessionIsAdminServe = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
-    if(!$sessionIsAdminServe){ http_response_code(403); exit; }
+    if(!$sessionIsAdminServe || !adminHasCapability('files') || !adminIpAllowed()){ http_response_code(403); exit; }
     $requestedPath = $_GET['path'] ?? '';
     $baseDir = realpath(APP_ROOT);
     $cleanPath = ltrim(str_replace(['../', '..\\', '..'], '', $requestedPath), '/\\');
