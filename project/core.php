@@ -378,7 +378,7 @@ $trustedDeviceRestoreNotice = null;
 $trustedDeviceHint = parseTrustedDeviceHintCookie((string)($_COOKIE['trusted_device_hint'] ?? ''));
 
 function oauthLoginRedirectUri(): string {
-    $base = rtrim(trim((string)getConfig('tg_webapp_base_url', 'https://serverkherson.xyz')), '/');
+    $base = rtrim(trim((string)getConfig('tg_webapp_base_url', app_public_url(''))), '/');
     if ($base !== '' && preg_match('#^https?://#i', $base)) {
         return $base . '/login/oauth/callback';
     }
@@ -390,7 +390,7 @@ function oauthLoginRedirectUri(): string {
         || str_contains($cfVisitor, '"scheme":"https"')) {
         $scheme = 'https';
     }
-    $host = $_SERVER['HTTP_HOST'] ?? 'serverkherson.xyz';
+    $host = $_SERVER['HTTP_HOST'] ?? app_base_domain();
     return $scheme . '://' . $host . '/login/oauth/callback';
 }
 
@@ -610,7 +610,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
             || str_contains($cfVisitor, '"scheme":"https"')) {
             $scheme = 'https';
         }
-        $host = $_SERVER['HTTP_HOST'] ?? 'serverkherson.xyz';
+        $host = $_SERVER['HTTP_HOST'] ?? (function_exists('app_base_domain') ? app_base_domain() : 'localhost');
         $browserUrl = $scheme . '://' . $host . '/client-auth?request_id=' . urlencode($requestData['request_id']) . '&browser_token=' . urlencode($requestData['browser_token']);
         json_out([
             'ok' => true,
@@ -2023,7 +2023,20 @@ function sendTestEmail(string $to, ?array $authConfigOverride = null): bool {
     return sendEmailWithLogo($to, 'Server Kherson SMTP test', $body, $authConfigOverride);
 }
 function apEmailPublicBaseUrl(): string {
-    return 'https://serverkherson.xyz';
+    $configured = '';
+    if (function_exists('getConfig')) {
+        $configured = rtrim(trim((string)getConfig('app_public_base_url', '')), '/');
+        if ($configured === '') {
+            $configured = rtrim(trim((string)getConfig('tg_webapp_base_url', '')), '/');
+        }
+    }
+    if ($configured !== '') {
+        return $configured;
+    }
+    if (function_exists('app_public_url')) {
+        return app_public_url('');
+    }
+    return 'http://localhost';
 }
 function apEmailLogoHtml(): string {
     if(apEmailIconPath())return "<img src='cid:logo' alt='Server Kherson' style='width:58px;height:58px;border-radius:18px;display:block;margin:0 auto 14px;box-shadow:0 12px 30px rgba(59,130,246,.25);'>";

@@ -1,6 +1,7 @@
 <?php
 
 require_once APP_ROOT . '/vendor/autoload.php';
+require_once APP_ROOT . '/lib/app_domains.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -98,10 +99,9 @@ function oauth_service_url(string $key, string $default): string {
 
 function oauth_external_app_url(string $app): string {
     return match ($app) {
-        'gitea' => oauth_service_url('gitea_url', 'https://git.serverkherson.xyz'),
-        'immich' => oauth_service_url('immich_url', 'https://photo.serverkherson.xyz'),
-        'plane' => oauth_service_url('plane_url', 'https://plane.serverkherson.xyz'),
-        'dawarich' => oauth_service_url('dawarich_url', 'https://dawarich.serverkherson.xyz'),
+        'gitea' => oauth_service_url('gitea_url', app_public_url('git')),
+        'immich' => oauth_service_url('immich_url', app_public_url('photo')),
+        'dawarich' => oauth_service_url('dawarich_url', app_public_url('dawarich')),
         default => oauth_public_origin(),
     };
 }

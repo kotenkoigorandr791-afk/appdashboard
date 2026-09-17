@@ -52,6 +52,19 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
+      # Single source of truth for public hostnames. Entrypoint derives ai./search./git./...
+      BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
+      APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"
+      APP_PUBLIC_BASE_URL: "${APP_PUBLIC_BASE_URL:-}"
+      AI_PUBLIC_HOST: "${AI_PUBLIC_HOST:-}"
+      AI_PUBLIC_URL: "${AI_PUBLIC_URL:-}"
+      OMNIROUTE_UPSTREAM: "${OMNIROUTE_UPSTREAM:-http://host.docker.internal:20128}"
+      SEARCH_PUBLIC_URL: "${SEARCH_PUBLIC_URL:-}"
+      GITEA_PUBLIC_URL: "${GITEA_PUBLIC_URL:-}"
+      IMMICH_PUBLIC_URL: "${IMMICH_PUBLIC_URL:-}"
+      DOCUMENT_PUBLIC_URL: "${DOCUMENT_PUBLIC_URL:-}"
+      DOCKER_PUBLIC_URL: "${DOCKER_PUBLIC_URL:-}"
+      DAWARICH_PUBLIC_URL: "${DAWARICH_PUBLIC_URL:-}"
       APP_DB_CONFIG: /opt/AppDashboard/data/db.env
       APPDATA_DATA_DIR: /opt/AppDashboard/data
       APP_DB_SKIP_SESSION_INIT: "1"
@@ -73,6 +86,9 @@ services:
       COMPOSER_PROCESS_TIMEOUT: "3600"
       SSH_WS_PORT: "8765"
       SSH_WS_BIND: 127.0.0.1
+      SSH_DEFAULT_HOST: "${SSH_DEFAULT_HOST:-host.docker.internal}"
+      SSH_DEFAULT_USER: "${SSH_DEFAULT_USER:-root}"
+      SSH_DEFAULT_PORT: "${SSH_DEFAULT_PORT:-22}"
       SMART_HOME_WS_PORT: "8766"
       SMART_HOME_WS_BIND: 127.0.0.1
     ports:
@@ -81,7 +97,7 @@ services:
     volumes:
       - .:/var/www/AppDashboard
       - .:/var/www/apps-dashboard
-      - ./nginx/appdashboard.conf:/etc/nginx/sites-available/appdashboard.conf:ro
+      - ./nginx/appdashboard.conf.template:/etc/nginx/templates/appdashboard.conf.template:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData
       - appdashboard-logs:/var/log/nginx
@@ -226,8 +242,8 @@ services:
       DATABASE_USERNAME: postgres
       DATABASE_PASSWORD: "${DAWARICH_DB_PASSWORD:-dawarich_dev_password}"
       DATABASE_NAME: dawarich_development
-      APPLICATION_HOSTS: "${DAWARICH_HOSTS:-localhost,127.0.0.1,::1}"
-      APPLICATION_PROTOCOL: http
+      APPLICATION_HOSTS: "${DAWARICH_HOSTS:-localhost,127.0.0.1,::1,dawarich.${BASE_DOMAIN:-localhost},${BASE_DOMAIN:-localhost}}"
+      APPLICATION_PROTOCOL: "${APP_PUBLIC_SCHEME:-http}"
       SECRET_KEY_BASE: "${DAWARICH_SECRET_KEY_BASE:-change_me_change_me_change_me_change_me}"
       SELF_HOSTED: "true"
     ports:

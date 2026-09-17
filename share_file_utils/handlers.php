@@ -78,7 +78,8 @@ if (isset($_GET['download']) || isset($_GET['display'])) {
     echo 'File not found';
     exit;
 }
-$DOC_SERV_URL = 'https://document.serverkherson.xyz';
+$DOC_SERV_URL = rtrim((string)(getenv('DOCUMENT_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('document') : '')), '/');
+if ($DOC_SERV_URL === '') { $DOC_SERV_URL = 'http://document.localhost'; }
 $docConfig = null;
 $uiTheme = ($theme === 'light') ? 'theme-light' : 'theme-dark';
 if ($fileType === 'office' && !isset($_GET['download']) && !isset($_GET['display']) && !isset($_GET['callback']) && !isset($_GET['action'])) {

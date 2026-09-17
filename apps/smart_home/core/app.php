@@ -16,6 +16,9 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 header('Content-Type: text/html; charset=UTF-8');
 define('SH_APP_DIR', dirname(__DIR__));
 require_once dirname(SH_APP_DIR, 2) . '/lib/app_db.php';
+require_once dirname(SH_APP_DIR, 2) . '/lib/app_domains.php';
+function sh_default_domain(): string { return function_exists('app_base_domain') ? app_base_domain() : 'localhost'; }
+
 require_once dirname(SH_APP_DIR, 2) . '/lib/redis.php';
 function sh_db(): AppDatabase {
     static $db = null;
@@ -30,8 +33,8 @@ function sh_db(): AppDatabase {
 function sh_init_tables(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_settings (
         user_email TEXT PRIMARY KEY,
-        server_domain TEXT NOT NULL DEFAULT 'serverkherson.xyz',
-        ap_domain TEXT NOT NULL DEFAULT 'serverkherson.xyz',
+        server_domain TEXT NOT NULL DEFAULT 'localhost',
+        ap_domain TEXT NOT NULL DEFAULT 'localhost',
         updated_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
     )");
 
@@ -43,8 +46,8 @@ function sh_init_tables(AppDatabase $db): void {
         room TEXT NOT NULL DEFAULT 'Living room',
         status TEXT NOT NULL DEFAULT 'unknown',
         local_url TEXT NOT NULL DEFAULT '',
-        server_domain TEXT NOT NULL DEFAULT 'serverkherson.xyz',
-        ap_domain TEXT NOT NULL DEFAULT 'serverkherson.xyz',
+        server_domain TEXT NOT NULL DEFAULT 'localhost',
+        ap_domain TEXT NOT NULL DEFAULT 'localhost',
         mqtt_topic TEXT NOT NULL DEFAULT '',
         device_token TEXT NOT NULL DEFAULT '',
         notes TEXT NOT NULL DEFAULT '',
@@ -225,7 +228,7 @@ function sh_can_edit_endpoints(): bool {
 }
 
 function sh_settings_defaults(): array {
-    return ['server_domain' => 'serverkherson.xyz', 'ap_domain' => 'serverkherson.xyz', 'home_scope' => 'own', 'home_group_id' => '', 'home_view' => 'tiles'];
+    return ['server_domain' => sh_default_domain(), 'ap_domain' => sh_default_domain(), 'home_scope' => 'own', 'home_group_id' => '', 'home_view' => 'tiles'];
 }
 
 function sh_load_user_settings(AppDatabase $db, string $userEmail): array {
@@ -403,7 +406,7 @@ function sh_store_dashboard_ws_token(string $userEmail, string $deviceId): array
     $db->exec("DELETE FROM smarthome_ws_tokens WHERE expires_at < " . time());
     return [
         'token' => $token,
-        'ws_url' => 'wss://'.($_SERVER['HTTP_HOST']??'serverkherson.xyz').'/smart-home-ws',
+        'ws_url' => 'wss://'.($_SERVER['HTTP_HOST']??sh_default_domain()).'/smart-home-ws',
     ];
 }
 
@@ -1581,7 +1584,7 @@ function sh_templates(): array {
         'smart_torch' => [
             'icon' => 'torch',
             'controls' => [['id'=>'relay_1','gp_id'=>'switch_1','label'=>'Main lamp','type'=>'switch','value'=>false,'primary'=>true],['id'=>'relay_2','gp_id'=>'switch_2','label'=>'Small lamp','type'=>'switch','value'=>false,'primary'=>true]],
-            'params' => [['id'=>'firmware','label'=>'Firmware','value'=>'smart_torch.ino'],['id'=>'ap_domain','label'=>'AP domain','value'=>'serverkherson.xyz'],['id'=>'mqtt_transport','label'=>'Transport','value'=>'MQTT over WSS']],
+            'params' => [['id'=>'firmware','label'=>'Firmware','value'=>'smart_torch.ino'],['id'=>'ap_domain','label'=>'AP domain','value'=>sh_default_domain()],['id'=>'mqtt_transport','label'=>'Transport','value'=>'MQTT over WSS']],
             'files' => [['id'=>'config','label'=>'server-config.json','kind'=>'config'],['id'=>'topics','label'=>'mqtt-topics.json','kind'=>'config'],['id'=>'readme','label'=>'README.txt','kind'=>'text']],
         ],
         'smart_lamp' => [
@@ -1733,7 +1736,7 @@ if ($action !== '') {
                 'can_edit_map'=>$homeCtx['can_edit_map'],
                 'can_edit_endpoints'=>sh_can_edit_endpoints(),
                 'service_role'=>sh_user_service_role(),
-                'api_docs'=>sh_api_docs_markdown((string)($_SERVER['HTTP_HOST']??'serverkherson.xyz')),
+                'api_docs'=>sh_api_docs_markdown((string)($_SERVER['HTTP_HOST']??sh_default_domain())),
             ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
         }
@@ -1771,11 +1774,11 @@ if ($action !== '') {
 
         if ($action === 'save_settings') {
             $cur = sh_load_user_settings($db, $userEmail);
-            $sd = trim((string)($cur['server_domain'] ?? 'serverkherson.xyz')) ?: 'serverkherson.xyz';
-            $ad = trim((string)($cur['ap_domain'] ?? 'serverkherson.xyz')) ?: 'serverkherson.xyz';
+            $sd = trim((string)($cur['server_domain'] ?? sh_default_domain())) ?: sh_default_domain();
+            $ad = trim((string)($cur['ap_domain'] ?? sh_default_domain())) ?: sh_default_domain();
             if (sh_can_edit_endpoints()) {
-                $sd = trim((string)($payload['server_domain'] ?? $sd)) ?: 'serverkherson.xyz';
-                $ad = trim((string)($payload['ap_domain'] ?? $ad)) ?: 'serverkherson.xyz';
+                $sd = trim((string)($payload['server_domain'] ?? $sd)) ?: sh_default_domain();
+                $ad = trim((string)($payload['ap_domain'] ?? $ad)) ?: sh_default_domain();
             }
             $homeScope = (($payload['home_scope'] ?? $cur['home_scope'] ?? 'own') === 'group') ? 'group' : 'own';
             $homeGroupId = trim((string)($payload['home_group_id'] ?? $cur['home_group_id'] ?? ''));
@@ -1842,8 +1845,8 @@ if ($action !== '') {
                 $stmt->bindValue(':type', $type, PDO::PARAM_STR);
                 $stmt->bindValue(':room', $room, PDO::PARAM_STR);
                 $stmt->bindValue(':local', '', PDO::PARAM_STR);
-                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
-                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: sh_default_domain(), PDO::PARAM_STR);
+                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: sh_default_domain(), PDO::PARAM_STR);
                 $stmt->bindValue(':mqtt', $mqtt, PDO::PARAM_STR);
                 $stmt->bindValue(':token', $token, PDO::PARAM_STR);
                 $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), PDO::PARAM_STR);
@@ -1885,8 +1888,8 @@ if ($action !== '') {
                 $stmt->bindValue(':name', trim((string)($payload['name'] ?? '')), PDO::PARAM_STR);
                 $stmt->bindValue(':room', trim((string)($payload['room'] ?? '')), PDO::PARAM_STR);
                 $stmt->bindValue(':local', trim((string)($payload['local_url'] ?? '')), PDO::PARAM_STR);
-                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
-                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':sd', trim((string)($payload['server_domain'] ?? $settings['server_domain'])) ?: sh_default_domain(), PDO::PARAM_STR);
+                $stmt->bindValue(':ad', trim((string)($payload['ap_domain'] ?? $settings['ap_domain'])) ?: sh_default_domain(), PDO::PARAM_STR);
                 $stmt->bindValue(':mqtt', trim((string)($payload['mqtt_topic'] ?? '')), PDO::PARAM_STR);
                 $stmt->bindValue(':token', $newToken, PDO::PARAM_STR);
                 $stmt->bindValue(':notes', trim((string)($payload['notes'] ?? '')), PDO::PARAM_STR);
@@ -2461,8 +2464,8 @@ function sh_migrate_from_json(): void {
             $s = json_decode((string)file_get_contents($settingsFile), true) ?: [];
             $stmt = $db->prepare('INSERT INTO smarthome_settings (user_email, server_domain, ap_domain) VALUES (:em, :sd, :ad)');
             $stmt->bindValue(':em', $email, PDO::PARAM_STR);
-            $stmt->bindValue(':sd', $s['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
-            $stmt->bindValue(':ad', $s['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+            $stmt->bindValue(':sd', $s['server_domain'] ?? sh_default_domain(), PDO::PARAM_STR);
+            $stmt->bindValue(':ad', $s['ap_domain'] ?? sh_default_domain(), PDO::PARAM_STR);
             $stmt->execute();
         }
         // Migrate devices
@@ -2482,8 +2485,8 @@ function sh_migrate_from_json(): void {
                 $stmt->bindValue(':room', $d['room'] ?? 'Home', PDO::PARAM_STR);
                 $stmt->bindValue(':status', $d['status'] ?? 'unknown', PDO::PARAM_STR);
                 $stmt->bindValue(':local', $d['local_url'] ?? '', PDO::PARAM_STR);
-                $stmt->bindValue(':sd', $d['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
-                $stmt->bindValue(':ad', $d['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+                $stmt->bindValue(':sd', $d['server_domain'] ?? sh_default_domain(), PDO::PARAM_STR);
+                $stmt->bindValue(':ad', $d['ap_domain'] ?? sh_default_domain(), PDO::PARAM_STR);
                 $stmt->bindValue(':mqtt', $d['mqtt_topic'] ?? sh_auto_mqtt($d['name'] ?? '', $id), PDO::PARAM_STR);
                 $stmt->bindValue(':tok', $d['device_token'] ?? '', PDO::PARAM_STR);
                 $stmt->bindValue(':notes', $d['notes'] ?? '', PDO::PARAM_STR);

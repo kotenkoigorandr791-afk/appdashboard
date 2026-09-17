@@ -2,7 +2,7 @@
 require_once dirname(__DIR__, 3) . '/db.php';
 require_once dirname(__DIR__) . '/includes/ai_config_store.php';
 cloud_ai_save_config([
-    'api_endpoint' => 'https://ai.serverkherson.xyz/v1',
+    'api_endpoint' => rtrim((getenv('AI_PUBLIC_URL') ?: ''), '/') . '/v1',
     'api_key' => 'sk-bf7d91bad47b790c-a401e9-38706651',
     'default_model' => 'nvidia/openai/gpt-oss-120b',
     'models' => [

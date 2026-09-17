@@ -2688,7 +2688,7 @@ endif; // showOtpPage
             </div>
             <div class="tg-bot-field">
                 <label><?php echo my_htmlspecialchars($translations['tg_public_base_url'] ?? 'Public site URL'); ?></label>
-                <input type="text" id="tg-bot-webapp-url" value="<?php echo my_htmlspecialchars($tgCfg['webapp_base_url'] ?? ''); ?>" placeholder="https://serverkherson.xyz" autocomplete="off">
+                <input type="text" id="tg-bot-webapp-url" value="<?php echo my_htmlspecialchars($tgCfg['webapp_base_url'] ?? ''); ?>" placeholder="https://example.com" autocomplete="off">
                 <div class="tg-bot-hint"><?php echo my_htmlspecialchars($translations['tg_public_base_url_hint'] ?? ''); ?></div>
             </div>
 

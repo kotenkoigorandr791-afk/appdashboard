@@ -172,7 +172,7 @@ if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
   chown -R www-data:www-data /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
   install_composer_deps /var/www/AppDashboard sentry/sentry
   install_composer_deps /var/www/AppDashboard pimple/pimple
-  install_composer_deps /var/www/AppDashboard/webssh sentry/sentry
+  install_composer_deps /var/www/AppDashboard/webssh cboden/ratchet
   install_composer_deps /var/www/AppDashboard/apps/cloud sentry/sentry
   VENV=/var/www/AppDashboard/apps/steps/utils/.venv
   if [ ! -d "$VENV" ]; then
@@ -216,6 +216,62 @@ PY
 fi
 if [ -f /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php ]; then
   /usr/local/bin/php /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php --once >/var/log/supervisor/smart-home-mqtt-auth-boot.log 2>&1 || true
+fi
+# Derive public service URLs from a single BASE_DOMAIN (override individually via env if needed).
+BASE_DOMAIN="${BASE_DOMAIN:-localhost}"
+case "$BASE_DOMAIN" in
+  localhost|127.0.0.1|*.local) _ap_default_scheme=http ;;
+  *) _ap_default_scheme=https ;;
+esac
+export BASE_DOMAIN
+export APP_PUBLIC_SCHEME="${APP_PUBLIC_SCHEME:-$_ap_default_scheme}"
+export APP_PUBLIC_BASE_URL="${APP_PUBLIC_BASE_URL:-${APP_PUBLIC_SCHEME}://${BASE_DOMAIN}}"
+export AI_PUBLIC_HOST="${AI_PUBLIC_HOST:-ai.${BASE_DOMAIN}}"
+export AI_PUBLIC_URL="${AI_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://${AI_PUBLIC_HOST}}"
+# OmniRoute process (Next.js) — not the public AI hostname (avoids proxy loop via ai.localhost→127.0.0.1).
+export OMNIROUTE_UPSTREAM="${OMNIROUTE_UPSTREAM:-http://127.0.0.1:20128}"
+export SEARCH_PUBLIC_URL="${SEARCH_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://search.${BASE_DOMAIN}}"
+export GITEA_PUBLIC_URL="${GITEA_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://git.${BASE_DOMAIN}}"
+export IMMICH_PUBLIC_URL="${IMMICH_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://photo.${BASE_DOMAIN}}"
+export DOCUMENT_PUBLIC_URL="${DOCUMENT_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://document.${BASE_DOMAIN}}"
+export DOCKER_PUBLIC_URL="${DOCKER_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://docker.${BASE_DOMAIN}}"
+export DAWARICH_PUBLIC_URL="${DAWARICH_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://dawarich.${BASE_DOMAIN}}"
+export DAWARICH_HOSTS="${DAWARICH_HOSTS:-localhost,127.0.0.1,::1,dawarich.${BASE_DOMAIN},${BASE_DOMAIN}}"
+# Render nginx site config from template (no hardcoded production domain in the repo template).
+NGINX_TEMPLATE="${NGINX_TEMPLATE:-/var/www/AppDashboard/nginx/appdashboard.conf.template}"
+if [ ! -f "$NGINX_TEMPLATE" ] && [ -f /etc/nginx/templates/appdashboard.conf.template ]; then
+  NGINX_TEMPLATE=/etc/nginx/templates/appdashboard.conf.template
+fi
+if [ -f "$NGINX_TEMPLATE" ] && [ -x /var/www/AppDashboard/deploy/scripts/render-nginx-conf.sh ]; then
+  /var/www/AppDashboard/deploy/scripts/render-nginx-conf.sh "$NGINX_TEMPLATE" /etc/nginx/sites-available/appdashboard.conf \
+    >/var/log/supervisor/nginx-render.log 2>&1 || true
+  ln -sfn /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled/default 2>/dev/null || true
+fi
+# Ensure SSH WebSocket terminal is installable and will autostart under supervisord.
+if [ -f /var/www/AppDashboard/deploy/scripts/ensure-ssh-ws.sh ]; then
+  sh /var/www/AppDashboard/deploy/scripts/ensure-ssh-ws.sh /var/www/AppDashboard >/var/log/supervisor/ensure-ssh-ws.log 2>&1 || true
+fi
+# Seed empty public URL config keys from BASE_DOMAIN-derived env (never overwrite non-empty DB values).
+if [ -f /var/www/AppDashboard/lib/app_domains.php ] && [ -f /var/www/AppDashboard/db.php ]; then
+  /usr/local/bin/php -r '
+require "/var/www/AppDashboard/lib/app_domains.php";
+require "/var/www/AppDashboard/db.php";
+if (!function_exists("setConfig") || !function_exists("getConfig")) { exit(0); }
+$seed = [
+  "app_public_base_url" => app_public_url(""),
+  "tg_webapp_base_url" => app_public_url(""),
+  "gitea_url" => app_public_url("git"),
+  "immich_url" => app_public_url("photo"),
+  "dawarich_url" => app_public_url("dawarich"),
+  "docker_host" => app_public_url("docker"),
+  "docker_domain" => app_subdomain_host("docker"),
+  "search_engine_url" => app_public_url("search"),
+];
+foreach ($seed as $k => $v) {
+  $cur = trim((string)getConfig($k, ""));
+  if ($cur === "" && $v !== "") { setConfig($k, $v); }
+}
+' >/var/log/supervisor/domain-seed.log 2>&1 || true
 fi
 if [ -f /var/www/AppDashboard/supervisord.conf ]; then
   cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
