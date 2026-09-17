@@ -66,7 +66,10 @@ class UserHelper extends Base
     public function getFullname(array $user = array())
     {
         $user = empty($user) ? $this->userSession->getAll() : $user;
-        return $user['name'] ?: $user['username'];
+        if (!is_array($user)) {
+            return '';
+        }
+        return ($user['name'] ?? '') ?: ($user['username'] ?? '');
     }
 
     /**

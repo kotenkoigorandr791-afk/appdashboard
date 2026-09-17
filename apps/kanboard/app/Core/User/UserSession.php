@@ -90,7 +90,8 @@ class UserSession extends Base
      */
     public function getAll()
     {
-        return session_get('user');
+        $user = session_get('user');
+        return is_array($user) ? $user : array();
     }
 
     /**
@@ -265,7 +266,8 @@ class UserSession extends Base
      */
     public function isLogged()
     {
-        return session_exists('user') && session_get('user') !== [];
+        $user = session_get('user');
+        return is_array($user) && $user !== [];
     }
 
     /**
