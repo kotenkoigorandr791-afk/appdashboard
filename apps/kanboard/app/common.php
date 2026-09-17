@@ -3,19 +3,6 @@
 require dirname(__DIR__) . '/autoload.php';
 require_once dirname(__DIR__) . '/integration/bootstrap.php';
 
-$dbUrlParser = new PicoDb\UrlParser();
-
-if ($dbUrlParser->isEnvironmentVariableDefined()) {
-    $dbSettings = $dbUrlParser->getSettings();
-
-    define('DB_DRIVER', $dbSettings['driver']);
-    define('DB_USERNAME', $dbSettings['username']);
-    define('DB_PASSWORD', $dbSettings['password']);
-    define('DB_HOSTNAME', $dbSettings['hostname']);
-    define('DB_PORT', $dbSettings['port']);
-    define('DB_NAME', $dbSettings['database']);
-}
-
 $config_file = implode(DIRECTORY_SEPARATOR, array(__DIR__, '..', 'data', 'config.php'));
 
 if (file_exists($config_file)) {
@@ -26,6 +13,19 @@ $config_file = implode(DIRECTORY_SEPARATOR, array(__DIR__, '..', 'config.php'));
 
 if (file_exists($config_file)) {
     require $config_file;
+}
+
+$dbUrlParser = new PicoDb\UrlParser();
+
+if (!defined('DB_HOSTNAME') && $dbUrlParser->isEnvironmentVariableDefined()) {
+    $dbSettings = $dbUrlParser->getSettings();
+
+    define('DB_DRIVER', $dbSettings['driver']);
+    define('DB_USERNAME', $dbSettings['username']);
+    define('DB_PASSWORD', $dbSettings['password']);
+    define('DB_HOSTNAME', $dbSettings['hostname']);
+    define('DB_PORT', $dbSettings['port']);
+    define('DB_NAME', $dbSettings['database']);
 }
 
 require __DIR__.'/constants.php';

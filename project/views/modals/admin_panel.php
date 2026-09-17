@@ -1399,41 +1399,7 @@ var apEditMode     = false;
 var apJsonAllFiles = [];
 var apJsonSortAsc  = true;
 var monacoInjected = false;
-window.apLoadMonaco = window.apLoadMonaco || function(){
-    if(window.monaco) return Promise.resolve(window.monaco);
-    if(window.__apMonacoPromise) return window.__apMonacoPromise;
-    // Local monaco assets may be absent in some deployments.
-    // Prefer CDN (local assets may be missing => 404).
-    var localVs='/project/assets/monaco-0.45.0/vs';
-    var cdnVs='https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
-    function loadScript(src){
-        return new Promise(function(resolve,reject){
-            var existing=document.querySelector('script[src="'+src+'"]');
-            var s=existing||document.createElement('script');
-            s.addEventListener('load',function(){s.dataset.apLoaded='1';resolve();},{once:true});
-            s.addEventListener('error',function(){reject(new Error('Failed to load '+src));},{once:true});
-            if(existing&&existing.dataset.apLoaded==='1') setTimeout(resolve,0);
-            else if(existing&&existing.readyState==='complete') setTimeout(resolve,0);
-            else if(!existing){s.src=src;s.async=false;document.head.appendChild(s);}
-        });
-    }
-    function loadEditor(vsPath){
-        return new Promise(function(resolve,reject){
-            try{
-                require.config({paths:{vs:vsPath}});
-                require(['vs/editor/editor.main'],function(){
-                    resolve(window.monaco);
-                },reject);
-            }catch(e){reject(e);}
-        });
-    }
-    function tryLoad(vsPath){
-        var ready=loadScript(vsPath+'/loader.js');
-        return ready.then(function(){return loadEditor(vsPath);});
-    }
-    window.__apMonacoPromise = tryLoad(cdnVs);
-    return window.__apMonacoPromise;
-};
+// Shared loader is defined in project/views/partials/monaco_loader.php
 
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager','security':'ap-security'};
@@ -1664,9 +1630,16 @@ function apCsrfToken(){
 }
 function apRememberCsrf(token){
     if(!token) return;
+    if(typeof window.__AP_REMEMBER_CSRF__==='function'){ window.__AP_REMEMBER_CSRF__(token); return; }
     window.__AP_CSRF__=String(token);
     var meta=document.querySelector('meta[name="csrf-token"]');
     if(meta) meta.setAttribute('content', String(token));
+}
+function apRefreshCsrf(){
+    return fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'})
+        .then(function(r){ return r.json().catch(function(){ return null; }); })
+        .then(function(d){ if(d&&d.csrf) apRememberCsrf(d.csrf); return d; })
+        .catch(function(){ return null; });
 }
 function apAdminFd(fields){
     var fd=new FormData();
@@ -1675,7 +1648,7 @@ function apAdminFd(fields){
     if(t){ fd.append('_csrf', t); }
     return fd;
 }
-function apAdminFetch(fields){
+function apAdminFetch(fields, retried){
     var t=apCsrfToken();
     var headers={};
     if(t){ headers['X-CSRF-TOKEN']=t; }
@@ -1687,6 +1660,9 @@ function apAdminFetch(fields){
     }).then(function(r){
         return r.json().then(function(d){
             if(d&&d.csrf) apRememberCsrf(d.csrf);
+            if(d&&d.error==='csrf_forbidden'&&!retried){
+                return apRefreshCsrf().then(function(){ return apAdminFetch(fields, true); });
+            }
             return d;
         }).catch(function(){
             return {success:false,error:'invalid_response',status:r.status};
@@ -1720,19 +1696,22 @@ function openAdminPanel(target){
     overlay.classList.add('active');
     document.body.style.overflow='hidden';
     window._apPendingPanel = target||'ap-users';
-    if(apLoaded){ openPanel(window._apPendingPanel); return; }
     skeleton.style.display='flex'; dynRoot.style.display='none';
     apGateHide();
-    apGateStatus().then(function(d){
+    apRefreshCsrf().then(function(){ return apGateStatus(); }).then(function(d){
         if(d&&d.csrf) apRememberCsrf(d.csrf);
-        if(d&&d.authenticated){ loadPanel(window._apPendingPanel); return; }
+        if(d&&d.authenticated){
+            if(apLoaded){ openPanel(window._apPendingPanel); return; }
+            loadPanel(window._apPendingPanel); return;
+        }
+        apLoaded=false;
         if(d&&d.is_admin===false){ apShowUnauthorizedMsg(); return; }
         if(d&&d.error==='csrf_forbidden'){
             apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>);
             return;
         }
         apGateShow('');
-    }).catch(function(){ apGateShow(''); });
+    }).catch(function(){ apLoaded=false; apGateShow(''); });
 }
 function closeAdminPanel(){
     overlay.classList.remove('ap-edge-omniroute');
@@ -4443,7 +4422,7 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
         var pass=pwd?pwd.value:'';
         if(!pass){ apGateShow(<?php echo json_encode($translations['password_required'] ?? 'Password required'); ?>); return; }
         submit.disabled=true;
-        apGateLogin(pass).then(function(d){
+        apRefreshCsrf().then(function(){ return apGateLogin(pass); }).then(function(d){
             submit.disabled=false;
             if(d&&d.csrf) apRememberCsrf(d.csrf);
             if(d&&d.success){ apGateHide(); loadPanel(window._apPendingPanel||'ap-users'); return; }

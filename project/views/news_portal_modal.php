@@ -1561,66 +1561,8 @@ ${item.photo ? `<img src="/${escH(item.photo)}" alt="" loading="lazy">` : ''}
   (function() {
     const monacoContainer = document.getElementById('npo-body-monaco');
     if (!monacoContainer) return;
-    const loadMonaco = window.apLoadMonaco || function(){
-      if (window.monaco) return Promise.resolve(window.monaco);
-      if (window.__apMonacoPromise) return window.__apMonacoPromise;
-      window.__apMonacoPromise = new Promise((resolve, reject) => {
-        const localVs = '/project/assets/monaco-0.45.0/vs';
-        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
-        const loadEditor = (vsPath) => {
-          try {
-            require.config({ paths: { vs: vsPath } });
-            require(['vs/editor/editor.main'], () => {
-              if (typeof define === 'function' && (!require.defined || !require.defined('vs/editor/editor.api'))) define('vs/editor/editor.api', [], () => window.monaco);
-              resolve(window.monaco);
-            }, reject);
-          } catch (e) {
-            reject(e);
-          }
-        };
-        const loadScript = (src, vsPath) => {
-          const existing = document.querySelector('script[src="' + src + '"]');
-          const script = existing || document.createElement('script');
-          script.addEventListener('load', () => loadEditor(vsPath), { once: true });
-          script.addEventListener('error', () => reject(new Error('Failed to load ' + src)), { once: true });
-          if (!existing) {
-            script.src = src;
-            document.head.appendChild(script);
-          }
-        };
-        // Prefer CDN: local build may be missing (404) in some deployments.
-        if (typeof require === 'function') {
-          loadEditor(cdnVs);
-          return;
-        }
-        loadScript(cdnVs + '/loader.js', cdnVs);
-      });
-      return window.__apMonacoPromise;
-    };
-    loadMonaco().catch(() => {
-      // Fallback: try loading from CDN if local assets failed.
-      return new Promise((resolve) => {
-        const cdnVs = 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs';
-        const loadEditor = () => {
-          try {
-            require.config({ paths: { vs: cdnVs } });
-            require(['vs/editor/editor.main'], () => resolve());
-          } catch (e) {
-            resolve();
-          }
-        };
-        const existing = document.querySelector('script[src="' + cdnVs + '/loader.js"]');
-        const script = existing || document.createElement('script');
-        if (!existing) {
-          script.src = cdnVs + '/loader.js';
-          script.async = false;
-          script.addEventListener('load', loadEditor, { once: true });
-          document.head.appendChild(script);
-        } else {
-          loadEditor();
-        }
-      });
-    }).then(() => {
+    const loadMonaco = typeof window.apLoadMonaco === 'function' ? window.apLoadMonaco : function(){ return Promise.reject(new Error('Monaco loader missing')); };
+    loadMonaco().then(() => {
         const isDark = !document.body.classList.contains('theme-light');
         bodyMonaco = monaco.editor.create(monacoContainer, {
           value: bodyTextarea ? bodyTextarea.value : '',

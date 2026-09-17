@@ -5,6 +5,14 @@ require_once __DIR__ . '/core.php';
 $requestUri = $_SERVER['REQUEST_URI'];
 $path = oauthRequestPath($requestUri);
 
+if ($path === '/csrf' && strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET') {
+    while (ob_get_level() > 1) ob_end_clean();
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    echo json_encode(['ok' => true, 'csrf' => apSecCsrfToken()]);
+    exit;
+}
+
 if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     try {
         $provider = (string)($_GET['provider'] ?? '');
