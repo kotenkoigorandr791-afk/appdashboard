@@ -77,6 +77,7 @@ COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY . /var/www/AppDashboard/
 RUN rm -rf /var/www/AppDashboard/apps/tft-generator \
     && mkdir -p /var/www/AppDashboard/apps/lopaka
+WORKDIR /var/www/AppDashboard
 RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
     && cd /var/www/AppDashboard/webssh && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
     && cd /var/www/AppDashboard/apps/cloud && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader
@@ -91,7 +92,6 @@ RUN ln -sf /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled
     && sed -i 's|^;listen.group = www-data|listen.group = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.mode = 0660|listen.mode = 0660|' /usr/local/etc/php-fpm.d/www.conf \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
-WORKDIR /var/www/AppDashboard
 EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
