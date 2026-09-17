@@ -8,6 +8,7 @@
         <meta name="robots" content="noindex,nofollow">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="referrer" content="no-referrer">
+        <?php if (function_exists('app_sentry_browser_script')) app_sentry_browser_script('kanboard'); ?>
 
         <?php if (isset($board_public_refresh_interval)): ?>
             <meta http-equiv="refresh" content="<?= $board_public_refresh_interval ?>">

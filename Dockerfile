@@ -24,7 +24,7 @@ ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx libnginx-mod-http-modsecurity modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full mosquitto mosquitto-clients \
     libpq-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-    libxml2-dev libonig-dev libicu-dev ffmpeg tesseract-ocr tesseract-ocr-rus \
+    libxml2-dev libonig-dev libicu-dev libcurl4-openssl-dev ffmpeg tesseract-ocr tesseract-ocr-rus \
     tesseract-ocr-ukr smartmontools util-linux openssh-client \
     default-jdk-headless \
     python3 python3-pip python3-venv python3-dev python3-psycopg2 build-essential autoconf pkg-config docker.io \
@@ -41,7 +41,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && python3 -m pip install --break-system-packages --no-cache-dir gTTS openai-whisper pillow numpy scipy opencv-python-headless rembg onnxruntime psycopg2-binary \
     && python3 -m pip install --break-system-packages --no-cache-dir 'bankstatementparser[excel]' \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pgsql gd zip mbstring intl bcmath sockets \
+    && docker-php-ext-install -j$(nproc) pdo pdo_pgsql pgsql gd zip mbstring intl bcmath sockets curl \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && rm -rf /var/lib/apt/lists/*
@@ -77,6 +77,9 @@ COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY . /var/www/AppDashboard/
 RUN rm -rf /var/www/AppDashboard/apps/tft-generator \
     && mkdir -p /var/www/AppDashboard/apps/lopaka
+RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
+    && cd /var/www/AppDashboard/webssh && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
+    && cd /var/www/AppDashboard/apps/cloud && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader
 COPY --from=lopaka-build /src/dist/ /var/www/AppDashboard/apps/lopaka/
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
 RUN cp -a /var/www/AppDashboard/apps/lopaka /usr/local/share/lopaka

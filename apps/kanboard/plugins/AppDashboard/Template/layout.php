@@ -22,6 +22,7 @@ $bodyClass = $shellTheme === 'dark' ? 'kb-dark' : '';
         <meta name="robots" content="noindex,nofollow">
         <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="referrer" content="no-referrer">
+        <?php if (function_exists('app_sentry_browser_script')) app_sentry_browser_script('kanboard'); ?>
         <script>
         (function () {
           var t = <?= json_encode($shellTheme, JSON_UNESCAPED_SLASHES) ?>;

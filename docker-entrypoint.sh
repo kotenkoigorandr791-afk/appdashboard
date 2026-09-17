@@ -154,16 +154,19 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
   chown -R www-data:www-data "$COMPOSER_CACHE_DIR"
   install_composer_deps() {
     dir="$1"
+    required_package="$2"
     [ -f "$dir/composer.json" ] || return 0
-    [ -f "$dir/vendor/autoload.php" ] && return 0
-    su -s /bin/bash www-data -c "cd $dir && composer install --no-interaction --no-progress"
+    if [ -f "$dir/vendor/autoload.php" ] && { [ -z "$required_package" ] || su -s /bin/bash www-data -c "cd $dir && composer show '$required_package' >/dev/null 2>&1"; }; then
+      return 0
+    fi
+    su -s /bin/bash www-data -c "cd $dir && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader"
   }
   {
   mkdir -p /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
   chown -R www-data:www-data /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
-  install_composer_deps /var/www/AppDashboard
-  install_composer_deps /var/www/AppDashboard/webssh
-  install_composer_deps /var/www/AppDashboard/apps/cloud
+  install_composer_deps /var/www/AppDashboard pimple/pimple
+  install_composer_deps /var/www/AppDashboard/webssh sentry/sentry
+  install_composer_deps /var/www/AppDashboard/apps/cloud sentry/sentry
   VENV=/var/www/AppDashboard/apps/steps/utils/.venv
   if [ ! -d "$VENV" ]; then
     python3 -m venv "$VENV"

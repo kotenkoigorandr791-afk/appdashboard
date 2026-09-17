@@ -59,6 +59,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
   <title data-i18n="appTitle">File Space</title>
+  <?php require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('cloud'); ?>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="stylesheet" href="assets/styles.css?v=32" />
   <script>
@@ -154,7 +155,6 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 .groups-manage-actions{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
 .groups-delete-move-fields{display:flex;flex-direction:column;gap:10px;margin-top:4px}
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.css">
   <script src="https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.polyfilled.min.js"></script>
   <!-- Tesseract must load before Monaco's AMD loader (vs/loader.js), otherwise the UMD build
