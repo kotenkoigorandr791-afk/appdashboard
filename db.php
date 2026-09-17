@@ -1002,57 +1002,44 @@ function loadUsers(): array {
 
 function saveUsers(array $users): void {
     $db = getDB();
-    
-    // Protect root@root role
+    try { $db->exec("ALTER TABLE users ADD COLUMN admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
     if (isset($users['root@root'])) {
         $users['root@root']['role'] = 2;
         $users['root@root']['verified'] = true;
     }
-    
     foreach ($users as $email => $u) {
-        // Check if user exists
         $checkStmt = $db->prepare("SELECT COUNT(*) FROM users WHERE email = :email");
         $checkStmt->bindValue(':email', $email);
         $exists = (int)$checkStmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
-        
+        $caps = $u['admin_capabilities'] ?? '';
+        if (is_array($caps)) $caps = json_encode(array_values($caps), JSON_UNESCAPED_UNICODE);
         if ($exists) {
-            // Use UPDATE for existing users
-            $stmt = $db->prepare("UPDATE users SET 
-                name = :name,
-                password = :password,
-                photo = :photo,
-                role = :role,
-                verified = :verified,
-                language = :language,
-                theme = :theme,
-                color = :color,
-                icon_sort_order = :icon_sort_order,
-                icon_style = :icon_style,
-                wallpaper = :wallpaper,
-                created_at = :created_at,
-                must_change_password = :must_change_password
+            $stmt = $db->prepare("UPDATE users SET
+                name = :name, password = :password, photo = :photo, role = :role, verified = :verified,
+                language = :language, theme = :theme, color = :color, icon_sort_order = :icon_sort_order,
+                icon_style = :icon_style, wallpaper = :wallpaper, created_at = :created_at,
+                must_change_password = :must_change_password, admin_capabilities = :admin_capabilities
                 WHERE email = :email");
         } else {
-            // Use INSERT for new users
-            $stmt = $db->prepare("INSERT INTO users 
-                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at, must_change_password)
-                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at, :must_change_password)");
+            $stmt = $db->prepare("INSERT INTO users
+                (email, name, password, photo, role, verified, language, theme, color, icon_sort_order, icon_style, wallpaper, created_at, must_change_password, admin_capabilities)
+                VALUES(:email, :name, :password, :photo, :role, :verified, :language, :theme, :color, :icon_sort_order, :icon_style, :wallpaper, :created_at, :must_change_password, :admin_capabilities)");
         }
-        
-        $stmt->bindValue(':email',      $email);
-        $stmt->bindValue(':name',       $u['name']       ?? '');
-        $stmt->bindValue(':password',   $u['password']   ?? '');
-        $stmt->bindValue(':photo',      $u['photo']      ?? 'default_avatar.png');
-        $stmt->bindValue(':role',       (int)($u['role'] ?? 0), PDO::PARAM_INT);
-        $stmt->bindValue(':verified',   (int)(bool)($u['verified'] ?? false), PDO::PARAM_INT);
-        $stmt->bindValue(':language',   $u['language']   ?? 'en');
-        $stmt->bindValue(':theme',      $u['theme']      ?? 'light');
-        $stmt->bindValue(':color',      $u['color']      ?? '#007bff');
+        $stmt->bindValue(':email', (string)$email);
+        $stmt->bindValue(':name', $u['name'] ?? '');
+        $stmt->bindValue(':password', $u['password'] ?? '');
+        $stmt->bindValue(':photo', $u['photo'] ?? 'default_avatar.png');
+        $stmt->bindValue(':role', (int)($u['role'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':verified', (int)(bool)($u['verified'] ?? false), PDO::PARAM_INT);
+        $stmt->bindValue(':language', $u['language'] ?? 'en');
+        $stmt->bindValue(':theme', $u['theme'] ?? 'light');
+        $stmt->bindValue(':color', $u['color'] ?? '#007bff');
         $stmt->bindValue(':icon_sort_order', $u['icon_sort_order'] ?? 'alpha');
         $stmt->bindValue(':icon_style', $u['icon_style'] ?? 'animated');
-        $stmt->bindValue(':wallpaper',  $u['wallpaper']  ?? 'default');
+        $stmt->bindValue(':wallpaper', $u['wallpaper'] ?? 'default');
         $stmt->bindValue(':created_at', $u['created_at'] ?? date('Y-m-d H:i:s'));
         $stmt->bindValue(':must_change_password', (int)($u['must_change_password'] ?? 0), PDO::PARAM_INT);
+        $stmt->bindValue(':admin_capabilities', (string)$caps);
         $stmt->execute();
     }
 }
@@ -1077,6 +1064,7 @@ function getUserByEmail(string $email): ?array {
 
 function upsertUser(string $email, array $fields): void {
     $db      = getDB();
+    try { $db->exec("ALTER TABLE users ADD COLUMN admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
     $current = getUserByEmail($email) ?? [];
     $merged  = array_merge([
         'name'       => '',
@@ -1091,11 +1079,19 @@ function upsertUser(string $email, array $fields): void {
         'icon_style' => 'animated',
         'wallpaper' => 'default',
         'must_change_password' => 0,
+        'admin_capabilities' => '',
         'created_at' => date('Y-m-d H:i:s'),
     ], $current, $fields);
+    if (array_key_exists('admin_capabilities', $fields)) {
+        if (is_array($fields['admin_capabilities'])) {
+            $merged['admin_capabilities'] = json_encode(array_values($fields['admin_capabilities']), JSON_UNESCAPED_UNICODE);
+        } else {
+            $merged['admin_capabilities'] = (string)$fields['admin_capabilities'];
+        }
+    }
     $stmt = $db->prepare("INSERT INTO users
-        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at,must_change_password)
-        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at,:must_change_password)
+        (email,name,password,photo,role,verified,language,theme,color,icon_sort_order,icon_style,wallpaper,created_at,must_change_password,admin_capabilities)
+        VALUES(:email,:name,:password,:photo,:role,:verified,:language,:theme,:color,:icon_sort_order,:icon_style,:wallpaper,:created_at,:must_change_password,:admin_capabilities)
         ON CONFLICT (email) DO UPDATE SET
             name=excluded.name,
             password=excluded.password,
@@ -1109,7 +1105,8 @@ function upsertUser(string $email, array $fields): void {
             icon_style=excluded.icon_style,
             wallpaper=excluded.wallpaper,
             created_at=excluded.created_at,
-            must_change_password=excluded.must_change_password");
+            must_change_password=excluded.must_change_password,
+            admin_capabilities=excluded.admin_capabilities");
     $stmt->bindValue(':email',      $email);
     $stmt->bindValue(':name',       $merged['name']);
     $stmt->bindValue(':password',   $merged['password']);
@@ -1124,6 +1121,7 @@ function upsertUser(string $email, array $fields): void {
     $stmt->bindValue(':wallpaper',  $merged['wallpaper'] ?? 'default');
     $stmt->bindValue(':created_at', $merged['created_at']);
     $stmt->bindValue(':must_change_password', (int)($merged['must_change_password'] ?? 0), PDO::PARAM_INT);
+    $stmt->bindValue(':admin_capabilities', (string)($merged['admin_capabilities'] ?? ''));
     $stmt->execute();
     oauthConsumePendingLink($email);
     if (!empty($merged['verified']) || $email === 'root@root') {
@@ -1594,6 +1592,13 @@ function cleanupAllExpiredSessions(int $authTimeout = 12 * 60 * 60): int {
 }
 
 function activeSessionTtlSeconds(string $email): int {
+    $users = null;
+    try { $users = loadUsers(); } catch (Throwable $e) { $users = []; }
+    $role = (int)(($users[$email]['role'] ?? 0));
+    $adminIdle = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : 7200;
+    if ($email === 'root@root' || $role >= 2) {
+        return $adminIdle;
+    }
     $fp = getDeviceFingerprint();
     if ($email !== '' && $fp !== '' && isTrustedDevice($email, $fp)) {
         return 365 * 24 * 3600;
@@ -1619,6 +1624,9 @@ function restoreSessionViaTrustedDevice(?string $preferredEmail = null): ?array 
             clearTrustedDeviceCookieForEmail($autoEmail);
             forgetTrustedDeviceBrowserAccount($autoEmail);
             if (!empty($candidate['legacy'])) clearTrustedDeviceCookie();
+            continue;
+        }
+        if ($autoEmail === 'root@root' || (int)($users[$autoEmail]['role'] ?? 0) >= 2) {
             continue;
         }
         return [
@@ -1674,9 +1682,11 @@ function getUserFromActiveSessions(string $sessionId): ?array {
         if ($raw) {
             $row = json_decode((string)$raw, true);
             if (is_array($row)) {
+                $email = (string)($row['email'] ?? '');
+                $authTimeout = activeSessionTtlSeconds($email);
                 $lastActivity = (int)($row['last_activity'] ?? 0);
                 if ($lastActivity > 0 && (time() - $lastActivity) > $authTimeout) {
-                    removeUserFromActiveSessions((string)($row['email'] ?? ''), $sessionId);
+                    removeUserFromActiveSessions($email, $sessionId);
                 } else {
                     return $row;
                 }
@@ -1689,6 +1699,8 @@ function getUserFromActiveSessions(string $sessionId): ?array {
     $stmt->bindValue(':sid', $sessionId);
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
+    $email = (string)($row['email'] ?? '');
+    $authTimeout = activeSessionTtlSeconds($email);
     if (time() - $row['last_activity'] > $authTimeout) {
         try { $db->exec("DELETE FROM active_sessions WHERE session_id='" . AppDatabase::escapeString($sessionId) . "'"); } catch(Exception $e) {}
         return null;

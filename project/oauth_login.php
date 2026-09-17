@@ -328,16 +328,18 @@ function oauthFetchProfile(string $provider, string $code): array {
     return oauthFetchGitHubProfile($code);
 }
 
-function oauthCompleteLogin(string $email, array $users): void {
-    resetFailedAttempts(trim(explode(',', ($_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'))[0]), 'login');
+function oauthCompleteLogin(string $email, array $users): bool {
+    if (adminIsAdminUser($users[$email] ?? null) && adminIpAllowlist() !== [] && !adminIpAllowed()) {
+        return false;
+    }
+    resetFailedAttempts(getClientIp(), 'login');
     clearTrustedDeviceLogoutSuppression();
-    $_SESSION['user'] = $users[$email];
-    $_SESSION['user']['email'] = $email;
-    $_SESSION['auth_time'] = time();
-    setLastActiveUser($email);
-    cleanupExpiredUserSessions($email);
-    addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    adminEstablishSession($email, $users[$email]);
     scheduleTrustedDevicePromptIfNeeded($email);
+    if (adminIsAdminUser($users[$email] ?? null)) {
+        adminAuditLog('admin_oauth_login', $email, 'ok');
+    }
+    return true;
 }
 
 function oauthHandleLoginFlow(array $profile): void {
@@ -350,7 +352,10 @@ function oauthHandleLoginFlow(array $profile): void {
     }
     linkOAuthConnection($email, $profile);
     if (isset($users[$email]) && !empty($users[$email]['verified']) && !userNeedsPasswordSet($users[$email]) && empty($users[$email]['must_change_password'])) {
-        oauthCompleteLogin($email, $users);
+        if (!oauthCompleteLogin($email, $users)) {
+            header('Location: /login?error=admin_ip_forbidden');
+            exit;
+        }
         header('Location: ' . takePostLoginRedirect('/main'));
         exit;
     }
