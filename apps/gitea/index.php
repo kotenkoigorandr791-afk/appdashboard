@@ -8,58 +8,53 @@ app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
 $isLoggedIn = isset($_SESSION['user']['email']) && getUserFromActiveSessions(session_id()) !== null;
-$currentHost = (string)($_SERVER['HTTP_HOST'] ?? '');
-$theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
-$giteaTheme = $theme === 'dark' ? 'gitea-dark' : 'gitea-light';
+$themeParam = (string)($_GET['theme'] ?? '');
+$cookieTheme = (string)($_COOKIE['browser_theme'] ?? '');
+$theme = in_array($themeParam, ['light', 'dark', 'auto'], true) ? $themeParam : (in_array($cookieTheme, ['light', 'dark'], true) ? $cookieTheme : 'light');
+$giteaTheme = $theme === 'auto' ? 'gitea-auto' : ($theme === 'dark' ? 'gitea-dark' : 'gitea-light');
 if (!$isLoggedIn) {
-    $u = 'https://serverkherson.xyz/login';
-    header('Content-Type: text/html; charset=utf-8');
-    echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($u) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
-    exit;
+    oauth_redirect_html(oauth_login_url());
 }
-if ($currentHost === 'serverkherson.xyz') {
+if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
     oauth_provision_user_services((string)($_SESSION['user']['email'] ?? ''), $_SESSION['user'] ?? []);
     gitea_sync_user_avatar((string)($_SESSION['user']['email'] ?? ''), (string)($_SESSION['user']['photo'] ?? ''));
     gitea_sync_user_theme((string)($_SESSION['user']['email'] ?? ''), $giteaTheme);
     gitea_sync_all_user_themes($giteaTheme);
     gitea_clear_sessions();
-    $u = 'https://git.serverkherson.xyz/user/oauth2/AppDashboard';
+    $u = oauth_external_app_url('gitea') . '/user/oauth2/AppDashboard';
     if ($theme !== '') $u .= '?' . http_build_query(['theme' => $giteaTheme]);
     header('Location: ' . $u);
     exit;
 }
-$bridgeToken = oauth_create_bridge_token(session_id());
-$qs = http_build_query(array_filter([
-    'app' => 'gitea',
-    'lang' => (string)($_GET['lang'] ?? ''),
-    'theme' => $theme,
-    'color' => (string)($_GET['color'] ?? ''),
-]));
-$u = 'https://serverkherson.xyz/oauth-bridge?t=' . urlencode($bridgeToken) . '&next=' . urlencode('/main?' . $qs);
-header('Content-Type: text/html; charset=utf-8');
-echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($u) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
-exit;
+oauth_redirect_html(oauth_app_bridge_url('gitea', $theme));
 
 function gitea_clear_sessions(): void {
+    $pdo = oauth_gitea_db();
+    if (!$pdo) return;
     try {
-        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 3,
-        ]);
         $pdo->exec("DELETE FROM session");
     } catch (\Exception $e) {
     }
 }
 
 function gitea_sync_user_theme(string $email, string $theme): void {
-    if ($email === '' || !in_array($theme, ['gitea-light', 'gitea-dark'], true)) return;
+    if ($email === '' || !in_array($theme, ['gitea-light', 'gitea-dark', 'gitea-auto'], true)) return;
+    $pdo = oauth_gitea_db();
+    if (!$pdo) return;
     try {
-        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 3,
-        ]);
         $stmt = $pdo->prepare('UPDATE "user" SET theme = :theme WHERE lower(email) = lower(:email)');
         $stmt->execute([':theme' => $theme, ':email' => $email]);
+    } catch (\Exception $e) {
+    }
+}
+
+function gitea_sync_all_user_themes(string $theme): void {
+    if (!in_array($theme, ['gitea-light', 'gitea-dark', 'gitea-auto'], true)) return;
+    $pdo = oauth_gitea_db();
+    if (!$pdo) return;
+    try {
+        $stmt = $pdo->prepare('UPDATE "user" SET theme = :theme WHERE theme <> :theme');
+        $stmt->execute([':theme' => $theme]);
     } catch (\Exception $e) {
     }
 }
@@ -68,11 +63,9 @@ function gitea_sync_user_avatar(string $email, string $photo): void {
     if ($email === '') return;
     $avatar = gitea_avatar_url($photo);
     if ($avatar === '') return;
+    $pdo = oauth_gitea_db();
+    if (!$pdo) return;
     try {
-        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 3,
-        ]);
         $stmt = $pdo->prepare('UPDATE "user" SET avatar = :avatar, avatar_email = :email, use_custom_avatar = false WHERE lower(email) = lower(:email)');
         $stmt->execute([':avatar' => $avatar, ':email' => $email]);
     } catch (\Exception $e) {
@@ -83,18 +76,5 @@ function gitea_avatar_url(string $photo): string {
     $photo = trim($photo);
     if ($photo === '' || $photo === 'default_avatar.png') return '';
     if (preg_match('#^https?://#i', $photo)) return $photo;
-    return 'https://serverkherson.xyz/' . ltrim($photo, '/');
-}
-
-function gitea_sync_all_user_themes(string $theme): void {
-    if (!in_array($theme, ['gitea-light', 'gitea-dark'], true)) return;
-    try {
-        $pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=gitea', 'gitea', 'gitea', [
-            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_TIMEOUT => 3,
-        ]);
-        $stmt = $pdo->prepare('UPDATE "user" SET theme = :theme');
-        $stmt->execute([':theme' => $theme]);
-    } catch (\Exception $e) {
-    }
+    return oauth_dashboard_photo_url($photo);
 }
