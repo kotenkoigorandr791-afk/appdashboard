@@ -28,30 +28,38 @@ function ap_base_from_service_host(string $host): string {
 }
 
 $scheme = app_public_scheme();
+$wantHost = '';
 $want = rtrim(app_public_url(''), '/');
 if (ap_is_loopback_host(ap_url_host($want))) {
     $want = '';
-    foreach (['gitea_url', 'immich_url', 'dawarich_url', 'docker_host', 'tg_webapp_base_url'] as $key) {
+}
+if ($want !== '') {
+    $wantHost = ap_url_host($want);
+}
+if ($wantHost === '') {
+    foreach (['gitea_url', 'immich_url', 'dawarich_url', 'docker_host', 'tg_webapp_base_url', 'app_public_base_url'] as $key) {
         $base = ap_base_from_service_host(ap_url_host(trim((string)getConfig($key, ''))));
         if ($base !== '') {
-            $want = $scheme . '://' . $base;
+            $wantHost = $base;
             break;
         }
     }
 }
-if ($want === '') {
+if ($wantHost === '' || ap_is_loopback_host($wantHost)) {
     fwrite(STDERR, "fix-public-urls: no non-loopback base URL available\n");
     exit(0);
 }
-
+$want = 'https://' . $wantHost;
 $updates = [
     'app_public_base_url' => $want,
     'tg_webapp_base_url' => $want,
-    'search_engine_url' => $scheme . '://search.' . ap_url_host($want),
+    'search_engine_url' => 'https://search.' . $wantHost,
 ];
 foreach ($updates as $key => $value) {
     $cur = trim((string)getConfig($key, ''));
-    if ($cur === '' || ap_is_loopback_host(ap_url_host($cur))) {
+    $curHost = ap_url_host($cur);
+    $needsFix = ($cur === '' || ap_is_loopback_host($curHost) || str_starts_with($cur, 'http://'));
+    if ($needsFix) {
         setConfig($key, $value);
         echo "set {$key}={$value}\n";
     }

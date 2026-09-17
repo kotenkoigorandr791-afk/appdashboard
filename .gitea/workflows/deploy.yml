@@ -28,6 +28,20 @@ jobs:
           fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
           docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
+          # Ensure public OAuth issuer uses https://$BASE_DOMAIN (never http://localhost).
+          if [ -f /opt/docker/appdashboard/.env ]; then
+            if grep -qE '^BASE_DOMAIN=(localhost)?[[:space:]]*$' /opt/docker/appdashboard/.env || ! grep -qE '^BASE_DOMAIN=' /opt/docker/appdashboard/.env; then
+              grep -qE '^BASE_DOMAIN=' /opt/docker/appdashboard/.env \
+                && sed -i 's/^BASE_DOMAIN=.*/BASE_DOMAIN=serverkherson.xyz/' /opt/docker/appdashboard/.env \
+                || printf '\nBASE_DOMAIN=serverkherson.xyz\n' >> /opt/docker/appdashboard/.env
+            fi
+            if grep -qE '^APP_PUBLIC_SCHEME=' /opt/docker/appdashboard/.env; then
+              sed -i 's/^APP_PUBLIC_SCHEME=.*/APP_PUBLIC_SCHEME=https/' /opt/docker/appdashboard/.env
+            else
+              printf '\nAPP_PUBLIC_SCHEME=https\n' >> /opt/docker/appdashboard/.env
+            fi
+            docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
+          fi
           docker exec appdashboard php /var/www/AppDashboard/deploy/scripts/fix-public-urls.php || true
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh

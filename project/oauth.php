@@ -91,6 +91,17 @@ function oauth_is_loopback_origin(string $origin): bool {
     return $host === 'localhost' || $host === '127.0.0.1' || $host === '::1';
 }
 
+function oauth_normalize_public_origin(string $origin): string {
+    $origin = rtrim($origin, '/');
+    if ($origin === '' || oauth_is_loopback_origin($origin)) {
+        return $origin;
+    }
+    if (str_starts_with($origin, 'http://')) {
+        return 'https://' . substr($origin, strlen('http://'));
+    }
+    return $origin;
+}
+
 function oauth_public_origin(): string {
     $request = rtrim(oauth_request_scheme() . '://' . oauth_request_host(), '/');
     $configured = function_exists('getConfig') ? rtrim(trim(getConfig('app_public_base_url', '')), '/') : '';
@@ -98,7 +109,7 @@ function oauth_public_origin(): string {
     // Prefer a real public origin: never advertise localhost issuer to external OIDC clients.
     foreach ([$configured, $fromEnv, $request] as $candidate) {
         if ($candidate !== '' && !oauth_is_loopback_origin($candidate)) {
-            return $candidate;
+            return oauth_normalize_public_origin($candidate);
         }
     }
     if ($configured !== '') {
