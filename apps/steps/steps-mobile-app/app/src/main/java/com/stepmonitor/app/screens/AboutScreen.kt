@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -137,6 +138,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var metricsExpanded by remember { mutableStateOf(false) }
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
+    var amoledEnabled by remember { mutableStateOf(prefs.isAmoledEnabled()) }
     var accentColor by remember { mutableStateOf(prefs.getAccentColor()) }
     var accentExpanded by remember { mutableStateOf(false) }
     var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
@@ -652,6 +654,20 @@ item {
                         ) {
                             Text(stringResource(label))
                         }
+                    }
+                }
+
+                if (themeMode == "dark" || (themeMode == "auto" && isSystemInDarkTheme())) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(stringResource(R.string.theme_amoled), modifier = Modifier.weight(1f))
+                        Switch(checked = amoledEnabled, onCheckedChange = {
+                            amoledEnabled = it
+                            prefs.setAmoledEnabled(it)
+                            (context as? Activity)?.recreate()
+                        })
                     }
                 }
 

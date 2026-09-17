@@ -456,6 +456,7 @@
     <string name="theme_auto">Аўта</string>
     <string name="theme_light">Светлая</string>
     <string name="theme_dark">Цёмная</string>
+    <string name="theme_amoled">AMOLED</string>
     <string name="accent_blue">Сіні</string>
     <string name="accent_green">Зялёны</string>
     <string name="accent_teal">Бірузовы</string>
