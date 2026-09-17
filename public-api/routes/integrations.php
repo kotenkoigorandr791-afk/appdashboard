@@ -304,26 +304,7 @@ function integrations_kanboard_url(): string {
 
 function integrations_kanboard_pdo(): ?PDO {
     require_once APP_ROOT . '/apps/kanboard/integration/bootstrap.php';
-    kanboard_ensure_database();
-    require_once APP_ROOT . '/lib/db_config.php';
-    $cfg = app_db_load_config();
-    $host = (string)($cfg['host'] ?? '127.0.0.1');
-    if ($host === '127.0.0.1' || $host === 'localhost') {
-        $dockerHost = getenv('DB_HOST');
-        if (is_string($dockerHost) && $dockerHost !== '') $host = $dockerHost;
-        elseif (is_file('/.dockerenv') || getenv('APP_IN_DOCKER') === '1') $host = 'appdashboard-db';
-    }
-    $dbname = getenv('KANBOARD_DB_NAME') ?: 'kanboard';
-    try {
-        return new PDO(
-            sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, (int)($cfg['port'] ?? 5432), $dbname),
-            (string)($cfg['user'] ?? 'appdashboard'),
-            (string)($cfg['password'] ?? ''),
-            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]
-        );
-    } catch (Throwable $e) {
-        return null;
-    }
+    return kanboard_pdo();
 }
 
 function integrations_kanboard_ensure_user(PDO $pdo, string $email, string $name, bool $isManager): ?array {
