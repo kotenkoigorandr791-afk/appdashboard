@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
 <link rel="stylesheet" href="assets/css/app.css?v=20260905a">
+<?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('smart_home'); ?>
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
 <div id="app-bg" aria-hidden="true"></div>

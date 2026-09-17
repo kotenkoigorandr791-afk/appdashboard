@@ -45,6 +45,7 @@ $mvBgFile = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <?php include __DIR__ . '/views/styles.php'; ?>
+    <?php require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('media_viewer'); ?>
 </head>
 <body>
 <div id="mv-app-bg" aria-hidden="true"></div>

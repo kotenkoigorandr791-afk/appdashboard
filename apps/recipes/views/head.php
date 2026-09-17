@@ -11,4 +11,5 @@
     <link rel="stylesheet" href="styles.php?theme=<?php echo $theme; ?>&color=<?php echo urlencode($color); ?>">
     <script src="color-tone.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('recipes'); ?>
 </head>

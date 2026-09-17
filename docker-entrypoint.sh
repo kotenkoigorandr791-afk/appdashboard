@@ -148,7 +148,7 @@ git config --system --add safe.directory /var/www/AppDashboard 2>/dev/null || tr
 if [ "${RUN_MCP_PACKAGE_BUILD:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh /var/www/AppDashboard >/var/log/supervisor/mcp-package-build.log 2>&1
 fi
-if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
+if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
   export COMPOSER_CACHE_DIR="${COMPOSER_CACHE_DIR:-$APPDATA_BASE_DIR/.composer-cache}"
   mkdir -p "$COMPOSER_CACHE_DIR"
   chown -R www-data:www-data "$COMPOSER_CACHE_DIR"
@@ -156,14 +156,21 @@ if [ "${RUN_STARTUP_DEPS:-0}" = "1" ]; then
     dir="$1"
     required_package="$2"
     [ -f "$dir/composer.json" ] || return 0
-    if [ -f "$dir/vendor/autoload.php" ] && { [ -z "$required_package" ] || su -s /bin/bash www-data -c "cd $dir && composer show '$required_package' >/dev/null 2>&1"; }; then
-      return 0
+    needs_install=0
+    if [ ! -f "$dir/vendor/autoload.php" ]; then
+      needs_install=1
+    elif [ -n "$required_package" ] && ! su -s /bin/bash www-data -c "cd $dir && composer show '$required_package' >/dev/null 2>&1"; then
+      needs_install=1
+    elif [ -f "$dir/composer.lock" ] && [ -f "$dir/vendor/composer/installed.php" ] && [ "$dir/composer.lock" -nt "$dir/vendor/composer/installed.php" ]; then
+      needs_install=1
     fi
+    [ "$needs_install" = "1" ] || return 0
     su -s /bin/bash www-data -c "cd $dir && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader"
   }
   {
   mkdir -p /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
   chown -R www-data:www-data /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
+  install_composer_deps /var/www/AppDashboard sentry/sentry
   install_composer_deps /var/www/AppDashboard pimple/pimple
   install_composer_deps /var/www/AppDashboard/webssh sentry/sentry
   install_composer_deps /var/www/AppDashboard/apps/cloud sentry/sentry

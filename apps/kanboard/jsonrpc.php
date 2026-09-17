@@ -8,5 +8,14 @@ require_once __DIR__ . '/integration/bootstrap.php';
 
 kanboard_ensure_database();
 
-require __DIR__ . '/app/common.php';
-echo $container['api']->execute();
+try {
+    require __DIR__ . '/app/common.php';
+    echo $container['api']->execute();
+} catch (Throwable $e) {
+    if (function_exists('app_sentry_capture_exception')) {
+        app_sentry_capture_exception($e);
+    }
+    http_response_code(500);
+    header('Content-Type: text/plain; charset=UTF-8');
+    echo 'Internal Error: ' . $e->getMessage();
+}
