@@ -137,6 +137,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var profilePhotoModel by remember { mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() }) }
     var metricsExpanded by remember { mutableStateOf(false) }
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
+    var autoUpdate by remember { mutableStateOf(prefs.isAutoUpdateEnabled()) }
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
     var amoledEnabled by remember { mutableStateOf(prefs.isAmoledEnabled()) }
     var accentColor by remember { mutableStateOf(prefs.getAccentColor()) }
@@ -336,6 +337,34 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             prefs.setWifiOnly(it)
                             (context.applicationContext as? HCWebhookApplication)?.scheduleSyncWork()
                         })
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_update_title), style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_update_automatic))
+                            Text(
+                                stringResource(R.string.settings_update_automatic_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = autoUpdate, onCheckedChange = {
+                            autoUpdate = it
+                            prefs.setAutoUpdateEnabled(it)
+                        })
+                    }
+                    if (configs.any { it.isEnabled }) {
+                        Text(
+                            stringResource(R.string.settings_update_source, configs.firstOrNull { it.isEnabled }?.url.orEmpty()),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

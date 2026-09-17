@@ -29,6 +29,7 @@ header('Content-Type: text/html; charset=UTF-8');
     <title id="pageTitle">Web Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <?php include __DIR__ . '/views/styles.php'; ?>
+    <?php require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('viewer'); ?>
 </head>
 <body>
 <?php

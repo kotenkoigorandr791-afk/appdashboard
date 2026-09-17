@@ -15,8 +15,21 @@ const CLOUD_AI_LEGACY_KEYS = [
     'models' => 'cloud_ai_models',
     'default_model' => 'cloud_ai_default_model',
 ];
-const CLOUD_AI_DEFAULT_ENDPOINT = 'https://ai.serverkherson.xyz/v1/chat/completions';
+const CLOUD_AI_DEFAULT_ENDPOINT = ''; // filled by cloud_ai_default_endpoint()
 const CLOUD_AI_DEFAULT_MODEL = 'github/gpt-4o-mini';
+
+function cloud_ai_default_endpoint(): string
+{
+    if (!function_exists('app_public_url')) {
+        require_once dirname(__DIR__, 3) . '/lib/app_domains.php';
+    }
+    $fromEnv = trim((string)(getenv('AI_PUBLIC_URL') ?: ''));
+    if ($fromEnv !== '') {
+        return rtrim($fromEnv, '/') . '/v1/chat/completions';
+    }
+    return rtrim(app_public_url('ai'), '/') . '/v1/chat/completions';
+}
+
 const CLOUD_AI_DEFAULT_MODELS = [
     'github/gpt-4o-mini',
     'github/gpt-4o',
@@ -179,7 +192,7 @@ function cloud_ai_normalize_endpoint(string $endpoint): string
 {
     $endpoint = trim($endpoint);
     if ($endpoint === '') {
-        return CLOUD_AI_DEFAULT_ENDPOINT;
+        return cloud_ai_default_endpoint();
     }
     if (!preg_match('#/chat/completions#i', $endpoint)) {
         $endpoint = rtrim($endpoint, '/') . '/chat/completions';
@@ -221,7 +234,7 @@ function cloud_ai_models_to_json(array $models): string
 function cloud_ai_seed_defaults(): void
 {
     if (cloud_ai_get_config(CLOUD_AI_CFG_ENDPOINT, '') === '') {
-        cloud_ai_set_config(CLOUD_AI_CFG_ENDPOINT, CLOUD_AI_DEFAULT_ENDPOINT);
+        cloud_ai_set_config(CLOUD_AI_CFG_ENDPOINT, cloud_ai_default_endpoint());
     }
     if (cloud_ai_get_config(CLOUD_AI_CFG_DEFAULT_MODEL, '') === '') {
         cloud_ai_set_config(CLOUD_AI_CFG_DEFAULT_MODEL, CLOUD_AI_DEFAULT_MODEL);
@@ -244,7 +257,7 @@ function cloud_ai_load_config(): array
     }
     return [
         'api_key' => trim(cloud_ai_get_config(CLOUD_AI_CFG_KEY, '')),
-        'api_endpoint' => cloud_ai_normalize_endpoint(cloud_ai_get_config(CLOUD_AI_CFG_ENDPOINT, CLOUD_AI_DEFAULT_ENDPOINT)),
+        'api_endpoint' => cloud_ai_normalize_endpoint(cloud_ai_get_config(CLOUD_AI_CFG_ENDPOINT, cloud_ai_default_endpoint())),
         'default_model' => $defaultModel,
         'models' => $models,
     ];

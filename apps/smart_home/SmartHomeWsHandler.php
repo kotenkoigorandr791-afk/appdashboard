@@ -814,8 +814,8 @@ class SmartHomeWsHandler implements MessageComponentInterface
             $stmt->bindValue(':type', $device['type'] ?? 'generic_sensor', PDO::PARAM_STR);
             $stmt->bindValue(':status', $device['status'] ?? 'unknown', PDO::PARAM_STR);
             $stmt->bindValue(':local', $device['local_url'] ?? '', PDO::PARAM_STR);
-            $stmt->bindValue(':sd', $device['server_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
-            $stmt->bindValue(':ad', $device['ap_domain'] ?? 'serverkherson.xyz', PDO::PARAM_STR);
+            $stmt->bindValue(':sd', $device['server_domain'] ?? (function_exists('app_base_domain') ? app_base_domain() : 'localhost'), PDO::PARAM_STR);
+            $stmt->bindValue(':ad', $device['ap_domain'] ?? (function_exists('app_base_domain') ? app_base_domain() : 'localhost'), PDO::PARAM_STR);
             $stmt->bindValue(':mqtt', $device['mqtt_topic'] ?? '', PDO::PARAM_STR);
             $stmt->bindValue(':tok', $device['device_token'] ?? '', PDO::PARAM_STR);
             $stmt->bindValue(':notes', $device['notes'] ?? '', PDO::PARAM_STR);

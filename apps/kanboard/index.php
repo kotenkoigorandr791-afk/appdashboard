@@ -17,5 +17,8 @@ try {
     $runner = new Runner($container);
     $runner->execute();
 } catch (Throwable $e) {
+    if (function_exists('app_sentry_capture_exception')) {
+        app_sentry_capture_exception($e);
+    }
     echo htmlspecialchars('Internal Error: ' . $e->getMessage(), ENT_QUOTES, 'UTF-8', false);
 }

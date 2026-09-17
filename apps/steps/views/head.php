@@ -3012,4 +3012,5 @@ justify-content: center;
 }
 }
 </style>
+<?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>

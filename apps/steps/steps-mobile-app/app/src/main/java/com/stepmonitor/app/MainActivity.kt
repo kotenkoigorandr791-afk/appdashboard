@@ -37,9 +37,11 @@ import com.stepmonitor.app.screens.AboutScreen
 import com.stepmonitor.app.screens.ConfigurationScreen
 import com.stepmonitor.app.screens.LogsScreen
 import com.stepmonitor.app.screens.StatisticsScreen
+import com.stepmonitor.app.screens.WhatsNewSheet
 import com.stepmonitor.app.components.AppBackground
 import com.stepmonitor.app.components.AppTopBar
 import com.stepmonitor.app.ui.theme.HCWebhookTheme
+import com.stepmonitor.app.updates.AppUpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -91,11 +93,24 @@ class MainActivity : AppCompatActivity() {
         )
         var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
         var pendingConflict by remember { mutableStateOf(preferencesManager.getPendingConflictJson()) }
+        var showWhatsNew by remember { mutableStateOf(preferencesManager.consumeWhatsNewPending()) }
         LaunchedEffect(Unit) {
             while (true) {
                 pendingConflict = preferencesManager.getPendingConflictJson()
                 delay(2_000)
             }
+        }
+        LaunchedEffect(Unit) {
+            AppUpdateManager.start(applicationContext)
+        }
+        if (showWhatsNew) {
+            WhatsNewSheet(
+                visible = true,
+                onDismiss = {
+                    showWhatsNew = false
+                    preferencesManager.setWhatsNewPending(false)
+                },
+            )
         }
         // Auto-resolve if user saved a preference
         LaunchedEffect(pendingConflict) {

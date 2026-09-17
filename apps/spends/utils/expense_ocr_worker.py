@@ -122,7 +122,7 @@ def load_ai_config():
                 value=row["value"] if isinstance(row,dict) else row[1]
                 if value:
                     cfg[str(key)]=str(value)
-            endpoint=cfg.get("api_endpoint") or "https://ai.serverkherson.xyz/v1/chat/completions"
+            endpoint=cfg.get("api_endpoint") or (os.environ.get("AI_PUBLIC_URL", "").rstrip("/") + "/v1/chat/completions" if os.environ.get("AI_PUBLIC_URL") else "")
             if "/chat/completions" not in endpoint:
                 endpoint=endpoint.rstrip("/")+"/chat/completions"
             models=[]

@@ -49,7 +49,7 @@ function integrations_meta_set(string $key, string $value): void {
 }
 
 function integrations_immich_url(): string {
-    $url = trim((string)(getenv('IMMICH_PUBLIC_URL') ?: 'https://photo.serverkherson.xyz'));
+    $url = trim((string)(getenv('IMMICH_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('photo') : '')));
     return rtrim($url, '/');
 }
 
@@ -109,7 +109,7 @@ function integrations_immich_credentials(string $email, bool $refresh = false): 
 }
 
 function integrations_gitea_url(): string {
-    $url = trim((string)(getenv('GITEA_PUBLIC_URL') ?: 'https://git.serverkherson.xyz'));
+    $url = trim((string)(getenv('GITEA_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('git') : '')));
     return rtrim($url, '/');
 }
 

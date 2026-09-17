@@ -1470,4 +1470,5 @@
             .video-info-overlay { top: 60px; padding: 0.5rem 1rem; font-size: 0.85rem; max-width: 95%; }
         }
     </style>
+    <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('films'); ?>
 </head>

@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/db_config.php';
 require_once __DIR__ . '/lib/pgsql_compat.php';
 require_once __DIR__ . '/lib/db_auth_security.php';
 require_once __DIR__ . '/lib/redis.php';
+require_once __DIR__ . '/lib/app_domains.php';
 define('DB_PATH', '/opt/AppDashboard/data/db.env');
 function appPasswordHash(string $password): string {
     return password_hash($password, PASSWORD_ARGON2ID, [
@@ -517,14 +518,14 @@ function initDB(AppDatabase $db): void {
         'smtp_username'        => '',
         'smtp_password'        => '',
         'tg_bot_token'         => '',
-        'tg_webapp_base_url'   => 'https://serverkherson.xyz',
-        'app_public_base_url'  => '',
-        'gitea_url'            => 'https://git.serverkherson.xyz',
-        'immich_url'           => 'https://photo.serverkherson.xyz',
-        'plane_url'            => 'https://plane.serverkherson.xyz',
-        'dawarich_url'         => 'https://dawarich.serverkherson.xyz',
-        'docker_host'          => 'https://docker.serverkherson.xyz',
-        'docker_domain'        => 'docker.serverkherson.xyz',
+        'tg_webapp_base_url'   => app_public_url(''),
+        'app_public_base_url'  => app_public_url(''),
+        'gitea_url'            => app_public_url('git'),
+        'immich_url'           => app_public_url('photo'),
+        'dawarich_url'         => app_public_url('dawarich'),
+        'docker_host'          => app_public_url('docker'),
+        'docker_domain'        => app_subdomain_host('docker'),
+        'search_engine_url'    => app_public_url('search'),
         'docker_token'         => '',
         'docker_username'      => '',
         'docker_password'      => '',
@@ -535,8 +536,15 @@ function initDB(AppDatabase $db): void {
         $stmt->bindValue(':v', $v);
         $stmt->execute();
     }
-    $db->exec("UPDATE config SET value='https://serverkherson.xyz' WHERE key='tg_webapp_base_url' AND trim(value)=''");
-    $db->exec("INSERT INTO config(key,value) VALUES('tg_webapp_base_url','https://serverkherson.xyz') ON CONFLICT (key) DO NOTHING");
+    $tgBase = app_public_url('');
+    if ($tgBase !== '') {
+        $stmt = $db->prepare("UPDATE config SET value=:v WHERE key='tg_webapp_base_url' AND trim(value)=''");
+        $stmt->bindValue(':v', $tgBase);
+        $stmt->execute();
+        $stmt = $db->prepare("INSERT INTO config(key,value) VALUES('tg_webapp_base_url',:v) ON CONFLICT (key) DO NOTHING");
+        $stmt->bindValue(':v', $tgBase);
+        $stmt->execute();
+    }
 
     // OnlyOffice JWT — keep DB in sync with env when provided, otherwise generate once.
     $envOnlyofficeSecret = getenv('ONLYOFFICE_JWT_SECRET');
@@ -2352,26 +2360,26 @@ function saveTgBotConfig(array $cfg): bool {
     return true;
 }
 function loadDockerConfig(): array {
-    $domain = trim(getConfig('docker_domain', 'docker.serverkherson.xyz'));
+    $domain = trim(getConfig('docker_domain', app_subdomain_host('docker')));
     $domain = preg_replace('#^https?://#i', '', $domain);
     $domain = rtrim($domain, '/');
     $username = decryptDockerCredential(getConfig('docker_username', ''));
     $password = decryptDockerCredential(getConfig('docker_password', ''));
     return [
-        'host' => rtrim(getConfig('docker_host', 'https://docker.serverkherson.xyz'), '/'),
-        'domain' => $domain !== '' ? $domain : 'docker.serverkherson.xyz',
+        'host' => rtrim(getConfig('docker_host', app_public_url('docker')), '/'),
+        'domain' => $domain !== '' ? $domain : app_subdomain_host('docker'),
         'token' => getConfig('docker_token', ''),
         'username' => $username ?? '',
         'password' => $password ?? ''
     ];
 }
 function saveDockerConfig(array $cfg): bool {
-    $host = rtrim((string)($cfg['host'] ?? 'https://docker.serverkherson.xyz'), '/');
-    $domain = trim((string)($cfg['domain'] ?? 'docker.serverkherson.xyz'));
+    $host = rtrim((string)($cfg['host'] ?? app_public_url('docker')), '/');
+    $domain = trim((string)($cfg['domain'] ?? app_subdomain_host('docker')));
     $domain = preg_replace('#^https?://#i', '', $domain);
     $domain = rtrim($domain, '/');
     setConfig('docker_host', $host);
-    setConfig('docker_domain', $domain !== '' ? $domain : 'docker.serverkherson.xyz');
+    setConfig('docker_domain', $domain !== '' ? $domain : app_subdomain_host('docker'));
     setConfig('docker_token', trim((string)($cfg['token'] ?? '')));
     $username = trim((string)($cfg['username'] ?? ''));
     $password = trim((string)($cfg['password'] ?? ''));

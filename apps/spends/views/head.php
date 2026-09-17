@@ -542,4 +542,5 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
     function closeModal(id){var el=document.getElementById(id);if(el){el.style.display='none';syncModalBodyState();}}
     function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');if(typeof updateYearButtons==='function')updateYearButtons();if(typeof loadOCRAnalytics==='function')loadOCRAnalytics();}
     </script>
+    <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('spends'); ?>
 </head>

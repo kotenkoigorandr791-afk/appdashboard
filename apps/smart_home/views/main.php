@@ -7,6 +7,7 @@
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
 <link rel="stylesheet" href="assets/css/app.css?v=20260905a">
+<?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('smart_home'); ?>
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
 <div id="app-bg" aria-hidden="true"></div>
@@ -219,11 +220,11 @@
         <p class="settings-card-title"><?=sh_h($t['server_domain'])?></p>
         <div class="form-group">
           <label><?=sh_h($t['server_domain'])?></label>
-          <input type="text" id="settingServerDomain" value="<?=sh_h($settings['server_domain']??'serverkherson.xyz')?>"<?=$canEditEndpoints?'':' disabled'?>">
+          <input type="text" id="settingServerDomain" value="<?=sh_h($settings['server_domain']??(function_exists('sh_default_domain')?sh_default_domain():'localhost'))?>"<?=$canEditEndpoints?'':' disabled'?>">
         </div>
         <div class="form-group">
           <label><?=sh_h($t['ap_domain'])?></label>
-          <input type="text" id="settingApDomain" value="<?=sh_h($settings['ap_domain']??'serverkherson.xyz')?>"<?=$canEditEndpoints?'':' disabled'?>">
+          <input type="text" id="settingApDomain" value="<?=sh_h($settings['ap_domain']??(function_exists('sh_default_domain')?sh_default_domain():'localhost'))?>"<?=$canEditEndpoints?'':' disabled'?>">
         </div>
         <?php if (!$canEditEndpoints): ?>
         <p id="settingsEndpointsHint" style="font-size:12px;color:var(--text-secondary);margin:0"><?=sh_h($t['endpoints_locked'])?></p>

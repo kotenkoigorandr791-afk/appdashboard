@@ -7,7 +7,8 @@ error_reporting(E_ALL);
 // ============================================
 // ONLYOFFICE SETTINGS
 // ============================================
-$DOC_SERV_URL = 'https://document.serverkherson.xyz'; 
+$DOC_SERV_URL = rtrim((string)(getenv('DOCUMENT_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('document') : '')), '/');
+if ($DOC_SERV_URL === '') { $DOC_SERV_URL = 'http://document.localhost'; } 
 $JWT_SECRET = 'uZbUAlqEAONtLYmVrZVNjuqOefiQZR';
 $VIEWER_USER = 'zip-viewer';
 
