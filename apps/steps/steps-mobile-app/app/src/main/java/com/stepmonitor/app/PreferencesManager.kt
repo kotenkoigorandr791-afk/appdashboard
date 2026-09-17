@@ -57,6 +57,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_WEEKLY_FEEDBACK_PROMPT_DISMISSED = "weekly_feedback_prompt_dismissed"
         private const val KEY_WIFI_ONLY = "wifi_only"
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_AMOLED_ENABLED = "amoled_enabled"
         private const val KEY_ACCENT_COLOR = "accent_color"
         private const val KEY_APP_LANGUAGE = "app_language"
         private const val KEY_PORTRAIT_ONLY = "portrait_only"
@@ -605,6 +606,10 @@ class PreferencesManager(context: Context) {
     fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "auto") ?: "auto"
     fun setThemeMode(value: String) {
         prefs.edit().putString(KEY_THEME_MODE, value).apply()
+    }
+    fun isAmoledEnabled(): Boolean = prefs.getBoolean(KEY_AMOLED_ENABLED, false)
+    fun setAmoledEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AMOLED_ENABLED, value).apply()
     }
     fun getAccentColor(): String = prefs.getString(KEY_ACCENT_COLOR, "blue") ?: "blue"
     fun setAccentColor(value: String) {

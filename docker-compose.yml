@@ -295,91 +295,6 @@ services:
       timeout: 5s
       retries: 5
 
-  plane:
-    image: makeplane/plane-aio-community:${PLANE_VERSION:-stable}
-    container_name: plane
-    restart: unless-stopped
-    profiles: ["plane"]
-    environment:
-      DOMAIN_NAME: "${PLANE_DOMAIN_NAME:-localhost:${PLANE_PORT:-8081}}"
-      WEB_URL: "http://${PLANE_DOMAIN_NAME:-localhost:${PLANE_PORT:-8081}}"
-      DATABASE_URL: "postgresql://plane:${PLANE_DB_PASSWORD:-plane_dev_password}@plane-db:5432/plane"
-      REDIS_URL: redis://plane-redis:6379
-      AMQP_URL: "amqp://plane:${PLANE_RABBITMQ_PASSWORD:-plane_dev_password}@plane-rabbitmq:5672/plane"
-      AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: "${PLANE_MINIO_ROOT_USER:-plane}"
-      AWS_SECRET_ACCESS_KEY: "${PLANE_MINIO_ROOT_PASSWORD:-plane_dev_password}"
-      AWS_S3_BUCKET_NAME: uploads
-      AWS_S3_ENDPOINT_URL: http://plane-minio:9000
-    ports:
-      - "${PLANE_PORT:-8081}:80"
-    volumes:
-      - plane-data:/app/data
-      - plane-logs:/app/logs
-    depends_on:
-      plane-db:
-        condition: service_healthy
-      plane-redis:
-        condition: service_healthy
-      plane-rabbitmq:
-        condition: service_healthy
-      plane-minio:
-        condition: service_started
-
-  plane-db:
-    image: postgres:16-alpine
-    container_name: plane-db
-    restart: unless-stopped
-    profiles: ["plane"]
-    environment:
-      POSTGRES_DB: plane
-      POSTGRES_USER: plane
-      POSTGRES_PASSWORD: "${PLANE_DB_PASSWORD:-plane_dev_password}"
-    volumes:
-      - plane-db-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U plane -d plane"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  plane-redis:
-    image: redis:7-alpine
-    container_name: plane-redis
-    restart: unless-stopped
-    profiles: ["plane"]
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  plane-rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: plane-rabbitmq
-    restart: unless-stopped
-    profiles: ["plane"]
-    environment:
-      RABBITMQ_DEFAULT_USER: plane
-      RABBITMQ_DEFAULT_PASS: "${PLANE_RABBITMQ_PASSWORD:-plane_dev_password}"
-      RABBITMQ_DEFAULT_VHOST: plane
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  plane-minio:
-    image: minio/minio:latest
-    container_name: plane-minio
-    restart: unless-stopped
-    profiles: ["plane"]
-    command: ["server", "/data", "--console-address", ":9001"]
-    environment:
-      MINIO_ROOT_USER: "${PLANE_MINIO_ROOT_USER:-plane}"
-      MINIO_ROOT_PASSWORD: "${PLANE_MINIO_ROOT_PASSWORD:-plane_dev_password}"
-    volumes:
-      - plane-minio-data:/data
 
 volumes:
   appdashboard-logs:
@@ -400,7 +315,4 @@ volumes:
   dawarich-storage:
   dawarich-watched:
   dawarich-db-data:
-  plane-data:
-  plane-logs:
-  plane-db-data:
-  plane-minio-data:
+

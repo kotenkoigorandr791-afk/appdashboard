@@ -18,7 +18,7 @@ import { recipesTools } from "./recipes.js";
 import { stepsTools } from "./steps.js";
 import { immichTools } from "./immich.js";
 import { giteaTools } from "./gitea.js";
-import { planeTools } from "./plane.js";
+import { kanboardTools } from "./kanboard.js";
 import { newsTools } from "./news.js";
 import type { ToolDef } from "./types.js";
 
@@ -42,10 +42,9 @@ export const ALL_TOOLS: ToolDef[] = [
   ...stepsTools,
   ...immichTools,
   ...giteaTools,
-  ...planeTools,
+  ...kanboardTools,
   ...newsTools,
 ];
-
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));
 
 export async function resolveRole(): Promise<Role | null> {

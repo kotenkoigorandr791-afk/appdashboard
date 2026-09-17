@@ -778,53 +778,10 @@ function oauth_route_gitea_user(): void {
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
     sleep(2);
-    oauth_sync_plane_user($syncEmail, $syncIsAdmin, (string)$claims['picture']);
     exit;
 }
 
-function oauth_sync_plane_admin(string $email, bool $isAdmin, string $theme = ''): void {
-    oauth_sync_plane_user($email, $isAdmin, '', $theme);
-}
 
-function oauth_plane_db(): ?PDO {
-    static $pdo = null;
-    static $tried = false;
-    if ($tried) return $pdo;
-    $tried = true;
-    $vars = oauth_env_file('/opt/docker/plane/.env');
-    if ($vars === []) {
-        $vars = oauth_env_file('/opt/ApplicationData/plane.env');
-    }
-    if ($vars === []) {
-        $vars = oauth_docker_env('plane-api-1');
-    }
-    $user = (string)(getenv('PLANE_DB_USER') ?: ($vars['POSTGRES_USER'] ?? 'plane'));
-    $password = (string)(getenv('PLANE_DB_PASSWORD') ?: ($vars['POSTGRES_PASSWORD'] ?? 'plane'));
-    $dbname = (string)(getenv('PLANE_DB_NAME') ?: ($vars['POSTGRES_DB'] ?? $vars['PGDATABASE'] ?? 'plane'));
-    $port = (int)(getenv('PLANE_DB_PORT') ?: ($vars['POSTGRES_PORT'] ?? 5432));
-    if ($port <= 0) $port = 5432;
-    $hosts = ['127.0.0.1', 'host.docker.internal'];
-    foreach (['172.17.0.1', '172.19.0.1', '172.27.0.1'] as $extra) {
-        if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
-    }
-    foreach ($hosts as $host) {
-        foreach (array_values(array_unique([(int)$port, 5437, 5432])) as $p) {
-            if (!oauth_pgsql_reachable($host, (int)$p)) continue;
-            try {
-                $pdo = new PDO(
-                    sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, (int)$p, $dbname),
-                    $user,
-                    $password,
-                    [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]
-                );
-                return $pdo;
-            } catch (\Exception $e) {
-                $pdo = null;
-            }
-        }
-    }
-    return null;
-}
 
 function oauth_gitea_db(): ?PDO {
     static $pdo = null;
@@ -1029,77 +986,6 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
     }
 }
 
-function oauth_ensure_plane_user(string $email, string $name, bool $isAdmin, string $avatar = '', string $theme = ''): void {
-    if ($email === '') return;
-    if ($email !== 'root@root' && !filter_var($email, FILTER_VALIDATE_EMAIL)) return;
-    $pdo = oauth_plane_db();
-    if (!$pdo) return;
-    try {
-        $stmt = $pdo->prepare('SELECT id FROM users WHERE lower(email) = lower(:email) LIMIT 1');
-        $stmt->execute([':email' => $email]);
-        $userId = $stmt->fetchColumn();
-        [$first, $last] = oauth_split_name($name, strstr($email, '@', true) ?: 'user');
-        $display = oauth_sanitize_username(strstr($email, '@', true) ?: $email);
-        if (!$userId) {
-            $userId = oauth_uuid();
-            $ins = $pdo->prepare('INSERT INTO users (id, username, email, password, first_name, last_name, avatar, display_name, date_joined, created_at, updated_at, last_location, created_location, is_superuser, is_managed, is_password_expired, is_active, is_staff, is_email_verified, is_password_autoset, token, user_timezone, last_login_ip, last_logout_ip, last_login_medium, last_login_uagent, is_bot, is_email_valid, is_password_reset_required)
-                VALUES (:id, :username, :email, :password, :first, :last, :avatar, :display, now(), now(), now(), :empty, :empty2, false, false, false, true, false, true, true, :token, :tz, :empty3, :empty4, :empty5, :empty6, false, false, false)');
-            $ins->execute([
-                ':id' => $userId,
-                ':username' => bin2hex(random_bytes(16)),
-                ':email' => strtolower($email),
-                ':password' => '',
-                ':first' => $first,
-                ':last' => $last,
-                ':avatar' => $avatar,
-                ':display' => $display,
-                ':empty' => '',
-                ':empty2' => '',
-                ':token' => bin2hex(random_bytes(32)),
-                ':tz' => 'UTC',
-                ':empty3' => '',
-                ':empty4' => '',
-                ':empty5' => '',
-                ':empty6' => '',
-            ]);
-            $prof = $pdo->prepare('INSERT INTO profiles (id, created_at, updated_at, theme, is_tour_completed, onboarding_step, is_onboarded, billing_address_country, has_billing_address, company_name, user_id, is_mobile_onboarded, mobile_onboarding_step, mobile_timezone_auto_set, language, is_smooth_cursor_enabled, start_of_the_week, is_app_rail_docked, background_color, goals, has_marketing_email_consent, is_navigation_tour_completed, is_subscribed_to_changelog, notification_view_mode, product_tour)
-                VALUES (:id, now(), now(), CAST(:theme AS jsonb), true, CAST(:onboarding AS jsonb), true, :country, false, :company, :user_id, false, CAST(:mobile AS jsonb), false, :lang, false, 0, true, :bg, CAST(:goals AS jsonb), true, false, false, :nvm, CAST(:product AS jsonb))');
-            $defaultTheme = ['theme' => in_array($theme, ['light', 'dark'], true) ? $theme : 'system'];
-            $prof->execute([
-                ':id' => oauth_uuid(),
-                ':theme' => json_encode($defaultTheme, JSON_UNESCAPED_SLASHES),
-                ':onboarding' => '{"workspace_join": true, "profile_complete": true, "workspace_create": true, "workspace_invite": true}',
-                ':country' => 'INDIA',
-                ':company' => '',
-                ':user_id' => $userId,
-                ':mobile' => '{"workspace_join": false, "profile_complete": false, "workspace_create": false}',
-                ':lang' => 'en',
-                ':bg' => '#0acd60',
-                ':goals' => '{}',
-                ':nvm' => 'full',
-                ':product' => '{"pages": false, "cycles": false, "intake": false, "modules": false, "work_items": false}',
-            ]);
-        } elseif ($avatar !== '') {
-            $pdo->prepare('UPDATE users SET avatar = :avatar, updated_at = now() WHERE id = :id')->execute([':avatar' => $avatar, ':id' => $userId]);
-        }
-        if (in_array($theme, ['light', 'dark'], true)) {
-            $planeTheme = $theme === 'dark'
-                ? ['theme' => 'dark', 'primary' => '#3f76ff', 'background' => '#0f172a', 'sidebarBackground' => '#111827', 'text' => '#f8fafc', 'sidebarText' => '#f8fafc', 'palette' => '#0f172a,#f8fafc,#3f76ff,#111827,#f8fafc', 'darkPalette' => '#0f172a,#f8fafc,#3f76ff,#111827,#f8fafc']
-                : ['theme' => 'light', 'primary' => '#3f76ff', 'background' => '#ffffff', 'sidebarBackground' => '#f8fafc', 'text' => '#111827', 'sidebarText' => '#111827', 'palette' => '#ffffff,#111827,#3f76ff,#f8fafc,#111827', 'darkPalette' => ''];
-            $pdo->prepare('UPDATE profiles SET theme = CAST(:theme AS jsonb), updated_at = now() WHERE user_id = :id')
-                ->execute([':theme' => json_encode($planeTheme, JSON_UNESCAPED_SLASHES), ':id' => $userId]);
-        }
-        if (!$isAdmin) {
-            $pdo->prepare('DELETE FROM instance_admins WHERE user_id = :id')->execute([':id' => $userId]);
-            return;
-        }
-        $pdo->prepare("INSERT INTO instance_admins(created_at,updated_at,id,role,is_verified,instance_id,user_id)
-            SELECT now(),now(),:id,20,true,(SELECT id FROM instances ORDER BY created_at DESC LIMIT 1),:uid
-            ON CONFLICT (instance_id,user_id) DO UPDATE SET role = 20, is_verified = true, updated_at = now()")
-            ->execute([':id' => oauth_uuid(), ':uid' => $userId]);
-    } catch (\Exception $e) {
-    }
-}
 
 function oauth_provision_user_services(string $email, array $user = []): void {
     $email = trim($email);
@@ -1115,13 +1001,9 @@ function oauth_provision_user_services(string $email, array $user = []): void {
     oauth_ensure_immich_user($email, $name !== '' ? $name : $email, $isAdmin);
     oauth_ensure_dawarich_user($email, $name, $isAdmin, $theme);
     oauth_ensure_gitea_user($email, $name, $isAdmin, $theme, $photo);
-    oauth_ensure_plane_user($email, $name, $isAdmin, $avatar, $theme);
     oauth_sync_immich_dawarich($email);
 }
 
-function oauth_sync_plane_user(string $email, bool $isAdmin, string $avatar, string $theme = ''): void {
-    oauth_ensure_plane_user($email, '', $isAdmin, $avatar, $theme);
-}
 
 function oauth_provision_all_dashboard_users(): void {
     if (!function_exists('getDB')) return;
@@ -1302,7 +1184,6 @@ function oauth_route_omniroute_bridge(): void {
 }
 
 function oauth_dispatch(string $path): void {
-    if (str_starts_with($path, '/plane-oauth/')) $path = substr($path, 12);
     switch ($path) {
         case '/.well-known/openid-configuration': oauth_route_discovery(); return;
         case '/.well-known/jwks.json': oauth_route_jwks(); return;

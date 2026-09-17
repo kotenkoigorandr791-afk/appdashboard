@@ -116,3 +116,5 @@ opencode.json
 # Test artifacts
 /tests/tmp/
 /tests/tests/tmp/
+apps/kanboard/data/*
+!apps/kanboard/data/.gitkeep

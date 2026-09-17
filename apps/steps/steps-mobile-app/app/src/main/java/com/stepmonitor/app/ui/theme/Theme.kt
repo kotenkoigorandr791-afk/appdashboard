@@ -10,6 +10,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -44,6 +45,7 @@ fun HCWebhookTheme(
         else -> isSystemInDarkTheme()
     }
     val accent = accentColor(prefs.getAccentColor(), resolvedDarkTheme)
+    val amoledEnabled = prefs.isAmoledEnabled()
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (resolvedDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -51,6 +53,16 @@ fun HCWebhookTheme(
 
         resolvedDarkTheme -> darkColorScheme(primary = accent, secondary = BlueGrey80, tertiary = accent)
         else -> lightColorScheme(primary = accent, secondary = BlueGrey40, tertiary = accent)
+    }.let { scheme ->
+        if (resolvedDarkTheme && amoledEnabled) {
+            scheme.copy(
+                background = Color.Black,
+                surface = Color.Black,
+                surfaceVariant = Color.Black,
+                primaryContainer = Color.Black,
+                onPrimaryContainer = Color.White
+            )
+        } else scheme
     }
     val view = LocalView.current
     if (!view.isInEditMode) {

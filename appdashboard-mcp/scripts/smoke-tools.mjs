@@ -575,50 +575,50 @@ async function main() {
   }
 
   // --- Plane ---
-  const planeMeRes = await callTool("plane_get_me", {});
-  const planeMe = parseText(planeMeRes);
-  const planeSkip =
-    planeMeRes?.isError ||
-    !isOk(planeMe) ||
-    /credentials|unavailable|forbidden|Authentication credentials|plane_db_|plane_user_|plane_token_|plane_http_/i.test(
-      JSON.stringify(planeMe),
+  const kbMeRes = await callTool("kanboard_get_me", {});
+  const kbMe = parseText(kbMeRes);
+  const kbSkip =
+    kbMeRes?.isError ||
+    !isOk(kbMe) ||
+    /credentials|unavailable|forbidden|Authentication credentials|kanboard_db_|kanboard_user_|kanboard_token_|kanboard_http_/i.test(
+      JSON.stringify(kbMe),
     );
-  if (planeSkip) {
-    record("plane_get_me", true, "env_skip: " + JSON.stringify(planeMe).slice(0, 200));
+  if (kbSkip) {
+    record("kanboard_get_me", true, "env_skip: " + JSON.stringify(kbMe).slice(0, 200));
     for (const n of [
-      "plane_list_workspaces",
-      "plane_get_workspace_members",
-      "plane_list_projects",
-      "plane_create_project",
-      "plane_get_project",
-      "plane_update_project",
-      "plane_delete_project",
-      "plane_get_project_members",
-      "plane_list_work_items",
-      "plane_create_work_item",
-      "plane_get_work_item",
-      "plane_update_work_item",
-      "plane_delete_work_item",
-      "plane_search_work_items",
-      "plane_list_states",
-      "plane_list_labels",
-      "plane_list_cycles",
-      "plane_create_cycle",
-      "plane_get_cycle",
-      "plane_list_modules",
-      "plane_create_module",
-      "plane_get_module",
-      "plane_list_work_item_comments",
-      "plane_create_work_item_comment",
+      "kanboard_list_projects",
+      "kanboard_get_workspace_members",
+      "kanboard_list_projects",
+      "kanboard_create_project",
+      "kanboard_get_project",
+      "kanboard_update_project",
+      "kanboard_delete_project",
+      "kanboard_get_project_members",
+      "kanboard_list_work_items",
+      "kanboard_create_work_item",
+      "kanboard_get_work_item",
+      "kanboard_update_work_item",
+      "kanboard_delete_work_item",
+      "kanboard_search_work_items",
+      "kanboard_list_states",
+      "kanboard_list_labels",
+      "kanboard_list_cycles",
+      "kanboard_create_cycle",
+      "kanboard_get_cycle",
+      "kanboard_list_modules",
+      "kanboard_create_module",
+      "kanboard_get_module",
+      "kanboard_list_work_item_comments",
+      "kanboard_create_work_item_comment",
     ]) {
-      record(n, true, "env_skip_plane");
+      record(n, true, "env_skip_kanboard");
     }
   } else {
-    record("plane_get_me", true, JSON.stringify(planeMe).slice(0, 200));
-    await run("plane_list_workspaces", {});
-    const projectsRes = await callTool("plane_list_projects", {});
+    record("kanboard_get_me", true, JSON.stringify(kbMe).slice(0, 200));
+    await run("kanboard_list_projects", {});
+    const projectsRes = await callTool("kanboard_list_projects", {});
     const projectsData = parseText(projectsRes);
-    record("plane_list_projects", !projectsRes?.isError, JSON.stringify(projectsData).slice(0, 200));
+    record("kanboard_list_projects", !projectsRes?.isError, JSON.stringify(projectsData).slice(0, 200));
     const projectList = Array.isArray(projectsData)
       ? projectsData
       : Array.isArray(projectsData?.results)
@@ -626,34 +626,34 @@ async function main() {
         : [];
     const project = projectList[0];
     if (project?.id) {
-      await run("plane_get_project", { project_id: project.id });
-      await run("plane_list_states", { project_id: project.id });
-      await run("plane_list_labels", { project_id: project.id });
-      await run("plane_list_work_items", { project_id: project.id, per_page: 5 });
+      await run("kanboard_get_project", { project_id: project.id });
+      await run("kanboard_list_states", { project_id: project.id });
+      await run("kanboard_list_labels", { project_id: project.id });
+      await run("kanboard_list_work_items", { project_id: project.id, per_page: 5 });
     } else {
-      for (const n of ["plane_get_project", "plane_list_states", "plane_list_labels", "plane_list_work_items"]) {
+      for (const n of ["kanboard_get_project", "kanboard_list_states", "kanboard_list_labels", "kanboard_list_work_items"]) {
         record(n, true, "skipped_no_project");
       }
     }
     for (const n of [
-      "plane_get_workspace_members",
-      "plane_create_project",
-      "plane_update_project",
-      "plane_delete_project",
-      "plane_get_project_members",
-      "plane_create_work_item",
-      "plane_get_work_item",
-      "plane_update_work_item",
-      "plane_delete_work_item",
-      "plane_search_work_items",
-      "plane_list_cycles",
-      "plane_create_cycle",
-      "plane_get_cycle",
-      "plane_list_modules",
-      "plane_create_module",
-      "plane_get_module",
-      "plane_list_work_item_comments",
-      "plane_create_work_item_comment",
+      "kanboard_get_workspace_members",
+      "kanboard_create_project",
+      "kanboard_update_project",
+      "kanboard_delete_project",
+      "kanboard_get_project_members",
+      "kanboard_create_work_item",
+      "kanboard_get_work_item",
+      "kanboard_update_work_item",
+      "kanboard_delete_work_item",
+      "kanboard_search_work_items",
+      "kanboard_list_cycles",
+      "kanboard_create_cycle",
+      "kanboard_get_cycle",
+      "kanboard_list_modules",
+      "kanboard_create_module",
+      "kanboard_get_module",
+      "kanboard_list_work_item_comments",
+      "kanboard_create_work_item_comment",
     ]) {
       if (!results.some((r) => r.name === n)) record(n, true, "skipped_mutating_or_optional");
     }

@@ -1335,7 +1335,6 @@ window.apLoadMonaco = window.apLoadMonaco || function(){
             try{
                 require.config({paths:{vs:vsPath}});
                 require(['vs/editor/editor.main'],function(){
-                    if(typeof define==='function'&&(!require.defined||!require.defined('vs/editor/editor.api'))) define('vs/editor/editor.api',[],function(){return window.monaco;});
                     resolve(window.monaco);
                 },reject);
             }catch(e){reject(e);}

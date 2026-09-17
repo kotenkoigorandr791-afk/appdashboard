@@ -21,8 +21,8 @@ if ($service === 'gitea') {
     $out = integrations_gitea_credentials($email, $refresh);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
-if ($service === 'plane') {
-    $out = integrations_plane_credentials($email, $refresh);
+if ($service === 'kanboard') {
+    $out = integrations_kanboard_credentials($email, $refresh);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
 public_api_json(['ok' => false, 'error' => 'unknown_integration'], 404);
@@ -288,113 +288,117 @@ function integrations_gitea_credentials(string $email, bool $refresh = false): a
     return ['ok' => true, 'url' => $url, 'access_token' => $token];
 }
 
-function integrations_plane_url(): string {
-    $url = trim((string)(getenv('PLANE_PUBLIC_URL') ?: 'https://plane.serverkherson.xyz'));
-    return rtrim($url, '/');
+
+
+
+
+
+function integrations_kanboard_url(): string {
+    $env = trim((string)(getenv('KANBOARD_PUBLIC_URL') ?: ''));
+    if ($env !== '') return rtrim($env, '/');
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+    return ($https ? 'https://' : 'http://') . $host . '/apps/kanboard';
 }
 
-function integrations_plane_user_id(PDO $pdo, string $email): ?string {
-    $stmt = $pdo->prepare('SELECT id FROM users WHERE lower(email) = lower(:email) LIMIT 1');
-    $stmt->execute([':email' => $email]);
-    $id = $stmt->fetchColumn();
-    return $id ? (string)$id : null;
-}
-
-function integrations_plane_workspace_slug(PDO $pdo, string $userId): string {
-    $stmt = $pdo->prepare(
-        'SELECT w.slug FROM workspaces w
-         INNER JOIN workspace_members m ON m.workspace_id = w.id
-         WHERE m.member_id = :uid AND m.is_active = true AND m.deleted_at IS NULL
-         ORDER BY CASE WHEN w.slug = :pref THEN 0 ELSE 1 END, w.created_at ASC
-         LIMIT 1'
-    );
-    $stmt->execute([':uid' => $userId, ':pref' => 'server']);
-    $slug = $stmt->fetchColumn();
-    if ($slug) return (string)$slug;
-    $any = $pdo->query('SELECT slug FROM workspaces ORDER BY created_at ASC LIMIT 1');
-    $fallback = $any ? $any->fetchColumn() : false;
-    return $fallback ? (string)$fallback : 'server';
-}
-
-function integrations_plane_create_token(PDO $pdo, string $userId): ?string {
-    $token = 'plane_api_' . bin2hex(random_bytes(20));
-    $id = function_exists('oauth_uuid') ? oauth_uuid() : sprintf(
-        '%s-%s-%s-%s-%s',
-        bin2hex(random_bytes(4)),
-        bin2hex(random_bytes(2)),
-        bin2hex(random_bytes(2)),
-        bin2hex(random_bytes(2)),
-        bin2hex(random_bytes(6))
-    );
+function integrations_kanboard_pdo(): ?PDO {
+    require_once APP_ROOT . '/apps/kanboard/integration/bootstrap.php';
+    kanboard_ensure_database();
+    require_once APP_ROOT . '/lib/db_config.php';
+    $cfg = app_db_load_config();
+    $host = (string)($cfg['host'] ?? '127.0.0.1');
+    if ($host === '127.0.0.1' || $host === 'localhost') {
+        $dockerHost = getenv('DB_HOST');
+        if (is_string($dockerHost) && $dockerHost !== '') $host = $dockerHost;
+        elseif (is_file('/.dockerenv') || getenv('APP_IN_DOCKER') === '1') $host = 'appdashboard-db';
+    }
+    $dbname = getenv('KANBOARD_DB_NAME') ?: 'kanboard';
     try {
-        $stmt = $pdo->prepare(
-            'INSERT INTO api_tokens (
-                created_at, updated_at, id, token, label, user_type,
-                created_by_id, updated_by_id, user_id, workspace_id, description,
-                expired_at, is_active, last_used, is_service, deleted_at, allowed_rate_limit
-             ) VALUES (
-                now(), now(), :id, :token, :label, 0,
-                :uid, :uid2, :uid3, NULL, :desc,
-                NULL, true, NULL, false, NULL, :rate
-             )'
+        return new PDO(
+            sprintf('pgsql:host=%s;port=%d;dbname=%s', $host, (int)($cfg['port'] ?? 5432), $dbname),
+            (string)($cfg['user'] ?? 'appdashboard'),
+            (string)($cfg['password'] ?? ''),
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]
         );
-        $stmt->execute([
-            ':id' => $id,
-            ':token' => $token,
-            ':label' => 'MCP',
-            ':uid' => $userId,
-            ':uid2' => $userId,
-            ':uid3' => $userId,
-            ':desc' => 'AppDashboard MCP',
-            ':rate' => '60/min',
-        ]);
-        return $token;
     } catch (Throwable $e) {
         return null;
     }
 }
 
-function integrations_plane_credentials(string $email, bool $refresh = false): array {
-    $url = integrations_plane_url();
-    $metaKey = 'mcp_plane_api_key:' . strtolower($email);
-    $cached = trim(integrations_meta_get($metaKey));
-    oauth_ensure_plane_user($email, '', (int)($_SESSION['user']['role'] ?? 0) >= 2);
-    $pdo = oauth_plane_db();
+function integrations_kanboard_ensure_user(PDO $pdo, string $email, string $name, bool $isManager): ?array {
+    $email = strtolower(trim($email));
+    if ($email === '') return null;
+    $local = strtolower((string)(strstr($email, '@', true) ?: $email));
+    $username = preg_replace('/[^a-z0-9_\-\.]/', '_', $local) ?: 'user';
+    $role = $isManager ? 'app-manager' : 'app-user';
+    $stmt = $pdo->prepare('SELECT id, username, api_access_token FROM users WHERE lower(email) = lower(:email) OR username = :u LIMIT 1');
+    $stmt->execute([':email' => $email, ':u' => $username]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($row) {
+        $pdo->prepare('UPDATE users SET email = :email, name = :name, role = :role, is_active = 1, notifications_enabled = 1 WHERE id = :id')
+            ->execute([':email' => $email, ':name' => $name !== '' ? $name : $username, ':role' => $role, ':id' => $row['id']]);
+        $row['username'] = $username;
+        return $row;
+    }
+    $ins = $pdo->prepare('INSERT INTO users (username, password, email, name, role, is_active, notifications_enabled) VALUES (:u, :p, :e, :n, :r, 1, 1) RETURNING id, username, api_access_token');
+    try {
+        $ins->execute([
+            ':u' => $username,
+            ':p' => password_hash(bin2hex(random_bytes(16)), PASSWORD_DEFAULT),
+            ':e' => $email,
+            ':n' => $name !== '' ? $name : $username,
+            ':r' => $role,
+        ]);
+        $created = $ins->fetch(PDO::FETCH_ASSOC);
+        return is_array($created) ? $created : null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+
+function integrations_kanboard_credentials(string $email, bool $refresh = false): array {
+    $url = integrations_kanboard_url();
+    $metaKey = 'mcp_kanboard_api_token:' . strtolower($email);
+    $pdo = integrations_kanboard_pdo();
     if (!$pdo) {
-        return ['ok' => false, 'error' => 'plane_db_unavailable'];
+        return ['ok' => false, 'error' => 'kanboard_db_unavailable'];
     }
-    $userId = integrations_plane_user_id($pdo, $email);
-    if (!$userId) {
-        return ['ok' => false, 'error' => 'plane_user_missing'];
+    try {
+        $pdo->query('SELECT 1 FROM users LIMIT 1');
+    } catch (Throwable $e) {
+        return ['ok' => false, 'error' => 'kanboard_not_migrated'];
     }
-    $workspaceSlug = integrations_plane_workspace_slug($pdo, $userId);
-    if ($cached !== '' && !$refresh) {
-        $chk = $pdo->prepare('SELECT 1 FROM api_tokens WHERE token = :t AND user_id = :uid AND is_active = true AND deleted_at IS NULL LIMIT 1');
-        $chk->execute([':t' => $cached, ':uid' => $userId]);
-        if ($chk->fetchColumn()) {
-            return ['ok' => true, 'url' => $url, 'api_key' => $cached, 'workspace_slug' => $workspaceSlug];
-        }
+    $name = (string)($_SESSION['user']['name'] ?? '');
+    $isManager = ((int)($_SESSION['user']['role'] ?? 0)) >= 1;
+    $user = integrations_kanboard_ensure_user($pdo, $email, $name, $isManager);
+    if (!$user) {
+        return ['ok' => false, 'error' => 'kanboard_user_missing'];
     }
-    if ($refresh) {
+    $username = (string)$user['username'];
+    $userId = (int)($user['id'] ?? 0);
+    if ($userId > 0) {
+        $pdo->prepare('UPDATE users SET notifications_enabled = 1 WHERE id = :id')->execute([':id' => $userId]);
         try {
-            $del = $pdo->prepare("UPDATE api_tokens SET is_active = false, deleted_at = now() WHERE user_id = :uid AND label = 'MCP' AND deleted_at IS NULL");
-            $del->execute([':uid' => $userId]);
+            $hasWeb = $pdo->prepare('SELECT 1 FROM user_has_notification_types WHERE user_id = :id AND notification_type = :t LIMIT 1');
+            $hasWeb->execute([':id' => $userId, ':t' => 'web']);
+            if (!$hasWeb->fetchColumn()) {
+                $pdo->prepare('INSERT INTO user_has_notification_types (user_id, notification_type) VALUES (:id, :t)')
+                    ->execute([':id' => $userId, ':t' => 'web']);
+            }
         } catch (Throwable $e) {
         }
     }
-    $existing = $pdo->prepare(
-        "SELECT token FROM api_tokens
-         WHERE user_id = :uid AND label = 'MCP' AND is_active = true AND deleted_at IS NULL
-         ORDER BY created_at DESC LIMIT 1"
-    );
-    $existing->execute([':uid' => $userId]);
-    $token = (string)($existing->fetchColumn() ?: '');
-    if ($token === '') {
-        $token = (string)(integrations_plane_create_token($pdo, $userId) ?? '');
+    $cached = trim(integrations_meta_get($metaKey));
+    $kbToken = trim((string)($user['api_access_token'] ?? ''));
+    if ($cached !== '' && !$refresh) {
+        if ($kbToken !== $cached) {
+            $pdo->prepare('UPDATE users SET api_access_token = :t WHERE username = :u')->execute([':t' => $cached, ':u' => $username]);
+        }
+        return ['ok' => true, 'url' => $url, 'username' => $username, 'api_token' => $cached];
     }
-    if ($token === '') {
-        return ['ok' => false, 'error' => 'plane_token_create_failed'];
-    }
+    $token = (!$refresh && $kbToken !== '') ? $kbToken : bin2hex(random_bytes(24));
+    $pdo->prepare('UPDATE users SET api_access_token = :t WHERE username = :u')->execute([':t' => $token, ':u' => $username]);
     integrations_meta_set($metaKey, $token);
-    return ['ok' => true, 'url' => $url, 'api_key' => $token, 'workspace_slug' => $workspaceSlug];
+    return ['ok' => true, 'url' => $url, 'username' => $username, 'api_token' => $token];
 }
