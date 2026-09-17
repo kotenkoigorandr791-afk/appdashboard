@@ -54,12 +54,85 @@
     background: var(--ap-omniroute-edge-active, #172033);
     border-color: var(--ap-omniroute-edge-active-border, #2b3b52);
 }
-#ap-dynamic-root {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
+#ap-gate-login{
+    display:none;
+    width:min(400px,92vw);
+    position:relative;
+    overflow:hidden;
+    border-radius:20px;
+    border:1px solid color-mix(in srgb,var(--border-color) 80%,transparent);
+    background:
+        radial-gradient(120% 90% at 0% 0%, color-mix(in srgb,var(--primary-color) 28%,transparent) 0%, transparent 55%),
+        radial-gradient(90% 70% at 100% 100%, color-mix(in srgb,var(--primary-color) 16%,transparent) 0%, transparent 50%),
+        color-mix(in srgb,var(--modal-bg, rgba(18,24,32,.92)) 92%, var(--bg-color));
+    box-shadow: var(--glass-shadow, 0 24px 60px rgba(0,0,0,.35)), inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter: blur(18px) saturate(1.35);
+    -webkit-backdrop-filter: blur(18px) saturate(1.35);
+    padding:28px 26px 22px;
+    box-sizing:border-box;
+    text-align:left;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    animation:ap-gate-in .32s cubic-bezier(.2,.8,.2,1);
+}
+@keyframes ap-gate-in{
+    from{opacity:0;transform:translateY(14px) scale(.98)}
+    to{opacity:1;transform:none}
+}
+#ap-gate-login .ap-gate-badge{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:color-mix(in srgb,var(--primary-color) 85%,var(--text-color));
+    margin-bottom:14px;
+}
+#ap-gate-login .ap-gate-badge svg{width:14px;height:14px;flex-shrink:0}
+#ap-gate-login .ap-gate-title{
+    font-size:22px;font-weight:750;letter-spacing:-.02em;line-height:1.2;
+    margin:0 0 8px;color:var(--text-color);
+}
+#ap-gate-login .ap-gate-sub{
+    font-size:13.5px;line-height:1.45;opacity:.72;margin:0 0 20px;color:var(--text-color);
+}
+#ap-gate-login .ap-gate-label{
+    display:block;font-size:12px;font-weight:600;opacity:.7;margin:0 0 6px;
+}
+#ap-gate-password{
+    width:100%;box-sizing:border-box;margin:0 0 14px;padding:12px 14px;
+    border-radius:12px;border:1px solid var(--border-color);
+    background:color-mix(in srgb,var(--bg-color) 88%,transparent);
+    color:var(--text-color);font-size:14px;outline:none;
+    transition:border-color .2s, box-shadow .2s;
+}
+#ap-gate-password:focus{
+    border-color:color-mix(in srgb,var(--primary-color) 70%,var(--border-color));
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--primary-color) 22%,transparent);
+}
+#ap-gate-submit{
+    width:100%;padding:12px 14px;border:none;border-radius:12px;
+    background:linear-gradient(180deg, color-mix(in srgb,var(--primary-color) 88%,white), var(--primary-color));
+    color:#fff;font-weight:700;font-size:14px;cursor:pointer;
+    box-shadow:0 10px 24px color-mix(in srgb,var(--primary-color) 35%,transparent);
+    transition:transform .15s ease, filter .15s ease, opacity .15s;
+}
+#ap-gate-submit:hover{filter:brightness(1.05);transform:translateY(-1px)}
+#ap-gate-submit:active{transform:none}
+#ap-gate-submit:disabled{opacity:.55;cursor:wait;transform:none}
+#ap-gate-error{
+    display:none;margin-top:12px;padding:10px 12px;border-radius:10px;
+    font-size:13px;line-height:1.35;
+    background:color-mix(in srgb,#ef4444 14%,transparent);
+    border:1px solid color-mix(in srgb,#ef4444 35%,transparent);
+    color:#fca5a5;
+}
+body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
+#ap-gate-cancel{
+    display:block;width:100%;margin-top:12px;padding:10px;
+    background:none;border:none;color:var(--text-color);opacity:.65;
+    cursor:pointer;font-size:13px;font-weight:600;
+}
+#ap-gate-cancel:hover{opacity:1;color:var(--primary-color)}
+#ap-gate-login .ap-gate-meta{
+    margin-top:14px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--border-color) 80%,transparent);
+    font-size:11px;opacity:.55;line-height:1.4;
 }
 
 /* Top Bar */
@@ -1284,8 +1357,22 @@
 
 <div id="admin-panel-overlay">
     <div id="ap-loading-skeleton" style="display:flex;flex-direction:column;height:100%;align-items:center;justify-content:center;gap:16px;">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" style="color:var(--primary-color);animation:_ap_spin 1s linear infinite;flex-shrink:0;"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+        <svg id="ap-loading-spinner" width="40" height="40" viewBox="0 0 24 24" fill="currentColor" style="color:var(--primary-color);animation:_ap_spin 1s linear infinite;flex-shrink:0;"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
         <span id="ap-loading-msg" style="font-size:14px;opacity:.6;font-family:sans-serif;"><?php echo my_htmlspecialchars($translations['admin_panel_loading']??'Loading Admin Panel...'); ?></span>
+        <div id="ap-gate-login">
+            <div class="ap-gate-badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <?php echo my_htmlspecialchars($translations['admin'] ?? 'Admin'); ?>
+            </div>
+            <h2 class="ap-gate-title"><?php echo my_htmlspecialchars($translations['ap_gate_title'] ?? 'Unlock Admin Panel'); ?></h2>
+            <p class="ap-gate-sub"><?php echo my_htmlspecialchars($translations['ap_gate_subtitle'] ?? 'Use the same password as your account. A separate admin token will be issued for this session.'); ?></p>
+            <label class="ap-gate-label" for="ap-gate-password"><?php echo my_htmlspecialchars($translations['password'] ?? 'Password'); ?></label>
+            <input type="password" id="ap-gate-password" autocomplete="current-password" placeholder="••••••••">
+            <button type="button" id="ap-gate-submit"><?php echo my_htmlspecialchars($translations['ap_gate_unlock'] ?? 'Unlock'); ?></button>
+            <div id="ap-gate-error"></div>
+            <button type="button" id="ap-gate-cancel"><?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?></button>
+            <div class="ap-gate-meta"><?php echo my_htmlspecialchars($translations['ap_gate_meta'] ?? 'Separate from your main session · expires after inactivity'); ?></div>
+        </div>
     </div>
     <div id="ap-dynamic-root" style="display:none;flex:1;min-height:0;overflow:hidden;"></div>
 </div>
@@ -1568,48 +1655,140 @@ function openPanel(id){
 }
 
 /* ── Open/close ── */
+function apCsrfToken(){
+    var meta=document.querySelector('meta[name="csrf-token"]');
+    var fromMeta=meta&&meta.getAttribute('content');
+    if(fromMeta) return fromMeta;
+    if(window.__AP_CSRF__) return String(window.__AP_CSRF__);
+    return '';
+}
+function apRememberCsrf(token){
+    if(!token) return;
+    window.__AP_CSRF__=String(token);
+    var meta=document.querySelector('meta[name="csrf-token"]');
+    if(meta) meta.setAttribute('content', String(token));
+}
+function apAdminFd(fields){
+    var fd=new FormData();
+    Object.keys(fields||{}).forEach(function(k){ fd.append(k, fields[k]); });
+    var t=apCsrfToken();
+    if(t){ fd.append('_csrf', t); }
+    return fd;
+}
+function apAdminFetch(fields){
+    var t=apCsrfToken();
+    var headers={};
+    if(t){ headers['X-CSRF-TOKEN']=t; }
+    return fetch('/main',{
+        method:'POST',
+        body:apAdminFd(fields),
+        credentials:'same-origin',
+        headers:headers
+    }).then(function(r){
+        return r.json().then(function(d){
+            if(d&&d.csrf) apRememberCsrf(d.csrf);
+            return d;
+        }).catch(function(){
+            return {success:false,error:'invalid_response',status:r.status};
+        });
+    });
+}
+function apGateShow(msg){
+    apLoaded=false;
+    if(dynRoot) dynRoot.style.display='none';
+    if(skeleton) skeleton.style.display='flex';
+    var spin=document.getElementById('ap-loading-spinner'); if(spin) spin.style.display='none';
+    var msgEl=document.getElementById('ap-loading-msg'); if(msgEl) msgEl.style.display='none';
+    var gate=document.getElementById('ap-gate-login'); if(gate) gate.style.display='block';
+    var err=document.getElementById('ap-gate-error');
+    if(err){ err.style.display=msg?'block':'none'; err.textContent=msg||''; }
+    var pwd=document.getElementById('ap-gate-password'); if(pwd){ pwd.value=''; setTimeout(function(){pwd.focus();},50); }
+}
+function apGateHide(){
+    var gate=document.getElementById('ap-gate-login'); if(gate) gate.style.display='none';
+    var spin=document.getElementById('ap-loading-spinner'); if(spin) spin.style.display='';
+    var msgEl=document.getElementById('ap-loading-msg'); if(msgEl){ msgEl.style.display=''; msgEl.textContent=<?php echo json_encode($translations['admin_panel_loading']??'Loading Admin Panel...'); ?>; }
+}
+function apGateStatus(){
+    return apAdminFetch({admin_panel_status:'1',ajax:'1'});
+}
+function apGateLogin(password){
+    return apAdminFetch({admin_panel_login:'1',ajax:'1',password:password||''});
+}
 function openAdminPanel(target){
     if(settingsM) settingsM.style.display='none';
     overlay.classList.add('active');
     document.body.style.overflow='hidden';
-    if(!apLoaded){skeleton.style.display='flex';dynRoot.style.display='none';loadPanel(target||'ap-users');}
-    else openPanel(target||'ap-users');
+    window._apPendingPanel = target||'ap-users';
+    if(apLoaded){ openPanel(window._apPendingPanel); return; }
+    skeleton.style.display='flex'; dynRoot.style.display='none';
+    apGateHide();
+    apGateStatus().then(function(d){
+        if(d&&d.csrf) apRememberCsrf(d.csrf);
+        if(d&&d.authenticated){ loadPanel(window._apPendingPanel); return; }
+        if(d&&d.is_admin===false){ apShowUnauthorizedMsg(); return; }
+        if(d&&d.error==='csrf_forbidden'){
+            apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>);
+            return;
+        }
+        apGateShow('');
+    }).catch(function(){ apGateShow(''); });
 }
-function closeAdminPanel(){overlay.classList.remove('ap-edge-omniroute');overlay.classList.remove('active');document.body.style.overflow='';clearHash();}
+function closeAdminPanel(){
+    overlay.classList.remove('ap-edge-omniroute');
+    overlay.classList.remove('active');
+    document.body.style.overflow='';
+    clearHash();
+}
 
 /* ── AJAX load ── */
 const AP_UNAUTH='__ap_unauthenticated__';
+const AP_GATE='__ap_gate_required__';
 function apIsUnauthorizedText(t){
     t=String(t||'');
     return /id="auth-modal"|id="auth-form"/i.test(t)
         || /(not authorized|unauthorized|not authenticated|session[^<]{0,40}(expired|invalid)|не авториз|истекла|сессия[^<]{0,40}истекл)/i.test(t);
 }
+function apParseAdminError(t){
+    try{
+        var j=JSON.parse(t);
+        if(j&&(j.admin_auth_required||j.error==='admin_auth_required')) return AP_GATE;
+        if(j&&(j.error==='csrf_forbidden'||j.error==='cross_origin_forbidden')) return j.error;
+    }catch(e){}
+    if(apIsUnauthorizedText(t)) return AP_UNAUTH;
+    return '';
+}
 function apShowUnauthorizedMsg(){
+    apGateHide();
     if(skeleton){
-        var sp=skeleton.querySelector('svg');
+        var sp=document.getElementById('ap-loading-spinner')||skeleton.querySelector('svg');
         if(sp) sp.style.display='none';
     }
     var msgEl=document.getElementById('ap-loading-msg');
     if(msgEl){
+        msgEl.style.display='';
         msgEl.style.opacity='1';
         msgEl.innerHTML='Session expired. Please <a href="/login" style="color:var(--primary-color);text-decoration:underline;">log in again</a>.';
     }
 }
 function loadPanel(target, year){
-    var fd=new FormData();
-    fd.append('get_admin_panel','1');
-    fd.append('ajax','1');
-    if(year) fd.append('stats_year', year);
+    apGateHide();
+    if(skeleton) skeleton.style.display='flex';
+    var spin=document.getElementById('ap-loading-spinner'); if(spin) spin.style.display='';
+    var fields={get_admin_panel:'1',ajax:'1'};
+    if(year) fields.stats_year=year;
     var msgEl=document.getElementById('ap-loading-msg');
-    fetch('/main',{method:'POST',body:fd})
+    if(msgEl){ msgEl.style.display=''; msgEl.textContent=<?php echo json_encode($translations['admin_panel_loading']??'Loading Admin Panel...'); ?>; }
+    var t=apCsrfToken();
+    var headers={}; if(t) headers['X-CSRF-TOKEN']=t;
+    fetch('/main',{method:'POST',body:apAdminFd(fields),credentials:'same-origin',headers:headers})
         .then(function(r){
-            if(!r.ok) return r.text().then(function(t){
-                if(r.status===401||r.status===403||apIsUnauthorizedText(t)) throw new Error(AP_UNAUTH);
-                throw new Error('HTTP '+r.status+': '+t.substring(0,300));
-            });
             return r.text().then(function(t){
-                if(apIsUnauthorizedText(t)) throw new Error(AP_UNAUTH);
-                // Strip any leading PHP warnings/notices before the JSON
+                var code=apParseAdminError(t);
+                if(r.status===401||code===AP_GATE) throw new Error(AP_GATE);
+                if(code==='csrf_forbidden') throw new Error('csrf_forbidden');
+                if(r.status===401||r.status===403||code===AP_UNAUTH) throw new Error(AP_UNAUTH);
+                if(!r.ok) throw new Error('HTTP '+r.status+': '+t.substring(0,300));
                 var jsonStart = t.indexOf('{');
                 if(jsonStart > 0){ t = t.substring(jsonStart); }
                 try{ return JSON.parse(t); }
@@ -1617,13 +1796,15 @@ function loadPanel(target, year){
             });
         })
         .then(function(d){
+            if(d&&d.csrf) apRememberCsrf(d.csrf);
             if(!d||!d.success){
+                if(d&&(d.admin_auth_required||d.error==='admin_auth_required')) {apGateShow('');return;}
+                if(d&&d.error==='csrf_forbidden'){ apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>); return; }
                 if(d&&!d.success&&/(not authorized|unauthorized|not authenticated|не авториз)/i.test(d.error||'')) {apShowUnauthorizedMsg();return;}
                 if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;
             }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
-            // Store available years from backend
             if(d.available_years && Array.isArray(d.available_years)){
                 apAvailableYears = d.available_years;
             }
@@ -1634,7 +1815,13 @@ function loadPanel(target, year){
             openPanel(target||'ap-users');
             wireEvents();
         })
-        .catch(function(err){if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();}else if(msgEl){msgEl.textContent='Error: '+(err.message||'Unknown error');}console.error('[AdminPanel]',err);});
+        .catch(function(err){
+            if(err&&err.message===AP_GATE){apGateShow('');}
+            else if(err&&err.message==='csrf_forbidden'){apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>);}
+            else if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();}
+            else if(msgEl){msgEl.style.display=''; msgEl.textContent='Error: '+(err.message||'Unknown error');}
+            console.error('[AdminPanel]',err);
+        });
 }
 
 /* Reload stats data for a specific year */
@@ -2591,7 +2778,10 @@ function wireEvents(){
             return _apFetch.call(this,i,n).then(function(r){
                 if(r.status!==403) return r;
                 return r.clone().json().then(function(d){
-                    if(d&&(d.stepup_required||d.error==='stepup_required')){
+                    if(d&&(d.admin_auth_required||d.error==='admin_auth_required')){
+                        apLoaded=false;
+                        if(typeof apGateShow==='function') apGateShow('');
+                    } else if(d&&(d.stepup_required||d.error==='stepup_required')){
                         if(typeof window.apEnsureStepup==='function') window.apEnsureStepup();
                     }
                     return r;
@@ -4245,6 +4435,30 @@ function wireJsonPanel(){
 if(openBtn) openBtn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();openAdminPanel('ap-users');});
 var initH=location.hash.match(/^#adminpanel\/(.+)$/);
 if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
+(function(){
+    var submit=document.getElementById('ap-gate-submit');
+    var cancel=document.getElementById('ap-gate-cancel');
+    var pwd=document.getElementById('ap-gate-password');
+    function doGateLogin(){
+        var pass=pwd?pwd.value:'';
+        if(!pass){ apGateShow(<?php echo json_encode($translations['password_required'] ?? 'Password required'); ?>); return; }
+        submit.disabled=true;
+        apGateLogin(pass).then(function(d){
+            submit.disabled=false;
+            if(d&&d.csrf) apRememberCsrf(d.csrf);
+            if(d&&d.success){ apGateHide(); loadPanel(window._apPendingPanel||'ap-users'); return; }
+            var msg;
+            if(d&&d.error==='invalid_credentials') msg=<?php echo json_encode($translations['invalid_credentials'] ?? 'Invalid credentials'); ?>;
+            else if(d&&d.error==='csrf_forbidden') msg=<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>;
+            else if(d&&d.error==='admin_ip_forbidden') msg=<?php echo json_encode($translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.'); ?>;
+            else msg=(d&&d.error)?d.error:'Login failed';
+            apGateShow(msg);
+        }).catch(function(){ submit.disabled=false; apGateShow('Network error'); });
+    }
+    if(submit) submit.addEventListener('click',doGateLogin);
+    if(pwd) pwd.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); doGateLogin(); } });
+    if(cancel) cancel.addEventListener('click',function(){ closeAdminPanel(); });
+})();
 
 })();
 <?php endif; ?>

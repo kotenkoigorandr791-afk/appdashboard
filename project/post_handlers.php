@@ -5,14 +5,81 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     apSecRequireCsrf();
     if ($sessionIsAdmin || isset($_SESSION['user']['email'])) {
         apSecRequireSameOrigin();
-    } elseif (isset($_POST['ajax']) || isset($_POST['login']) || isset($_POST['register_initial']) || isset($_POST['register_complete']) || isset($_POST['resend_verification']) || isset($_POST['forgot_password']) || isset($_POST['reset_password']) || isset($_POST['verify_otp_pin']) || isset($_POST['generate_otp_pin'])) {
-        // Auth forms: CSRF is primary; same-origin when browser sends Origin/Referer
+    } elseif (isset($_POST['ajax']) || isset($_POST['login']) || isset($_POST['register_initial']) || isset($_POST['register_complete']) || isset($_POST['resend_verification']) || isset($_POST['forgot_password']) || isset($_POST['reset_password']) || isset($_POST['verify_otp_pin']) || isset($_POST['generate_otp_pin']) || isset($_POST['verify_otp'])) {
         if ((string)($_SERVER['HTTP_ORIGIN'] ?? '') !== '' || (string)($_SERVER['HTTP_REFERER'] ?? '') !== '') {
             apSecRequireSameOrigin();
         }
     }
-    if ($sessionIsAdmin) {
-        adminRequireIpAllowlist();
+
+    // Separate admin-panel gate (password → dedicated cookie token)
+    if (isset($_POST['admin_panel_status']) && isset($_POST['ajax'])) {
+        $email = (string)($_SESSION['user']['email'] ?? '');
+        $ok = $sessionIsAdmin && adminPanelGateValid($email);
+        while (ob_get_level() > 1) ob_end_clean();
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => true,
+            'is_admin' => $sessionIsAdmin,
+            'authenticated' => $ok,
+            'email' => $sessionIsAdmin ? $email : '',
+            'expires_at' => $ok ? (int)($_SESSION['admin_panel_gate_until'] ?? 0) : 0,
+            'csrf' => apSecCsrfToken(),
+        ]);
+        exit;
+    }
+    if (isset($_POST['admin_panel_logout']) && isset($_POST['ajax'])) {
+        $email = (string)($_SESSION['user']['email'] ?? '');
+        adminPanelClearGate($email !== '' ? $email : null);
+        adminStepupClear();
+        adminAuditLog('admin_gate_logout', $email, 'ok');
+        while (ob_get_level() > 1) ob_end_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    if (isset($_POST['admin_panel_login']) && isset($_POST['ajax'])) {
+        while (ob_get_level() > 1) ob_end_clean();
+        header('Content-Type: application/json');
+        if (!$sessionIsAdmin) {
+            echo json_encode(['success' => false, 'error' => 'not_admin']);
+            exit;
+        }
+        if (!adminIpAllowed()) {
+            echo json_encode(['success' => false, 'error' => 'admin_ip_forbidden']);
+            exit;
+        }
+        $email = (string)($_SESSION['user']['email'] ?? '');
+        $password = (string)($_POST['password'] ?? '');
+        $clientIp = getClientIp();
+        $locked = getIpLockoutSeconds($clientIp, 'admin_gate');
+        if ($locked > 0) {
+            echo json_encode(['success' => false, 'error' => 'rate_limited', 'retry_after' => $locked]);
+            exit;
+        }
+        $users = loadUsers();
+        $ok = $email !== '' && isset($users[$email]) && appPasswordVerify($password, (string)$users[$email]['password']);
+        if (!$ok) {
+            recordFailedAttempt($clientIp, 'admin_gate');
+            adminAuditLog('admin_gate_login', $email, 'denied');
+            echo json_encode(['success' => false, 'error' => 'invalid_credentials']);
+            exit;
+        }
+        resetFailedAttempts($clientIp, 'admin_gate');
+        $issued = adminPanelIssueGate($email);
+        adminAuditLog('admin_gate_login', $email, 'ok');
+        echo json_encode([
+            'success' => true,
+            'expires_at' => $issued['expires_at'],
+            'csrf' => apSecCsrfToken(),
+        ]);
+        exit;
+    }
+
+    if ($sessionIsAdmin && adminPanelIsAdminRequest()
+        && !isset($_POST['admin_panel_login'])
+        && !isset($_POST['admin_panel_status'])
+        && !isset($_POST['admin_panel_logout'])) {
+        adminPanelRequireGate();
     }
     if(isset($_POST['resend_verification'])){
         $email=apNormalizeAuthEmail($_POST['email']??'');
@@ -1469,7 +1536,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
     // Load admin panel HTML on demand (admin only, AJAX) — lazy loading
     if(isset($_POST['get_admin_panel']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        adminRequireIpAllowlist();
+        adminPanelRequireGate();
         $_apCaps = adminUserCapabilities();
         $_apCapUsers = in_array('users', $_apCaps, true);
         $_apCapSsh = in_array('ssh', $_apCaps, true);
@@ -2218,7 +2285,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         while(ob_get_level() > 0) ob_end_clean();
         while(ob_get_level() > 1) ob_end_clean();
         header('Content-Type: application/json');
-        echo json_encode(['success'=>true,'html'=>$html,'stats'=>$_apVStats,'available_years'=>$_apAvailableYears]);
+        echo json_encode(['success'=>true,'html'=>$html,'stats'=>$_apVStats,'available_years'=>$_apAvailableYears,'csrf'=>apSecCsrfToken()]);
         exit;
     }
 
@@ -2642,7 +2709,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     }
     if(isset($_POST['logout'])){
         if(isset($_SESSION['user']['email'])){
+            adminPanelClearGate((string)$_SESSION['user']['email']);
             removeUserFromActiveSessions($_SESSION['user']['email'],session_id());
+        } else {
+            adminPanelClearGate();
         }
         setTrustedDeviceLogoutSuppression();
         clearTrustedDeviceHintCookie();

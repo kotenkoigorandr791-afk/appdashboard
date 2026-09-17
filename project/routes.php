@@ -375,9 +375,9 @@ if($path==='/database'){
         exit;
     }
     $sessionIsAdminDb = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
-    if(!$sessionIsAdminDb || !adminHasCapability('database') || !adminIpAllowed()){
+    if(!$sessionIsAdminDb || !adminHasCapability('database') || !adminIpAllowed() || !adminPanelGateValid()){
         http_response_code(403);
-        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>403 Forbidden</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>403 Forbidden</h1></body></html>';
+        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>403 Forbidden</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>403 Forbidden</h1><p>Unlock Admin Panel first, then open Database.</p><a href="/main">Back</a></body></html>';
         exit;
     }
     if (!adminStepupValid()) {

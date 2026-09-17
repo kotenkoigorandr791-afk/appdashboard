@@ -248,6 +248,12 @@ if(!isset($authError) && isset($_GET['error']) && $_GET['error'] === 'verificati
     $authError = $translations['verification_link_expired_desc'] ?? 'This verification link is invalid, expired, or has already been used.';
     $showReVerifyForm = true;
 }
+if(!isset($authError) && isset($_GET['error']) && $_GET['error'] === 'csrf'){
+    $authError = $translations['csrf_forbidden'] ?? 'Security check failed. Please try again.';
+}
+if(!isset($authError) && isset($_GET['error']) && $_GET['error'] === 'admin_ip_forbidden'){
+    $authError = $translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.';
+}
 $pendingOAuthData = $_SESSION['pending_oauth_data'] ?? $_SESSION['pending_google_data'] ?? null;
 $pendingGoogleData = $pendingOAuthData;
 

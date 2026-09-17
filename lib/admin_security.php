@@ -373,14 +373,167 @@ function adminEstablishSession(string $email, array $user): void {
     $_SESSION['user']['email'] = $email;
     $_SESSION['auth_time'] = time();
     adminStepupClear();
-    if (adminIsAdminUser($_SESSION['user'])) {
-        $_SESSION['admin_session'] = 1;
-        app_session_refresh_cookie_params(true);
-    } else {
-        unset($_SESSION['admin_session']);
-        app_session_refresh_cookie_params(false);
-    }
+    unset($_SESSION['admin_session']);
+    adminPanelClearGate();
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
 }
+
+function adminPanelCookieName(): string {
+    return 'ap_admin_gate';
+}
+
+function adminPanelEnsureTokenSchema(): void {
+    adminSecurityEnsureSchema();
+    $db = getDB();
+    $db->exec("CREATE TABLE IF NOT EXISTS admin_panel_tokens (
+        token_hash TEXT PRIMARY KEY,
+        email TEXT NOT NULL DEFAULT '',
+        ip_address TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL DEFAULT 0,
+        expires_at INTEGER NOT NULL DEFAULT 0,
+        last_used_at INTEGER NOT NULL DEFAULT 0
+    )");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_admin_panel_tokens_email ON admin_panel_tokens(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_admin_panel_tokens_expires ON admin_panel_tokens(expires_at)");
+}
+
+function adminPanelSetCookie(string $token, int $expiresAt): void {
+    if (headers_sent()) return;
+    $secure = function_exists('app_session_is_https') ? app_session_is_https() : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    setcookie(adminPanelCookieName(), $token, [
+        'expires' => $expiresAt,
+        'path' => '/',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
+}
+
+function adminPanelClearCookie(): void {
+    if (headers_sent()) return;
+    $secure = function_exists('app_session_is_https') ? app_session_is_https() : (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    setcookie(adminPanelCookieName(), '', [
+        'expires' => time() - 3600,
+        'path' => '/',
+        'secure' => $secure,
+        'httponly' => true,
+        'samesite' => 'Strict',
+    ]);
+}
+
+function adminPanelRawToken(): string {
+    $header = trim((string)($_SERVER['HTTP_X_ADMIN_TOKEN'] ?? ''));
+    if ($header !== '' && preg_match('/^[a-f0-9]{64}$/i', $header)) return strtolower($header);
+    $cookie = trim((string)($_COOKIE[adminPanelCookieName()] ?? ''));
+    if ($cookie !== '' && preg_match('/^[a-f0-9]{64}$/i', $cookie)) return strtolower($cookie);
+    return '';
+}
+
+function adminPanelClearGate(?string $email = null): void {
+    adminPanelEnsureTokenSchema();
+    $token = adminPanelRawToken();
+    $db = getDB();
+    if ($token !== '') {
+        $stmt = $db->prepare("DELETE FROM admin_panel_tokens WHERE token_hash = :h");
+        $stmt->bindValue(':h', hash('sha256', $token));
+        $stmt->execute();
+    }
+    if ($email !== null && $email !== '') {
+        $stmt = $db->prepare("DELETE FROM admin_panel_tokens WHERE email = :e");
+        $stmt->bindValue(':e', $email);
+        $stmt->execute();
+    }
+    adminPanelClearCookie();
+    unset($_SESSION['admin_panel_gate_until'], $_SESSION['admin_panel_gate_email']);
+}
+
+function adminPanelIssueGate(string $email): array {
+    adminPanelEnsureTokenSchema();
+    $db = getDB();
+    $purge = $db->prepare("DELETE FROM admin_panel_tokens WHERE expires_at < :t OR email = :e");
+    $purge->bindValue(':t', time(), PDO::PARAM_INT);
+    $purge->bindValue(':e', $email);
+    $purge->execute();
+    $raw = bin2hex(random_bytes(32));
+    $hash = hash('sha256', $raw);
+    $now = time();
+    $ttl = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : 7200;
+    $expires = $now + max(600, $ttl);
+    $stmt = $db->prepare("INSERT INTO admin_panel_tokens(token_hash,email,ip_address,created_at,expires_at,last_used_at)
+        VALUES(:h,:e,:ip,:c,:x,:u)");
+    $stmt->bindValue(':h', $hash);
+    $stmt->bindValue(':e', $email);
+    $stmt->bindValue(':ip', function_exists('getClientIp') ? getClientIp() : (string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $stmt->bindValue(':c', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':x', $expires, PDO::PARAM_INT);
+    $stmt->bindValue(':u', $now, PDO::PARAM_INT);
+    $stmt->execute();
+    adminPanelSetCookie($raw, $expires);
+    $_SESSION['admin_panel_gate_until'] = $expires;
+    $_SESSION['admin_panel_gate_email'] = $email;
+    adminStepupGrant();
+    return ['token' => $raw, 'expires_at' => $expires];
+}
+
+function adminPanelGateValid(?string $expectedEmail = null): bool {
+    $email = $expectedEmail ?? (string)($_SESSION['user']['email'] ?? '');
+    if ($email === '' || !adminIsAdminUser()) return false;
+    if (!adminIpAllowed()) return false;
+    $token = adminPanelRawToken();
+    if ($token === '') return false;
+    adminPanelEnsureTokenSchema();
+    $stmt = getDB()->prepare("SELECT * FROM admin_panel_tokens WHERE token_hash = :h LIMIT 1");
+    $stmt->bindValue(':h', hash('sha256', $token));
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$row) return false;
+    if ((int)($row['expires_at'] ?? 0) < time()) {
+        adminPanelClearGate($email);
+        return false;
+    }
+    if (!hash_equals(strtolower((string)($row['email'] ?? '')), strtolower($email))) {
+        return false;
+    }
+    $touch = getDB()->prepare("UPDATE admin_panel_tokens SET last_used_at = :u WHERE token_hash = :h");
+    $touch->bindValue(':u', time(), PDO::PARAM_INT);
+    $touch->bindValue(':h', hash('sha256', $token));
+    $touch->execute();
+    $_SESSION['admin_panel_gate_until'] = (int)$row['expires_at'];
+    $_SESSION['admin_panel_gate_email'] = $email;
+    return true;
+}
+
+function adminPanelRequireGate(): void {
+    if (adminPanelGateValid()) return;
+    adminAuditLog('admin_gate_required', '', 'denied');
+    if (!headers_sent()) {
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+    }
+    echo json_encode([
+        'ok' => false,
+        'success' => false,
+        'error' => 'admin_auth_required',
+        'admin_auth_required' => true,
+    ]);
+    exit;
+}
+
+function adminPanelIsAdminRequest(): bool {
+    if (!empty($_POST['get_admin_panel']) || !empty($_POST['admin_panel_login']) || !empty($_POST['admin_panel_logout']) || !empty($_POST['admin_panel_status'])) {
+        return true;
+    }
+    $keys = [
+        'fm_list_dir','fm_get_file','fm_save_file','fm_mkdir','fm_mkfile','fm_delete','fm_rename','fm_upload','fm_dir_size',
+        'reset_user_password','delete_user','delete_user_with_files','save_user_roles','save_email_settings',
+        'ssh_terminal_init','ssh_terminal_exec','ssh_terminal_get_profile','ssh_terminal_ws_token',
+        'admin_totp_setup','admin_totp_confirm','admin_totp_disable','admin_stepup','admin_security_status','save_admin_ip_allowlist',
+        'quick_command_action','save_app_access_levels','save_app_access_security','save_stats_data','get_users_table','scan_user_files',
+    ];
+    foreach ($keys as $k) {
+        if (isset($_POST[$k])) return true;
+    }
+    return false;
+}
+

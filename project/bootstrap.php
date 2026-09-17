@@ -90,6 +90,18 @@ if (!function_exists('apSecRequireCsrf')) {
         $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
         if (!in_array($method, ['POST', 'PUT', 'DELETE', 'PATCH'], true)) return;
         if (apSecCsrfCheck()) return;
+        $isAjax = isset($_POST['ajax'])
+            || str_contains(strtolower((string)($_SERVER['HTTP_ACCEPT'] ?? '')), 'application/json')
+            || str_contains(strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')), 'xmlhttprequest');
+        $authForm = isset($_POST['login']) || isset($_POST['register_initial']) || isset($_POST['register_complete'])
+            || isset($_POST['resend_verification']) || isset($_POST['forgot_password']) || isset($_POST['reset_password'])
+            || isset($_POST['verify_otp']);
+        if (!$isAjax && $authForm) {
+            if (!headers_sent()) {
+                header('Location: /login?error=csrf');
+            }
+            exit;
+        }
         if (!headers_sent()) {
             http_response_code(403);
             header('Content-Type: application/json; charset=utf-8');
