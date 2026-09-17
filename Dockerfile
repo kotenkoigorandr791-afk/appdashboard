@@ -78,7 +78,7 @@ COPY . /var/www/AppDashboard/
 RUN rm -rf /var/www/AppDashboard/apps/tft-generator \
     && mkdir -p /var/www/AppDashboard/apps/lopaka
 WORKDIR /var/www/AppDashboard
-RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
+RUN cd /var/www/AppDashboard && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
     && cd /var/www/AppDashboard/webssh && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
     && cd /var/www/AppDashboard/apps/cloud && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader
 COPY --from=lopaka-build /src/dist/ /var/www/AppDashboard/apps/lopaka/

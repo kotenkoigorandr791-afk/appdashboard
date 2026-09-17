@@ -155,6 +155,7 @@ tasks.register("printVersionName") {
         println(appVersionName)
     }
 }
+
 tasks.register("printVersionCode") {
     doLast {
         println(appVersionCode)

@@ -1,6 +1,6 @@
 #!/bin/sh
 set -eu
-ROOT="${1:-/var/www/AppDashboard}"
+ROOT="$(cd "${1:-/var/www/AppDashboard}" && pwd)"
 APP_DIR="$ROOT/apps/steps/steps-mobile-app"
 OUT_DIR="$ROOT/downloads"
 APK="$OUT_DIR/stepmonitor.apk"
@@ -31,6 +31,6 @@ cp "$BUILT" "$APK"
 printf '%s' "$HASH" > "$HASH_FILE"
 VERSION_NAME="$(./gradlew -q :app:printVersionName 2>/dev/null || echo 1.0.0)"
 VERSION_CODE="$(./gradlew -q :app:printVersionCode 2>/dev/null || echo 10000)"
-SIZE_BYTES="$(stat -c %s "$APK" 2>/dev/null || wc -c < "$APK")"
+SIZE_BYTES="$(stat -c '%s' "$APK" 2>/dev/null || stat -f '%z' "$APK")"
 APK_HASH="$(sha256sum "$APK" | awk '{print $1}')"
 printf '{"version":"%s","version_code":%s,"hash":"%s","size_bytes":%s,"built_at":%s}\n' "$VERSION_NAME" "$VERSION_CODE" "$APK_HASH" "$SIZE_BYTES" "$(date +%s)" > "$META_FILE"
