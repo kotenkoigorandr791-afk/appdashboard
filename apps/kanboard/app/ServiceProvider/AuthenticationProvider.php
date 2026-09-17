@@ -9,11 +9,8 @@ use Kanboard\Core\Security\AccessMap;
 use Kanboard\Core\Security\Authorization;
 use Kanboard\Core\Security\Role;
 use Kanboard\Auth\ApiAccessTokenAuth;
-use Kanboard\Auth\RememberMeAuth;
 use Kanboard\Auth\DatabaseAuth;
-use Kanboard\Auth\LdapAuth;
 use Kanboard\Auth\TotpAuth;
-use Kanboard\Auth\ReverseProxyAuth;
 
 /**
  * Authentication Provider
@@ -34,22 +31,8 @@ class AuthenticationProvider implements ServiceProviderInterface
     {
         $container['authenticationManager'] = new AuthenticationManager($container);
         $container['authenticationManager']->register(new TotpAuth($container));
-
-        if (REMEMBER_ME_AUTH) {
-            $container['authenticationManager']->register(new RememberMeAuth($container));
-        }
-
         $container['authenticationManager']->register(new DatabaseAuth($container));
-
-        if (REVERSE_PROXY_AUTH && ! empty(TRUSTED_PROXY_NETWORKS)) {
-            $container['authenticationManager']->register(new ReverseProxyAuth($container));
-        }
-
         $container['authenticationManager']->register(new ApiAccessTokenAuth($container));
-
-        if (LDAP_AUTH) {
-            $container['authenticationManager']->register(new LdapAuth($container));
-        }
 
         $container['projectAccessMap'] = $this->getProjectAccessMap();
         $container['applicationAccessMap'] = $this->getApplicationAccessMap();
