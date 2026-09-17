@@ -1209,6 +1209,25 @@ window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never
     const shareData = await generateShareKey(filePath, expiresOption);
     return buildCloudShareUrl(shareData);
 };
+async function ensureQrCodeStyling() {
+    if (typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
+    const url = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
+    const res = await fetch(url, { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const code = await res.text();
+    const prevDefine = (typeof define !== 'undefined') ? define : undefined;
+    try {
+        if (typeof window !== 'undefined') window.define = undefined;
+        if (typeof self !== 'undefined') self.define = undefined;
+        (0, eval)(code);
+    } finally {
+        if (typeof window !== 'undefined' && typeof prevDefine !== 'undefined') window.define = prevDefine;
+        if (typeof self !== 'undefined' && typeof prevDefine !== 'undefined') self.define = prevDefine;
+    }
+    if (typeof window !== 'undefined' && typeof window.QRCodeStyling !== 'undefined') return window.QRCodeStyling;
+    if (typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
+    return QRCodeStyling;
+}
 async function renderShareModalForPath(filePath, displayName, expiresOption = 'never') {
     const modal = document.getElementById('share-modal');
     const select = document.getElementById('share-expires-select');
@@ -1258,35 +1277,47 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     const wrapper = document.createElement('div');
     wrapper.style.cssText = `
         padding: 20px;
-        border-radius: 16px;
-        background: radial-gradient(circle at center, ${window.APP_CONFIG.color}22, transparent 70%);
-        box-shadow: 0 8px 32px ${window.APP_CONFIG.color}33;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        display: inline-block;
-        animation: fadeIn 0.4s ease-out;
-        margin-bottom: 20px;
+        border-radius: 22px;
+        background: #ffffff;
+        display: grid;
+        place-items: center;
+        max-width: 360px;
+        margin: 16px auto;
     `;
-    const inner = document.createElement('div');
-    inner.style.cssText = `
-        padding: 16px;
-        background: var(--bg);
-        border-radius: 12px;
-        box-shadow: inset 0 0 20px ${window.APP_CONFIG.color}15;
-    `;
-    if (typeof QRCode !== 'undefined') {
-        new QRCode(inner, {
-            text: finalUrl,
-            width: 200,
-            height: 200,
-            colorDark: getComputedStyle(document.documentElement).getPropertyValue('--fg').trim(),
-            colorLight: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
-            correctLevel: QRCode.CorrectLevel.H
-        });
-    } else {
-        inner.innerHTML = '<p style="color: var(--muted);">QR code unavailable</p>';
+    try {
+        const QRCodeStylingCtor = await ensureQrCodeStyling();
+        if (typeof QRCodeStylingCtor === 'undefined') {
+            wrapper.innerHTML = '<p style="color: var(--muted); padding: 12px;">QR code unavailable</p>';
+        } else {
+            const qr = new QRCodeStylingCtor({
+                width: 256,
+                height: 256,
+                type: 'svg',
+                data: finalUrl,
+                margin: 8,
+                qrOptions: { errorCorrectionLevel: 'H' },
+                dotsOptions: {
+                    type: 'rounded',
+                    gradient: {
+                        type: 'linear',
+                        rotation: Math.PI / 4,
+                        colorStops: [
+                            { offset: 0, color: '#7c3aed' },
+                            { offset: 0.5, color: '#2563eb' },
+                            { offset: 1, color: '#06b6d4' }
+                        ]
+                    }
+                },
+                cornersSquareOptions: { type: 'extra-rounded', color: '#2563eb' },
+                cornersDotOptions: { type: 'dot', color: '#7c3aed' },
+                backgroundOptions: { color: 'rgba(255,255,255,0)' }
+            });
+            qr.append(wrapper);
+        }
+    } catch (error) {
+        console.error('QR Code error:', error);
+        wrapper.innerHTML = '<p style="color: var(--muted); padding: 12px;">QR code unavailable</p>';
     }
-    wrapper.appendChild(inner);
     qrContainer.appendChild(wrapper);
     document.querySelector('#share-modal .modal-header h3').textContent =
         t(i18n, 'shareModalTitle') + ': ' + displayName;

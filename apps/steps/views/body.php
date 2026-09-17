@@ -851,7 +851,7 @@ $metricButtons = [
                     <div id="hc-token-output">
                         <strong><?php echo htmlspecialchars($translations['hc_token_value_label'] ?? 'Token'); ?></strong>
                         <code id="hc-token-value"></code>
-                        <img id="hc-token-qr" alt="StepMonitor QR" style="display:none;width:220px;height:220px;margin:12px auto;border-radius:12px;background:#fff;padding:8px;">
+                        <div id="hc-token-qr" style="display:none;margin:12px auto;border-radius:22px;background:#fff;padding:20px;max-width:360px;"></div>
                         <a id="hc-token-link" href="#" style="display:none;word-break:break-all;color:var(--primary-color);font-size:13px;"></a>
                         <div class="hc-token-actions">
                             <button type="button" id="hc-token-copy" class="hc-token-btn"><?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?></button>
@@ -950,6 +950,63 @@ $metricButtons = [
             const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
             if(endpointEl) endpointEl.textContent=endpoint;
 
+            async function ensureQrCodeStyling(){
+                if(typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
+                const url='https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
+                const res=await fetch(url,{cache:'no-store'});
+                if(!res.ok) throw new Error('HTTP '+res.status);
+                const code=await res.text();
+                const prevDefine=(typeof define!=='undefined')?define:undefined;
+                try{
+                    if(typeof window!=='undefined') window.define=undefined;
+                    if(typeof self!=='undefined') self.define=undefined;
+                    (0,eval)(code);
+                }finally{
+                    if(typeof window!=='undefined' && typeof prevDefine!=='undefined') window.define=prevDefine;
+                    if(typeof self!=='undefined' && typeof prevDefine!=='undefined') self.define=prevDefine;
+                }
+                if(typeof window!=='undefined' && typeof window.QRCodeStyling!=='undefined') return window.QRCodeStyling;
+                if(typeof self!=='undefined' && typeof self.QRCodeStyling!=='undefined') return self.QRCodeStyling;
+                return QRCodeStyling;
+            }
+            async function renderTokenQr(hostEl, data){
+                try{
+                    const QRCodeStylingCtor=await ensureQrCodeStyling();
+                    if(typeof QRCodeStylingCtor==='undefined'){
+                        hostEl.innerHTML='<p style="color:var(--text-color);padding:12px;">QR code unavailable</p>';
+                        return;
+                    }
+                    hostEl.innerHTML='';
+                    const qr=new QRCodeStylingCtor({
+                        width:256,
+                        height:256,
+                        type:'svg',
+                        data:data,
+                        margin:8,
+                        qrOptions:{errorCorrectionLevel:'H'},
+                        dotsOptions:{
+                            type:'rounded',
+                            gradient:{
+                                type:'linear',
+                                rotation:Math.PI/4,
+                                colorStops:[
+                                    {offset:0,color:'#7c3aed'},
+                                    {offset:0.5,color:'#2563eb'},
+                                    {offset:1,color:'#06b6d4'}
+                                ]
+                            }
+                        },
+                        cornersSquareOptions:{type:'extra-rounded',color:'#2563eb'},
+                        cornersDotOptions:{type:'dot',color:'#7c3aed'},
+                        backgroundOptions:{color:'rgba(255,255,255,0)'}
+                    });
+                    qr.append(hostEl);
+                }catch(error){
+                    console.error('QR Code error:',error);
+                    hostEl.innerHTML='<p style="color:var(--text-color);padding:12px;">QR code unavailable</p>';
+                }
+            }
+
             function showModal(){
                 document.body.classList.add('modal-open');
                 modal.style.display='flex';
@@ -1021,7 +1078,7 @@ $metricButtons = [
 
                     const deepLink='stepmonitor://auth?endpoint='+encodeURIComponent(endpoint)+'&token='+encodeURIComponent(data.token);
                     if(tokenValEl) tokenValEl.textContent=data.token;
-                    if(tokenQrEl){ tokenQrEl.src='https://api.qrserver.com/v1/create-qr-code/?size=220x220&data='+encodeURIComponent(deepLink); tokenQrEl.style.display='block'; }
+                    if(tokenQrEl){ tokenQrEl.style.display='block'; tokenQrEl.innerHTML=''; await renderTokenQr(tokenQrEl, deepLink); }
                     if(tokenLinkEl){ tokenLinkEl.href=deepLink; tokenLinkEl.textContent=deepLink; tokenLinkEl.style.display='block'; }
                     if(outEl) outEl.style.display='block';
                     await copyText(deepLink, genBtn);

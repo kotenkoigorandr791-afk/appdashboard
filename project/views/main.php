@@ -11,6 +11,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <link rel="icon" href="/project/views/icon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <?php require_once APP_ROOT . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('dashboard'); ?>
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
 <?php if($path==='/main' && !$showLogin): ?>
