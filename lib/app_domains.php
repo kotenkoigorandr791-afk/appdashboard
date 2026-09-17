@@ -19,15 +19,17 @@ if (!function_exists('app_base_domain')) {
 if (!function_exists('app_public_scheme')) {
     function app_public_scheme(): string
     {
+        $base = app_base_domain();
+        $isLocal = ($base === 'localhost' || $base === '127.0.0.1' || str_ends_with($base, '.local') || str_ends_with($base, '.localhost'));
         $scheme = strtolower(trim((string)(getenv('APP_PUBLIC_SCHEME') ?: '')));
         if ($scheme === 'http' || $scheme === 'https') {
+            // Never force http for a real public domain (breaks OIDC issuer vs https clients).
+            if ($scheme === 'http' && !$isLocal) {
+                return 'https';
+            }
             return $scheme;
         }
-        $base = app_base_domain();
-        if ($base === 'localhost' || $base === '127.0.0.1' || str_ends_with($base, '.local')) {
-            return 'http';
-        }
-        return 'https';
+        return $isLocal ? 'http' : 'https';
     }
 }
 
