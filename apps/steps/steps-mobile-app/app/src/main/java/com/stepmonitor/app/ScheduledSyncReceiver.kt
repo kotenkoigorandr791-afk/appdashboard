@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.stepmonitor.app.updates.AppUpdateManager
 
 /**
  * BroadcastReceiver that handles scheduled sync alarms and device boot.
@@ -48,6 +49,10 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                         ScheduledSyncManager(context).scheduleNextIntervalSync()
                     }
                 }
+                if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+                    prefsManager.setWhatsNewPending(true)
+                }
+                AppUpdateManager.start(context)
             }
         }
     }

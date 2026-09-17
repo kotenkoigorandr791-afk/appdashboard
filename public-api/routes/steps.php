@@ -99,6 +99,40 @@ function steps_apply_payload(AppDatabase $db, string $userDir, array $payload, s
     return ['stored' => $stored, 'steps_upserted' => count($batch)];
 }
 if ($method === 'GET') {
+    if (strtolower((string)$sub) === 'version') {
+        $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
+        if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
+        $meta = json_decode((string)file_get_contents($metaFile), true);
+        if (!is_array($meta) || empty($meta['version'])) public_api_json(['status' => 'error', 'message' => 'invalid release metadata'], 500);
+        exit(json_encode([
+            'status' => 'success',
+            'available' => true,
+            'version_name' => (string)$meta['version'],
+            'version_code' => (int)($meta['version_code'] ?? 0),
+            'hash' => (string)($meta['hash'] ?? ''),
+            'size_bytes' => (int)($meta['size_bytes'] ?? 0),
+            'built_at' => (int)($meta['built_at'] ?? 0),
+            'apk_path' => '/api/steps/apk',
+        ], JSON_UNESCAPED_UNICODE));
+    }
+    if (strtolower((string)$sub) === 'apk') {
+        $apkFile = APP_ROOT . '/downloads/stepmonitor.apk';
+        if (!is_file($apkFile)) public_api_json(['status' => 'error', 'message' => 'no apk available'], 503);
+        $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
+        $version = 'unknown';
+        if (is_file($metaFile)) {
+            $meta = json_decode((string)file_get_contents($metaFile), true);
+            if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
+        }
+        header('Content-Type: application/vnd.android.package-archive; charset=binary');
+        header('Content-Disposition: attachment; filename="stepmonitor-' . $version . '.apk"');
+        header('Content-Length: ' . (string)filesize($apkFile));
+        header('Cache-Control: no-store, private');
+        header('Pragma: no-cache');
+        header('X-Content-Type-Options: nosniff');
+        readfile($apkFile);
+        exit;
+    }
     if (strtolower((string)$sub) === 'profile') {
         $email = get_current_user_email();
         $profile = ['email' => $email ?: '', 'name' => $email ?: 'StepMonitor', 'photo' => ''];

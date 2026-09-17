@@ -61,6 +61,11 @@ class PreferencesManager(context: Context) {
         private const val KEY_ACCENT_COLOR = "accent_color"
         private const val KEY_APP_LANGUAGE = "app_language"
         private const val KEY_PORTRAIT_ONLY = "portrait_only"
+        private const val KEY_AUTO_UPDATE_ENABLED = "auto_update_enabled"
+        private const val KEY_UPDATE_CHECKED_AT = "update_checked_at"
+        private const val KEY_LAST_KNOWN_VERSION_CODE = "last_known_version_code"
+        private const val KEY_IGNORE_VERSION_CODE = "ignore_version_code"
+        private const val KEY_WHATS_NEW_PENDING = "whats_new_pending"
         private const val KEY_STATS_CACHE_JSON = "stats_cache_json"
         private const val KEY_STATS_CACHE_TIME = "stats_cache_time"
         private const val KEY_PROFILE_CACHE_JSON = "profile_cache_json"
@@ -622,6 +627,31 @@ class PreferencesManager(context: Context) {
     fun isPortraitOnly(): Boolean = prefs.getBoolean(KEY_PORTRAIT_ONLY, false)
     fun setPortraitOnly(value: Boolean) {
         prefs.edit().putBoolean(KEY_PORTRAIT_ONLY, value).apply()
+    }
+    fun isAutoUpdateEnabled(): Boolean = prefs.getBoolean(KEY_AUTO_UPDATE_ENABLED, true)
+    fun setAutoUpdateEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_UPDATE_ENABLED, value).apply()
+    }
+    fun getUpdateCheckedAt(): Long = prefs.getLong(KEY_UPDATE_CHECKED_AT, 0)
+    fun setUpdateCheckedAt(timestamp: Long) {
+        prefs.edit().putLong(KEY_UPDATE_CHECKED_AT, timestamp).apply()
+    }
+    fun getLastKnownVersionCode(): Int = prefs.getInt(KEY_LAST_KNOWN_VERSION_CODE, 0)
+    fun setLastKnownVersionCode(versionCode: Int) {
+        prefs.edit().putInt(KEY_LAST_KNOWN_VERSION_CODE, versionCode).apply()
+    }
+    fun getIgnoreVersionCode(): Int = prefs.getInt(KEY_IGNORE_VERSION_CODE, 0)
+    fun setIgnoreVersionCode(versionCode: Int) {
+        prefs.edit().putInt(KEY_IGNORE_VERSION_CODE, versionCode).apply()
+    }
+    fun isWhatsNewPending(): Boolean = prefs.getBoolean(KEY_WHATS_NEW_PENDING, false)
+    fun setWhatsNewPending(value: Boolean) {
+        prefs.edit().putBoolean(KEY_WHATS_NEW_PENDING, value).apply()
+    }
+    fun consumeWhatsNewPending(): Boolean {
+        if (!prefs.getBoolean(KEY_WHATS_NEW_PENDING, false)) return false
+        prefs.edit().remove(KEY_WHATS_NEW_PENDING).apply()
+        return true
     }
     fun getStatsCache(maxAgeMs: Long): String? {
         val savedAt = prefs.getLong(KEY_STATS_CACHE_TIME, 0)
