@@ -13,10 +13,10 @@
 </div>
 <?= $this->hook->render('template:dashboard:show:after-filter-box', array('user' => $user)) ?>
 <?php if (! $project_paginator->isEmpty()): ?>
-    <div class="table-list">
+    <div class="table-list kb-project-list">
         <?= $this->render('project_list/header', array('paginator' => $project_paginator)) ?>
         <?php foreach ($project_paginator->getCollection() as $project): ?>
-            <div class="table-list-row table-border-left">
+            <div class="table-list-row table-border-left kb-project-row">
                 <div class="kb-project-row-title">
                     <?php if ($this->user->hasProjectAccess('ProjectViewController', 'show', $project['id'])): ?>
                         <?= $this->render('project/dropdown', array('project' => $project)) ?>

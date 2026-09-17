@@ -23,6 +23,7 @@ class Plugin extends Base
             true
         );
 
+        $this->template->setTemplateOverride('layout', 'appDashboard:layout');
         $this->template->setTemplateOverride('header/title', 'appDashboard:header/title');
         $this->template->setTemplateOverride('header/user_dropdown', 'appDashboard:header/user_dropdown');
         $this->template->setTemplateOverride('header/user_notifications', 'appDashboard:header/user_notifications');
@@ -38,6 +39,8 @@ class Plugin extends Base
         $this->template->setTemplateOverride('project_list/sort_menu', 'appDashboard:project_list/sort_menu');
         $this->template->setTemplateOverride('app/filters_helper', 'appDashboard:app/filters_helper');
         $this->template->setTemplateOverride('project_creation/create', 'appDashboard:project_creation/create');
+        $this->template->setTemplateOverride('project_view/show', 'appDashboard:project_view/show');
+        $this->template->setTemplateOverride('project/sidebar', 'appDashboard:project/sidebar');
 
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/shell.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
