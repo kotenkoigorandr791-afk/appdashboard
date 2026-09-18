@@ -1350,6 +1350,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .sessions-table th,.sessions-table td{padding:12px;text-align:left;border-bottom:1px solid var(--border-color);}
         .sessions-table th{background-color:var(--table-header-bg);font-weight:bold;}
         .sessions-table tr:hover{background-color:var(--table-row-hover);}
+        .ip-location-cell{cursor:help;}
         .trusted-devices-table{width:100%;border-collapse:collapse;margin-top:10px;}
         .trusted-devices-table th,.trusted-devices-table td{padding:10px;text-align:left;border-bottom:1px solid var(--border-color);font-size:13px;}
         .trusted-devices-table th{background-color:var(--table-header-bg);font-weight:bold;font-size:12px;}
@@ -3164,7 +3165,7 @@ endif; // showOtpPage
                         </button>
                     </div>
                     <label class="checkbox-label" style="margin-top:-2px;">
-                        <input type="checkbox" name="remember_me" value="1" checked>
+                        <input type="checkbox" name="remember_me" value="1">
                         <span class="checkmark" aria-hidden="true">
                             <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
                         </span>
@@ -3680,7 +3681,7 @@ endif; // showOtpPage
                                 <td><div class="device-browser-item"><?php $browser=$session['browser']??'unknown_browser';$browserClass=$browser.'-icon';$browserText=$translations[$browser]??$translations['unknown_browser'];?><div class="browser-icon <?php echo $browserClass; ?>"><?php echo get_browser_icon_svg($browser); ?></div><span><?php echo my_htmlspecialchars($browserText); ?></span></div></td>
                                 <td><?php echo date('Y-m-d H:i:s',$session['login_time']); ?></td>
                                 <td><?php echo date('Y-m-d H:i:s',$session['last_activity']); ?></td>
-                                <td><?php echo my_htmlspecialchars($session['ip_address']??'Unknown'); ?></td>
+                            <td class="ip-location-cell" title="<?php echo my_htmlspecialchars($session['ip_location'] ?: ($translations['unknown_location'] ?? 'Unknown location')); ?>"><?php echo my_htmlspecialchars($session['ip_address']??'Unknown'); ?></td>
                                 <td><?php if($sessionId!==session_id()):?><form method="post" style="display:inline;"><input type="hidden" name="session_id" value="<?php echo my_htmlspecialchars($sessionId); ?>"><button type="submit" name="terminate_session" class="terminate-btn"><?php echo my_htmlspecialchars($translations['terminate_session']); ?></button></form><?php else:?><span style="color:#666;"><?php echo my_htmlspecialchars($translations['current_session']); ?></span><?php endif;?></td>
                             </tr>
                         <?php endforeach;?>
@@ -3706,7 +3707,7 @@ endif; // showOtpPage
                         <tbody>
                         <?php $currentFp = getDeviceFingerprint(); foreach($trustedDevices as $dev):?>
                             <tr class="<?php echo ($dev['fingerprint'] ?? '') === $currentFp ? 'current-trusted-device' : ''; ?>">
-                                <td><?php echo my_htmlspecialchars($dev['ip'] ?? '—'); ?></td>
+                                <td class="ip-location-cell" title="<?php echo my_htmlspecialchars($dev['ip_location'] ?: ($translations['unknown_location'] ?? 'Unknown location')); ?>"><?php echo my_htmlspecialchars($dev['ip'] ?? '—'); ?></td>
                                 <td><?php echo my_htmlspecialchars($dev['device_name'] ?? $translations['unknown_device']); ?></td>
                                 <td><?php echo date('Y-m-d H:i:s', $dev['added_at'] ?? 0); ?></td>
                                 <td><?php echo date('Y-m-d H:i:s', $dev['last_seen'] ?? 0); ?></td>
@@ -5261,7 +5262,7 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
                 devices.forEach(function(d){
                     const isCurrent=(d.fingerprint||'')=== currentFp;
                     const deviceToken = d.device_token || '';
-                    html+='<tr class="'+(isCurrent?'current-trusted-device':'')+'"><td>'+escHtml(d.ip||'—')+'</td><td>'+escHtml(d.device_name||'Unknown')+'</td><td>'+formatDate(d.added_at)+'</td><td>'+formatDate(d.last_seen)+'</td><td><button type="button" class="remove-trusted-btn" data-fingerprint="'+escHtml(d.fingerprint||'')+'" data-token="'+escHtml(deviceToken)+'" data-name="'+escHtml(d.device_name||'')+'">'+(T.remove_trusted_device||'Remove from Trusted')+'</button></td></tr>';
+                    html+='<tr class="'+(isCurrent?'current-trusted-device':'')+'"><td class="ip-location-cell" title="'+escHtml(d.ip_location||T.unknown_location||'Unknown location')+'">'+escHtml(d.ip||'—')+'</td><td>'+escHtml(d.device_name||'Unknown')+'</td><td>'+formatDate(d.added_at)+'</td><td>'+formatDate(d.last_seen)+'</td><td><button type="button" class="remove-trusted-btn" data-fingerprint="'+escHtml(d.fingerprint||'')+'" data-token="'+escHtml(deviceToken)+'" data-name="'+escHtml(d.device_name||'')+'">'+(T.remove_trusted_device||'Remove from Trusted')+'</button></td></tr>';
                 });
                 html+='</tbody></table>';
                 container.innerHTML=html;

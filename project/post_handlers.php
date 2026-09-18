@@ -193,21 +193,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $authError=$translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.';
                     } else {
                     adminEstablishSession($email, $users[$email]);
-                    if (isset($_POST['remember_me'])) {
-                        $fp = getDeviceFingerprint();
-                        $deviceName = '';
-                        $session = getUserFromActiveSessions(session_id());
-                        if (is_array($session)) {
-                            $deviceName = trim((string)($session['device'] ?? '')) . ' / ' . trim((string)($session['browser'] ?? ''));
-                        }
-                        if ($deviceName === '') $deviceName = 'Device';
-                        $tokenData = addTrustedDevice($email, $clientIp, $deviceName, $fp);
-                        $rawCookieToken = createTrustedDeviceCookie($email, $fp, $deviceName);
-                        setTrustedDeviceCookieForEmail($email, $rawCookieToken);
-                        rememberTrustedDeviceBrowserAccount($email);
-                        setTrustedDeviceHintCookie($email, $fp);
-                        // If cookies/storage are blocked, the existing restore logic will handle it.
-                    }
+                    if (isset($_POST['remember_me'])) rememberCurrentTrustedDevice($email, $clientIp);
                     $config=['language'=>$users[$email]['language']??'en','theme'=>$users[$email]['theme']??'light','color'=>$users[$email]['color']??'#007bff'];
                     $language=$config['language'];
                     $translations = ap_merge_i18n($defaultTranslations, $language);
