@@ -5097,3 +5097,298 @@ table.kb-data-table tbody tr:last-child td,
   border-color: var(--alert-border-color-info) !important;
   color: var(--alert-color-info) !important;
 }
+/* ===== Shared custom dropdown list (kb-menu) ===== */
+.kb-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 1300;
+  min-width: 200px;
+  max-height: 280px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--kb-panel) !important;
+  border: 1px solid var(--kb-border);
+  border-radius: 12px;
+  box-shadow: var(--kb-shadow-lg);
+  color: var(--kb-text);
+  animation: kb-menu-in 0.16s ease-out;
+  transform-origin: top right;
+}
+.kb-menu.kb-menu-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+  transform-origin: bottom right;
+}
+.kb-menu[data-dir="left"] { left: 0; }
+.kb-menu[data-dir="right"] { right: 0; }
+.kb-menu.kb-menu-select {
+  position: fixed;
+  max-width: min(320px, calc(100vw - 16px));
+}
+@keyframes kb-menu-in {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.kb-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 8px 10px;
+  border: 0 !important;
+  border-radius: 8px;
+  background: transparent !important;
+  color: var(--kb-text);
+  font-size: 0.875rem;
+  font-weight: 550;
+  line-height: 1.35;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.kb-menu-item:hover,
+.kb-menu-item:focus-visible {
+  background: var(--kb-hover) !important;
+  color: var(--primary-color, #2563eb);
+  text-decoration: none;
+  outline: none;
+}
+.kb-menu-item.kb-menu-selected {
+  background: var(--kb-active) !important;
+  color: var(--primary-color, #2563eb);
+  font-weight: 650;
+}
+.kb-menu-item > .fa {
+  width: 1.1em;
+  text-align: center;
+  color: var(--primary-color, #2563eb);
+}
+.kb-menu-empty {
+  padding: 10px 12px;
+  color: var(--kb-muted);
+  font-size: 0.8125rem;
+}
+/* Apply the shared list look to native Kanboard dropdown menus */
+ul.dropdown-submenu-open,
+.dropdown-submenu-open,
+.select-dropdown-menu,
+.select2-dropdown {
+  padding: 6px !important;
+  border-radius: 12px !important;
+  overflow: visible;
+}
+ul.dropdown-submenu-open li,
+.dropdown-submenu-open li,
+.select-dropdown-menu-item {
+  padding: 8px 10px !important;
+  border-bottom: none !important;
+  border-radius: 8px !important;
+}
+/* ===== Custom select (rounded, built on kb-menu) ===== */
+.kb-select {
+  position: relative;
+  display: inline-flex;
+  width: 100%;
+  max-width: 100%;
+}
+.kb-select-native {
+  display: none !important;
+}
+.kb-select-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 8px 32px 8px 12px;
+  border: 1px solid var(--kb-border);
+  border-radius: 10px;
+  background: var(--kb-panel);
+  color: var(--kb-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 550;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.kb-select-trigger:hover {
+  border-color: color-mix(in srgb, var(--primary-color, #2563eb) 35%, var(--kb-border));
+  background-color: color-mix(in srgb, var(--primary-color, #2563eb) 4%, var(--kb-panel));
+}
+.kb-select-trigger:focus-visible,
+.kb-select.open .kb-select-trigger {
+  outline: none;
+  border-color: color-mix(in srgb, var(--primary-color, #2563eb) 55%, var(--kb-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #2563eb) 16%, transparent);
+  background-color: var(--kb-panel);
+}
+.kb-select.kb-select-disabled .kb-select-trigger {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.kb-select-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.kb-select-caret {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--kb-muted);
+  pointer-events: none;
+  transition: transform 0.18s ease;
+}
+.kb-select.open .kb-select-caret {
+  transform: translateY(-50%) rotate(180deg);
+}
+/* ===== Search bars (icon inside every search input) ===== */
+body {
+  overflow-x: hidden !important;
+}
+section.page {
+  overflow: visible !important;
+  overflow-x: visible !important;
+}
+section.page form.search,
+#modal-content form.search {
+  position: relative;
+}
+section.page form.search > input[type="text"] {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 36px;
+  margin-bottom: 12px;
+  padding: 6px 14px 6px 36px !important;
+  border: 1px solid var(--kb-border) !important;
+  border-radius: 999px !important;
+  background: var(--kb-panel) !important;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+section.page form.search > input[type="text"]:focus {
+  border-color: var(--input-focus-border-color) !important;
+  box-shadow: 0 0 0 3px var(--input-focus-shadow-color) !important;
+}
+section.page form.search::before,
+#modal-content form.search::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  transform: translateY(-50%);
+  background-color: var(--kb-muted);
+  pointer-events: none;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+}
+section.page form.search:focus-within::before,
+#modal-content form.search:focus-within::before {
+  background-color: var(--primary-color, #2563eb);
+}
+.filter-box .input-addon {
+  border-radius: 999px;
+}
+.filter-box .input-addon .input-addon-field {
+  padding-left: 34px !important;
+}
+/* ===== Project list cards (custom, no scrollbars) ===== */
+.table-list.kb-frame {
+  border: 1px solid var(--kb-border);
+  border-radius: 14px;
+  background: var(--kb-panel);
+  box-shadow: var(--kb-shadow);
+  overflow: visible;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.table-list.kb-frame > .table-list-header {
+  margin: 0 !important;
+  border-radius: 13px 13px 0 0;
+}
+.table-list.kb-frame > .table-list-row:last-child {
+  border-radius: 0 0 13px 13px;
+}
+/* ===== Animated checkboxes / radios ===== */
+input[type="checkbox"]:not([class*="df-"]),
+input[type="radio"]:not([class*="df-"]) {
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  position: relative;
+  width: 18px;
+  height: 18px;
+  margin: 0 4px 0 0;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  border: 1.5px solid color-mix(in srgb, var(--kb-muted) 55%, var(--kb-border));
+  border-radius: 6px;
+  background: var(--kb-panel);
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+input[type="radio"]:not([class*="df-"]) {
+  border-radius: 50%;
+}
+input[type="checkbox"]:not([class*="df-"]):hover,
+input[type="radio"]:not([class*="df-"]):hover {
+  border-color: var(--primary-color, #2563eb);
+}
+input[type="checkbox"]:not([class*="df-"]):focus-visible,
+input[type="radio"]:not([class*="df-"]):focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--input-focus-shadow-color);
+}
+input[type="checkbox"]:not([class*="df-"]):checked {
+  background: var(--primary-color, #2563eb) !important;
+  border-color: var(--primary-color, #2563eb) !important;
+  animation: kb-check-pop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.6);
+}
+input[type="checkbox"]:not([class*="df-"]):checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(42deg);
+  animation: kb-check-draw 0.22s ease-out 0.05s both;
+}
+input[type="radio"]:not([class*="df-"]):checked {
+  border-color: var(--primary-color, #2563eb) !important;
+  border-width: 5.5px !important;
+  background: var(--kb-panel) !important;
+  animation: kb-check-pop 0.32s cubic-bezier(0.175, 0.885, 0.32, 1.6);
+}
+@keyframes kb-check-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(0.85); }
+  70% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes kb-check-draw {
+  0% { opacity: 0; transform: rotate(42deg) scale(0.3); }
+  100% { opacity: 1; transform: rotate(42deg) scale(1); }
+}

@@ -449,14 +449,15 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
           background-image:
             linear-gradient(rgba(60, 140, 255, 0.045) 1px, transparent 1px),
             linear-gradient(90deg, rgba(60, 140, 255, 0.045) 1px, transparent 1px);
-          background-size: 55px 55px;
+          /* меньше плотность сетки (ближе к "в 2 раза тише") */
+          background-size: 110px 110px;
           animation: gridDrift 30s linear infinite;
           mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
           -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
         }
         @keyframes gridDrift {
           0% { background-position: 0 0; }
-          100% { background-position: 55px 55px; }
+          100% { background-position: 110px 110px; }
         }
 
         .bg-rays {
@@ -554,7 +555,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         }
 
         <?php if($showLogin): ?>
-        #auth-modal{display:flex;position:fixed;top:var(--auth-topbar-h);left:0;width:100%;height:calc(100% - var(--auth-topbar-h));justify-content:center;align-items:safe center;z-index:10050;background:transparent;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);overflow-y:auto;}
+        /* Без размытия фона: анимацию/сетку нужно видеть */
+        #auth-modal{display:flex;position:fixed;top:var(--auth-topbar-h);left:0;width:100%;height:calc(100% - var(--auth-topbar-h));justify-content:center;align-items:safe center;z-index:10050;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;overflow-y:auto;}
         #auth-modal .gradient-bg{position:absolute;top:0;left:0;width:100%;height:100%;background:var(--auth-gradient);opacity:0.22;z-index:0;pointer-events:none;}
         :root{--auth-glass-radius:22px;--auth-card-border:rgba(96,165,250,0.22);}
         @keyframes authCardEntrance{0%{opacity:0;transform:translateY(28px) scale(.94);filter:blur(10px)}100%{opacity:1;transform:none;filter:blur(0)}}

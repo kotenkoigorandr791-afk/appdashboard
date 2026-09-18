@@ -432,12 +432,169 @@
     document.addEventListener('DOMContentLoaded', bindModalHooks);
     setTimeout(bindModalHooks, 500);
   }
+  /* ===== Shared custom dropdown for every <select> ===== */
+  function getSelectLabel(select) {
+    var opt = select.options[select.selectedIndex];
+    return opt ? opt.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+  function openMenuAt($menu, trigger, dirPref) {
+    var r = trigger.getBoundingClientRect();
+    var vw = document.documentElement.clientWidth || window.innerWidth;
+    var vh = document.documentElement.clientHeight || window.innerHeight;
+    $menu.css({ visibility: 'hidden', display: 'block', left: 0, top: 0 });
+    var mw = $menu.outerWidth();
+    var mh = $menu.outerHeight();
+    var left = dirPref === 'left' ? r.left : r.right - mw;
+    if (left < 8) left = 8;
+    if (left + mw > vw - 8) left = vw - 8 - mw;
+    var up = r.bottom + mh + 12 > vh && r.top - mh - 12 > 0;
+    var top = up ? r.top - mh - 6 : r.bottom + 6;
+    if (top < 8) top = 8;
+    $menu.toggleClass('kb-menu-up', !!up)
+      .css({ visibility: 'visible', display: 'block', left: Math.round(left), top: Math.round(top) });
+  }
+  function enhanceSelect(select) {
+    if (!select || select.getAttribute('data-kb-select') === '1') return;
+    if (select.multiple || select.size > 1) return;
+    var rect = select.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0) return;
+    select.setAttribute('data-kb-select', '1');
+    var wrap = document.createElement('span');
+    wrap.className = 'kb-select';
+    var trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'kb-select-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    var value = document.createElement('span');
+    value.className = 'kb-select-value';
+    value.textContent = getSelectLabel(select);
+    trigger.appendChild(value);
+    var caret = document.createElement('span');
+    caret.className = 'kb-select-caret';
+    trigger.appendChild(caret);
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(trigger);
+    wrap.appendChild(select);
+    select.classList.add('kb-select-native');
+    function sync() {
+      value.textContent = getSelectLabel(select);
+      if ($menu) {
+        $menu.find('.kb-menu-item').each(function () {
+          $(this).toggleClass('kb-menu-selected', String($(this).data('value')) === String(select.value));
+        });
+      }
+    }
+    var $menu = null;
+    var menuUid = 0;
+    function close() {
+      if ($menu) {
+        $menu.remove();
+        $menu = null;
+      }
+      wrap.classList.remove('open');
+      trigger.setAttribute('aria-expanded', 'false');
+      $(document).off('mousedown.kb-select-' + menuUid);
+      $(window).off('resize.kb-select-' + menuUid + ' scroll.kb-select-' + menuUid);
+    }
+    function open() {
+      if ($menu) { close(); return; }
+      $menu = $('<ul class="kb-menu kb-menu-select" role="listbox"></ul>');
+      var dirPref = 'right';
+      if (wrap.closest('.kb-modal-form, form, #modal-content').length) dirPref = 'left';
+      $(select.options).each(function () {
+        var opt = this;
+        var item = $('<li class="kb-menu-item" role="option"></li>')
+          .text(opt.textContent.replace(/\s+/g, ' ').trim())
+          .attr('data-value', opt.value);
+        if (opt.selected) item.addClass('kb-menu-selected');
+        item.on('mousedown', function (e) { e.preventDefault(); })
+          .on('click', function (e) {
+            e.preventDefault();
+            select.value = opt.value;
+            $(select).trigger('change');
+            sync();
+            close();
+            trigger.focus();
+          });
+        $menu.append(item);
+      });
+      $('body').append($menu);
+      wrap.classList.add('open');
+      trigger.setAttribute('aria-expanded', 'true');
+      menuUid = ++kbSelectUid;
+      openMenuAt($menu, trigger, dirPref);
+      $(document).on('mousedown.kb-select-' + menuUid, function (e) {
+        if (!$(e.target).closest('.kb-menu, .kb-select').length) close();
+      });
+      $(window).on('resize.kb-select-' + menuUid + ' scroll.kb-select-' + menuUid, close);
+    }
+    trigger.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      open();
+    });
+    trigger.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        open();
+      } else if (e.key === 'Escape') {
+        close();
+      }
+    });
+    sync();
+  }
+  var kbSelectUid = 0;
+  function enhanceAllSelects(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var selects = scope.querySelectorAll('select');
+    for (var i = 0; i < selects.length; i++) {
+      try { enhanceSelect(selects[i]); } catch (e) {}
+    }
+  }
+  /* ===== Project list frame (no scrollbars) ===== */
+  function frameProjectLists(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var lists = scope.querySelectorAll('section.page .table-list');
+    for (var i = 0; i < lists.length; i++) {
+      lists[i].classList.add('kb-frame');
+    }
+  }
+  var kbMoScheduled = false;
+  function kbMoPolish() {
+    if (kbMoScheduled) return;
+    kbMoScheduled = true;
+    setTimeout(function () {
+      kbMoScheduled = false;
+      enhanceAllSelects(document);
+      frameProjectLists(document);
+    }, 60);
+  }
+  var kbEnhanceTimer = null;
+  function scheduleEnhance() {
+    if (kbEnhanceTimer) clearTimeout(kbEnhanceTimer);
+    kbEnhanceTimer = setTimeout(function () {
+      kbEnhanceTimer = null;
+      enhanceAllSelects(document);
+      frameProjectLists(document);
+    }, 50);
+  }
   document.addEventListener('click', function (ev) {
     var t = ev.target;
     if (!t) return;
     if (t.closest && t.closest('.js-modal-medium, .js-modal-large, .js-modal-small, .js-modal-confirm, a[href*="ProjectCreation"], .btn-blue')) {
       setTimeout(onModalRendered, 120);
       setTimeout(onModalRendered, 400);
+      scheduleEnhance();
     }
   }, true);
+  try {
+    var kbMo = new MutationObserver(kbMoPolish);
+    kbMo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
+  } catch (e) {}
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scheduleEnhance);
+  } else {
+    scheduleEnhance();
+  }
 })();
