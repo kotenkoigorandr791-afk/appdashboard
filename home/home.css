@@ -34,6 +34,142 @@ body.light-theme {
   color: #1a2b38;
 }
 
+/* ============================================================
+   АНИМИРОВАННЫЙ ФОН (как в главная.html)
+   ============================================================ */
+.bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+.bg-gradient {
+  background:
+    radial-gradient(ellipse at 20% 15%, rgba(37, 99, 235, 0.20) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 80%, rgba(6, 182, 212, 0.16) 0%, transparent 50%),
+    radial-gradient(ellipse at 55% 45%, rgba(139, 92, 246, 0.12) 0%, transparent 60%),
+    linear-gradient(145deg, #04070c 0%, #0a121e 50%, #060a12 100%);
+  background-size: 200% 200%, 200% 200%, 200% 200%, 100% 100%;
+  animation: gradientShift 28s ease-in-out infinite;
+}
+@keyframes gradientShift {
+  0%, 100% { background-position: 0% 0%, 100% 100%, 50% 50%, 0% 0%; }
+  50% { background-position: 100% 100%, 0% 0%, 0% 100%, 0% 0%; }
+}
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(60, 140, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(60, 140, 255, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: gridDrift 35s linear infinite;
+  mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+}
+@keyframes gridDrift {
+  0% { background-position: 0 0; }
+  100% { background-position: 60px 60px; }
+}
+.bg-rays {
+  background:
+    conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(59, 130, 246, 0.07) 60deg, transparent 120deg, transparent 240deg, rgba(34, 211, 238, 0.06) 300deg, transparent 360deg);
+  animation: raysRotate 70s linear infinite;
+  opacity: 0.8;
+}
+@keyframes raysRotate {
+  from { transform: rotate(0deg) scale(1.5); }
+  to { transform: rotate(360deg) scale(1.5); }
+}
+.glow-orb {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  z-index: 0;
+}
+.orb-1 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #2563eb, transparent 70%);
+  top: -160px; left: -120px;
+  opacity: 0.35;
+  animation: orbFloat1 22s ease-in-out infinite alternate;
+}
+.orb-2 {
+  width: 580px; height: 580px;
+  background: radial-gradient(circle, #06b6d4, transparent 70%);
+  bottom: -200px; right: -140px;
+  opacity: 0.28;
+  animation: orbFloat2 26s ease-in-out infinite alternate;
+}
+.orb-3 {
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, #8b5cf6, transparent 70%);
+  top: 45%; left: 55%;
+  opacity: 0.22;
+  animation: orbFloat3 24s ease-in-out infinite alternate;
+}
+.orb-4 {
+  width: 340px; height: 340px;
+  background: radial-gradient(circle, #22d3ee, transparent 70%);
+  bottom: 20%; left: 8%;
+  opacity: 0.18;
+  animation: orbFloat1 30s ease-in-out infinite alternate-reverse;
+}
+@keyframes orbFloat1 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(60px, 50px) scale(1.15); }
+}
+@keyframes orbFloat2 {
+  0% { transform: translate(0, 0) scale(1); }
+  100% { transform: translate(-70px, -60px) scale(1.1); }
+}
+@keyframes orbFloat3 {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  100% { transform: translate(-40%, -60%) scale(1.2); }
+}
+.particles {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  background: var(--primary-soft);
+  border-radius: 50%;
+  box-shadow: 0 0 10px 2px rgba(96, 165, 250, 0.6);
+  opacity: 0;
+  animation: particleRise linear infinite;
+}
+@keyframes particleRise {
+  0% { transform: translateY(100vh) translateX(0) scale(0); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { opacity: 1; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-10vh) translateX(60px) scale(1); opacity: 0; }
+}
+.scanline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(96, 165, 250, 0.6), rgba(34, 211, 238, 0.8), rgba(96, 165, 250, 0.6), transparent);
+  z-index: 1;
+  pointer-events: none;
+  filter: blur(1px);
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.5);
+  animation: scanMove 10s ease-in-out infinite;
+  opacity: 0.45;
+}
+@keyframes scanMove {
+  0% { top: -5%; opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.5; }
+  100% { top: 105%; opacity: 0; }
+}
+
 /* ── Header ── */
 .site-header {
   position: sticky; top: 0; z-index: 200;

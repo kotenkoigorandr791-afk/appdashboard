@@ -97,6 +97,28 @@
       mix(c0[2], c1[2], f)
     ];
   }
+  function isTodoColumn(header) {
+    if (!header) return false;
+    var titleEl = header.querySelector('.board-column-title a.dropdown-menu, .board-column-title');
+    var title = titleEl ? (titleEl.textContent || '').replace(/\s+/g, ' ').trim().toLowerCase() : '';
+    title = title.replace(/\s*▼\s*$/, '').trim();
+    if (title === 'todo' || title === 'ready') return true;
+    if (title.indexOf('todo ') === 0 || title.indexOf('ready ') === 0) return true;
+    return false;
+  }
+  function renameTodoColumnLabel(header) {
+    if (!header || header.getAttribute('data-kb-todo') === '1') return;
+    var link = header.querySelector('.board-column-title a.dropdown-menu');
+    if (link) {
+      for (var n = 0; n < link.childNodes.length; n++) {
+        var node = link.childNodes[n];
+        if (node.nodeType === 3 && /ready|todo/i.test(node.textContent || '')) {
+          node.textContent = node.textContent.replace(/ready|todo/i, 'todo');
+        }
+      }
+    }
+    header.setAttribute('data-kb-todo', '1');
+  }
   function paintBoardColumns() {
     var board = document.getElementById('board');
     if (!board) return;
@@ -105,22 +127,27 @@
     if (!n) return;
     var dark = document.body.classList.contains('kb-dark');
     for (var i = 0; i < n; i++) {
-      var t = n === 1 ? 1 : i / (n - 1);
-      var rgb = stageColor(t, dark);
-      var bg = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.28' : '0.20') + ')';
-      var border = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.55' : '0.42') + ')';
-      var color = dark
-        ? 'rgb(' + Math.min(255, rgb[0] + 80) + ',' + Math.min(255, rgb[1] + 80) + ',' + Math.min(255, rgb[2] + 80) + ')'
-        : 'rgb(' + Math.max(0, rgb[0] - 40) + ',' + Math.max(0, rgb[1] - 40) + ',' + Math.max(0, rgb[2] - 40) + ')';
+      var todo = isTodoColumn(headers[i]);
+      if (todo) renameTodoColumnLabel(headers[i]);
+      var rgb = todo ? [220, 38, 38] : stageColor(n === 1 ? 1 : i / (n - 1), dark);
+      var bg = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? (todo ? '0.34' : '0.28') : (todo ? '0.22' : '0.20')) + ')';
+      var border = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.62' : '0.48') + ')';
+      var color = todo
+        ? (dark ? '#fecaca' : '#b91c1c')
+        : (dark
+          ? 'rgb(' + Math.min(255, rgb[0] + 80) + ',' + Math.min(255, rgb[1] + 80) + ',' + Math.min(255, rgb[2] + 80) + ')'
+          : 'rgb(' + Math.max(0, rgb[0] - 40) + ',' + Math.max(0, rgb[1] - 40) + ',' + Math.max(0, rgb[2] - 40) + ')');
       headers[i].style.setProperty('background', bg, 'important');
       headers[i].style.setProperty('border-color', border, 'important');
       headers[i].style.setProperty('color', color, 'important');
+      if (todo) headers[i].classList.add('kb-column-todo');
       var links = headers[i].querySelectorAll('a, .board-column-title');
       for (var L = 0; L < links.length; L++) links[L].style.setProperty('color', color, 'important');
       var cells = board.querySelectorAll('tr.board-swimlane > td:nth-child(' + (i + 1) + ')');
       for (var c = 0; c < cells.length; c++) {
         cells[c].style.setProperty('background', bg, 'important');
         cells[c].style.setProperty('border-color', border, 'important');
+        if (todo) cells[c].classList.add('kb-column-todo');
       }
     }
   }
@@ -136,8 +163,18 @@
     var headerRow = board.querySelector('tr:first-child');
     var headerH = headerRow ? headerRow.getBoundingClientRect().height : 48;
     var listH = Math.max(200, h - headerH - 8);
+    var needsScroll = false;
     for (var i = 0; i < lists.length; i++) {
       lists[i].style.minHeight = listH + 'px';
+      lists[i].style.maxHeight = listH + 'px';
+      if (lists[i].scrollHeight > lists[i].clientHeight + 2) needsScroll = true;
+    }
+    var needsX = board.scrollWidth > container.clientWidth + 2;
+    container.style.overflowX = needsX ? 'auto' : 'hidden';
+    container.style.overflowY = 'hidden';
+    container.classList.toggle('kb-board-fit', !needsX && !needsScroll);
+    for (var j = 0; j < lists.length; j++) {
+      lists[j].style.overflowY = needsScroll ? 'auto' : 'hidden';
     }
   }
   function paintColumnStats() {

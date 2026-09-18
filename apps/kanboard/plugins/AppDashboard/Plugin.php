@@ -5,6 +5,7 @@ namespace Kanboard\Plugin\AppDashboard;
 use Kanboard\Core\Plugin\Base;
 use Kanboard\Core\Security\AuthenticationManager;
 use Kanboard\Core\Security\Role;
+use Kanboard\Model\ColumnModel;
 use Kanboard\Notification\WebNotification;
 use Kanboard\Plugin\AppDashboard\Auth\DashboardAuth;
 use Kanboard\Plugin\AppDashboard\Notification\ShellNotification;
@@ -41,10 +42,18 @@ class Plugin extends Base
         $this->template->setTemplateOverride('project_creation/create', 'appDashboard:project_creation/create');
         $this->template->setTemplateOverride('project_view/show', 'appDashboard:project_view/show');
         $this->template->setTemplateOverride('project/sidebar', 'appDashboard:project/sidebar');
+        $this->template->setTemplateOverride('project_overview/show', 'appDashboard:project_overview/show');
+        $this->template->setTemplateOverride('analytic/burndown', 'appDashboard:analytic/burndown');
+        $this->template->setTemplateOverride('analytic/cfd', 'appDashboard:analytic/cfd');
+        $this->template->setTemplateOverride('analytic/lead_cycle_time', 'appDashboard:analytic/lead_cycle_time');
+        $this->template->setTemplateOverride('analytic/task_distribution', 'appDashboard:analytic/task_distribution');
 
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/shell.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);
+
+        $this->projectAccessMap->add('OverviewCalendarController', 'updateDates', Role::PROJECT_MEMBER);
+        $this->renameReadyColumns();
 
         $admin = Role::APP_ADMIN;
         $this->applicationAccessMap->add('UserModificationController', '*', $admin);
@@ -143,11 +152,35 @@ class Plugin extends Base
 
     public function getPluginVersion()
     {
-        return '1.1.0';
+        return '1.2.0';
     }
 
     public function getCompatibleVersion()
     {
         return '>=1.2.20';
+    }
+
+    public function getHelpers()
+    {
+        return array(
+            'Plugin\\AppDashboard\\Helper' => array(
+                'OverviewCalendarHelper',
+            ),
+        );
+    }
+
+    private function renameReadyColumns(): void
+    {
+        if ($this->configModel->get('appdashboard_todo_column_migrated') === '1') {
+            return;
+        }
+        $titles = array('Ready', 'Согласованные', 'Відібрані', 'Připraveno', 'Gotowe');
+        try {
+            foreach ($titles as $title) {
+                $this->db->table(ColumnModel::TABLE)->eq('title', $title)->update(array('title' => 'todo'));
+            }
+            $this->configModel->save(array('appdashboard_todo_column_migrated' => '1'));
+        } catch (\Throwable $e) {
+        }
     }
 }
