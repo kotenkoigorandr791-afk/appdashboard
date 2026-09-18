@@ -446,7 +446,7 @@ body.light-theme .btn-secondary { background: rgba(0,0,0,0.03); border-color: rg
 body.light-theme .btn-secondary:hover { background: rgba(0,0,0,0.07); border-color: rgba(26,43,51,0.52); }
 
 /* ── Layout ── */
-main { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
+main { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; position: relative; z-index: 5; }
 main > section + section { border-top: 1px solid rgba(255,255,255,0.1); }
 body.light-theme main > section + section { border-top-color: rgba(26,43,51,0.12); }
 
@@ -766,6 +766,7 @@ body.light-theme .engagement-toast-close:hover { background: rgba(0,0,0,0.06); }
 footer {
   text-align: center; padding: 26px 20px; font-size: 14px;
   border-top: 1px solid rgba(255,255,255,0.08); margin-top: 16px;
+  position: relative; z-index: 5;
 }
 body.light-theme footer { border-top-color: rgba(26,43,51,0.1); }
 .footer-content { display: flex; flex-direction: column; align-items: center; gap: 14px; }

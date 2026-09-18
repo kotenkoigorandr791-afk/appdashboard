@@ -740,6 +740,7 @@ body.theme-light .npo-md-preview pre{background:#f4f6f8;}
 
   // ── Open / Close ───────────────────────────────────────────────────────────
   function openNewsPortal() {
+    if(typeof window.hideSettingsTooltips==='function') window.hideSettingsTooltips();
     if (!overlay.classList.contains('active')) {
       overlay.classList.add('active');
       if (window.location.hash !== '#news-workflow') history.pushState(null, '', '#news-workflow');

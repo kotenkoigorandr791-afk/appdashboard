@@ -97,6 +97,7 @@
 
 <script>
 function openOtpGeneratorModal(){
+    if(typeof window.hideSettingsTooltips==='function') window.hideSettingsTooltips();
     var m=document.getElementById('otp-gen-modal');
     if(!m)return;
     m.style.display='flex';

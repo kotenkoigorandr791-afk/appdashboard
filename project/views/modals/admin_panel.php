@@ -1721,6 +1721,7 @@ function apGateLogin(password){
     return apAdminFetch({admin_panel_login:'1',ajax:'1',password:password||''});
 }
 function openAdminPanel(target){
+    if(typeof window.hideSettingsTooltips==='function') window.hideSettingsTooltips();
     if(settingsM) settingsM.style.display='none';
     overlay.classList.add('active');
     document.body.style.overflow='hidden';

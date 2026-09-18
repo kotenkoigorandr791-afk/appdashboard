@@ -918,7 +918,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
         }
         <?php endif; ?>
-        #sidebar{position:fixed;top:54px;left:-320px;width:320px;height:calc(100% - 54px);background:var(--sidebar-bg);transition:left 0.3s cubic-bezier(.2,.8,.2,1);padding:20px;box-sizing:border-box;display:flex;flex-direction:column;z-index:999;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);border-left:none;box-shadow:var(--glass-shadow);}
+        #sidebar{position:fixed;top:54px;left:0;width:320px;height:calc(100% - 54px);background:var(--sidebar-bg);transform:translateX(-100%);transition:transform 0.3s cubic-bezier(.2,.8,.2,1);padding:20px;box-sizing:border-box;display:flex;flex-direction:column;z-index:999;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);border-left:none;box-shadow:var(--glass-shadow);will-change:transform;}
         <?php if(!$isHomeDashboard): ?>
         #sidebar{top:0;height:100%;border-top-right-radius:var(--casa-radius);border-bottom-right-radius:var(--casa-radius);display:flex;flex-direction:column;}
         <?php endif; ?>
@@ -956,19 +956,15 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .notification-row-copy{background:none;border:none;cursor:pointer;opacity:0.55;padding:0 3px;display:flex;align-items:center;justify-content:center;border-radius:4px;transition:all 0.15s;flex-shrink:0;margin-top:2px;}
         .notification-row-copy svg{width:13px;height:13px;color:var(--text-color);fill:none;stroke:currentColor;stroke-width:2;}
         .notification-row-copy:hover{opacity:1!important;background:rgba(128,128,128,0.15);}
-        #sidebar.open{left:0;}
-        #app-list-container{margin-top:0;padding-top:16px;max-height:none;flex:1;min-height:0;overflow-y:auto;position:relative;scrollbar-width:none;-ms-overflow-style:none;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 20px,black calc(100% - 30px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 20px,black calc(100% - 30px),transparent 100%);}
+        #sidebar.open{transform:translateX(0);}
+        #app-list-container{margin-top:0;padding-top:16px;max-height:none;flex:1;min-height:0;overflow-y:auto;position:relative;scrollbar-width:none;-ms-overflow-style:none;-webkit-mask-image:none;mask-image:none;}
         #app-list-container::-webkit-scrollbar{display:none;}
         #bottom-bar{position:relative;bottom:auto;left:auto;right:auto;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;flex-shrink:0;padding-top:8px;}
         <?php if(!$isHomeDashboard): ?>
-        #app-list-container{padding-top:0;max-height:none;flex:1;min-height:0;position:relative;-webkit-mask-image:linear-gradient(to bottom,transparent 0px,black 24px,black calc(100% - 30px),transparent 100%);mask-image:linear-gradient(to bottom,transparent 0px,black 24px,black calc(100% - 30px),transparent 100%);}
+        #app-list-container{padding-top:0;max-height:none;flex:1;min-height:0;position:relative;-webkit-mask-image:none;mask-image:none;}
         #bottom-bar{position:relative;bottom:auto;left:auto;right:auto;flex-shrink:0;padding-top:8px;}
         <?php endif; ?>
-        #app-list-container::before,
-        #app-list-container::after{content:"";position:absolute;left:0;right:0;z-index:2;pointer-events:none;backdrop-filter:blur(14px) saturate(150%);-webkit-backdrop-filter:blur(14px) saturate(150%);}
-        #app-list-container::before{top:0;height:44px;-webkit-mask-image:linear-gradient(to bottom,black 0%,transparent 100%);mask-image:linear-gradient(to bottom,black 0%,transparent 100%);}
-        #app-list-container::after{bottom:0;height:54px;-webkit-mask-image:linear-gradient(to top,black 0%,transparent 100%);mask-image:linear-gradient(to top,black 0%,transparent 100%);}
-        @media (min-width:769px){#app-list-container{overflow-y:auto;-webkit-mask-image:none;mask-image:none;}#app-list-container::before,#app-list-container::after{display:none;}}
+        @media (min-width:769px){#app-list-container{overflow-y:auto;-webkit-mask-image:none;mask-image:none;}}
         .search-container{overflow:hidden;width:36px;height:36px;box-sizing:border-box;border-radius:999px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;padding:0 8px;margin-left:8px;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);transition:width 0.45s cubic-bezier(0.2,0.8,0.2,1),background 0.3s ease,border-color 0.3s ease,border-radius 0.45s cubic-bezier(0.2,0.8,0.2,1);cursor:pointer;flex-shrink:0;}
         .bottom-bar-actions{position:absolute;right:8px;align-self:center;display:flex;align-items:center;gap:8px;flex-shrink:0;}
         .search-icon{color:var(--text-color);font-size:14px;flex-shrink:0;width:auto;height:auto;opacity:0.65;}
@@ -991,7 +987,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .search-container:hover + #support-chat-btn.app-page-chat{display:none!important;}
         #clear-search{display:none!important;}
         .group-letter{font-weight:bold;margin-bottom:5px;color:var(--text-color);}
-        .group-block{background:var(--group-block-bg);border-radius:14px;padding:10px;margin-bottom:15px;border:1px solid var(--border-color);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+        .group-block{background:var(--group-block-bg);border-radius:14px;padding:10px;margin-bottom:15px;border:1px solid var(--border-color);}
         #app-list,#app-list ul{list-style:none;padding:0;margin:0;}
         #app-list li{width:100%;box-sizing:border-box;margin-bottom:10px;padding:10px 12px;background:var(--app-item-bg);border-radius:12px;position:relative;border:1px solid transparent;transition:background .2s,border-color .2s,transform .15s;}
         #app-list a,#app-list a.app-tile-link{color:var(--link-color);text-decoration:none;display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;max-width:none;width:100%;box-sizing:border-box;}
@@ -1325,7 +1321,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #close-shared-files:hover{color:#cc0000;}
         #shared-files-search{width:100%;padding:10px;margin-bottom:0;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);box-sizing:border-box;height:40px;padding-left:34px;}
         .shared-files-search-container .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:16px;height:16px;opacity:.65;pointer-events:none;}
-        .shared-files-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:nowrap;gap:10px;}
+        .shared-files-header{display:flex;justify-content:space-between;align-items:center;margin-top:28px;margin-bottom:15px;flex-wrap:nowrap;gap:10px;}
         .shared-files-search-container{position:relative;flex:1 1 auto;min-width:140px;height:40px;display:flex;align-items:center;}
         #shared-files-search{padding-right:35px;}
         #shared-files-clear-search{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#ff4444;font-size:18px;cursor:pointer;display:none;width:20px;height:20px;align-items:center;justify-content:center;border-radius:50%;}
@@ -4822,6 +4818,11 @@ var T=<?php echo json_encode([
             }
         }
 
+        function hideSettingsTooltips() {
+            hideTooltip();
+            document.querySelectorAll('body > .tooltip').forEach(t => { t.style.display = 'none'; });
+        }
+
         document.querySelectorAll('.sidebar-button').forEach(btn => {
             btn.addEventListener('mouseenter', (e) => {
                 const text = btn.getAttribute('data-tooltip') || btn.getAttribute('title');
@@ -5303,6 +5304,7 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
                 if(sharedFilesModal){
                     sharedFilesModal.style.display='flex';
                     loadSharedFilesList();
+                    bindSharedFilesEvents();
                 }
             });
 
@@ -5380,7 +5382,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                     + '</tr>';
             });
             container.innerHTML = '<table id="shared-files-table" style="width:100%;border-collapse:collapse;table-layout:fixed;"><colgroup><col style="width:14%"><col style="width:24%"><col style="width:30%"><col style="width:18%"><col style="width:14%"></colgroup><thead><tr style="background:var(--table-header-bg);"><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Share ID / User</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">File Name</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">File Path</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Expires</th><th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);">Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
-            bindSharedFilesEvents();
         }
 
         function bindSharedFilesEvents(){
@@ -5488,8 +5489,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             });
         }
 
-        /* bind events on initial static table (PHP-rendered on page load) */
-        bindSharedFilesEvents();
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',async ()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();
             async function ensureQrCodeStyling(){
@@ -5559,7 +5558,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             }
         }});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal'),document.getElementById('mcp-setup-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
+        function closeAllModals(){hideSettingsTooltips();const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal'),document.getElementById('mcp-setup-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -6586,7 +6585,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             });
             grid.addEventListener('mouseleave',function(){hidePop();});
         })();
-        if(shortcutsHelpButton){shortcutsHelpButton.addEventListener('click',()=>{if(shortcutsModal){shortcutsModal.style.display='flex';}});}
+        if(shortcutsHelpButton){shortcutsHelpButton.addEventListener('click',()=>{hideSettingsTooltips();if(shortcutsModal){shortcutsModal.style.display='flex';}});}
         if(closeShortcuts){closeShortcuts.addEventListener('click',()=>{if(shortcutsModal)shortcutsModal.style.display='none';});}
         if(shortcutsModal){shortcutsModal.addEventListener('click',(e)=>{if(e.target===shortcutsModal){shortcutsModal.style.display='none';}});}
         function isTypingContext(target){
