@@ -74,6 +74,35 @@
     font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
     animation:ap-gate-in .32s cubic-bezier(.2,.8,.2,1);
 }
+/* Glass/glow layer like auth cards */
+#ap-gate-login::before{
+    content:'';
+    position:absolute;
+    inset:-1px;
+    border-radius:22px;
+    padding:1px;
+    background:linear-gradient(135deg,transparent 0%,color-mix(in srgb,var(--primary-color) 70%,transparent) 25%,transparent 50%,rgba(34,211,238,0.50) 75%,transparent 100%);
+    background-size:300% 300%;
+    -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+    -webkit-mask-composite:xor;
+    mask-composite:exclude;
+    animation:ap-gate-border-rotate 6s linear infinite;
+    pointer-events:none;
+    opacity:.85;
+}
+#ap-gate-login::after{
+    content:'';
+    position:absolute;
+    top:-50%;
+    left:-50%;
+    width:200%;
+    height:200%;
+    background:radial-gradient(circle at 30% 20%,rgba(255,255,255,0.05),transparent 55%);
+    pointer-events:none;
+    animation:ap-gate-shimmer 8s ease-in-out infinite;
+}
+@keyframes ap-gate-border-rotate{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes ap-gate-shimmer{0%,100%{transform:translate(0,0) rotate(0deg)}50%{transform:translate(10%,5%) rotate(5deg)}}
 @keyframes ap-gate-in{
     from{opacity:0;transform:translateY(14px) scale(.98)}
     to{opacity:1;transform:none}
@@ -1692,6 +1721,7 @@ function apGateLogin(password){
     return apAdminFetch({admin_panel_login:'1',ajax:'1',password:password||''});
 }
 function openAdminPanel(target){
+    if(typeof window.hideSettingsTooltips==='function') window.hideSettingsTooltips();
     if(settingsM) settingsM.style.display='none';
     overlay.classList.add('active');
     document.body.style.overflow='hidden';
@@ -1701,7 +1731,12 @@ function openAdminPanel(target){
     apRefreshCsrf().then(function(){ return apGateStatus(); }).then(function(d){
         if(d&&d.csrf) apRememberCsrf(d.csrf);
         if(d&&d.authenticated){
-            if(apLoaded){ openPanel(window._apPendingPanel); return; }
+            if(apLoaded){
+                if(skeleton) skeleton.style.display='none';
+                if(dynRoot) dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
+                openPanel(window._apPendingPanel);
+                return;
+            }
             loadPanel(window._apPendingPanel); return;
         }
         apLoaded=false;

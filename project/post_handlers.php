@@ -193,6 +193,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $authError=$translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.';
                     } else {
                     adminEstablishSession($email, $users[$email]);
+                    if (isset($_POST['remember_me'])) rememberCurrentTrustedDevice($email, $clientIp);
                     $config=['language'=>$users[$email]['language']??'en','theme'=>$users[$email]['theme']??'light','color'=>$users[$email]['color']??'#007bff'];
                     $language=$config['language'];
                     $translations = ap_merge_i18n($defaultTranslations, $language);

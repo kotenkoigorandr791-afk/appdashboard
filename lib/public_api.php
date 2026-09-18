@@ -22,6 +22,7 @@ function public_api_is_https(): bool {
     return str_contains((string)($_SERVER['HTTP_CF_VISITOR'] ?? ''), '"scheme":"https"');
 }
 function public_api_cors(): void {
+    if (headers_sent()) return;
     header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Device-Id, X-Request-Id');
     header('Access-Control-Max-Age: 600');
@@ -39,7 +40,7 @@ function public_api_cors(): void {
     }
 }
 function public_api_bootstrap(): void {
-    if (PHP_SESSION_NONE === session_status()) {
+    if (PHP_SESSION_NONE === session_status() && !headers_sent()) {
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => public_api_is_https(), 'httponly' => true, 'samesite' => 'Strict']);
@@ -51,7 +52,7 @@ function public_api_bootstrap(): void {
     }
     public_api_cors();
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'OPTIONS') {
-        http_response_code(204);
+        if (!headers_sent()) http_response_code(204);
         exit;
     }
     if ((string)getenv('PUBLIC_API_REQUIRE_HTTPS') === '1' && !public_api_is_https()) {

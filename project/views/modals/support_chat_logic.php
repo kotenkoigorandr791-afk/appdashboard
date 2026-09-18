@@ -2047,8 +2047,25 @@ delete adminDraftEdits[currentChatKey()];
 
         contextMessageId = msgId;
         contextMenu.style.display = 'block';
-        contextMenu.style.left = e.pageX + 'px';
-        contextMenu.style.top = e.pageY + 'px';
+
+        const menuWidth = contextMenu.offsetWidth || 160;
+        const menuHeight = contextMenu.offsetHeight || 96;
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        let left = e.pageX;
+        let top = e.pageY;
+
+        if (left + menuWidth > viewportWidth) {
+            left = viewportWidth - menuWidth - 8;
+        }
+
+        if (top + menuHeight > viewportHeight) {
+            top = viewportHeight - menuHeight - 8;
+        }
+
+        contextMenu.style.left = left + 'px';
+        contextMenu.style.top = top + 'px';
 
         contextEdit.style.display = isOwn ? 'block' : 'none';
         contextDelete.style.display = 'block';

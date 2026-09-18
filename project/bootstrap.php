@@ -78,11 +78,16 @@ if (!function_exists('apSecCsrfCheck')) {
     function apSecCsrfCheck(): bool {
         $expected = $_SESSION['_csrf_token'] ?? '';
         if (!is_string($expected) || $expected === '') return false;
-        $sent = (string)(
-            $_POST['_csrf'] ?? $_GET['_csrf'] ??
-            $_SERVER['HTTP_X_CSRF_TOKEN'] ?? $_SERVER['HTTP_X_CSRF'] ?? ''
-        );
-        return $sent !== '' && hash_equals($expected, $sent);
+        $candidates = [
+            (string)($_POST['_csrf'] ?? ''),
+            (string)($_GET['_csrf'] ?? ''),
+            (string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''),
+            (string)($_SERVER['HTTP_X_CSRF'] ?? ''),
+        ];
+        foreach ($candidates as $sent) {
+            if ($sent !== '' && hash_equals($expected, $sent)) return true;
+        }
+        return false;
     }
 }
 if (!function_exists('apSecRequireCsrf')) {

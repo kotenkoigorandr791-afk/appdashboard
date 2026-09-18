@@ -721,17 +721,12 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         if (!$sessionOk) json_out(['ok' => false, 'error' => 'not_authenticated'], 401);
         $email = (string)$_SESSION['user']['email'];
         $ip = getClientIp();
-        $fp = getDeviceFingerprint();
         $deviceName = trim((string)($input['device_name'] ?? ''));
         if ($deviceName === '') {
             $session = getUserFromActiveSessions(session_id());
             $deviceName = ($session['device'] ?? '') . ' / ' . ($session['browser'] ?? '');
         }
-        $tokenData = addTrustedDevice($email, $ip, $deviceName, $fp);
-        $rawCookieToken = createTrustedDeviceCookie($email, $fp, $deviceName);
-        setTrustedDeviceCookieForEmail($email, $rawCookieToken);
-        rememberTrustedDeviceBrowserAccount($email);
-        setTrustedDeviceHintCookie($email, $fp);
+        $tokenData = rememberCurrentTrustedDevice($email, $ip, $deviceName);
         $encryptedTokenForStorage = $tokenData['encrypted_token'];
         json_out([
             'ok' => true,

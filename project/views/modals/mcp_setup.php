@@ -291,6 +291,7 @@ try{
     showMcpTab(modal ? (modal.getAttribute('data-initial-tab')||'generate') : 'generate');
     function openModal(){
         if(!modal)return;
+        if(typeof window.hideSettingsTooltips==='function') window.hideSettingsTooltips();
         modal.style.display='flex';
         loadInfo();
     }

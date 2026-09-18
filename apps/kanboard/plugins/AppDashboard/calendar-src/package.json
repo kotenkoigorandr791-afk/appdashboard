@@ -1,0 +1,19 @@
+{
+  "name": "calendar-src",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@dayflow/core": "^3.7.2",
+    "@dayflow/plugin-drag": "^1.6.1",
+    "esbuild": "^0.25.0",
+    "temporal-polyfill": "^0.3.0"
+  }
+}

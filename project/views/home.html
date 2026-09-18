@@ -9,6 +9,19 @@
   <link rel="stylesheet" href="/home/home.css">
 </head>
 <body>
+  <!-- ============================================================
+       АНИМИРОВАННЫЙ ФОН (как в главная.html)
+       ============================================================ -->
+  <div class="bg-layer bg-gradient"></div>
+  <div class="bg-layer bg-grid"></div>
+  <div class="bg-layer bg-rays"></div>
+  <div class="glow-orb orb-1"></div>
+  <div class="glow-orb orb-2"></div>
+  <div class="glow-orb orb-3"></div>
+  <div class="glow-orb orb-4"></div>
+  <div class="particles" id="particles"></div>
+  <div class="scanline"></div>
+
   <header class="site-header">
     <div class="header-left">
       <button type="button" id="navOpenBtn" class="nav-open-btn" aria-controls="navDrawer" aria-expanded="false" aria-label="Menu">
@@ -157,5 +170,48 @@
   <div class="news-toast" id="newsToast" style="display:none"></div>
 
   <script src="/home/home.js"></script>
+  <script>
+    /* ============================================================
+       ЧАСТИЦЫ (как в главная.html)
+       ============================================================ */
+    (function createParticles() {
+      var container = document.getElementById('particles');
+      if (!container) return;
+      if (container.childElementCount) return;
+      var count = 28;
+      for (var i = 0; i < count; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        p.style.left = (Math.random() * 100) + '%';
+        p.style.animationDuration = (8 + Math.random() * 14) + 's';
+        p.style.animationDelay = (Math.random() * 12) + 's';
+        var size = 2 + Math.random() * 3;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        if (Math.random() > 0.6) {
+          p.style.background = '#22d3ee';
+          p.style.boxShadow = '0 0 10px 2px rgba(34, 211, 238, 0.6)';
+        } else if (Math.random() > 0.5) {
+          p.style.background = '#8b5cf6';
+          p.style.boxShadow = '0 0 10px 2px rgba(139, 92, 246, 0.6)';
+        }
+        container.appendChild(p);
+      }
+    })();
+
+    /* ============================================================
+       ПАРАЛЛАКС ОРБОВ (как в главная.html)
+       ============================================================ */
+    var orbs = document.querySelectorAll('.glow-orb');
+    document.addEventListener('mousemove', function(e) {
+      var x = (e.clientX / window.innerWidth - 0.5) * 30;
+      var y = (e.clientY / window.innerHeight - 0.5) * 30;
+      orbs.forEach(function(orb, i) {
+        var speed = 0.5 + i * 0.25;
+        orb.style.marginLeft = (x * speed) + 'px';
+        orb.style.marginTop  = (y * speed) + 'px';
+      });
+    });
+  </script>
 </body>
 </html>

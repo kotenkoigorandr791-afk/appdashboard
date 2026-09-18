@@ -436,12 +436,14 @@ function initDB(AppDatabase $db): void {
         login_time    INTEGER NOT NULL,
         last_activity INTEGER NOT NULL,
         ip_address    TEXT NOT NULL DEFAULT '',
+        ip_location   TEXT NOT NULL DEFAULT '',
         user_agent    TEXT NOT NULL DEFAULT '',
         device        TEXT NOT NULL DEFAULT '',
         browser       TEXT NOT NULL DEFAULT '',
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_email ON active_sessions(email)");
+    try { $db->exec("ALTER TABLE active_sessions ADD COLUMN ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
 
     // ── Visit statistics ─────────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS visit_stats (
@@ -682,6 +684,7 @@ function initDB(AppDatabase $db): void {
         email            TEXT NOT NULL,
         fingerprint      TEXT NOT NULL,
         ip               TEXT NOT NULL DEFAULT '',
+        ip_location      TEXT NOT NULL DEFAULT '',
         device_name      TEXT NOT NULL DEFAULT '',
         device_token_hash TEXT DEFAULT NULL,
         added_at         INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
@@ -690,6 +693,7 @@ function initDB(AppDatabase $db): void {
         UNIQUE(device_token_hash),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
+    try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
     app_db_ensure_unique_index($db, 'trusted_devices', ['email', 'fingerprint'], 'idx_trusted_devices_email_fingerprint_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_email ON trusted_devices(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_fingerprint ON trusted_devices(fingerprint)");
@@ -1253,8 +1257,8 @@ function saveActiveSessions(array $sessions): void {
     // Full replace: clear then write — only called from legacy paths
     $db->exec("DELETE FROM active_sessions");
     $stmt = $db->prepare("INSERT INTO active_sessions
-        (session_id,email,user_data,login_time,last_activity,ip_address,user_agent,device,browser)
-        VALUES(:sid,:email,:ud,:lt,:la,:ip,:ua,:dev,:br)");
+            (session_id,email,user_data,login_time,last_activity,ip_address,ip_location,user_agent,device,browser)
+            VALUES(:sid,:email,:ud,:lt,:la,:ip,:ipl,:ua,:dev,:br)");
     foreach ($sessions as $sid => $s) {
         $stmt->bindValue(':sid',   $sid);
         $stmt->bindValue(':email', $s['email']);
@@ -1262,6 +1266,7 @@ function saveActiveSessions(array $sessions): void {
         $stmt->bindValue(':lt',    (int)($s['login_time']    ?? time()), PDO::PARAM_INT);
         $stmt->bindValue(':la',    (int)($s['last_activity'] ?? time()), PDO::PARAM_INT);
         $stmt->bindValue(':ip',    $s['ip_address'] ?? '');
+        $stmt->bindValue(':ipl',   $s['ip_location'] ?? sessionLookupIpLocation((string)($s['ip_address'] ?? '')));
         $stmt->bindValue(':ua',    $s['user_agent']  ?? '');
         $stmt->bindValue(':dev',   $s['device']      ?? '');
         $stmt->bindValue(':br',    $s['browser']     ?? '');
@@ -1335,6 +1340,34 @@ if (!function_exists('detectDeviceAndBrowser')) {
     }
 }
 
+function sessionLookupIpLocation(string $ip): string {
+    $ip = trim(explode(',', $ip)[0] ?? '');
+    if ($ip === '' || $ip === 'Unknown') return '';
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) return 'Local network';
+    $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,country,city,query';
+    $ctx = stream_context_create(['http' => ['timeout' => 1.5, 'ignore_errors' => true]]);
+    $raw = @file_get_contents($url, false, $ctx);
+    $data = is_string($raw) ? json_decode($raw, true) : null;
+    if (!is_array($data) || ($data['status'] ?? '') !== 'success') return '';
+    $parts = array_values(array_filter([trim((string)($data['city'] ?? '')), trim((string)($data['country'] ?? ''))], static fn($v) => $v !== ''));
+    return implode(', ', $parts);
+}
+
+function resolveSessionIpLocation(string $sessionId, string $ip): string {
+    if ($redis = app_redis()) {
+        $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
+        $row = $raw ? json_decode((string)$raw, true) : null;
+        if (is_array($row) && (string)($row['ip_address'] ?? '') === $ip && (string)($row['ip_location'] ?? '') !== '') return (string)$row['ip_location'];
+        return sessionLookupIpLocation($ip);
+    }
+    $db = getDB();
+    $stmt = $db->prepare("SELECT ip_address, ip_location FROM active_sessions WHERE session_id = :sid LIMIT 1");
+    $stmt->bindValue(':sid', $sessionId);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (is_array($row) && (string)($row['ip_address'] ?? '') === $ip && (string)($row['ip_location'] ?? '') !== '') return (string)$row['ip_location'];
+    return sessionLookupIpLocation($ip);
+}
+
 function addUserToActiveSessions(string $email, string $sessionId, array $userData): void {
     $user   = getUserByEmail($email);
     $actual = $user ?? $userData;
@@ -1345,6 +1378,7 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
               ?? $_SERVER['HTTP_X_REAL_IP']
               ?? $_SERVER['REMOTE_ADDR']
               ?? 'Unknown';
+    $ipLocation = resolveSessionIpLocation($sessionId, (string)$ip);
     $now = time();
     $row = [
         'session_id' => $sessionId,
@@ -1353,6 +1387,7 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
         'login_time' => $now,
         'last_activity' => $now,
         'ip_address' => $ip,
+        'ip_location' => $ipLocation,
         'user_agent' => $ua,
         'device' => $detection['device'],
         'browser' => $detection['browser'],
@@ -1371,13 +1406,13 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
     if ($exists) {
         $stmt = $db->prepare("UPDATE active_sessions
                               SET email = :email, user_data = :ud, login_time = :lt, 
-                                  last_activity = :la, ip_address = :ip, user_agent = :ua, 
+                                  last_activity = :la, ip_address = :ip, ip_location = :ipl, user_agent = :ua, 
                                   device = :dev, browser = :br 
                               WHERE session_id = :sid");
     } else {
         $stmt = $db->prepare("INSERT INTO active_sessions
-            (session_id,email,user_data,login_time,last_activity,ip_address,user_agent,device,browser)
-            VALUES(:sid,:email,:ud,:lt,:la,:ip,:ua,:dev,:br)");
+            (session_id,email,user_data,login_time,last_activity,ip_address,ip_location,user_agent,device,browser)
+            VALUES(:sid,:email,:ud,:lt,:la,:ip,:ipl,:ua,:dev,:br)");
     }
     $stmt->bindValue(':sid',   $sessionId);
     $stmt->bindValue(':email', $email);
@@ -1385,6 +1420,7 @@ function addUserToActiveSessions(string $email, string $sessionId, array $userDa
     $stmt->bindValue(':lt',    $now, PDO::PARAM_INT);
     $stmt->bindValue(':la',    $now, PDO::PARAM_INT);
     $stmt->bindValue(':ip',    $ip);
+    $stmt->bindValue(':ipl',   $ipLocation);
     $stmt->bindValue(':ua',    $ua);
     $stmt->bindValue(':dev',   $detection['device']);
     $stmt->bindValue(':br',    $detection['browser']);
@@ -2907,7 +2943,7 @@ function getUserTrustedDevices(string $email): array {
         return $devices;
     }
     $db = getDB();
-    $stmt = $db->prepare("SELECT fingerprint, ip, device_name, device_token_hash, added_at, last_seen
+    $stmt = $db->prepare("SELECT fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen
         FROM trusted_devices
         WHERE email = :e
         ORDER BY last_seen DESC, id DESC");
@@ -2918,6 +2954,7 @@ function getUserTrustedDevices(string $email): array {
         $devices[] = [
             'fingerprint' => (string)($row['fingerprint'] ?? ''),
             'ip' => (string)($row['ip'] ?? ''),
+            'ip_location' => (string)($row['ip_location'] ?? ''),
             'device_name' => (string)($row['device_name'] ?? ''),
             'added_at' => (int)($row['added_at'] ?? 0),
             'last_seen' => (int)($row['last_seen'] ?? 0),
@@ -2952,8 +2989,8 @@ function setUserTrustedDevices(string $email, array $devices): void {
     $delete->bindValue(':e', $email, PDO::PARAM_STR);
     $delete->execute();
 
-    $insert = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, device_name, device_token_hash, added_at, last_seen)
-        VALUES(:email, :fingerprint, :ip, :device_name, :device_token_hash, :added_at, :last_seen)");
+    $insert = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen)
+        VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen)");
     foreach ($devices as $device) {
         if (!is_array($device)) continue;
         $fingerprint = trim((string)($device['fingerprint'] ?? ''));
@@ -2962,6 +2999,7 @@ function setUserTrustedDevices(string $email, array $devices): void {
         $insert->bindValue(':email', $email, PDO::PARAM_STR);
         $insert->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
         $insert->bindValue(':ip', (string)($device['ip'] ?? ''), PDO::PARAM_STR);
+        $insert->bindValue(':ip_location', (string)($device['ip_location'] ?? sessionLookupIpLocation((string)($device['ip'] ?? ''))), PDO::PARAM_STR);
         $insert->bindValue(':device_name', (string)($device['device_name'] ?? ''), PDO::PARAM_STR);
         if ($deviceToken !== '') {
             $insert->bindValue(':device_token_hash', hash('sha256', $deviceToken), PDO::PARAM_STR);
@@ -3020,6 +3058,7 @@ function decryptTrustedDeviceToken(string $encryptedData): ?string {
 function addTrustedDevice(string $email, string $ip, string $deviceName = '', string $fingerprint = ''): array {
     $deviceToken = bin2hex(random_bytes(32));
     $encryptedToken = encryptTrustedDeviceToken($deviceToken);
+    $ipLocation = sessionLookupIpLocation($ip);
     if ($redis = app_redis()) {
         $now = time();
         if ($fingerprint === '') $fingerprint = hash('sha256', $email . '|' . $ip . '|' . ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' . $now);
@@ -3027,6 +3066,7 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
             'email' => $email,
             'fingerprint' => $fingerprint,
             'ip' => $ip,
+            'ip_location' => $ipLocation,
             'device_name' => $deviceName,
             'device_token_hash' => hash('sha256', $encryptedToken),
             'device_token' => $encryptedToken,
@@ -3040,22 +3080,44 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     $db = getDB();
     ensureTrustedDevicesSchema($db);
     $now = time();
-    $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, device_name, device_token_hash, added_at, last_seen)
-        VALUES(:email, :fingerprint, :ip, :device_name, :device_token_hash, :added_at, :last_seen)
+    $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen)
+        VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen)
         ON CONFLICT(email, fingerprint) DO UPDATE SET
             ip = excluded.ip,
+            ip_location = excluded.ip_location,
             device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_devices.device_name END,
             device_token_hash = excluded.device_token_hash,
             last_seen = excluded.last_seen");
     $stmt->bindValue(':email', $email, PDO::PARAM_STR);
     $stmt->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
     $stmt->bindValue(':ip', $ip, PDO::PARAM_STR);
+    $stmt->bindValue(':ip_location', $ipLocation, PDO::PARAM_STR);
     $stmt->bindValue(':device_name', $deviceName, PDO::PARAM_STR);
     $stmt->bindValue(':device_token_hash', hash('sha256', $encryptedToken), PDO::PARAM_STR);
     $stmt->bindValue(':added_at', $now, PDO::PARAM_INT);
     $stmt->bindValue(':last_seen', $now, PDO::PARAM_INT);
     $stmt->execute();
     return ['token' => $deviceToken, 'encrypted_token' => $encryptedToken];
+}
+
+function rememberCurrentTrustedDevice(string $email, string $ip, string $deviceName = ''): array {
+    $fp = getDeviceFingerprint();
+    if ($deviceName === '') {
+        $session = getUserFromActiveSessions(session_id());
+        if (is_array($session)) {
+            $deviceName = trim((string)($session['device'] ?? '')) . ' / ' . trim((string)($session['browser'] ?? ''));
+        }
+    }
+    if ($deviceName === '') $deviceName = 'Device';
+    $tokenData = addTrustedDevice($email, $ip, $deviceName, $fp);
+    $rawCookieToken = createTrustedDeviceCookie($email, $fp, $deviceName);
+    setTrustedDeviceCookieForEmail($email, $rawCookieToken);
+    rememberTrustedDeviceBrowserAccount($email);
+    setTrustedDeviceHintCookie($email, $fp);
+    if (isset($_SESSION['user']['email']) && (string)$_SESSION['user']['email'] === $email) {
+        addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    }
+    return $tokenData + ['device_name' => $deviceName, 'fingerprint' => $fp];
 }
 
 function removeTrustedDevice(string $email, string $fingerprint): void {
