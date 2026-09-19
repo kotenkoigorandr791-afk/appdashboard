@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 const ADMIN_CAPABILITIES = ['users', 'ssh', 'files', 'docker', 'secrets', 'integrations', 'database'];
 const ADMIN_SESSION_IDLE_SECONDS = 7200;
-const ADMIN_STEPUP_TTL_SECONDS = 900;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 function adminSecurityEnsureSchema(): void {
@@ -23,13 +22,6 @@ function adminSecurityEnsureSchema(): void {
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at DESC)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_admin_audit_email ON admin_audit_log(email)");
-    $db->exec("CREATE TABLE IF NOT EXISTS admin_totp (
-        email TEXT PRIMARY KEY,
-        secret TEXT NOT NULL DEFAULT '',
-        enabled INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL DEFAULT 0,
-        confirmed_at INTEGER NOT NULL DEFAULT 0
-    )");
     try { $db->exec("ALTER TABLE users ADD COLUMN admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
     $done = true;
 }
@@ -65,7 +57,7 @@ function adminAuditLog(string $action, string $target = '', string $result = 'ok
         $stmt->bindValue(':m', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}');
         $stmt->bindValue(':c', time(), PDO::PARAM_INT);
         $stmt->execute();
-        $critical = ['role_change', 'user_delete', 'password_reset', 'ssh_init', 'fm_write', 'secrets_save', 'totp_disable'];
+        $critical = ['role_change', 'user_delete', 'password_reset', 'ssh_init', 'fm_write', 'secrets_save'];
         if (in_array($action, $critical, true) && function_exists('notifyTelegramFailedAuth')) {
             notifyTelegramFailedAuth('admin_action', [
                 'action' => $action,
@@ -189,135 +181,6 @@ function adminRequireIpAllowlist(): void {
     exit;
 }
 
-function adminTotpBase32Encode(string $data): string {
-    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    $bits = '';
-    foreach (str_split($data) as $c) {
-        $bits .= str_pad(decbin(ord($c)), 8, '0', STR_PAD_LEFT);
-    }
-    $out = '';
-    foreach (str_split($bits, 5) as $chunk) {
-        if (strlen($chunk) < 5) $chunk = str_pad($chunk, 5, '0', STR_PAD_RIGHT);
-        $out .= $alphabet[bindec($chunk)];
-    }
-    return $out;
-}
-
-function adminTotpBase32Decode(string $b32): string {
-    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-    $b32 = strtoupper(preg_replace('/[^A-Z2-7]/', '', $b32) ?? '');
-    $bits = '';
-    for ($i = 0, $l = strlen($b32); $i < $l; $i++) {
-        $val = strpos($alphabet, $b32[$i]);
-        if ($val === false) continue;
-        $bits .= str_pad(decbin($val), 5, '0', STR_PAD_LEFT);
-    }
-    $out = '';
-    foreach (str_split($bits, 8) as $chunk) {
-        if (strlen($chunk) === 8) $out .= chr(bindec($chunk));
-    }
-    return $out;
-}
-
-function adminTotpGenerateSecret(int $bytes = 20): string {
-    return adminTotpBase32Encode(random_bytes(max(10, $bytes)));
-}
-
-function adminTotpCode(string $secret, ?int $time = null, int $digits = 6, int $period = 30): string {
-    $time = $time ?? time();
-    $key = adminTotpBase32Decode($secret);
-    $counter = pack('N*', 0, intdiv($time, $period));
-    $hash = hash_hmac('sha1', $counter, $key, true);
-    $offset = ord($hash[19]) & 0x0F;
-    $value = (
-        ((ord($hash[$offset]) & 0x7F) << 24) |
-        ((ord($hash[$offset + 1]) & 0xFF) << 16) |
-        ((ord($hash[$offset + 2]) & 0xFF) << 8) |
-        (ord($hash[$offset + 3]) & 0xFF)
-    ) % (10 ** $digits);
-    return str_pad((string)$value, $digits, '0', STR_PAD_LEFT);
-}
-
-function adminTotpVerify(string $secret, string $code, int $window = 1): bool {
-    $code = preg_replace('/\s+/', '', $code) ?? '';
-    if (!preg_match('/^\d{6}$/', $code)) return false;
-    $now = time();
-    for ($i = -$window; $i <= $window; $i++) {
-        if (hash_equals(adminTotpCode($secret, $now + ($i * 30)), $code)) return true;
-    }
-    return false;
-}
-
-function adminTotpGet(string $email): ?array {
-    adminSecurityEnsureSchema();
-    $stmt = getDB()->prepare("SELECT * FROM admin_totp WHERE email=:e LIMIT 1");
-    $stmt->bindValue(':e', $email);
-    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    return is_array($row) ? $row : null;
-}
-
-function adminTotpIsEnabled(string $email): bool {
-    $row = adminTotpGet($email);
-    return $row && !empty($row['enabled']) && (string)($row['secret'] ?? '') !== '';
-}
-
-function adminTotpSavePending(string $email, string $secret): void {
-    adminSecurityEnsureSchema();
-    $stmt = getDB()->prepare("INSERT INTO admin_totp(email,secret,enabled,created_at,confirmed_at)
-        VALUES(:e,:s,0,:c,0)
-        ON CONFLICT(email) DO UPDATE SET secret=excluded.secret, enabled=0, created_at=excluded.created_at, confirmed_at=0");
-    $stmt->bindValue(':e', $email);
-    $stmt->bindValue(':s', $secret);
-    $stmt->bindValue(':c', time(), PDO::PARAM_INT);
-    $stmt->execute();
-}
-
-function adminTotpConfirm(string $email): void {
-    adminSecurityEnsureSchema();
-    $stmt = getDB()->prepare("UPDATE admin_totp SET enabled=1, confirmed_at=:t WHERE email=:e");
-    $stmt->bindValue(':t', time(), PDO::PARAM_INT);
-    $stmt->bindValue(':e', $email);
-    $stmt->execute();
-}
-
-function adminTotpDisable(string $email): void {
-    adminSecurityEnsureSchema();
-    $stmt = getDB()->prepare("DELETE FROM admin_totp WHERE email=:e");
-    $stmt->bindValue(':e', $email);
-    $stmt->execute();
-}
-
-function adminTotpProvisioningUri(string $email, string $secret, string $issuer = 'AppDashboard'): string {
-    return 'otpauth://totp/' . rawurlencode($issuer . ':' . $email)
-        . '?secret=' . rawurlencode($secret)
-        . '&issuer=' . rawurlencode($issuer)
-        . '&algorithm=SHA1&digits=6&period=30';
-}
-
-function adminStepupValid(): bool {
-    $until = (int)($_SESSION['admin_stepup_until'] ?? 0);
-    return $until > time();
-}
-
-function adminStepupGrant(int $ttl = ADMIN_STEPUP_TTL_SECONDS): void {
-    $_SESSION['admin_stepup_until'] = time() + max(60, $ttl);
-}
-
-function adminStepupClear(): void {
-    unset($_SESSION['admin_stepup_until']);
-}
-
-function adminRequireStepup(): void {
-    if (adminStepupValid()) return;
-    adminAuditLog('stepup_required', '', 'denied');
-    if (!headers_sent()) {
-        http_response_code(403);
-        header('Content-Type: application/json; charset=utf-8');
-    }
-    echo json_encode(['ok' => false, 'success' => false, 'error' => 'stepup_required', 'stepup_required' => true]);
-    exit;
-}
-
 function adminWeakPasswords(): array {
     return ['root', 'password', 'admin', '123456', '12345678', 'qwerty', 'letmein', 'welcome', 'passw0rd', 'admin123', 'root@root', 'changeme'];
 }
@@ -372,7 +235,6 @@ function adminEstablishSession(string $email, array $user): void {
     $_SESSION['user'] = $user;
     $_SESSION['user']['email'] = $email;
     $_SESSION['auth_time'] = time();
-    adminStepupClear();
     unset($_SESSION['admin_session']);
     adminPanelClearGate();
     setLastActiveUser($email);
@@ -473,7 +335,6 @@ function adminPanelIssueGate(string $email): array {
     adminPanelSetCookie($raw, $expires);
     $_SESSION['admin_panel_gate_until'] = $expires;
     $_SESSION['admin_panel_gate_email'] = $email;
-    adminStepupGrant();
     return ['token' => $raw, 'expires_at' => $expires];
 }
 
@@ -528,7 +389,6 @@ function adminPanelIsAdminRequest(): bool {
         'fm_list_dir','fm_get_file','fm_save_file','fm_mkdir','fm_mkfile','fm_delete','fm_rename','fm_upload','fm_dir_size',
         'reset_user_password','delete_user','delete_user_with_files','save_user_roles','save_email_settings',
         'ssh_terminal_init','ssh_terminal_exec','ssh_terminal_get_profile','ssh_terminal_ws_token',
-        'admin_totp_setup','admin_totp_confirm','admin_totp_disable','admin_stepup','admin_security_status','save_admin_ip_allowlist',
         'quick_command_action','save_app_access_levels','save_app_access_security','save_stats_data','get_users_table','scan_user_files',
     ];
     foreach ($keys as $k) {
@@ -536,4 +396,3 @@ function adminPanelIsAdminRequest(): bool {
     }
     return false;
 }
-

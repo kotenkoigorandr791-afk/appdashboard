@@ -17,8 +17,12 @@ if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 
     try {
         $provider = (string)($_GET['provider'] ?? '');
         $mode = (string)($_GET['mode'] ?? 'login');
-        if ($mode === 'link' && !isset($_SESSION['user']['email'])) {
+        if (($mode === 'link' || $mode === 'admin_gate') && !isset($_SESSION['user']['email'])) {
             header('Location: /login');
+            exit;
+        }
+        if ($mode === 'admin_gate' && (!isset($_SESSION['user']['role']) || (int)$_SESSION['user']['role'] !== 2)) {
+            header('Location: /main');
             exit;
         }
         header('Location: ' . oauthStartUrl($provider, $mode));
@@ -26,9 +30,11 @@ if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 
     } catch (Throwable $e) {
         error_log('OAuth start error: ' . $e->getMessage());
         $failMode = (string)($_GET['mode'] ?? 'login');
-        $target = $failMode === 'link'
+        $target = $failMode === 'admin_gate'
+            ? '/main?oauth_error=' . urlencode($e->getMessage()) . '#adminpanel/users'
+            : ($failMode === 'link'
             ? '/main?profile=1&oauth_error=' . urlencode($e->getMessage())
-            : '/login?oauth_error=' . urlencode($e->getMessage());
+            : '/login?oauth_error=' . urlencode($e->getMessage()));
         header('Location: ' . $target);
         exit;
     }
@@ -386,11 +392,6 @@ if($path==='/database'){
     if(!$sessionIsAdminDb || !adminHasCapability('database') || !adminIpAllowed() || !adminPanelGateValid()){
         http_response_code(403);
         echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>403 Forbidden</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>403 Forbidden</h1><p>Unlock Admin Panel first, then open Database.</p><a href="/main">Back</a></body></html>';
-        exit;
-    }
-    if (!adminStepupValid()) {
-        http_response_code(403);
-        echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Step-up required</title></head><body style="font-family:sans-serif;text-align:center;padding:60px"><h1>Re-authentication required</h1><p>Open Admin Panel and confirm your identity, then retry.</p><a href="/main">Back</a></body></html>';
         exit;
     }
     adminAuditLog('database_access', '/database', 'ok');

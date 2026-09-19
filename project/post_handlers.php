@@ -30,7 +30,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if (isset($_POST['admin_panel_logout']) && isset($_POST['ajax'])) {
         $email = (string)($_SESSION['user']['email'] ?? '');
         adminPanelClearGate($email !== '' ? $email : null);
-        adminStepupClear();
         adminAuditLog('admin_gate_logout', $email, 'ok');
         while (ob_get_level() > 1) ob_end_clean();
         header('Content-Type: application/json');
@@ -785,7 +784,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     // SSH terminal AJAX (admin only) is handled in a dedicated file.
     if($sessionIsAdmin && (isset($_POST['ssh_terminal_init']) || isset($_POST['ssh_terminal_exec']) || isset($_POST['ssh_terminal_ws_token']))){
         adminRequireCapability('ssh');
-        adminRequireStepup();
         adminRequireMutationThrottle('ssh', 30, 60);
     }
     if(handleSshTerminalRequest($sessionIsAdmin)){
@@ -795,116 +793,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         exit;
     }
 
-    // ── Admin security: TOTP / step-up / IP allowlist ─────────────────────────
-    if(isset($_POST['admin_security_status']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $email=(string)($_SESSION['user']['email']??'');
-        while(ob_get_level()>1)ob_end_clean();
-        header('Content-Type: application/json');
-        echo json_encode([
-            'success'=>true,
-            'totp_enabled'=>adminTotpIsEnabled($email),
-            'totp_required'=>(string)getenv('APP_ADMIN_REQUIRE_TOTP')==='1',
-            'stepup_valid'=>adminStepupValid(),
-            'stepup_until'=>(int)($_SESSION['admin_stepup_until']??0),
-            'capabilities'=>adminUserCapabilities(),
-            'ip_allowlist'=>implode("\n", adminIpAllowlist()),
-            'ip_allowlist_enabled'=>adminIpAllowlist()!==[],
-            'csrf'=>apSecCsrfToken(),
-        ]);
-        exit;
-    }
-    if(isset($_POST['admin_totp_setup']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $email=(string)($_SESSION['user']['email']??'');
-        $secret=adminTotpGenerateSecret();
-        adminTotpSavePending($email, $secret);
-        adminAuditLog('totp_setup', $email, 'ok');
-        while(ob_get_level()>1)ob_end_clean();
-        header('Content-Type: application/json');
-        echo json_encode(['success'=>true,'secret'=>$secret,'otpauth_url'=>adminTotpProvisioningUri($email, $secret)]);
-        exit;
-    }
-    if(isset($_POST['admin_totp_confirm']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $email=(string)($_SESSION['user']['email']??'');
-        $code=(string)($_POST['code']??'');
-        $row=adminTotpGet($email);
-        if(!$row || (string)($row['secret']??'')==='' || !adminTotpVerify((string)$row['secret'], $code)){
-            adminAuditLog('totp_confirm', $email, 'denied');
-            while(ob_get_level()>1)ob_end_clean();
-            header('Content-Type: application/json');
-            echo json_encode(['success'=>false,'error'=>'invalid_totp']);
-            exit;
-        }
-        adminTotpConfirm($email);
-        adminStepupGrant();
-        adminAuditLog('totp_confirm', $email, 'ok');
-        while(ob_get_level()>1)ob_end_clean();
-        header('Content-Type: application/json');
-        echo json_encode(['success'=>true,'stepup_until'=>(int)$_SESSION['admin_stepup_until']]);
-        exit;
-    }
-    if(isset($_POST['admin_totp_disable']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        adminRequireStepup();
-        $email=(string)($_SESSION['user']['email']??'');
-        if((string)getenv('APP_ADMIN_REQUIRE_TOTP')==='1'){
-            while(ob_get_level()>1)ob_end_clean();
-            header('Content-Type: application/json');
-            echo json_encode(['success'=>false,'error'=>'totp_required']);
-            exit;
-        }
-        adminTotpDisable($email);
-        adminAuditLog('totp_disable', $email, 'ok');
-        while(ob_get_level()>1)ob_end_clean();
-        header('Content-Type: application/json');
-        echo json_encode(['success'=>true]);
-        exit;
-    }
-    if(isset($_POST['admin_stepup']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $email=(string)($_SESSION['user']['email']??'');
-        $code=trim((string)($_POST['code']??''));
-        $password=(string)($_POST['password']??'');
-        $ok=false;
-        $totpEnabled=adminTotpIsEnabled($email);
-        if((string)getenv('APP_ADMIN_REQUIRE_TOTP')==='1' && !$totpEnabled){
-            while(ob_get_level()>1)ob_end_clean();
-            header('Content-Type: application/json');
-            echo json_encode(['success'=>false,'error'=>'totp_enrollment_required']);
-            exit;
-        }
-        if($totpEnabled && $code!==''){
-            $row=adminTotpGet($email);
-            $ok=$row && adminTotpVerify((string)$row['secret'], $code);
-        } elseif(!$totpEnabled && $password!==''){
-            $users=loadUsers();
-            $ok=isset($users[$email]) && appPasswordVerify($password, (string)$users[$email]['password']);
-        }
-        if(!$ok){
-            adminRequireMutationThrottle('admin_stepup', 8, 60);
-            adminAuditLog('stepup', $email, 'denied');
-            while(ob_get_level()>1)ob_end_clean();
-            header('Content-Type: application/json');
-            echo json_encode(['success'=>false,'error'=>'stepup_failed']);
-            exit;
-        }
-        adminStepupGrant();
-        adminAuditLog('stepup', $email, 'ok');
-        while(ob_get_level()>1)ob_end_clean();
-        header('Content-Type: application/json');
-        echo json_encode(['success'=>true,'stepup_until'=>(int)$_SESSION['admin_stepup_until']]);
-        exit;
-    }
-    if(isset($_POST['save_admin_ip_allowlist']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        adminRequireCapability('secrets');
-        adminRequireStepup();
-        $list=trim((string)($_POST['allowlist']??''));
-        adminMetaSet('admin_ip_allowlist', $list);
-        adminAuditLog('ip_allowlist_save', '', 'ok');
-        while(ob_get_level()>1)ob_end_clean();
-        header('Content-Type: application/json');
-        echo json_encode(['success'=>true]);
-        exit;
-    }
-
-    
     // Quick Commands API endpoints (admin only)
     if(isset($_POST['ajax']) && $sessionIsAdmin && isset($_POST['quick_command_action'])){
         $db = getDB();
@@ -1633,8 +1521,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-db" data-cap="database"<?php echo $_apCapDb?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.59 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.47 6 2s-2.13 2-6 2-6-1.47-6-2 2.13-2 6-2zM6 9.7c1.47.82 3.57 1.3 6 1.3s4.53-.48 6-1.3V11c0 .53-2.13 2-6 2s-6-1.47-6-2V9.7zm0 4c1.47.82 3.57 1.3 6 1.3s4.53-.48 6-1.3V15c0 .53-2.13 2-6 2s-6-1.47-6-2v-1.3zm0 4c1.47.82 3.57 1.3 6 1.3s4.53-.48 6-1.3V19c0 .53-2.13 2-6 2s-6-1.47-6-2v-1.3z"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['database']??'Database'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
-        <button class="ap-nav-btn" data-panel="ap-security"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['ap_security_title']??'Security'); ?></span></button>
-        <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-omniroute" data-cap="integrations"<?php echo $_apCapIntegrations?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['omniroute_title']??'OmniRoute'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-performance"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/><path d="M3 20h18"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['performance_monitor_title']??'Performance'); ?></span></button>
@@ -1853,37 +1739,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <!-- Docker Manager Panel -->
         
-        <div class="ap-panel" id="ap-security">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['ap_security_title']??'Security'); ?></span></div>
-            <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['ap_security_title']??'Security'); ?></div>
-            <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_security_subtitle']??'TOTP, step-up confirmation, and admin IP allowlist.'); ?></div>
-            <div class="ap-card" style="margin-bottom:14px;padding:16px;">
-                <div style="font-weight:700;margin-bottom:8px;">TOTP / Step-up</div>
-                <div id="ap-sec-totp-status" style="font-size:13px;opacity:.8;margin-bottom:10px;">…</div>
-                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-                    <button type="button" class="ap-btn ap-btn-secondary" id="ap-sec-totp-setup">Setup TOTP</button>
-                    <button type="button" class="ap-btn ap-btn-secondary" id="ap-sec-stepup">Confirm identity</button>
-                    <button type="button" class="ap-btn ap-btn-secondary" id="ap-sec-totp-disable">Disable TOTP</button>
-                </div>
-                <div id="ap-sec-totp-setup-box" style="display:none;margin-top:8px;">
-                    <code id="ap-sec-totp-secret" style="display:block;word-break:break-all;margin-bottom:8px;"></code>
-                    <input type="text" id="ap-sec-totp-code" class="ap-input" placeholder="6-digit code" style="max-width:160px;margin-right:8px;">
-                    <button type="button" class="ap-btn" id="ap-sec-totp-confirm">Confirm TOTP</button>
-                </div>
-                <div id="ap-sec-stepup-box" style="display:none;margin-top:8px;">
-                    <input type="password" id="ap-sec-stepup-password" class="ap-input" placeholder="Password" style="max-width:200px;margin-right:8px;">
-                    <input type="text" id="ap-sec-stepup-code" class="ap-input" placeholder="TOTP code" style="max-width:140px;margin-right:8px;">
-                    <button type="button" class="ap-btn" id="ap-sec-stepup-go">Unlock</button>
-                </div>
-                <div id="ap-sec-status" style="margin-top:10px;font-size:13px;"></div>
-            </div>
-            <div class="ap-card" style="padding:16px;">
-                <div style="font-weight:700;margin-bottom:8px;">Admin IP allowlist</div>
-                <p style="font-size:12px;opacity:.75;margin:0 0 8px;">One IP or CIDR per line. Empty = allow all. Env APP_ADMIN_IP_ALLOWLIST overrides.</p>
-                <textarea id="ap-sec-ip-allowlist" class="ap-input" rows="4" style="width:100%;font-family:monospace;"></textarea>
-                <button type="button" class="ap-btn" id="ap-sec-ip-save" style="margin-top:8px;">Save allowlist</button>
-            </div>
-        </div>
 <div class="ap-panel" id="ap-docker-manager" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
                 <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/docker_menager.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"

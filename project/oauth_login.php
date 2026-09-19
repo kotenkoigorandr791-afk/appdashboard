@@ -404,6 +404,29 @@ function oauthHandleLinkFlow(array $profile): void {
     exit;
 }
 
+function oauthHandleAdminGateFlow(array $profile): void {
+    global $translations;
+    if (!isset($_SESSION['user']['email']) || !isset($_SESSION['user']['role']) || (int)$_SESSION['user']['role'] !== 2) {
+        throw new RuntimeException($translations['login'] ?? 'Not authenticated');
+    }
+    if (!adminIpAllowed()) {
+        throw new RuntimeException($translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.');
+    }
+    $currentEmail = (string)$_SESSION['user']['email'];
+    $existingEmail = findUserEmailByOAuthProvider($profile['provider'], $profile['provider_user_id']);
+    if ($existingEmail !== null && $existingEmail !== $currentEmail) {
+        throw new RuntimeException($translations['oauth_already_linked_other'] ?? 'This account is already linked to another user');
+    }
+    if ($existingEmail === null && strcasecmp((string)$profile['email'], $currentEmail) !== 0) {
+        throw new RuntimeException($translations['invalid_credentials'] ?? 'Invalid credentials');
+    }
+    linkOAuthConnection($currentEmail, $profile);
+    adminPanelIssueGate($currentEmail);
+    adminAuditLog('admin_gate_oauth_login', $currentEmail, 'ok');
+    header('Location: /main#adminpanel/users');
+    exit;
+}
+
 function oauthHandleCallback(string $provider, string $code, ?string $stateRaw, string $modeFallback = 'login'): void {
     global $authError, $translations;
     $mode = $modeFallback;
@@ -428,6 +451,10 @@ function oauthHandleCallback(string $provider, string $code, ?string $stateRaw, 
     $profile = oauthFetchProfile($provider, $code);
     if ($mode === 'link') {
         oauthHandleLinkFlow($profile);
+        return;
+    }
+    if ($mode === 'admin_gate') {
+        oauthHandleAdminGateFlow($profile);
         return;
     }
     oauthHandleLoginFlow($profile);
