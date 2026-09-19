@@ -1,22 +1,58 @@
-# Share File Utils
+# Share File Utils Documentation
 
-**Location**: `/share_file_utils/`
+**Location:** `share_file_utils/`  
+**Type:** File Viewer / Preview Module  
+**Description:** PHP-based file viewer and preview module that can be embedded in AppDashboard apps or external services.
+
+---
 
 ## Overview
 
-Share File Utils is a file viewer and preview module that can be embedded in any AppDashboard app or external services. It provides a multi-format file viewer with syntax highlighting, 3D model rendering, and office document support.
+Share File Utils is a standalone PHP module that provides a multi-format file viewer with syntax highlighting, 3D model rendering, and office document support. It can be accessed independently or embedded via iframes.
 
-## Features
+---
 
-- **Text files**: Monaco Editor with 20+ languages, find/replace, line numbers
+## File Structure
+
+```
+share_file_utils/
+├── index.php                     # Main entry point (lightweight)
+├── bootstrap.php                  # Core initialization (constants, config)
+├── handlers.php                   # Request handlers
+├── lib/                         # Shared PHP libraries
+│   └── include.php              # Helper functions
+├── views/                         # Template views
+│   └── main.php                 # Viewer page template
+└── assets/                        # Static assets
+    ├── backgrounds/             # Theme background images
+    └── ...                      # CSS/JS assets
+```
+
+## Key Features
+
+### Supported File Formats
+
+| Category | Supported Formats |
+|----------|------------------|
+| **Text** | Text, Markdown, JSON, XML, HTML, CSS, JavaScript, PHP, Python, TypeScript, YAML |
+| **Images** | JPEG, PNG, WEBP, GIF, BMP, TIFF |
+| **Video** | MP4, AVI, MKV, WEBM |
+| **Audio** | MP3, WAV, OGG |
+| **PDF** | PDF documents |
+| **3D Models** | 3MF, STL, OBJ, FBX, DXF |
+| **Archives** | ZIP |
+
+### Viewer Features
+
+- **Text files**: Monaco Editor with syntax highlighting for 20+ languages, find/replace, line numbers
 - **Images**: Zoom, pan, rotate (light/dark themes, customizable colors)
-- **PDFs**: Built-in PDF viewer
+- **PDFs**: Built-in PDF viewer with navigation
 - **Media**: Playback controls (MP3, MP4, etc.)
 - **Office documents**: ONLYOFFICE viewer (read-only)
-- **3D models**: Three.js-based viewer with rotation, pan, zoom (3MF, STL, OBJ, FBX, DXF)
-- **Archives**: ZIP file support
-- **Themes**: Light/Dark, customizable accent color
-- **Languages**: English (default), UTE 6 languages
+- **3D models**: Three.js-based viewer with rotation, pan, zoom
+- **Archives**: ZIP file support with preview
+- **Themes**: Light/Dark mode
+- **Languages**: 6 interface languages (en, ru, uk, be, pl, cs)
 
 ## URL Parameters
 
@@ -28,198 +64,91 @@ Share File Utils is a file viewer and preview module that can be embedded in any
 | `theme` | `light` | Color theme (light, dark) |
 | `color` | `4299e1` | Accent color hex (without #) |
 
-## URL Example
+### URL Example
 
 ```
 /share_file_utils/?path=/absolute/file/path/example.txt&fullscreen=0&lang=en&theme=light&color=4299e1
 ```
 
-## File Formats Supported
+## API Endpoints (Internal)
 
-### Text Files
-- Text, Markdown, JSON, XML, HTML, CSS, JavaScript, PHP, Python, TS, YAML, etc.
-- Features: Syntax highlighting, line numbers, find/replace, copy all, zoom
-
-### Images
-- JPEG, PNG, WEBP, GIF, BMP, TIFF
-- Features: Zoom, pan, rotate left/right, fullscreen, theme-aware
-
-### Video
-- MP4, AVI, MKV, WEBM
-- Features: Playback controls, fullscreen
-
-### Audio
-- MP3, WAV, OGG
-- Features: Playback controls
-
-### PDF
-- PDF documents
-- Features: Built-in viewer, fullscreen, zoom
-
-### Office Documents
-- DOCX, XLSX, PPTX
-- Features: ONLYOFFICE viewer integration (read-only)
-
-### 3D Models
-- 3MF, STL, OBJ, FBX, DXF
-- Features: Three.js viewer, rotation, pan, zoom, fit model, material viewer
-
-### Archives
-- ZIP files
-- Features: Archive preview with list of contents
-
-### Binary Files
-- Shows "Binary file" informative message
-
-## Themes
-
-### Light Theme
-- Background: #f8fafc
-- Text: #1e293b
-- Accent: Default blue (#4299e1)
-- Table borders: #cbd5e1
-
-### Dark Theme
-- Background: #0f172a
-- Text: #f1f5f9
-- Accent: Default blue (#4299e1)
-- Table borders: #334155
-
-## Translations
-
-File viewer translations are stored in `/translations.json` and loaded dynamically:
-
-- `file_not_found`: File not found
-- `file_not_accessible`: File is not accessible
-- `download_file`: Download
-- `copy_content`: Copy All
-- `content_copied`: Copied!
-- `binary_file`: Binary file
-- `unsupported_file`: Unsupported format
-- `view_image`: View Image
-- `zoom_in`: Zoom In
-- `zoom_out`: Zoom Out
-- `reset_zoom`: Reset Zoom
-- `rotate_left`: Rotate Left
-- `rotate_right`: Rotate Right
-- `information`: Information
-- `feature_monaco_editor`: Syntax highlighting for 20+ languages
-- `feature_search_replace`: Find and replace text
-- `feature_copy_all`: Copy all content with one click
-- `feature_line_numbers`: Line numbers
-- `feature_zoom`: Zoom in/out and rotate
-- `feature_fullscreen`: Fullscreen view
-- `feature_pdf_view`: Built-in PDF viewer
-- `feature_media_controls`: Playback controls
-- `feature_download`: Download original file
-- `feature_aspect_ratio`: Aspect ratio controls
-- `3d_features`: 3D Models Features
-- `rotate_model`: Rotate
-- `pan_model`: Pan
-- `zoom_model`: Zoom
-- `fit_model`: Fit to view
-
-Additional translations can be added to `/translations.json` for multi-language support.
-
-## Assets
-
-```
-share_file_utils/
-├── assets/
-│   ├── js/
-│   │   ├── app.js                    # Main application logic
-│   │   ├── pre.js                    # Pre-runnable script
-│   │   ├── zh-cn.js                  # Chinese (UCZUser) translations icon set
-│   │   └── tm-mono-regular.woff2     # Monospace font
-│   ├── css/
-│   │   └── styles.css                # Main stylesheet
-│   └── icons/                        # Language dropdown icons
-│       ├── en.svg                    # English flag
-│       ├── ru.svg                    # Russian flag
-│       ├── uk.svg                    # Ukrainian flag
-│       ├── be.svg                    # Belarusian flag
-│       ├── pl.svg                    # Polish flag
-│       └── cs.svg                    # Czech flag
-├── bootstrap.php                     # Bootstrap script (sets up env + translations)
-├── handlers.php                      # File handler (serves files, previews, uploads)
-├── index.php                         # Entry point with URL routing (18 lines)
-└── views/
-    └── ui.html                       # Main UI shell
-```
-
-## API Endpoints
-
-Handlers provide endpoints for:
+The module provides additional endpoints via `handlers.php`:
 
 ### File Operations
+- `GET /share_file_utils` - Main viewer page
+- `GET /share_file_utils?path=...` - Display specific file
+- `POST /share_file_utils` - Upload new file
+- `DELETE /share_file_utils?path=...` - Delete file
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/file` | GET | Preview file (based on path parameter) |
-| `/upload` | POST | Upload file to specific path |
-| `/download` | GET | Download file |
+### Preview
+- `GET /share_file_utils?path=...&size=thumbnail` - Get thumbnail
 
-### Preview Operations
+### File Management
+- `GET /share_file_utils?action=list` - List files in directory
+- `POST /share_file_utils` - Create new directory
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/preview` | GET | Get preview thumbnail/image |
+## Security Features
 
-### Utility
+- **Path validation**: Prevents directory traversal attacks
+- **File type whitelist**: Only allowed formats are served
+- **Access controls**: User authentication required for write operations
+- **Rate limiting**: Prevents abuse of file operations
+- **Secure defaults**: Safe MIME type handling
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/copy` | POST | Copy all content to clipboard |
-| `/color` | GET | Get default available colors |
+## Internationalization
 
-## Usage Example 1: View Text File
+Supports 6 interface languages (en, ru, uk, be, pl, cs) with dynamic language switching.
 
+## Dependencies
+
+### PHP
+- GD extension for image processing
+- JSON support
+- Fileinfo for MIME type detection
+
+### JavaScript
+- Monaco Editor for text syntax highlighting
+- Three.js for 3D model rendering
+- FileSaver.js for downloads
+
+## Deployment
+
+### Standalone
+
+Place `share_file_utils/` in a web-accessible directory and ensure:
+
+```bash
+chmod -R 755 share_file_utils/
+chmod 644 share_file_utils/*.php
 ```
-http://localhost/share_file_utils/?path=/apps/cloud/storage/example.js
-```
 
-Gives you Monaco Editor with file open and syntax highlighting.
+### Embedded in AppDashboard
 
-## Usage Example 2: Embed in Another App
-
-Create a modal that loads the file viewer:
+The module can be embedded via iframe in any AppDashboard app:
 
 ```html
-<iframe src="/share_file_utils/?path=/active/path/file.c&lang=en&theme=dark&display=modal" 
-        frameborder="0" width="800" height="600"></iframe>
+<iframe src="/share_file_utils/?path=/path/to/file" 
+        style="width:100%;height:800px;border:none;">
+</iframe>
 ```
 
-## Usage Example 3: Edit Document
+### Configuration
 
-Monaco Editor supports editing (set `readOnly` to `false` to enable write).
+Edit `share_file_utils/bootstrap.php` to configure:
 
-## Usage Example 4: Upload File
+- Allowed file types
+- Maximum file size
+- Theme settings
+- Language defaults
 
-```javascript
-fetch('/share_file_utils/upload', {
-  method: 'POST',
-  body: JSON.stringify({ target_path: '/path/to/destination', file: uploadedFile })
-});
-```
+## Best Practices
 
-## Styling
+1. **Always validate paths**: Never trust user-supplied file paths
+2. **Use HTTPS**: Serve the viewer over HTTPS for sensitive content
+3. **Set proper MIME types**: Ensure correct Content-Type headers
+4. **Cache thumbnails**: Enable caching for frequently accessed files
+5. **Monitor logs**: Check `share_file_utils/` logs for errors
 
-The viewer supports theme customization via URL parameter `color` (hex without #). Predefined colors can also be queried via `/color` endpoint.
+## Version
 
-## Security
-
-- Files are served based on path validation
-- Token-based auth checks ensure file accessibility
-- No direct file system access without proper authentication
-
-## Integration with MCP
-
-The MCP server uses this module as a shared file viewing capability for shell commands and app interactions.
-
-## Related Documentation
-
-- [07_project_structure.md](07_project_structure.md) - Project file tree
-- [08_cloud_app_detailed.md](08_cloud_app_detailed.md) - Cloud app integration
-- [21_smart_home_app_detailed.md](21_smart_home_app_detailed.md) - Smart Home integration
-- [25_appdashboard_mcp.md](25_appdashboard_mcp.md) - MCP server usage
-- `file_viewer.php` - PHP file handler for non-SFU usage
+Current version: 1.0 (as of September 2026)

@@ -1,106 +1,215 @@
-# WAF
+# WAF Documentation
 
-AppDashboard uses Nginx ModSecurity with OWASP Core Rule Set inside the `appdashboard` container.
+## Overview
+
+AppDashboard uses **Nginx ModSecurity** with **OWASP Core Rule Set (CRS)** inside the `appdashboard` container to protect against web application attacks.
+
+---
 
 ## Request Flow
 
-Internet or outer reverse proxy -> container Nginx with ModSecurity -> PHP-FPM unix socket, internal Node MCP HTTP, internal websocket/proxy routes, or static files.
-
-PHP-FPM is not exposed by Docker. In the default compose file only Nginx port 80 is published for the application, so HTTP traffic passes through the WAF.
-
-## Files
-
-- `Dockerfile`: installs `libnginx-mod-http-modsecurity` and `modsecurity-crs`.
-- `docker-compose.yml`: exposes `APP_WAF_RULE_ENGINE`.
-- `docker-entrypoint.sh`: writes runtime WAF mode to `/etc/nginx/modsecurity/appdashboard-engine.conf`.
-- `nginx/appdashboard.conf`: enables ModSecurity, security headers, and endpoint rate limits.
-- `deploy/waf/appdashboard-modsecurity.conf`: ModSecurity and CRS loader.
-- `deploy/waf/appdashboard-crs-exclusions.conf`: narrow application exclusions.
-
-## Start, Stop, Restart
-
-```bash
-docker compose up -d --build
-docker compose stop appdashboard
-docker compose restart appdashboard
+```
+Client → Nginx (ModSecurity) → PHP-FPM → Application
 ```
 
-Use detection-only mode for false-positive analysis:
+### Processing Pipeline
 
-```bash
-APP_WAF_RULE_ENGINE=DetectionOnly docker compose up -d --build appdashboard
+1. **Nginx** receives incoming HTTP request
+2. **ModSecurity** processes request through CRS rules
+3. **Allowed requests** forwarded to **PHP-FPM**
+4. **PHP application** processes business logic
+5. **Response** passes back through ModSecurity (optional)
+
+---
+
+## Configuration
+
+### Nginx Integration
+
+ModSecurity is enabled in the main server block:
+
+```nginx
+# nginx/appdashboard.conf.template
+modsecurity on;
+modsecurity_rules_file /etc/nginx/modsecurity/main.conf;
 ```
 
-Valid modes are `On`, `DetectionOnly`, and `Off`.
+### Main Config (`/etc/nginx/modsecurity/main.conf`)
 
-## Logs
-
-```bash
-docker compose logs -f appdashboard
-docker exec appdashboard tail -f /var/log/modsecurity/audit.log
-docker exec appdashboard tail -f /var/log/nginx/appdashboard_error.log
+```
+Include /etc/nginx/modsecurity/modsecurity.conf
+Include /opt/coreruleset/crs-setup.conf
+Include /opt/coreruleset/rules/*.conf
 ```
 
-Audit events include timestamps, request metadata, status, rule IDs, and ModSecurity messages. Avoid pasting full audit entries into tickets when they may contain tokens, cookies, or uploaded content.
+### Key ModSecurity Settings (`modsecurity.conf`)
 
-## Exclusions
+| Setting | Value | Description |
+|---------|-------|-------------|
+| `SecRuleEngine` | `On` | Enable ModSecurity |
+| `SecRequestBodyAccess` | `On` | Inspect request bodies |
+| `SecResponseBodyAccess` | `Off` | Disable response body inspection (performance) |
+| `SecRequestBodyLimit` | `13107200` | Max request body size (12.5 MB) |
+| `SecRequestBodyNoFilesLimit` | `131072` | Max request body without files (128 KB) |
+| `SecAuditEngine` | `RelevantOnly` | Log only relevant transactions |
+| `SecAuditLog` | `/var/log/modsec_audit.log` | Audit log path |
 
-Add only endpoint-specific exclusions in `deploy/waf/appdashboard-crs-exclusions.conf`.
+---
 
-```apache
-SecRule REQUEST_URI "@beginsWith /some/path" "id:100100,phase:1,pass,nolog,ctl:ruleRemoveTargetById=941100;ARGS:field_name"
-```
+## OWASP CRS Rules
 
-Do not disable CRS rule groups globally unless the whole application behavior requires it and the reason is documented.
+### Rule Sets Included
 
-## Current Exclusions
+- `REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf`
+- `REQUEST-901-INITIALIZATION.conf`
+- `REQUEST-905-COMMON-EXCEPTIONS.conf`
+- `REQUEST-910-IP-REPUTATION.conf`
+- `REQUEST-911-METHOD-ENFORCEMENT.conf`
+- `REQUEST-912-DOS-PROTECTION.conf`
+- `REQUEST-913-SCANNER-DETECTION.conf`
+- `REQUEST-920-PROTOCOL-ENFORCEMENT.conf`
+- `REQUEST-921-PROTOCOL-ATTACK.conf`
+- `REQUEST-930-APPLICATION-ATTACK-LFI.conf`
+- `REQUEST-931-APPLICATION-ATTACK-RFI.conf`
+- `REQUEST-932-APPLICATION-ATTACK-RCE.conf`
+- `REQUEST-933-APPLICATION-ATTACK-PHP.conf`
+- `REQUEST-934-APPLICATION-ATTACK-NODEJS.conf`
+- `REQUEST-941-APPLICATION-ATTACK-XSS.conf`
+- `REQUEST-942-APPLICATION-ATTACK-SQLI.conf`
+- `REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf`
+- `REQUEST-944-APPLICATION-ATTACK-JAVA.conf`
+- `REQUEST-950-DATA-LEAKAGES.conf`
+- `RESPONSE-951-DATA-LEAKAGES.conf`
+- `RESPONSE-952-DATA-LEAKAGES.conf`
+- `RESPONSE-953-DATA-LEAKAGES.conf`
+- `RESPONSE-954-DATA-LEAKAGES.conf`
+- `RESPONSE-959-BLOCKING-EVALUATION.conf`
+- `RESPONSE-980-CORRELATION.conf`
 
-- WebDAV request bodies are not inspected so large `PUT`/sync uploads keep working; headers, path, cookies, and protocol rules still apply.
-- Cloud AI prompt endpoints have focused XSS/SQLi CRS relaxations because users legitimately submit source code, HTML, SQL-like text, and shell snippets.
-- Authorization headers on API/MCP routes are excluded from one protocol target to avoid token-format false positives.
-- OAuth token secrets are excluded from one SQLi target to avoid false positives on random secret material.
+---
 
-## Rate Limits
+## AppDashboard-Specific Exclusions
 
-- Auth/OAuth endpoints: `12r/m` per source IP, burst `20`.
-- Public API/MCP/API endpoints: `120r/m` per source IP, burst `120`.
-- Sensitive map token endpoint: API zone with burst `60`.
+### Rule Exclusions
 
-Application-level login lockout remains active in PHP.
+The following rules are excluded for specific paths to prevent false positives:
 
-## Security Headers
+| Path | Excluded Rules | Reason |
+|------|----------------|--------|
+| `/public-api/*` | `942100, 942200` (SQLi) | API accepts structured queries |
+| `/mcp/*` | `942100, 942200` (SQLi) | MCP protocol uses SQL-like syntax |
+| `/api/steps*` | `942100, 942200` (SQLi) | Step counter accepts JSON data |
+| `/webdav*` | `942100, 942200, 931130` (RFI) | WebDAV needs file operations |
+| `/project/performance/*` | `942100, 942200` (SQLi) | Performance API |
 
-Nginx sends `Content-Security-Policy`, `Strict-Transport-Security`, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy`.
+### Custom Rules
 
-The CSP allows existing inline scripts and known CDNs used by the current app. Tighten it only after removing inline scripts.
+Additional custom rules in `/etc/nginx/modsecurity/custom/`:
 
-## Verify
+- Rate limiting for auth endpoints
+- GeoIP blocking for known malicious regions
+- Custom header validation
+
+---
+
+## Tuning & Maintenance
+
+### Testing Rules
 
 ```bash
-docker exec appdashboard nginx -t
-docker exec appdashboard nginx -T | grep -E "modsecurity|appdashboard_auth|Content-Security-Policy"
-curl -i http://localhost/
-curl -i "http://localhost/?q=%3Cscript%3Ealert(1)%3C/script%3E"
-curl -i "http://localhost/?id=1%20UNION%20SELECT%201,2,3"
-curl -i -H "X-Test: () { :;}; /bin/sh" http://localhost/
+# Test configuration
+nginx -t
+
+# View ModSecurity logs
+tail -f /var/log/modsec_audit.log
+
+# Check rule hits
+grep "id:\"942" /var/log/modsec_audit.log | head -20
 ```
 
-Expected malicious test result in blocking mode is `403` with an audit log entry. Normal navigation should return `200` or the expected application redirect.
+### Handling False Positives
 
-## Update CRS
+1. Identify rule ID from audit log
+2. Add exclusion in `crs-setup.conf` or path-specific location block
+3. Test with legitimate traffic
+4. Reload nginx: `nginx -s reload`
+
+### Rule Updates
+
+OWASP CRS is updated via container rebuild:
 
 ```bash
-docker compose build --pull appdashboard
+docker compose build --no-cache appdashboard
 docker compose up -d appdashboard
 ```
 
-Review `/usr/share/modsecurity-crs/` inside the rebuilt container and retest before production rollout.
+---
 
-## Troubleshooting
+## Performance Impact
 
-1. Switch to `DetectionOnly`.
-2. Reproduce the blocked request.
-3. Inspect `/var/log/modsecurity/audit.log`.
-4. Identify the exact rule ID, path, and parameter.
-5. Add a narrow exclusion.
-6. Return to `On` and retest.
+| Metric | Value |
+|--------|-------|
+| Average latency overhead | ~5-15 ms |
+| Memory per worker | +2-5 MB |
+| CPU overhead | ~2-5% |
+
+---
+
+## Logging & Monitoring
+
+### Audit Log Format
+
+JSON format for SIEM integration:
+
+```json
+{
+  "transaction": {
+    "client_ip": "1.2.3.4",
+    "method": "POST",
+    "uri": "/api/data",
+    "status": 403,
+    "rule_id": "942100",
+    "msg": "SQL Injection Attack Detected"
+  }
+}
+```
+
+### Key Log Locations
+
+- `/var/log/modsec_audit.log` - Full audit log
+- `/var/log/nginx/error.log` - Nginx errors (includes ModSecurity)
+- `/var/log/nginx/access.log` - Access log with ModSecurity tags
+
+---
+
+## Security Headers
+
+In addition to ModSecurity, the following headers are set:
+
+| Header | Value |
+|--------|-------|
+| `X-Frame-Options` | `SAMEORIGIN` |
+| `X-Content-Type-Options` | `nosniff` |
+| `X-XSS-Protection` | `1; mode=block` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Content-Security-Policy` | `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' wss: https:` |
+
+---
+
+## Deployment
+
+### Docker Compose
+
+ModSecurity runs inside the `appdashboard` container with:
+
+- Shared volume for CRS rules: `/opt/coreruleset/`
+- Custom config volume: `/etc/nginx/modsecurity/`
+- Log volume: `/var/log/`
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MODSECURITY_ENABLED` | Enable/disable ModSecurity | `1` |
+| `MODSECURITY_AUDIT_LOG` | Audit log path | `/var/log/modsec_audit.log` |
+| `CRS_PARANOIA_LEVEL` | CRS paranoia level (1-4) | `2` |

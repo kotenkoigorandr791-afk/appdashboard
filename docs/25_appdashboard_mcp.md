@@ -1,174 +1,281 @@
-# appdashboard-mcp
+# AppDashboard MCP Documentation
 
-**Version**: 1.0.0
+**Path:** `appdashboard-mcp/`  
+**Type:** MCP Server (stdio and HTTP transports)  
+**Description:** Model Context Protocol (MCP) server integration for AppDashboard.
+
+---
 
 ## Overview
 
-**appdashboard-mcp** is a Model Context Protocol (MCP) server that provides access to AppDashboard functionality from AI agent environments like Cursor, Claude Desktop, VS Code, OpenCode, and Agora. It exposes tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Kanboard) through a single unified MCP package.
+The AppDashboard MCP server provides AI tool integration for the ServerKherson platform. It enables AI assistants to interact with AppDashboard services through standardized MCP protocols, supporting both standard input/output and HTTP transports.
 
-## Platform
+## File Structure
 
-AppDashboard hosts the MCP server prebuilt and served via HTTP (`/mcp/download`). Users install by copying one command from the UI (Settings → MCP) without needing to build locally.
-
-## Features
-
-- **Unified MCP server**: Single package exposes tools for service shell + all 13 apps
-- **Auto-authentication**: Immich, Gitea, Kanboard API credentials managed automatically via dashboard integrations
-- **Multi-agent support**: Compatible with Cursor, Claude Desktop, VS Code, OpenCode, Agora
-- **HTTP transport**: Servers on port 8808 with WebSocket upgrade support
-- **Per-user auth tokens**: JWT tokens stored in dashboard database, never exposed to tools
-- **Shell integration**: Tools for service management, Docker, backup, config, monitoring
-
-## Tool Groups
-
-| Prefix | Service |
-|--------|---------|
-| *(shell)* | Auth, users, apps, Docker, files, config, monitor, backup, commands, support |
-| `spends_*` / `expense_*` | Spends app |
-| `cloud_*` | Cloud app |
-| `smarthome_*` | Smart Home app |
-| `recipes_*` | Recipes app |
-| `steps_*` | Steps counter |
-| `immich_*` | Immich photo library |
-| `gitea_*` | Gitea git forge |
-| `kanboard_*` | Kanboard project management |
-
-All `steps_*`, `immich_*`, `gitea_*`, and `kanboard_*` tools are available to any authenticated user (no Admin role required).
-
-## Installation
-
-### Method 1: UI Setup (Recommended)
-
-1. Log in to AppDashboard UI
-2. Go to Settings → MCP
-3. Copy command for your agent:
-
-```bash
-# Cursor
-npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url https://YOUR_HOST
-
-# Claude Desktop
-npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent claude --url https://YOUR_HOST
-
-# VS Code
-npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent opencode --url https://YOUR_HOST
+```
+appdashboard-mcp/
+├── package.json           # Node.js package configuration
+├── tsconfig.json          # TypeScript configuration
+├── src/                   # Source code
+│   ├── index.ts          # Main entry point
+│   ├── api.ts            # API helpers
+│   ├── auth.ts           # Authentication helpers
+│   ├── integrations.ts   # Service integrations
+│   ├── oauth.ts          # OAuth helpers
+│   ├── roles.ts          # Role helpers
+│   ├── setup.ts          # Setup script
+│   └── tools/            # MCP tools
+│       ├── apps.ts
+│       ├── auth.ts
+│       ├── backup.ts
+│       ├── cloud.ts
+│       ├── commands.ts
+│       ├── config.ts
+│       ├── docker.ts
+│       ├── files.ts
+│       ├── gitea.ts
+│       ├── immich.ts
+│       ├── index.ts
+│       ├── kanboard.ts
+│       ├── monitor.ts
+│       ├── news.ts
+│       ├── recipes.ts
+│       ├── shell.ts
+│       ├── smarthome.ts
+│       ├── spends.ts
+│       ├── steps.ts
+│       ├── support.ts
+│       ├── types.ts
+│       └── users.ts
+├── scripts/               # Utility scripts
+│   ├── smoke-tools.mjs
+│   ├── test-cloud-tools.mjs
+│   └── test-recipes-tools.mjs
+├── deploy/                # Deployment scripts (symlink to root)
+│   └── scripts/
+│       └── build-appdashboard-mcp.sh
+└── README.md             # Usage documentation
 ```
 
-4. Restart your agent
-5. Chat with the dashboard (first messages will prompt for browser OAuth if not authenticated)
+## Configuration
 
-### Method 2: Configuration Files
+The MCP server can be configured via:
 
-**Claude Desktop** (`~/.config/claude/claude_desktop_config.json` or macOS `~/Library/Application Support/Claude/claude_desktop_config.json`):
+### Environment Variables
+- `APPDASHBOARD_URL` - Base URL of the AppDashboard instance (e.g., `https://example.com`)
+- `APPDASHBOARD_TOKEN` - Authentication token for AppDashboard API
+- `PORT` - HTTP server port (default: 3000 for HTTP transport)
+- `NODE_ENV` - Node environment (development/production)
 
+### Package Configuration (`package.json`)
 ```json
 {
-  "mcpServers": {
-    "appdashboard-mcp": {
-      "enabled": true,
-      "type": "local",
-      "command": ["npx", "-y", "https://YOUR_HOST/mcp/download"],
-      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
+  "name": "appdashboard-mcp",
+  "version": "2.0.0",
+  "description": "MCP server for AppDashboard with secure sandboxed script execution",
+  "type": "module",
+  "bin": {
+    "appdashboard-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepack": "npm run build",
+    "start": "node dist/index.js",
+    "setup": "node dist/index.js setup"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.0",
+    "express": "^4.21.5",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "dist/index.js"
 }
 ```
 
-**Cursor** (`.cursor/mcp.json` or `~/.cursor/mcp.json`):
+## MCP Tools
 
-```json
-{
-  "mcpServers": {
-    "appdashboard-mcp": {
-      "enabled": true,
-      "type": "local",
-      "command": ["npx", "-y", "https://YOUR_HOST/mcp/download"],
-      "environment": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
+The server provides tools organized by service category:
 
-**VS Code** (`.vscode/mcp.json`):
+### Cloud Operations
+- `cloud_upload` - Upload file to cloud storage
+- `cloud_list` - List files in a directory
+- `cloud_download` - Download file
+- `cloud_mkdir` - Create folder
+- `cloud_delete` - Delete file/folder
+- `cloud_share` - Create share link
 
-```json
-{
-  "servers": {
-    "appdashboard-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
+### User Management
+- `get_current_user` - Get the currently authenticated user
+- `user_list` - List users (admin)
+- `user_get` - Get user profile
+- `user_create` - Create new user (admin)
+- `user_update` - Update user (admin)
+- `user_delete` - Delete user (admin)
 
-**OpenCode** (`opencode.json`):
+### App Management
+- `list_apps` - List applications available to the current user
+- `get_app_access_levels` - Get min_role access levels for all apps (admin)
+- `set_app_access_level` - Set min_role for an application (admin)
+- `execute_app_action` - Execute app-specific actions
+- `get_app_status` - Get app status
 
-```json
-{
-  "mcp": {
-    "appdashboard-mcp": {
-      "command": "npx",
-      "args": ["-y", "https://YOUR_HOST/mcp/download"],
-      "env": { "APPDASHBOARD_URL": "https://YOUR_HOST" }
-    }
-  }
-}
-```
+### File Operations (Shared Files)
+- `files_upload` - Upload file to shared files
+- `files_download` - Download shared file
+- `files_list` - List shared files
+- `files_delete` - Delete shared file
 
-## Integration API
+### Backup & System
+- `backup_create` - Create backup
+- `backup_list` - List backups
+- `backup_restore` - Restore from backup
+- `system_info` - Get system information
+- `system_reboot` - Reboot system (admin)
+- `system_shutdown` - Shutdown system (admin)
 
-### Automatic Immich / Gitea / Kanboard Credentials
+### Database Operations
+- `db_query` - Execute SQL query (admin)
+- `db_tables` - List database tables
 
-After first `login`, Immich, Gitea, and Kanboard tools do **not** ask for API keys or tokens. On first use the MCP client calls:
+### Service-Specific Tools
+- `gitea_*` - Gitea operations
+- `immich_*` - Immich operations
+- `kanboard_*` - Kanboard operations
+- `recipes_*` - Recipe operations
+- `spends_*` - Expense operations
+- `steps_*` - Step counter operations
+- `smarthome_*` - Smart home operations
+- `monitor_*` - Performance monitoring
+- `shell_*` - Shell command execution (admin)
 
-- `GET /public-api/integrations/immich` → `{ url, api_key }`
-- `GET /public-api/integrations/gitea` → `{ url, access_token }`
-- `GET /public-api/integrations/kanboard` → `{ url, api_key, workspace_slug }`
+### Utility Tools
+- `echo` - Echo back input (testing)
+- `sleep` - Sleep for specified time (testing)
 
-The dashboard creates (or reuses) a per-user key named **MCP** and returns it. Credentials are cached in the MCP process memory and never printed by the tools themselves.
+## Integration
 
-### HTTP Transport Endpoint
+### Setup
 
-The MCP server provides an HTTP endpoint for WebSocket connections:
+1. Build the MCP package:
+   ```bash
+   # From repository root
+   RUN_MCP_PACKAGE_BUILD=1 docker compose up -d --build
+   # OR manually:
+   cd appdashboard-mcp
+   npm ci
+   npm run build
+   ```
 
-- **URL**: `http://YOUR_HOST:8808/mcp`
-- **Port**: 8808 (configured in `supervisord.conf` as `appdashboard-mcp-http`)
-- **Transport**: WebSocket (upgraded from HTTP)
+2. The built package is available at:
+   ```
+   http://<APPDASHBOARD_URL>/mcp/appdashboard-mcp.tgz
+   ```
 
-MCP clients using HTTP transport connect to this endpoint.
+3. Install in MCP client (e.g., Claude Desktop):
+   ```bash
+   npx -y https://<APPDASHBOARD_URL>/mcp/appdashboard-mcp.tgz setup
+   ```
 
-## Development
+### Authentication
 
-```bash
-cd appdashboard-mcp
-npm ci
-npm run build
-npm start
-```
+The MCP server supports:
 
-Builds TypeScript to `dist/` and runs MCP server with stdio transport. HTTP mode with port 8808 for WebSocket connections.
+- **Bearer Token**: `APPDASHBOARD_TOKEN` environment variable
+- **Session Token**: Via AppDashboard session (when accessed through web interface)
+- **No Auth**: For local development (when `NODE_ENV=development` and accessing via stdio)
+
+### Protocol
+
+The MCP server follows the Model Context Protocol specification:
+
+1. **Initialization**: Client connects to server (stdio or HTTP)
+2. **Capability Exchange**: Server provides list of available tools and resources
+3. **Tool Execution**: Client requests tool execution with parameters
+4. **Response**: Server returns tool results or errors
+
+## Security
+
+### Access Control
+
+- All MCP requests are authenticated via token (except local stdio dev)
+- Role-based access control (RBAC) for tools based on user role
+- Rate limiting implemented for HTTP transport
+- Request logging for security auditing
+
+### Data Protection
+
+- Sensitive data is never logged
+- Tokens are hashed in memory
+- TLS required for HTTP transport in production
+- Input validation and sanitization for all parameters
 
 ## Deployment
 
-Build and package:
+### Docker Compose (Recommended)
+
+The MCP server is built and run as part of the AppDashboard stack when `RUN_MCP_PACKAGE_BUILD=1` is set.
+
+### Standalone Docker
+
+```dockerfile
+FROM node:20-alpine
+WORKDIR /app
+COPY appdashboard-mcp/ ./
+RUN npm ci --only=production
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
+```
+
+### Environment Variables
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `APPDASHBOARD_URL` | Base URL of AppDashboard | Yes | - |
+| `APPDASHBOARD_TOKEN` | Authentication API token | Yes (except stdio dev) | - |
+| `PORT` | HTTP server port | No | 3000 |
+| `NODE_ENV` | Node environment | No | production |
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Refused**: Verify `APPDASHBOARD_URL` and network connectivity
+2. **Unauthorized**: Check `APPDASHBOARD_TOKEN` validity and permissions
+3. **Tool Not Found**: Ensure tool name matches exactly (use `list_tools` to see available)
+4. **Build Failures**: Ensure Node.js >=18 and run `npm ci` before `npm run build`
+
+### Debug Mode
+
+Set `NODE_ENV=development` for verbose logging and stdio access without token.
+
+## Development
+
+### Running Tests
 
 ```bash
 cd appdashboard-mcp
-sh ../deploy/scripts/build-appdashboard-mcp.sh
+npm test
 ```
 
-Produces `../downloads/appdashboard-mcp.tgz` served at `/mcp/appdashboard-mcp.tgz`.
+### Adding New Tools
 
-## Requirements
+1. Create new tool file in `src/tools/` (e.g., `newtool.ts`)
+2. Define tool schema and handler
+3. Export tool in `src/tools/index.ts`
+4. Run `npm run build`
 
-- **Node.js**: 18 or higher
-- **Runtime**: 64-bit Linux (required for auto-credentials)
-- **Network**: Port 8808 available for HTTP/WSS transport
+## License
 
-## Related Documentation
-
-- [01_project_overview_and_architecture.md](01_project_overview_and_architecture.md) - Project overview
-- [22_public_api_reference.md](22_public_api_reference.md) - Public API endpoints used by MCP (integrations, auth)
-- [Share file utils](28_share_file_utils.md) - File viewer module
+MIT License
