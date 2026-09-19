@@ -106,7 +106,8 @@ class UserSession extends Base
             return '';
         }
 
-        return session_get('user')['role'];
+        $user = session_get('user');
+        return isset($user['role']) ? $user['role'] : '';
     }
 
     /**
@@ -142,7 +143,8 @@ class UserSession extends Base
             return false;
         }
 
-        return session_get('user')['twofactor_activated'] === true;
+        $user = session_get('user');
+        return isset($user['twofactor_activated']) && $user['twofactor_activated'] === true;
     }
 
     /**
@@ -194,7 +196,8 @@ class UserSession extends Base
             return '';
         }
 
-        return session_get('user')['username'];
+        $user = session_get('user');
+        return isset($user['username']) ? $user['username'] : '';
     }
 
     /**
@@ -209,7 +212,8 @@ class UserSession extends Base
             return '';
         }
 
-        return session_get('user')['language'];
+        $user = session_get('user');
+        return isset($user['language']) ? $user['language'] : '';
     }
 
     /**
@@ -224,7 +228,8 @@ class UserSession extends Base
             return '';
         }
 
-        return session_get('user')['timezone'];
+        $user = session_get('user');
+        return isset($user['timezone']) ? $user['timezone'] : '';
     }
 
     /**
@@ -281,7 +286,8 @@ class UserSession extends Base
     public function getFilters($projectID)
     {
         if (! session_exists('filters:'.$projectID)) {
-            return session_get('user') ? session_get('user')['filter'] ?: 'status:open' : 'status:open';
+            $user = session_get('user');
+            return is_array($user) && isset($user['filter']) && $user['filter'] !== '' ? $user['filter'] : 'status:open';
         }
 
         return session_get('filters:'.$projectID);

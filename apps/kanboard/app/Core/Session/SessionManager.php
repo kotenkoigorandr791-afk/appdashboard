@@ -86,6 +86,11 @@ class SessionManager extends Base
      */
     private function configure()
     {
+        if (headers_sent()) {
+            error_log('SessionManager::configure(): headers already sent, skipping session configuration');
+            return;
+        }
+
         // Session cookie: HttpOnly and secure flags
         session_set_cookie_params(
             SESSION_DURATION,

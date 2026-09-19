@@ -350,6 +350,26 @@ function sh_fetch_floor_plan(AppDatabase $db, string $ownerEmail): array {
     return [];
 }
 
+function sh_remove_device_from_floor_plans(AppDatabase $db, string $deviceId): void {
+    $r = $db->prepare('SELECT user_email, elements_json FROM smarthome_floor_plans');
+    $rows = [];
+    $res = $r->execute();
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) $rows[] = $row;
+    if (!$rows) return;
+    $upd = $db->prepare('UPDATE smarthome_floor_plans SET elements_json=:el, updated_at=CURRENT_TIMESTAMP WHERE user_email=:em');
+    foreach ($rows as $row) {
+        $elements = json_decode((string)($row['elements_json'] ?? '[]'), true);
+        if (!is_array($elements)) continue;
+        $filtered = array_values(array_filter($elements, static function ($el) use ($deviceId) {
+            return !(is_array($el) && ($el['type'] ?? '') === 'device' && (string)($el['deviceId'] ?? '') === $deviceId);
+        }));
+        if (count($filtered) === count($elements)) continue;
+        $upd->bindValue(':el', json_encode($filtered, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+        $upd->bindValue(':em', $row['user_email'], PDO::PARAM_STR);
+        $upd->execute();
+    }
+}
+
 function sh_device_row_for_user(AppDatabase $db, string $deviceId, string $userEmail): ?array {
     $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id LIMIT 1');
     $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -2015,6 +2035,7 @@ if ($action !== '') {
             $st2->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $st2->execute();
             $db->exec('COMMIT');
+            sh_remove_device_from_floor_plans($db, $deviceId);
             sh_monitor_log($userEmail, $deviceId, 'device_deleted', []);
             $settings = sh_load_user_settings($db, $userEmail);
             $homeCtx = sh_resolve_home_context($db, $userEmail, $settings);
@@ -2022,6 +2043,7 @@ if ($action !== '') {
                 'ok'=>true,
                 'devices'=>sh_fetch_scoped_devices($db, $userEmail, $homeCtx),
                 'my_devices'=>sh_fetch_my_devices($db, $userEmail),
+                'floor_plan'=>sh_fetch_floor_plan($db, $homeCtx['floor_owner']),
             ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
         }
