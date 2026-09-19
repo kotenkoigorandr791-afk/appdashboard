@@ -365,6 +365,9 @@ function kanboard_prepare_kb_session_id(): void
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
+    if (headers_sent()) {
+        return;
+    }
     $kbSid = (string)($_COOKIE['KB_SID'] ?? '');
     if ($kbSid !== '' && preg_match('/^[A-Za-z0-9,-]{16,128}$/', $kbSid)) {
         session_id($kbSid);
@@ -382,7 +385,9 @@ function kanboard_require_login_or_redirect(): array
     $user = kanboard_resolve_dashboard_user();
     if ($user === null) {
         $u = '/login';
-        header('Content-Type: text/html; charset=utf-8');
+        if (!headers_sent()) {
+            header('Content-Type: text/html; charset=utf-8');
+        }
         echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($u) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
         exit;
     }

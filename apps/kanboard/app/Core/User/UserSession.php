@@ -178,7 +178,8 @@ class UserSession extends Base
             return 0;
         }
 
-        return session_get('user')['id'];
+        $user = session_get('user');
+        return isset($user['id']) ? (int) $user['id'] : 0;
     }
 
     /**
