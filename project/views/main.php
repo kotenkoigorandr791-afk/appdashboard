@@ -4748,6 +4748,13 @@ var T=<?php echo json_encode([
             syncAppPageChatButton();
             return wasOpen;
         }
+        function openSidebarMenu() {
+            if(!sidebar) return false;
+            clearAppSearch(false);
+            sidebar.classList.add('open');
+            syncAppPageChatButton();
+            return true;
+        }
         function getAppTileLinks() {
             return appGrid ? Array.from(appGrid.querySelectorAll('.app-tile-link')) : [];
         }
@@ -6396,7 +6403,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
         if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
         const modalButtons=[qrButton,emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
-        if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else if(sidebar) sidebar.classList.add('open'); syncAppPageChatButton(); });}
+        if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else openSidebarMenu(); });}
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
         if(settingsModal){settingsModal.addEventListener('click',(e)=>{if(e.target===settingsModal){settingsModal.style.display='none';}});}
@@ -6686,14 +6693,13 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                     return;
                 }
             }
-            if(code === 'Slash'){
-                e.preventDefault();
-                if(sidebar && !sidebar.classList.contains('open')){
-                    sidebar.classList.add('open');
-                    syncAppPageChatButton();
-                }
-                if(searchBar){
-                    setTimeout(function(){
+                if(code === 'Slash'){
+                    e.preventDefault();
+                    if(sidebar && !sidebar.classList.contains('open')){
+                        openSidebarMenu();
+                    }
+                    if(searchBar){
+                        setTimeout(function(){
                         searchBar.focus();
                         searchBar.select();
                     }, 0);

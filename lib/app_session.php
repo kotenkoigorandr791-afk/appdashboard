@@ -1,9 +1,8 @@
 <?php
 declare(strict_types=1);
+require_once __DIR__ . '/security/request.php';
 function app_session_is_https(): bool {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-        || strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    return appSecurityIsHttps();
 }
 function app_session_cookie_params(): array {
     return [

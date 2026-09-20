@@ -6,6 +6,7 @@
 require_once __DIR__ . '/lib/db_config.php';
 require_once __DIR__ . '/lib/pgsql_compat.php';
 require_once __DIR__ . '/lib/db_auth_security.php';
+require_once __DIR__ . '/lib/security/request.php';
 require_once __DIR__ . '/lib/redis.php';
 require_once __DIR__ . '/lib/app_domains.php';
 define('DB_PATH', '/opt/AppDashboard/data/db.env');
@@ -3389,9 +3390,7 @@ function removeTrustedDeviceCookies(string $email, string $fingerprint): void {
 }
 
 function trustedDeviceCookieIsSecure(): bool {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    return appSecurityIsHttps();
 }
 
 function trustedDeviceCookieName(string $email): string {
@@ -3413,7 +3412,7 @@ function setTrustedDeviceCookieForEmail(string $email, string $rawToken): void {
         'path' => '/',
         'secure' => trustedDeviceCookieIsSecure(),
         'httponly' => true,
-        'samesite' => 'Strict'
+        'samesite' => 'Lax'
     ]);
     $_COOKIE[$cookieName] = $rawToken;
 }
@@ -3426,7 +3425,7 @@ function clearTrustedDeviceCookieForEmail(string $email): void {
         'path' => '/',
         'secure' => trustedDeviceCookieIsSecure(),
         'httponly' => true,
-        'samesite' => 'Strict'
+        'samesite' => 'Lax'
     ]);
     unset($_COOKIE[$cookieName]);
 }
@@ -3622,7 +3621,7 @@ function setTrustedDeviceCookie(string $rawToken): void {
         'path' => '/',
         'secure' => $secure,
         'httponly' => true,
-        'samesite' => 'Strict'
+        'samesite' => 'Lax'
     ]);
     $_COOKIE['trusted_device'] = $rawToken;
 }
@@ -3637,7 +3636,7 @@ function clearTrustedDeviceCookie(): void {
         'path' => '/',
         'secure' => $secure,
         'httponly' => true,
-        'samesite' => 'Strict'
+        'samesite' => 'Lax'
     ]);
     unset($_COOKIE['trusted_device']);
 }
@@ -3787,24 +3786,7 @@ function monitorJson(array $context): string {
 }
 
 function monitorClientIp(): string {
-    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    $trustedProxies = array_filter(array_map('trim', explode(',', (string)getenv('APP_TRUSTED_PROXIES'))));
-    $remoteIsTrusted = $remote !== '' && in_array($remote, $trustedProxies, true);
-    if ($remoteIsTrusted) {
-        $cf = trim((string)($_SERVER['HTTP_CF_CONNECTING_IP'] ?? ''));
-        if ($cf !== '' && filter_var($cf, FILTER_VALIDATE_IP)) {
-            return substr($cf, 0, 128);
-        }
-        $xff = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-        if ($xff !== '') {
-            $parts = array_map('trim', explode(',', $xff));
-            $first = $parts[0] ?? '';
-            if (filter_var($first, FILTER_VALIDATE_IP)) {
-                return substr($first, 0, 128);
-            }
-        }
-    }
-    return substr($remote, 0, 128);
+    return appSecurityClientIp();
 }
 
 function monitorNullableUserEmail(?string $email): ?string {
