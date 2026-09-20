@@ -137,15 +137,15 @@ class SyncForegroundService : Service() {
         const val EXTRA_SCHEDULE_ID = "schedule_id"
         private val isSyncRunning = AtomicBoolean(false)
 
-        fun start(context: Context, scheduleId: String? = null) {
+        fun start(context: Context, scheduleId: String? = null): Boolean {
             val intent = Intent(context, SyncForegroundService::class.java).apply {
                 scheduleId?.let { putExtra(EXTRA_SCHEDULE_ID, it) }
             }
-            runCatching {
+            return runCatching {
                 ContextCompat.startForegroundService(context, intent)
             }.onFailure { e ->
                 Log.e("SyncForegroundService", "Failed to start foreground service: ${e.message}", e)
-            }
+            }.isSuccess
         }
 
         private fun ensureNotificationChannel(context: Context) {
