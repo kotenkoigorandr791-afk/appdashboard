@@ -30,7 +30,7 @@
         const user = urlParams.get('user') || 'default';
         const lang = urlParams.get('lang') || 'en';
         const root = urlParams.get('root') || 'main';
-        const theme = urlParams.get('theme') || 'dark';
+        const theme = <?php echo json_encode($theme, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
         const color = urlParams.get('color') || '#569cd6';
         let autoSaveTimer = null;
         const AUTO_SAVE_DELAY = 10000;

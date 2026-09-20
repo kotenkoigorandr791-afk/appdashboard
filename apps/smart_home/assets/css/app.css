@@ -94,7 +94,7 @@ body.light {
 }
 .app-bar .menu-btn svg { width:22px; height:22px; color:var(--text); }
 .app-bar .menu-btn:hover { background:var(--surface-2); }
-.app-bar h1 { font-size:20px; font-weight:500; flex:1; padding-left:var(--title-inset); box-sizing:border-box; }
+.app-bar h1 { font-size:20px; font-weight:500; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding-left:var(--title-inset); box-sizing:border-box; }
 .app-bar .badge-total {
   background:var(--primary-dim);
   color:var(--text);
@@ -186,6 +186,7 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 }
 .modal.modal--api-docs #modalBody {
   flex:1; min-height:0; overflow:hidden; display:flex; flex-direction:column;
+  padding:0;
 }
 .modal.modal--api-docs .modal-corner-slot { display:none; }
 .modal.modal--api-docs .modal-close {
@@ -239,8 +240,10 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 }
 .api-docs-md pre code { background:none; border:none; padding:0; color:var(--text); display:block; white-space:pre-wrap; word-break:break-word; }
 .api-docs-md a { color:var(--primary); text-decoration:none; }
-.api-docs-md a:hover { text-decoration:underline; }
-.api-docs-table-wrap {
+  .api-docs-md a:hover { text-decoration:underline; }
+
+  .api-docs-hr { border:none; border-top:1px solid var(--line); margin:18px 0; }
+  .api-docs-table-wrap {
   overflow-x:auto; overflow-y:visible; max-width:100%; margin:0 0 18px;
   -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain;
   scrollbar-width:thin; scrollbar-color:var(--surface-3) transparent;
@@ -647,21 +650,60 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
   width:90%;
   max-width:600px;
   max-height:calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
-  overflow:auto;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
   overscroll-behavior:contain;
-  -webkit-overflow-scrolling:touch;
-  padding:24px;
+  padding:0;
   transform:scale(.95);
   transition:transform var(--transition);
 }
 .modal-overlay:not(.open) .modal { visibility:hidden; pointer-events:none; }
 .modal-overlay.open .modal { transform:scale(1); }
-.modal.modal--dialog { max-width:420px; padding:20px; }
+.modal.modal--dialog { max-width:420px; padding:0; }
 .modal.modal--dialog .modal-corner-slot { display:none; }
 .modal { position:relative; }
 .modal-corner-slot {
   position:absolute; top:0; left:0; width:55px; height:55px; z-index:3; pointer-events:none;
 }
+.modal-topbar {
+  flex:0 0 auto;
+  min-height:60px;
+  padding:12px 56px 12px var(--title-inset);
+  border-bottom:1px solid var(--line);
+  box-sizing:border-box;
+  background:var(--surface);
+  position:relative;
+  display:none;
+  align-items:center;
+  justify-content:flex-start;
+}
+.modal-topbar.has-title { display:flex; }
+.modal-topbar-title {
+  font-size:20px; font-weight:500; color:var(--text);
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.modal.modal--dialog .modal-topbar,
+.modal.modal--api-docs .modal-topbar { display:none; }
+#modalBody {
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:24px;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:thin;
+  scrollbar-color:var(--surface-3) transparent;
+}
+#modalBody::-webkit-scrollbar { width:8px; }
+#modalBody::-webkit-scrollbar-track { background:transparent; }
+#modalBody::-webkit-scrollbar-thumb {
+  background:var(--surface-3); border-radius:4px;
+  border:2px solid transparent; background-clip:content-box;
+}
+.modal.modal--dialog #modalBody { padding:20px; }
 .modal h2, .modal h3.modal-title, .modal .modal-title, .modal .ui-dialog-title {
   font-size:20px; font-weight:500; margin:0 0 20px;
   padding:0 48px 0 var(--title-inset); min-height:var(--title-inset); box-sizing:border-box;
@@ -1003,6 +1045,18 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media(max-width:640px) {
   .app-bar { padding:0 12px; }
+  .app-bar h1 { display:none; }
+  .app-bar .view-toggle {
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    z-index:1;
+  }
+  #menuToggle { order:1; }
+  #addDeviceBtn { order:2; }
+
+  .api-docs-md p { margin-bottom:10px; }
   .main-content { padding:12px; }
   .device-grid { grid-template-columns:1fr; }
   .form-row { grid-template-columns:1fr; }
@@ -1015,17 +1069,21 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
     width:100%;
     max-height:none;
     min-height:0;
-    padding:16px;
+    padding:0;
   }
+  #modalBody { padding:16px; }
+  .modal.modal--dialog #modalBody { padding:14px; }
   .modal h2, .modal h3.modal-title, .modal .modal-title, .modal .ui-dialog-title { padding-left:var(--title-inset); padding-right:40px; }
   .modal.modal--dialog .ui-dialog-title { padding-left:0; padding-right:0; min-height:0; }
-  .modal.modal--dialog { padding:14px; }
   .ui-dialog { padding:18px 16px 16px; }
   .ui-dialog-actions { flex-direction:column; }
   .ui-dialog-actions .btn { width:100%; min-width:0; }
   .stats-grid { grid-template-columns:repeat(2,1fr); }
   .device-card { min-height: 0; }
   .device-card .card-footer { align-items: flex-end; }
+
+  .api-docs-callout { padding:12px 10px; gap:6px; }
+  .api-docs-hr { margin:18px 0; }
 }
 
 /* ─── Floor Plan Editor ──────────────────────────────────────────────────── */
@@ -1314,21 +1372,40 @@ body:has(#page-map.page-section.active) .main-content {
 }
 .map-view-device-popup .popup-content {
   position: relative;
+  display:flex;
+  flex-direction:column;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(16px);
   border: 1px solid var(--line);
   border-bottom: none;
   border-radius: var(--radius) var(--radius) 0 0;
-  padding: 10px 16px calc(20px + env(safe-area-inset-bottom));
+  padding: 0;
   max-height: calc(100dvh - 24px - env(safe-area-inset-top));
-  overflow-y: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
   animation: popupSlideUp .3s ease;
 }
 .map-view-device-popup .popup-handle {
   width: 40px; height: 4px; border-radius: 2px;
-  background: var(--surface-3); margin: 4px auto 14px;
+  background: var(--surface-3); margin: 12px auto 10px;
+  flex: 0 0 auto;
+}
+#mapDevicePopupBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+#mapDevicePopupBody::-webkit-scrollbar { width:8px; }
+#mapDevicePopupBody::-webkit-scrollbar-track { background:transparent; }
+#mapDevicePopupBody::-webkit-scrollbar-thumb {
+  background:var(--surface-3); border-radius:4px;
+  border:2px solid transparent; background-clip:content-box;
 }
 .map-view-device-popup .popup-section-title {
   font-size: 12px; font-weight: 600; text-transform: uppercase;
@@ -1359,6 +1436,8 @@ body:has(#page-map.page-section.active) .main-content {
 /* ─── App Bar Menu Button Enhanced ───────────────────────────────────────── */
 .app-bar .menu-btn {
   width:40px; height:40px;
+  min-width:40px; min-height:40px;
+  flex:0 0 auto;
   border:none; border-radius:50%;
   background:color-mix(in srgb, var(--surface-2) 70%, transparent);
   color:var(--text);

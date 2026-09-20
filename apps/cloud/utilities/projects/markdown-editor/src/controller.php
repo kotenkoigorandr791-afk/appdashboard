@@ -8,7 +8,15 @@ require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $filePath = isset($_GET['path']) ? $_GET['path'] : '';
 $user = isset($_GET['user']) ? $_GET['user'] : 'default';
 $lang = isset($_GET['lang']) ? $_GET['lang'] : 'en';
-$theme = isset($_GET['theme']) ? $_GET['theme'] : 'dark';
+$rawTheme = isset($_GET['theme']) ? trim((string)$_GET['theme']) : '';
+if ($rawTheme === 'auto') {
+    $cookieTheme = $_COOKIE['browser_theme'] ?? '';
+    $theme = ($cookieTheme === 'light' || $cookieTheme === 'dark') ? $cookieTheme : 'dark';
+} elseif ($rawTheme === 'light') {
+    $theme = 'light';
+} else {
+    $theme = 'dark';
+}
 $color = isset($_GET['color']) ? $_GET['color'] : '#569cd6';
 $root = isset($_GET['root']) ? $_GET['root'] : 'main';
 

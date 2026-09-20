@@ -87,8 +87,8 @@ function recipes_migrate_json_to_sqlite() {
             category TEXT DEFAULT '',
             image TEXT,
             image_preview TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
     
@@ -100,8 +100,8 @@ function recipes_migrate_json_to_sqlite() {
             title_ru TEXT NOT NULL DEFAULT '',
             title_be TEXT NOT NULL DEFAULT '',
             image TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
     
@@ -111,7 +111,7 @@ function recipes_migrate_json_to_sqlite() {
         CREATE TABLE IF NOT EXISTS " . RECIPES_DB_TABLE_PREFIX . "config (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
     
@@ -119,7 +119,7 @@ function recipes_migrate_json_to_sqlite() {
         CREATE TABLE IF NOT EXISTS " . RECIPES_DB_TABLE_PREFIX . "state (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ");
     

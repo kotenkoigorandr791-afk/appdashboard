@@ -9,8 +9,9 @@ services:
       POSTGRES_DB: appdashboard
       POSTGRES_USER: appdashboard
       POSTGRES_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
-    ports:
-      - "127.0.0.1:15432:5432"
+    # Публикация порта на хост не нужна: контейнеры общаются по docker-сети.
+    expose:
+      - "5432"
     volumes:
       - appdashboard-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -24,8 +25,10 @@ services:
     container_name: appdashboard-redis
     restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
-    ports:
-      - "127.0.0.1:16379:6379"
+    # Redis используется приложением внутри docker-сети.
+    # Публикация порта на хост ломает `docker compose up`, если 16379 уже занят.
+    expose:
+      - "6379"
     volumes:
       - appdashboard-redis-data:/data
     healthcheck:
@@ -331,4 +334,3 @@ volumes:
   dawarich-storage:
   dawarich-watched:
   dawarich-db-data:
-

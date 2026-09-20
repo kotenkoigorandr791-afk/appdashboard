@@ -58,6 +58,7 @@
     display:none;
     width:min(480px,92vw);
     position:relative;
+    z-index:1;
     overflow:hidden;
     border-radius:26px;
     border:1px solid rgba(17,255,0,0.28);
@@ -74,6 +75,18 @@
     font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
     animation:ap-gate-in .5s cubic-bezier(.2,.8,.2,1);
 }
+#ap-loading-skeleton{position:relative}
+#ap-loading-skeleton::before{
+    content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+    background-image:
+        linear-gradient(rgba(96,165,250,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(96,165,250,0.06) 1px, transparent 1px);
+    background-size:60px 60px;
+    animation:ap-gate-grid-drift 35s linear infinite;
+    mask-image:radial-gradient(ellipse at center, black 25%, transparent 85%);
+    -webkit-mask-image:radial-gradient(ellipse at center, black 25%, transparent 85%);
+}
+@keyframes ap-gate-grid-drift{from{background-position:0 0}to{background-position:60px 60px}}
 /* Glass/glow layer like auth cards */
 #ap-gate-login::before{
     content:'';
@@ -125,7 +138,7 @@
     display:block;font-size:12px;font-weight:600;opacity:.7;margin:0 0 6px;
 }
 #ap-gate-password{
-    width:100%;box-sizing:border-box;margin:0 0 14px;padding:12px 14px;
+    width:100%;box-sizing:border-box;margin:0;padding:12px 14px;
     border-radius:12px;border:1px solid var(--border-color);
     background:color-mix(in srgb,var(--bg-color) 88%,transparent);
     color:var(--text-color);font-size:14px;outline:none;
@@ -163,11 +176,15 @@ body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
     margin-top:14px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--border-color) 80%,transparent);
     font-size:11px;opacity:.55;line-height:1.4;
 }
-.ap-gate-password-wrap{position:relative}
+.ap-gate-password-wrap{position:relative;margin-bottom:14px}
 .ap-gate-password-wrap #ap-gate-password{padding-right:52px}
-#ap-gate-password-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;border:1px solid rgba(17,255,0,0.25);border-radius:10px;background:rgba(17,255,0,0.08);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center}
-#ap-gate-password-toggle svg{width:18px;height:18px;display:block}
-#ap-gate-password-toggle:hover{border-color:rgba(17,255,0,0.45);background:rgba(17,255,0,0.14)}
+#ap-gate-password-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;border:none;border-radius:10px;background:none;color:color-mix(in srgb,var(--text-color) 72%,transparent)!important;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:0}
+#ap-gate-password-toggle svg{width:18px;height:18px;display:block;margin:0;overflow:visible}
+#ap-gate-password-toggle:hover{opacity:.75}
+#ap-gate-password-toggle.active{color:var(--text-color)!important}
+#ap-gate-password-toggle .ap-eye-slash{display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+#ap-gate-password-toggle.active .ap-eye-slash{display:block}
+#ap-gate-password-toggle .ap-eye-slash line{stroke:currentColor;stroke-width:2;stroke-linecap:round}
 .ap-gate-oauth{display:flex;align-items:center;justify-content:center;gap:18px;margin:18px 0 6px}
 .ap-gate-oauth .oauth-provider-btn{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;border:1px solid var(--border-color);background:transparent;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
 .ap-gate-oauth .oauth-provider-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.18)}
@@ -1408,6 +1425,7 @@ body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
             <div class="ap-gate-password-wrap">
                 <input type="password" id="ap-gate-password" autocomplete="current-password" placeholder="••••••••">
                 <button type="button" id="ap-gate-password-toggle" title="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Показать пароль'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Показать пароль'); ?>">
+                    <svg class="ap-eye-slash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="3" x2="21" y2="21"></line></svg>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
             </div>
@@ -4426,7 +4444,7 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
         }).catch(function(){ submit.disabled=false; apGateShow('Network error'); });
     }
     if(submit) submit.addEventListener('click',doGateLogin);
-    if(toggle&&pwd) toggle.addEventListener('click',function(){ pwd.type=pwd.type==='password'?'text':'password'; });
+    if(toggle&&pwd) toggle.addEventListener('click',function(){ pwd.type=pwd.type==='password'?'text':'password'; toggle.classList.toggle('active',pwd.type==='text'); });
     if(pwd) pwd.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); doGateLogin(); } });
     if(cancel) cancel.addEventListener('click',function(){ closeAdminPanel(); });
 })();
