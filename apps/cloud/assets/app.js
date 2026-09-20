@@ -2293,6 +2293,13 @@ function saveTabsState() {
     };
     localStorage.setItem('fileTabs', JSON.stringify(stateToSave));
 }
+function getEffectiveCloudTheme(urlParams) {
+    if (window.APP_CONFIG && (window.APP_CONFIG.theme === 'light' || window.APP_CONFIG.theme === 'dark')) {
+        return window.APP_CONFIG.theme;
+    }
+    const t = (urlParams ? urlParams.get('theme') : null) || 'dark';
+    return t === 'light' ? 'light' : 'dark';
+}
 function refreshAllEditorIframes() {
     tabsState.tabs.forEach(tab => {
         if (tab.photoEditor || tab.latexEditor || tab.transcriptionEditor ||
@@ -2303,7 +2310,7 @@ function refreshAllEditorIframes() {
                 const currentSrc = iframe.src;
                 const urlParams = new URLSearchParams(window.location.search);
                 const currentLang = urlParams.get('lang') || 'en';
-                const currentTheme = urlParams.get('theme') || 'dark';
+                const currentTheme = getEffectiveCloudTheme(urlParams);
                 const currentColor = urlParams.get('color') || '#85b503';
                 
                 if (!currentSrc.includes('lang=' + currentLang) || 
@@ -2519,7 +2526,7 @@ function loadMarkdownEditorToTab(tab) {
         iframe.setAttribute('data-tab-id', tab.id);
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        const theme = urlParams.get('theme') || 'dark';
+        const theme = getEffectiveCloudTheme(urlParams);
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';
@@ -2788,7 +2795,7 @@ function loadHtmlEditorToTab(tab) {
         iframe.setAttribute('data-tab-id', tab.id);
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        const theme = urlParams.get('theme') || 'dark';
+        const theme = getEffectiveCloudTheme(urlParams);
         const color = urlParams.get('color') || '#85b503';
         let currentUser = currentUserState.user || 'default';
         currentUser = currentUser.replace(/\s+/g, '_');

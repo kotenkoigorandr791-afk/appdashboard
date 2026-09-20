@@ -58,3 +58,7 @@ val appVersionCode = (appVersionMajor * 10000) + (appVersionMinor * 100) + appVe
 ```bash
 adb connect 100.120.132.28:34545
 ```
+
+### What's new
+
+For every release and new build, add customer-facing update notes to the `What's new` window so users can clearly understand what changed after updating. Before installing on a device, verify that the `What's new` window opens after the app update and contains the current change list.

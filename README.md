@@ -109,8 +109,8 @@ The WebSocket worker (`ssh-ws`) always autostarts; the profile is only the remot
 | Service | Port (host) | Notes |
 |---------|-------------|--------|
 | `appdashboard` | `80` | App + nginx + workers |
-| `appdashboard-db` | `127.0.0.1:15432` | Postgres 16 |
-| `appdashboard-redis` | `127.0.0.1:16379` | Redis |
+| `appdashboard-db` | `—` | Postgres 16 (только внутри docker-сети) |
+| `appdashboard-redis` | `—` | Redis (только внутри docker-сети) |
 
 Optional profiles: `portainer`, `duplicati`, `gitea`, `immich`, `dawarich`.
 

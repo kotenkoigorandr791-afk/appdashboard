@@ -113,7 +113,18 @@ function openModal(html, opts = {}) {
     mc.classList.toggle('modal--api-docs', apiDocs);
   }
   overlay?.classList.toggle('modal-overlay--api-docs', apiDocs);
-  document.getElementById('modalBody').innerHTML = html;
+  const body = document.getElementById('modalBody');
+  body.innerHTML = html;
+  const topbar = document.getElementById('modalTopBar');
+  const topbarTitle = document.getElementById('modalTopBarTitle');
+  if (topbar && topbarTitle) {
+    const isDialog = html.includes('ui-dialog');
+    const h = (apiDocs || isDialog) ? null : body.querySelector('h2, h3.modal-title, .modal-title');
+    topbar.classList.toggle('has-title', !!h);
+    topbarTitle.textContent = h ? h.textContent.trim() : '';
+    if (h) h.remove();
+  }
+  body.scrollTop = 0;
   overlay?.classList.add('open');
   setPageScrollLocked(true);
 }
@@ -123,6 +134,10 @@ function closeModal() {
   overlay?.classList.remove('open', 'modal-overlay--api-docs');
   const mc = document.getElementById('modalContent');
   mc?.classList.remove('modal--dialog', 'modal--api-docs');
+  const topbar = document.getElementById('modalTopBar');
+  topbar?.classList.remove('has-title');
+  const topbarTitle = document.getElementById('modalTopBarTitle');
+  if (topbarTitle) topbarTitle.textContent = '';
   if (!overlay?.classList.contains('open')) setPageScrollLocked(false);
   state.viewDeviceId = null;
 }
@@ -920,7 +935,7 @@ function addMember(groupId) {
   const role = document.getElementById('newMemberRole')?.value || 'guest';
   if (!email) { uiAlert(uiText.member_email); return; }
   api('add_member', { group_id: groupId, member_email: email, role }).then(() => {
-    loadGroupMembers(groupId, _groupModalName || document.querySelector('#modalBody h2')?.textContent || '');
+    loadGroupMembers(groupId, _groupModalName || document.getElementById('modalTopBarTitle')?.textContent || document.querySelector('#modalBody h2')?.textContent || '');
   }).catch(e => uiAlert(e.message));
 }
 
@@ -1248,6 +1263,14 @@ function renderMarkdown(md) {
       html += `<div class="api-docs-callout">${calloutIcon}<p>${inline(q.text)}</p></div>`;
       continue;
     }
+
+    if (line.trim() === '---') {
+      flushList();
+      closeTable();
+      html += '<hr class="api-docs-hr"/>';
+      continue;
+    }
+
     if (/^### /.test(line)) { flushList(); const h = apiDocsStripEmojis(line.slice(4), true); html += `<h3>${h.icon}${inline(h.text)}</h3>`; continue; }
     if (/^## /.test(line)) { flushList(); const h = apiDocsStripEmojis(line.slice(3), true); html += `<h2>${h.icon}${inline(h.text)}</h2>`; continue; }
     if (/^# /.test(line)) { flushList(); const h = apiDocsStripEmojis(line.slice(2), true); html += `<h1>${h.icon}${inline(h.text)}</h1>`; continue; }

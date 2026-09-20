@@ -106,6 +106,10 @@ if [ -f "$APPDATA_DATA_DIR/db.env" ]; then
   [ -n "${DB_NAME:-}" ] && sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   [ -n "${DB_USER:-}" ] && sed -i "s/^DB_USER=.*/DB_USER=${DB_USER}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   [ -n "${DB_PASSWORD:-}" ] && sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=${DB_PASSWORD}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${REDIS_HOST:-}" ] && sed -i "s/^REDIS_HOST=.*/REDIS_HOST=${REDIS_HOST}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${REDIS_PORT:-}" ] && sed -i "s/^REDIS_PORT=.*/REDIS_PORT=${REDIS_PORT}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${REDIS_DATABASE:-}" ] && sed -i "s/^REDIS_DATABASE=.*/REDIS_DATABASE=${REDIS_DATABASE}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  [ -n "${REDIS_PREFIX:-}" ] && sed -i "s/^REDIS_PREFIX=.*/REDIS_PREFIX=${REDIS_PREFIX}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   grep -q '^REDIS_HOST=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_HOST=%s\n' "${REDIS_HOST:-appdashboard-redis}" >> "$APPDATA_DATA_DIR/db.env"
   grep -q '^REDIS_PORT=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-6379}" >> "$APPDATA_DATA_DIR/db.env"
   grep -q '^REDIS_DATABASE=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> "$APPDATA_DATA_DIR/db.env"

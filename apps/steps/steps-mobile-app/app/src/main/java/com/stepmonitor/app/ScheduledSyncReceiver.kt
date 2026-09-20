@@ -4,6 +4,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.stepmonitor.app.updates.AppUpdateManager
 
 /**
@@ -30,7 +32,10 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
             ScheduledSyncManager.ACTION_SCHEDULED_SYNC -> {
                 val scheduleId = intent.getStringExtra(ScheduledSyncManager.EXTRA_SCHEDULE_ID)
                 Log.d(TAG, "Delegating scheduled sync to SyncForegroundService (scheduleId=$scheduleId)")
-                SyncForegroundService.start(context, scheduleId)
+                rescheduleNext(context, scheduleId)
+                if (!SyncForegroundService.start(context, scheduleId)) {
+                    WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())
+                }
             }
 
             Intent.ACTION_BOOT_COMPLETED,
@@ -53,6 +58,21 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                     prefsManager.setWhatsNewPending(true)
                 }
                 AppUpdateManager.start(context)
+            }
+        }
+    }
+
+    private fun rescheduleNext(context: Context, scheduleId: String?) {
+        val prefsManager = PreferencesManager(context)
+        val scheduler = ScheduledSyncManager(context)
+        when (prefsManager.getSyncMode()) {
+            SyncMode.INTERVAL -> scheduler.scheduleNextIntervalSync()
+            SyncMode.SCHEDULED -> {
+                if (scheduleId == null) return
+                val schedule = prefsManager.getScheduledSyncs().find { it.id == scheduleId }
+                if (schedule != null && schedule.enabled) {
+                    scheduler.scheduleAlarm(schedule)
+                }
             }
         }
     }

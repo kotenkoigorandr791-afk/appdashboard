@@ -6,7 +6,7 @@
 <title><?=sh_h($t['app_title'])?></title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
-<link rel="stylesheet" href="assets/css/app.css?v=20260905a">
+<link rel="stylesheet" href="assets/css/app.css?v=20260920c">
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('smart_home'); ?>
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
@@ -358,8 +358,10 @@
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal" id="modalContent">
     <div class="modal-corner-slot" aria-hidden="true"></div>
+    <div class="modal-topbar" id="modalTopBar" aria-hidden="true">
+      <span class="modal-topbar-title" id="modalTopBarTitle"></span>
+    </div>
     <button class="modal-close" id="modalClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div id="modalBody"></div>
   </div>
 </div>
-
