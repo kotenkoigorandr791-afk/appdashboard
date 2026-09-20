@@ -1,6 +1,6 @@
 # Applications Directory Documentation
 
-The `apps/` directory contains 10 sub-applications that form the ServerKherson platform ecosystem.
+The `apps/` directory contains **13** sub-applications that form the ServerKherson platform ecosystem.
 
 > **Note:** For comprehensive documentation of each application with full details, API endpoints, database schemas, and configuration options, see **[06_detailed_applications_documentation.md](06_detailed_applications_documentation.md)**.
 
@@ -16,8 +16,8 @@ The `apps/` directory contains 10 sub-applications that form the ServerKherson p
 
 | File | Purpose |
 |------|---------|
-| `index.php` (1,595 lines) | Main UI shell with theme/language support |
-| `api.php` (5,048 lines) | REST API for file operations, user management |
+| `index.php` | Main UI shell with theme/language support |
+| `api.php` | REST API for file operations, user management |
 | `ai.php` | AI assistant integration endpoint |
 | `db.php` | Cloud-specific database functions |
 
@@ -47,439 +47,290 @@ The `apps/` directory contains 10 sub-applications that form the ServerKherson p
 
 | File | Purpose |
 |------|---------|
-| `composer.json` | PHP dependencies (PhpOffice suite) |
-| `ai-config.json` | AI configuration settings |
-| `templates.json` | Document templates |
-| `translation_config.json` | Translation service settings |
-| `name.json` | App name translations |
+| `description.json` | App metadata |
+| `name.json` | Display name |
+| `icon.svg` | App icon |
+| `templates.json` | File templates |
+| `translation_config.json` | i18n configuration |
 
-### Frontend Assets (`assets/`)
+#### Data Directories
+
+- `storage/` — User file storage (per-user directories)
+- `temp/` — Temporary files
+- `temp_convert/` — Conversion workspace
+- `transcription_uploads/` — Audio files for transcription
+- `tts_output/` — Text-to-speech output
+
+---
+
+## 2. Dawarich (Maps) (`apps/dawarich/`)
+
+**Maps Application / SSO Bridge** - Provides interactive maps with timeline, places, and photo integration. SSO bridge for external Dawarich instance.
+
+### Files Overview
 
 | File | Purpose |
 |------|---------|
-| `app.js` | Main application logic |
-| `ai-assistant.js` | AI assistant UI interactions |
-| `advanced-search.js` | Search functionality |
-| `upload.js` | File upload handling with progress |
-| `monaco-editor.js` | Monaco code editor integration |
-| `styles.css` | Main application styles |
-| `i18n/` | Cloud-specific translations |
+| `index.php` | SSO bridge entry point |
+| `description.json` | App metadata |
+| `name.json` | Display name |
+| `icon.svg` | App icon |
 
-### 3D Libraries (`js/`)
+**Data Storage**: External PostgreSQL database (`dawarich_development`) via dedicated connection.
+
+**Type**: **SSO Bridge App** - Acts as authentication proxy to external service.
+
+---
+
+## 3. Films (`apps/films/`)
+
+**Movie Manager** - Personal movie collection manager with TMDB integration.
+
+### Files Overview
+
+#### Core Files
+
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main entry point |
+| `controllers/` | MVC controllers |
+| `core/` | Core models and services |
+| `config.json` | TMDB API configuration |
+| `background.png` | Default background |
+
+#### Data Directories
+
+- `comments/` — User comments per movie
+
+**Type**: **Full App** - Complete standalone application with UI.
+
+---
+
+## 4. Gitea (`apps/gitea/`)
+
+**Git Service** - Self-hosted Git service (SSO bridge to external Gitea instance).
+
+### Files Overview
 
 | File | Purpose |
 |------|---------|
-| `three.min.js` | Three.js 3D rendering engine |
-| `3MFLoader.js` | 3MF file format loader |
-| `STLLoader.js` | STL file format loader |
-| `OBJLoader.js` | OBJ file format loader |
-| `FBXLoader.js` | FBX file format loader |
-| `MTLLoader.js` | MTL material loader |
-| `OrbitControls.js` | 3D camera controls |
-| `dxf-parser.min.js` | DXF file parser |
-| `libredwg-web.umd.min.js` | DWG file parser |
+| `index.php` | SSO bridge entry point |
+| `description.json` | App metadata |
+| `name.json` | Display name |
+| `icon.svg` | App icon |
 
-### Data Directories
+**Type**: **SSO Bridge App** - Authentication proxy to external Gitea.
+
+---
+
+## 5. Immich (`apps/immich/`)
+
+**Photo/Video Backup** - Self-hosted photo/video backup solution (SSO bridge).
+
+### Files Overview
+
+| File | Purpose |
+|------|---------|
+| `index.php` | SSO bridge entry point |
+| `description.json` | App metadata |
+| `name.json` | Display name |
+| `icon.svg` | App icon |
+
+**Type**: **SSO Bridge App** - Authentication proxy to external Immich.
+
+---
+
+## 6. Kanboard (`apps/kanboard/`)
+
+**Kanban Boards** - Full Kanboard installation with AppDashboard plugin.
+
+### Files Overview
 
 | Directory | Purpose |
 |-----------|---------|
-| `data/` | User data storage |
-| `temp/` | Temporary files |
-| `transcriptions/` | Audio transcription results |
-| `upload_sessions/` | Upload session tracking |
-| `storage/` | User file storage |
-| `vendor/` | Cloud-specific PHP dependencies |
+| `app/` | Kanboard core application |
+| `plugins/AppDashboard/` | AppDashboard integration plugin |
+| `assets/` | Static assets |
+| `autoload.php` | Composer autoloader |
+| `cli/` | CLI commands |
 
-### Key Features
-
-1. **File Management**:
-   - Upload/download with progress tracking
-   - Folder structure with expand/collapse
-   - File sharing with tokens
-   - Recycle bin functionality
-   - Search within files
-
-2. **Editors**:
-   - Monaco Editor integration (VS Code editor)
-   - CodeMirror for lightweight editing
-   - Syntax highlighting for 20+ languages
-   - LaTeX compilation
-   - Markdown with live preview
-   - Photo editing
-
-3. **3D Viewing**:
-   - Three.js-based 3D renderer
-   - Support for 3MF, STL, OBJ, FBX, DXF, DWG
-   - Orbit controls for camera manipulation
-   - Material/texture support
-
-4. **AI Integration**:
-   - AI assistant chat interface
-   - Code generation/help
-   - Text analysis
-   - LM Studio proxy integration
-
-5. **Transcription**:
-   - Audio-to-text conversion
-   - Python-based transcription service
-   - Editor for reviewing transcriptions
-
-6. **Office Integration**:
-   - OnlyOffice document editing
-   - PhpWord/PhpSpreadsheet/PhpPresentation
-   - DOCX, XLSX, PPTX support
-
-### API Endpoints (`api.php`)
-
-```
-GET    /api.php?action=files         - List files
-POST   /api.php?action=upload        - Upload file
-DELETE /api.php?action=delete        - Delete file/folder
-POST   /api.php?action=rename        - Rename file/folder
-POST   /api.php?action=move          - Move file/folder
-POST   /api.php?action=copy          - Copy file/folder
-POST   /api.php?action=create-folder - Create folder
-POST   /api.php?action=create-file   - Create file
-GET    /api.php?action=share         - Generate share link
-POST   /api.php?action=transcribe    - Transcribe audio
-POST   /api.php?action=compile       - Compile code
-POST   /api.php?action=format        - Format code
-```
-
-### Upload Sessions
-
-The cloud app implements resumable uploads with session tracking:
-- Sessions stored in `upload_sessions/` directory
-- Each session has JSON metadata file
-- Supports large file uploads (up to 500MB)
-- Session cleanup on completion/timeout
+**Type**: **Full App** - Complete Kanboard instance embedded.
 
 ---
 
-## 2. Movie Manager (`apps/films/`)
+## 7. Lopaka (`apps/lopaka/`)
 
-**Purpose**: Movie collection manager with user comments.
+**TFT Display Generator** - Embedded display editor for TFT/e-ink screens.
 
-### Files
+### Files Overview
 
-| File | Purpose |
-|------|---------|
-| `index.php` (3,717 lines) | Main interface with movie browsing |
-| `movies.json` | Movie database |
-| `config.json` | App configuration |
-| `translations.php` | UI translations |
-| `name.json` | App name |
-| `background.png` | Background image |
-| `icon.png` | App icon |
-| `comments/` | User comments (JSON files per movie) |
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main editor |
+| `assets/` | Fonts, templates, icons |
+| `description.json` | App metadata |
+| `name.json` | Display name |
+| `icon.svg` | App icon |
+| `font-preview.html` | Font testing page |
 
-### Features
-
-- Movie catalog browsing
-- Movie details view
-- User comments system
-- Search and filtering
-- Per-user data isolation
+**Type**: **Full App** - Embedded display layout editor.
 
 ---
 
-## 3. Maps Application (`apps/map/`)
+## 8. Media Viewer (`apps/media_viewer/`)
 
-**Purpose**: Interactive maps with user file uploads.
+**Media Gallery** - Image/video gallery with face recognition and EXIF viewing.
 
-### Files
+### Files Overview
 
-| File | Purpose |
-|------|---------|
-| `index.php` | Map interface |
-| `name.json` | App name translations |
-| `icon.png` | App icon |
-| `uploads/` | User uploaded map files |
-| `user_data/{email}/favorites.json` | Per-user favorite locations |
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main entry point |
+| `controllers/` | MVC controllers |
+| `core/` | Core models and services |
+| `background_light.jpg` / `background_dark.jpg` | Theme backgrounds |
 
-### Features
-
-- Interactive map display
-- User file uploads
-- Favorites system
-- Per-user data storage
+**Type**: **Full App** - Complete media gallery with ML features.
 
 ---
 
-## 4. Media Gallery (`apps/media_viewer/`)
+## 9. Recipes (`apps/recipes/`)
 
-**Purpose**: Photo and video gallery with album support.
+**Recipe Manager** - Personal recipe collection with meal planning.
 
-### Files
+### Files Overview
 
-| File | Purpose |
-|------|---------|
-| `index.php` | Main gallery interface |
-| `albums.json` | Album definitions |
-| `name.json` | App name |
-| `translations.json` | UI translations |
-| `update_stats.php` | Statistics updater |
-| `icon.png` | App icon |
-| `data/albums.json` | Runtime album data |
-| `data/stats.json` | View statistics |
-| `previews/` | Generated thumbnails |
-| `install/` | Installation scripts |
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main entry point |
+| `controllers/` | MVC controllers |
+| `core/` | Core models and services |
+| `bg_remove.py` | Background removal script |
+| `color-tone.js` | Color palette utility |
+| `dark-background.jpg` | Theme background |
 
-### Features
-
-- Album-based organization
-- Thumbnail generation
-- View statistics tracking
-- Photo/video viewing
+**Type**: **Full App** - Complete recipe management with AI features.
 
 ---
 
-## 5. Server Performance Monitor (`apps/performance/`)
+## 10. Smart Home (`apps/smart_home/`)
 
-**Purpose**: Real-time server monitoring dashboard.
+**Smart Home Controller** - MQTT-based home automation dashboard.
 
-### Files
+### Files Overview
 
-| File | Purpose |
-|------|---------|
-| `index.php` (1,608 lines) | Dashboard UI with metrics display |
-| `server_monitor.php` | Metrics API endpoint |
-| `name.json` | App name |
-| `translations.php` | UI translations |
-| `style.css` | Dashboard styles |
-| `icon.png` | App icon |
-| `modules_cache.json` | Apache modules cache |
-| `cache/` | Cached metrics data |
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main dashboard |
+| `core/` | Core models and MQTT handlers |
+| `views/` | Dashboard views and scripts |
+| `assets/` | Background images |
+| `SmartHomeWsHandler.php` | WebSocket handler for real-time updates |
+| `mqtt_auth_sync.php` | MQTT authentication sync |
+| `mqtt_worker.php` | Background MQTT worker |
+| `ws_control_bridge.php` | WebSocket control bridge |
+| `ws_dispatch_tick.php` | WebSocket tick dispatcher |
+| `ws_server.php` | WebSocket server |
+| `smart-home-ws.service` | Systemd service file |
 
-### API Endpoints (`server_monitor.php`)
+**Data Storage**: SQLite databases per user in `data/`; MQTT broker external.
 
-```
-/performance/cpu      - CPU usage metrics
-/performance/mem      - Memory usage
-/performance/memswap  - Swap memory
-/performance/diskio   - Disk I/O statistics
-/performance/network  - Network traffic
-/performance/uptime   - System uptime
-```
-
-### Features
-
-- Real-time CPU monitoring
-- Memory and swap usage
-- Disk I/O statistics
-- Network traffic monitoring
-- System uptime display
-- Apache modules info
-- Cached metrics for performance
+**Type**: **Full App** - Real-time IoT dashboard with WebSocket.
 
 ---
 
-## 6. Recipe Manager (`apps/recipes/`)
+## 11. Spends (`apps/spends/`)
 
-**Purpose**: Recipe collection manager with product database.
+**Expense Tracker** - Personal finance tracker with categories and reports.
 
-### Files
+### Files Overview
 
-| File | Purpose |
-|------|---------|
-| `index.php` | Main recipe interface |
-| `name.json` | App name |
-| `translations.json` | UI translations |
-| `styles.php` | Dynamic CSS styles |
-| `recipe_state.json` | Recipe state persistence |
-| `icon.png` | App icon |
-| `dark-background.jpg` | Dark theme background |
-| `light-background.jpg` | Light theme background |
-| `default_recipe.jpg` | Default recipe image |
-| `products/{id}/product.json` | Product database |
-| `recipes/` | Recipe data storage |
-
-### Features
-
-- Recipe creation and editing
-- Product/ingredient database
-- Theme support (light/dark)
-- Recipe state persistence
-- Image support for recipes
-
----
-
-## 7. Expense Tracker (`apps/spends/`)
-
-**Purpose**: Personal finance and expense tracking.
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `index.php` (2,625 lines) | Main expense tracking interface |
-| `name.json` | App name |
-| `translations.json` | UI translations |
-| `global_settings.json` | Global app settings |
-| `icon.png` | App icon |
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main entry point |
+| `controllers/` | MVC controllers |
+| `core/` | Core models and services |
+| `data/` | User data files |
+| `backups/` | Automated backups |
 | `default_profile.jpg` | Default profile image |
-| `table_settings.png` | Table settings visual |
-| `расходы 2023-2024.xlsx` | Sample Excel import file |
-| `backups/` | Data backups |
-| `upload_sessions/` | Upload session tracking |
-| `utils/` | Utility functions |
 
-### Database (Per-user SQLite)
+**Data Storage**: Per-user SQLite databases.
 
-```sql
-settings          -- User settings
-stores            -- Store definitions
-expenses          -- Expense records (date, store, amount)
-table_settings    -- Table display settings
-```
-
-### Features
-
-- Expense tracking by date and store
-- Excel import support
-- Per-user PostgreSQL databases
-- Data backups
-- Upload session management
-- Table customization
+**Type**: **Full App** - Complete expense tracking application.
 
 ---
 
-## 8. Steps Counter (`apps/steps/`)
+## 12. Steps (`apps/steps/`)
 
-**Purpose**: Activity and steps tracking with OCR support.
+**Steps Counter** - Pedometer and activity tracker with webhook support.
 
-### Files
+### Files Overview
 
 | File | Purpose |
 |------|---------|
-| `index.php` | Main activity tracking interface |
-| `name.json` | App name |
-| `translations.json` | UI translations |
-| `icon.png` | App icon |
-| `default_profile.jpg` | Default profile image |
-| `steps.png` | Steps icon |
-| `distance.png` | Distance icon |
-| `goal.png` | Goal icon |
-| `kkal.png` | Calories icon |
-| `upload_sessions/` | Upload session tracking |
-| `utils/` | Utilities including Tesseract OCR |
-| `utils/bin/` | Tesseract binaries and man pages |
+| `index.php` | Main dashboard |
+| `auth_common.php` | Shared auth helpers |
+| `auth_app.php` | App-specific auth |
+| `auth_web.php` | Web auth handlers |
+| `background_*.jpg` | Theme backgrounds |
+| `steps-mobile-app/` | Mobile app source (Flutter/React Native) |
+| `steps.webp` | App icon |
 
-### Features
+**Features**:
+- Step counting with daily/weekly/monthly stats
+- Webhook endpoint for mobile app sync (`/public-api/steps`)
+- Goal tracking and achievements
+- Multi-device sync
 
-- Steps tracking
-- Distance calculation
-- Goal setting
-- Calorie tracking
-- CSV/JSON data import
-- OCR support (Tesseract) for screenshot processing
+**Type**: **Full App** - Activity tracker with mobile integration.
 
 ---
 
-## 9. TFT Display Generator (`apps/lopaka/`)
+## 13. Viewer (`apps/viewer/`)
 
-**Purpose**: Code generator for TFT displays.
+**Network Device Viewer** - Network topology visualization and device monitoring.
 
-### Files
+### Files Overview
 
-| File | Purpose |
-|------|---------|
-| `index.php` | Generator interface |
-| `name.json` | App name |
-| `style.css` | Generator styles |
-| `translations.js` | Client-side translations |
-| `icon.png` | App icon |
-| `userdata/{email}/data.sqlite3` | Per-user project database |
-| `upload_sessions/` | Upload session tracking |
+| File/Directory | Purpose |
+|----------------|---------|
+| `index.php` | Main entry point |
+| `controllers/` | MVC controllers |
+| `core/` | Core models and services |
+| `i18n/` | Translation files |
+| `description.json` | App metadata |
+| `name.json` | Display name |
+| `history.json` | Device history |
+| `icon.svg` | App icon |
 
-### Features
-
-- TFT display code generation
-- Per-user project storage
-- SQLite-based project data
-- Visual configuration interface
+**Type**: **Full App** - Network monitoring dashboard.
 
 ---
 
-## 10. Network Device Viewer (`apps/viewer/`)
+## Removed / Relocated Applications
 
-**Purpose**: Network device monitoring and viewing.
-
-### Files
-
-| File | Purpose |
-|------|---------|
-| `index.php` | Device viewer interface |
-| `name.json` | App name |
-| `config.json` | App configuration |
-| `history.json` | View history |
-| `icon.png` | App icon |
-| `dashboard_token.txt` | Dashboard authentication token |
-
-### Features
-
-- Network device discovery
-- Device status monitoring
-- View history tracking
-- Dashboard integration
+| Old Path | Status | New Location |
+|----------|--------|--------------|
+| `apps/map/` | Renamed | `apps/dawarich/` |
+| `apps/performance/` | Moved | `project/performance/` |
 
 ---
 
-## Common Patterns Across Apps
+## App Classification Summary
 
-### Authentication
+| Category | Apps |
+|----------|------|
+| **Full Apps** | cloud, films, kanboard, lopaka, media_viewer, recipes, smart_home, spends, steps, viewer |
+| **SSO Bridges** | dawarich, gitea, immich |
+| **Total** | **13 apps** |
 
-All apps use the central authentication system:
-```php
-session_start();
-require_once '../../db.php';
-// Check $_SESSION['user'] and $_SESSION['auth_time']
-// Validate against active_sessions table
-```
+---
 
-### Database Access
+## Shared Infrastructure
 
-Apps share the central database:
-```php
-app_main_db() via lib/app_db.php
-function getDB(): ?SQLite3 {
-    static $db = null;
-    if ($db === null) {
-        $db = new SQLite3(DB_FILE);
-        $db->enableExceptions(true);
-        $db->busyTimeout(3000);
-    }
-    return $db;
-}
-```
-
-### Per-User Data
-
-Many apps create per-user PostgreSQL databases:
-```php
-function getUserDBPath($userEmail) {
-    $safe = getSafeFolderName($userEmail);
-    $dir  = APPS_DATA_DIR . $safe;
-    return $dir . '/data.sqlite3';
-}
-```
-
-### Internationalization
-
-Apps support 4 languages via URL parameters:
-```php
-$lang = isset($_GET['lang']) ? $_GET['lang'] : 'en';
-$theme = isset($_GET['theme']) ? $_GET['theme'] : 'light';
-$color = isset($_GET['color']) ? $_GET['color'] : '#85b503';
-```
-
-### Upload Sessions
-
-File uploads use session tracking:
-```php
-const UPLOAD_SESSIONS_DIR = __DIR__ . '/upload_sessions';
-function create_upload_session($target_path, $user) {
-    $upload_id = bin2hex(random_bytes(16));
-    // Store session metadata
-}
-```
+All apps share:
+- **Authentication**: Central auth via `project/index.php` session
+- **Database**: PostgreSQL (appdashboard) for user/auth data
+- **i18n**: 6 languages (en, uk, ru, be, pl, cs)
+- **Theme**: Dark/light mode via CSS variables
+- **API**: `/public-api/` for external integrations

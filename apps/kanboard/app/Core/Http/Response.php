@@ -213,6 +213,13 @@ class Response extends Base
     {
         $this->responseSent = true;
 
+        if (headers_sent()) {
+            if (! empty($this->httpBody)) {
+                echo $this->httpBody;
+            }
+            return;
+        }
+
         if ($this->httpStatusCode !== 200) {
             header('Status: '.$this->httpStatusCode);
             header($this->request->getServerVariable('SERVER_PROTOCOL').' '.$this->httpStatusCode);

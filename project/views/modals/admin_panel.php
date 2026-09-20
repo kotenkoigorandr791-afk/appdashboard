@@ -56,32 +56,32 @@
 }
 #ap-gate-login{
     display:none;
-    width:min(400px,92vw);
+    width:min(480px,92vw);
     position:relative;
     overflow:hidden;
-    border-radius:20px;
-    border:1px solid color-mix(in srgb,var(--border-color) 80%,transparent);
+    border-radius:26px;
+    border:1px solid rgba(17,255,0,0.28);
     background:
-        radial-gradient(120% 90% at 0% 0%, color-mix(in srgb,var(--primary-color) 28%,transparent) 0%, transparent 55%),
-        radial-gradient(90% 70% at 100% 100%, color-mix(in srgb,var(--primary-color) 16%,transparent) 0%, transparent 50%),
-        color-mix(in srgb,var(--modal-bg, rgba(18,24,32,.92)) 92%, var(--bg-color));
-    box-shadow: var(--glass-shadow, 0 24px 60px rgba(0,0,0,.35)), inset 0 1px 0 rgba(255,255,255,.06);
-    backdrop-filter: blur(18px) saturate(1.35);
-    -webkit-backdrop-filter: blur(18px) saturate(1.35);
-    padding:28px 26px 22px;
+        radial-gradient(120% 90% at 0% 0%, rgba(17,255,0,0.10) 0%, transparent 55%),
+        radial-gradient(90% 70% at 100% 100%, rgba(59,130,246,0.10) 0%, transparent 50%),
+        linear-gradient(165deg, rgba(14,22,34,0.92) 0%, rgba(10,16,26,0.96) 100%);
+    box-shadow:0 30px 80px rgba(0,0,0,0.75),0 0 0 1px rgba(17,255,0,0.06) inset,0 0 80px -20px rgba(17,255,0,0.35),0 0 120px -40px rgba(59,130,246,0.35);
+    backdrop-filter:blur(28px) saturate(180%);
+    -webkit-backdrop-filter:blur(28px) saturate(180%);
+    padding:36px 34px 28px;
     box-sizing:border-box;
     text-align:left;
     font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-    animation:ap-gate-in .32s cubic-bezier(.2,.8,.2,1);
+    animation:ap-gate-in .5s cubic-bezier(.2,.8,.2,1);
 }
 /* Glass/glow layer like auth cards */
 #ap-gate-login::before{
     content:'';
     position:absolute;
     inset:-1px;
-    border-radius:22px;
+    border-radius:27px;
     padding:1px;
-    background:linear-gradient(135deg,transparent 0%,color-mix(in srgb,var(--primary-color) 70%,transparent) 25%,transparent 50%,rgba(34,211,238,0.50) 75%,transparent 100%);
+    background:linear-gradient(135deg,transparent 0%,rgba(17,255,0,0.85) 20%,rgba(34,211,238,0.5) 40%,transparent 55%,rgba(59,130,246,0.6) 75%,transparent 100%);
     background-size:300% 300%;
     -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
     -webkit-mask-composite:xor;
@@ -163,6 +163,15 @@ body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
     margin-top:14px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--border-color) 80%,transparent);
     font-size:11px;opacity:.55;line-height:1.4;
 }
+.ap-gate-password-wrap{position:relative}
+.ap-gate-password-wrap #ap-gate-password{padding-right:52px}
+#ap-gate-password-toggle{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:38px;height:38px;padding:0;border:1px solid rgba(17,255,0,0.25);border-radius:10px;background:rgba(17,255,0,0.08);color:var(--text-color);cursor:pointer;display:flex;align-items:center;justify-content:center}
+#ap-gate-password-toggle svg{width:18px;height:18px;display:block}
+#ap-gate-password-toggle:hover{border-color:rgba(17,255,0,0.45);background:rgba(17,255,0,0.14)}
+.ap-gate-oauth{display:flex;align-items:center;justify-content:center;gap:18px;margin:18px 0 6px}
+.ap-gate-oauth .oauth-provider-btn{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:14px;border:1px solid var(--border-color);background:transparent;text-decoration:none;transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease}
+.ap-gate-oauth .oauth-provider-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.18)}
+.ap-gate-oauth .oauth-provider-btn svg{width:24px;height:24px;display:block}
 
 /* Top Bar */
 #ap-topbar {
@@ -1396,8 +1405,25 @@ body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
             <h2 class="ap-gate-title"><?php echo my_htmlspecialchars($translations['ap_gate_title'] ?? 'Unlock Admin Panel'); ?></h2>
             <p class="ap-gate-sub"><?php echo my_htmlspecialchars($translations['ap_gate_subtitle'] ?? 'Use the same password as your account. A separate admin token will be issued for this session.'); ?></p>
             <label class="ap-gate-label" for="ap-gate-password"><?php echo my_htmlspecialchars($translations['password'] ?? 'Password'); ?></label>
-            <input type="password" id="ap-gate-password" autocomplete="current-password" placeholder="••••••••">
+            <div class="ap-gate-password-wrap">
+                <input type="password" id="ap-gate-password" autocomplete="current-password" placeholder="••••••••">
+                <button type="button" id="ap-gate-password-toggle" title="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Показать пароль'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Показать пароль'); ?>">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+            </div>
             <button type="button" id="ap-gate-submit"><?php echo my_htmlspecialchars($translations['ap_gate_unlock'] ?? 'Unlock'); ?></button>
+            <div class="ap-gate-oauth">
+                <?php if(oauthProviderConfigured('github')): ?>
+                <a href="/login/oauth/start?provider=github&mode=admin_gate" class="oauth-provider-btn oauth-github" title="GitHub" aria-label="GitHub">
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-1.35-3.42-3.3-4.365-3.3-4.365-.825-.705 0-.705 0-.705 1.125 0 1.815 1.215 1.815 1.215 1.02 1.725 2.685 1.23 3.345.945.105-.75.435-1.23.795-1.515-2.79-.315-5.73-1.395-5.73-6.195 0-1.365.495-2.475 1.305-3.345-.135-.315-.57-1.575.135-3.285 0 0 1.065-.33 3.495 1.275a12.06 12.06 0 0 1 3.15-.42c1.065 0 2.145.15 3.15.42 2.43-1.605 3.495-1.275 3.495-1.275.705 1.71.27 2.97.135 3.285.81.87 1.305 1.98 1.305 3.345 0 4.815-2.955 5.865-5.745 6.195.45.39.855 1.155.855 2.325 0 1.68-.015 3.03-.015 3.435 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                </a>
+                <?php endif; ?>
+                <?php if(oauthProviderConfigured('google')): ?>
+                <a href="/login/oauth/start?provider=google&mode=admin_gate" class="oauth-provider-btn oauth-google" title="Google" aria-label="Google">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                </a>
+                <?php endif; ?>
+            </div>
             <div id="ap-gate-error"></div>
             <button type="button" id="ap-gate-cancel"><?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?></button>
             <div class="ap-gate-meta"><?php echo my_htmlspecialchars($translations['ap_gate_meta'] ?? 'Separate from your main session · expires after inactivity'); ?></div>
@@ -1431,7 +1457,7 @@ var monacoInjected = false;
 // Shared loader is defined in project/views/partials/monaco_loader.php
 
 var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager','security':'ap-security'};
+var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
 function injectOmniRouteTheme(){
@@ -2716,76 +2742,7 @@ function wireEvents(){
     dynRoot.querySelectorAll('.ap-nav-btn').forEach(function(b){b.addEventListener('click',function(ev){
         var pid=this.dataset.panel;
         openPanel(pid);
-        if(pid==='ap-security') apSecurityRefresh();
     });});
-    window.apEnsureStepup=function(done){
-        var fd=new FormData();fd.append('admin_security_status','1');fd.append('ajax','1');
-        return fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-            if(d&&d.stepup_valid){ if(typeof done==='function') done(); return true; }
-            openPanel('ap-security');
-            var box=dynRoot.querySelector('#ap-sec-stepup-box'); if(box) box.style.display='block';
-            var st=dynRoot.querySelector('#ap-sec-status'); if(st) st.textContent='Confirm identity to continue.';
-            return false;
-        }).catch(function(){return false;});
-    };
-    function apSecPost(action, extra){
-        var fd=new FormData();fd.append(action,'1');fd.append('ajax','1');
-        if(extra) Object.keys(extra).forEach(function(k){fd.append(k,extra[k]);});
-        return fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();});
-    }
-    function apSecurityRefresh(){
-        apSecPost('admin_security_status').then(function(d){
-            var el=dynRoot.querySelector('#ap-sec-totp-status');
-            if(el) el.textContent=(d.totp_enabled?'TOTP enabled':'TOTP not enabled')+(d.stepup_valid?' · step-up active':' · step-up required for sensitive actions')+(d.totp_required?' · TOTP required':'');
-            var ta=dynRoot.querySelector('#ap-sec-ip-allowlist'); if(ta) ta.value=d.ip_allowlist||'';
-        });
-    }
-    var setupBtn=dynRoot.querySelector('#ap-sec-totp-setup');
-    if(setupBtn) setupBtn.addEventListener('click',function(){
-        apSecPost('admin_totp_setup').then(function(d){
-            var box=dynRoot.querySelector('#ap-sec-totp-setup-box'); if(box) box.style.display='block';
-            var sec=dynRoot.querySelector('#ap-sec-totp-secret'); if(sec) sec.textContent=d.secret||'';
-        });
-    });
-    var confBtn=dynRoot.querySelector('#ap-sec-totp-confirm');
-    if(confBtn) confBtn.addEventListener('click',function(){
-        var code=(dynRoot.querySelector('#ap-sec-totp-code')||{}).value||'';
-        apSecPost('admin_totp_confirm',{code:code}).then(function(d){
-            var st=dynRoot.querySelector('#ap-sec-status');
-            if(st) st.textContent=d.success?'TOTP enabled':'Error: '+(d.error||'failed');
-            if(d.success) apSecurityRefresh();
-        });
-    });
-    var stepBtn=dynRoot.querySelector('#ap-sec-stepup');
-    if(stepBtn) stepBtn.addEventListener('click',function(){
-        var box=dynRoot.querySelector('#ap-sec-stepup-box'); if(box) box.style.display='block';
-    });
-    var stepGo=dynRoot.querySelector('#ap-sec-stepup-go');
-    if(stepGo) stepGo.addEventListener('click',function(){
-        var password=(dynRoot.querySelector('#ap-sec-stepup-password')||{}).value||'';
-        var code=(dynRoot.querySelector('#ap-sec-stepup-code')||{}).value||'';
-        apSecPost('admin_stepup',{password:password,code:code}).then(function(d){
-            var st=dynRoot.querySelector('#ap-sec-status');
-            if(st) st.textContent=d.success?'Unlocked':'Error: '+(d.error||'failed');
-            if(d.success) apSecurityRefresh();
-        });
-    });
-    var disBtn=dynRoot.querySelector('#ap-sec-totp-disable');
-    if(disBtn) disBtn.addEventListener('click',function(){
-        apSecPost('admin_totp_disable').then(function(d){
-            var st=dynRoot.querySelector('#ap-sec-status');
-            if(st) st.textContent=d.success?'TOTP disabled':'Error: '+(d.error||'failed');
-            if(d.success) apSecurityRefresh();
-        });
-    });
-    var ipSave=dynRoot.querySelector('#ap-sec-ip-save');
-    if(ipSave) ipSave.addEventListener('click',function(){
-        var allowlist=(dynRoot.querySelector('#ap-sec-ip-allowlist')||{}).value||'';
-        apSecPost('save_admin_ip_allowlist',{allowlist:allowlist}).then(function(d){
-            var st=dynRoot.querySelector('#ap-sec-status');
-            if(st) st.textContent=d.success?'Allowlist saved':'Error: '+(d.error||'failed');
-        });
-    });
     var _apFetch=window.fetch;
     if(!_apFetch._apStepupWrapped){
         window.fetch=function(i,n){
@@ -2795,8 +2752,6 @@ function wireEvents(){
                     if(d&&(d.admin_auth_required||d.error==='admin_auth_required')){
                         apLoaded=false;
                         if(typeof apGateShow==='function') apGateShow('');
-                    } else if(d&&(d.stepup_required||d.error==='stepup_required')){
-                        if(typeof window.apEnsureStepup==='function') window.apEnsureStepup();
                     }
                     return r;
                 }).catch(function(){return r;});
@@ -4453,6 +4408,7 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
     var submit=document.getElementById('ap-gate-submit');
     var cancel=document.getElementById('ap-gate-cancel');
     var pwd=document.getElementById('ap-gate-password');
+    var toggle=document.getElementById('ap-gate-password-toggle');
     function doGateLogin(){
         var pass=pwd?pwd.value:'';
         if(!pass){ apGateShow(<?php echo json_encode($translations['password_required'] ?? 'Password required'); ?>); return; }
@@ -4470,6 +4426,7 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
         }).catch(function(){ submit.disabled=false; apGateShow('Network error'); });
     }
     if(submit) submit.addEventListener('click',doGateLogin);
+    if(toggle&&pwd) toggle.addEventListener('click',function(){ pwd.type=pwd.type==='password'?'text':'password'; });
     if(pwd) pwd.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); doGateLogin(); } });
     if(cancel) cancel.addEventListener('click',function(){ closeAdminPanel(); });
 })();

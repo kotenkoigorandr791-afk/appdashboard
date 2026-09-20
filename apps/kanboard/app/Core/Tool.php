@@ -97,15 +97,20 @@ class Tool
      */
     public static function buildDICHelpers(Container $container, array $namespaces)
     {
-        foreach ($namespaces as $namespace => $classes) {
-            if (is_string($classes)) {
-                $container['helper']->register($namespace, $classes);
-                continue;
+        ob_start();
+        try {
+            foreach ($namespaces as $namespace => $classes) {
+                if (is_string($classes)) {
+                    $container['helper']->register($namespace, $classes);
+                    continue;
+                }
+                foreach ($classes as $name) {
+                    $class = '\\Kanboard\\'.$namespace.'\\'.$name;
+                    $container['helper']->register($name, $class);
+                }
             }
-            foreach ($classes as $name) {
-                $class = '\\Kanboard\\'.$namespace.'\\'.$name;
-                $container['helper']->register($name, $class);
-            }
+        } finally {
+            ob_end_clean();
         }
 
         return $container;

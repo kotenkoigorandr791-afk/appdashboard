@@ -377,6 +377,11 @@ function applyDevicesFromApi(data) {
   const prev = JSON.parse(JSON.stringify(state.devices));
   if (data.devices) state.devices = data.devices;
   if (data.my_devices) state.myDevices = data.my_devices;
+  if (Array.isArray(data.floor_plan)) {
+    state.floorPlan = data.floor_plan.map(el => fpNormalizeElement(el));
+    FP.elements = state.floorPlan;
+    fpNormalizeElements();
+  }
   patchDevicesFromState(prev, state.devices);
   if (state.currentPage === 'devices') renderDevicesTable();
   if (FP.canvas) { fpRebuildDeviceChips(); fpRender(); if (fpIsViewOnly()) fpRenderProps(); }
@@ -494,6 +499,10 @@ function startRealtimeSync() {
     state.settings = data.settings || state.settings;
     state.floorPlan = data.floor_plan || state.floorPlan;
     if (Array.isArray(state.floorPlan)) state.floorPlan = state.floorPlan.map(el => fpNormalizeElement(el));
+    if (JSON.stringify(FP.elements || []) !== JSON.stringify(state.floorPlan)) {
+      FP.elements = state.floorPlan;
+      fpNormalizeElements();
+    }
     patchDevicesFromState(prev, next);
       updateOpenModalDevice();
       if (FP.canvas && FP.elements.some(e => e.type === 'device')) fpOnDevicesUpdated();
@@ -1366,7 +1375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Navigation
   document.querySelectorAll('.drawer-item').forEach(el => {
-    el.addEventListener('click', () => switchPage(el.dataset.page));
+    el.addEventListener('click', () => { if (el.dataset.page) switchPage(el.dataset.page); });
   });
 
   // Modal

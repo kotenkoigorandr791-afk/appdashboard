@@ -236,7 +236,7 @@
 
   <!-- Map / Floor Plan Page -->
   <div class="page-section" id="page-map">
-    <div class="map-editor-only" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:12px; flex-wrap:wrap">
+    <div class="map-editor-only" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; margin-bottom:16px; gap:12px; flex-wrap:wrap">
       <h2 style="font-size:18px; font-weight:500; display:flex; align-items:center; gap:8px">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="color:var(--primary)"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <?=sh_h($t['floor_plan'])?>
