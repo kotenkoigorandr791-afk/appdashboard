@@ -1204,7 +1204,12 @@ function deletePendingUser(string $email): void {
 // ─────────────────────────────────────────────────────────────────────────────
 // ACTIVE SESSIONS
 // ─────────────────────────────────────────────────────────────────────────────
+function appAuthTimeoutSeconds(): int {
+    return 90 * 60;
+}
+
 function loadActiveSessions(): array {
+    cleanupAllExpiredSessions();
     if ($redis = app_redis()) {
         $out = [];
         $it = null;
@@ -1221,15 +1226,7 @@ function loadActiveSessions(): array {
         }
         return $out;
     }
-    $db          = getDB();
-    $authTimeout = 8 * 3600;
-    $cutoff      = time() - $authTimeout;
-    // Delete stale sessions first — avoids loading entire table
-    try {
-        $db->exec("DELETE FROM active_sessions WHERE last_activity < $cutoff");
-    } catch (Exception $e) {
-        // Ignore lock errors on cleanup; stale sessions will be filtered below
-    }
+    $db = getDB();
     $result = $db->query("SELECT * FROM active_sessions");
     $out    = [];
     while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
@@ -1530,7 +1527,8 @@ function getUserActiveSessions(string $email): array {
  * Delete expired sessions only for one user.
  * Returns number of deleted rows.
  */
-function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 60): int {
+function cleanupExpiredUserSessions(string $email, ?int $authTimeout = null): int {
+    $authTimeout = $authTimeout ?? activeSessionTtlSeconds($email);
     if ($redis = app_redis()) {
         $deleted = 0;
         $cutoff = time() - $authTimeout;
@@ -1566,10 +1564,10 @@ function cleanupExpiredUserSessions(string $email, int $authTimeout = 12 * 60 * 
  * Delete expired sessions for all users (Redis + DB).
  * Returns number of deleted session records / orphan index entries.
  */
-function cleanupAllExpiredSessions(int $authTimeout = 12 * 60 * 60): int {
+function cleanupAllExpiredSessions(?int $authTimeout = null): int {
     if ($redis = app_redis()) {
         $deleted = 0;
-        $cutoff = time() - $authTimeout;
+        $now = time();
         $it = null;
         $prefix = app_redis_key('active_session:');
         while (($keys = $redis->scan($it, $prefix . '*', 100)) !== false) {
@@ -1586,11 +1584,12 @@ function cleanupAllExpiredSessions(int $authTimeout = 12 * 60 * 60): int {
                     $deleted++;
                     continue;
                 }
-                if ((int)($row['last_activity'] ?? 0) >= $cutoff) {
+                $email = (string)($row['email'] ?? '');
+                $ttl = $authTimeout ?? activeSessionTtlSeconds($email);
+                if ((int)($row['last_activity'] ?? 0) >= $now - $ttl) {
                     continue;
                 }
                 $sid = (string)($row['session_id'] ?? substr((string)$key, strlen($prefix)));
-                $email = (string)($row['email'] ?? '');
                 $redis->del((string)$key);
                 if ($email !== '') {
                     $redis->sRem(app_redis_key('active_sessions_by_email:' . strtolower($email)), $sid);
@@ -1622,16 +1621,29 @@ function cleanupAllExpiredSessions(int $authTimeout = 12 * 60 * 60): int {
         return $deleted;
     }
     $db = getDB();
-    $cutoff = time() - $authTimeout;
-    $db->exec('DELETE FROM active_sessions WHERE last_activity < ' . (int)$cutoff);
-    return $db->changes();
+    if ($authTimeout !== null) {
+        $cutoff = time() - $authTimeout;
+        $db->exec('DELETE FROM active_sessions WHERE last_activity < ' . (int)$cutoff);
+        return $db->changes();
+    }
+    $result = $db->query("SELECT session_id,email,last_activity FROM active_sessions");
+    $deleted = 0;
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+        $ttl = activeSessionTtlSeconds((string)($row['email'] ?? ''));
+        if (time() - (int)($row['last_activity'] ?? 0) <= $ttl) continue;
+        $stmt = $db->prepare("DELETE FROM active_sessions WHERE session_id = :sid");
+        $stmt->bindValue(':sid', (string)$row['session_id']);
+        $stmt->execute();
+        $deleted += $db->changes();
+    }
+    return $deleted;
 }
 
 function activeSessionTtlSeconds(string $email): int {
     $users = null;
     try { $users = loadUsers(); } catch (Throwable $e) { $users = []; }
     $role = (int)(($users[$email]['role'] ?? 0));
-    $adminIdle = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : 7200;
+    $adminIdle = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : appAuthTimeoutSeconds();
     if ($email === 'root@root' || $role >= 2) {
         return $adminIdle;
     }
@@ -1639,7 +1651,7 @@ function activeSessionTtlSeconds(string $email): int {
     if ($email !== '' && $fp !== '' && isTrustedDevice($email, $fp)) {
         return 365 * 24 * 3600;
     }
-    return 12 * 3600;
+    return appAuthTimeoutSeconds();
 }
 
 function restoreSessionViaTrustedDevice(?string $preferredEmail = null): ?array {
@@ -1712,7 +1724,7 @@ function ensureAuthenticatedSession(): bool {
 
 /** Fetch a single session row — fast single-row lookup */
 function getUserFromActiveSessions(string $sessionId): ?array {
-    $authTimeout = 12 * 3600;
+    $authTimeout = appAuthTimeoutSeconds();
     if ($redis = app_redis()) {
         $raw = $redis->get(app_redis_key('active_session:' . $sessionId));
         if ($raw) {

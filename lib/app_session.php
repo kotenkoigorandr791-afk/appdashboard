@@ -19,6 +19,7 @@ function app_session_start(): void {
     require_once __DIR__ . '/redis.php';
     app_redis_configure_php_sessions();
     session_set_cookie_params(app_session_cookie_params());
+    ini_set('session.gc_maxlifetime', '5400');
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
     session_start();

@@ -403,7 +403,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
     $needsAuth=false;
     $showLogin=false;
 }else{
-    $authTimeout=12*60*60;
+    $authTimeout=appAuthTimeoutSeconds();
     $oauthRedirectUri=oauthLoginRedirectUri();
     $googleRedirectUri=$oauthRedirectUri;
     $needsAuth=false;
