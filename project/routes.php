@@ -517,7 +517,7 @@ if($path==='/one-time-pin'){
 }
 
 if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path==='/login/oauth/start'||(isset($_GET['code'])&&strpos($path,'/login')!==false)){
-    $sessionOkEarly=isset($_SESSION['user']['email'],$_SESSION['auth_time'])&&getUserFromActiveSessions(session_id())!==null;
+    $sessionOkEarly=(isset($_SESSION['user']['email'],$_SESSION['auth_time'])&&getUserFromActiveSessions(session_id())!==null)||ensureAuthenticatedSession();
     $isAuthPost=strtoupper((string)($_SERVER['REQUEST_METHOD']??'GET'))==='POST';
     $skipEarlyRedirect=$isAuthPost;
     if(!$skipEarlyRedirect && $path==='/register' && (
