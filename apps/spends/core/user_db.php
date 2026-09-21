@@ -1,5 +1,13 @@
 <?php
 require_once __DIR__ . '/../../../lib/user_schema_pg.php';
+const SPENDS_STORE_CATEGORIES = ['food','groceries','cafes','clothes','shoes','home','apartment','utilities','transport','car','travel','health','pharmacy','beauty','children','pets','education','sports','electronics','subscriptions','entertainment','gifts','services','finance','taxes','insurance','charity','other'];
+function spendsStoreCategories(): array {
+    return SPENDS_STORE_CATEGORIES;
+}
+function spendsNormalizeStoreCategory($category): string {
+    $category = (string)$category;
+    return in_array($category, SPENDS_STORE_CATEGORIES, true) ? $category : 'other';
+}
 function getUserDBPath($userEmail) {
     $safe = getSafeFolderName($userEmail);
     $dir  = APPS_DATA_DIR . $safe;
@@ -31,11 +39,12 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
                 if ($table === 'settings') dbSetSetting($udb, (string)$row['key'], (string)$row['value']);
                 elseif ($table === 'table_settings') dbSetTableSetting($udb, (string)$row['key'], (string)$row['value']);
                 elseif ($table === 'stores') {
-                    $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,:v,:o) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, visible=EXCLUDED.visible, sort_order=EXCLUDED.sort_order');
+                    $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,:v,:o,:c) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, visible=EXCLUDED.visible, sort_order=EXCLUDED.sort_order, category=EXCLUDED.category');
                     $st->bindValue(':id', (string)$row['id'], PDO::PARAM_STR);
                     $st->bindValue(':n', (string)$row['name'], PDO::PARAM_STR);
                     $st->bindValue(':v', (int)($row['visible'] ?? 1), PDO::PARAM_INT);
                     $st->bindValue(':o', (int)($row['sort_order'] ?? 0), PDO::PARAM_INT);
+                    $st->bindValue(':c', spendsNormalizeStoreCategory($row['category'] ?? 'other'), PDO::PARAM_STR);
                     $st->execute();
                 } elseif ($table === 'expenses') {
                     $st = $udb->prepare('INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:es,:or) ON CONFLICT (date,store) DO UPDATE SET amount=EXCLUDED.amount');
@@ -72,11 +81,12 @@ function migrateExistingFiles($userEmail, $udb) {
                 if (!is_array($s) || empty($s['name'])) continue;
                 $sid = $s['id'] ?? (string)time() . rand(100,999);
                 $vis = isset($s['visible']) ? (int)(bool)$s['visible'] : 1;
-                $stmt = $udb->prepare('INSERT INTO stores (id, name, visible, sort_order) VALUES (:id,:n,:v,:o) ON CONFLICT (id) DO NOTHING');
+                $stmt = $udb->prepare('INSERT INTO stores (id, name, visible, sort_order, category) VALUES (:id,:n,:v,:o,:c) ON CONFLICT (id) DO NOTHING');
                 $stmt->bindValue(':id', $sid);
                 $stmt->bindValue(':n',  $s['name']);
                 $stmt->bindValue(':v',  $vis, PDO::PARAM_INT);
                 $stmt->bindValue(':o',  $ord++, PDO::PARAM_INT);
+                $stmt->bindValue(':c',  spendsNormalizeStoreCategory($s['category'] ?? 'other'), PDO::PARAM_STR);
                 $stmt->execute();
             }
         }
@@ -156,10 +166,11 @@ function dbGetTableSetting($udb, $key, $default = null) {
     return $r ? $r['value'] : $default;
 }
 function dbGetStores($udb) {
-    $res  = $udb->query('SELECT id, name, visible, sort_order FROM stores ORDER BY sort_order ASC, id ASC');
+    $res  = $udb->query("SELECT id, name, visible, sort_order, COALESCE(category,'other') AS category FROM stores ORDER BY sort_order ASC, id ASC");
     $list = [];
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $row['visible'] = (bool)(int)$row['visible'];
+        $row['category'] = spendsNormalizeStoreCategory($row['category'] ?? 'other');
         $list[] = $row;
     }
     return $list;

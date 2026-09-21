@@ -23,6 +23,7 @@ $userSettings = [
     'show_trend'         => (bool)(int)dbGetSetting($udb, 'show_trend', 0),
     'trim_empty_months'  => (bool)(int)dbGetSetting($udb, 'trim_empty_months', 0),
     'stores'             => dbGetStores($udb),
+    'store_categories'   => spendsStoreCategories(),
 ];
 
 $tableSettings = [
