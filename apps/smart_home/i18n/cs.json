@@ -74,6 +74,17 @@
     "map_clear": "Vymazat",
     "map_save": "Uložit",
     "map_saved": "Uloženo",
+    "map_export": "Exportovat",
+    "map_import": "Importovat",
+    "map_import_dialog_title": "Import plánu místnosti",
+    "map_import_question": "Byl vám zaslán plán místnosti. Jak ho přidat k aktuální mapě?",
+    "map_import_replace": "Nahradit aktuální plán",
+    "map_import_side": "Přidat vedle aktuálního plánu",
+    "map_import_done": "Plán místnosti byl importován",
+    "map_import_denied": "Nemáte oprávnění upravovat plán místnosti",
+    "map_send_to_chat": "Odeslat do chatu",
+    "map_sent_to_chat": "Plán místnosti připojen k chatu",
+    "map_plan_empty": "Plán místnosti je prázdný",
     "map_drag_devices": "Přetáhněte zařízení na mapu",
     "map_status_hint": "Vyberte nástroj",
     "map_clear_confirm": "Vymazat půdorys?",
@@ -139,5 +150,7 @@
     "device_group_label": "Sdílet se skupinou",
     "add_device_token_hint": "Místní adresa se vyplní automaticky, když se zařízení připojí k serveru",
     "category_new_option": "+ Vytvořit novou skupinu",
-    "category_new_name": "Název nové skupiny"
+    "category_new_name": "Název nové skupiny",
+    "chart_no_data": "Žádná data",
+    "chart_points": "N bodů"
 }

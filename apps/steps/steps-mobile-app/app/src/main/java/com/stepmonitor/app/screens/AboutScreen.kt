@@ -380,7 +380,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                         stringResource(R.string.perms_granted_summary, grantedCount, HealthDataType.entries.size),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Button(onClick = { permissionLauncher.launch(HealthConnectManager.ALL_PERMISSIONS) }, modifier = Modifier.fillMaxWidth()) {
+                    Button(onClick = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.action_grant_permissions))
                     }
                     OutlinedButton(onClick = { permissionsSheetOpen = true }, modifier = Modifier.fillMaxWidth()) {

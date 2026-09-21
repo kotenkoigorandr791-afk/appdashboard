@@ -74,6 +74,17 @@
     "map_clear": "Очистить",
     "map_save": "Сохранить",
     "map_saved": "Сохранено",
+    "map_export": "Экспорт",
+    "map_import": "Импорт",
+    "map_import_dialog_title": "Импорт плана помещения",
+    "map_import_question": "Вам отправили план помещения. Как его добавить в текущую карту?",
+    "map_import_replace": "Заменить текущий план",
+    "map_import_side": "Добавить сбоку от текущего плана",
+    "map_import_done": "План помещения импортирован",
+    "map_import_denied": "У вас нет прав на редактирование плана помещения",
+    "map_send_to_chat": "Отправить в чат",
+    "map_sent_to_chat": "План помещения прикреплён к чату",
+    "map_plan_empty": "План помещения пуст",
     "map_drag_devices": "Перетащите устройство на карту",
     "map_status_hint": "Выберите инструмент",
     "map_clear_confirm": "Очистить план дома?",
@@ -139,5 +150,7 @@
     "device_group_label": "Группа (общий доступ)",
     "add_device_token_hint": "Локальный адрес подтянется автоматически, когда устройство подключится к серверу",
     "category_new_option": "+ Создать новую группу",
-    "category_new_name": "Название новой группы"
+    "category_new_name": "Название новой группы",
+    "chart_no_data": "Нет данных",
+    "chart_points": "N точек"
 }

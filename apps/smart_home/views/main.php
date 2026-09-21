@@ -241,10 +241,23 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="color:var(--primary)"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <?=sh_h($t['floor_plan'])?>
       </h2>
-      <div style="display:flex; gap:8px">
+      <div style="display:flex; gap:8px; align-items:center">
         <button class="btn btn-secondary btn-sm" id="mapClearBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
           <?=sh_h($t['map_clear'])?>
+        </button>
+        <button class="btn btn-secondary btn-sm" type="button" id="mapExportBtn" style="white-space:nowrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 3v12"/><polyline points="8 9 12 13 16 9"/><path d="M5 21h14"/></svg>
+          <?=sh_h($t['map_export'])?>
+        </button>
+        <input type="file" id="mapImportFileInput" accept="application/json,.json" style="display:none;">
+        <button class="btn btn-secondary btn-sm" type="button" id="mapImportBtn" style="white-space:nowrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M12 21V9"/><polyline points="8 15 12 11 16 15"/><path d="M5 3h14"/></svg>
+          <?=sh_h($t['map_import'])?>
+        </button>
+        <button class="btn btn-secondary btn-sm" type="button" id="mapSendChatBtn" style="white-space:nowrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          <?=sh_h($t['map_send_to_chat'])?>
         </button>
         <button class="btn btn-primary btn-sm" id="mapSaveBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>

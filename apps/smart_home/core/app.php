@@ -631,6 +631,22 @@ function sh_normalize_control_value(array $control, mixed $value): mixed {
     return (string)$value;
 }
 
+function sh_normalize_param_value(array $param, mixed $value): mixed {
+    if (($param['type'] ?? '') === 'chart') {
+        if (is_array($value)) {
+            $out = [];
+            foreach ($value as $v) {
+                if (is_numeric($v)) $out[] = (float)$v;
+            }
+            return $out;
+        }
+        $decoded = json_decode((string)$value, true);
+        return is_array($decoded) ? sh_normalize_param_value($param, $decoded) : [];
+    }
+    if (is_array($value)) return json_encode($value, JSON_UNESCAPED_UNICODE);
+    return (string)$value;
+}
+
 function sh_controls_to_map(array $controls): array {
     $map = [];
     foreach ($controls as $c) {
@@ -2088,7 +2104,7 @@ if ($action !== '') {
                 foreach ($params as &$p) {
                     if ((string)($p['id'] ?? '') === 'ws') continue;
                     if (array_key_exists($p['id'], $payload['telemetry'])) {
-                        $p['value'] = (string)$payload['telemetry'][$p['id']];
+                        $p['value'] = sh_normalize_param_value($p, $payload['telemetry'][$p['id']]);
                     }
                 }
                 unset($p);
@@ -2314,6 +2330,7 @@ if ($action !== '') {
         if ($action === 'record_param_history') {
             $deviceId = trim((string)($payload['device_id'] ?? ''));
             foreach (($payload['params'] ?? []) as $p) {
+                if (!is_array($p) || is_array($p['value'] ?? null)) continue;
                 $stmt = $db->prepare('INSERT INTO smarthome_params_history (device_id, param_id, param_label, param_value) VALUES (:did, :pid, :pl, :pv)');
                 $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
                 $stmt->bindValue(':pid', $p['id'], PDO::PARAM_STR);

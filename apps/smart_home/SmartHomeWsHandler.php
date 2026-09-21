@@ -544,7 +544,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
             foreach ($device['params'] as &$param) {
                 if ((string)($param['id'] ?? '') === 'ws') continue;
                 if (array_key_exists($param['id'], $payload['telemetry'])) {
-                    $param['value'] = (string)$payload['telemetry'][$param['id']];
+                    $param['value'] = $this->normalizeParamValue($param, $payload['telemetry'][$param['id']]);
                 }
             }
             unset($param);
@@ -837,6 +837,27 @@ class SmartHomeWsHandler implements MessageComponentInterface
             $controls[$control['id']] = $control['value'] ?? null;
         }
         return $controls;
+    }
+
+    private function normalizeParamValue(array $param, mixed $value): mixed
+    {
+        if (($param['type'] ?? '') === 'chart') {
+            if (is_array($value)) {
+                $out = [];
+                foreach ($value as $v) {
+                    if (is_numeric($v)) {
+                        $out[] = (float)$v;
+                    }
+                }
+                return $out;
+            }
+            $decoded = json_decode((string)$value, true);
+            return is_array($decoded) ? $this->normalizeParamValue($param, $decoded) : [];
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE);
+        }
+        return (string)$value;
     }
 
     private function pendingControlIds(string $deviceId): array

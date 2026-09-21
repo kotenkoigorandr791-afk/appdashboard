@@ -1,11 +1,6 @@
 <!-- Messenger Modal -->
 <div id="support-chat-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);z-index:100000;align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);animation:fadeIn 0.3s ease;">
     <div id="chat-modal-container" style="background:var(--modal-bg);border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);width:95%;max-width:1400px;height:85%;max-height:min(700px,85vh);min-height:0;display:flex;flex-direction:row;box-shadow:0 20px 60px rgba(0,0,0,0.4);overflow:hidden;position:relative;animation:slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);">
-        <!-- Animated background -->
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;">
-            <div class="chat-bg-animation"></div>
-        </div>
-
         <!-- Chat list sidebar -->
         <div id="admin-chat-list" style="display:none;width:320px;min-height:0;flex-shrink:0;border-right:1px solid var(--border-color);flex-direction:column;position:relative;z-index:1;background:rgba(0,0,0,0.02);">
             <div style="padding:24px;background:linear-gradient(135deg, var(--chat-color-light) 0%, var(--chat-color-medium) 100%);border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;gap:12px;">
@@ -42,6 +37,11 @@
 
             <div id="chat-messages-area" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
                 <div id="chat-messages" class="chat-messages-scroll" tabindex="-1" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;display:flex;flex-direction:column;gap:16px;min-height:0;-webkit-overflow-scrolling:touch;outline:none;"></div>
+
+                <div id="chat-pending-plan" style="display:none;flex-shrink:0;margin:0 20px 10px;padding:8px 12px;border-radius:12px;border:1px solid var(--chat-color-border);background:rgba(99,102,241,0.10);color:var(--text-color);font-size:13px;align-items:center;gap:8px;justify-content:space-between;">
+                    <span style="display:flex;align-items:center;gap:8px;min-width:0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 10.5L21 2l-7 19-3-7-7-3.5z"/><path d="M14.5 5.5L8.5 14"/></svg><span id="chat-pending-plan-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_plan_attached'] ?? 'Floor plan attached'); ?></span></span>
+                    <button type="button" id="chat-pending-plan-remove" title="<?php echo my_htmlspecialchars($translations['support_chat_plan_remove'] ?? 'Remove plan'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['support_chat_plan_remove'] ?? 'Remove plan'); ?>" style="flex-shrink:0;width:22px;height:22px;padding:0;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>
+                </div>
 
                 <div id="chat-composer-row" style="padding:20px;background:rgba(255,255,255,0.02);border-top:1px solid var(--border-color);display:flex;gap:12px;align-items:center;">
                     <input type="file" id="chat-file-input" accept="image/*,video/*,audio/*,text/*,.txt,.md,.json,.xml,.csv,.log,.html,.css,.js,.py,.java,.c,.cpp,.php,.rb,.go,.rs,.sql,.yaml,.yml,.sh,.bat,.ini,.conf,.config" style="display:none;">

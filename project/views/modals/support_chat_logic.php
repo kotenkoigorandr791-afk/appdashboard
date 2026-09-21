@@ -36,6 +36,8 @@
     let currentChatUser = null;
     let currentChatType = 'support';
     let currentPeerEmail = '';
+    let chatPendingPlan = null;
+    let chatPendingPlanCount = 0;
     let currentChatTitle = '';
     let currentPeerBlocked = false;
     let isAdmin = <?php echo json_encode(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2); ?>;
@@ -64,6 +66,55 @@
     const chatTypeCancel = document.getElementById('chat-type-cancel');
     let userSearchTimer = null;
     let pendingNewChatType = 'peer';
+
+    function chatSetPendingPlan(plan, count) {
+        if (!plan || !Array.isArray(plan.elements)) return;
+        chatPendingPlan = plan;
+        chatPendingPlanCount = typeof count === 'number' ? count : (Array.isArray(plan.elements) ? plan.elements.length : 0);
+        const chip = document.getElementById('chat-pending-plan');
+        const label = document.getElementById('chat-pending-plan-label');
+        if (chip) {
+            if (label) {
+                label.textContent = (T.support_chat_plan_attached || 'Floor plan attached') + ' · ' + chatPendingPlanCount;
+            }
+            chip.style.display = 'flex';
+        }
+        if (chatInput) {
+            chatInput.focus();
+        }
+    }
+    function chatClearPendingPlan() {
+        chatPendingPlan = null;
+        chatPendingPlanCount = 0;
+        const chip = document.getElementById('chat-pending-plan');
+        if (chip) {
+            chip.style.display = 'none';
+        }
+    }
+    function chatOpenPendingPlanChat() {
+        if (chatModal && chatModal.style.display !== 'flex') {
+            if (isAdmin) {
+                window.location.hash = '#support-chat';
+            } else {
+                chatModal.style.display = 'flex';
+                if (adminChatList) {
+                    adminChatList.style.display = 'flex';
+                }
+                adminMobilePhase = currentChatUser && isChatMobileMatch() ? 'chat' : 'list';
+                syncAdminMobileLayout();
+                loadChatList();
+            }
+        }
+        if (typeof showTempNotification === 'function') {
+            showTempNotification(T.support_chat_plan_attached_hint || 'Floor plan attached — select a recipient and send', 'success');
+        }
+    }
+    window.addEventListener('message', function(e) {
+        const d = e.data;
+        if (!d || d.type !== 'smart_home_send_floor_plan') return;
+        chatSetPendingPlan(d.plan, d.count);
+        chatOpenPendingPlanChat();
+    });
     function openChatAlertModal(msg) {
         const md = document.getElementById('fm-alert-modal');
         const msgEl = document.getElementById('fm-alert-msg');
@@ -982,6 +1033,11 @@ adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? ch
         chatUploadBtn.addEventListener('click', function() {
             chatFileInput.click();
         });
+    }
+
+    const chatPendingPlanRemove = document.getElementById('chat-pending-plan-remove');
+    if (chatPendingPlanRemove) {
+        chatPendingPlanRemove.addEventListener('click', chatClearPendingPlan);
     }
 
     // Voice recording button
@@ -1929,6 +1985,69 @@ delete adminDraftEdits[currentChatKey()];
             '</button>';
     }
 
+    window.__fpShares = window.__fpShares || {};
+    function parseFloorPlanMessage(message) {
+        if (!message || message.charAt(0) !== '{') return null;
+        try {
+            var data = JSON.parse(message);
+            if (!data || data.type !== 'floor_plan_share' || !data.plan) return null;
+            return data;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function renderFloorPlanShareCard(data, isOwn, msgId) {
+        var count = data.plan.elements ? data.plan.elements.length : (Array.isArray(data.plan) ? data.plan.length : 0);
+        var note = data.note ? '<div style="font-size:13px;line-height:1.5;opacity:.92;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.15);word-wrap:break-word;white-space:pre-wrap;">' + formatChatMessage(String(data.note)) + '</div>' : '';
+        window.__fpShares[msgId] = data.plan;
+        return '<div class="chat-floor-plan-card" style="width:min(300px,100%);margin-left:' + (isOwn ? 'auto' : '0') + ';border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:10px;text-align:left;display:block;">' +
+            note +
+            '<span style="display:flex;align-items:center;gap:10px;min-width:0;">' +
+            '<span style="width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.14);">' +
+            '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15v-3"/><path d="M11 15V9"/><path d="M15 15v-5"/><path d="M19 15v-2"/></svg>' +
+            '</span>' +
+            '<span style="display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;">' +
+            '<span style="font-size:13px;font-weight:700;">' + escChat(T.support_chat_floor_plan || 'Floor plan') + '</span>' +
+            '<span style="font-size:11px;opacity:.75;">' + escChat(T.support_chat_floor_plan_share || 'Shared from Smart Home') + ' · ' + count + '</span>' +
+            '</span>' +
+            '</span>' +
+            '<button type="button" onclick="chatImportFloorPlanCached(' + msgId + ')" style="width:100%;margin-top:10px;padding:9px 0;border-radius:9px;border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);font-size:13px;font-weight:600;cursor:pointer;">' + escChat(T.support_chat_import_plan || 'Import') + '</button>' +
+            '</div>';
+    }
+
+    window.chatImportFloorPlanCached = function(msgId) {
+        var p = (window.__fpShares || {})[msgId];
+        if (p) chatImportFloorPlan(p);
+    };
+
+    function chatCloseChatModal() {
+        if (isAdmin) {
+            window.location.hash = '';
+        } else if (chatModal) {
+            chatModal.style.display = 'none';
+            stopPolling();
+        }
+    }
+
+    function chatImportFloorPlan(plan) {
+        try {
+            localStorage.setItem('fp_import_pending', JSON.stringify({ ts: Date.now(), plan: plan || null }));
+        } catch (_) {}
+        var frame = document.getElementById('app-iframe');
+        if (frame && /smart_home/.test(frame.src || '') && frame.contentWindow) {
+            try {
+                frame.contentWindow.postMessage({ type: 'fp_import_pending', plan: plan || null }, '*');
+            } catch (_) {}
+            if (typeof showTempNotification === 'function') {
+                showTempNotification(T.support_chat_import_sent || 'Smart Home: floor plan ready for import', 'success');
+            }
+            chatCloseChatModal();
+        } else {
+            window.location.href = '/main?app=smart_home&fp_import=1';
+        }
+    }
+
     window.openChatCloudAttachment = function(shareId) {
         if (!shareId) return;
         var formData = new FormData();
@@ -2004,8 +2123,13 @@ delete adminDraftEdits[currentChatKey()];
                 const cloudAttachment = parseCloudAttachmentMessage(msg.message);
                 if (cloudAttachment) {
                     content += renderCloudAttachmentCard(cloudAttachment, isOwn);
-                } else if (msg.message) {
-                    content += '<div style="word-wrap:break-word;line-height:1.5;">' + formatChatMessage(msg.message) + '</div>';
+                } else {
+                    const floorPlanMsg = parseFloorPlanMessage(msg.message);
+                    if (floorPlanMsg) {
+                        content += renderFloorPlanShareCard(floorPlanMsg, isOwn, msg.id);
+                    } else if (msg.message) {
+                        content += '<div style="word-wrap:break-word;line-height:1.5;">' + formatChatMessage(msg.message) + '</div>';
+                    }
                 }
             }
 
@@ -2013,7 +2137,7 @@ delete adminDraftEdits[currentChatKey()];
             const editedLabel = msg.is_edited ? '<span style="font-size:10px;opacity:0.5;margin-left:6px;">edited</span>' : '';
 
             return `<div style="display:flex;justify-content:${isOwn ? 'flex-end' : 'flex-start'};margin-bottom:4px;">
-                <div class="chat-msg-bubble" data-msg-id="${msg.id}" style="background:${isOwn ? 'linear-gradient(135deg, var(--chat-color) 0%, var(--chat-color)dd 100%)' : 'var(--group-block-bg)'};color:${isOwn ? 'white' : 'var(--text-color)'};padding:12px 16px;border-radius:${isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:context-menu;" oncontextmenu="showContextMenu(event, ${msg.id}, ${isOwn}, ${msg.is_deleted})">
+                <div class="chat-msg-bubble ${isOwn ? 'chat-msg-own' : 'chat-msg-other'}" data-msg-id="${msg.id}" style="padding:12px 16px;border-radius:${isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:context-menu;" oncontextmenu="showContextMenu(event, ${msg.id}, ${isOwn}, ${msg.is_deleted})">
                     ${content}
                     <div style="font-size:11px;opacity:0.7;margin-top:6px;display:flex;align-items:center;justify-content:space-between;">
                         <span>${timeStr}${editedLabel}</span>
@@ -2178,8 +2302,16 @@ delete adminDraftEdits[currentChatKey()];
         });
     }
 
-    function sendMessage(file) {
-        const message = chatInput ? chatInput.value.trim() : '';
+    function sendMessage(file, preText) {
+        const typed = preText != null ? String(preText).trim() : (chatInput ? chatInput.value.trim() : '');
+        const withPendingPlan = !!chatPendingPlan && preText == null;
+        let message;
+        if (withPendingPlan) {
+            const note = typed || undefined;
+            message = JSON.stringify({ type: 'floor_plan_share', plan: chatPendingPlan, note: note, ts: Date.now() });
+        } else {
+            message = typed;
+        }
 
         if (!message && !file) return;
         if (!currentChatUser) return;
@@ -2213,6 +2345,7 @@ delete adminDraftEdits[currentChatKey()];
         .then(r => r.json())
         .then(data => {
             if (data.ok) {
+                if (chatPendingPlan) chatClearPendingPlan();
                 if (chatInput) chatInput.value = '';
                 if (chatFileInput) chatFileInput.value = '';
                 if (chatMaxId > 0) {

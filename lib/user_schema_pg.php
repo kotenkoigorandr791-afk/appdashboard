@@ -28,7 +28,8 @@ function app_user_schema_ensure(AppDatabase $db, string $appPrefix, string $sche
     $idx = app_user_schema_index_id($schema);
     if ($appPrefix === 'spends') {
         $db->exec("CREATE TABLE IF NOT EXISTS $s.settings (key TEXT PRIMARY KEY, value TEXT)");
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.stores (id TEXT PRIMARY KEY, name TEXT NOT NULL, visible BIGINT NOT NULL DEFAULT 1, sort_order BIGINT NOT NULL DEFAULT 0)");
+        $db->exec("CREATE TABLE IF NOT EXISTS $s.stores (id TEXT PRIMARY KEY, name TEXT NOT NULL, visible BIGINT NOT NULL DEFAULT 1, sort_order BIGINT NOT NULL DEFAULT 0, category TEXT NOT NULL DEFAULT 'other')");
+        $db->exec("ALTER TABLE $s.stores ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT 'other'");
         $db->exec("CREATE TABLE IF NOT EXISTS $s.expenses (date TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, entry_source TEXT NOT NULL DEFAULT 'manual', ocr_raw_store TEXT, PRIMARY KEY (date, store))");
         $db->exec("CREATE TABLE IF NOT EXISTS $s.incomes (date TEXT PRIMARY KEY, amount DOUBLE PRECISION NOT NULL DEFAULT 0)");
         $db->exec("CREATE TABLE IF NOT EXISTS $s.ocr_entries (signature TEXT PRIMARY KEY, date TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL, ocr_raw_store TEXT, image_name TEXT, created_at TEXT NOT NULL)");

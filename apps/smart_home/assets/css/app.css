@@ -739,6 +739,13 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 .ui-dialog-actions .btn { flex:1; min-width:100px; }
 .ui-dialog-prompt { margin-bottom:16px; text-align:left; padding:12px 14px; border:1px solid var(--line); border-radius:var(--radius-xs); background:color-mix(in srgb, var(--surface) 70%, transparent); }
 .ui-dialog-prompt input { width:100%; }
+.fp-import-question {
+  color:var(--text-secondary); line-height:1.55; margin:0 0 18px; font-size:14px;
+  padding:12px 14px; border:1px solid var(--line); border-radius:var(--radius-xs);
+  background:color-mix(in srgb, var(--surface) 70%, transparent);
+}
+.fp-import-actions { display:flex; flex-direction:column; gap:8px; }
+.fp-import-actions .btn { width:100%; }
 .modal-close {
   position:absolute; top:9.5px; right:16px; left:auto;
   float:none; z-index:2;
@@ -882,6 +889,23 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
   min-height:2px;
   opacity:.7;
   transition:height .3s;
+}
+.param-chart-svg {
+  width:100%;
+  height:auto;
+  margin-top:6px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:color-mix(in srgb, var(--surface) 55%, transparent);
+}
+.chart-empty-badge {
+  display:inline-block;
+  padding:4px 10px;
+  border:1px dashed var(--line);
+  border-radius:8px;
+  color:var(--text-secondary);
+  font-size:12px;
+  font-weight:400;
 }
 
 /* ─── Page sections ──────────────────────────────────────────────────────── */

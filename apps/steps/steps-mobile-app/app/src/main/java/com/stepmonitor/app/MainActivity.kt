@@ -1,12 +1,18 @@
 package com.stepmonitor.app
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ActivityInfo
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
@@ -33,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import com.stepmonitor.app.screens.AboutScreen
 import com.stepmonitor.app.screens.ConfigurationScreen
 import com.stepmonitor.app.screens.LogsScreen
@@ -111,6 +118,37 @@ class MainActivity : AppCompatActivity() {
                     preferencesManager.setWhatsNewPending(false)
                 },
             )
+        }
+        var notificationDone by remember {
+            mutableStateOf(
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                    ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            )
+        }
+        var notificationRequestStarted by remember { mutableStateOf(false) }
+        var healthRequestStarted by remember { mutableStateOf(false) }
+        val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+            notificationDone = true
+        }
+        val healthPermissionLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+            preferencesManager.setKnownGrantedPermissions(granted)
+        }
+        LaunchedEffect(Unit) {
+            if (!notificationDone && !notificationRequestStarted) {
+                notificationRequestStarted = true
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        LaunchedEffect(notificationDone) {
+            if (!notificationDone || healthRequestStarted) return@LaunchedEffect
+            val enabledTypes = preferencesManager.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }
+            val requiredPermissions = HealthConnectManager.getPermissionsForTypes(enabledTypes)
+            val grantedPermissions = HealthConnectManager(this@MainActivity).getGrantedPermissions()
+            val missingPermissions = requiredPermissions - grantedPermissions
+            if (missingPermissions.isNotEmpty()) {
+                healthRequestStarted = true
+                healthPermissionLauncher.launch(requiredPermissions)
+            }
         }
         // Auto-resolve if user saved a preference
         LaunchedEffect(pendingConflict) {

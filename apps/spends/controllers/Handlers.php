@@ -13,6 +13,7 @@ if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
         'show_trend' => (bool)($userSettings['show_trend'] ?? false),
         'trim_empty_months' => (bool)($userSettings['trim_empty_months'] ?? false),
         'stores' => $userSettings['stores'] ?? [],
+        'store_categories' => $userSettings['store_categories'] ?? spendsStoreCategories(),
     ]));
 }
 if (isset($_GET['get_expense_meta'])) {
@@ -36,6 +37,14 @@ if (isset($_GET['get_ocr_stats'])) {
     while ($row = $sr->fetch(PDO::FETCH_ASSOC)) if (!empty($row['store'])) $stores[] = $row['store'];
     $daily = [];
     $monthly = [];
+    $storeSummary = [];
+    $categorySummary = [];
+    $today = date('Y-m-d');
+    $daysInYear = $year > 0 ? (int)(new DateTime("$year-12-31"))->format('z') + 1 : 365;
+    $categoryByStore = [];
+    foreach ($userSettings['stores'] ?? [] as $s) {
+        $categoryByStore[(string)($s['name'] ?? '')] = spendsNormalizeStoreCategory($s['category'] ?? 'other');
+    }
     if ($storeFilter === '__all__') {
         $dr = $udb->query("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC,store ASC");
         while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
@@ -51,7 +60,35 @@ if (isset($_GET['get_ocr_stats'])) {
         $mr = $st2->execute();
         while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
     }
-    exit(json_encode(['status'=>'success','stores'=>$stores,'daily'=>$daily,'monthly'=>$monthly]));
+    $summaryRes = $udb->query("SELECT store,ROUND(SUM(amount)::numeric,2) AS total,COUNT(DISTINCT date) AS active_days,ROUND(SUM(CASE WHEN date='" . AppDatabase::escapeString($today) . "' THEN amount ELSE 0 END)::numeric,2) AS today FROM expenses WHERE amount>0 $yearWhere GROUP BY store ORDER BY total DESC,store ASC");
+    while ($row = $summaryRes->fetch(PDO::FETCH_ASSOC)) {
+        $total = (float)($row['total'] ?? 0);
+        $activeDays = max(0, (int)($row['active_days'] ?? 0));
+        $store = (string)($row['store'] ?? '');
+        $cat = $categoryByStore[$store] ?? 'other';
+        $storeSummary[] = [
+            'store' => $store,
+            'category' => $cat,
+            'total' => $total,
+            'today' => (float)($row['today'] ?? 0),
+            'year_day_avg' => $daysInYear > 0 ? round($total / $daysInYear, 2) : 0,
+            'active_day_avg' => $activeDays > 0 ? round($total / $activeDays, 2) : 0,
+        ];
+        if (!isset($categorySummary[$cat])) {
+            $categorySummary[$cat] = ['category' => $cat, 'total' => 0, 'today' => 0, 'year_day_avg' => 0, 'active_day_avg' => 0, 'active_days' => 0];
+        }
+        $categorySummary[$cat]['total'] += $total;
+        $categorySummary[$cat]['today'] += (float)($row['today'] ?? 0);
+        $categorySummary[$cat]['active_days'] = max($categorySummary[$cat]['active_days'], $activeDays);
+    }
+    foreach ($categorySummary as &$catRow) {
+        $catRow['total'] = round((float)$catRow['total'], 2);
+        $catRow['today'] = round((float)$catRow['today'], 2);
+        $catRow['year_day_avg'] = $daysInYear > 0 ? round($catRow['total'] / $daysInYear, 2) : 0;
+        $catRow['active_day_avg'] = $catRow['active_days'] > 0 ? round($catRow['total'] / $catRow['active_days'], 2) : 0;
+    }
+    unset($catRow);
+    exit(json_encode(['status'=>'success','stores'=>$stores,'daily'=>$daily,'monthly'=>$monthly,'store_summary'=>$storeSummary,'category_summary'=>array_values($categorySummary),'categories'=>spendsStoreCategories()]));
 }
 if (isset($_GET['get_available_years'])) {
     $years = [];
@@ -237,6 +274,7 @@ if (isset($_POST['add_date_ajax'])) {
 if (isset($_POST['add_edit_store'])) {
     $storeId   = $_POST['store_id']   ?? (string)time();
     $storeName = trim($_POST['store_name'] ?? '');
+    $storeCategory = spendsNormalizeStoreCategory($_POST['store_category'] ?? 'other');
     if (empty($storeName)) exit(json_encode(['status'=>'error','message'=>$__t('store_name_required')]));
 
     $existing = $udb->prepare('SELECT id, name FROM stores WHERE id=:id');
@@ -245,8 +283,9 @@ if (isset($_POST['add_edit_store'])) {
 
     if ($row) {
         $oldName = $row['name'];
-        $st = $udb->prepare('UPDATE stores SET name=:n WHERE id=:id');
+        $st = $udb->prepare('UPDATE stores SET name=:n, category=:c WHERE id=:id');
         $st->bindValue(':n', $storeName);
+        $st->bindValue(':c', $storeCategory);
         $st->bindValue(':id', $storeId);
         $st->execute();
         if ($oldName !== $storeName) {
@@ -262,10 +301,11 @@ if (isset($_POST['add_edit_store'])) {
         }
     } else {
         $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
-        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order');
+        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,:c) ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category');
         $st->bindValue(':id', $storeId);
         $st->bindValue(':n',  $storeName);
         $st->bindValue(':o',  $maxOrd, PDO::PARAM_INT);
+        $st->bindValue(':c',  $storeCategory);
         $st->execute();
         $dRes = $udb->query("SELECT DISTINCT date FROM expenses");
         $udb->exec('BEGIN');
@@ -295,7 +335,7 @@ if (isset($_POST['add_edit_store'])) {
             imagedestroy($image); imagedestroy($newImg);
         }
     }
-    $sr = $udb->prepare('SELECT id, name, visible FROM stores WHERE id = :id');
+    $sr = $udb->prepare("SELECT id, name, visible, COALESCE(category,'other') AS category FROM stores WHERE id = :id");
     $sr->bindValue(':id', $storeId);
     $stRow = $sr->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$stRow) {
@@ -307,6 +347,7 @@ if (isset($_POST['add_edit_store'])) {
             'id'      => (string) $stRow['id'],
             'name'    => $stRow['name'],
             'visible' => (bool) (int) $stRow['visible'],
+            'category'=> spendsNormalizeStoreCategory($stRow['category'] ?? 'other'),
         ],
     ]));
 }
@@ -605,7 +646,7 @@ function bankImportEnsureStore(AppDatabase $udb, string $name): void
     }
     $maxOrd = (int) $udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
     $id = 's_' . bin2hex(random_bytes(8));
-    $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO NOTHING');
+    $st = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (id) DO NOTHING");
     $st->bindValue(':id', $id);
     $st->bindValue(':n', $name);
     $st->bindValue(':o', $maxOrd, PDO::PARAM_INT);
@@ -792,7 +833,7 @@ if (isset($_POST['backup_action'])) {
             $chk->bindValue(':n', $sn);
             if (!$chk->execute()->fetch(PDO::FETCH_ASSOC)) {
                 $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
-                $ist = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order) VALUES (:id,:n,1,:o) ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order');
+                    $ist = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category");
                 $ist->bindValue(':id', (string)time().rand(100,999));
                 $ist->bindValue(':n', $sn);
                 $ist->bindValue(':o', $maxOrd, PDO::PARAM_INT);

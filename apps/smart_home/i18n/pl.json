@@ -74,6 +74,17 @@
     "map_clear": "Wyczyść",
     "map_save": "Zapisz",
     "map_saved": "Zapisano",
+    "map_export": "Eksport",
+    "map_import": "Import",
+    "map_import_dialog_title": "Import planu pomieszczenia",
+    "map_import_question": "Otrzymałeś plan pomieszczenia. Jak dodać go do bieżącej mapy?",
+    "map_import_replace": "Zastąp bieżący plan",
+    "map_import_side": "Dodaj obok bieżącego planu",
+    "map_import_done": "Plan pomieszczenia zaimportowany",
+    "map_import_denied": "Nie masz uprawnień do edycji planu pomieszczenia",
+    "map_send_to_chat": "Wyślij do czatu",
+    "map_sent_to_chat": "Plan piętra dołączony do czatu",
+    "map_plan_empty": "Plan piętra jest pusty",
     "map_drag_devices": "Przeciągnij urządzenie na mapę",
     "map_status_hint": "Wybierz narzędzie",
     "map_clear_confirm": "Wyczyścić plan piętra?",
@@ -139,5 +150,7 @@
     "device_group_label": "Udostępnij grupie",
     "add_device_token_hint": "Adres lokalny jest wypełniany automatycznie, gdy urządzenie łączy się z serwerem",
     "category_new_option": "+ Utwórz nową grupę",
-    "category_new_name": "Nazwa nowej grupy"
+    "category_new_name": "Nazwa nowej grupy",
+    "chart_no_data": "Brak danych",
+    "chart_points": "N punktów"
 }

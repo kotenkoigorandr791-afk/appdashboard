@@ -60,6 +60,21 @@ function shmw_json_array(?string $json): array {
     $data = json_decode((string)$json, true);
     return is_array($data) ? $data : [];
 }
+function shmw_normalize_param_value(array $param, mixed $value): mixed {
+    if (($param['type'] ?? '') === 'chart') {
+        if (is_array($value)) {
+            $out = [];
+            foreach ($value as $v) {
+                if (is_numeric($v)) $out[] = (float)$v;
+            }
+            return $out;
+        }
+        $decoded = json_decode((string)$value, true);
+        return is_array($decoded) ? shmw_normalize_param_value($param, $decoded) : [];
+    }
+    if (is_array($value)) return json_encode($value, JSON_UNESCAPED_UNICODE);
+    return (string)$value;
+}
 function shmw_controls_map(array $controls): array {
     $out = [];
     foreach ($controls as $control) {
@@ -83,7 +98,7 @@ function shmw_record_history(AppDatabase $db, string $deviceId, array $params, a
     foreach ($params as $param) {
         if (!is_array($param)) continue;
         $id = (string)($param['id'] ?? '');
-        if ($id === '' || !array_key_exists($id, $telemetry)) continue;
+        if ($id === '' || !array_key_exists($id, $telemetry) || is_array($telemetry[$id])) continue;
         $ins->bindValue(':did', $deviceId, PDO::PARAM_STR);
         $ins->bindValue(':pid', $id, PDO::PARAM_STR);
         $ins->bindValue(':lbl', (string)($param['label'] ?? $id), PDO::PARAM_STR);
@@ -114,7 +129,7 @@ function shmw_handle_state(string $deviceId, string $message): void {
         foreach ($params as &$param) {
             $id = (string)($param['id'] ?? '');
             if ($id === '' || $id === 'ws' || !array_key_exists($id, $payload['telemetry'])) continue;
-            $param['value'] = (string)$payload['telemetry'][$id];
+            $param['value'] = shmw_normalize_param_value($param, $payload['telemetry'][$id]);
         }
         unset($param);
         shmw_record_history($db, $deviceId, $params, $payload['telemetry']);

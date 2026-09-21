@@ -31,6 +31,15 @@ let currentRates  = {};
 const storeColors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','rgba(6,127,0,1)','#C9CBCF','#4BC0C0','#FFCD56','#C9CBCF','#FF6384'];
 const monthNames  = <?= json_encode(($monthNames[$language] ?? $monthNames['en']), $jsonFlags) ?: '[]' ?>;
 const t=(key,fallback='')=>translations[key]||fallback;
+const categoryLabel=key=>t('store_category_'+key,key);
+function money(v){return `${(Number(v)||0).toFixed(2)} ${userSettings.currency||''}`.trim();}
+function updateFinancialSummary(){
+    const income=Object.values(incomesData||{}).reduce((s,v)=>s+(Number(v)||0),0);
+    const expenses=Object.values(expensesData||{}).reduce((s,row)=>s+Object.values(row||{}).reduce((a,v)=>a+(Number(v)||0),0),0);
+    const values={income,expenses,balance:income-expenses};
+    const map={income:'financial-income',expenses:'financial-expenses',balance:'financial-balance'};
+    Object.keys(map).forEach(k=>{const el=document.getElementById(map[k]);if(el)el.textContent=money(values[k]);});
+}
 
 // ══ Modal helpers ═══════════════════════════════════════════════════════════
 function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
@@ -260,6 +269,7 @@ function saveExpense(input) {
         if (!expensesData[date]) expensesData[date]={};
         expensesData[date][store]=amount;
     }
+    updateFinancialSummary();
 
     const payload=isIncome?{update_income:'1',date,amount}:{update_expense:'1',date,store,amount};
     fetch('', {method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -1110,12 +1120,15 @@ function switchSettingsSection(section){
 // ══ Stores ════════════════════════════════════════════════════════════════
 let currentStoreId=null,storePhotoFile=null,pendingOCRStoreRaw='';
 function closeAddEditStoreModal(){pendingOCRStoreRaw='';closeModal('add-edit-store-modal');}
-function showAddEditStoreModal(id=null,name='',visible=true,ocrRaw=''){
+function showAddEditStoreModal(id=null,name='',visible=true,ocrRaw='',category=null){
     currentStoreId=id;
     pendingOCRStoreRaw=ocrRaw||'';
-    document.getElementById('add-edit-store-title').textContent=id?translations.edit_store:translations.add_store;
-    document.getElementById('store-name-input').value=name;
-    document.getElementById('store-photo-input').value='';
+document.getElementById('add-edit-store-title').textContent=id?translations.edit_store:translations.add_store;
+document.getElementById('store-name-input').value=name;
+const cat=document.getElementById('store-category-input');
+const current=(userSettings.stores||[]).find(s=>String(s.id)===String(id));
+if(cat)cat.value=category||current?.category||'other';
+document.getElementById('store-photo-input').value='';
     document.getElementById('store-photo-preview').style.display='none';
     const csb=document.getElementById('crop-store-btn');
     csb.style.display='none';
@@ -1252,6 +1265,7 @@ function saveStore(){
     fd.append('add_edit_store','1');
     fd.append('store_id',currentStoreId||Date.now());
     fd.append('store_name',name);
+    fd.append('store_category',document.getElementById('store-category-input')?.value||'other');
     if(storePhotoFile) fd.append('store_photo',storePhotoFile,'store_photo.jpg');
     fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
         if(d.status!=='success'){ showNotification(d.message||t('error_generic','Error'),'error'); return; }
@@ -1696,12 +1710,65 @@ function handleTableNavigation(e){
     else if(e.key==='ArrowDown'){if(row<Math.ceil(inputs.length/cols)-1)ni=ci+cols;else{addNewDate(null,col);return;}}
     else if(e.key==='ArrowLeft'&&col>0)ni=ci-1;
     else if(e.key==='ArrowRight'||e.key==='Tab'){if(col<cols-1)ni=ci+1;else if(row<Math.ceil(inputs.length/cols)-1)ni=ci+1;else{addNewDate(null,0);return;}}
-    if(ni!==ci&&inputs[ni]){inputs[ni].focus();inputs[ni].select();}
+if(ni!==ci&&inputs[ni]){inputs[ni].focus();inputs[ni].select();}
 }
+function renderAnalyticsSummaryTable(id,rows,nameKey){
+    const el=document.getElementById(id);
+    if(!el)return;
+    if(!rows||!rows.length){el.textContent=t('no_data','No data');return;}
+    el.innerHTML='';
+    const table=document.createElement('table');
+    table.className='analytics-summary-table';
+    table.innerHTML=`<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
+    const body=document.createElement('tbody');
+    rows.slice(0,12).forEach(row=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td>${row.label}</td><td>${money(row.today)}</td><td>${money(row.year_day_avg)}</td><td>${money(row.total)}</td>`;
+        body.appendChild(tr);
+    });
+    table.appendChild(body);
+    el.appendChild(table);
+}
+function renderAnalyticsSummaries(payload){
+    const stores=(payload.store_summary||[]).map(r=>({...r,label:r.store}));
+    const categories=(payload.category_summary||[]).map(r=>({...r,label:categoryLabel(r.category)})).sort((a,b)=>(b.total||0)-(a.total||0));
+    renderAnalyticsSummaryTable('analytics-store-summary',stores,t('store_name','Store'));
+    renderAnalyticsSummaryTable('analytics-category-summary',categories,t('store_category','Category'));
+}
+function buildOCRAnalyticsChart(payload,selectedStore){
+    renderAnalyticsSummaries(payload);
+    const canvas=document.getElementById('ocr-analytics-chart');
+    if(!canvas)return;
+    const ctx=canvas.getContext('2d');
+    if(ocrAnalyticsChart)ocrAnalyticsChart.destroy();
+    const monthly=payload.monthly||[];
+    if(selectedStore==='__all__'){
+        const labels=[...new Set(monthly.map(r=>r.ym))].sort();
+        const categories=[...new Set((payload.category_summary||[]).map(r=>r.category))];
+        const datasets=categories.map((cat,i)=>({type:'bar',label:categoryLabel(cat),data:labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((sum,r)=>{const st=(payload.store_summary||[]).find(s=>s.store===r.store);return sum+(st&&st.category===cat?Number(r.amount_sum||0):0);},0)),backgroundColor:storeColors[i%storeColors.length]+'55',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
+        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true},x:{stacked:true}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+        return;
+    }
+    const daily=payload.daily||[];
+    const labels=[...new Set(daily.map(r=>r.date))].sort();
+    const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
+    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(54,162,235,.38)',borderColor:'rgba(54,162,235,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+}
+function loadOCRAnalytics(){
+    const select=document.getElementById('ocr-analytics-store');
+    const store=select?select.value:'__all__';
+    fetch(`?get_ocr_stats=1&store=${encodeURIComponent(store)}&year=${encodeURIComponent(analyticsYear)}`).then(r=>r.json()).then(d=>{
+        if(d.status!=='success'){showNotification(t('failed_load_analytics','Failed to load analytics'),'error');return;}
+        if(select&&select.options.length<=1)(d.stores||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;select.appendChild(o);});
+        buildOCRAnalyticsChart(d,store);
+    }).catch(()=>showNotification(t('failed_load_analytics','Failed to load analytics'),'error'));
+}
+function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
 
 // ══ DOMContentLoaded ═══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
 setupModalChrome();
+updateFinancialSummary();
 loadAvailableYears().then(()=>{updateChart();});
     highlightCurrentDate();
     setInterval(highlightCurrentDate,60000);

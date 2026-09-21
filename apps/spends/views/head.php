@@ -535,6 +535,16 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         *::-webkit-scrollbar-track{background:var(--scrollbar-track);}
         *::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:8px;}
         *::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover);}
+        .financial-summary-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 16px;}
+        .financial-summary-bar>div,.analytics-summary-grid>section{background:var(--group-block-bg);border:1px solid var(--border-color);border-radius:8px;padding:12px;color:var(--text-color);}
+        .financial-summary-bar span{display:block;font-size:12px;opacity:.75;margin-bottom:4px;}
+        .financial-summary-bar strong{display:block;font-size:18px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .analytics-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0;flex:0 0 auto;}
+        .analytics-summary-grid h4{margin:0 0 8px;font-size:14px;}
+        .analytics-summary-table{width:100%;border-collapse:collapse;font-size:13px;}
+        .analytics-summary-table th,.analytics-summary-table td{padding:6px;border-bottom:1px solid var(--border-color);text-align:right;}
+        .analytics-summary-table th:first-child,.analytics-summary-table td:first-child{text-align:left;}
+        @media(max-width:768px){.financial-summary-bar,.analytics-summary-grid{grid-template-columns:1fr;}}
     </style>
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}

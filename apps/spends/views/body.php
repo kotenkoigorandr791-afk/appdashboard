@@ -126,6 +126,11 @@
             </button>
         </div>
     </div>
+    <div class="financial-summary-bar" id="financial-summary-bar">
+        <div><span><?= htmlspecialchars($translations['total_income'] ?? 'Income') ?></span><strong id="financial-income">0</strong></div>
+        <div><span><?= htmlspecialchars($translations['total_expenses'] ?? 'Expenses') ?></span><strong id="financial-expenses">0</strong></div>
+        <div><span><?= htmlspecialchars($translations['capital_balance'] ?? 'Capital') ?></span><strong id="financial-balance">0</strong></div>
+    </div>
 
     <div class="chart-header">
         <div class="chart-year-framed" id="chart-year"></div>
@@ -244,6 +249,16 @@
         <div class="form-row">
             <label><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?></label>
             <select id="ocr-analytics-store" class="currency-select" onchange="loadOCRAnalytics()"><option value="__all__"><?= htmlspecialchars($translations['all_stores'] ?? 'All stores') ?></option></select>
+        </div>
+        <div class="analytics-summary-grid">
+            <section>
+                <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
+                <div id="analytics-store-summary"></div>
+            </section>
+            <section>
+                <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
+                <div id="analytics-category-summary"></div>
+            </section>
         </div>
         <div class="rate-chart-container"><canvas id="ocr-analytics-chart"></canvas></div>
     </div>
@@ -409,6 +424,14 @@
         <div class="form-row">
             <label><?= htmlspecialchars($translations['store_name']) ?>:</label>
             <input type="text" id="store-name-input" placeholder="<?= htmlspecialchars($translations['store_name']) ?>">
+        </div>
+        <div class="form-row">
+            <label><?= htmlspecialchars($translations['store_category'] ?? 'Category') ?>:</label>
+            <select id="store-category-input">
+                <?php foreach (spendsStoreCategories() as $cat): ?>
+                    <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($translations['store_category_'.$cat] ?? ucfirst($cat)) ?></option>
+                <?php endforeach; ?>
+            </select>
         </div>
         <div class="form-row">
             <label><?= htmlspecialchars($translations['store_photo']) ?>:</label>
