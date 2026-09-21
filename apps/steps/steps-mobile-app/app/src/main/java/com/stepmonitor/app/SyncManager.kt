@@ -15,7 +15,13 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
 import java.time.Instant
+import java.util.UUID
 
 /** Emit a record's Health Connect provenance as a nested "metadata" object. */
 private fun JsonObjectBuilder.putRecordMetadata(meta: RecordMetadata) {
@@ -252,11 +258,21 @@ class SyncManager(private val context: Context) {
                             aggregatedNotifs.getOrPut(nc) { mutableListOf() }.add(msg)
                         }
                     } else {
-                        lastFailure = result.exceptionOrNull()
-                        (lastFailure as? SyncConflictException)?.let { preferencesManager.setPendingConflictJson(it.conflictJson) }
-                        val msg = "❌ ${config.url}: ${lastFailure?.message ?: "Error"}"
-                        notifConfigs.forEach { nc ->
-                            aggregatedNotifs.getOrPut(nc) { mutableListOf() }.add(msg)
+                        val failure = result.exceptionOrNull()
+                        val conflict = failure as? SyncConflictException
+                        if (conflict != null && resolveRememberedConflict(config, conflict.conflictJson)) {
+                            atLeastOneSuccess = true
+                            val msg = "✅ ${config.url}: conflict resolved"
+                            notifConfigs.forEach { nc ->
+                                aggregatedNotifs.getOrPut(nc) { mutableListOf() }.add(msg)
+                            }
+                        } else {
+                            lastFailure = failure
+                            conflict?.let { preferencesManager.setPendingConflictJson(it.conflictJson) }
+                            val msg = "❌ ${config.url}: ${lastFailure?.message ?: "Error"}"
+                            notifConfigs.forEach { nc ->
+                                aggregatedNotifs.getOrPut(nc) { mutableListOf() }.add(msg)
+                            }
                         }
                     }
                 }
@@ -342,6 +358,65 @@ class SyncManager(private val context: Context) {
             basalBodyTemperature = if ("BASAL_BODY_TEMPERATURE" in allowed) data.basalBodyTemperature else emptyList()
         )
     }
+
+    private fun resolveRememberedConflict(config: WebhookConfig, conflictJson: String): Boolean {
+        if (!preferencesManager.isConflictRememberEnabled()) return false
+        val action = preferencesManager.getConflictDefaultAction() ?: return false
+        val timestamp = System.currentTimeMillis()
+        var url = ""
+        return runCatching {
+            val obj = JSONObject(conflictJson).optJSONObject("conflict") ?: JSONObject(conflictJson)
+            val rawUrl = obj.optString("resolution_url").ifBlank {
+                "/api/steps/conflicts/${obj.optString("id")}"
+            }
+            url = if (rawUrl.startsWith("http")) rawUrl else {
+                val base = android.net.Uri.parse(config.url)
+                "${base.scheme}://${base.authority}/${rawUrl.trimStart('/')}"
+            }
+            val body = JSONObject()
+                .put("action", action)
+                .toString()
+                .toRequestBody("application/json; charset=utf-8".toMediaType())
+            val builder = Request.Builder().url(url).post(body)
+            config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+            OkHttpClient().newCall(builder.build()).execute().use { response ->
+                val success = response.isSuccessful
+                preferencesManager.addWebhookLog(
+                    WebhookLog(
+                        id = UUID.randomUUID().toString(),
+                        timestamp = timestamp,
+                        url = url,
+                        statusCode = response.code,
+                        success = success,
+                        errorMessage = if (success) "Conflict resolved: $action — HTTP ${response.code}" else "Conflict resolve failed: HTTP ${response.code}",
+                        dataType = "steps",
+                        recordCount = null,
+                        syncType = "conflict",
+                        deliveryFormat = WebhookLog.FORMAT_JSON
+                    )
+                )
+                if (success) preferencesManager.clearPendingConflictJson()
+                success
+            }
+        }.getOrElse {
+            preferencesManager.addWebhookLog(
+                WebhookLog(
+                    id = UUID.randomUUID().toString(),
+                    timestamp = timestamp,
+                    url = url,
+                    statusCode = null,
+                    success = false,
+                    errorMessage = "Conflict resolve failed: ${it.message ?: "IOException"}",
+                    dataType = "steps",
+                    recordCount = null,
+                    syncType = "conflict",
+                    deliveryFormat = WebhookLog.FORMAT_JSON
+                )
+            )
+            false
+        }
+    }
+
     private fun isWifiConnected(): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val network = cm.activeNetwork ?: return false

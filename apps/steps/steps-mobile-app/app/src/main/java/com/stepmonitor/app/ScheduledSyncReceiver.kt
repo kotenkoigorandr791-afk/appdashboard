@@ -31,11 +31,9 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
         when (intent.action) {
             ScheduledSyncManager.ACTION_SCHEDULED_SYNC -> {
                 val scheduleId = intent.getStringExtra(ScheduledSyncManager.EXTRA_SCHEDULE_ID)
-                Log.d(TAG, "Delegating scheduled sync to SyncForegroundService (scheduleId=$scheduleId)")
+                Log.d(TAG, "Delegating scheduled sync to WorkManager (scheduleId=$scheduleId)")
                 rescheduleNext(context, scheduleId)
-                if (!SyncForegroundService.start(context, scheduleId)) {
-                    WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())
-                }
+                WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())
             }
 
             Intent.ACTION_BOOT_COMPLETED,

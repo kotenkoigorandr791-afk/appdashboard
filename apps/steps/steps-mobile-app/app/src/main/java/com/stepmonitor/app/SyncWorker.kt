@@ -23,7 +23,6 @@ class SyncWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
-            setForeground(createForegroundInfo())
             val syncResult = syncManager.performSync(syncType = "auto")
             if (syncResult.isSuccess) {
                 Result.success()
