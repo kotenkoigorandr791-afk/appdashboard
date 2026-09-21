@@ -117,11 +117,6 @@ class SyncManager(private val context: Context) {
                 return@withContext Result.failure(Exception("No data types enabled"))
             }
 
-            // A real sync attempt is about to start. Record it so the
-            // next-sync countdown and the INTERVAL alarm chain advance even
-            // when the server rejects a duplicate batch (409).
-            preferencesManager.setLastSyncAttemptTime(Instant.now().toEpochMilli())
-
             // Keep incremental sync only for default mode.
             // Explicit ranges (start/end or timeRangeDays) always perform a full read of that window.
             val hasExplicitRange = start != null || end != null || timeRangeDays != null
