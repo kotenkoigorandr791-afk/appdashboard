@@ -378,6 +378,7 @@ function consumeTrustedDevicePromptDelayMs(): ?int {
 }
 
 $trustedDeviceRestoreNotice = null;
+ensureTrustedBrowserDeviceIdCookie();
 $trustedDeviceHint = parseTrustedDeviceHintCookie((string)($_COOKIE['trusted_device_hint'] ?? ''));
 
 function oauthLoginRedirectUri(): string {

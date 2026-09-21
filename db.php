@@ -1675,9 +1675,6 @@ function restoreSessionViaTrustedDevice(?string $preferredEmail = null): ?array 
             if (!empty($candidate['legacy'])) clearTrustedDeviceCookie();
             continue;
         }
-        if ($autoEmail === 'root@root' || (int)($users[$autoEmail]['role'] ?? 0) >= 2) {
-            continue;
-        }
         return [
             'email' => $autoEmail,
             'user' => $users[$autoEmail],
@@ -1691,15 +1688,21 @@ function restoreSessionViaTrustedDevice(?string $preferredEmail = null): ?array 
 function applyTrustedDeviceSessionRestore(array $restore): void {
     $email = (string)($restore['email'] ?? '');
     if ($email === '' || !is_array($restore['user'] ?? null)) return;
-    if (session_status() !== PHP_SESSION_ACTIVE) app_session_start();
-    session_regenerate_id(true);
-    appClearPendingPasswordFlow();
-    $_SESSION['user'] = $restore['user'];
-    $_SESSION['user']['email'] = $email;
-    $_SESSION['auth_time'] = time();
-    setLastActiveUser($email);
-    cleanupExpiredUserSessions($email);
-    addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    $user = $restore['user'];
+    $isAdmin = $email === 'root@root' || (int)($user['role'] ?? 0) >= 2;
+    if ($isAdmin && function_exists('adminEstablishSession')) {
+        adminEstablishSession($email, $user);
+    } else {
+        if (session_status() !== PHP_SESSION_ACTIVE) app_session_start();
+        session_regenerate_id(true);
+        appClearPendingPasswordFlow();
+        $_SESSION['user'] = $user;
+        $_SESSION['user']['email'] = $email;
+        $_SESSION['auth_time'] = time();
+        setLastActiveUser($email);
+        cleanupExpiredUserSessions($email);
+        addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    }
     $newToken = (string)($restore['new_token'] ?? '');
     if ($newToken !== '') setTrustedDeviceCookieForEmail($email, $newToken);
     rememberTrustedDeviceBrowserAccount($email);
@@ -2914,6 +2917,23 @@ function normalizeTrustedDeviceId(string $value): string {
     if ($value === '') return '';
     if (!preg_match('/^[a-f0-9]{32,128}$/i', $value)) return '';
     return strtolower($value);
+}
+function createTrustedDeviceId(): string {
+    return bin2hex(random_bytes(32));
+}
+function ensureTrustedBrowserDeviceIdCookie(): string {
+    $deviceId = normalizeTrustedDeviceId((string)($_COOKIE['ap_device_id'] ?? ''));
+    if ($deviceId !== '') return $deviceId;
+    $deviceId = createTrustedDeviceId();
+    setcookie('ap_device_id', $deviceId, [
+        'expires' => time() + (365 * 24 * 3600),
+        'path' => '/',
+        'secure' => trustedDeviceCookieIsSecure(),
+        'httponly' => false,
+        'samesite' => 'Lax'
+    ]);
+    $_COOKIE['ap_device_id'] = $deviceId;
+    return $deviceId;
 }
 function getConsentDeviceId(): string {
     $headerDeviceId = normalizeTrustedDeviceId((string)($_SERVER['HTTP_X_DEVICE_ID'] ?? ''));

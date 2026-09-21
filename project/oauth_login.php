@@ -62,7 +62,7 @@ function oauthClearCsrfCookie(): void {
 
 function oauthCreateState(string $provider, string $mode = 'login'): string {
     oauthNormalizeProvider($provider);
-    if (!in_array($mode, ['login', 'link'], true)) {
+    if (!in_array($mode, ['login', 'link', 'admin_gate'], true)) {
         throw new InvalidArgumentException('Invalid OAuth mode');
     }
     $csrf = bin2hex(random_bytes(16));
