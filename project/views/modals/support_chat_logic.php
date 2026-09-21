@@ -2001,7 +2001,7 @@ delete adminDraftEdits[currentChatKey()];
         var count = data.plan.elements ? data.plan.elements.length : (Array.isArray(data.plan) ? data.plan.length : 0);
         var note = data.note ? '<div style="font-size:13px;line-height:1.5;opacity:.92;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,.15);word-wrap:break-word;white-space:pre-wrap;">' + formatChatMessage(String(data.note)) + '</div>' : '';
         window.__fpShares[msgId] = data.plan;
-        return '<div style="width:min(300px,100%);margin-left:' + (isOwn ? 'auto' : '0') + ';border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:10px;text-align:left;display:block;">' +
+        return '<div class="chat-floor-plan-card" style="width:min(300px,100%);margin-left:' + (isOwn ? 'auto' : '0') + ';border:1px solid rgba(255,255,255,.24);background:rgba(255,255,255,.12);color:inherit;border-radius:10px;padding:10px;text-align:left;display:block;">' +
             note +
             '<span style="display:flex;align-items:center;gap:10px;min-width:0;">' +
             '<span style="width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:8px;background:rgba(255,255,255,.14);">' +
@@ -2137,7 +2137,7 @@ delete adminDraftEdits[currentChatKey()];
             const editedLabel = msg.is_edited ? '<span style="font-size:10px;opacity:0.5;margin-left:6px;">edited</span>' : '';
 
             return `<div style="display:flex;justify-content:${isOwn ? 'flex-end' : 'flex-start'};margin-bottom:4px;">
-                <div class="chat-msg-bubble" data-msg-id="${msg.id}" style="background:${isOwn ? 'linear-gradient(135deg, var(--chat-color) 0%, var(--chat-color)dd 100%)' : 'var(--group-block-bg)'};color:${isOwn ? 'white' : 'var(--text-color)'};padding:12px 16px;border-radius:${isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:context-menu;" oncontextmenu="showContextMenu(event, ${msg.id}, ${isOwn}, ${msg.is_deleted})">
+                <div class="chat-msg-bubble ${isOwn ? 'chat-msg-own' : 'chat-msg-other'}" data-msg-id="${msg.id}" style="padding:12px 16px;border-radius:${isOwn ? '20px 20px 4px 20px' : '20px 20px 20px 4px'};position:relative;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:context-menu;" oncontextmenu="showContextMenu(event, ${msg.id}, ${isOwn}, ${msg.is_deleted})">
                     ${content}
                     <div style="font-size:11px;opacity:0.7;margin-top:6px;display:flex;align-items:center;justify-content:space-between;">
                         <span>${timeStr}${editedLabel}</span>

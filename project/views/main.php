@@ -4161,25 +4161,9 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
     from { transform: translateX(0); opacity: 1; }
     to { transform: translateX(100%); opacity: 0; }
 }
-@keyframes float {
-    0%, 100% { transform: translate(0, 0) rotate(0deg); }
-    25% { transform: translate(10px, -10px) rotate(5deg); }
-    50% { transform: translate(-5px, 5px) rotate(-5deg); }
-    75% { transform: translate(-10px, -5px) rotate(3deg); }
-}
 @keyframes pulse {
     0%, 100% { box-shadow: 0 8px 24px var(--chat-color-shadow); }
     50% { box-shadow: 0 8px 32px var(--chat-color-glow), 0 0 0 8px var(--chat-color-ring); }
-}
-.chat-bg-animation {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    background-image:
-        radial-gradient(circle at 20% 30%, var(--chat-color-light) 0%, transparent 50%),
-        radial-gradient(circle at 80% 70%, var(--chat-color-medium) 0%, transparent 50%),
-        radial-gradient(circle at 40% 80%, var(--chat-color-lighter) 0%, transparent 50%);
-    animation: float 20s ease-in-out infinite;
 }
 @keyframes pulseSoft {
     0%, 100% { box-shadow: 0 8px 24px var(--chat-color-shadow); }
@@ -4216,9 +4200,13 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 #chat-input,#chat-user-search-input{background:var(--modal-bg);color:var(--text-color);caret-color:var(--text-color);-webkit-text-fill-color:var(--text-color);}
 #chat-input::placeholder,#chat-user-search-input::placeholder{color:color-mix(in srgb,var(--text-color) 42%,transparent);opacity:1;}
 .chat-list-row-active{border-color:var(--primary-color)!important;box-shadow:0 0 0 2px color-mix(in srgb,var(--primary-color) 38%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 14%,transparent),color-mix(in srgb,var(--primary-color) 7%,transparent))!important;}
-#chat-messages .chat-msg-bubble{min-width:0;max-width:min(70%,92vw);overflow:hidden;box-sizing:border-box;}
-#chat-messages .chat-msg-bubble .chat-msg-media-wrap{max-width:100%;margin-bottom:8px;border-radius:12px;overflow:hidden;line-height:0;}
+#chat-messages .chat-msg-bubble{min-width:0;max-width:min(70%,92vw);overflow:hidden;overflow-wrap:anywhere;box-sizing:border-box;background:color-mix(in srgb,var(--modal-bg) 86%,var(--text-color) 14%);color:var(--text-color);}
+#chat-messages .chat-msg-bubble.chat-msg-own{background:color-mix(in srgb,var(--modal-bg) 78%,var(--text-color) 22%);}
+#chat-messages .chat-msg-bubble>*{max-width:100%;box-sizing:border-box;}
+#chat-messages .chat-msg-bubble .chat-msg-media-wrap{max-width:100%;margin:2px 0 8px;border-radius:12px;overflow:hidden;line-height:0;}
 #chat-messages .chat-msg-bubble .chat-msg-media-wrap img,#chat-messages .chat-msg-bubble .chat-msg-media-wrap video{max-width:100%;max-height:min(52vh,360px);width:auto;height:auto;object-fit:contain;display:block;vertical-align:top;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+#chat-messages .chat-cloud-attachment,#chat-messages .chat-floor-plan-card{max-width:100%;box-sizing:border-box;margin-top:2px;margin-bottom:8px;overflow:hidden;}
+#chat-messages .chat-cloud-attachment img{max-width:100%;height:auto;}
 @media (max-width:640px){
 #chat-messages .chat-msg-bubble{max-width:min(94vw,calc(100vw - 48px));}
 #chat-messages .chat-msg-bubble .chat-msg-media-wrap img,#chat-messages .chat-msg-bubble .chat-msg-media-wrap video{max-height:min(48vh,320px);}
@@ -4245,7 +4233,7 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
     animation: pulse 2s ease-in-out infinite;
 }
 .chat-msg-text-file {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
@@ -4254,7 +4242,11 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
     border-radius: 10px;
     cursor: pointer;
     transition: all 0.2s;
-    margin-bottom: 8px;
+    margin: 2px 0 8px;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
 }
 .chat-msg-text-file:hover {
     background: rgba(99, 102, 241, 0.2);
@@ -4263,13 +4255,21 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 .chat-msg-text-file svg {
     flex-shrink: 0;
 }
+.chat-msg-text-file span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .chat-msg-audio-wrap {
     display: flex;
     align-items: center;
     gap: 10px;
     padding: 4px 2px;
-    min-width: 210px;
-    max-width: 280px;
+    min-width: 0;
+    width: min(280px,100%);
+    max-width: 100%;
+    box-sizing: border-box;
 }
 .chat-msg-audio-play {
     flex-shrink: 0;
