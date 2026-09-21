@@ -150,5 +150,7 @@
     "device_group_label": "Share with group",
     "add_device_token_hint": "Local address is filled automatically when the device connects to the server",
     "category_new_option": "+ Create new group",
-    "category_new_name": "New group name"
+    "category_new_name": "New group name",
+    "chart_no_data": "No data",
+    "chart_points": "N points"
 }

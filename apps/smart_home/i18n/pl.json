@@ -150,5 +150,7 @@
     "device_group_label": "Udostępnij grupie",
     "add_device_token_hint": "Adres lokalny jest wypełniany automatycznie, gdy urządzenie łączy się z serwerem",
     "category_new_option": "+ Utwórz nową grupę",
-    "category_new_name": "Nazwa nowej grupy"
+    "category_new_name": "Nazwa nowej grupy",
+    "chart_no_data": "Brak danych",
+    "chart_points": "N punktów"
 }

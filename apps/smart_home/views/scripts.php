@@ -322,7 +322,9 @@ function renderCardParamsInner(d) {
   const vis = visibleParams(d);
   const params = (d.displayed_params?.length ? d.displayed_params.filter(p => !isHiddenParam(p)) : vis).slice(0, 3);
   if (!params.length) return '';
-  return params.map(p => `<span class="param-chip">${esc(p.label||'')}: <span class="val">${paramValueHtml(p)}</span></span>`).join('');
+  return params.map(p => p.type === 'chart'
+    ? `<span class="param-chip">${esc(p.label||'')}: <span class="val">${chartParamChipHtml(p)}</span></span>`
+    : `<span class="param-chip">${esc(p.label||'')}: <span class="val">${paramValueHtml(p)}</span></span>`).join('');
 }
 
 function renderCardControlsInner(d) {
@@ -575,6 +577,7 @@ function deviceFileUrl(d, f) {
 }
 
 function paramValueHtml(p) {
+  if (p?.type === 'chart') return chartParamSvg(p);
   const id = String(p?.id || '').toLowerCase();
   const value = String(p?.value ?? '');
   if (id === 'rf' || id === 'ws') {
@@ -582,6 +585,104 @@ function paramValueHtml(p) {
     return `<span class="led-status ${on ? 'on' : 'off'}"><span></span>${esc(value || (on ? 'online' : 'offline'))}</span>`;
   }
   return esc(value);
+}
+
+// ─── Chart param (type: 'chart') ────────────────────────────────────────────
+function chartData(p) {
+  let v = p?.value;
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch (e) { return []; } }
+  if (!Array.isArray(v)) return [];
+  const out = [];
+  for (const x of v) {
+    const n = parseFloat(x);
+    if (typeof x === 'boolean' || !isFinite(n)) continue;
+    out.push(n);
+  }
+  return out;
+}
+function chartNiceStep(rawStep) {
+  if (rawStep <= 0) rawStep = 1;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const norm = rawStep / mag;
+  let nice;
+  if (norm < 1.5) nice = 1;
+  else if (norm < 3) nice = 2;
+  else if (norm < 7) nice = 5;
+  else nice = 10;
+  return nice * mag;
+}
+function chartScaleMinMax(data) {
+  if (!data.length) return null;
+  let min = Infinity, max = -Infinity;
+  for (const v of data) { if (v < min) min = v; if (v > max) max = v; }
+  if (min === max) { min -= 1; max += 1; }
+  return { min, max };
+}
+function chartVerticalScale(min, max, targetTicks) {
+  const span = max - min;
+  const raw = span / Math.max(1, targetTicks - 1);
+  const step = chartNiceStep(raw);
+  let lo = Math.floor(min / step) * step;
+  let hi = Math.ceil(max / step) * step;
+  if (hi <= lo) hi = lo + step;
+  const ticks = [];
+  for (let t = lo; t <= hi + step * 1e-6; t += step) {
+    const r = Math.round(t * 1e9) / 1e9;
+    if (ticks.length && r === ticks[ticks.length - 1]) continue;
+    ticks.push(r);
+  }
+  return { min: lo, max: hi, step, ticks };
+}
+function chartNumFmt(v) {
+  const abs = Math.abs(v);
+  if (abs >= 1e6 || (abs > 0 && abs < 1e-4)) return v.toExponential(1);
+  if (Number.isInteger(v)) return String(v);
+  return String(Math.round(v * 1000) / 1000);
+}
+function chartParamSvg(p) {
+  const data = chartData(p);
+  const unit = String(p?.unit || '').trim();
+  if (!data.length) {
+    return `<span class="chart-empty-badge">${esc(uiText.chart_no_data || 'No data')}</span>`;
+  }
+  const n = data.length;
+  const w = 320, h = 150;
+  const padL = 46, padR = 14, padT = 14, padB = 22;
+  const iw = w - padL - padR, ih = h - padT - padB;
+  const mm = chartScaleMinMax(data);
+  const ys = chartVerticalScale(mm.min, mm.max, 5);
+  const yFor = v => padT + ih - (v - ys.min) / (ys.max - ys.min) * ih;
+  const xFor = i => n === 1 ? padL + iw / 2 : padL + i / (n - 1) * iw;
+  let g = '';
+  ys.ticks.forEach(t => {
+    const y = yFor(t);
+    g += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${padL + iw}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1"/>`;
+    g += `<text x="${padL - 6}" y="${(y + 3.5).toFixed(1)}" text-anchor="end" fill="var(--text-secondary)" font-size="10">${esc(chartNumFmt(t))}</text>`;
+  });
+  if (unit) {
+    g += `<text x="${padL - 6}" y="${(padT - 4)}" text-anchor="end" fill="var(--text-secondary)" font-size="10">${esc(unit)}</text>`;
+  }
+  const lastX = xFor(n - 1);
+  g += `<line x1="${padL}" y1="${padT + ih}" x2="${lastX}" y2="${padT + ih}" stroke="var(--line)" stroke-width="1"/>`;
+  const xs = chartVerticalScale(0, Math.max(1, n - 1), Math.min(6, n));
+  xs.ticks.forEach(t => {
+    if (t < 0 || t > n - 1) return;
+    const x = n === 1 ? padL + iw / 2 : padL + t / (n - 1) * iw;
+    const idx = Math.round(t) + 1;
+    g += `<text x="${x.toFixed(1)}" y="${(padT + ih + 14).toFixed(1)}" text-anchor="middle" fill="var(--text-secondary)" font-size="9">${idx}</text>`;
+  });
+  const poly = data.map((v, i) => `${xFor(i).toFixed(1)},${yFor(v).toFixed(1)}`).join(' ');
+  const area = `${padL.toFixed(1)},${(padT + ih).toFixed(1)} ${poly} ${xFor(n - 1).toFixed(1)},${(padT + ih).toFixed(1)}`;
+  return `<svg class="param-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(p.label || 'chart')}">` +
+    `<polygon points="${area}" fill="var(--primary-dim)"/>` +
+    `<polyline points="${poly}" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` +
+    (n === 1 ? `<circle cx="${padL + iw / 2}" cy="${yFor(data[0]).toFixed(1)}" r="3" fill="var(--primary)"/>` : '') +
+    g + `</svg>`;
+}
+function chartParamChipHtml(p) {
+  const data = chartData(p);
+  if (!data.length) return esc(uiText.chart_no_data || 'No data');
+  return esc((uiText.chart_points || 'N points').replace('N', String(data.length)));
 }
 
 function renderModalFilesHtml(d) {

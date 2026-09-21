@@ -137,6 +137,14 @@ Devices can send a `definition` during REST `device_sync` or WebSocket `auth` / 
       "label": "Firmware",
       "value": "1.0.0",
       "section": "status"
+    },
+    {
+      "id": "temperature_chart",
+      "label": "Temperature trend",
+      "type": "chart",
+      "unit": "°C",
+      "value": [20.1, 20.5, 21.2],
+      "section": "status"
     }
   ],
   "files": [
@@ -170,6 +178,45 @@ Control schema rules:
 | Other | String |
 
 When a definition omits a control or param `value`, the server preserves the existing value for the same id. This is why ids must remain stable.
+
+## Chart Parameters
+
+A param with `type: "chart"` carries a time-series rendered as a line chart on the dashboard. The value is an array of numeric points; the device decides how many points to send on every update.
+
+```json
+{
+  "id": "temperature_chart",
+  "label": "Last 24h temperature",
+  "type": "chart",
+  "unit": "°C",
+  "value": [20.1, 20.5, 21.2, 19.8, 22.0, 21.5]
+}
+```
+
+Chart param rules:
+
+| Rule | Behavior |
+|---|---|
+| `type` | Must be exactly `"chart"` |
+| `value` | Array of numbers; count is chosen by the device |
+| `unit` | Optional suffix rendered next to the vertical scale |
+| Non-numeric points | Filtered out by the server |
+| Missing/invalid value | Stored as an empty array, dashboard shows "No data" |
+| Scale labels and tick divisions | Computed automatically by the dashboard (nice round step, 1/2/5 × 10ⁿ) |
+
+Accepted value forms in `telemetry`:
+
+```json
+{ "temperature_chart": [20.1, 20.5, 21.2] }
+```
+
+or a JSON string:
+
+```json
+{ "temperature_chart": "[20.1, 20.5, 21.2]" }
+```
+
+Chart param values are preserved as arrays through REST `device_sync`, WebSocket `state`, and the MQTT `state` topic. They are excluded from `smarthome_params_history` (scalar param history only).
 
 ## REST Synchronization
 

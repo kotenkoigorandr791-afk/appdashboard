@@ -150,5 +150,7 @@
     "device_group_label": "Sdílet se skupinou",
     "add_device_token_hint": "Místní adresa se vyplní automaticky, když se zařízení připojí k serveru",
     "category_new_option": "+ Vytvořit novou skupinu",
-    "category_new_name": "Název nové skupiny"
+    "category_new_name": "Název nové skupiny",
+    "chart_no_data": "Žádná data",
+    "chart_points": "N bodů"
 }

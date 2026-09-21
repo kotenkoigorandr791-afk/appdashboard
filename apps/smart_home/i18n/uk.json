@@ -150,5 +150,7 @@
     "device_group_label": "Група (спільний доступ)",
     "add_device_token_hint": "Локальну адресу підтягне автоматично після підключення пристрою до сервера",
     "category_new_option": "+ Створити нову групу",
-    "category_new_name": "Назва нової групи"
+    "category_new_name": "Назва нової групи",
+    "chart_no_data": "Немає даних",
+    "chart_points": "N точок"
 }
