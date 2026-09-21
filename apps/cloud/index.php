@@ -220,8 +220,8 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=35"></script>
-<script defer src="assets/app/editors-and-tree.js?v=9"></script>
+<script defer src="assets/app.js?v=38"></script>
+<script defer src="assets/app/editors-and-tree.js?v=11"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
