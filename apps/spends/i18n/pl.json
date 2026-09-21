@@ -298,5 +298,6 @@
         "store_name": "Nazwa sklepu",
         "cancel": "Anuluj",
         "delete": "Usuń"
-    }
+    },
+    "store_category_build": "Budowa"
 }

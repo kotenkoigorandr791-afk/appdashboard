@@ -295,5 +295,6 @@
         "store_name": "Назва магазину",
         "cancel": "Скасувати",
         "delete": "Видалити"
-    }
+    },
+    "store_category_build": "Будівництво"
 }

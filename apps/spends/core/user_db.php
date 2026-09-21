@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../../../lib/user_schema_pg.php';
-const SPENDS_STORE_CATEGORIES = ['food','groceries','cafes','clothes','shoes','home','apartment','utilities','transport','car','travel','health','pharmacy','beauty','children','pets','education','sports','electronics','subscriptions','entertainment','gifts','services','finance','taxes','insurance','charity','other'];
+const SPENDS_STORE_CATEGORIES = ['food','groceries','cafes','clothes','shoes','home','apartment','utilities','transport','car','travel','health','pharmacy','beauty','children','pets','build','education','sports','electronics','subscriptions','entertainment','gifts','services','finance','taxes','insurance','charity','other'];
 function spendsStoreCategories(): array {
     return SPENDS_STORE_CATEGORIES;
 }
