@@ -4421,6 +4421,13 @@ var T=<?php echo json_encode([
     'support_chat_editor_apply_crop'=>$translations['support_chat_editor_apply_crop']??'Apply crop',
     'support_chat_editor_send'=>$translations['support_chat_editor_send']??'Send',
     'support_chat_editor_finish_crop'=>$translations['support_chat_editor_finish_crop']??'Apply or cancel crop first',
+    'support_chat_floor_plan'=>$translations['support_chat_floor_plan']??'Floor plan',
+    'support_chat_floor_plan_share'=>$translations['support_chat_floor_plan_share']??'Shared from Smart Home',
+    'support_chat_import_plan'=>$translations['support_chat_import_plan']??'Import',
+    'support_chat_plan_attached'=>$translations['support_chat_plan_attached']??'Floor plan attached',
+    'support_chat_plan_attached_hint'=>$translations['support_chat_plan_attached_hint']??'Floor plan attached — select a recipient and send',
+    'support_chat_plan_remove'=>$translations['support_chat_plan_remove']??'Remove plan',
+    'support_chat_import_sent'=>$translations['support_chat_import_sent']??'Smart Home: floor plan ready for import',
     'delete_this_command'=>$translations['delete_this_command']??'Delete this command?',
     'qr_library_not_loaded'=>$translations['qr_library_not_loaded']??'QR Code library not loaded',
     'qr_refresh_page'=>$translations['qr_refresh_page']??'Please refresh the page',
@@ -4877,7 +4884,8 @@ var T=<?php echo json_encode([
             const btn = wrapper.querySelector('button');
             if(!tooltip || !btn) return;
             document.body.appendChild(tooltip);
-            btn.addEventListener('mouseenter', () => {
+
+            const showTooltip = () => {
                 const rect = btn.getBoundingClientRect();
                 tooltip.style.display = 'block';
                 tooltip.style.position = 'fixed';
@@ -4887,10 +4895,22 @@ var T=<?php echo json_encode([
                 tooltip.style.zIndex = '2147483647';
                 tooltip.style.pointerEvents = 'none';
                 tooltip.style.whiteSpace = 'nowrap';
-            });
-            btn.addEventListener('mouseleave', () => {
+            };
+
+            const hideTooltip = () => {
                 tooltip.style.display = 'none';
-            });
+            };
+
+            btn.addEventListener('mouseenter', showTooltip);
+            btn.addEventListener('mouseleave', hideTooltip);
+            btn.addEventListener('focus', showTooltip);
+            btn.addEventListener('blur', hideTooltip);
+            // Mobile: tooltips are not triggered by hover, so show them on touch.
+            btn.addEventListener('touchstart', () => {
+                showTooltip();
+                if(tooltip._settingsTooltipTimer) clearTimeout(tooltip._settingsTooltipTimer);
+                tooltip._settingsTooltipTimer = setTimeout(() => hideTooltip(), 2200);
+            }, {passive:true});
         });
 
         if(usersSearch && usersClearSearch && userRows.length > 0) {

@@ -1073,6 +1073,7 @@ function switchPage(page) {
     fpUpdateMapMode();
     if (!FP.canvas) fpInit(); else { fpBindMapZoom(); fpRebuildDeviceChips(); fpRender(); }
   }
+  fpCheckPendingImport();
   syncViewportMode();
 }
 
@@ -1142,6 +1143,7 @@ function loadState() {
       fpRender();
       if (!FP._centeredOnce) { FP._centeredOnce = true; fpWhenLayoutReady(() => setTimeout(fpCenterMap, 80)); }
     }
+    fpCheckPendingImport();
     startRealtimeSync();
   }).catch(e => console.error('loadState error:', e));
 }
@@ -2351,6 +2353,212 @@ function fpSave() {
   state.floorPlan = FP.elements;
   api('save_floor_plan', { elements: FP.elements }).catch(e => console.error('floor plan save', e));
 }
+
+function fpGetExportPayload() {
+  fpNormalizeElements();
+  // Keep schema stable: { version, elements }
+  return { version: 1, elements: FP.elements };
+}
+
+function fpValidateExportPayload(payload) {
+  // Backward-compatible: allow raw array export
+  if (Array.isArray(payload)) return payload;
+  return payload?.elements;
+}
+
+function fpTryImportPayload(payload) {
+  const next = fpValidateExportPayload(payload);
+  if (!Array.isArray(next)) throw new Error('Invalid payload: elements must be array');
+  FP.elements = next;
+  fpNormalizeElements();
+  FP.selected = -1;
+  FP.propsIdx = -1;
+  fpPushHistory();
+  fpRenderProps();
+  fpRender();
+  fpMarkDirty();
+  api('save_floor_plan', { elements: FP.elements }).catch(e => console.error('floor plan save after import', e));
+}
+
+function fpExportToFile() {
+  if (fpIsViewOnly()) return;
+  const payload = fpGetExportPayload();
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  a.href = url;
+  a.download = `floor-plan-${ts}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function fpImportFromFile(file) {
+  if (fpIsViewOnly()) return;
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const txt = String(reader.result || '');
+      const payload = JSON.parse(txt);
+      fpTryImportPayload(payload);
+    } catch (e) {
+      uiAlert((e && e.message) ? e.message : (uiText.error_title || 'Import error'));
+    }
+  };
+  reader.onerror = () => uiAlert(uiText.error_title || 'Import error');
+  reader.readAsText(file);
+}
+
+function fpElBounds(el) {
+  if (!el || typeof el !== 'object') return null;
+  const shape = fpElShape(el);
+  if (shape === 'poly') {
+    const pts = el.points || [];
+    if (!pts.length) return null;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    pts.forEach(p => {
+      const x = Number(p.x) || 0, y = Number(p.y) || 0;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x > maxX) maxX = x;
+      if (y > maxY) maxY = y;
+    });
+    return { minX, minY, maxX, maxY };
+  }
+  if (el.type === 'wall') {
+    const x1 = Number(el.x) || 0, y1 = Number(el.y) || 0, x2 = Number(el.x2) || 0, y2 = Number(el.y2) || 0;
+    return { minX: Math.min(x1, x2), minY: Math.min(y1, y2), maxX: Math.max(x1, x2), maxY: Math.max(y1, y2) };
+  }
+  if (el.type === 'window' || el.type === 'door') {
+    const horizontal = Math.abs(Math.sin(fpNormalizeAngleCardinal(el.angle || 0))) < 0.5;
+    const halfW = fpSnapSize(el.w || FP.snap, 2) / 2;
+    const halfH = fpSnapSize(el.h || FP.snap, 2) / 2;
+    const hx = horizontal ? halfW : halfH;
+    const hy = horizontal ? halfH : halfW;
+    const cx = Number(el.x) || 0, cy = Number(el.y) || 0;
+    return { minX: cx - hx, minY: cy - hy, maxX: cx + hx, maxY: cy + hy };
+  }
+  if (el.type === 'room' || el.type === 'furniture') {
+    const x = Number(el.x) || 0, y = Number(el.y) || 0, w = Number(el.w) || 0, h = Number(el.h) || 0;
+    return { minX: x, minY: y, maxX: x + w, maxY: y + h };
+  }
+  const x = Number(el.x) || 0, y = Number(el.y) || 0;
+  return { minX: x, minY: y, maxX: x, maxY: y };
+}
+
+function fpPlanBounds(elements) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  (elements || []).forEach(el => {
+    const b = fpElBounds(el);
+    if (!b) return;
+    if (b.minX < minX) minX = b.minX;
+    if (b.minY < minY) minY = b.minY;
+    if (b.maxX > maxX) maxX = b.maxX;
+    if (b.maxY > maxY) maxY = b.maxY;
+  });
+  if (minX === Infinity) return null;
+  return { minX, minY, maxX, maxY };
+}
+
+function fpTranslateElement(el, dx, dy) {
+  if (!el || typeof el !== 'object') return el;
+  if (fpElShape(el) === 'poly') {
+    el.points = (el.points || []).map(p => ({ x: fpSnap((Number(p.x) || 0) + dx), y: fpSnap((Number(p.y) || 0) + dy) }));
+    return el;
+  }
+  el.x = fpSnap((Number(el.x) || 0) + dx);
+  el.y = fpSnap((Number(el.y) || 0) + dy);
+  if (el.type === 'wall') {
+    el.x2 = fpSnap((Number(el.x2) || 0) + dx);
+    el.y2 = fpSnap((Number(el.y2) || 0) + dy);
+  }
+  return el;
+}
+
+function fpDoImport(payload, mode) {
+  const raw = fpValidateExportPayload(payload);
+  if (!Array.isArray(raw)) return;
+  const next = raw.map(el => fpNormalizeElement(JSON.parse(JSON.stringify(el))));
+  if (mode === 'side') {
+    const curBounds = fpPlanBounds(FP.elements);
+    const impBounds = fpPlanBounds(next);
+    if (curBounds && impBounds) {
+      const gap = Math.max(FP.snap * 2, 40);
+      const dx = (curBounds.maxX + gap) - impBounds.minX;
+      const dy = curBounds.minY - impBounds.minY;
+      next.forEach(el => fpTranslateElement(el, dx, dy));
+    }
+  }
+  FP.elements = mode === 'side' ? (FP.elements || []).concat(next) : next;
+  fpNormalizeElements();
+  FP.selected = -1;
+  FP.propsIdx = -1;
+  fpPushHistory();
+  fpRenderProps();
+  fpRender();
+  fpMarkDirty();
+  api('save_floor_plan', { elements: FP.elements }).catch(e => console.error('floor plan save after import', e));
+  uiToast(uiText.map_import_done || 'Floor plan imported');
+  closeModal();
+}
+
+let fpImportPendingPayload = null;
+function fpConfirmImport(mode) {
+  const payload = fpImportPendingPayload;
+  fpImportPendingPayload = null;
+  fpDoImport(payload, mode);
+}
+function fpShowImportDialog(payload) {
+  const raw = fpValidateExportPayload(payload);
+  if (!Array.isArray(raw)) { uiAlert(uiText.error_title || 'Import error'); return; }
+  if (fpIsViewOnly()) { uiAlert(uiText.map_import_denied || "You don't have permission to edit the floor plan"); return; }
+  fpImportPendingPayload = raw;
+  const count = raw.length;
+  openModal(`<div class="fp-import-dialog">
+    <h2 class="modal-title">${esc(uiText.map_import_dialog_title || 'Import floor plan')}</h2>
+    <p class="fp-import-question">${esc((uiText.map_import_question || 'A floor plan was shared with you. How should it be added to the current map?') + (count ? ` (${count})` : ''))}</p>
+    <div class="fp-import-actions">
+      <button type="button" class="btn btn-primary" onclick="fpConfirmImport('replace')">${esc(uiText.map_import_replace || 'Replace current plan')}</button>
+      <button type="button" class="btn btn-secondary" onclick="fpConfirmImport('side')">${esc(uiText.map_import_side || 'Add beside the current plan')}</button>
+      <button type="button" class="btn btn-secondary" onclick="closeModal()">${esc(uiText.cancel)}</button>
+    </div>
+  </div>`);
+}
+
+function fpActivateMapForImport() {
+  if (state.currentPage !== 'map') switchPage('map');
+  if (!FP.canvas) fpInit();
+}
+function fpHandlePendingImport(plan) {
+  if (!plan) return;
+  if (fpIsViewOnly()) { uiAlert(uiText.map_import_denied || "You don't have permission to edit the floor plan"); return; }
+  fpActivateMapForImport();
+  fpShowImportDialog(plan);
+}
+function fpCheckPendingImport() {
+  let raw = null;
+  try { raw = localStorage.getItem('fp_import_pending'); } catch (_) {}
+  if (!raw) return;
+  try { localStorage.removeItem('fp_import_pending'); } catch (_) {}
+  try {
+    const data = JSON.parse(raw);
+    if (!data || !data.plan) return;
+    if (data.ts && (Date.now() - data.ts) > 15 * 60 * 1000) return;
+    fpHandlePendingImport(data.plan);
+  } catch (_) {}
+}
+
+window.addEventListener('message', e => {
+  const d = e.data;
+  if (!d || d.type !== 'fp_import_pending') return;
+  try { localStorage.removeItem('fp_import_pending'); } catch (_) {}
+  requestAnimationFrame(() => fpHandlePendingImport(d.plan));
+});
+
 function fpMarkDirty() {
   if (fpIsViewOnly()) return;
   fpNormalizeElements();
@@ -2455,6 +2663,29 @@ function fpInit() {
     btn.textContent = uiText.map_saved;
     setTimeout(() => { btn.innerHTML = orig; }, 1500);
   });
+
+  document.getElementById('mapExportBtn')?.addEventListener('click', fpExportToFile);
+  document.getElementById('mapImportBtn')?.addEventListener('click', () => {
+    document.getElementById('mapImportFileInput')?.click();
+  });
+  document.getElementById('mapImportFileInput')?.addEventListener('change', (e) => {
+    const files = e.target?.files;
+    fpImportFromFile(files && files.length ? files[0] : null);
+    e.target.value = '';
+  });
+  document.getElementById('mapSendChatBtn')?.addEventListener('click', () => {
+    if (fpIsViewOnly()) return;
+    const payload = fpGetExportPayload();
+    if (!payload.elements || !payload.elements.length) {
+      uiAlert(uiText.map_plan_empty || 'The floor plan is empty');
+      return;
+    }
+    try {
+      window.parent.postMessage({ type: 'smart_home_send_floor_plan', plan: payload, count: payload.elements.length }, '*');
+    } catch (_) {}
+    uiToast(uiText.map_sent_to_chat || 'Floor plan attached to the chat');
+  });
+
   fpRebuildDeviceChips();
   fpWhenLayoutReady(fpResizeCanvas);
   if (FP.resizeObs) FP.resizeObs.disconnect();
