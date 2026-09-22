@@ -1024,7 +1024,7 @@ $metricButtons = [
                         height:220,
                         type:'svg',
                         data:data,
-                        margin:8,
+                        margin:0,
                         qrOptions:{errorCorrectionLevel:'H'},
                         dotsOptions:{
                             type:'rounded',

@@ -641,7 +641,7 @@
             overflow: hidden;
             overflow-x: hidden;
             box-sizing: border-box;
-            padding: 12px;
+            padding: 0;
         }
         #excel-hotkeys-modal { z-index: 10020; }
         #excel-modal {
@@ -1783,11 +1783,12 @@
         }
         .mobile-app-content .ma-qr-frame {
             position: relative;
-            width: 140px;
-            height: 140px;
+            width: 220px;
+            height: 220px;
             background-color: #fff;
             border-radius: var(--radius-sm, 8px);
-            margin: 0 0 20px;
+            margin-bottom: 20px;
+            padding: 12px;
             box-sizing: border-box;
             display: flex;
             align-items: center;
@@ -1804,8 +1805,8 @@
             pointer-events: none;
         }
         .mobile-app-content .ma-qr-placeholder svg {
-            width: 120px;
-            height: 120px;
+            width: 220px;
+            height: 220px;
         }
         .mobile-app-content .ma-qr-code {
             position: absolute;
@@ -1815,8 +1816,11 @@
             justify-content: center;
         }
         .mobile-app-content .ma-qr-code svg {
-            width: 120px;
-            height: 120px;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
         }
         .mobile-app-content .ma-qr-generate {
             position: absolute;
@@ -1858,19 +1862,21 @@
             height: 26px;
             border: none;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.95);
-            color: var(--muted-text, #6b7280);
+            background: #ffffff;
+            color: #7c3aed;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
-            transition: color 0.2s ease, transform 0.15s ease, background-color 0.2s ease;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(124, 58, 237, 0.35);
+            transition: color 0.2s ease, transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
             z-index: 2;
         }
         .mobile-app-content .ma-qr-hint:hover {
-            color: var(--primary-color, #3D8BFF);
+            color: #5b21b6;
+            background: #f8f5ff;
             transform: scale(1.12);
+            box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45), 0 0 0 1px rgba(124, 58, 237, 0.45);
         }
         .mobile-app-content .ma-qr-hint:active {
             transform: scale(0.95);
