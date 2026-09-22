@@ -1556,6 +1556,9 @@
             overflow-wrap: break-word;
         }
         .notification.video-related-notif { border-left-color: #e6a200; }
+        .notification.success { border-left-color: #28a745; }
+        .notification.error { border-left-color: #dc3545; }
+        .notification.info { border-left-color: var(--primary-color); }
 
         .notification-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
         .notification-title { font-weight: bold; font-size: 16px; color: var(--primary-color); }
@@ -1577,8 +1580,20 @@
         .current-date input[type="date"], .current-date input[type="text"] { flex: 1 1 0; min-width: 0; width: auto; font-size: 16px; box-sizing: border-box; }
         .current-date input[type="date"] { flex-basis: 150px; min-width: 145px; }
 
-        #notifications { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; max-width: min(100vw - 32px, 100%); box-sizing: border-box; }
-        #worker-progress-widget { position: fixed; left: 20px; bottom: 20px; z-index: 10000; display: none; flex-direction: column; gap: 8px; align-items: flex-start; }
+        #notifications { position: fixed; bottom: 20px; right: 20px; z-index: 20000; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; max-width: min(100vw - 32px, 100%); box-sizing: border-box; }
+        #worker-progress-widget { position: fixed; left: 20px; bottom: 20px; z-index: 20000; display: none; flex-direction: column; gap: 8px; align-items: flex-start; }
+        .toast-notification { animation: toastIn 0.3s ease-out; }
+        .toast-in-success { animation: toastInSuccess 0.5s ease-out; }
+        .toast-in-error { animation: toastInError 0.5s ease-out; }
+        .toast-in-info { animation: toastInInfo 0.4s ease-out; }
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toastOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
         .worker-progress-item { display: inline-flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; background: var(--modal-bg); border: 1px solid var(--border-color); box-shadow: 0 3px 14px rgba(0,0,0,0.18); font-size: 13px; line-height: 1.2; width: fit-content; }
         .worker-progress-item i { width: 14px; text-align: center; color: var(--primary-color); }
         .worker-progress-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

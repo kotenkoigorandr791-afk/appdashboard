@@ -328,5 +328,8 @@
     "manual_pair_generate_first": "Generate a QR code first — the token will appear here.",
     "manual_pair_close": "Close",
     "info_card_mobile_text": "Install the companion Android app to sync steps and health data from your phone to this dashboard.",
-    "mobile_app_version_updated": "Updated"
+    "mobile_app_version_updated": "Updated",
+    "toast_success": "Success",
+    "toast_error": "Error",
+    "toast_info": "Info"
 }

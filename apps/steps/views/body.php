@@ -142,7 +142,10 @@ $metricButtons = [
             <div class="goal-summary" id="goal-summary"></div>
         </div>
         
-        <div id="notifications">
+        </div>
+        </div>
+
+        <div id="notifications" aria-live="polite" aria-atomic="true">
             <div id="stats-notification" class="notification" style="display:none;">
                 <div class="notification-header">
                     <div class="notification-title">
@@ -172,9 +175,9 @@ $metricButtons = [
                 <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;">
                     <button type="button" class="excel-btn" id="video-recognition-notif-open" style="background: var(--primary-color); color: #fff; padding: 8px 14px; font-size: 13px;"><?php echo htmlspecialchars($translations['zeep_notif_open'] ?? 'Open'); ?></button>
                 </div>
-</div>
-                </div>
-            </div></div></div>
+            </div>
+        </div>
+        
         <div id="stats-modal" style="display:none;">
             <div class="stats-content">
                 <button class="modal-close">×</button>
@@ -782,6 +785,7 @@ $metricButtons = [
             </div>
         </div>
         
+        <!-- Toast container -->
         <!-- Alert Modal -->
         <div id="alert-modal" style="display:none;">
             <div class="alert-content">

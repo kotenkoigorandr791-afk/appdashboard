@@ -328,5 +328,8 @@
     "manual_pair_generate_first": "Спачатку стварыце QR-код — токен з'явіцца тут.",
     "manual_pair_close": "Закрыць",
     "info_card_mobile_text": "Усталюйце кампаньён-праграму для Android, каб сінхранізаваць крокі і даныя здароўя з тэлефона на гэтую панэль.",
-    "mobile_app_version_updated": "Абноўлена"
+    "mobile_app_version_updated": "Абноўлена",
+    "toast_success": "Гатова",
+    "toast_error": "Памылка",
+    "toast_info": "Інфармацыя"
 }

@@ -328,5 +328,8 @@
     "manual_pair_generate_first": "Спочатку згенеруйте QR-код — токен з'явиться тут.",
     "manual_pair_close": "Закрити",
     "info_card_mobile_text": "Встановіть застосунок-супутник для Android, щоб синхронізувати кроки та дані про здоров'я з телефону на цю панель.",
-    "mobile_app_version_updated": "Оновлено"
+    "mobile_app_version_updated": "Оновлено",
+    "toast_success": "Готово",
+    "toast_error": "Помилка",
+    "toast_info": "Інформація"
 }

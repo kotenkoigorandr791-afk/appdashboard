@@ -328,5 +328,8 @@
     "manual_pair_generate_first": "Nejprve vygenerujte QR kód — token se zobrazí zde.",
     "manual_pair_close": "Zavřít",
     "info_card_mobile_text": "Nainstalujte doprovodnou aplikaci pro Android, aby se kroky a zdravotní data z telefonu synchronizovala na tento dashboard.",
-    "mobile_app_version_updated": "Aktualizováno"
+    "mobile_app_version_updated": "Aktualizováno",
+    "toast_success": "Hotovo",
+    "toast_error": "Chyba",
+    "toast_info": "Informace"
 }

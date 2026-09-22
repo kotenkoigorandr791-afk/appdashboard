@@ -4625,11 +4625,13 @@ var T=<?php echo json_encode([
             function sync(){
                 let hasOverlap=false;
                 let hasLayer=false;
+                let bodyLocked=false;
                 try{
                     const doc=iframe.contentDocument||iframe.contentWindow.document;
                     const win=iframe.contentWindow;
                     const iframeRect=iframe.getBoundingClientRect();
                     const menuRect=menuButton.getBoundingClientRect();
+                    bodyLocked=doc.body.classList.contains('modal-open');
                     hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
                         if(!isVisibleLayer(el,win))return false;
                         if(el.closest('.drawer,.drawer-overlay,[class*="Drawer"],[class*="drawer"]'))return false;
@@ -4643,8 +4645,8 @@ var T=<?php echo json_encode([
                         return overlaps;
                     });
                 }catch(e){}
-                document.body.classList.toggle('app-modal-open',hasLayer||hasOverlap);
-                if(hasOverlap&&sidebar&&sidebar.classList.contains('open'))closeSidebarMenu();
+                document.body.classList.toggle('app-modal-open',hasLayer||hasOverlap||bodyLocked);
+                if((hasOverlap||bodyLocked)&&sidebar&&sidebar.classList.contains('open'))closeSidebarMenu();
             }
             function scheduleSync(){
                 sync();

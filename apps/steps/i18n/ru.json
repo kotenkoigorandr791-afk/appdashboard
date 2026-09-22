@@ -328,5 +328,8 @@
     "manual_pair_generate_first": "Сначала сгенерируйте QR-код — токен появится здесь.",
     "manual_pair_close": "Закрыть",
     "info_card_mobile_text": "Установите приложение-компаньон для Android, чтобы синхронизировать шаги и данные о здоровье с телефона на эту панель.",
-    "mobile_app_version_updated": "Обновлено"
+    "mobile_app_version_updated": "Обновлено",
+    "toast_success": "Готово",
+    "toast_error": "Ошибка",
+    "toast_info": "Информация"
 }

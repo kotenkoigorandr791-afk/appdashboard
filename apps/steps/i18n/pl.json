@@ -328,5 +328,8 @@
     "manual_pair_generate_first": "Najpierw wygeneruj kod QR — token pojawi się tutaj.",
     "manual_pair_close": "Zamknij",
     "info_card_mobile_text": "Zainstaluj towarzyszącą aplikację Android, aby synchronizować kroki i dane zdrowotne z telefonu z tym panelem.",
-    "mobile_app_version_updated": "Zaktualizowano"
+    "mobile_app_version_updated": "Zaktualizowano",
+    "toast_success": "Sukces",
+    "toast_error": "Błąd",
+    "toast_info": "Informacja"
 }
