@@ -22,7 +22,7 @@
         let currentCol = 0;
         let isEditing = false;
         (() => {
-            const selector = '.app-steps button, .hc-token-btn, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn';
+            const selector = '.app-steps button, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn';
             const pressedSelector = selector.split(',').map(part => part.trim() + '.is-pressed').join(',');
             const setPressed = (target, pressed) => {
                 const button = target && target.closest ? target.closest(selector) : null;

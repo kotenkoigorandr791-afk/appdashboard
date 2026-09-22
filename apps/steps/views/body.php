@@ -5,11 +5,9 @@ $stepmonitorRoot = dirname(__DIR__, 3);
 $stepmonitorApk = $stepmonitorRoot . '/downloads/stepmonitor.apk';
 $stepmonitorMetaFile = $stepmonitorRoot . '/downloads/stepmonitor.json';
 $stepmonitorMeta = is_file($stepmonitorMetaFile) ? (json_decode((string)file_get_contents($stepmonitorMetaFile), true) ?: []) : [];
-$stepmonitorVersion = (string)($stepmonitorMeta['hash'] ?? (is_file($stepmonitorApk) ? filemtime($stepmonitorApk) : ''));
 $stepmonitorVersionName = (string)($stepmonitorMeta['version'] ?? '');
 $stepmonitorBuiltAt = (int)($stepmonitorMeta['built_at'] ?? 0);
 $stepmonitorAvailable = is_file($stepmonitorApk);
-$stepmonitorShow = $stepmonitorAvailable && (empty($userSettings['mobile_apk_hidden']) || (string)($userSettings['mobile_apk_seen_version'] ?? '') !== $stepmonitorVersion);
 $stepmonitorServerIp = (string)($_SERVER['SERVER_ADDR'] ?? '');
 if ($stepmonitorServerIp === '' || str_starts_with($stepmonitorServerIp, '127.') || $stepmonitorServerIp === '::1') {
     $stepmonitorHostIps = function_exists('gethostbynamel') ? (gethostbynamel(gethostname()) ?: []) : [];
@@ -36,22 +34,6 @@ $stepmonitorForwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROT
 $stepmonitorScheme = ($stepmonitorForwardedProto === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $stepmonitorPort === '443') ? 'https' : 'http';
 $stepmonitorPortPart = ($stepmonitorPort !== '' && !in_array($stepmonitorPort, ['80', '443'], true)) ? ':' . $stepmonitorPort : '';
 $stepmonitorLanEndpoint = $stepmonitorServerIp !== '' ? $stepmonitorScheme . '://' . $stepmonitorServerIp . $stepmonitorPortPart . '/api/steps' : '';
-$stepmonitorDevices = [];
-if (!empty($_SESSION['user']['email']) && function_exists('app_main_db')) {
-    try {
-        $stepmonitorDb = app_main_db();
-        if (function_exists('ensureClientAuthTokensSchema')) {
-            ensureClientAuthTokensSchema($stepmonitorDb);
-        }
-        $stepmonitorStmt = $stepmonitorDb->prepare("SELECT device_name, platform, created_at, last_used_at FROM client_auth_tokens WHERE email = :email AND revoked = 0 AND expires_at > :now ORDER BY last_used_at DESC LIMIT 10");
-        $stepmonitorStmt->bindValue(':email', (string)$_SESSION['user']['email'], PDO::PARAM_STR);
-        $stepmonitorStmt->bindValue(':now', time(), PDO::PARAM_INT);
-        $stepmonitorStmt->execute();
-        $stepmonitorDevices = $stepmonitorStmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-    } catch (Throwable $ignored) {
-        $stepmonitorDevices = [];
-    }
-}
 $metricHasValue = static function (array $metrics, string $type): bool {
     if ($type === 'distance') return isset($metrics['distance']['total_meters']) && is_numeric($metrics['distance']['total_meters']) && (float)$metrics['distance']['total_meters'] > 0;
     if ($type === 'calories') {
@@ -98,7 +80,7 @@ $metricButtons = [
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
-                <?php if ($stepmonitorAvailable): ?><button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"<?php echo $stepmonitorShow ? '' : ' style="display:none;"'; ?>><i class="fas fa-mobile-screen-button"></i></button><?php endif; ?>
+                <button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-pie-icon lucide-chart-pie" aria-hidden="true" focusable="false">
@@ -112,11 +94,6 @@ $metricButtons = [
                 <button id="info-button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
                     <i class="fas fa-info-circle"></i>
                 </button>
-                <?php if (isset($_SESSION['user']) && !empty($_SESSION['user']['email'])): ?>
-                <button id="hc-token-open-btn" type="button" class="steps-header-btn" title="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>" aria-label="<?php echo htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP token'); ?>">
-                    <i class="fas fa-key"></i>
-                </button>
-                <?php endif; ?>
                 <div id="user-button" title="<?php echo htmlspecialchars($userName); ?>">
                     <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="User">
                 </div>
@@ -313,16 +290,6 @@ $metricButtons = [
                         </div>
                         <h3><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
-                        <div class="info-app-toggle <?php echo $stepmonitorAvailable ? '' : 'is-unavailable'; ?>">
-                            <span><?php echo htmlspecialchars($translations['mobile_app_show_in_header'] ?? 'Show download button in header'); ?></span>
-                            <span class="info-app-toggle-controls">
-                                <button type="button" id="info-mobile-app-open" class="info-app-open" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>><?php echo htmlspecialchars($translations['mobile_app_open'] ?? 'Open app'); ?></button>
-                                <label class="app-switch">
-                                    <input type="checkbox" id="mobile-app-btn-toggle" <?php echo $stepmonitorShow ? 'checked' : ''; ?> <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
-                                    <span class="app-switch-track"></span>
-                                </label>
-                            </span>
-                        </div>
                     </div>
                 </div>
                 </div>
@@ -332,81 +299,161 @@ $metricButtons = [
         <!-- Mobile App Modal -->
         <div id="mobile-app-modal" style="display:none;">
             <div class="mobile-app-content">
-                <button class="modal-close">×</button>
-                <div class="info-header">
-                    <div class="info-header-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <rect x="7" y="2" width="10" height="20" rx="2" ry="2"/>
-                            <line x1="2" y1="12" x2="5" y2="12"/>
-                            <line x1="5" y1="9" x2="5" y2="15"/>
-                        </svg>
+                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+
+                <div class="ma-header">
+                    <h1><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h1>
+                    <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                </div>
+
+                <div class="ma-grid">
+                    <div class="ma-action">
+                        <button type="button" id="mobile-app-manual-hint" class="ma-qr-hint" title="<?php echo htmlspecialchars($translations['mobile_app_manual_hint_title'] ?? 'Manual pairing'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_manual_hint_title'] ?? 'Manual pairing'); ?>">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                        </button>
+                        <div class="ma-qr-frame">
+                            <div class="ma-qr-placeholder" aria-hidden="true">
+                                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <rect width="100" height="100" fill="white"/>
+                                    <path d="M10 10H30V30H10V10ZM70 10H90V30H70V10ZM10 70H30V90H10V70ZM40 40H60V60H40V40ZM40 10H60V20H40V10ZM10 40H20V60H10V40ZM80 40H90V60H80V40ZM40 80H60V90H40V80ZM80 80H90V90H80V80Z" fill="#121212"/>
+                                </svg>
+                            </div>
+                            <div class="ma-qr-code" id="mobile-app-qr-code"></div>
+                            <button type="button" id="mobile-app-qr-generate" class="ma-qr-generate">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                                <?php echo htmlspecialchars($translations['mobile_app_qr_generate'] ?? 'Generate'); ?>
+                            </button>
+                            </button>
+                        </div>
+                        <h3><?php echo htmlspecialchars($translations['mobile_app_scan_title'] ?? 'Scan to Pair'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['mobile_app_scan_desc'] ?? 'Open the app and scan this code to sync instantly.'); ?></p>
+                        <p class="ma-qr-error" id="mobile-app-qr-error" style="display:none;color:#ef4444;font-size:12px;margin:-16px 0 16px;"></p>
+
+                        <?php if ($stepmonitorAvailable): ?>
+                        <a class="ma-download" href="/downloads/stepmonitor.apk" download="stepmonitor.apk">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
+                        </a>
+                        <?php endif; ?>
+
+                        <?php if ($stepmonitorVersionName !== '' || $stepmonitorBuiltAt > 0): ?>
+                        <div class="ma-meta">
+                            <?php if ($stepmonitorVersionName !== ''): ?><span>v<?php echo htmlspecialchars($stepmonitorVersionName); ?></span><?php endif; ?>
+                            <?php if ($stepmonitorVersionName !== '' && $stepmonitorBuiltAt > 0): ?><span>•</span><?php endif; ?>
+                            <?php if ($stepmonitorBuiltAt > 0): ?><span><?php echo htmlspecialchars($translations['mobile_app_version_updated'] ?? 'Updated'); ?> <?php echo htmlspecialchars(date('d.m.Y', $stepmonitorBuiltAt)); ?></span><?php endif; ?>
+                        </div>
+                        <?php endif; ?>
                     </div>
-                    <div>
-                        <h2><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h2>
+
+                    <div class="ma-features">
+                        <div class="ma-feature">
+                            <div class="ma-feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                            </div>
+                            <div class="ma-feature-text">
+                                <h4><?php echo htmlspecialchars($translations['mobile_app_feature_sync_title'] ?? 'Health Connect Sync'); ?></h4>
+                                <p><?php echo htmlspecialchars($translations['mobile_app_feature_sync_desc'] ?? 'Automatically sync your steps with Health Connect on Android.'); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="ma-feature">
+                            <div class="ma-feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                            </div>
+                            <div class="ma-feature-text">
+                                <h4><?php echo htmlspecialchars($translations['mobile_app_feature_qr_title'] ?? 'QR Pairing'); ?></h4>
+                                <p><?php echo htmlspecialchars($translations['mobile_app_feature_qr_desc'] ?? 'Scan a QR code to pair the app with this dashboard in seconds.'); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="ma-feature">
+                            <div class="ma-feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            </div>
+                            <div class="ma-feature-text">
+                                <h4><?php echo htmlspecialchars($translations['mobile_app_feature_secure_title'] ?? 'Secure Token Auth'); ?></h4>
+                                <p><?php echo htmlspecialchars($translations['mobile_app_feature_secure_desc'] ?? 'Use a generated token for secure, password-free authentication.'); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="ma-feature">
+                            <div class="ma-feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                            </div>
+                            <div class="ma-feature-text">
+                                <h4><?php echo htmlspecialchars($translations['mobile_app_feature_offline_title'] ?? 'Offline Tracking'); ?></h4>
+                                <p><?php echo htmlspecialchars($translations['mobile_app_feature_offline_desc'] ?? 'Track steps even without an internet connection.'); ?></p>
+                            </div>
+                        </div>
+
+                        <div class="ma-feature">
+                            <div class="ma-feature-icon">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                            </div>
+                            <div class="ma-feature-text">
+                                <h4><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></h4>
+                                <p><?php echo htmlspecialchars($translations['mobile_app_feature_devices_desc'] ?? 'Sync data from multiple wearables and fitness trackers.'); ?></p>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <p class="mobile-app-subtitle"><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
-                <div class="mobile-app-grid">
-                    <div class="info-card">
-                        <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"/><polyline points="2 12 15 12 18 9"/><path d="M6 6h12v12"/>
-                            </svg>
+            </div>
+        </div>
+
+        <!-- Manual Pairing Modal -->
+        <div id="manual-pair-modal" style="display:none;">
+            <div class="manual-pair-content">
+                <button type="button" id="manual-pair-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['manual_pair_close'] ?? 'Close'); ?>">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+                <div class="ma-header">
+                    <h1><?php echo htmlspecialchars($translations['manual_pair_title'] ?? 'Manual pairing'); ?></h1>
+                    <p><?php echo htmlspecialchars($translations['manual_pair_intro'] ?? 'If QR scanning is not available, connect the app manually:'); ?></p>
+                </div>
+                <ol class="manual-pair-steps">
+                    <li><?php echo htmlspecialchars($translations['manual_pair_step1'] ?? ''); ?></li>
+                    <li><?php echo htmlspecialchars($translations['manual_pair_step2'] ?? ''); ?></li>
+                    <li><?php echo htmlspecialchars($translations['manual_pair_step3'] ?? ''); ?></li>
+                </ol>
+                <div class="manual-pair-fields">
+                    <div class="manual-pair-row">
+                        <div class="manual-pair-field">
+                            <label><?php echo htmlspecialchars($translations['manual_pair_endpoint_label'] ?? 'Server endpoint'); ?></label>
+                            <pre id="manual-pair-endpoint"></pre>
                         </div>
-                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_sync_title'] ?? 'Health Connect Sync'); ?></h3>
-                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_sync_desc'] ?? 'Automatically sync your steps with Health Connect on Android.'); ?></p>
+                        <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-endpoint" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
+                            <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
                     </div>
-                    <div class="info-card">
-                        <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-                            </svg>
+                    <div class="manual-pair-row">
+                        <div class="manual-pair-field">
+                            <label><?php echo htmlspecialchars($translations['manual_pair_link_label'] ?? 'Connection link'); ?></label>
+                            <pre id="manual-pair-link"></pre>
                         </div>
-                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_qr_title'] ?? 'QR Pairing'); ?></h3>
-                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_qr_desc'] ?? 'Scan a QR code to pair the app with this dashboard in seconds.'); ?></p>
+                        <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-link" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
+                            <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
                     </div>
-                    <div class="info-card">
-                        <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-                            </svg>
+                    <div class="manual-pair-row">
+                        <div class="manual-pair-field">
+                            <label><?php echo htmlspecialchars($translations['manual_pair_token_label'] ?? 'Token'); ?></label>
+                            <pre id="manual-pair-token"><?php echo htmlspecialchars($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.'); ?></pre>
                         </div>
-                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_secure_title'] ?? 'Secure Token Auth'); ?></h3>
-                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_secure_desc'] ?? 'Use a generated token for secure, password-free authentication.'); ?></p>
-                    </div>
-                    <div class="info-card">
-                        <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-                            </svg>
-                        </div>
-                        <h3><?php echo htmlspecialchars($translations['mobile_app_feature_offline_title'] ?? 'Offline Tracking'); ?></h3>
-                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_offline_desc'] ?? 'Track steps even without an internet connection.'); ?></p>
-                    </div>
-                    <div class="info-card">
-                        <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                            </svg>
-                        </div>
-                        <h3><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></h3>
-                        <p><?php echo htmlspecialchars($translations['mobile_app_feature_devices_desc'] ?? 'Sync data from multiple wearables and fitness trackers.'); ?></p>
+                        <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-token" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
+                            <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        </button>
                     </div>
                 </div>
-                <div class="mobile-app-footer">
-                    <button id="mobile-app-download-btn" type="button" class="mobile-app-download-btn" <?php echo $stepmonitorAvailable ? '' : 'disabled'; ?>>
-                        <i class="fas fa-download"></i> <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
+                <div class="manual-pair-footer">
+                    <button type="button" id="manual-pair-regenerate" class="manual-pair-regen-btn">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-ccw"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                        <?php echo htmlspecialchars($translations['manual_pair_regenerate'] ?? 'Regenerate'); ?>
                     </button>
-                    <?php if ($stepmonitorVersionName !== '' || $stepmonitorBuiltAt > 0): ?>
-                    <div class="mobile-app-version-info">
-                        <?php if ($stepmonitorVersionName !== ''): ?>
-                        <span class="mobile-app-version-item"><i class="fas fa-code-branch"></i> v<?php echo htmlspecialchars($stepmonitorVersionName); ?></span>
-                        <?php endif; ?>
-                        <?php if ($stepmonitorBuiltAt > 0): ?>
-                        <span class="mobile-app-version-item"><i class="far fa-clock"></i> <?php echo htmlspecialchars($translations['mobile_app_version_updated'] ?? 'Updated'); ?> <?php echo htmlspecialchars(date('d.m.Y', $stepmonitorBuiltAt)); ?></span>
-                        <?php endif; ?>
-                    </div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -805,72 +852,6 @@ $metricButtons = [
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 
-        <div id="hc-token-modal">
-            <div class="hc-token-content">
-                <button type="button" id="hc-token-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
-                <h2><?php echo htmlspecialchars($translations['hc_token_title'] ?? 'Health Connect authorization'); ?></h2>
-                <p class="hc-token-sub"><?php echo htmlspecialchars($translations['hc_token_subtitle'] ?? 'Use the token below as Authorization: Bearer <token>.'); ?></p>
-                 <button type="button" id="hc-token-help-open" class="hc-token-link-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                    </svg>
-                    <?php echo htmlspecialchars($translations['hc_token_help_open'] ?? 'How to use this token'); ?>
-                </button>
-                <div class="hc-token-fields">
-                    <div class="hc-token-row">
-                        <div class="hc-token-field endpoint">
-                            <label><?php echo htmlspecialchars($translations['hc_token_endpoint'] ?? 'Endpoint'); ?></label>
-                            <pre id="hc-token-endpoint"></pre>
-                        </div>
-                        <button type="button" id="hc-token-copy-endpoint" class="hc-token-btn"><?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?></button>
-                    </div>
-                    <div class="hc-token-row">
-                        <div class="hc-token-field">
-                            <label><?php echo htmlspecialchars($translations['hc_token_name'] ?? 'Token name'); ?></label>
-                            <input id="hc-token-name" type="text" maxlength="80" value="Health Connect" />
-                        </div>
-                        <button type="button" id="hc-token-generate" class="hc-token-btn"><?php echo htmlspecialchars($translations['hc_token_generate'] ?? 'Generate'); ?></button>
-                    </div>
-                    <p id="hc-token-err"></p>
-
-                    <?php if (!empty($stepmonitorDevices)): ?>
-                    <div style="padding:12px;border:1px solid var(--border-color);border-radius:12px;background:rgba(0,0,0,.08);">
-                        <strong style="display:block;margin-bottom:8px;font-size:13px;"><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></strong>
-                        <div style="display:grid;gap:6px;font-size:13px;">
-                            <?php foreach ($stepmonitorDevices as $stepmonitorDevice): ?>
-                            <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;">
-                                <span><?php echo htmlspecialchars((string)($stepmonitorDevice['device_name'] ?: ($stepmonitorDevice['platform'] ?: 'StepMonitor'))); ?></span>
-                                <span style="opacity:.7;"><?php echo !empty($stepmonitorDevice['last_used_at']) ? htmlspecialchars(date('Y-m-d H:i', (int)$stepmonitorDevice['last_used_at'])) : ''; ?></span>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </div>
-                    <?php endif; ?>
-                    <div id="hc-token-output">
-                        <strong><?php echo htmlspecialchars($translations['hc_token_value_label'] ?? 'Token'); ?></strong>
-                        <code id="hc-token-value"></code>
-                        <div id="hc-token-qr" style="display:none;margin:12px auto;border-radius:22px;background:#fff;padding:20px;max-width:360px;"></div>
-                        <a id="hc-token-link" href="#" style="display:none;word-break:break-all;color:var(--primary-color);font-size:13px;"></a>
-                        <div class="hc-token-actions">
-                            <button type="button" id="hc-token-copy" class="hc-token-btn"><?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div id="hc-token-help-modal" style="display:none;">
-            <div class="hc-token-content hc-token-help-content">
-                <button type="button" id="hc-token-help-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
-                <h2><?php echo htmlspecialchars($translations['hc_token_help_title'] ?? 'Token setup'); ?></h2>
-                <div class="hc-token-help-list">
-                    <p><?php echo htmlspecialchars($translations['hc_token_help_step1'] ?? 'Generate a token for the mobile app.'); ?></p>
-                    <p><?php echo htmlspecialchars($translations['hc_token_help_step2'] ?? 'Scan the QR code or open the StepMonitor link on your phone.'); ?></p>
-                    <p><?php echo htmlspecialchars($translations['hc_token_help_step3'] ?? 'The app will send Health Connect data to this server endpoint.'); ?></p>
-                </div>
-            </div>
-        </div>
         <div id="stepmonitor-conflict-modal" style="display:none;position:fixed;inset:0;z-index:10070;background:rgba(6,10,16,.36);backdrop-filter:blur(18px);align-items:center;justify-content:center;padding:16px;">
             <div style="width:min(560px,96vw);background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.28);padding:18px;">
                 <h2 style="margin:0 0 8px;font-size:20px;"><?php echo htmlspecialchars($translations['sync_conflict_title'] ?? 'Sync conflict'); ?></h2>
@@ -927,28 +908,89 @@ $metricButtons = [
 
         <script>
         (function(){
-            const btn=document.getElementById('hc-token-open-btn');
-            const modal=document.getElementById('hc-token-modal');
-            const closeBtn=document.getElementById('hc-token-close');
-            if(!btn||!modal||!closeBtn) return;
-            const helpOpenBtn=document.getElementById('hc-token-help-open');
-            const helpModal=document.getElementById('hc-token-help-modal');
-            const helpCloseBtn=document.getElementById('hc-token-help-close');
-            const endpointEl=document.getElementById('hc-token-endpoint');
-            const endpointCopyBtn=document.getElementById('hc-token-copy-endpoint');
-            const nameEl=document.getElementById('hc-token-name');
-            const genBtn=document.getElementById('hc-token-generate');
-            const errEl=document.getElementById('hc-token-err');
-            const outEl=document.getElementById('hc-token-output');
-            const tokenValEl=document.getElementById('hc-token-value');
-            const tokenQrEl=document.getElementById('hc-token-qr');
-            const tokenLinkEl=document.getElementById('hc-token-link');
-            const tokenCopyBtn=document.getElementById('hc-token-copy');
+            const modal=document.getElementById('mobile-app-modal');
+            const qrFrame=document.getElementById('mobile-app-qr-code');
+            const placeholder=modal ? modal.querySelector('.ma-qr-placeholder') : null;
+            const genBtn=document.getElementById('mobile-app-qr-generate');
+            const hintBtn=document.getElementById('mobile-app-manual-hint');
 
             const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint); ?>;
             const currentHost=window.location.hostname;
             const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
-            if(endpointEl) endpointEl.textContent=endpoint;
+
+            let pairing={token:'',link:''};
+
+            const hintModal=document.getElementById('manual-pair-modal');
+            const hintClose=document.getElementById('manual-pair-close');
+            const hintEndpoint=document.getElementById('manual-pair-endpoint');
+            const hintLink=document.getElementById('manual-pair-link');
+            const hintToken=document.getElementById('manual-pair-token');
+            const regenBtn=document.getElementById('manual-pair-regenerate');
+            const regenLabel=regenBtn ? regenBtn.innerHTML : '';
+            const noTokenMsg=<?php echo json_encode($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.'); ?>;
+
+            function refreshHintFields(){
+                if(hintEndpoint) hintEndpoint.textContent=endpoint;
+                if(hintLink) hintLink.textContent=pairing.link||'—';
+                if(hintToken) hintToken.textContent=pairing.token||noTokenMsg;
+            }
+            function openHint(){
+                if(!hintModal) return;
+                refreshHintFields();
+                document.body.classList.add('modal-open');
+                hintModal.style.display='flex';
+                if(hintModal.firstElementChild) hintModal.firstElementChild.classList.add('modal-content');
+            }
+            function closeHint(){
+                if(!hintModal) return;
+                hintModal.style.display='none';
+                if(!modal || modal.style.display==='none') document.body.classList.remove('modal-open');
+            }
+            hintBtn?.addEventListener('click', openHint);
+            hintClose?.addEventListener('click', closeHint);
+            hintModal?.addEventListener('click', (e)=>{ if(e.target===hintModal) closeHint(); });
+            document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && hintModal && hintModal.style.display==='flex') closeHint(); });
+
+            regenBtn?.addEventListener('click', async ()=>{
+                if(!regenBtn || regenBtn.disabled) return;
+                regenBtn.disabled=true;
+                regenBtn.classList.add('is-busy');
+                try{
+                    await generateQr();
+                }finally{
+                    regenBtn.disabled=false;
+                    regenBtn.classList.remove('is-busy');
+                    regenBtn.innerHTML=regenLabel;
+                }
+            });
+
+            document.querySelectorAll('#manual-pair-modal .ma-copy-btn').forEach(btn=>{
+                btn.addEventListener('click', async ()=>{
+                    const target=document.getElementById(btn.getAttribute('data-copy-target'));
+                    const text=target ? target.textContent.trim() : '';
+                    if(!text || text==='—' || text===noTokenMsg){
+                        btn.classList.add('is-empty');
+                        setTimeout(()=>btn.classList.remove('is-empty'),700);
+                        return;
+                    }
+                    try{
+                        await navigator.clipboard.writeText(text);
+                        btn.classList.remove('is-copied');
+                        void btn.offsetWidth;
+                        btn.classList.add('is-copied');
+                        setTimeout(()=>btn.classList.remove('is-copied'),1600);
+                    }catch(e){
+                        const ta=document.createElement('textarea');
+                        ta.value=text;
+                        ta.style.position='fixed';
+                        ta.style.opacity='0';
+                        document.body.appendChild(ta);
+                        ta.select();
+                        try{ document.execCommand('copy'); btn.classList.add('is-copied'); setTimeout(()=>btn.classList.remove('is-copied'),1600); }catch(e2){}
+                        ta.remove();
+                    }
+                });
+            });
 
             async function ensureQrCodeStyling(){
                 if(typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
@@ -969,17 +1011,17 @@ $metricButtons = [
                 if(typeof self!=='undefined' && typeof self.QRCodeStyling!=='undefined') return self.QRCodeStyling;
                 return QRCodeStyling;
             }
-            async function renderTokenQr(hostEl, data){
+            async function renderPairingQr(hostEl, data){
                 try{
                     const QRCodeStylingCtor=await ensureQrCodeStyling();
                     if(typeof QRCodeStylingCtor==='undefined'){
-                        hostEl.innerHTML='<p style="color:var(--text-color);padding:12px;">QR code unavailable</p>';
+                        hostEl.innerHTML='<p style="color:#121212;padding:12px;">QR code unavailable</p>';
                         return;
                     }
                     hostEl.innerHTML='';
                     const qr=new QRCodeStylingCtor({
-                        width:256,
-                        height:256,
+                        width:220,
+                        height:220,
                         type:'svg',
                         data:data,
                         margin:8,
@@ -990,100 +1032,80 @@ $metricButtons = [
                                 type:'linear',
                                 rotation:Math.PI/4,
                                 colorStops:[
-                                    {offset:0,color:'#7c3aed'},
-                                    {offset:0.5,color:'#2563eb'},
-                                    {offset:1,color:'#06b6d4'}
+                                    { offset:0, color:'#7c3aed' },
+                                    { offset:0.5, color:'#2563eb' },
+                                    { offset:1, color:'#06b6d4' }
                                 ]
                             }
                         },
-                        cornersSquareOptions:{type:'extra-rounded',color:'#2563eb'},
-                        cornersDotOptions:{type:'dot',color:'#7c3aed'},
-                        backgroundOptions:{color:'rgba(255,255,255,0)'}
+                        cornersSquareOptions:{ type:'extra-rounded', color:'#2563eb' },
+                        cornersDotOptions:{ type:'dot', color:'#7c3aed' },
+                        backgroundOptions:{ color:'rgba(255,255,255,0)' }
                     });
                     qr.append(hostEl);
                 }catch(error){
-                    console.error('QR Code error:',error);
-                    hostEl.innerHTML='<p style="color:var(--text-color);padding:12px;">QR code unavailable</p>';
+                    console.error('Pairing QR error:',error);
+                    hostEl.innerHTML='<p style="color:#121212;padding:12px;">QR code unavailable</p>';
                 }
             }
 
-            function showModal(){
-                document.body.classList.add('modal-open');
-                modal.style.display='flex';
-                modal.firstElementChild.classList.add('modal-content');
-            }
-            function hideModal(){
-                modal.style.display='none';
-                if(!helpModal || helpModal.style.display==='none') document.body.classList.remove('modal-open');
-            }
-            function showHelpModal(){
-                if(!helpModal) return;
-                document.body.classList.add('modal-open');
-                helpModal.style.display='flex';
-            }
-            function hideHelpModal(){
-                if(!helpModal) return;
-                helpModal.style.display='none';
-                if(modal.style.display==='none') document.body.classList.remove('modal-open');
-            }
+            async function generateQr(){
+                const errEl=document.getElementById('mobile-app-qr-error');
+                const showErr=(msg)=>{
+                    if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
+                };
+                const hideErr=()=>{ if(errEl){ errEl.style.display='none'; errEl.textContent=''; } };
 
-            btn.addEventListener('click', showModal);
-            closeBtn.addEventListener('click', hideModal);
-            modal.addEventListener('click', (e)=>{ if(e.target===modal) hideModal(); });
-            helpOpenBtn?.addEventListener('click', showHelpModal);
-            helpCloseBtn?.addEventListener('click', hideHelpModal);
-            helpModal?.addEventListener('click', (e)=>{ if(e.target===helpModal) hideHelpModal(); });
-
-            function setErr(msg){
-                if(!errEl) return;
-                if(!msg){ errEl.style.display='none'; errEl.textContent=''; return; }
-                errEl.textContent=msg;
-                errEl.style.display='block';
-            }
-
-            async function copyText(text, copyBtn){
-                try{
-                    await navigator.clipboard.writeText(text);
-                    if(copyBtn){
-                        copyBtn.classList.add('copied');
-                        window.setTimeout(()=>copyBtn.classList.remove('copied'),900);
-                    }
-                    return true;
-                }catch(e){ return false; }
-            }
-
-            endpointCopyBtn?.addEventListener('click', async ()=>{
-                await copyText(endpoint, endpointCopyBtn);
-            });
-
-            tokenCopyBtn?.addEventListener('click', async ()=>{
-                const t=tokenValEl?.textContent?.trim()||'';
-                if(t) await copyText(t, tokenCopyBtn);
-            });
-
-            genBtn?.addEventListener('click', async ()=>{
-                setErr('');
-                if(genBtn) genBtn.disabled=true;
-                try{
+                async function fetchCsrf(){
+                    try{
+                        const r=await fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'});
+                        const d=await r.json().catch(()=>null);
+                        return d&&d.csrf?String(d.csrf):'';
+                    }catch(e){ return ''; }
+                }
+                async function sendRequest(csrf){
                     const fd=new FormData();
                     fd.append('action','generate_mcp_token');
                     fd.append('generate_mcp_token','1');
                     fd.append('ajax','1');
-                    const nm=nameEl && nameEl.value ? String(nameEl.value).trim() : 'Health Connect';
-                    fd.append('mcp_token_name', nm || 'Health Connect');
+                    fd.append('mcp_token_name','Health Connect');
+                    const opts={method:'POST',body:fd,credentials:'same-origin'};
+                    if(csrf){
+                        fd.append('_csrf',csrf);
+                        opts.headers={'X-CSRF-TOKEN':csrf};
+                    }
+                    return fetch('/main',opts);
+                }
 
-                    const res=await fetch('/main', { method:'POST', body:fd, credentials:'same-origin' });
-                    const data=await res.json().catch(()=>null);
-                    if(!data||!data.success||!data.token) throw new Error(data.error||'Token generation failed');
+                try{
+                    hideErr();
+                    let csrf=await fetchCsrf();
+                    let res=await sendRequest(csrf);
+                    let data=await res.json().catch(()=>null);
+                    if(data && data.error==='csrf_forbidden'){
+                        csrf=await fetchCsrf();
+                        res=await sendRequest(csrf);
+                        data=await res.json().catch(()=>null);
+                    }
+                    if(!data||!data.success||!data.token) throw new Error((data&&data.error)||'Token generation failed');
 
-                    const deepLink='stepmonitor://auth?endpoint='+encodeURIComponent(endpoint)+'&token='+encodeURIComponent(data.token);
-                    if(tokenValEl) tokenValEl.textContent=data.token;
-                    if(tokenQrEl){ tokenQrEl.style.display='block'; tokenQrEl.innerHTML=''; await renderTokenQr(tokenQrEl, deepLink); }
-                    if(tokenLinkEl){ tokenLinkEl.href=deepLink; tokenLinkEl.textContent=deepLink; tokenLinkEl.style.display='block'; }
-                    if(outEl) outEl.style.display='block';
-                    await copyText(deepLink, genBtn);
+                    pairing.token=String(data.token);
+                    pairing.link='stepmonitor://auth?endpoint='+encodeURIComponent(endpoint)+'&token='+encodeURIComponent(data.token);
+
+                    if(placeholder) placeholder.style.display='none';
+                    if(qrFrame){ qrFrame.style.display='flex'; qrFrame.innerHTML=''; await renderPairingQr(qrFrame, pairing.link); }
+                    if(genBtn) genBtn.style.display='none';
+                    refreshHintFields();
                 }catch(e){
-                    setErr(String(e && e.message ? e.message : e));
+                    console.error('Pairing QR error:',e);
+                    showErr(String(e && e.message ? e.message : e));
+                }
+            }
+
+            genBtn?.addEventListener('click', async ()=>{
+                if(genBtn) genBtn.disabled=true;
+                try{
+                    await generateQr();
                 }finally{
                     if(genBtn) genBtn.disabled=false;
                 }
@@ -1093,81 +1115,10 @@ $metricButtons = [
         <script>
         (function(){
             const headerBtn=document.getElementById('stepmonitor-apk-button');
-            const version=<?php echo json_encode($stepmonitorVersion); ?>;
             const modal=document.getElementById('mobile-app-modal');
-            const dlBtn=document.getElementById('mobile-app-download-btn');
-            const toggle=document.getElementById('mobile-app-btn-toggle');
-
-            function persistState(visible){
-                try{
-                    const fd=new FormData();
-                    fd.append('mobile_apk_state','1');
-                    fd.append('hidden', visible?'0':'1');
-                    fd.append('version',version);
-                    fetch(location.href,{method:'POST',body:fd,credentials:'same-origin'});
-                }catch(e){}
-            }
-            function setHeaderBtnVisible(visible){
-                if(headerBtn) headerBtn.style.display=visible?'':'none';
-            }
-            function showToast(){
-                const old=document.getElementById('mobile-app-toast');
-                if(old) old.remove();
-                const tip=<?php echo json_encode($translations['mobile_app_hide_toast'] ?? 'The download button can be hidden. You can re-enable it in the Info window.'); ?>;
-                const hideLabel=<?php echo json_encode($translations['mobile_app_hide_btn'] ?? 'Hide button'); ?>;
-                const t=document.createElement('div');
-                t.id='mobile-app-toast';
-                t.className='app-toast';
-                t.innerHTML='<span>'+tip+'</span><button type="button" class="app-toast-hide">'+hideLabel+'</button><button type="button" class="app-toast-close" aria-label="Close">×</button>';
-                document.body.appendChild(t);
-                let timer=null;
-                function dismiss(){
-                    if(t.isConnected) t.classList.add('app-toast-leave');
-                    setTimeout(()=>{ if(t.isConnected) t.remove(); },220);
-                }
-                function killTimer(){ if(timer){ window.clearTimeout(timer); timer=null; } }
-                t.querySelector('.app-toast-close').addEventListener('click', dismiss);
-                t.querySelector('.app-toast-hide').addEventListener('click', ()=>{
-                    killTimer();
-                    setHeaderBtnVisible(false);
-                    if(toggle) toggle.checked=false;
-                    persistState(false);
-                    dismiss();
-                });
-                t.addEventListener('mouseenter', killTimer);
-                t.addEventListener('mouseleave', ()=>{
-                    if(!timer) timer=window.setTimeout(dismiss,6000);
-                });
-                timer=window.setTimeout(dismiss,6000);
-            }
 
             if(headerBtn){
                 headerBtn.addEventListener('click', ()=>{
-                    if(typeof openModal==='function') openModal('mobile-app-modal');
-                    else if(modal){ modal.style.display='flex'; modal.firstElementChild.classList.add('modal-content'); document.body.classList.add('modal-open'); }
-                });
-            }
-            if(dlBtn){
-                dlBtn.addEventListener('click', ()=>{
-                    const a=document.createElement('a');
-                    a.href='/downloads/stepmonitor.apk';
-                    a.download='stepmonitor.apk';
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    persistState(!headerBtn || headerBtn.style.display!=='none');
-                    showToast();
-                });
-            }
-            if(toggle){
-                toggle.addEventListener('change', ()=>{
-                    setHeaderBtnVisible(toggle.checked);
-                    persistState(toggle.checked);
-                });
-            }
-            const openBtn=document.getElementById('info-mobile-app-open');
-            if(openBtn){
-                openBtn.addEventListener('click', ()=>{
                     if(typeof openModal==='function') openModal('mobile-app-modal');
                     else if(modal){ modal.style.display='flex'; modal.firstElementChild.classList.add('modal-content'); document.body.classList.add('modal-open'); }
                 });
