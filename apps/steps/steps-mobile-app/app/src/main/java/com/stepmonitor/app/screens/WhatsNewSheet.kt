@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.stepmonitor.app.BuildConfig
 import com.stepmonitor.app.R
 import com.stepmonitor.app.releases.GithubRelease
+import com.stepmonitor.app.releases.LocalReleaseNotes
 import com.stepmonitor.app.releases.ReleaseArticle
 import com.stepmonitor.app.releases.ReleaseRepository
 
@@ -52,10 +53,16 @@ fun WhatsNewSheet(
 
     LaunchedEffect(Unit) {
         loading = true
-        release = repository.findReleaseForVersion(
-            versionName = BuildConfig.VERSION_NAME,
-            forceRefresh = true,
+        release = LocalReleaseNotes.findReleaseForVersion(
+            context,
+            BuildConfig.VERSION_NAME,
         )
+        if (release == null) {
+            release = repository.findReleaseForVersion(
+                versionName = BuildConfig.VERSION_NAME,
+                forceRefresh = true,
+            )
+        }
         loading = false
     }
 
