@@ -1216,11 +1216,14 @@ function treeNodeAdd(item, options = {}) {
     path: normalizeTreePathForDom(item.path || ''),
     name: item.name || String(item.path || '').split('/').pop()
   };
-  const itemPath = normalizedItem.path;
-  if (!itemPath) return false;
-  const parentPath = itemPath.includes('/')
-    ? itemPath.substring(0, itemPath.lastIndexOf('/'))
-    : '';
+    const itemPath = normalizedItem.path;
+    if (!itemPath) return false;
+    if (treeBrowsePath) {
+        if (itemPath === treeBrowsePath || !itemPath.startsWith(treeBrowsePath + '/')) return false;
+    }
+    const parentPath = itemPath.includes('/')
+        ? itemPath.substring(0, itemPath.lastIndexOf('/'))
+        : '';
 
   const parentChildren = getTreeInsertContainer(parentPath, options);
   if (!parentChildren) return false;
@@ -1529,23 +1532,25 @@ function buildTreeFromFlatItems(flatItems) {
 
                     if (isDoubleClick) { isDoubleClick = false; return; }
 
-                    const open = childContainer.style.display !== 'none';
-                    if (open) {
-                        if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(toggle, false);
-                        childContainer.style.display = 'none';
-                        if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, false);
-                        removeChildPathsFromState(getNodePath());
-                        expandedFolders.delete(getNodePath());
-                    } else {
-                        if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(toggle, true);
-                        childContainer.style.display = 'block';
-                        if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, true);
-                        expandedFolders.add(getNodePath());
-                    }
-                    await navigateTreeTo(getNodePath());
-                    // don't expand/collapse when entering browse mode
-                    saveFolderState();
-                    return;
+                    if (clickTimer) clearTimeout(clickTimer);
+                    clickTimer = setTimeout(() => {
+                        if (isDoubleClick) { isDoubleClick = false; return; }
+                        const open = childContainer.style.display !== 'none';
+                        if (open) {
+                            if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(toggle, false);
+                            childContainer.style.display = 'none';
+                            if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, false);
+                            removeChildPathsFromState(getNodePath());
+                            expandedFolders.delete(getNodePath());
+                        } else {
+                            if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(toggle, true);
+                            childContainer.style.display = 'block';
+                            if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, true);
+                            expandedFolders.add(getNodePath());
+                        }
+                        clickTimer = null;
+                        saveFolderState();
+                    }, 250);
                 });
 
 

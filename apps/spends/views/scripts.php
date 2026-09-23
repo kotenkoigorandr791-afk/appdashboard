@@ -1118,231 +1118,31 @@ function switchSettingsSection(section){
 }
 
 // ══ Stores ════════════════════════════════════════════════════════════════
-let currentStoreId=null,storePhotoFile=null,pendingOCRStoreRaw='';
+let currentStoreId=null,storePhotoFile=null,pendingOCRStoreRaw='',storePhotoObjectUrl='';
+const cropIconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>';
+const storeCategoryIcons={food:'M4 10h16M6 10l1 10h10l1-10M8 10V6a4 4 0 0 1 8 0v4',groceries:'M4 10h16M6 10l1 10h10l1-10M9 10V7a3 3 0 0 1 6 0v3',cafes:'M5 8h12v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V8Zm12 2h2a2 2 0 0 1 0 4h-2M6 4h10',clothes:'M16 4l4 4-3 3v9H7v-9L4 8l4-4 2 2h4l2-2Z',shoes:'M4 15c4 0 7-1 10-5l6 5v3H4v-3Z',home:'M3 11l9-7 9 7v9H5v-9Zm6 9v-6h6v6',apartment:'M6 21V3h12v18M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2',utilities:'M13 2 5 14h6l-1 8 8-12h-6l1-8Z',transport:'M6 17h12l1-6-2-5H7l-2 5 1 6Zm1 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',car:'M5 16h14l-1-5-2-4H8l-2 4-1 5Zm2 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',travel:'M3 11l18-8-8 18-2-8-8-2Z',health:'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Zm0-9v4m-2-2h4',pharmacy:'M10 3h4v6h6v4h-6v8h-4v-8H4V9h6V3Z',beauty:'M12 3c4 4 4 8 0 12-4-4-4-8 0-12Zm-6 18h12',children:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0',pets:'M5 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-7 2c3 0 6 3 6 6H6c0-3 3-6 6-6Z',build:'M4 20h16M7 20V9l5-5 5 5v11M9 12h6M9 16h6',education:'M3 7l9-4 9 4-9 4-9-4Zm4 4v5c3 2 7 2 10 0v-5',sports:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-6-9h12M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',electronics:'M4 5h16v11H4V5Zm6 15h4',subscriptions:'M7 7h10M7 12h10M7 17h6M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z',entertainment:'M7 4v16l10-8L7 4Z',gifts:'M20 12v8H4v-8M2 7h20v5H2V7Zm10 0v13M12 7C9 7 8 3 10 3s2 4 2 4Zm0 0c3 0 4-4 2-4s-2 4-2 4Z',services:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-13v3m0 14v3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M2 12h3m14 0h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',finance:'M4 7h16M6 7a6 6 0 0 1 12 0M6 7v13h12V7M9 12h6M9 16h6',taxes:'M6 2h9l5 5v15H6V2Zm8 0v6h6M9 13h6M9 17h4',insurance:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z',charity:'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z',other:'M12 3l9 5-9 5-9-5 9-5Zm-7 9 7 4 7-4M5 16l7 4 7-4'};
+const visEyeSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
+const visEyeOffSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>';
+function storeCategoryIcon(key){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${storeCategoryIcons[key]||storeCategoryIcons.other}"/></svg>`;}
 function closeAddEditStoreModal(){pendingOCRStoreRaw='';closeModal('add-edit-store-modal');}
-function showAddEditStoreModal(id=null,name='',visible=true,ocrRaw='',category=null){
-    currentStoreId=id;
-    pendingOCRStoreRaw=ocrRaw||'';
-document.getElementById('add-edit-store-title').textContent=id?translations.edit_store:translations.add_store;
-document.getElementById('store-name-input').value=name;
-const cat=document.getElementById('store-category-input');
-const current=(userSettings.stores||[]).find(s=>String(s.id)===String(id));
-if(cat)cat.value=category||current?.category||'other';
-document.getElementById('store-photo-input').value='';
-    document.getElementById('store-photo-preview').style.display='none';
-    const csb=document.getElementById('crop-store-btn');
-    csb.style.display='none';
-    csb.textContent=translations.crop_photo||'Crop Photo';
-    if(cropper){cropper.destroy();cropper=null;}
-    storePhotoFile=null;
-    showModal('add-edit-store-modal');
-}
-function previewStorePhoto(input){
-    if(input.files&&input.files[0]){
-        if(cropper){cropper.destroy();cropper=null;}
-        const csb=document.getElementById('crop-store-btn');
-        csb.textContent=translations.crop_photo||'Crop Photo';
-        storePhotoFile=input.files[0];
-        const r=new FileReader();
-        r.onload=e=>{const p=document.getElementById('store-photo-preview');p.src=e.target.result;p.style.display='block';csb.style.display='block';};
-        r.readAsDataURL(input.files[0]);
-    }
-}
-function cropStorePhoto(){
-    const p=document.getElementById('store-photo-preview');
-    if(!p||!p.getAttribute('src')) return;
-    const csb=document.getElementById('crop-store-btn');
-    if(!cropper){
-        cropper=new Cropper(p,{aspectRatio:1,viewMode:1,guides:false});
-        csb.textContent=translations.apply||'Apply';
-        return;
-    }
-    const canvas=cropper.getCroppedCanvas({width:200,height:200});
-    if(!canvas){
-        showNotification(translations.crop_failed||'Could not crop image, try again','error');
-        return;
-    }
-    canvas.toBlob(blob=>{storePhotoFile=blob;p.src=URL.createObjectURL(blob);cropper.destroy();cropper=null;csb.style.display='none';csb.textContent=translations.crop_photo||'Crop Photo';},'image/jpeg',0.9);
-}
-function rekeyExpensesDataStore(oldN,newN){
-    if (!oldN || oldN === newN) return;
-    Object.keys(expensesData||{}).forEach(d => {
-        const o = expensesData[d];
-        if (o && Object.prototype.hasOwnProperty.call(o, oldN)) {
-            o[newN] = o[oldN];
-            delete o[oldN];
-        }
-    });
-}
-const visEyeSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
-const visEyeOffSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
-function applyStoreToSettingsUI(s, withPhoto) {
-    const idStr = String(s.id);
-    const list = document.getElementById('store-list');
-    const prevI = userSettings.stores.findIndex(x => String(x.id) === idStr);
-    const oldNm = prevI >= 0 ? userSettings.stores[prevI].name : null;
-    rekeyExpensesDataStore(oldNm, s.name);
-    if (prevI >= 0) userSettings.stores[prevI] = s; else userSettings.stores.push(s);
-    const fnPart = s.name.replace(/[^a-zA-Z0-9]/g, '_');
-    const photoU = 'users/' + currentUserFolder + '/store_' + fnPart + '.jpg?t=' + Date.now();
-    let row = list.querySelector('.store-item[data-store-id="' + idStr + '"]');
-    if (row) {
-        row.dataset.storeName = s.name;
-        const sp = row.querySelector('span');
-        if (sp) sp.textContent = s.name;
-        const eBtn = row.querySelector('.edit-store-btn');
-        if (eBtn) eBtn.onclick = () => showAddEditStoreModal(s.id, s.name, s.visible);
-        const dBtn = row.querySelector('.delete-store-btn');
-        if (dBtn) dBtn.onclick = () => confirmDeleteStore(s.id, s.name);
-        if (withPhoto) {
-            let im = row.querySelector('img');
-            if (!im) {
-                im = document.createElement('img');
-                im.className = 'store-icon';
-                im.alt = s.name;
-                row.insertBefore(im, row.firstChild);
-            }
-            im.src = photoU;
-            im.style.display = '';
-        }
-    } else {
-        const tpl = list.querySelector('.store-item');
-        if (tpl) {
-            const c = tpl.cloneNode(true);
-            c.dataset.storeId = idStr;
-            c.dataset.storeName = s.name;
-            c.querySelector('span').textContent = s.name;
-            c.querySelector('.edit-store-btn').onclick = () => showAddEditStoreModal(s.id, s.name, s.visible);
-            c.querySelector('.delete-store-btn').onclick = () => confirmDeleteStore(s.id, s.name);
-            if (withPhoto) {
-                let im = c.querySelector('img');
-                if (!im) { im = document.createElement('img'); im.className = 'store-icon'; c.insertBefore(im, c.firstChild); }
-                im.src = photoU; im.alt = s.name; im.style.display = '';
-            } else { c.querySelectorAll('img').forEach(n => n.remove()); }
-            list.appendChild(c);
-        } else {
-            const d = document.createElement('div');
-            d.className = 'store-item';
-            d.dataset.storeId = idStr;
-            d.dataset.storeName = s.name;
-            if (withPhoto) {
-                const im = document.createElement('img');
-                im.className = 'store-icon';
-                im.src = photoU;
-                im.alt = s.name;
-                d.appendChild(im);
-            }
-            const sp = document.createElement('span');
-            sp.style.flex = '1';
-            sp.textContent = s.name;
-            d.appendChild(sp);
-            const eBtn = document.createElement('button');
-            eBtn.className = 'edit-store-btn';
-            eBtn.textContent = translations.edit_store || 'Edit';
-            eBtn.onclick = () => showAddEditStoreModal(s.id, s.name, s.visible);
-            d.appendChild(eBtn);
-            const dBtn = document.createElement('button');
-            dBtn.className = 'delete-store-btn';
-            dBtn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ' + (translations.delete || 'Delete');
-            dBtn.onclick = () => confirmDeleteStore(s.id, s.name);
-            d.appendChild(dBtn);
-            list.appendChild(d);
-        }
-    }
-    const vtBtn = row ? row.querySelector('.visibility-toggle') : document.querySelector('.store-item[data-store-id="' + idStr + '"] .visibility-toggle');
-    if (vtBtn) {
-        vtBtn.setAttribute('data-visible', s.visible ? 'true' : 'false');
-        vtBtn.innerHTML = s.visible ? visEyeSvg : visEyeOffSvg;
-        vtBtn.onclick = () => toggleStoreVisibility(vtBtn);
-    }
-}
-function saveStore(){
-    const name=document.getElementById('store-name-input').value.trim();
-    if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}
-    const withPhoto=!!storePhotoFile;
-    const pendingRaw=pendingOCRStoreRaw;
-    const fd=new FormData();
-    fd.append('add_edit_store','1');
-    fd.append('store_id',currentStoreId||Date.now());
-    fd.append('store_name',name);
-    fd.append('store_category',document.getElementById('store-category-input')?.value||'other');
-    if(storePhotoFile) fd.append('store_photo',storePhotoFile,'store_photo.jpg');
-    fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
-        if(d.status!=='success'){ showNotification(d.message||t('error_generic','Error'),'error'); return; }
-        closeAddEditStoreModal();
-        showNotification(translations.store_saved || 'Store saved', 'success');
-        if (d.store) applyStoreToSettingsUI(d.store, withPhoto);
-        if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}
-        storePhotoFile=null;
-    }).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
-}
-function confirmDeleteStore(id,name){
-    pendingDelete={type:'store',id,name};
-    document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store||`Delete store "${name}"?`;
-    showModal('confirm-delete-modal');
-}
+function selectedStoreCategories(){return new Set((userSettings.stores||[]).filter(s=>String(s.id)!==String(currentStoreId)).map(s=>s.category||'other'));}
+function refreshCategoryPicker(){const native=document.getElementById('store-category-input'),picker=document.getElementById('store-category-picker');if(!native||!picker)return;const used=selectedStoreCategories();picker.innerHTML='';Array.from(native.options).forEach(option=>{const btn=document.createElement('button');btn.type='button';btn.className='store-category-option';btn.dataset.value=option.value;btn.dataset.used=used.has(option.value)?'1':'0';btn.innerHTML=`${storeCategoryIcon(option.value)}<span>${option.textContent}</span>`;btn.onclick=()=>{native.value=option.value;refreshCategoryPicker();};picker.appendChild(btn);});picker.querySelectorAll('.store-category-option').forEach(btn=>btn.classList.toggle('active',btn.dataset.value===native.value));}
+function showAddEditStoreModal(id=null,name='',visible=true,ocrRaw='',category=null){currentStoreId=id;pendingOCRStoreRaw=ocrRaw||'';document.getElementById('add-edit-store-title').textContent=id?translations.edit_store:translations.add_store;document.getElementById('store-name-input').value=name;const cat=document.getElementById('store-category-input');const current=(userSettings.stores||[]).find(s=>String(s.id)===String(id));if(cat)cat.value=category||current?.category||'other';document.getElementById('store-photo-input').value='';const card=document.getElementById('store-photo-crop-card'),preview=document.getElementById('store-photo-preview'),btn=document.getElementById('crop-store-btn');if(card)card.style.display='none';if(preview){preview.removeAttribute('src');preview.style.display='block';}if(btn){btn.style.display='none';btn.innerHTML=cropIconSvg+'<span>'+(translations.crop_photo||'Crop Photo')+'</span>';}if(cropper){cropper.destroy();cropper=null;}if(storePhotoObjectUrl){URL.revokeObjectURL(storePhotoObjectUrl);storePhotoObjectUrl='';}storePhotoFile=null;refreshCategoryPicker();showModal('add-edit-store-modal');}
+function previewStorePhoto(input){const file=input.files&&input.files[0];if(!file)return;if(cropper){cropper.destroy();cropper=null;}if(storePhotoObjectUrl)URL.revokeObjectURL(storePhotoObjectUrl);storePhotoFile=file;storePhotoObjectUrl=URL.createObjectURL(file);const p=document.getElementById('store-photo-preview'),card=document.getElementById('store-photo-crop-card'),btn=document.getElementById('crop-store-btn');p.src=storePhotoObjectUrl;p.style.display='block';if(card)card.style.display='flex';if(btn){btn.style.display='inline-flex';btn.innerHTML=cropIconSvg+'<span>'+(translations.crop_photo||'Crop Photo')+'</span>';}}
+function cropStorePhoto(){const p=document.getElementById('store-photo-preview');if(!p||!p.getAttribute('src'))return;currentCropType='pending-store';currentCropId='';const ci=document.getElementById('crop-image');ci.src=p.src;showModal('crop-modal');requestAnimationFrame(()=>{if(cropper)cropper.destroy();cropper=new Cropper(ci,{aspectRatio:1,viewMode:2,autoCropArea:.95,background:false,responsive:true,restore:false,checkOrientation:true,guides:true,center:true,dragMode:'move',cropBoxMovable:true,cropBoxResizable:true,minCropBoxWidth:40,minCropBoxHeight:40});});}
+function rekeyExpensesDataStore(oldN,newN){if(!oldN||oldN===newN)return;Object.keys(expensesData||{}).forEach(d=>{const o=expensesData[d];if(o&&Object.prototype.hasOwnProperty.call(o,oldN)){o[newN]=o[oldN];delete o[oldN];}});}
+function storePhotoUrl(s,withPhoto){if(!withPhoto)return'';return s.photo_url?`${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`:`users/${currentUserFolder}/store_${String(s.name).replace(/[^a-zA-Z0-9]/g,'_')}.png?t=${Date.now()}`;}
+function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(withPhoto){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
+function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
+function confirmDeleteStore(id,name){pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store||`Delete store "${name}"?`;showModal('confirm-delete-modal');}
 function executeDelete(){if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
-function removeDataTableStoreColumnByName(storeName) {
-    const ths = document.querySelectorAll('#data-table thead th');
-    let col = -1;
-    ths.forEach((th, idx) => { if (idx > 0 && th.textContent.trim() === storeName) col = idx; });
-    if (col < 0) return;
-    document.querySelectorAll('#data-table tr').forEach(tr => { const c = tr.children[col]; if (c) c.remove(); });
-    if (typeof updateChart === 'function') updateChart();
-}
-function deleteStore(id,name){
-    const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);
-    fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
-        if(d.status!=='success'){ showNotification(d.message||t('error_generic','Error'),'error'); return; }
-        const idS=String(id);
-        userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);
-        Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name)) delete expensesData[dt][name];});
-        const row=document.querySelector('#store-list .store-item[data-store-id="'+idS+'"]');
-        if(row) row.remove();
-        const vb=document.querySelector('.store-visibility-table .visibility-toggle[data-store-id="'+idS+'"]');
-        if(vb) vb.closest('tr').remove();
-        removeDataTableStoreColumnByName(name);
-        showNotification(translations.delete_store_ok||'Store deleted','success');
-        closeModal('confirm-delete-modal');
-    }).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
-}
-function toggleStoreVisibility(btn){
-    const cur=btn.getAttribute('data-visible')==='true';
-    const nv=!cur;
-    btn.setAttribute('data-visible',nv);
-    btn.innerHTML=nv?
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>':
-        '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>';
-    scheduleSaveTableSettings();
-}
+function removeDataTableStoreColumnByName(storeName){const ths=document.querySelectorAll('#data-table thead th');let col=-1;ths.forEach((th,idx)=>{if(idx>0&&th.textContent.trim()===storeName)col=idx;});if(col<0)return;document.querySelectorAll('#data-table tr').forEach(tr=>{const c=tr.children[col];if(c)c.remove();});if(typeof updateChart==='function')updateChart();}
+function deleteStore(id,name){const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}const idS=String(id);userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name))delete expensesData[dt][name];});document.querySelector(`#store-list .store-item[data-store-id="${CSS.escape(idS)}"]`)?.remove();document.querySelector(`.store-visibility-table .visibility-toggle[data-store-id="${CSS.escape(idS)}"]`)?.closest('tr')?.remove();removeDataTableStoreColumnByName(name);refreshCategoryPicker();showNotification(translations.delete_store_ok||'Store deleted','success');closeModal('confirm-delete-modal');}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
+function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;scheduleSaveTableSettings();}
 
 // ══ Crop modal ═════════════════════════════════════════════════════════════
 function closeCropModal(){closeModal('crop-modal');if(cropper){cropper.destroy();cropper=null;}}
-function cropAndSave(){
-    if(!cropper)return;
-    const canvas=cropper.getCroppedCanvas({width:200,height:200});
-    if(!canvas){
-        showNotification(translations.crop_failed||'Could not crop image, try again','error');
-        return;
-    }
-    canvas.toBlob(blob=>{
-        if (currentCropType !== 'store' || !currentCropId) { closeCropModal(); return; }
-        const st = (userSettings.stores || []).find(x => String(x.id) === String(currentCropId));
-        const n = (st && st.name) || '';
-        if (!n) { showNotification(t('store_not_found','Store not found'), 'error'); return; }
-        const fd = new FormData();
-        fd.append('add_edit_store', '1');
-        fd.append('store_id', currentCropId);
-        fd.append('store_name', n);
-        fd.append('store_photo', blob, 'store_photo.jpg');
-        fetch('', { method: 'POST', body: fd }).then(r => r.json()).then(d => {
-            if (d.status !== 'success') { showNotification(d.message || t('error_generic','Error'), 'error'); return; }
-            closeCropModal();
-            if (d.store) applyStoreToSettingsUI(d.store, true);
-            else showNotification(translations.store_saved || 'Store saved', 'success');
-        });
-    },'image/jpeg',0.9);
-}
+function cropAndSave(){if(!cropper)return;const canvas=cropper.getCroppedCanvas({width:512,height:512,imageSmoothingEnabled:true,imageSmoothingQuality:'high'});if(!canvas){showNotification(translations.crop_failed||'Could not crop image, try again','error');return;}canvas.toBlob(blob=>{if(!blob){showNotification(translations.crop_failed||'Could not crop image, try again','error');return;}if(currentCropType==='pending-store'){storePhotoFile=blob;if(storePhotoObjectUrl)URL.revokeObjectURL(storePhotoObjectUrl);storePhotoObjectUrl=URL.createObjectURL(blob);const p=document.getElementById('store-photo-preview');p.src=storePhotoObjectUrl;document.getElementById('store-photo-crop-card').style.display='flex';closeCropModal();return;}if(currentCropType!=='store'||!currentCropId){closeCropModal();return;}const st=(userSettings.stores||[]).find(x=>String(x.id)===String(currentCropId));const n=(st&&st.name)||'';if(!n){showNotification(t('store_not_found','Store not found'),'error');return;}const fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentCropId);fd.append('store_name',n);fd.append('store_category',st.category||'other');fd.append('store_photo',blob,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeCropModal();if(d.store)applyStoreToSettingsUI(d.store,true);else showNotification(translations.store_saved||'Store saved','success');});},'image/png');}
 
 // ══ Backup ═════════════════════════════════════════════════════════════════
 function downloadBackup(fn){window.location.href='?download_backup='+encodeURIComponent(fn);}
@@ -1539,7 +1339,7 @@ function onBankCsvFileChange(ev){
     }).catch(e=>{ev.target.value='';showNotification(`${t('network_error','Network error')}: ${e}`,'error');});
 }
 window.handleEmbeddedOCRProgress=function(lines){setOCRLog((lines||[]).map(localizeOCRLine));};
-window.handleEmbeddedOCRFinished=function(message){closeImportModal();showNotification(message||ocrT.done,'success');setTimeout(()=>window.location.reload(),250);};
+window.handleEmbeddedOCRFinished=function(message){closeImportModal();showNotification(message||ocrT.done,'success');loadAvailableYears().then(()=>updateChart());loadPage(1);updateFinancialSummary();};
 let unresolvedJobId='';
 let unresolvedRows=[];
 function setOCRLog(lines){
@@ -1712,18 +1512,21 @@ function handleTableNavigation(e){
     else if(e.key==='ArrowRight'||e.key==='Tab'){if(col<cols-1)ni=ci+1;else if(row<Math.ceil(inputs.length/cols)-1)ni=ci+1;else{addNewDate(null,0);return;}}
 if(ni!==ci&&inputs[ni]){inputs[ni].focus();inputs[ni].select();}
 }
+function expenseGradientStyle(value,min,max){const n=Number(value)||0;if(max<=min)return 'background:linear-gradient(90deg,#22c55e,#ef4444);';const pct=Math.max(0,Math.min(1,(n-min)/(max-min)));const hue=120-(pct*120);return `background:linear-gradient(90deg,hsl(${hue} 72% 42%),hsl(${Math.max(0,hue-18)} 78% 50%));`;}
 function renderAnalyticsSummaryTable(id,rows,nameKey){
     const el=document.getElementById(id);
     if(!el)return;
     if(!rows||!rows.length){el.textContent=t('no_data','No data');return;}
     el.innerHTML='';
+    const totals=rows.map(r=>Number(r.total)||0).filter(v=>v>0);
+    const min=totals.length?Math.min(...totals):0,max=totals.length?Math.max(...totals):0;
     const table=document.createElement('table');
     table.className='analytics-summary-table';
     table.innerHTML=`<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
     const body=document.createElement('tbody');
     rows.slice(0,12).forEach(row=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${row.label}</td><td>${money(row.today)}</td><td>${money(row.year_day_avg)}</td><td>${money(row.total)}</td>`;
+        tr.innerHTML=`<td>${row.label}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.today,min,max)}">${money(row.today)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.year_day_avg,min,max)}">${money(row.year_day_avg)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.total,min,max)}">${money(row.total)}</td>`;
         body.appendChild(tr);
     });
     table.appendChild(body);
@@ -1735,6 +1538,7 @@ function renderAnalyticsSummaries(payload){
     renderAnalyticsSummaryTable('analytics-store-summary',stores,t('store_name','Store'));
     renderAnalyticsSummaryTable('analytics-category-summary',categories,t('store_category','Category'));
 }
+function chartTextColor(){return document.documentElement.classList.contains('dark')?'#f3f4f6':'#111827';}
 function buildOCRAnalyticsChart(payload,selectedStore){
     renderAnalyticsSummaries(payload);
     const canvas=document.getElementById('ocr-analytics-chart');
@@ -1742,17 +1546,18 @@ function buildOCRAnalyticsChart(payload,selectedStore){
     const ctx=canvas.getContext('2d');
     if(ocrAnalyticsChart)ocrAnalyticsChart.destroy();
     const monthly=payload.monthly||[];
+    const color=chartTextColor();
     if(selectedStore==='__all__'){
         const labels=[...new Set(monthly.map(r=>r.ym))].sort();
         const categories=[...new Set((payload.category_summary||[]).map(r=>r.category))];
-        const datasets=categories.map((cat,i)=>({type:'bar',label:categoryLabel(cat),data:labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((sum,r)=>{const st=(payload.store_summary||[]).find(s=>s.store===r.store);return sum+(st&&st.category===cat?Number(r.amount_sum||0):0);},0)),backgroundColor:storeColors[i%storeColors.length]+'55',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
-        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true},x:{stacked:true}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+        const datasets=categories.map((cat,i)=>({type:'bar',label:categoryLabel(cat),data:labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((sum,r)=>{const st=(payload.store_summary||[]).find(s=>s.store===r.store);return sum+(st&&st.category===cat?Number(r.amount_sum||0):0);},0)),backgroundColor:storeColors[i%storeColors.length]+'66',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
+        ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color}},y:{stacked:true,beginAtZero:true,ticks:{color}}},plugins:{legend:{labels:{color}}}}});
         return;
     }
     const daily=payload.daily||[];
     const labels=[...new Set(daily.map(r=>r.date))].sort();
     const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
-    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(54,162,235,.38)',borderColor:'rgba(54,162,235,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(239,68,68,.45)',borderColor:'rgba(239,68,68,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color}},y:{beginAtZero:true,ticks:{color}}},plugins:{legend:{labels:{color}}}}});
 }
 function loadOCRAnalytics(){
     const select=document.getElementById('ocr-analytics-store');
@@ -1853,7 +1658,7 @@ loadAvailableYears().then(()=>{updateChart();});
     });
     window.addEventListener('message',e=>{
         if(e.data&&e.data.type==='ocr_progress'){setOCRLog((e.data.lines||[]).map(localizeOCRLine));return;}
-        if(e.data&&e.data.type==='ocr_finished'){closeImportModal();showNotification(e.data.message||ocrT.done,'success');setTimeout(()=>window.location.reload(),250);return;}
+        if(e.data&&e.data.type==='ocr_finished'){closeImportModal();showNotification(e.data.message||ocrT.done,'success');loadAvailableYears().then(()=>updateChart());loadPage(1);updateFinancialSummary();return;}
         if(e.data&&e.data.type==='ocr_close'){closeImportModal();return;}
         if(!e.data||e.data.type!=='ocr_done'){return;}
         if(e.data.ocr_text){console.log('[OCR text]',e.data.ocr_text);}

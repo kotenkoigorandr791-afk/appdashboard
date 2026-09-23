@@ -24,6 +24,7 @@ dist/
 apps/recipes/.pydeps/
 graphify-out/
 **/graphify-out/
+**/.graphify*/
 /backups/
 /data/*
 !/data

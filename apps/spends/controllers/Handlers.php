@@ -295,9 +295,11 @@ if (isset($_POST['add_edit_store'])) {
             $st2->execute();
             $safe = getSafeFolderName($currentUser);
             $uDir = APPS_DATA_DIR . $safe;
-            $oldFile = $uDir . '/store_' . preg_replace('/[^a-zA-Z0-9]/', '_', $oldName) . '.jpg';
-            $newFile = $uDir . '/store_' . preg_replace('/[^a-zA-Z0-9]/', '_', $storeName) . '.jpg';
-            if (file_exists($oldFile)) rename($oldFile, $newFile);
+            foreach (['png','jpg','jpeg','webp'] as $ext) {
+                $oldFile = $uDir . '/store_' . preg_replace('/[^a-zA-Z0-9]/', '_', $oldName) . '.' . $ext;
+                $newFile = $uDir . '/store_' . preg_replace('/[^a-zA-Z0-9]/', '_', $storeName) . '.' . $ext;
+                if (file_exists($oldFile)) rename($oldFile, $newFile);
+            }
         }
     } else {
         $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
@@ -319,35 +321,59 @@ if (isset($_POST['add_edit_store'])) {
     }
 
     if (isset($_FILES['store_photo']) && $_FILES['store_photo']['error'] === UPLOAD_ERR_OK) {
-        $imageInfo = getimagesize($_FILES['store_photo']['tmp_name']);
-        if ($imageInfo !== false) {
-            $image = imagecreatefromstring(file_get_contents($_FILES['store_photo']['tmp_name']));
-            $size  = min(imagesx($image), imagesy($image));
-            $newImg= imagecreatetruecolor($size, $size);
-            imagefill($newImg, 0, 0, imagecolorallocate($newImg, 255, 255, 255));
-            imagecopyresampled($newImg, $image, 0, 0, (imagesx($image)-$size)/2, (imagesy($image)-$size)/2, $size, $size, $size, $size);
-            $fn   = preg_replace('/[^a-zA-Z0-9]/', '_', $storeName);
-            $safe = getSafeFolderName($currentUser);
-            $uDir = APPS_DATA_DIR . $safe;
-            if (!file_exists($uDir)) mkdir($uDir, SPENDS_RUNTIME_DIR_MODE, true);
-            @chmod($uDir, SPENDS_RUNTIME_DIR_MODE);
-            imagejpeg($newImg, "$uDir/store_$fn.jpg", 90);
-            imagedestroy($image); imagedestroy($newImg);
+        $tmp = $_FILES['store_photo']['tmp_name'];
+        $fn   = preg_replace('/[^a-zA-Z0-9]/', '_', $storeName);
+        $safe = getSafeFolderName($currentUser);
+        $uDir = APPS_DATA_DIR . $safe;
+        if (!file_exists($uDir)) mkdir($uDir, SPENDS_RUNTIME_DIR_MODE, true);
+        @chmod($uDir, SPENDS_RUNTIME_DIR_MODE);
+        $pngFile = "$uDir/store_$fn.png";
+        $decoded = false;
+        $convert = trim((string)@shell_exec('command -v convert 2>/dev/null'));
+        if ($convert !== '') {
+            $cmd = escapeshellarg($convert) . ' ' . escapeshellarg($tmp) . ' -auto-orient ' . escapeshellarg('png32:' . $pngFile) . ' 2>&1';
+            @exec($cmd, $out, $code);
+            $decoded = $code === 0 && is_file($pngFile) && @getimagesize($pngFile) !== false;
+        }
+        if (!$decoded && function_exists('imagecreatefromstring')) {
+            $raw = @file_get_contents($tmp);
+            $image = $raw === false ? false : @imagecreatefromstring($raw);
+            if ($image !== false) {
+                imagealphablending($image, false);
+                imagesavealpha($image, true);
+                $decoded = imagepng($image, $pngFile, 6);
+                imagedestroy($image);
+            }
+        }
+        if (!$decoded) exit(json_encode(['status'=>'error','message'=>$__t('crop_failed')]));
+        foreach (['jpg','jpeg','webp'] as $ext) {
+            $oldPhoto = "$uDir/store_$fn.$ext";
+            if (file_exists($oldPhoto)) unlink($oldPhoto);
         }
     }
+
     $sr = $udb->prepare("SELECT id, name, visible, COALESCE(category,'other') AS category FROM stores WHERE id = :id");
     $sr->bindValue(':id', $storeId);
     $stRow = $sr->execute()->fetch(PDO::FETCH_ASSOC);
-    if (!$stRow) {
-        exit(json_encode(['status' => 'success']));
+    if (!$stRow) exit(json_encode(['status' => 'success']));
+    $fn = preg_replace('/[^a-zA-Z0-9]/', '_', (string)$stRow['name']);
+    $safe = getSafeFolderName($currentUser);
+    $photoUrl = null;
+    foreach (['png','jpg','jpeg','webp'] as $ext) {
+        $photoFile = APPS_DATA_DIR . "$safe/store_$fn.$ext";
+        if (file_exists($photoFile)) {
+            $photoUrl = "users/$safe/store_$fn.$ext?t=" . filemtime($photoFile);
+            break;
+        }
     }
     exit(json_encode([
         'status'  => 'success',
         'store'   => [
-            'id'      => (string) $stRow['id'],
+            'id'      => (string)$stRow['id'],
             'name'    => $stRow['name'],
-            'visible' => (bool) (int) $stRow['visible'],
+            'visible' => (bool)(int)$stRow['visible'],
             'category'=> spendsNormalizeStoreCategory($stRow['category'] ?? 'other'),
+            'photo_url' => $photoUrl,
         ],
     ]));
 }
@@ -364,8 +390,10 @@ if (isset($_POST['delete_store'])) {
     $fn   = preg_replace('/[^a-zA-Z0-9]/', '_', $storeName);
     $safe = getSafeFolderName($currentUser);
     $uDir = APPS_DATA_DIR . $safe;
-    $photo= "$uDir/store_$fn.jpg";
-    if (file_exists($photo)) unlink($photo);
+    foreach (['png','jpg','jpeg','webp'] as $ext) {
+        $photo = "$uDir/store_$fn.$ext";
+        if (file_exists($photo)) unlink($photo);
+    }
     exit(json_encode(['status'=>'success','message'=>$__t('delete_store_ok')]));
 }
 

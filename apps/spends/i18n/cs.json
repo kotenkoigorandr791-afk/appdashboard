@@ -298,5 +298,6 @@
         "store_name": "Název obchodu",
         "cancel": "Zrušit",
         "delete": "Smazat"
-    }
+    },
+    "store_category_build": "Stavba"
 }

@@ -7051,10 +7051,11 @@ async function buildTree(path) {
             return;
         }
         const useFlatCache = requestRoot === 'main' && !isCloudGroupRoot(requestRoot);
+        const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
 
     // Only use full-tree cache for root-level calls (path === '' or undefined).
     // Sub-path calls (rare) fall back to the old list-based renderNodes path.
-        if (!path && useFlatCache) {
+        if (!path && useFlatCache && !browsePath) {
         // Try cache first
         let items = cachedFileTree;
         if (items === null) {
@@ -7079,7 +7080,6 @@ async function buildTree(path) {
                 }
                 return true;
             });
-            const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
             const scopedItems = browsePath
                 ? visibleItems.filter((item) => {
                     const p = String(item?.path || '');
@@ -7097,13 +7097,13 @@ async function buildTree(path) {
             }
         }
 
-        const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
         const listPath = browsePath || path || '';
         const root = await api('list', { path: listPath }, 'GET');
         if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
         const savedSort = localStorage.getItem('treeSortType');
         if (savedSort) sortState.currentSort = savedSort;
         root.items = sortItems(dedupeTreeItemsByPath(root.items), sortState.currentSort);
+        if (browsePath) root.items = root.items.filter((item) => String(item?.path || '') !== browsePath);
         let renderItems = root.items;
         let renderBase = listPath;
         if (requestRoot === 'clientsync' && !path) {
@@ -7168,6 +7168,7 @@ function isTreeAutoRefreshIdle() {
 
 async function refreshMainTreeIncrementally() {
     if (getCurrentCloudRoot() !== 'main') return;
+    const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
     const data = await api('get_file_tree', {}, 'GET');
     if (getCurrentCloudRoot() !== 'main') return;
     if (!data?.ok || !Array.isArray(data.items)) return;
@@ -7180,8 +7181,13 @@ async function refreshMainTreeIncrementally() {
 
     if (!previousItems.length) return;
 
-    const addedItems = nextItems.filter((item) => !previousMap.has(item.path) && isVisibleMainTreeItem(item));
-    const removedItems = previousItems.filter((item) => !nextMap.has(item.path) && isVisibleMainTreeItem(item));
+    const isInCurrentTreeScope = (item) => {
+        const itemPath = String(item?.path || '');
+        if (!browsePath) return true;
+        return itemPath !== browsePath && itemPath.startsWith(browsePath + '/');
+    };
+    const addedItems = nextItems.filter((item) => !previousMap.has(item.path) && isVisibleMainTreeItem(item) && isInCurrentTreeScope(item));
+    const removedItems = previousItems.filter((item) => !nextMap.has(item.path) && isVisibleMainTreeItem(item) && isInCurrentTreeScope(item));
 
     if (!addedItems.length && !removedItems.length) return;
 
@@ -7200,8 +7206,8 @@ async function refreshMainTreeIncrementally() {
 
     const tree = document.getElementById('tree');
     if (tree) {
-        const visibleRootItems = nextItems.filter((item) => isVisibleMainTreeItem(item) && !item.path.includes('/'));
-        tree.classList.toggle('is-empty', visibleRootItems.length === 0);
+        const visibleItems = nextItems.filter((item) => isVisibleMainTreeItem(item) && isInCurrentTreeScope(item));
+        tree.classList.toggle('is-empty', countDirectTreeChildren(visibleItems, browsePath) === 0);
     }
 }
 
@@ -8563,7 +8569,10 @@ function renderNodes(items, basePath = '', depth = 0) {
                         else openFileInTab(item.path, false);
                     }
                 }, 300);
-            } else if (item.type === 'dir') {
+        } else if (item.type === 'dir') {
+            if (clickTimer) clearTimeout(clickTimer);
+            clickTimer = setTimeout(async () => {
+                if (isDoubleClick) { isDoubleClick = false; return; }
                 const isOpen = children.style.display !== 'none';
                 if (isOpen) {
                     setTreeDirToggleOpen(toggle, false);
@@ -8590,10 +8599,11 @@ function renderNodes(items, basePath = '', depth = 0) {
                     syncTreeFolderEndLine(children, true);
                     expandedFolders.add(item.path);
                 }
-                // IMPORTANT: Save state after each click
+                clickTimer = null;
                 saveFolderState();
-            }
-        });
+            }, 250);
+        }
+    });
 
         attachMobileContextMenuTrigger(node, (menuEvent) => {
             showContextMenu(menuEvent, item.path, item.type, item.name);

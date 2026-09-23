@@ -22,7 +22,7 @@
         let currentCol = 0;
         let isEditing = false;
         (() => {
-            const selector = '.app-steps button, .hc-token-btn, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn';
+            const selector = '.app-steps button, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn';
             const pressedSelector = selector.split(',').map(part => part.trim() + '.is-pressed').join(',');
             const setPressed = (target, pressed) => {
                 const button = target && target.closest ? target.closest(selector) : null;
@@ -245,6 +245,54 @@
             });
         };
 
+        // Function to show toast notification
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('notifications');
+            if (!container) return;
+
+            const kind = ['success', 'error', 'info'].includes(type) ? type : 'info';
+            const iconClass = kind === 'success' ? 'fa-check-circle' : kind === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle';
+            const titleText = kind === 'success' ? (translations.toast_success || 'Success') : kind === 'error' ? (translations.toast_error || 'Error') : (translations.toast_info || 'Info');
+
+            const toast = document.createElement('div');
+            toast.className = 'notification toast-notification ' + kind;
+
+            const header = document.createElement('div');
+            header.className = 'notification-header';
+
+            const title = document.createElement('div');
+            title.className = 'notification-title';
+            const icon = document.createElement('i');
+            icon.className = 'fas ' + iconClass;
+            title.appendChild(icon);
+            title.appendChild(document.createTextNode(' ' + titleText));
+
+            const closeBtn = document.createElement('button');
+            closeBtn.type = 'button';
+            closeBtn.className = 'close-notification';
+            closeBtn.setAttribute('aria-label', titleText);
+            closeBtn.textContent = '×';
+
+            header.appendChild(title);
+            header.appendChild(closeBtn);
+
+            const content = document.createElement('div');
+            content.className = 'notification-content';
+            content.textContent = message;
+
+            toast.appendChild(header);
+            toast.appendChild(content);
+            container.appendChild(toast);
+
+            const dismiss = () => {
+                if (!toast.parentNode) return;
+                toast.style.animation = 'toastOut 0.3s ease-in';
+                toast.addEventListener('animationend', () => toast.remove(), { once: true });
+            };
+            closeBtn.addEventListener('click', dismiss);
+            setTimeout(dismiss, 4000);
+        }
+
         // Function to show alert
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
@@ -447,8 +495,14 @@
         }
 
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal'];
-            const any = ids.some(id => { const m = document.getElementById(id); return m && window.getComputedStyle(m).display === 'flex'; });
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer'];
+            const any = ids.some(id => {
+                const m = document.getElementById(id);
+                if (!m) return false;
+                const cs = window.getComputedStyle(m);
+                const isVisible = cs.display !== 'none' && cs.visibility !== 'hidden' && cs.opacity !== '0';
+                return isVisible;
+            });
             if (any) document.body.classList.add('modal-open');
             else document.body.classList.remove('modal-open');
         }
@@ -1040,7 +1094,7 @@
             const date = document.getElementById('selected-date-input').value;
             const steps = parseStepsRaw(document.getElementById('steps-input').value);
             if (!date || !/^\d*$/.test(steps)) {
-                if (!silent) await showAlert(translations.invalid_date_steps || 'Invalid date or steps');
+                if (!silent) showToast(translations.invalid_date_steps || 'Invalid date or steps', 'error');
                 return;
             }
             document.getElementById('selected-date').value = date;
@@ -1074,10 +1128,10 @@
                     applyManualDate(newDateStr, currentLocale, 'next');
                     document.getElementById('steps-input').focus();
                 } else {
-                    if (!silent) await showAlert(`${translations.invalid_request || 'Error'}: ${data.message}`);
+                    if (!silent) showToast(`${translations.invalid_request || 'Error'}: ${data.message}`, 'error');
                 }
             } catch (err) {
-                if (!silent) await showAlert(`${translations.invalid_request || 'Error'}: ${err.message}`);
+                if (!silent) showToast(`${translations.invalid_request || 'Error'}: ${err.message}`, 'error');
             }
         }
         async function autoSaveManualSteps() {
@@ -1413,7 +1467,7 @@
             const col = parseInt(cell.getAttribute('data-col'));
             if (col === 0) {
                 // This is a date cell - editing not allowed
-                showAlert(translations.date_not_editable || 'Date cannot be edited');
+                showToast(translations.date_not_editable || 'Date cannot be edited', 'info');
                 return;
             }
 
@@ -1478,7 +1532,7 @@
         }
         async function persistTableRow(dateStr, newSteps, row) {
             if (!/^\d{2}-\d{2}-\d{2}$/.test(dateStr)) {
-                await showAlert(translations.invalid_date_format || 'Invalid date format. Use dd-mm-yy format');
+                showToast(translations.invalid_date_format || 'Invalid date format. Use dd-mm-yy format', 'error');
                 return false;
             }
             if (isNaN(newSteps) || newSteps < 0) {
@@ -1494,13 +1548,13 @@
                 const response = await fetch('', { method: 'POST', body: formData });
                 const data = await response.json();
                 if (data.status !== 'success') {
-                    await showAlert(`${translations.save_error || 'Error saving data'}: ${data.message}`);
+                    showToast(`${translations.save_error || 'Error saving data'}: ${data.message}`, 'error');
                     return false;
                 }
                 updateLocalData(dateStr, newSteps, row);
                 return true;
             } catch (err) {
-                await showAlert(`${translations.save_error || 'Error saving data'}: ${err.message}`);
+                showToast(`${translations.save_error || 'Error saving data'}: ${err.message}`, 'error');
                 return false;
             }
         }
@@ -1646,7 +1700,7 @@
                 const response = await fetch('', { method: 'POST', body: formData });
                 const data = await response.json();
                 if (data.status !== 'success') {
-                    await showAlert(`${translations.save_error || 'Error saving data'}: ${data.message}`);
+                    showToast(`${translations.save_error || 'Error saving data'}: ${data.message}`, 'error');
                     return;
                 }
                 for (const item of items) {
@@ -1658,11 +1712,11 @@
                 updateStatsNotification();
                 updateGoalNotification();
             } catch (err) {
-                await showAlert(`${translations.save_error || 'Error saving data'}: ${err.message}`);
+                showToast(`${translations.save_error || 'Error saving data'}: ${err.message}`, 'error');
                 return;
             }
             clearSelection();
-            await showAlert(translations.cells_cleared || 'Cells cleared successfully');
+            showToast(translations.cells_cleared || 'Cells cleared successfully', 'success');
         }
 
         // Function to create new backup
@@ -1679,13 +1733,15 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    await showAlert(data.message || translations.backup_created || 'Backup created successfully');
-                    await loadBackups(); // Update the backup list
+                    showToast(data.message || translations.backup_created || 'Backup created successfully', 'success');
+                    if (document.getElementById('settings-panel-backups')) {
+                        loadBackups();
+                    }
                 } else {
-                    await showAlert(`Error: ${data.message}`);
+                    showToast(`Error: ${data.message}`, 'error');
                 }
             } catch (err) {
-                await showAlert(`Error creating backup: ${err.message}`);
+                showToast(`Error creating backup: ${err.message}`, 'error');
             }
         }
 
@@ -1719,10 +1775,10 @@
                 if (data.status === 'success') {
                     renderBackupsList(data.backups);
                 } else {
-                    await showAlert(`Error: ${data.message}`);
+                    showToast(`Error: ${data.message}`, 'error');
                 }
             } catch (err) {
-                await showAlert(`Error: ${err.message}`);
+                showToast(`Error: ${err.message}`, 'error');
             }
         }
 
@@ -1818,15 +1874,15 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    await showAlert(translations.backup_restored || 'Backup restored successfully');
+                    showToast(translations.backup_restored || 'Backup restored successfully', 'success');
 
                     // Reload page to refresh data
                     location.reload();
                 } else {
-                    await showAlert(`Error: ${data.message}`);
+                    showToast(`Error: ${data.message}`, 'error');
                 }
             } catch (err) {
-                await showAlert(`Error: ${err.message}`);
+                showToast(`Error: ${err.message}`, 'error');
             }
         }
 
@@ -1851,13 +1907,13 @@
                 const data = await response.json();
 
                 if (data.status === 'success') {
-                    await showAlert(translations.backup_deleted || 'Backup deleted successfully');
+                    showToast(translations.backup_deleted || 'Backup deleted successfully', 'success');
                     await loadBackups(); // Update the list
                 } else {
-                    await showAlert(`Error: ${data.message}`);
+                    showToast(`Error: ${data.message}`, 'error');
                 }
             } catch (err) {
-                await showAlert(`Error: ${err.message}`);
+                showToast(`Error: ${err.message}`, 'error');
             }
         }
 
@@ -1884,10 +1940,10 @@
                     await showAlert(translations.backup_downloaded || 'Backup downloaded successfully');
                 } else {
                     const data = await response.json();
-                    await showAlert(`Error: ${data.message}`);
+                    showToast(`Error: ${data.message}`, 'error');
                 }
             } catch (err) {
-                await showAlert(`Error: ${err.message}`);
+                showToast(`Error: ${err.message}`, 'error');
             }
         }
 
@@ -1922,10 +1978,10 @@
                     fileInput.value = '';
                     location.reload();
                 } else {
-                    await showAlert(`Error: ${data.message}`);
+                    showToast(`Error: ${data.message}`, 'error');
                 }
             } catch (err) {
-                await showAlert(`Error: ${err.message}`);
+                showToast(`Error: ${err.message}`, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = origHTML;
@@ -3469,10 +3525,10 @@
                         closeModal('settings-modal');
                         location.reload();
                     } else {
-                        await showAlert(`${translations.failed_save_settings || 'Error saving settings'}: ${data.message}`);
+                        showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${data.message}`, 'error');
                     }
                 } catch (err) {
-                    await showAlert(`${translations.failed_save_settings || 'Error saving settings'}: ${err.message}`);
+                    showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${err.message}`, 'error');
                 }
             });
 

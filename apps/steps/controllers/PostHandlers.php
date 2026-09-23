@@ -4,12 +4,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
     ob_clean();
 
-    if (isset($_POST['mobile_apk_state'])) {
-        saveUserSetting($userDb, 'mobile_apk_hidden', !empty($_POST['hidden']) ? '1' : '0');
-        saveUserSetting($userDb, 'mobile_apk_seen_version', (string)($_POST['version'] ?? ''));
-        exit(json_encode(['status' => 'success']));
-    }
-
     // Save settings
     if (isset($_POST['settings'])) {
         $goalSteps = filter_var(str_replace(',', '.', $_POST['goal_steps']), FILTER_VALIDATE_FLOAT);

@@ -138,15 +138,6 @@
     <div class="chart-container">
         <canvas id="expenses-chart"></canvas>
     </div>
-    <div class="chart-nav-bottom">
-        <button id="chart-year-prev-btn" class="chart-nav-btn" onclick="changeChartYear(-1)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
-        </button>
-        <button id="chart-year-next-btn" class="chart-nav-btn" onclick="changeChartYear(1)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
-        </button>
-    </div>
-
     <div class="chart-controls-row">
         <div class="currency-selector">
             <button class="currency-btn" data-currency="USD" onclick="switchChartCurrency('USD')">USD</button>
@@ -155,8 +146,18 @@
             <button class="currency-btn" data-currency="UAH" onclick="switchChartCurrency('UAH')">UAH</button>
             <button class="currency-btn" data-currency="BYN" onclick="switchChartCurrency('BYN')">BYN</button>
         </div>
-        <button class="add-date-btn open-table-desktop" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
-        <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
+        <div class="chart-controls-nav">
+            <button id="chart-year-prev-btn" class="chart-nav-btn" onclick="changeChartYear(-1)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            </button>
+            <button id="chart-year-next-btn" class="chart-nav-btn" onclick="changeChartYear(1)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            </button>
+        </div>
+        <div class="chart-controls-actions">
+            <button class="add-date-btn open-table-desktop" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
+            <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
+        </div>
         <div class="chart-year" id="chart-year2"></div>
     </div>
 
@@ -190,7 +191,7 @@
                         <?php foreach ($visibleStores as $store):
                             $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
                             $safe = getSafeFolderName($currentUser);
-                            $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null;
+                            $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.png") ? "users/$safe/store_$fn.png" : (file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null);
                         ?>
                             <th>
                                 <div class="store-header">
@@ -315,7 +316,7 @@
                 <?php foreach ($userSettings['stores'] as $store):
                     $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
                     $safe = getSafeFolderName($currentUser);
-                    $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null;
+                    $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.png") ? "users/$safe/store_$fn.png" : (file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null);
                 ?>
                     <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>">
                         <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
@@ -425,31 +426,34 @@
             <label><?= htmlspecialchars($translations['store_name']) ?>:</label>
             <input type="text" id="store-name-input" placeholder="<?= htmlspecialchars($translations['store_name']) ?>">
         </div>
-        <div class="form-row">
+        <div class="form-row store-category-row">
             <label><?= htmlspecialchars($translations['store_category'] ?? 'Category') ?>:</label>
-            <select id="store-category-input">
+            <select id="store-category-input" aria-hidden="true" tabindex="-1">
                 <?php foreach (spendsStoreCategories() as $cat): ?>
                     <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($translations['store_category_'.$cat] ?? ucfirst($cat)) ?></option>
                 <?php endforeach; ?>
             </select>
+            <div id="store-category-picker" class="store-category-picker"></div>
         </div>
         <div class="form-row">
             <label><?= htmlspecialchars($translations['store_photo']) ?>:</label>
-            <input type="file" id="store-photo-input" accept="image/*" onchange="previewStorePhoto(this)">
+            <input type="file" id="store-photo-input" accept="image/*,.webp" onchange="previewStorePhoto(this)">
         </div>
-        <img id="store-photo-preview" src="" alt="<?= htmlspecialchars($translations['preview'] ?? 'Preview') ?>" style="display:none;max-width:200px;max-height:200px;margin:10px 0;">
-        <button id="crop-store-btn" onclick="cropStorePhoto()" style="display:none;margin:10px 0;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['crop_photo']) ?></button>
-        <button onclick="saveStore()" style="margin-top:10px;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['save']) ?></button>
+        <div id="store-photo-crop-card" class="store-photo-crop-card" style="display:none;">
+            <div class="store-photo-frame"><img id="store-photo-preview" src="" alt="<?= htmlspecialchars($translations['preview'] ?? 'Preview') ?>"></div>
+            <button id="crop-store-btn" class="store-photo-crop-btn" type="button" onclick="cropStorePhoto()"></button>
+        </div>
+        <button onclick="saveStore()" class="action-primary-btn"><?= htmlspecialchars($translations['save']) ?></button>
     </div>
 </div>
 
 <!-- Crop Modal -->
-<div id="crop-modal" class="modal" style="z-index:2000;">
-    <div class="modal-content">
+<div id="crop-modal" class="modal" style="z-index:30000;">
+    <div class="modal-content crop-modal-content">
         <button class="modal-close" onclick="closeCropModal()">×</button>
         <h3><?= htmlspecialchars($translations['crop_photo']) ?></h3>
-        <div class="cropper-container"><img id="crop-image"></div>
-        <button onclick="cropAndSave()" style="margin-top:10px;padding:10px;background:var(--primary-color);color:white;border:none;cursor:pointer;border-radius:4px;"><?= htmlspecialchars($translations['crop_and_save']) ?></button>
+        <div class="cropper-container"><img id="crop-image" alt="<?= htmlspecialchars($translations['crop_photo']) ?>"></div>
+        <button onclick="cropAndSave()" class="action-primary-btn crop-save-btn"><?= htmlspecialchars($translations['crop_and_save']) ?></button>
     </div>
 </div>
 

@@ -39,7 +39,8 @@ fun computeNextSyncInfo(prefs: PreferencesManager, now: Long): NextSyncInfo? {
         SyncMode.INTERVAL -> {
             val intervalMs = prefs.getSyncIntervalMinutes() * 60_000L
             val lastSync = prefs.getEffectiveLastSyncAnchor() ?: now
-            NextSyncInfo(lastSync + intervalMs, intervalMs, "")
+            val nextSync = maxOf(lastSync + intervalMs, now + 15 * 60_000L)
+            NextSyncInfo(nextSync, intervalMs, "")
         }
     }
 }

@@ -570,7 +570,7 @@
         .goal-summary-label { display: block; color: var(--muted-text); font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .goal-summary-value { display: block; margin-top: 4px; font-size: 20px; font-weight: 850; color: var(--text-color); }
 
-        #info-button, #settings-button, #add-steps-button, #stats-button, #hc-token-open-btn, #stepmonitor-apk-button {
+        #info-button, #settings-button, #add-steps-button, #stats-button, #stepmonitor-apk-button {
             position: static;
             background: rgba(127,127,127,0.08);
             border: 1px solid transparent;
@@ -585,7 +585,7 @@
             border-radius: var(--radius-sm);
             transition: background-color 0.2s, border-color 0.2s;
         }
-        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active, #hc-token-open-btn:hover, #stepmonitor-apk-button:hover {
+        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active, #stepmonitor-apk-button:hover {
             background: color-mix(in srgb, var(--primary-color) 14%, transparent);
             border-color: color-mix(in srgb, var(--primary-color) 34%, transparent);
         }
@@ -641,7 +641,7 @@
             overflow: hidden;
             overflow-x: hidden;
             box-sizing: border-box;
-            padding: 12px;
+            padding: 0;
         }
         #excel-hotkeys-modal { z-index: 10020; }
         #excel-modal {
@@ -730,182 +730,6 @@
             color: var(--primary-color);
         }
 
-        #hc-token-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.42);
-            -webkit-backdrop-filter: blur(8px);
-            backdrop-filter: blur(8px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 10000;
-            overflow: hidden;
-            overflow-x: hidden;
-            box-sizing: border-box;
-            padding: 12px;
-        }
-        #hc-token-modal .hc-token-content {
-            background: var(--modal-bg);
-            border: 1px solid var(--border-color);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-soft);
-            padding: 24px;
-            width: min(640px, calc(100vw - 24px));
-            max-width: min(640px, calc(100vw - 24px));
-            min-width: 0;
-            box-sizing: border-box;
-            position: relative;
-            overflow: auto;
-            overflow-x: hidden;
-            max-height: calc(100vh - 24px);
-        }
-        #hc-token-modal .modal-close {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            background: transparent;
-            border: none;
-            color: var(--muted-text);
-            font-size: 28px;
-            width: 36px;
-            height: 36px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            border-radius: 8px;
-            transition: all 0.2s ease;
-        }
-        #hc-token-modal .modal-close:hover {
-            background: color-mix(in srgb, var(--primary-color) 10%, transparent);
-            color: var(--primary-color);
-        }
-        #hc-token-modal h2 {
-            margin: 0 0 8px;
-            font-size: 20px;
-            padding-right: 36px;
-            color: var(--text-color);
-        }
-        #hc-token-modal .hc-token-sub {
-            margin: 0 0 14px;
-            opacity: 0.78;
-            font-size: 13px;
-            line-height: 1.45;
-            color: var(--text-color);
-        }
-        #hc-token-modal .hc-token-sub code {
-            background: var(--group-block-bg);
-            padding: 2px 6px;
-            border-radius: 8px;
-            color: var(--text-color);
-        }
-        #hc-token-modal .hc-token-fields {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 12px;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        #hc-token-modal .hc-token-row {
-            display: flex;
-            gap: 10px;
-            align-items: stretch;
-            flex-wrap: wrap;
-        }
-        #hc-token-modal .hc-token-field {
-            flex: 1;
-            min-width: 240px;
-        }
-        #hc-token-modal .hc-token-field.endpoint {
-            min-width: 260px;
-        }
-        #hc-token-modal label {
-            display: block;
-            font-size: 12px;
-            font-weight: 700;
-            opacity: 0.7;
-            margin: 0 0 6px;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            color: var(--text-color);
-        }
-        #hc-token-modal #hc-token-endpoint {
-            margin: 0;
-            padding: 10px 12px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border-color);
-            background: var(--group-block-bg);
-            color: var(--text-color);
-            word-break: break-all;
-            white-space: pre-wrap;
-            font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-        }
-        #hc-token-modal #hc-token-name {
-            width: 100%;
-            padding: 10px 12px;
-            border-radius: var(--radius-sm);
-            border: 1px solid var(--border-color);
-            background: var(--modal-bg);
-            color: var(--text-color);
-            box-sizing: border-box;
-        }
-        #hc-token-modal .hc-token-btn {
-            padding: 10px 14px;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            background: var(--primary-color);
-            color: #fff;
-            font-weight: 600;
-            font-size: 13px;
-            align-self: flex-end;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            white-space: nowrap;
-        }
-        #hc-token-modal .hc-token-btn:hover { opacity: 0.8; }
-        #hc-token-modal #hc-token-copy {
-            background: #22c55e;
-            font-weight: 700;
-        }
-        #hc-token-modal #hc-token-err {
-            display: none;
-            margin: 0;
-            color: #ef4444;
-            font-size: 13px;
-        }
-        #hc-token-modal #hc-token-output {
-            display: none;
-            padding: 12px;
-            border: 1px solid color-mix(in srgb, #22c55e 45%, transparent);
-            border-radius: var(--radius-md);
-            background: color-mix(in srgb, #22c55e 16%, transparent);
-        }
-        #hc-token-modal #hc-token-output strong {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 13px;
-            color: var(--text-color);
-        }
-        #hc-token-modal #hc-token-value {
-            display: block;
-            word-break: break-all;
-            white-space: pre-wrap;
-            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-            color: var(--text-color);
-        }
-        #hc-token-modal .hc-token-actions {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-            flex-wrap: wrap;
-            margin-top: 10px;
-        }
         #stats-modal .stats-content {
             width: calc(100vw - 24px);
             overflow-y: auto;
@@ -1732,6 +1556,9 @@
             overflow-wrap: break-word;
         }
         .notification.video-related-notif { border-left-color: #e6a200; }
+        .notification.success { border-left-color: #28a745; }
+        .notification.error { border-left-color: #dc3545; }
+        .notification.info { border-left-color: var(--primary-color); }
 
         .notification-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
         .notification-title { font-weight: bold; font-size: 16px; color: var(--primary-color); }
@@ -1753,8 +1580,20 @@
         .current-date input[type="date"], .current-date input[type="text"] { flex: 1 1 0; min-width: 0; width: auto; font-size: 16px; box-sizing: border-box; }
         .current-date input[type="date"] { flex-basis: 150px; min-width: 145px; }
 
-        #notifications { position: fixed; bottom: 20px; right: 20px; z-index: 10000; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; max-width: min(100vw - 32px, 100%); box-sizing: border-box; }
-        #worker-progress-widget { position: fixed; left: 20px; bottom: 20px; z-index: 10000; display: none; flex-direction: column; gap: 8px; align-items: flex-start; }
+        #notifications { position: fixed; bottom: 20px; right: 20px; z-index: 20000; display: flex; flex-direction: column-reverse; align-items: flex-end; gap: 10px; max-width: min(100vw - 32px, 100%); box-sizing: border-box; }
+        #worker-progress-widget { position: fixed; left: 20px; bottom: 20px; z-index: 20000; display: none; flex-direction: column; gap: 8px; align-items: flex-start; }
+        .toast-notification { animation: toastIn 0.3s ease-out; }
+        .toast-in-success { animation: toastInSuccess 0.5s ease-out; }
+        .toast-in-error { animation: toastInError 0.5s ease-out; }
+        .toast-in-info { animation: toastInInfo 0.4s ease-out; }
+        @keyframes toastIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes toastOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
         .worker-progress-item { display: inline-flex; align-items: center; gap: 8px; padding: 8px; border-radius: 8px; background: var(--modal-bg); border: 1px solid var(--border-color); box-shadow: 0 3px 14px rgba(0,0,0,0.18); font-size: 13px; line-height: 1.2; width: fit-content; }
         .worker-progress-item i { width: 14px; text-align: center; color: var(--primary-color); }
         .worker-progress-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1898,206 +1737,449 @@
             flex-grow: 1;
         }
 
-        .info-app-toggle {
+        .mobile-app-content {
+            max-width: 800px;
+        }
+        .mobile-app-content .modal-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--muted-text, #a0a0a0);
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 10px 0 0;
-            border-top: 1px solid var(--border-color);
-            font-size: 14px;
+            justify-content: center;
+            transition: all 0.2s;
         }
-        .info-app-toggle-controls {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
+        .mobile-app-content .modal-close:hover {
+            background-color: color-mix(in srgb, var(--surface-solid) 65%, transparent);
+            color: var(--text-color);
         }
-        .info-app-open {
-            padding: 6px 12px;
-            border: 1px solid color-mix(in srgb, var(--primary-color) 36%, var(--border-color));
-            border-radius: 8px;
-            background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-solid));
-            color: var(--primary-color);
-            font-size: 13px;
+
+        /* Mobile App modal (action + features layout) */
+        .mobile-app-content .ma-header {
+            margin-bottom: 24px;
+            padding-right: 40px;
+        }
+        .mobile-app-content .ma-header h1 {
+            font-size: 24px;
+            margin: 0 0 8px 0;
             font-weight: 600;
-            cursor: pointer;
-            transition: background 0.18s ease, color 0.18s ease;
+            letter-spacing: -0.5px;
+            color: var(--text-color);
         }
-        .info-app-open:hover:not(:disabled) { background: color-mix(in srgb, var(--primary-color) 20%, var(--surface-solid)); }
-        .info-app-open:disabled { opacity: 0.55; cursor: not-allowed; }
-        .info-app-toggle.is-unavailable {
-            opacity: 0.55;
-            pointer-events: none;
-        }
-
-        .app-switch {
-            position: relative;
-            display: inline-flex;
-            flex-shrink: 0;
-            cursor: pointer;
-        }
-        .app-switch input {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            opacity: 0;
-            margin: 0;
-        }
-        .app-switch-track {
-            position: relative;
-            width: 46px;
-            height: 26px;
-            border-radius: 999px;
-            background: var(--muted-text, #9aa3ad);
-            border: 1px solid var(--border-color);
-            transition: background 0.2s ease;
-            box-sizing: border-box;
-        }
-        .app-switch-track::after {
-            content: "";
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: #fff;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.35);
-            transition: transform 0.2s ease;
-        }
-        .app-switch input:checked + .app-switch-track {
-            background: var(--primary-color, #3D8BFF);
-            border-color: var(--primary-color, #3D8BFF);
-        }
-        .app-switch input:checked + .app-switch-track::after {
-            transform: translateX(20px);
-        }
-        .app-switch input:focus-visible + .app-switch-track {
-            outline: 2px solid var(--primary-color, #3D8BFF);
-            outline-offset: 2px;
-        }
-        .app-switch input:disabled + .app-switch-track {
-            opacity: 0.5;
-        }
-
-        .mobile-app-content {
-            max-width: 900px;
-        }
-        .mobile-app-subtitle {
-            margin: 0;
+        .mobile-app-content .ma-header p {
             color: var(--muted-text, var(--text-color));
+            margin: 0;
+            font-size: 14px;
             line-height: 1.5;
         }
-        .mobile-app-grid {
+        .mobile-app-content .ma-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-            gap: 14px;
+            grid-template-columns: 1fr 1.2fr;
+            gap: 24px;
         }
-        .mobile-app-footer {
+        .mobile-app-content .ma-action {
+            position: relative;
+            background: color-mix(in srgb, var(--surface-solid) 55%, transparent);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md, 12px);
+            padding: 24px;
             display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
             justify-content: center;
-            gap: 12px;
-            padding-top: 4px;
         }
-        .mobile-app-download-btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            min-height: 46px;
-            padding: 10px 28px;
-            border: none;
-            border-radius: 12px;
-            background: var(--primary-color, #3D8BFF);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: filter 0.18s ease, transform 0.18s ease;
-        }
-        .mobile-app-download-btn:hover:not(:disabled) {
-            filter: brightness(1.08);
-            transform: translateY(-1px);
-        }
-        .mobile-app-download-btn:disabled {
-            opacity: 0.55;
-            cursor: not-allowed;
-        }
-        .mobile-app-version-info {
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 12px;
-            margin-top: 6px;
-            font-size: 13px;
-            color: var(--muted-text, rgba(244,247,242,0.68));
-            opacity: 0.85;
-        }
-        .mobile-app-version-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .mobile-app-version-item i {
-            font-size: 12px;
-        }
-
-        .app-toast {
-            position: fixed;
-            left: 50%;
-            bottom: 24px;
-            transform: translateX(-50%);
-            z-index: 10050;
-            max-width: min(480px, calc(100vw - 32px));
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .mobile-app-content .ma-qr-frame {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            background-color: #fff;
+            border-radius: var(--radius-sm, 8px);
+            margin-bottom: 20px;
+            padding: 12px;
             box-sizing: border-box;
-            padding: 12px 14px;
-            border-radius: 12px;
-            background: rgba(20, 26, 34, 0.82);
-            -webkit-backdrop-filter: blur(10px);
-            backdrop-filter: blur(10px);
-            color: #fff;
-            font-size: 14px;
-            line-height: 1.4;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.35);
-            animation: appToastIn 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
         }
-        .app-toast span { flex-grow: 1; }
-        .app-toast-hide {
-            flex-shrink: 0;
-            padding: 6px 12px;
-            border: 1px solid rgba(255,255,255,0.45);
-            border-radius: 8px;
-            background: transparent;
+        .mobile-app-content .ma-qr-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            filter: blur(6px);
+            pointer-events: none;
+        }
+        .mobile-app-content .ma-qr-placeholder svg {
+            width: 220px;
+            height: 220px;
+        }
+        .mobile-app-content .ma-qr-code {
+            position: absolute;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .mobile-app-content .ma-qr-code svg {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+        .mobile-app-content .ma-qr-generate {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: var(--radius-sm, 8px);
+            background: var(--primary-color, #3D8BFF);
             color: #fff;
             font-size: 13px;
             font-weight: 600;
             cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+            transition: background-color 0.2s, transform 0.1s;
+            z-index: 1;
         }
-        .app-toast-hide:hover { background: rgba(255,255,255,0.16); }
-        .app-toast-close {
-            flex-shrink: 0;
+        .mobile-app-content .ma-qr-generate:hover:not(:disabled) {
+            filter: brightness(1.08);
+        }
+        .mobile-app-content .ma-qr-generate:active {
+            transform: translate(-50%, -50%) scale(0.98);
+        }
+        .mobile-app-content .ma-qr-generate:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+        .mobile-app-content .ma-qr-hint {
+            position: absolute;
+            top: 12px;
+            right: 12px;
             width: 26px;
             height: 26px;
+            border: none;
+            border-radius: 50%;
+            background: #ffffff;
+            color: #7c3aed;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            border: none;
-            border-radius: 50%;
-            background: transparent;
-            color: rgba(255,255,255,0.75);
-            font-size: 18px;
-            line-height: 1;
             cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(124, 58, 237, 0.35);
+            transition: color 0.2s ease, transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+            z-index: 2;
         }
-        .app-toast-close:hover { background: rgba(255,255,255,0.16); color: #fff; }
-        .app-toast-leave { opacity: 0; transform: translateX(-50%) translateY(8px); transition: opacity 0.2s ease, transform 0.2s ease; }
-        @keyframes appToastIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(12px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .mobile-app-content .ma-qr-hint:hover {
+            color: #5b21b6;
+            background: #f8f5ff;
+            transform: scale(1.12);
+            box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45), 0 0 0 1px rgba(124, 58, 237, 0.45);
+        }
+        .mobile-app-content .ma-qr-hint:active {
+            transform: scale(0.95);
+        }
+
+        /* Copy buttons with animated check */
+        .ma-copy-btn {
+            position: relative;
+            align-self: flex-end;
+            flex-shrink: 0;
+            width: 42px;
+            height: 42px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--surface-solid) 70%, transparent);
+            color: var(--muted-text, var(--text-color));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.12s ease;
+            overflow: hidden;
+        }
+        .ma-copy-btn:hover {
+            color: var(--primary-color, #3D8BFF);
+            border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
+            background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-solid));
+        }
+        .ma-copy-btn:active {
+            transform: scale(0.92);
+        }
+        .ma-copy-btn .ma-copy-check {
+            position: absolute;
+            opacity: 0;
+            transform: scale(0.4) rotate(-30deg);
+            transition: opacity 0.18s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .ma-copy-btn .ma-copy-icon {
+            transition: opacity 0.15s ease, transform 0.18s ease;
+        }
+        .ma-copy-btn.is-copied {
+            color: #fff;
+            background: #22c55e;
+            border-color: #22c55e;
+        }
+        .ma-copy-btn.is-copied .ma-copy-icon {
+            opacity: 0;
+            transform: scale(0.4);
+        }
+        .ma-copy-btn.is-copied .ma-copy-check {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+        }
+        .ma-copy-btn.is-empty {
+            animation: maCopyShake 0.4s ease;
+        }
+        @keyframes maCopyShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            50% { transform: translateX(4px); }
+            75% { transform: translateX(-3px); }
+        }
+        .ma-copy-btn.is-copied::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: radial-gradient(circle, rgba(255,255,255,0.55) 10%, transparent 10.01%) center/10000% 10000% no-repeat;
+            animation: maCopyRipple 0.6s ease forwards;
+            pointer-events: none;
+        }
+        @keyframes maCopyRipple {
+            from { background-size: 0% 0%; opacity: 1; }
+            to { background-size: 220% 220%; opacity: 0; }
+        }
+
+        /* Manual pairing modal */
+        #manual-pair-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(10,14,18,0.48);
+            -webkit-backdrop-filter: blur(14px);
+            backdrop-filter: blur(14px);
+            z-index: 10030;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        #manual-pair-modal .manual-pair-content {
+            position: relative;
+            width: min(560px, 100%);
+            max-width: min(560px, calc(100vw - 32px));
+            max-height: calc(100dvh - 32px);
+            border: 1px solid var(--border-color);
+            border-radius: 18px;
+            box-shadow: var(--shadow-soft);
+            background: color-mix(in srgb, var(--modal-bg) 92%, var(--surface-solid));
+            padding: 24px;
+            overflow: auto;
+            overflow-x: hidden;
+            box-sizing: border-box;
+        }
+        #manual-pair-modal .manual-pair-steps {
+            margin: 0 0 18px;
+            padding-left: 20px;
+            display: grid;
+            gap: 8px;
+            color: var(--text-color);
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+        #manual-pair-modal .manual-pair-fields {
+            display: grid;
+            gap: 12px;
+        }
+        #manual-pair-modal .manual-pair-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+        #manual-pair-modal .manual-pair-field {
+            flex: 1;
+            min-width: 0;
+        }
+        #manual-pair-modal .manual-pair-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.7;
+            margin: 0 0 6px;
+            color: var(--text-color);
+        }
+        #manual-pair-modal .manual-pair-field pre {
+            margin: 0;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            background: var(--group-block-bg);
+            color: var(--text-color);
+            font: 12.5px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            word-break: break-all;
+            white-space: pre-wrap;
+            min-height: 42px;
+            box-sizing: border-box;
+        }
+        #manual-pair-modal .manual-pair-footer {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+        #manual-pair-modal .manual-pair-regen-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary-color, #3D8BFF);
+            color: #fff;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: filter 0.18s ease, transform 0.12s ease, opacity 0.18s ease;
+        }
+        #manual-pair-modal .manual-pair-regen-btn:hover:not(:disabled) {
+            filter: brightness(1.08);
+        }
+        #manual-pair-modal .manual-pair-regen-btn:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+        #manual-pair-modal .manual-pair-regen-btn:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+        #manual-pair-modal .manual-pair-regen-btn.is-busy svg {
+            animation: maSpin 0.9s linear infinite;
+        }
+        @keyframes maSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @media (max-width: 640px) {
+            #manual-pair-modal .manual-pair-row {
+                flex-direction: column;
+            }
+            #manual-pair-modal .ma-copy-btn {
+                align-self: flex-end;
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        .mobile-app-content .ma-action h3 {
+            font-size: 16px;
+            margin: 0 0 8px 0;
+            color: var(--text-color);
+        }
+        .mobile-app-content .ma-action > p {
+            font-size: 13px;
+            color: var(--muted-text, var(--text-color));
+            margin: 0 0 24px 0;
+            line-height: 1.4;
+        }
+        .mobile-app-content .ma-download {
+            background-color: var(--ma-accent, #4ade80);
+            color: #000;
+            border: none;
+            padding: 14px 24px;
+            border-radius: var(--radius-sm, 8px);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            box-sizing: border-box;
+            justify-content: center;
+            text-decoration: none;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .mobile-app-content .ma-download:hover {
+            background-color: var(--ma-accent-hover, #22c55e);
+        }
+        .mobile-app-content .ma-download:active {
+            transform: scale(0.98);
+        }
+        .mobile-app-content .ma-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+            font-size: 11px;
+            color: var(--muted-text, #666);
+        }
+        .mobile-app-content .ma-features {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .mobile-app-content .ma-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            padding: 16px;
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md, 12px);
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .mobile-app-content .ma-feature:hover {
+            background-color: color-mix(in srgb, var(--surface-solid) 55%, transparent);
+            border-color: color-mix(in srgb, var(--primary-color) 26%, var(--border-color));
+        }
+        .mobile-app-content .ma-feature-icon {
+            background-color: color-mix(in srgb, var(--ma-accent, #4ade80) 12%, transparent);
+            color: var(--ma-accent, #4ade80);
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm, 8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .mobile-app-content .ma-feature-text {
+            min-width: 0;
+            text-align: left;
+        }
+        .mobile-app-content .ma-feature-text h4 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-color);
+        }
+        .mobile-app-content .ma-feature-text p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--muted-text, var(--text-color));
+            line-height: 1.4;
+        }
+        @media (max-width: 650px) {
+            .mobile-app-content .ma-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .hotkey {
@@ -2354,7 +2436,7 @@
                 display: none;
             }
 
-            #info-button, #settings-button, #add-steps-button, #stats-button, #hc-token-open-btn {
+            #info-button, #settings-button, #add-steps-button, #stats-button {
                 font-size: 20px;
                 width: 35px;
                 height: 35px;
@@ -2462,17 +2544,7 @@
             #steps-chart { width: 100% !important; height: 100% !important; min-height: 240px; }
             .chart-nav { width: 28px; height: 52px; font-size: 14px; }
 
-            #hc-token-modal .hc-token-actions {
-                justify-content: flex-start;
-                flex-wrap: nowrap;
-            }
-
-            #hc-token-modal .hc-token-actions .hc-token-btn {
-                width: 100%;
-                justify-content: center;
-                flex: 1 1 auto;
-            }
-            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content, .mobile-app-content {
+            .settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .mobile-app-content {
                 width: 100dvw !important;
                 max-width: 100dvw !important;
                 height: 100dvh !important;
@@ -2483,7 +2555,7 @@
                 overflow: auto;
                 overflow-x: hidden;
             }
-            #info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
+            #info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
                 width: 100dvw !important;
                 height: 100dvh !important;
                 padding: 0 !important;
@@ -2491,29 +2563,6 @@
                 justify-content: stretch !important;
             }
 
-            #hc-token-modal .hc-token-content {
-                width: 100dvw !important;
-                max-width: 100dvw !important;
-                height: 100dvh !important;
-                max-height: 100dvh !important;
-                border-radius: 0 !important;
-                padding: 14px !important;
-                overflow: auto;
-                overflow-x: hidden;
-            }
-
-            #hc-token-modal .hc-token-field {
-                min-width: 0 !important;
-            }
-
-            #hc-token-modal .hc-token-field.endpoint {
-                min-width: 0 !important;
-            }
-
-            #hc-token-modal #hc-token-output {
-                width: 100% !important;
-                box-sizing: border-box;
-            }
             #guide-expand-modal .guide-expand-content,
             #video-crop-modal .video-crop-inner {
                 width: 100dvw !important;
@@ -2823,13 +2872,13 @@
             .current-date { width: 100%; }
             .current-date input[type="date"] { min-width: 145px; }
         }
-.app-steps button, .hc-token-btn, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn {
+.app-steps button, .excel-btn, .save-button, .alert-btn, .modal-close, .data-type-btn, .view-btn, .chart-type-btn, .settings-tab, .add-tab, .page-btn {
 transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, opacity 0.16s ease;
 }
-.app-steps button.is-pressed, .hc-token-btn.is-pressed, .excel-btn.is-pressed, .save-button.is-pressed, .alert-btn.is-pressed, .modal-close.is-pressed, .data-type-btn.is-pressed, .view-btn.is-pressed, .chart-type-btn.is-pressed, .settings-tab.is-pressed, .add-tab.is-pressed, .page-btn.is-pressed {
+.app-steps button.is-pressed, .excel-btn.is-pressed, .save-button.is-pressed, .alert-btn.is-pressed, .modal-close.is-pressed, .data-type-btn.is-pressed, .view-btn.is-pressed, .chart-type-btn.is-pressed, .settings-tab.is-pressed, .add-tab.is-pressed, .page-btn.is-pressed {
 transform: scale(0.96);
 }
-.app-steps button.copied, .hc-token-btn.copied, .excel-btn.copied {
+.app-steps button.copied, .excel-btn.copied {
 background: #16a34a !important;
 border-color: #16a34a !important;
 color: #fff !important;
@@ -2864,7 +2913,7 @@ transition: transform 0.18s ease;
 .data-type-btn:hover svg, .data-type-btn.active svg {
 transform: scale(1.08);
 }
-#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
+#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
 position: fixed;
 inset: 0;
 display: none;
@@ -2878,10 +2927,7 @@ z-index: 10000;
 box-sizing: border-box;
 overflow: hidden;
 }
-#hc-token-help-modal {
-z-index: 10010;
-}
-.settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content, .mobile-app-content {
+.settings-content, .add-steps-content, .user-content, .add-user-content, .video-analysis-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .mobile-app-content {
 width: min(920px, 100%);
 max-width: calc(100vw - 32px);
 max-height: calc(100dvh - 32px);
@@ -2913,77 +2959,13 @@ background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-solid));
 color: var(--primary-color);
 border-color: color-mix(in srgb, var(--primary-color) 36%, var(--border-color));
 }
-        #hc-token-modal .hc-token-content, #hc-token-help-modal .hc-token-content {
-            position: relative;
-            width: min(620px, calc(100vw - 32px));
-            max-width: 620px;
-            padding: 24px;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            align-items: stretch;
-        }
-        #hc-token-modal .hc-token-content {
-            justify-content: space-between;
-        }
-        #hc-token-modal .hc-token-content > .hc-token-fields {
-            flex: 1 1 auto;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-evenly;
-            gap: 12px;
-        }
-        #hc-token-modal .hc-token-actions {
-            flex-wrap: wrap;
-        }
-        #hc-token-modal .hc-token-link-btn {
-            flex-shrink: 0;
-        }
-#hc-token-modal .hc-token-row {
-display: grid;
-grid-template-columns: minmax(0, 1fr) auto;
-gap: 10px;
-align-items: end;
-}
-#hc-token-modal .hc-token-field {
-min-width: 0;
-}
-#hc-token-modal .hc-token-btn, #hc-token-modal .hc-token-link-btn {
-min-height: 42px;
-border-radius: 12px;
-}
-#hc-token-modal .hc-token-link-btn {
-display: inline-flex;
-align-items: center;
-justify-content: center;
-width: fit-content;
-margin: 0 0 14px;
-padding: 8px 12px;
-border: 1px solid var(--border-color);
-background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-solid));
-color: var(--text-color);
-cursor: pointer;
-font-weight: 700;
-}
-#hc-token-help-modal .hc-token-help-list {
-display: grid;
-gap: 10px;
-}
-#hc-token-help-modal .hc-token-help-list p {
-margin: 0;
-padding: 12px;
-border: 1px solid var(--border-color);
-border-radius: 12px;
-background: var(--group-block-bg);
-line-height: 1.45;
-}
 @media (max-width: 640px) {
-#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #hc-token-modal:not(#guide-expand-modal), #hc-token-help-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
+#info-modal:not(#guide-expand-modal), #stats-modal:not(#guide-expand-modal), #settings-modal:not(#guide-expand-modal), #add-steps-modal:not(#guide-expand-modal), #user-modal:not(#guide-expand-modal), #add-user-modal:not(#guide-expand-modal), #video-confirm-modal:not(#guide-expand-modal), #video-confirm-gaps-modal:not(#guide-expand-modal), #alert-modal:not(#guide-expand-modal), #video-crop-modal:not(#guide-expand-modal), #excel-modal:not(#guide-expand-modal), #excel-hotkeys-modal:not(#guide-expand-modal), #backups-modal:not(#guide-expand-modal), #mobile-app-modal:not(#guide-expand-modal) {
 padding: 0 !important;
 align-items: stretch !important;
 justify-content: stretch !important;
 }
-.settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .hc-token-content, .mobile-app-content {
+.settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .mobile-app-content {
 width: 100dvw !important;
 max-width: 100dvw !important;
 height: 100dvh !important;
@@ -3002,13 +2984,6 @@ height: 48px;
 .data-type-btn svg {
 width: 24px;
 height: 24px;
-}
-#hc-token-modal .hc-token-row {
-grid-template-columns: 1fr;
-}
-#hc-token-modal .hc-token-btn {
-width: 100%;
-justify-content: center;
 }
 }
 </style>
