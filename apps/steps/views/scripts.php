@@ -294,22 +294,38 @@
         }
 
         // Function to show alert
+        const ALERT_ICON_WARNING = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
+        const ALERT_ICON_INFO = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
                 const modal = document.getElementById('alert-modal');
                 const messageEl = document.getElementById('alert-message');
+                const titleEl = document.getElementById('alert-title');
+                const subtitleEl = document.getElementById('alert-subtitle');
+                const headerEl = document.getElementById('alert-header');
+                const boxEl = document.getElementById('alert-box');
+                const iconEl = document.getElementById('alert-icon');
                 const okBtn = document.getElementById('alert-ok');
                 const extraBtn = document.getElementById('alert-extra');
                 const cancelBtn = document.getElementById('alert-cancel');
                 const okText = options.okText || 'OK';
                 const cancelText = options.cancelText || (translations.cancel || 'Cancel');
                 const extraText = options.extraText || '';
+                const variant = options.variant || (isConfirm ? 'warning' : 'info');
                 messageEl.textContent = message;
                 okBtn.textContent = okText;
                 cancelBtn.textContent = cancelText;
                 extraBtn.textContent = extraText;
                 cancelBtn.style.display = isConfirm ? 'block' : 'none';
                 extraBtn.style.display = isConfirm && extraText ? 'block' : 'none';
+
+                titleEl.textContent = options.title || '';
+                subtitleEl.textContent = options.subtitle || '';
+                headerEl.classList.toggle('is-empty', !options.title && !options.subtitle);
+                boxEl.className = 'alert-box' + (variant ? ' ' + variant : '');
+                iconEl.innerHTML = options.icon || ((variant === 'danger' || variant === 'warning') ? ALERT_ICON_WARNING : ALERT_ICON_INFO);
+                okBtn.className = 'alert-btn ok' + (variant !== 'info' ? ' ' + variant : '');
 
                 const openModal = () => {
                     document.body.classList.add('modal-open');
@@ -341,7 +357,7 @@
                 cancelBtn.onclick = () => closeModal(false);
                 extraBtn.onclick = () => closeModal('extra');
 
-                modal.querySelector('.modal-close').onclick = () => closeModal(false);
+                modal.querySelector('.alert-close').onclick = () => closeModal(false);
                 modal.addEventListener('keydown', handleKeyDown, true);
 
                 openModal();
@@ -1672,8 +1688,14 @@
             if (selectedCells.size === 0) return;
 
             const confirm = await showAlert(
-                translations.confirm_delete_cells || `Delete ${selectedCells.size} selected cell(s)?`,
-                true
+                translations.confirm_delete_cells_message || `Delete ${selectedCells.size} selected cell(s)?`,
+                true,
+                {
+                    title: translations.confirm_delete_cells || 'Delete selected cells?',
+                    subtitle: translations.alert_cannot_undo || 'This action cannot be undone.',
+                    variant: 'danger',
+                    okText: translations.delete || 'Delete'
+                }
             );
 
             if (!confirm) return;
@@ -1855,8 +1877,14 @@
 
         async function restoreBackup(fileName) {
             const confirm = await showAlert(
-                `${translations.confirm_restore_backup || 'Restore backup'} "${fileName}"?`,
-                true
+                (translations.restore_backup_detail || 'Restore data from "{file}"?').replace(/\{file\}/g, fileName),
+                true,
+                {
+                    title: translations.confirm_restore_backup || 'Restore backup',
+                    subtitle: translations.restore_replaces_data || 'Current data will be replaced with data from the backup.',
+                    variant: 'warning',
+                    okText: translations.restore || 'Restore'
+                }
             );
 
             if (!confirm) return;
@@ -1888,8 +1916,14 @@
 
         async function deleteBackup(fileName) {
             const confirm = await showAlert(
-                `${translations.confirm_delete_backup || 'Delete backup'} "${fileName}"?`,
-                true
+                (translations.delete_backup_detail || 'Backup "{file}" will be permanently deleted.').replace(/\{file\}/g, fileName),
+                true,
+                {
+                    title: translations.confirm_delete_backup || 'Delete backup',
+                    subtitle: translations.alert_cannot_undo || 'This action cannot be undone.',
+                    variant: 'danger',
+                    okText: translations.delete || 'Delete'
+                }
             );
 
             if (!confirm) return;
@@ -1956,9 +1990,13 @@
             }
             if (mode === 'replace') {
                 const confirmed = await showAlert(
-                    translations.import_mode_replace || 'Replace all data',
+                    translations.import_replace_notice || 'All current data will be replaced with data from the imported file.',
                     true,
-                    { okText: translations.import_external_btn || 'Import' }
+                    {
+                        title: (translations.import_mode_replace || 'Replace all data') + '?',
+                        variant: 'warning',
+                        okText: translations.import_external_btn || 'Import'
+                    }
                 );
                 if (!confirmed) return;
             }
@@ -2253,6 +2291,8 @@
                 const n = parseInt(st.conflict_days, 10) || 0;
                 const q = (translations.takeout_conflict_question || 'Conflicts found for {n} days. Overwrite existing values?').replace(/\{n\}/g, String(n));
                 showAlert(q, true, {
+                    title: translations.conflict_title || 'Conflicts detected',
+                    variant: 'warning',
                     okText: translations.takeout_overwrite || 'Overwrite',
                     cancelText: translations.cancel || 'Cancel',
                     extraText: translations.takeout_add_new_only || 'Add only new values'
@@ -2343,7 +2383,10 @@
         }
         async function zlStopJob() {
             if (!zlLastJobId) return;
-            const ok = await showAlert(translations.worker_stop_confirm || '', true);
+            const ok = await showAlert(translations.worker_stop_confirm || '', true, {
+                title: translations.worker_stop_title || 'Stop processing?',
+                variant: 'warning'
+            });
             if (!ok) return;
             const fd = new FormData();
             fd.append('action', 'stop_job');
@@ -2565,6 +2608,8 @@
                 const n = parseInt(st.conflict_days, 10) || 0;
                 const q = (translations.takeout_conflict_question || 'Conflicts found for {n} days. Overwrite existing values?').replace(/\{n\}/g, String(n));
                 showAlert(q, true, {
+                    title: translations.conflict_title || 'Conflicts detected',
+                    variant: 'warning',
                     okText: translations.takeout_overwrite || 'Overwrite',
                     cancelText: translations.cancel || 'Cancel',
                     extraText: translations.takeout_add_new_only || 'Add only new values'
@@ -2845,7 +2890,10 @@
         }
         async function ftStopJob() {
             if (!fitLastJobId) return;
-            const ok = await showAlert(translations.worker_stop_confirm || '', true);
+            const ok = await showAlert(translations.worker_stop_confirm || '', true, {
+                title: translations.worker_stop_title || 'Stop processing?',
+                variant: 'warning'
+            });
             if (!ok) return;
             const fd = new FormData();
             fd.append('action', 'stop_job');
@@ -3514,23 +3562,26 @@
                 });
             });
 
-            // Save settings
-            document.getElementById('settings-form').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                try {
-                    const response = await fetch('', { method: 'POST', body: new FormData(e.target) });
-                    const data = await response.json();
-
-                    if (data.status === 'success') {
-                        closeModal('settings-modal');
-                        location.reload();
-                    } else {
-                        showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${data.message}`, 'error');
+            // Auto-save settings
+            const settingsForm = document.getElementById('settings-form');
+            let debounceTimer;
+            settingsForm.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(async () => {
+                    const formData = new FormData(settingsForm);
+                    try {
+                        const response = await fetch('', { method: 'POST', body: formData });
+                        const data = await response.json();
+                        if (data.status !== 'success') {
+                            showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${data.message}`, 'error');
+                        }
+                    } catch (err) {
+                        showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${err.message}`, 'error');
                     }
-                } catch (err) {
-                    showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${err.message}`, 'error');
-                }
+                }, 2000);
             });
+            // Disable default submit
+            settingsForm.addEventListener('submit', (e) => e.preventDefault());
 
             // Save steps
             const stepsInpEl = document.getElementById('steps-input');

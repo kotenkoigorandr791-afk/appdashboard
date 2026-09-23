@@ -511,10 +511,19 @@ body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
     border-radius: 8px;
     border: 1px solid var(--border-color);
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 .ap-stat-tile .ap-stat-label {
     font-size: 11px;
     opacity: .7;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    line-height: 1.2;
 }
 .ap-stat-tile .ap-stat-value {
     font-size: 22px;

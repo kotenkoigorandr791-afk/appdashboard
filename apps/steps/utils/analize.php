@@ -8,8 +8,6 @@ define('BIN_PATH', __DIR__ . '/bin/');
 define('UPLOAD_DIR', __DIR__ . '/uploads/');
 define('FRAMES_DIR', __DIR__ . '/frames/');
 define('CHUNK_SESSIONS_DIR', dirname(__DIR__) . '/upload_sessions');
-define('MIN_STEPS_VALUE', 100);
-define('MAX_STEPS_VALUE', 80000);
 define('VIDEO_JOB_RUNNING_STALE_SEC', 86400);
 
 // URL parameters
@@ -47,7 +45,6 @@ $translations = [
         'select_language' => 'Select Language:',
         'select_video' => '📁 Select video file:',
         'enter_year' => '📅 Enter current year (or - for current year):',
-        'crop_frame' => '✂ Crop Frame',
         'start_analysis' => '🚀 Start Analysis',
         'results' => '✅ Found Data:',
         'date' => 'Date',
@@ -81,7 +78,6 @@ $translations = [
         'select_language' => 'Выберите язык:',
         'select_video' => '📁 Выберите видео файл:',
         'enter_year' => '📅 Введите текущий год (или - для текущего года):',
-        'crop_frame' => '✂ Обрезать кадр',
         'start_analysis' => '🚀 Начать анализ',
         'results' => '✅ Найденные данные:',
         'date' => 'Дата',
@@ -115,7 +111,6 @@ $translations = [
         'select_language' => 'Виберіть мову:',
         'select_video' => '📁 Виберіть відеофайл:',
         'enter_year' => '📅 Введіть поточний рік (або - для поточного року):',
-        'crop_frame' => '✂ Обрізати кадр',
         'start_analysis' => '🚀 Почати аналіз',
         'results' => '✅ Знайдені дані:',
         'date' => 'Дата',
@@ -144,7 +139,6 @@ $translations = [
         'select_language' => 'Выберыце мову:',
         'select_video' => '📁 Выберыце відэафайл:',
         'enter_year' => '📅 Увядзіце бягучае года (або - для бягучага года):',
-        'crop_frame' => '✂ Абрэзці кадр',
         'start_analysis' => '🚀 Пачаць аналіз',
         'results' => '✅ Знойдзеныя дадзеныя:',
         'date' => 'Дата',
@@ -353,28 +347,6 @@ function analize_spawn_worker(string $jobPath): bool {
     @file_put_contents((realpath($jobPath) ?: $jobPath) . DIRECTORY_SEPARATOR . 'worker.log', '[' . date('c') . "] video worker is not available\n", FILE_APPEND);
     return false;
 }
-function analize_delete_tree(string $dir): void {
-    if (!is_dir($dir)) {
-        return;
-    }
-    $items = scandir($dir);
-    if (!is_array($items)) {
-        @rmdir($dir);
-        return;
-    }
-    foreach ($items as $it) {
-        if ($it === '.' || $it === '..') {
-            continue;
-        }
-        $p = $dir . DIRECTORY_SEPARATOR . $it;
-        if (is_dir($p) && !is_link($p)) {
-            analize_delete_tree($p);
-        } else {
-            @unlink($p);
-        }
-    }
-    @rmdir($dir);
-}
 function analize_chunk_session_paths(string $uploadId): array {
     $safe = preg_replace('/[^a-z0-9]/i', '', strtolower($uploadId));
     return [
@@ -517,45 +489,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'job_status' && isset($_GET['j
         exit;
     }
     echo json_encode(['ok' => false, 'error' => 'not found']);
-    exit;
-}
-
-if (isset($_GET['action']) && $_GET['action'] === 'pending_video' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-    header('Content-Type: application/json; charset=utf-8');
-    $vdb = video_job_db_connect(USER_DIR);
-    if ($vdb) {
-        $vj = video_job_load($vdb);
-        $st = $vj['state'];
-        if (($st['status'] ?? '') === 'done' && isset($st['results']) && is_array($st['results'])) {
-            echo json_encode([
-                'ok' => true,
-                'pending' => true,
-                'job_id' => $vj['job_id'] ?? '',
-                'output_basename' => $st['output_basename'] ?? '',
-                'results' => $st['results'],
-                'ocr_preview' => isset($st['ocr_preview']) && is_array($st['ocr_preview']) ? $st['ocr_preview'] : [],
-            ]);
-            exit;
-        }
-    }
-    $pf = USER_DIR . DIRECTORY_SEPARATOR . 'pending_video_confirm.json';
-    if (!is_file($pf) || !is_readable($pf)) {
-        echo json_encode(['ok' => true, 'pending' => false]);
-        exit;
-    }
-    $data = json_decode((string)file_get_contents($pf), true);
-    if (!is_array($data) || !isset($data['results']) || !is_array($data['results'])) {
-        echo json_encode(['ok' => true, 'pending' => false]);
-        exit;
-    }
-    echo json_encode([
-        'ok' => true,
-        'pending' => true,
-        'job_id' => $data['job_id'] ?? '',
-        'output_basename' => $data['output_basename'] ?? '',
-        'results' => $data['results'],
-        'ocr_preview' => isset($data['ocr_preview']) && is_array($data['ocr_preview']) ? $data['ocr_preview'] : [],
-    ]);
     exit;
 }
 
@@ -875,7 +808,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $trans['title'] ?></title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
     <style>
         :root {
             --button-color: <?= $color ?>;
@@ -1045,41 +977,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
         }
         .modal-table-wrap, #fileViewModal .modal-content > pre { max-height: 50vh; overflow-x: hidden; overflow-y: auto; margin: 10px 0; box-sizing: border-box; width: 100%; min-width: 0; }
         #fileViewModal .modal-content > pre { text-align: left; }
-        .cropper-container {
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-            max-width: 45vw;
-            max-height: 30vh;
-        }
-        .cropper-container img {
-            max-width: 45vw;
-            max-height: 30vh;
-            object-fit: contain;
-            height: auto;
-            width: auto;
-        }
-        #cropModal {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        #cropModal .modal-content {
-            width: auto;
-            max-width: 50vw;
-            max-height: 50vh;
-            overflow: visible;
-            display: inline-flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #cropModal .cropper-container {
-            max-width: 45vw;
-            max-height: 30vh;
-            display: inline-flex;
-            justify-content: center;
-            align-items: center;
-        }
         .crop-btn { 
             margin: 10px; 
             background: #28a745; 
@@ -1136,13 +1033,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
                     <br><br>
                     <input type="file" name="video" accept="video/*" required id="videoInput" title="<?= $trans['select_video'] ?>">
                     <input type="text" name="current_year" placeholder="2024 or -" title="<?= $trans['enter_year'] ?>">
-                    <input type="hidden" name="crop_x" id="cropX">
-                    <input type="hidden" name="crop_y" id="cropY">
-                    <input type="hidden" name="crop_width" id="cropWidth">
-                    <input type="hidden" name="crop_height" id="cropHeight">
-                    <input type="hidden" name="action" id="formAction" value="process_video">
-                    <br><br>
-                    <button type="button" id="cropBtn" style="display: none;" title="<?= $trans['crop_frame'] ?>"><?= $trans['crop_frame'] ?></button>
                     <br><br>
                     <button type="submit" id="submitBtn" title="<?= $trans['start_analysis'] ?>"><?= $trans['start_analysis'] ?></button>
                     <div class="spinner" id="spinner"></div>
@@ -1151,16 +1041,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
 
             <!-- Moved Manage Results button here to make it always visible -->
             <button class="manage-btn" id="manageResultsBtn" title="<?= $trans['manage_results'] ?>"><?= $trans['manage_results'] ?></button>
-
-            <div class="modal" id="cropModal">
-                <div class="modal-content">
-                    <h3><?= $trans['crop_frame'] ?></h3>
-                    <img id="cropImage" src="">
-                    <br>
-                    <button class="crop-btn" id="confirmCrop" title="Confirm crop">✓</button>
-                    <button class="crop-btn" id="cancelCrop" title="Cancel crop">✗</button>
-                </div>
-            </div>
 
             <div class="modal" id="resultsModal">
                 <div class="modal-content">
@@ -1233,7 +1113,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
     <script>
         const DL_BASE = '../users/<?= htmlspecialchars($safeName, ENT_QUOTES) ?>/results/';
         function formatStepsDisp(n) { var x = parseInt(n, 10); if (isNaN(x) || x < 0) return ''; return String(x).replace(/\B(?=(\d{3})+(?!\d))/g, ' '); }
@@ -1265,10 +1144,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
                     overflow: hidden;
                     overflow-x: hidden;
                 }
-                #cropModal .modal-content {
-                    max-height: 100vh !important;
-                    overflow: hidden;
-                }
                 .modal-table-wrap { max-height: 45vh; }
             `;
             document.head.appendChild(style);
@@ -1276,18 +1151,8 @@ cleanupOldFiles(RESULTS_DIR, 24);
 
         const uploadForm = document.getElementById('uploadForm');
         const videoInput = document.getElementById('videoInput');
-        const cropBtn = document.getElementById('cropBtn');
-        const cropModal = document.getElementById('cropModal');
-        const cropImage = document.getElementById('cropImage');
-        const confirmCrop = document.getElementById('confirmCrop');
-        const cancelCrop = document.getElementById('cancelCrop');
         const submitBtn = document.getElementById('submitBtn');
         const spinner = document.getElementById('spinner');
-        const cropX = document.getElementById('cropX');
-        const cropY = document.getElementById('cropY');
-        const cropWidth = document.getElementById('cropWidth');
-        const cropHeight = document.getElementById('cropHeight');
-        const formAction = document.getElementById('formAction');
         const editForm = document.getElementById('editForm');
         const saveBtn = document.getElementById('saveBtn');
         const saveMessage = document.getElementById('saveMessage');
@@ -1296,85 +1161,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
         const closeResultsModal = document.getElementById('closeResultsModal');
         const fileViewModal = document.getElementById('fileViewModal');
         const closeFileViewModal = document.getElementById('closeFileViewModal');
-
-        let cropper = null;
-
-        videoInput.addEventListener('change', function(e) {
-            cropX.value = ''; cropY.value = ''; cropWidth.value = ''; cropHeight.value = '';
-            if (e.target.files.length > 0) {
-                cropBtn.style.display = 'inline-block';
-            } else {
-                cropBtn.style.display = 'none';
-            }
-        });
-
-        cropBtn.addEventListener('click', function() {
-            const file = videoInput.files[0];
-            if (file) {
-                const formData = new FormData();
-                formData.append('video', file);
-                formData.append('action', 'extract_frame');
-                formData.append('current_year', document.querySelector('input[name="current_year"]').value);
-
-                fetch(window.location.href, {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Ошибка при извлечении кадра');
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
-                    const url = URL.createObjectURL(blob);
-                    cropImage.src = url;
-                    cropModal.style.display = 'flex';
-                    if (cropper) {
-                        cropper.destroy();
-                    }
-                    cropper = new Cropper(cropImage, {
-                        aspectRatio: NaN,
-                        viewMode: 1,
-                        autoCropArea: 0.5,
-                        movable: true,
-                        zoomable: true,
-                        scalable: true
-                    });
-                })
-                .catch(error => {
-                    alert(error.message);
-                    cropBtn.style.display = 'none';
-                });
-            }
-        });
-
-        confirmCrop.addEventListener('click', function() {
-            if (cropper) {
-                const cropData = cropper.getData(true);
-                cropX.value = cropData.x;
-                cropY.value = cropData.y;
-                cropWidth.value = cropData.width;
-                cropHeight.value = cropData.height;
-                cropModal.style.display = 'none';
-                cropper.destroy();
-                cropper = null;
-                cropBtn.style.display = 'none';
-            }
-        });
-
-        cancelCrop.addEventListener('click', function() {
-            cropModal.style.display = 'none';
-            if (cropper) {
-                cropper.destroy();
-                cropper = null;
-            }
-            cropBtn.style.display = 'inline-block';
-            cropX.value = '';
-            cropY.value = '';
-            cropWidth.value = '';
-            cropHeight.value = '';
-        });
 
         let pollT = null;
         let lastJobId = null;
@@ -1558,18 +1344,6 @@ cleanupOldFiles(RESULTS_DIR, 24);
 
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                if (cropModal.style.display === 'flex') {
-                    cropModal.style.display = 'none';
-                    if (cropper) {
-                        cropper.destroy();
-                        cropper = null;
-                    }
-                    cropBtn.style.display = 'inline-block';
-                    cropX.value = '';
-                    cropY.value = '';
-                    cropWidth.value = '';
-                    cropHeight.value = '';
-                }
                 if (resultsModal.style.display === 'flex') {
                     resultsModal.style.display = 'none';
                 }

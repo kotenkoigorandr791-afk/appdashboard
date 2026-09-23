@@ -119,3 +119,4 @@ opencode.json
 /tests/tests/tmp/
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
+.aider*

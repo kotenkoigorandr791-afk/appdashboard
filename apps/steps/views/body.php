@@ -525,11 +525,6 @@ $metricButtons = [
                                 <span></span>
                             </div>
                         </div>
-                        <div class="save-button-container">
-                            <button type="submit" class="save-button">
-                                <i class="fas fa-save"></i> <?php echo htmlspecialchars($translations['save']); ?>
-                            </button>
-                        </div>
                     </form>
                 </div>
                 <div id="settings-panel-chart" class="settings-tab-panel" role="tabpanel">
@@ -789,18 +784,37 @@ $metricButtons = [
         <!-- Alert Modal -->
         <div id="alert-modal" style="display:none;">
             <div class="alert-content">
-                <button class="modal-close">×</button>
-                <div class="alert-message" id="alert-message"></div>
+                <button class="modal-close alert-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <div class="alert-header" id="alert-header">
+                    <h3 class="alert-title" id="alert-title"></h3>
+                    <p class="alert-subtitle" id="alert-subtitle"></p>
+                </div>
+                <div class="alert-body">
+                    <div class="alert-box" id="alert-box">
+                        <div class="alert-icon" id="alert-icon" aria-hidden="true"></div>
+                        <div class="alert-message" id="alert-message"></div>
+                    </div>
+                </div>
                 <div class="alert-buttons">
-                    <button class="alert-btn ok" id="alert-ok">OK</button>
-                    <button class="alert-btn extra" id="alert-extra" style="display:none;"></button>
                     <button class="alert-btn cancel" id="alert-cancel" style="display:none;"><?php echo htmlspecialchars($translations['cancel'] ?? 'Cancel'); ?></button>
+                    <button class="alert-btn extra" id="alert-extra" style="display:none;"></button>
+                    <button class="alert-btn ok" id="alert-ok">OK</button>
                 </div>
             </div>
         </div>
         <div id="video-confirm-modal" style="display:none;">
             <div class="video-confirm-inner excel-content">
-                <button class="modal-close" type="button" id="video-confirm-close-x">×</button>
+                <button class="modal-close" type="button" id="video-confirm-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
                 <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px;max-width:100%;padding-right:48px;box-sizing:border-box;">
                     <button type="button" id="video-confirm-gaps-btn" class="excel-btn" style="display:none;flex-shrink:0;padding:8px 12px;background:#ffc107;color:#212529;align-self:flex-start;" title="<?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Missing days in range'); ?>" aria-label="<?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Gaps'); ?>"><i class="fas fa-exclamation-triangle"></i></button>
                     <h2 id="video-confirm-title" style="margin:0;flex:1;min-width:0;"><i class="fas fa-clipboard-list"></i> <?php echo htmlspecialchars($translations['video_confirm_title'] ?? 'Recognized steps'); ?></h2>
@@ -841,8 +855,13 @@ $metricButtons = [
             </div>
         </div>
         <div id="video-confirm-gaps-modal" style="display:none;">
-            <div class="video-confirm-gaps-inner excel-content" style="max-width:520px;">
-                <button class="modal-close" type="button" id="video-confirm-gaps-close-x">×</button>
+            <div class="video-confirm-gaps-inner excel-content">
+                <button class="modal-close" type="button" id="video-confirm-gaps-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
                 <h2 style="margin-top:0;"><i class="fas fa-calendar-day"></i> <span id="video-confirm-gaps-heading"><?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Missing days'); ?></span></h2>
                 <p id="video-confirm-gaps-sub" style="text-align:left;font-size:14px;opacity:0.9;"><?php echo htmlspecialchars($translations['video_gaps_sub'] ?? 'Days between the first and last recognized date with no data. Enter steps, then apply.'); ?></p>
                 <div id="video-confirm-gaps-body" class="excel-table-container" style="max-height:50vh;overflow:auto;"></div>
@@ -856,14 +875,21 @@ $metricButtons = [
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 
-        <div id="stepmonitor-conflict-modal" style="display:none;position:fixed;inset:0;z-index:10070;background:rgba(6,10,16,.36);backdrop-filter:blur(18px);align-items:center;justify-content:center;padding:16px;">
-            <div style="width:min(560px,96vw);background:var(--modal-bg);color:var(--text-color);border:1px solid var(--border-color);border-radius:16px;box-shadow:0 18px 48px rgba(0,0,0,.28);padding:18px;">
-                <h2 style="margin:0 0 8px;font-size:20px;"><?php echo htmlspecialchars($translations['sync_conflict_title'] ?? 'Sync conflict'); ?></h2>
-                <p id="stepmonitor-conflict-message" style="margin:0 0 14px;opacity:.82;line-height:1.45;"></p>
-                <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;">
-                    <button type="button" class="excel-btn" data-conflict-action="skip" style="background:#6c757d;color:#fff;"><?php echo htmlspecialchars($translations['sync_conflict_skip'] ?? 'Skip phone data'); ?></button>
-                    <button type="button" class="excel-btn" data-conflict-action="replace" style="background:var(--primary-color);color:#fff;"><?php echo htmlspecialchars($translations['sync_conflict_replace'] ?? 'Replace server data'); ?></button>
-                    <button type="button" class="excel-btn" data-conflict-action="add" style="background:#16a34a;color:#fff;"><?php echo htmlspecialchars($translations['sync_conflict_add'] ?? 'Add values'); ?></button>
+        <div id="stepmonitor-conflict-modal" style="display:none;position:fixed;inset:0;z-index:10070;background:rgba(10,14,18,0.48);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);align-items:center;justify-content:center;padding:16px;">
+            <div class="smc-card">
+                <div class="smc-head">
+                    <h3 class="smc-title"><?php echo htmlspecialchars($translations['sync_conflict_title'] ?? 'Sync conflict'); ?></h3>
+                </div>
+                <div class="smc-body">
+                    <div class="smc-box">
+                        <div class="smc-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
+                        <p class="smc-msg" id="stepmonitor-conflict-message"></p>
+                    </div>
+                </div>
+                <div class="smc-buttons">
+                    <button type="button" class="smc-btn cancel" data-conflict-action="skip"><?php echo htmlspecialchars($translations['sync_conflict_skip'] ?? 'Skip phone data'); ?></button>
+                    <button type="button" class="smc-btn extra" data-conflict-action="add"><?php echo htmlspecialchars($translations['sync_conflict_add'] ?? 'Add values'); ?></button>
+                    <button type="button" class="smc-btn ok warning" data-conflict-action="replace"><?php echo htmlspecialchars($translations['sync_conflict_replace'] ?? 'Replace server data'); ?></button>
                 </div>
             </div>
         </div>
