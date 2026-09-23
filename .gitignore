@@ -120,3 +120,36 @@ opencode.json
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
 .aider*
+.lopaka-build-marker
+
+# --- Lopaka vendored app (apps/lopaka) ---
+# Build artifacts and dependencies live only locally; the dashboard serves the
+# prebuilt bundle in apps/lopaka (tracked), sources build it on demand.
+apps/lopaka/src/dist/
+apps/lopaka/src/node_modules/
+apps/lopaka/src/.pnpm-store/
+apps/lopaka/.deploy-tmp/
+apps/lopaka/src/.vite/
+**/.vite/
+
+# IDE / editor junk
+.idea/
+*.sublime-*
+.vscode/*
+!.vscode/settings.json
+*.bak
+*~
+
+# OS junk
+.DS_Store?
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+desktop.ini
+
+# Archives and temp dumps
+core
+*.core
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*

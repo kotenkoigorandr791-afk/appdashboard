@@ -235,7 +235,105 @@
             be: 'Графічны рэдактар і канвертар выяў для Arduino, ESP32, Adafruit_GFX, u8g2, TFT_eSPI',
             pl: 'Edytor graficzny i konwerter obrazów dla Arduino, ESP32, Adafruit_GFX, u8g2, TFT_eSPI',
             cs: 'Grafický editor a převodník obrázků pro Arduino, ESP32, Adafruit_GFX, u8g2, TFT_eSPI'
-        }
+        },
+
+        /* Tools (title fallback = name) */
+        'circle': { ru: 'круг', uk: 'коло', be: 'круг', pl: 'okrąg', cs: 'kruh' },
+        'dot': { ru: 'точка', uk: 'крапка', be: 'кропка', pl: 'kropka', cs: 'bod' },
+        'icon': { ru: 'иконка', uk: 'іконка', be: 'іконка', pl: 'ikona', cs: 'ikona' },
+        'rect': { ru: 'прямоугольник', uk: 'прямокутник', be: 'прамавугольнік', pl: 'prostokąt', cs: 'obdélník' },
+        'Button': { ru: 'Кнопка', uk: 'Кнопка', be: 'Кнопка', pl: 'Przycisk', cs: 'Tlačítko' },
+        'Checkbox': { ru: 'Чекбокс', uk: 'Чекбокс', be: 'Чэкбокс', pl: 'Pole wyboru', cs: 'Zaškrtávací pole' },
+        'Panel': { ru: 'Панель', uk: 'Панель', be: 'Панэль', pl: 'Panel', cs: 'Panel' },
+        'Slider': { ru: 'Слайдер', uk: 'Слайдер', be: 'Слайдар', pl: 'Suwak', cs: 'Posuvník' },
+        'Switch': { ru: 'Переключатель', uk: 'Перемикач', be: 'Пераключальнік', pl: 'Przełącznik', cs: 'Přepínač' },
+        'Text Area': { ru: 'Текстовая область', uk: 'Текстова область', be: 'Тэкставая вобласць', pl: 'Obszar tekstowy', cs: 'Textová oblast' },
+        'Fake Font': { ru: 'Псевдошрифт', uk: 'Псевдошрифт', be: 'Псеўдашрыфт', pl: 'Fałszywa czcionka', cs: 'Falešné písmo' },
+
+        /* Layers panel */
+        'Layers': { ru: 'Слои', uk: 'Шари', be: 'Слаі', pl: 'Warstwy', cs: 'Vrstvy' },
+
+        /* Code panel topbar */
+        'Code': { ru: 'Код', uk: 'Код', be: 'Код', pl: 'Kod', cs: 'Kód' },
+
+        /* Save dialog */
+        'Save project': { ru: 'Сохранить проект', uk: 'Зберегти проєкт', be: 'Захаваць праект', pl: 'Zapisz projekt', cs: 'Uložit projekt' },
+        'Choose where to store your project (JSON file)': {
+            ru: 'Выберите, где хранить проект (JSON-файл)',
+            uk: 'Виберіть, де зберігати проєкт (JSON-файл)',
+            be: 'Выберыце, дзе захоўваць праект (JSON-файл)',
+            pl: 'Wybierz, gdzie przechowywać projekt (plik JSON)',
+            cs: 'Zvolte, kde uložit projekt (soubor JSON)'
+        },
+        'Download to device': { ru: 'Скачать на устройство', uk: 'Завантажити на пристрій', be: 'Спампаваць на прыладу', pl: 'Pobierz na urządzenie', cs: 'Stáhnout do zařízení' },
+        'Save the JSON file to your computer': {
+            ru: 'Сохранить JSON-файл на компьютер',
+            uk: 'Зберегти JSON-файл на комп’ютер',
+            be: 'Захаваць JSON-файл на камп’ютар',
+            pl: 'Zapisz plik JSON na komputer',
+            cs: 'Uložit soubor JSON do počítače'
+        },
+        'Save to cloud': { ru: 'Сохранить в облако', uk: 'Зберегти в хмару', be: 'Захаваць у воблака', pl: 'Zapisz do chmury', cs: 'Uložit do cloudu' },
+        'Store in your cloud storage (folders, groups)': {
+            ru: 'Сохранить в облачное хранилище (папки, группы)',
+            uk: 'Зберегти в хмарне сховище (папки, групи)',
+            be: 'Захаваць в воблачнае сховішча (папкі, групы)',
+            pl: 'Zapisz w chmurze (foldery, grupy)',
+            cs: 'Uložit do cloudového úložiště (složky, skupiny)'
+        },
+        'saveRootMain': { ru: 'Главная', uk: 'Головна', be: 'Галоўная', pl: 'Główny', cs: 'Hlavní' },
+        'saveRootTemp': { ru: 'Временная папка', uk: 'Тимчасова папка', be: 'Часовая папка', pl: 'Folder tymczasowy', cs: 'Dočasná složka' },
+        'saveRootDocuments': { ru: 'Документы', uk: 'Документи', be: 'Дакументы', pl: 'Dokumenty', cs: 'Dokumenty' },
+        'saveRootPhotos': { ru: 'Фото', uk: 'Фото', be: 'Фота', pl: 'Zdjęcia', cs: 'Fotky' },
+        'saveRootPdf': { ru: 'ПДФ', uk: 'ПДФ', be: 'ПДФ', pl: 'PDF', cs: 'PDF' },
+        'saveRootArchive': { ru: 'Архив', uk: 'Архів', be: 'Архіў', pl: 'Archiwum', cs: 'Archiv' },
+        'No subfolders': { ru: 'Нет подпапок', uk: 'Немає підпапок', be: 'Няма падпапак', pl: 'Brak podfolderów', cs: 'Žádné podsložky' },
+        'New folder name': { ru: 'Имя новой папки', uk: 'Назва нової папки', be: 'Назва новай папкі', pl: 'Nazwa nowego folderu', cs: 'Název nové složky' },
+        'Create folder': { ru: 'Создать папку', uk: 'Створити папку', be: 'Стварыць папку', pl: 'Utwórz folder', cs: 'Vytvořit složku' },
+        'File name:': { ru: 'Имя файла:', uk: "Назва файлу:", be: 'Назва файла:', pl: 'Nazwa pliku:', cs: 'Název souboru:' },
+        'Project saved to file': { ru: 'Проект сохранён в файл', uk: 'Проєкт збережено у файл', be: 'Праект захаваны ў файл', pl: 'Projekt zapisano do pliku', cs: 'Projekt uložen do souboru' },
+        'Project saved to cloud': { ru: 'Проект сохранён в облако', uk: 'Проєкт збережено в хмару', be: 'Праект захаваны ў воблака', pl: 'Projekt zapisano do chmury', cs: 'Projekt uložen do cloudu' },
+        'Save project as JSON (download or cloud)': {
+            ru: 'Сохранить проект как JSON (скачивание или облако)',
+            uk: 'Зберегти проєкт як JSON (завантаження або хмара)',
+            be: 'Захаваць праект як JSON (спампоўка або воблака)',
+            pl: 'Zapisz projekt jako JSON (pobieranie lub chmura)',
+            cs: 'Uložit projekt jako JSON (stažení nebo cloud)'
+        },
+
+        /* Inspector extras */
+        'Remove variable': { ru: 'Удалить переменную', uk: 'Видалити змінну', be: 'Выдаліць зменную', pl: 'Usuń zmienną', cs: 'Odebrat proměnnou' },
+        'Delete font': { ru: 'Удалить шрифт', uk: 'Видалити шрифт', be: 'Выдаліць шрыфт', pl: 'Usuń czcionkę', cs: 'Smazat písmo' },
+        'Group': { ru: 'Группа', uk: 'Група', be: 'Група', pl: 'Grupa', cs: 'Skupina' },
+
+        /* Shortcuts panel groups/actions */
+        'General': { ru: 'Основные', uk: 'Загальні', be: 'Агульныя', pl: 'Ogólne', cs: 'Obecné' },
+        'Undo': { ru: 'Отменить', uk: 'Скасувати', be: 'Адмяніць', pl: 'Cofnij', cs: 'Zpět' },
+        'Copy code': { ru: 'Копировать код', uk: 'Копіювати код', be: 'Капіяваць код', pl: 'Kopiuj kod', cs: 'Kopírovat kód' },
+        'Paste / import code': { ru: 'Вставить / импортировать код', uk: 'Вставити / імпортувати код', be: 'Уставіць / імпартаваць код', pl: 'Wklej / importuj kod', cs: 'Vložit / importovat kód' },
+        'Delete selection': { ru: 'Удалить выделенное', uk: 'Видалити виділене', be: 'Выдаліць вылучанае', pl: 'Usuń zaznaczone', cs: 'Smazat výběr' },
+        'Deselect / cancel': { ru: 'Снять выделение / отмена', uk: 'Зняти виділення / скасувати', be: 'Зняць вылучэнне / адмена', pl: 'Odznacz / anuluj', cs: 'Zrušit výběr / zrušit' },
+        'Select tool': { ru: 'Инструмент выбора', uk: 'Інструмент вибору', be: 'Інструмент выбару', pl: 'Narzędzie zaznaczania', cs: 'Nástroj výběru' },
+        'Text tool': { ru: 'Инструмент текста', uk: 'Інструмент тексту', be: 'Інструмент тэксту', pl: 'Narzędzie tekstu', cs: 'Nástroj textu' },
+        'Paint brush': { ru: 'Кисть', uk: 'Пензель', be: 'Пэндзаль', pl: 'Pędzel', cs: 'Štětec' },
+        'Image import': { ru: 'Импорт изображения', uk: 'Імпорт зображення', be: 'Імпарт выявы', pl: 'Import obrazu', cs: 'Import obrázku' },
+        'Move & resize': { ru: 'Перемещение и размер', uk: 'Переміщення та розмір', be: 'Перамяшчэнне і памер', pl: 'Przenoszenie i rozmiar', cs: 'Přesun a velikost' },
+        'Move by 1px': { ru: 'Переместить на 1px', uk: 'Перемістити на 1px', be: 'Перамясціць на 1px', pl: 'Przesuń o 1px', cs: 'Přesunout o 1px' },
+        'Move by 10px': { ru: 'Переместить на 10px', uk: 'Перемістити на 10px', be: 'Перамясціць на 10px', pl: 'Przesuń o 10px', cs: 'Přesunout o 10px' },
+        'Resize by 1px': { ru: 'Изменить размер на 1px', uk: 'Змінити розмір на 1px', be: 'Змяніць памер на 1px', pl: 'Zmień rozmiar o 1px', cs: 'Změnit velikost o 1px' },
+        'Arrows': { ru: 'Стрелки', uk: 'Стрілки', be: 'Стрелкі', pl: 'Strzałki', cs: 'Šipky' },
+
+        /* Cloud import */
+        'Import from cloud': { ru: 'Импорт из облака', uk: 'Імпорт з хмари', be: 'Імпарт з воблака', pl: 'Import z chmury', cs: 'Import z cloudu' },
+        'No files': { ru: 'Нет файлов', uk: 'Немає файлів', be: 'Няма файлаў', pl: 'Brak plików', cs: 'Žádné soubory' },
+
+        /* remaining shortcuts keys/tools */
+        'Del': { ru: 'Del', uk: 'Del', be: 'Del', pl: 'Del', cs: 'Del' },
+        'Esc': { ru: 'Esc', uk: 'Esc', be: 'Esc', pl: 'Esc', cs: 'Esc' },
+        'Tools': { ru: 'Инструменты', uk: 'Інструменти', be: 'Інструменты', pl: 'Narzędzia', cs: 'Nástroje' },
+        'Ellipse': { ru: 'Эллипс', uk: 'Еліпс', be: 'Эліпс', pl: 'Elipsa', cs: 'Elipsa' },
+        'Line': { ru: 'Линия', uk: 'Лінія', be: 'Лінія', pl: 'Linia', cs: 'Čára' },
+        'Rectangle': { ru: 'Прямоугольник', uk: 'Прямокутник', be: 'Прамавугольнік', pl: 'Prostokąt', cs: 'Obdélník' },
     };
 
     function translate(text) {
@@ -379,5 +477,5 @@
     }
     window.addEventListener('load', init);
 
-    window.__lopakaI18n = { lang: lang, apply: apply };
+    window.__lopakaI18n = { lang: lang, apply: apply, translate: translate };
 })();

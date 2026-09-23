@@ -1,16 +1,3 @@
-FROM node:22.3.0-alpine AS lopaka-build
-WORKDIR /src
-RUN apk add --no-cache git \
-    && npm install -g pnpm@10.30.3 \
-    && git init \
-    && git remote add origin https://github.com/sbrin/lopaka.git \
-    && git fetch --depth 1 origin dacfa70936a0f1eab456b09938eec36945cfd0cd \
-    && git checkout FETCH_HEAD \
-    && HUSKY=0 pnpm install --frozen-lockfile \
-    && sed -i "s|base: '/',|base: '/apps/lopaka/',|; s|sourcemap: true,|sourcemap: false,|; s|assetsInlineLimit: 0,|assetsInlineLimit: 0,\n        reportCompressedSize: false,|" vite.config.mts \
-    && NODE_OPTIONS="--max-old-space-size=16384" pnpm build \
-    && find dist -name '*.map' -type f -delete
-
 FROM php:8.5-fpm-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
@@ -81,7 +68,6 @@ WORKDIR /var/www/AppDashboard
 RUN cd /var/www/AppDashboard && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
     && cd /var/www/AppDashboard/webssh && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader \
     && cd /var/www/AppDashboard/apps/cloud && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader
-COPY --from=lopaka-build /src/dist/ /var/www/AppDashboard/apps/lopaka/
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
 RUN cp -a /var/www/AppDashboard/apps/lopaka /usr/local/share/lopaka
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

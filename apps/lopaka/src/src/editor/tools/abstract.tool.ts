@@ -1,0 +1,61 @@
+import {AbstractLayer} from '../../core/layers/abstract.layer';
+import {Point} from '../../core/point';
+import {Editor} from '../editor';
+
+export abstract class AbstractTool {
+    // tool name
+    protected name: string;
+    protected title: string;
+
+    abstract createLayer(): AbstractLayer;
+
+    constructor(protected editor: Editor) {}
+
+    getTitle(): string {
+        return this.title ?? this.name;
+    }
+
+    getName(): string {
+        return this.name;
+    }
+
+    getIcon(): string {
+        return this.name;
+    }
+
+    isSupported(platform: string): boolean {
+        return true;
+    }
+
+    onActivate(): void {}
+
+    onDeactivate(): void {
+        // do nothing
+    }
+
+    onStopEdit(layer: AbstractLayer, position: Point, originalEvent: MouseEvent | TouchEvent): void {
+        this.editor.state.activeLayer = null;
+        this.editor.state.activeTool = null;
+    }
+
+    finalizeCreate(layer: AbstractLayer, position: Point, originalEvent: MouseEvent | TouchEvent): boolean {
+        this.onStopEdit(layer, position, originalEvent);
+        return true;
+    }
+
+    cancelCreate(layer: AbstractLayer): boolean {
+        return false;
+    }
+
+    onStartEdit(layer: AbstractLayer, position: Point, originalEvent: MouseEvent | TouchEvent): void {
+        // do nothing
+    }
+
+    /**
+     * Return true if this tool uses multi-click creation (e.g. polygon).
+     * Multi-click tools add points on each click and finish on double-click.
+     */
+    isMultiClick(): boolean {
+        return false;
+    }
+}
