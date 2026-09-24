@@ -1,0 +1,82 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FuiDisplayCustomDialog > renders a popup element 1`] = `
+<div
+  class="fui-display-custom-dialog"
+  data-v-519941f7=""
+>
+  <div
+    class="font-bold text-lg pb-4"
+    data-v-519941f7=""
+  >
+    Set display size
+  </div>
+  <div
+    class="fui-form-row"
+    data-v-519941f7=""
+  >
+    <label
+      class="fui-form-label fui-form-column"
+      data-v-519941f7=""
+      for="displayCustomWidth"
+    >
+       Width: 
+      <input
+        class="fui-form-input fui-form-input__size"
+        data-v-519941f7=""
+        id="displayCustomWidth"
+        type="number"
+      />
+    </label>
+    <label
+      class="fui-form-label fui-form-column"
+      data-v-519941f7=""
+      for="displayCustomWidth"
+    >
+       Height: 
+      <input
+        class="fui-form-input fui-form-input__size"
+        data-v-519941f7=""
+        id="displayCustomHeight"
+        min="1"
+        type="number"
+      />
+    </label>
+  </div>
+  <div
+    class="buttons-bottom"
+    data-v-519941f7=""
+  >
+    <div
+      class="tooltip tooltip-bottom capitalize no-animation"
+      data-v-3947d5d5=""
+      data-v-519941f7=""
+    >
+      <button
+        class="btn font-sans uppercase leading-none btn-primary btn-outline btn-sm"
+        data-v-3947d5d5=""
+        tabindex="-1"
+      >
+        
+        Cancel
+        
+      </button>
+    </div>
+    <div
+      class="tooltip tooltip-bottom capitalize no-animation"
+      data-v-3947d5d5=""
+      data-v-519941f7=""
+    >
+      <button
+        class="btn font-sans uppercase leading-none btn-primary btn-outline btn-success btn-sm"
+        data-v-3947d5d5=""
+        tabindex="-1"
+      >
+        
+         Save 
+        
+      </button>
+    </div>
+  </div>
+</div>
+`;

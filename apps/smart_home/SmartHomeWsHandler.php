@@ -641,6 +641,15 @@ class SmartHomeWsHandler implements MessageComponentInterface
             $requestId = bin2hex(random_bytes(8));
             $payload['request_id'] = $requestId;
         }
+        if ($this->routeTunnelDisabled((string)$state['user_email'], (string)$state['device_id'])) {
+            $this->sendJson($conn, [
+                'type' => 'route_error',
+                'request_id' => $requestId,
+                'ok' => false,
+                'error' => 'route_maps_disabled',
+            ]);
+            return;
+        }
         $matched = 0;
         foreach ($this->clients as $client) {
             $clientState = $this->clients[$client];
@@ -664,7 +673,16 @@ class SmartHomeWsHandler implements MessageComponentInterface
     private function forwardDeviceRouteMessage(ConnectionInterface $conn, array $payload): void
     {
         $state = $this->clients[$conn];
+        if ($this->routeTunnelDisabled((string)$state['user_email'], (string)$state['device_id'])) {
+            return;
+        }
         $this->broadcastToDashboards((string)$state['user_email'], (string)$state['device_id'], $payload);
+    }
+
+    private function routeTunnelDisabled(string $userEmail, string $deviceId): bool
+    {
+        $device = $this->loadDevice($userEmail, $deviceId);
+        return trim((string)($device['name'] ?? '')) === 'Bike Doc Station';
     }
 
     private array $controlPending = [];

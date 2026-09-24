@@ -17,3 +17,5 @@ apps/steps/utils/.venv/
 bot/.venv/
 bot/*.log
 *.bak-*
+apps/lopaka/src/node_modules/
+.lopaka-build-marker

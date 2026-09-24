@@ -26,6 +26,11 @@ jobs:
             echo "Working tree has uncommitted tracked changes; commit or stash server changes before deploy."
             exit 1
           fi
+          # Rebuild Lopaka locally when its sources changed between deploys.
+          # Sources are vendored in apps/lopaka/src; no GitHub fetch involved.
+          if [ -f deploy/scripts/lopaka-needs-build.sh ]; then
+            sh deploy/scripts/lopaka-needs-build.sh && sh deploy/scripts/build-lopaka.sh . || true
+          fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
           docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
           # Ensure public OAuth issuer uses https://$BASE_DOMAIN (never http://localhost).
