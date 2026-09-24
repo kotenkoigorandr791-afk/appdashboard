@@ -583,7 +583,7 @@ function groupLayerDropClasses(group: string, layerUid: string) {
 <template>
     <ul
         ref="container"
-        class="menu menu-xs w-[200px] p-0 layers-list flex-nowrap"
+        class="menu menu-xs max-w-[200px] w-full p-0 layers-list flex-nowrap overflow-x-auto"
         @dragover="onDragOver"
         @drop="onDrop"
         @dragleave="onDragLeave"
@@ -720,8 +720,20 @@ function groupLayerDropClasses(group: string, layerUid: string) {
 
 .layers-list {
     overflow-y: auto;
-    overflow-x: hidden;
+    overflow-x: auto;
     max-height: calc(87vh - 100px);
+    scrollbar-gutter: stable;
+}
+
+/* horizontal scrollbar only when a name actually overflows */
+.layers-list .truncate {
+    min-width: 0;
+}
+.layers-list::-webkit-scrollbar:horizontal {
+    height: 8px;
+}
+.layers-list {
+    scrollbar-width: thin;
 }
 
 .group-row {

@@ -234,7 +234,8 @@ function onMouseClick() {
         @onIconSelect="handleIconSelect"
     />
 
-    <div class="toast toast-top toast-center z-50">
+    <div class="toast toast-top toast-center z-50 pointer-events-none">
+        <div class="pointer-events-auto">
         <div
             class="alert alert-info"
             v-if="uploading"
@@ -252,6 +253,7 @@ function onMouseClick() {
                 <span>{{ warningMessage }}</span>
             </div>
         </template>
+        </div>
     </div>
 
     <!-- Save project dialog -->
@@ -296,7 +298,7 @@ function onMouseClick() {
         class="fui-editor flex-grow border-t border-secondary"
         v-if="platform || isScreenNotFound"
     >
-        <div class="fui-editor__left -mb-8 border-r border-secondary">
+        <div class="fui-editor__left border-r border-secondary">
             <slot name="left"></slot>
         </div>
         <div class="fui-editor__top pb-1">
@@ -434,6 +436,8 @@ function onMouseClick() {
     width: 100%;
     height: 100%;
     min-height: 0;
+    max-height: 100%;
+    overflow: hidden;
 }
 
 .fui-editor__left {
@@ -584,19 +588,58 @@ function onMouseClick() {
         display: flex;
         flex-direction: column;
         gap: 8px;
+        padding: 8px 8px 4px;
+        margin: 0 6px;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
     }
     .fui-editor__top .flex-row {
         flex-wrap: wrap;
         gap: 8px;
     }
+    /* strict zone separation */
     .fui-editor__main {
-        min-height: 56vw;
-        overflow: hidden;
+        margin: 8px 6px 0;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+        border-radius: 12px;
+        padding: 6px;
+        background: color-mix(in srgb, var(--bg-color) 60%, transparent);
+    }
+    .fui-editor__bottom {
+        margin: 8px 6px 0;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+        border-radius: 12px;
+        padding: 8px;
+        background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
+    }
+    .fui-layers-modal-trigger {
+        margin: 8px 6px 0;
+        align-self: flex-end;
+    }
+    .fui-editor__main-right {
+        margin: 8px 6px 0;
+        border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+        border-radius: 12px;
+        padding: 8px;
+        background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
+    }
+    .fui-editor__main {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
     }
     .fui-editor__canvas {
+        height: 64vw;
+        max-height: 64vw;
+        min-height: 220px;
+        flex: 0 0 auto;
         display: flex;
         justify-content: center;
-        align-items: flex-start;
+        align-items: center;
+        overflow: hidden;
+        /* drawing zone: touches must never scroll the page */
+        touch-action: none;
     }
     /* canvas scales down to fit viewport width on mobile */
     .fui-editor__canvas .canvas-wrapper {
