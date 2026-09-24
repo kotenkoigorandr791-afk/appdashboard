@@ -396,7 +396,7 @@ watch(textEditMode, () => {
             @align="alignLayer($event, activeLayer as AbstractLayer, session)"
             :layer="activeLayer"
         />
-        <div class="flex flex-row flex-wrap justify-between gap-2 mb-4">
+        <div class="inspector-params flex flex-row flex-wrap justify-between gap-2 mb-4">
             <template
                 v-for="(param, name) in params"
                 :key="name"
@@ -732,5 +732,40 @@ select.inspector__input {
 
 .color-palette-box.selected {
     border-color: var(--primary-color);
+}
+
+/* mobile: stable two-column grid so number fields line up and nothing overflows */
+@media (max-width: 768px) {
+    .inspector-params {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 8px;
+        row-gap: 6px;
+        align-items: start;
+        justify-items: stretch;
+    }
+    .inspector-params > * {
+        width: 100%;
+        min-width: 0;
+    }
+    .inspector-params > .w-full {
+        grid-column: 1 / -1;
+    }
+    .inspector-params > .flex-row.items-center.w-24 {
+        width: 100%;
+    }
+    /* color params: label + switch sit on one line with the colorbox */
+    .inspector-params > .flex-col.items-start.w-full:has(> .flex.gap-2.items-center) {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        column-gap: 10px;
+        row-gap: 6px;
+    }
+    .inspector-params > .flex-col.items-start.w-full:has(> .flex.gap-2.items-center) > label {
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
+    }
 }
 </style>

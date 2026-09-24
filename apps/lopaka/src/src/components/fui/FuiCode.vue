@@ -74,11 +74,12 @@ onUnmounted(() => {
 watch(
     selectionUpdates,
     () => {
-        selectRow();
+        selectRow(true);
     },
     { deep: true }
 );
-function selectRow() {
+
+function selectRow(shouldScroll: boolean) {
     const { selected } = session.layersManager;
     if (selected.length == 1 && editorRef.value) {
         const layer = selected[0];
@@ -87,7 +88,7 @@ function selectRow() {
             const pos = editorRef.value.state.doc.line(Math.min(row + 1, editorRef.value.state.doc.lines)).from;
             editorRef.value.dispatch({
                 selection: { anchor: pos },
-                effects: EditorView.scrollIntoView(pos, { y: 'center' }),
+                effects: shouldScroll ? EditorView.scrollIntoView(pos, { y: 'center' }) : [],
             });
         }
     }
@@ -104,7 +105,10 @@ function onUpdate() {
                     changes: { from: 0, to: cur.length, insert: content.value },
                 });
             }
-            selectRow();
+            // While the user is interacting with the canvas, code is regenerated often.
+            // Autoscrolling the CodeMirror view can cause the whole page to jump.
+            // So we only update selection without scrolling here.
+            selectRow(false);
         }
     });
 }

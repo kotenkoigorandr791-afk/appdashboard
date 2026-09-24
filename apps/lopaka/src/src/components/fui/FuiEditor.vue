@@ -369,8 +369,7 @@ function onMouseClick() {
                         <span class="fui-code-topbar__title">Code</span>
                         <div class="fui-code-topbar__actions flex flex-row gap-2 content-center items-center">
                             <Button
-                                success
-                                filled
+                                secondary
                                 title="Save project as JSON (download or cloud)"
                                 @click="saveDialogOpen = true"
                             >
@@ -387,21 +386,19 @@ function onMouseClick() {
                                 >
                                     <ImportFile
                                         type="code"
-                                        title=""
+                                        title="Import"
+                                        cloudTitle="Cloud"
                                         v-if="isPlatformWithParser"
                                     >
-                                        <div class="rounded-full bg-secondary w-8 h-8 flex items-center justify-center">
-                                            <Icon
-                                                type="download"
-                                                pointer
-                                            />
-                                        </div>
+                                        <Icon
+                                            type="download"
+                                            pointer
+                                        />
                                     </ImportFile>
                                 </div>
                             </template>
                             <Button
-                                success
-                                filled
+                                secondary
                                 title="Copy source code"
                                 @click="copyCode"
                             >
@@ -440,6 +437,14 @@ function onMouseClick() {
     overflow: hidden;
 }
 
+/* never let the app page itself scroll; inner zones scroll instead */
+html,
+body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+}
+
 .fui-editor__left {
     grid-area: 1 / 1 / 3 / 2;
     max-height: 100%;
@@ -471,6 +476,7 @@ function onMouseClick() {
 
 .fui-editor__main-right {
     grid-area: 1 / 3 / 3 / 4;
+    padding-right: 12px;
 }
 
 .fui-editor__bottom {
@@ -482,8 +488,9 @@ function onMouseClick() {
 
 .fui-editor__bottom-right {
     min-width: 230px;
-    height: 0;
-    min-height: 100%;
+    min-height: 0;
+    height: auto;
+    max-height: 100%;
     overflow-y: auto;
 }
 
@@ -514,13 +521,32 @@ function onMouseClick() {
     padding: 0 12px;
     gap: 6px;
 }
-.fui-cloud-import-btn {
-    width: 32px;
+
+.fui-code-topbar__actions {
+    flex-wrap: nowrap;
+}
+
+.fui-code-topbar__actions > .tooltip {
     height: 32px;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    gap: 6px;
+}
+
+.fui-code-topbar__actions > .tooltip > * {
+    display: inline-flex;
+    align-items: center;
+}
+.fui-cloud-import-btn {
     border-radius: 8px;
-    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
-    background: var(--bg-color, transparent);
     margin-right: 0;
+    padding: 0 12px;
+    height: 32px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 .fui-code-topbar__title {
     font-size: 11px;
@@ -570,9 +596,10 @@ function onMouseClick() {
     .fui-editor {
         display: flex;
         flex-direction: column;
-        height: auto;
-        min-height: 100vh;
-        overflow-y: auto;
+        height: 100vh;
+        height: 100dvh;
+        min-height: 0;
+        overflow: hidden;
     }
     /* hide desktop layers sidebar */
     .fui-editor__left {
@@ -584,10 +611,15 @@ function onMouseClick() {
         align-items: center;
         gap: 6px;
     }
+    /* modal itself must render on mobile (base rule keeps it hidden) */
+    .fui-layers-modal {
+        display: flex;
+    }
     .fui-editor__top {
         display: flex;
         flex-direction: column;
         gap: 8px;
+        flex: 0 0 auto;
         padding: 8px 8px 4px;
         margin: 0 6px;
         border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
@@ -623,16 +655,18 @@ function onMouseClick() {
         border-radius: 12px;
         padding: 8px;
         background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
+        padding-right: 12px;
     }
     .fui-editor__main {
         height: auto;
         min-height: 0;
         overflow: visible;
+        flex: 0 0 auto;
     }
     .fui-editor__canvas {
-        height: 64vw;
-        max-height: 64vw;
-        min-height: 220px;
+        height: 38vw;
+        max-height: 26vh;
+        min-height: 140px;
         flex: 0 0 auto;
         display: flex;
         justify-content: center;
@@ -647,25 +681,44 @@ function onMouseClick() {
     }
     .fui-editor__main-right {
         border-left: none !important;
-        padding-left: 0 !important;
-        width: 100%;
+        margin: 8px 6px 0;
+        width: calc(100% - 12px);
+        padding-right: 12px;
+        flex: 1 1 auto;
+        min-height: 30vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
     }
     .fui-editor__bottom {
         flex-direction: column;
         padding: 0 4px;
+        width: calc(100% - 12px);
+        flex: 0 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
     }
     .fui-editor__bottom-right {
         min-width: 0;
         width: 100%;
         height: auto;
         min-height: 0;
+        overflow-y: auto;
     }
     .fui-code-topbar {
         justify-content: space-between;
     }
-    .fui-code {
-        height: 40vh;
-        min-height: 160px;
+.fui-code {
+        height: 18vh;
+        min-height: 110px;
+    }
+    .fui-code-topbar__actions {
+        gap: 4px;
+    }
+    .fui-code-topbar__actions .btn {
+        padding: 0 10px;
+        gap: 4px;
     }
 }
 
@@ -673,8 +726,28 @@ function onMouseClick() {
     .fui-editor__top .flex-row {
         justify-content: flex-start;
     }
+
+    /* keep the three code buttons in one row on small phones */
+    .fui-code-topbar__title {
+        display: none;
+    }
+    .fui-code-topbar {
+        justify-content: center;
+    }
+    .fui-code-topbar__actions .btn {
+        padding: 0 6px;
+        font-size: 11px;
+        gap: 3px;
+    }
+
+    /* compact inspector: avoid content touching right edge */
+    .fui-editor__main-right {
+        padding-right: 10px;
+        min-height: 28vh;
+    }
     .fui-code {
-        height: 32vh;
+        height: 16vh;
+        min-height: 100px;
     }
 }
 </style>

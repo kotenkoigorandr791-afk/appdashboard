@@ -8,6 +8,7 @@ import { logEvent, readTextFileAsync } from '../../utils';
 
 const props = defineProps<{
     title: string;
+    cloudTitle?: string;
     active?: boolean;
     type?: 'image' | 'code';
     project_id?: number;
@@ -190,7 +191,7 @@ function resetFileInput() {
 </script>
 <template>
     <label
-        class="text-primary font-sans mr-2 underline decoration-dotted cursor-pointer flex items-center content-center"
+        class="btn font-sans uppercase leading-none btn-outline btn-sm cursor-pointer flex items-center content-center gap-2"
         @click="logEvent(`button_import_${type}`)"
     >
         <slot></slot>
@@ -214,11 +215,11 @@ function resetFileInput() {
     <!-- small cloud import button next to slot content -->
     <button
         type="button"
-        class="fui-cloud-import-btn"
+        class="btn font-sans uppercase leading-none btn-outline btn-sm fui-cloud-import-btn"
         :title="tr('Import from cloud')"
         @click.stop="cloudOpenRef = true"
     >
-        ☁
+        <span class="flex items-center gap-2">☁ {{ cloudTitle ?? tr('Cloud') }}</span>
     </button>
 
     <!-- Cloud import modal -->
