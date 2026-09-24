@@ -192,20 +192,74 @@ body.light-theme .orb-4 { background: radial-gradient(circle, rgba(34, 211, 238,
 }
 
 /* ── Header ── */
+/* Топ-бар в стиле страницы логина/регистрации (#auth-top-bar) */
 .site-header {
   position: sticky; top: 0; z-index: 200;
-  padding: 0 24px; height: 66px; display: flex; align-items: center;
+  padding: 0 24px; height: 65px; display: flex; align-items: center;
   justify-content: space-between; gap: 12px;
-  background: rgba(7,17,30,0.78); backdrop-filter: blur(16px) saturate(1.5);
-  border-bottom: 1px solid rgba(255,255,255,0.07);
-  transition: justify-content 0.35s;
+  background: rgba(8,14,24,0.78);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-bottom: 1px solid rgba(96,165,250,0.22);
+  box-shadow:
+    0 1px 0 0 rgba(96,165,250,0.08) inset,
+    0 8px 32px -8px rgba(0,0,0,0.6),
+    0 0 40px -10px rgba(59,130,246,0.25);
+  transition: background .4s ease, border-color .4s ease, box-shadow .4s ease, justify-content 0.35s;
+}
+.site-header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(96,165,250,0.5) 20%,
+    rgba(34,211,238,0.6) 50%,
+    rgba(96,165,250,0.5) 80%,
+    transparent 100%);
+  opacity: .6;
+  pointer-events: none;
+}
+.site-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(34,211,238,0.7) 30%,
+    rgba(96,165,250,0.9) 50%,
+    rgba(34,211,238,0.7) 70%,
+    transparent 100%);
+  opacity: .8;
+  pointer-events: none;
+  filter: blur(0.5px);
 }
 .site-header.brand-hidden { justify-content: flex-start; }
 .site-header.brand-hidden .brand { display: none; }
 .site-header.brand-hidden .header-right { flex: 1; justify-content: flex-start; }
 body.light-theme .site-header {
-  background: rgba(237,244,251,0.82);
-  border-bottom-color: rgba(26,43,51,0.1);
+  background: rgba(230,240,252,0.85);
+  border-bottom-color: rgba(30,80,140,0.2);
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,0.6) inset,
+    0 8px 32px -8px rgba(30,50,80,0.15),
+    0 0 40px -10px rgba(37,99,235,0.15);
+}
+body.light-theme .site-header::before {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(37,99,235,0.4) 20%,
+    rgba(8,145,178,0.5) 50%,
+    rgba(37,99,235,0.4) 80%,
+    transparent 100%);
+}
+body.light-theme .site-header::after {
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(8,145,178,0.5) 30%,
+    rgba(37,99,235,0.7) 50%,
+    rgba(8,145,178,0.5) 70%,
+    transparent 100%);
 }
 .header-left { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .header-sep { display: none; }
@@ -216,7 +270,7 @@ body.light-theme .site-header {
 
 .nav-open-btn {
   background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13);
-  color: inherit; width: 40px; height: 40px; border-radius: 11px; cursor: pointer;
+  color: inherit; width: 40px; height: 34px; border-radius: 11px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0;
   transition: background 0.15s;
 }
@@ -225,23 +279,62 @@ body.light-theme .site-header {
 body.light-theme .nav-open-btn { background: rgba(0,0,0,0.04); border-color: rgba(26,43,51,0.15); }
 body.light-theme .nav-open-btn:hover { background: rgba(0,0,0,0.09); }
 
-.theme-toggle { display: flex; gap: 3px; background: rgba(255,255,255,0.08); border-radius: 30px; padding: 4px; }
+/* Переключатель темы — стиль как у #auth-top-bar на странице логина */
+.theme-toggle {
+  display: flex; gap: 3px; background: rgba(255,255,255,0.06); border-radius: 30px; padding: 4px;
+  border: 1px solid rgba(96,165,250,0.2);
+  box-shadow: 0 0 20px rgba(59,130,246,0.08), 0 0 0 1px rgba(255,255,255,0.02) inset;
+  transition: all .3s ease;
+}
+.theme-toggle:hover {
+  border-color: rgba(96,165,250,0.35);
+  box-shadow: 0 0 25px rgba(59,130,246,0.15), 0 0 0 1px rgba(255,255,255,0.04) inset;
+}
 .theme-toggle button {
   background: transparent; border: none; color: inherit;
-  padding: 5px 13px; border-radius: 30px; cursor: pointer; font-weight: 500; font-size: 13px; transition: background 0.15s;
+  padding: 5px 13px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 13px;
+  transition: all .25s cubic-bezier(0.23,1,0.32,1); color: rgba(234,242,251,0.7);
 }
-.theme-toggle button.active { background: rgba(255,255,255,0.22); }
-body.light-theme .theme-toggle { background: rgba(0,0,0,0.07); }
-body.light-theme .theme-toggle button.active { background: rgba(26,43,51,0.18); }
+.theme-toggle button:hover { color: #eaf2fb; background: rgba(96,165,250,0.12); }
+.theme-toggle button.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(34,211,238,0.25));
+  color: #fff;
+  box-shadow: 0 0 16px rgba(59,130,246,0.4), 0 0 0 1px rgba(96,165,250,0.3) inset;
+  text-shadow: 0 0 8px rgba(96,165,250,0.6);
+}
+body.light-theme .theme-toggle {
+  background: rgba(255,255,255,0.55); border-color: rgba(30,80,140,0.2);
+  box-shadow: 0 0 20px rgba(37,99,235,0.06), 0 0 0 1px rgba(255,255,255,0.5) inset;
+}
+body.light-theme .theme-toggle button { color: rgba(22,50,79,0.65); }
+body.light-theme .theme-toggle button:hover { color: #16324f; background: rgba(37,99,235,0.1); }
+body.light-theme .theme-toggle button.active {
+  background: linear-gradient(135deg, rgba(37,99,235,0.85), rgba(8,145,178,0.7));
+  color: #fff;
+  box-shadow: 0 0 16px rgba(37,99,235,0.4), 0 0 0 1px rgba(37,99,235,0.3) inset;
+  text-shadow: 0 0 8px rgba(255,255,255,0.3);
+}
 
 .lang-selector { position: relative; font-size: 13px; font-weight: 500; }
+/* Селектор языка — стиль как у #auth-top-bar на странице логина */
 .lang-selector-btn {
   min-width: 148px; height: 34px; display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(96,165,250,0.08); border: 1px solid rgba(96,165,250,0.28);
   color: inherit; border-radius: 30px; padding: 5px 32px 5px 12px; font: inherit;
-  cursor: pointer; transition: background .15s, border-color .15s, box-shadow .15s; position: relative;
+  cursor: pointer; transition: background .25s, border-color .25s, box-shadow .25s; position: relative;
 }
-.lang-selector-btn:hover, .lang-selector.open .lang-selector-btn { border-color: rgba(255,255,255,0.58); box-shadow: 0 0 0 3px rgba(74,144,226,.18); outline: none; }
+.lang-selector-btn:hover, .lang-selector.open .lang-selector-btn {
+  border-color: rgba(96,165,250,0.6);
+  background: rgba(96,165,250,0.15);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.18), 0 0 20px rgba(59,130,246,0.15);
+  outline: none;
+}
+body.light-theme .lang-selector-btn {
+  background: rgba(255,255,255,0.55); border-color: rgba(30,80,140,0.28); color: #16324f;
+}
+body.light-theme .lang-selector-btn:hover, body.light-theme .lang-selector.open .lang-selector-btn {
+  border-color: rgba(37,99,235,0.55); background: rgba(37,99,235,0.08);
+}
 .lang-selector-label { flex: 1; text-align: left; white-space: nowrap; }
 .lang-selector-chevron {
   position: absolute; right: 13px; top: 50%; width: 7px; height: 7px;
@@ -335,7 +428,7 @@ body.light-theme .nav-drawer-auth { border-top-color: rgba(26,43,51,0.1); }
 /* ── Header icon button ── */
 .header-icon-btn {
   background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13);
-  color: inherit; width: 40px; height: 40px; border-radius: 11px; cursor: pointer;
+  color: inherit; width: 40px; height: 34px; border-radius: 11px; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; padding: 0;
   transition: background 0.15s; position: relative;
 }
@@ -797,22 +890,27 @@ body.light-theme .loading-overlay {
 @media (max-width: 600px) {
   .site-header { flex-direction: column; align-items: stretch; padding: 12px 8px; height: auto; min-height: 66px; }
   .header-left { justify-content: flex-start; width: 100%; position: relative; gap: 0; min-height: 42px; overflow: hidden; }
-  .header-left .nav-open-btn { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); flex-shrink: 0; z-index: 2; margin: 0; }
-  .header-right { justify-content: center; }
+  .header-left .nav-open-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); flex-shrink: 0; z-index: 2; margin: 0; }
+  .header-right { justify-content: center; flex-wrap: nowrap; gap: 6px; }
   .header-sep { display: block; height: 0; border: 0; border-top: 1px dashed rgba(255,255,255,0.12); width: 100%; margin: 2px 0; }
   body.light-theme .header-sep { border-top-color: rgba(26,43,51,0.12); }
   .brand { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); flex: none; white-space: nowrap; }
   .brand h1 { text-align: center; }
-  .theme-toggle { order: 1; justify-content: center; }
-  .lang-selector { order: 2; align-self: center; }
+  /* Все элементы шапки всегда в один ряд, независимо от ширины экрана */
+  .header-right > * { flex-shrink: 1; min-width: 0; }
   #calendarBtn { order: 3; }
   #calendarPopover { order: 4; }
+  .theme-toggle { order: 1; justify-content: center; height: 34px; padding: 3px; }
+  .theme-toggle button { height: 28px; padding: 0 9px; display: inline-flex; align-items: center; white-space: nowrap; }
+  .lang-selector { order: 2; align-self: center; }
+  .lang-selector-btn { height: 34px; min-width: 0; padding: 5px 28px 5px 10px; }
+  .lang-selector-label { overflow: hidden; text-overflow: ellipsis; }
   .site-header.brand-hidden { flex-direction: row; height: 50px; min-height: auto; padding: 0 8px; align-items: center; }
   .site-header.brand-hidden .header-left { width: auto; min-height: auto; }
-  .site-header.brand-hidden .header-left .nav-open-btn { position: static; transform: none; }
+  .site-header.brand-hidden .header-left .nav-open-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
   .site-header.brand-hidden .header-left .brand { display: none !important; }
   .site-header.brand-hidden .header-sep { display: none; }
-  .site-header.brand-hidden .header-right { justify-content: flex-end; flex-wrap: nowrap; flex: 1; gap: 8px; }
+  .site-header.brand-hidden .header-right { justify-content: flex-end; flex-wrap: nowrap; flex: 1; gap: 6px; min-width: 0; }
   .hero { padding: 40px 0 34px; }
   .buttons { flex-direction: column; align-items: center; }
   .buttons a, .buttons button { width: 100%; max-width: 280px; text-align: center; }
