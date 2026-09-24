@@ -130,6 +130,7 @@ function openModal(html, opts = {}) {
 }
 
 function closeModal() {
+  stopAddDeviceQrScan();
   const overlay = document.getElementById('modalOverlay');
   overlay?.classList.remove('open', 'modal-overlay--api-docs');
   const mc = document.getElementById('modalContent');
@@ -1598,6 +1599,85 @@ function bindDeviceCategorySelect(selectId, wrapId) {
   sel.addEventListener('change', sync);
   sync();
 }
+function normalizeDeviceQrToken(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const url = new URL(raw);
+    return url.searchParams.get('token') || url.searchParams.get('device_token') || raw;
+  } catch (e) {
+    return raw;
+  }
+}
+async function decodeDeviceQrFromSource(source) {
+  if (!('BarcodeDetector' in window)) throw new Error('QR scanner is not supported by this browser');
+  const detector = new BarcodeDetector({ formats: ['qr_code'] });
+  const codes = await detector.detect(source);
+  const value = codes?.[0]?.rawValue || '';
+  if (!value) throw new Error('QR code not found');
+  return normalizeDeviceQrToken(value);
+}
+function setDeviceTokenFromQr(token) {
+  const input = document.getElementById('formDeviceToken');
+  if (!input) return;
+  input.value = token;
+  input.focus();
+}
+let addDeviceQrStream = null;
+async function startAddDeviceQrScan() {
+  const video = document.getElementById('deviceQrVideo');
+  const status = document.getElementById('deviceQrStatus');
+  if (!video || !status) return;
+  try {
+    addDeviceQrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = addDeviceQrStream;
+    video.style.display = 'block';
+    status.textContent = 'Point camera at QR code';
+    await video.play();
+    const scan = async () => {
+      if (!video.srcObject) return;
+      try {
+        const token = await decodeDeviceQrFromSource(video);
+        setDeviceTokenFromQr(token);
+        stopAddDeviceQrScan();
+        status.textContent = 'QR code scanned';
+      } catch (e) {
+        requestAnimationFrame(scan);
+      }
+    };
+    scan();
+  } catch (e) {
+    status.textContent = e.message || 'Camera unavailable';
+  }
+}
+function stopAddDeviceQrScan() {
+  if (addDeviceQrStream) {
+    addDeviceQrStream.getTracks().forEach(track => track.stop());
+    addDeviceQrStream = null;
+  }
+  const video = document.getElementById('deviceQrVideo');
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+    video.style.display = 'none';
+  }
+}
+async function loadAddDeviceQrImage(file) {
+  const status = document.getElementById('deviceQrStatus');
+  if (!file || !status) return;
+  const img = new Image();
+  img.onload = async () => {
+    try {
+      setDeviceTokenFromQr(await decodeDeviceQrFromSource(img));
+      status.textContent = 'QR code scanned';
+    } catch (e) {
+      status.textContent = e.message || 'QR code not found';
+    } finally {
+      URL.revokeObjectURL(img.src);
+    }
+  };
+  img.src = URL.createObjectURL(file);
+}
 function showAddDeviceForm() {
   const html = `<h2 class="modal-title">${esc(uiText.add_device)}</h2>
   <div class="form-group">
@@ -1612,10 +1692,21 @@ function showAddDeviceForm() {
     <label>${esc(uiText.device_token)}</label>
     <input type="text" id="formDeviceToken" placeholder="${esc(uiText.device_token)}" autocomplete="off" spellcheck="false">
     <p style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.45">${esc(uiText.add_device_token_hint)}</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button type="button" class="btn btn-secondary" id="scanDeviceQrBtn">Scan QR</button>
+      <label class="btn btn-secondary" style="cursor:pointer">
+        Upload photo
+        <input type="file" id="deviceQrFile" accept="image/*" style="display:none">
+      </label>
+    </div>
+    <video id="deviceQrVideo" playsinline muted style="display:none;width:100%;margin-top:10px;border-radius:12px;background:#000"></video>
+    <p id="deviceQrStatus" style="font-size:12px;color:var(--text-secondary);margin-top:8px;line-height:1.45"></p>
   </div>
   <button type="button" class="btn btn-primary" id="submitAddDeviceBtn">${esc(uiText.save)}</button>`;
   openModal(html);
   bindDeviceCategorySelect('formDeviceCategory', 'formDeviceCategoryNewWrap');
+  document.getElementById('scanDeviceQrBtn')?.addEventListener('click', startAddDeviceQrScan);
+  document.getElementById('deviceQrFile')?.addEventListener('change', e => loadAddDeviceQrImage(e.target.files?.[0]));
   document.getElementById('submitAddDeviceBtn')?.addEventListener('click', submitAddDevice);
   document.getElementById('formDeviceToken')?.addEventListener('keydown', e => { if (e.key === 'Enter') submitAddDevice(); });
   setTimeout(() => document.getElementById('formDeviceToken')?.focus(), 80);
