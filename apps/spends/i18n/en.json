@@ -311,6 +311,8 @@
         "cancel_job": "Cancel",
         "cancel_busy": "Canceling...",
         "cancel_done": "OCR canceled",
+        "processing_line": "Processed {cur} of {total} ({pct}%)",
+        "queued_line": "Waiting in queue: #{pos}",
         "progress_line": "Processed {cur} of {total} ({pct}%)",
         "occurrences": "Occurrences",
         "suggested": "Suggested",
