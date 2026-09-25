@@ -61,7 +61,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
   <title data-i18n="appTitle">File Space</title>
   <?php require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('cloud'); ?>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=32" />
+  <link rel="stylesheet" href="assets/styles.css?v=33" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -220,7 +220,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=38"></script>
+<script defer src="assets/app.js?v=39"></script>
 <script defer src="assets/app/editors-and-tree.js?v=11"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
@@ -240,7 +240,7 @@ $cloudAiBase = $cloudAppBase . '/ai.php';
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=40"></script>
-<script defer src="assets/monaco-editor.js?v=11"></script>
+<script defer src="assets/monaco-editor.js?v=12"></script>
 
 
 </head>

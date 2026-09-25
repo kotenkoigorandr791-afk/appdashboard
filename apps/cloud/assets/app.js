@@ -3458,9 +3458,18 @@ function updateMonacoUndoRedoToolbar() {
 function markTabAsModified(tabId, modified = true) {
     const tab = tabsState.tabs.find(t => t.id === tabId);
     if (tab) {
+        const stateChanged = !!tab.modified !== !!modified;
         tab.modified = modified;
         if (modified) {
             tab.content = getCurrentEditorContent(tabId);
+        }
+        // Avoid a full re-render + localStorage write on every content change
+        // (including realtime collab updates): update the dot in place instead.
+        if (!stateChanged) {
+            const tabsList = document.getElementById('tabs-list');
+            const tabEl = tabsList?.querySelector('.tab[data-tab-id="' + tabId + '"]');
+            if (tabEl) tabEl.classList.toggle('modified', !!tab.modified);
+            return;
         }
         renderTabs();
         saveTabsState();
@@ -3842,7 +3851,18 @@ function renderTabs() {
             closeBtn.setAttribute('data-tab-id', tab.id);
         }
 
-        tabsList.appendChild(tabElement);
+        // Only append new tabs: re-appending an existing node would move it to the
+        // end of the DOM and cause the tab bar to visibly jump/flicker on every
+        // content update (e.g. realtime collab sync).
+        if (tabElement.parentElement !== tabsList) {
+            tabsList.appendChild(tabElement);
+        } else {
+            const lastAppended = tabsList.querySelector('.tab:last-of-type');
+            if (lastAppended !== tabElement &&
+                Array.from(tabsList.children).indexOf(tabElement) !== tabsState.tabs.indexOf(tab)) {
+                tabsList.insertBefore(tabElement, tabsList.children[tabsState.tabs.indexOf(tab)] || null);
+            }
+        }
         existingTabs.delete(key);
     });
 
@@ -3851,11 +3871,18 @@ function renderTabs() {
     setTimeout(() => {
         const activeTab = tabsList.querySelector('.tab.active');
         if (activeTab) {
-            activeTab.scrollIntoView({
-                behavior: 'smooth',
-                block: 'nearest',
-                inline: 'center'
-            });
+            // Only scroll when the active tab is actually out of view, otherwise
+            // repeated renders (e.g. realtime collab updates) make the bar jiggle.
+            const listRect = tabsList.getBoundingClientRect();
+            const tabRect = activeTab.getBoundingClientRect();
+            const isVisible = tabRect.left >= listRect.left - 1 && tabRect.right <= listRect.right + 1;
+            if (!isVisible) {
+                activeTab.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'center'
+                });
+            }
         }
         
         // Update scroll button state

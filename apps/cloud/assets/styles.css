@@ -1362,10 +1362,24 @@ body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!importa
         display: none !important;
     }
 
-    /* Improve touch target sizes on mobile */
-    .monaco-editor .lines-content {
-        line-height: 1.6 !important;
+    /* Prevent layout jitter of the editor area on touch devices: keep the
+       editor's own metrics untouched and avoid scroll anchoring shifts. */
+    .monaco-editor,
+    .monaco-editor-container {
+        overflow-anchor: none;
+        contain: layout paint;
+        transform: translateZ(0);
     }
+}
+
+/* Keep the tab bar visually stable: reserve its height and avoid reflow
+   when its content is updated during realtime collaboration. */
+.tabs-container {
+    contain: layout paint;
+    min-height: 30px;
+}
+.tabs-list > .tab {
+    will-change: auto;
 }
 
 .monaco-editor-container,
