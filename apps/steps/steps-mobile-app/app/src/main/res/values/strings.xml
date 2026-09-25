@@ -477,6 +477,7 @@
     <string name="update_downloaded_title">Update ready</string>
     <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
     <string name="update_install">Install</string>
+    <string name="update_install_now">Update now</string>
     <string name="settings_test_connection">Test connection</string>
     <string name="settings_personalization">Personalization</string>
     <string name="theme_auto">Auto</string>

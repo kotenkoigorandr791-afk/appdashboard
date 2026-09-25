@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -91,7 +91,9 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         state = fetchYearStats(config, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force)
     }
     suspend fun loadLocalMonth() {
-        localMonthSteps = readAndroidMonthSteps(context, chartMonth)
+        val cached = cachedMonthSteps(chartMonth, prefs)
+        val fresh = readAndroidMonthSteps(context, chartMonth)
+        localMonthSteps = cached + fresh
     }
     suspend fun loadAndroidSteps(force: Boolean = false) {
         androidStepsError = null
@@ -131,7 +133,10 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
             delay(ANDROID_CACHE_MAX_AGE_MS)
         }
     }
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -161,13 +166,11 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
             Text(stringResource(R.string.dashboard_refresh))
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(state.byDay[selectedDate].orEmpty(), key = { it.type.name }) { metric ->
-                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        Text(metric.value, style = MaterialTheme.typography.headlineSmall)
-                    }
+        state.byDay[selectedDate].orEmpty().forEach { metric ->
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(metric.value, style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }

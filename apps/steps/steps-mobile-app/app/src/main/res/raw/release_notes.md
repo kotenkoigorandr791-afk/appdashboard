@@ -1,3 +1,10 @@
+## v1.9.30 - 2026-09-25
+
+* 📱 Statistics and Home screens now scroll properly on narrow screens — the update button is always reachable
+* 🔄 Added a one-tap "Update now" button on Home
+* 📊 Charts keep history from previous days stored on the device even when fresh health data is unavailable
+* 🔐 Update signature is now consistent across all builds so updates install without conflicts
+
 ## v1.9.29 - 2026-09-23
 
 * What's new notes are now shown in your language
