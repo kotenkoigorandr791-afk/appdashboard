@@ -75,13 +75,17 @@ export const kanboardTools: ToolDef[] = [
       required: ["project_id", "title"],
     },
     handler: async (args) => {
-      const payload: Record<string, unknown> = {
-        project_id: Number(args.project_id),
-        title: String(args.title),
-      };
-      if (args.description) payload.description = String(args.description);
-      if (args.column_id) payload.column_id = Number(args.column_id);
-      return textResult(await kanboardRpc("createTask", [payload]));
+      const params: unknown[] = [
+        String(args.title),
+        Number(args.project_id),
+        "", // color_id
+        args.column_id ? Number(args.column_id) : 0, // column_id
+        0, // owner_id
+        0, // creator_id
+        "", // date_due
+        args.description ? String(args.description) : "", // description
+      ];
+      return textResult(await kanboardRpc("createTask", params));
     },
   },
   {

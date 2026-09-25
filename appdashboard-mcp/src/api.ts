@@ -379,6 +379,15 @@ export function textResult(data: unknown) {
   };
 }
 
+/** MCP image content result (base64 without data: prefix). */
+export function imageResult(base64: string, mimeType: string, caption?: string) {
+  const content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }> = [
+    { type: "image" as const, data: base64, mimeType },
+  ];
+  if (caption) content.unshift({ type: "text" as const, text: caption });
+  return { content };
+}
+
 export function errorResult(err: unknown) {
   if (err instanceof ApiError) {
     return {

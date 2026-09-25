@@ -40,7 +40,15 @@ export function clearIntegrationCaches(): void {
   kanboardPromises.clear();
 }
 
+function envImmichOverride(): ImmichCredentials | null {
+  const url = (process.env.IMMICH_URL || "").trim();
+  const apiKey = (process.env.IMMICH_API_KEY || "").trim();
+  return url && apiKey ? { url: url.replace(/\/$/, ""), api_key: apiKey } : null;
+}
+
 export async function getImmichCredentials(): Promise<ImmichCredentials> {
+  const override = envImmichOverride();
+  if (override) return override;
   const key = cacheKey();
   const cached = immichCache.get(key);
   if (cached) return cached;
@@ -74,7 +82,15 @@ async function refreshImmichCredentials(): Promise<ImmichCredentials> {
   return creds;
 }
 
+function envGiteaOverride(): GiteaCredentials | null {
+  const url = (process.env.GITEA_URL || "").trim();
+  const token = (process.env.GITEA_TOKEN || "").trim();
+  return url && token ? { url: url.replace(/\/$/, ""), access_token: token } : null;
+}
+
 export async function getGiteaCredentials(): Promise<GiteaCredentials> {
+  const override = envGiteaOverride();
+  if (override) return override;
   const key = cacheKey();
   const cached = giteaCache.get(key);
   if (cached) return cached;
@@ -114,7 +130,16 @@ async function refreshGiteaCredentials(): Promise<GiteaCredentials> {
   return creds;
 }
 
+function envKanboardOverride(): KanboardCredentials | null {
+  const url = (process.env.KANBOARD_URL || "").trim();
+  const username = (process.env.KANBOARD_USERNAME || "").trim();
+  const apiToken = (process.env.KANBOARD_API_TOKEN || "").trim();
+  return url && username && apiToken ? { url: url.replace(/\/$/, ""), username, api_token: apiToken } : null;
+}
+
 export async function getKanboardCredentials(): Promise<KanboardCredentials> {
+  const override = envKanboardOverride();
+  if (override) return override;
   const key = cacheKey();
   const cached = kanboardCache.get(key);
   if (cached) return cached;

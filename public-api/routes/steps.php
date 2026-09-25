@@ -32,6 +32,43 @@ function steps_conflicts_read(string $userDir): array {
 function steps_conflicts_write(string $userDir, array $conflicts): void {
     hc_json_atomic_write(steps_conflicts_path($userDir), json_encode(array_values($conflicts), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 }
+function steps_load_table_page(AppDatabase $db, array $payload): array {
+    $page = max(1, (int)($payload['page'] ?? 1));
+    $filterOp = (string)($payload['filter_op'] ?? '');
+    $filterVal = isset($payload['filter_val']) && $payload['filter_val'] !== '' ? (int)$payload['filter_val'] : null;
+    $filterValTo = isset($payload['filter_val_to']) && $payload['filter_val_to'] !== '' ? (int)$payload['filter_val_to'] : null;
+    $dateFrom = isset($payload['date_from']) && $payload['date_from'] !== '' ? (string)$payload['date_from'] : null;
+    $dateTo = isset($payload['date_to']) && $payload['date_to'] !== '' ? (string)$payload['date_to'] : null;
+    return loadStepsPage($db, $page, 50, $filterOp, $filterVal, $filterValTo, $dateFrom, $dateTo);
+}
+function steps_list_backups(string $userDir): array {
+    $backupDir = "$userDir/backups";
+    $backups = [];
+    if (is_dir($backupDir)) {
+        foreach (glob("$backupDir/Steps_backup_*.csv") ?: [] as $f) {
+            $backups[] = ['name' => basename($f), 'size' => filesize($f), 'date' => date('Y-m-d H:i:s', filemtime($f))];
+        }
+        usort($backups, fn($a, $b) => strtotime($b['date']) - strtotime($a['date']));
+    }
+    return $backups;
+}
+function steps_create_backup(AppDatabase $db, string $userDir): array {
+    checkDirectory($userDir);
+    $backupDir = "$userDir/backups";
+    checkDirectory($backupDir);
+    $csvContent = exportStepsToCSV($db);
+    if (empty($csvContent)) return ['status' => 'error', 'message' => 'No steps data'];
+    $name = 'Steps_backup_' . date('Y-m-d_H-i-s') . '.csv';
+    if (file_put_contents("$backupDir/$name", $csvContent) === false) {
+        return ['status' => 'error', 'message' => 'Failed to create backup'];
+    }
+    $files = glob("$backupDir/Steps_backup_*.csv");
+    if (count($files) > 10) {
+        usort($files, fn($a, $b) => filemtime($a) - filemtime($b));
+        for ($i = 0; $i < count($files) - 10; $i++) @unlink($files[$i]);
+    }
+    return ['status' => 'success', 'message' => 'Backup created', 'backup_file' => $name];
+}
 function steps_conflict_public(array $conflict): array {
     return [
         'id' => (string)($conflict['id'] ?? ''),
@@ -206,8 +243,24 @@ if ($method === 'POST') {
     if ($contentLen > 0 && $contentLen > 8 * 1024 * 1024) public_api_json(['status' => 'error', 'message' => 'payload too large'], 413);
     $subLower = strtolower((string)$sub);
     if (!in_array($subLower, ['', 'ingest', 'webhook', 'sync', 'conflicts'], true)) public_api_json(['status' => 'error', 'message' => 'unknown_post_path'], 404);
-    $payload = public_api_body();
+    // Accept both JSON (Health Connect app) and form-encoded (web UI / MCP) bodies.
+    $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
+    $isFormPost = str_contains($contentType, 'application/x-www-form-urlencoded');
+    $payload = $isFormPost ? public_api_form_body() : public_api_body();
     if (!is_array($payload)) public_api_json(['status' => 'error', 'message' => 'invalid_json'], 400);
+    // Form-encoded table page / backups actions (mirror apps/steps PostHandlers) for MCP clients.
+    if ($isFormPost) {
+        if (isset($payload['get_table_page'])) {
+            $result = steps_load_table_page($userDb, $payload);
+            exit(json_encode(['status' => 'success'] + $result, JSON_UNESCAPED_UNICODE));
+        }
+        if (isset($payload['get_backups_list'])) {
+            exit(json_encode(['status' => 'success', 'backups' => steps_list_backups($userDir)], JSON_UNESCAPED_UNICODE));
+        }
+        if (isset($payload['create_backup'])) {
+            exit(json_encode(steps_create_backup($userDb, $userDir), JSON_UNESCAPED_UNICODE));
+        }
+    }
     if ($subLower === 'conflicts') {
         $id = (string)($parts[2] ?? ($payload['id'] ?? ''));
         $action = (string)($payload['action'] ?? '');

@@ -1,5 +1,5 @@
-import { immichFetch } from "../integrations.js";
-import { textResult } from "../api.js";
+import { immichFetch, getImmichCredentials } from "../integrations.js";
+import { textResult, imageResult, ApiError } from "../api.js";
 import type { ToolDef } from "./types.js";
 
 function pick(args: Record<string, unknown>, keys: string[]): Record<string, unknown> {
@@ -369,5 +369,91 @@ export const immichTools: ToolDef[] = [
     minRole: 0,
     inputSchema: { type: "object", properties: {} },
     handler: async () => textResult(await immichFetch("GET", "/api/search/explore")),
+  },
+  {
+    name: "immich_assets_thumbnail",
+    description:
+      "Get a photo thumbnail and return it as a viewable image. " +
+      "Use this when the user asks to see/show a photo. " +
+      "Pass assetId (or use immich_assets_list / immich_search_smart first to find one).",
+    minRole: 0,
+    inputSchema: {
+      type: "object",
+      properties: {
+        assetId: { type: "string", description: "Asset ID to preview" },
+        size: { type: "string", enum: ["thumbnail", "preview", "original"], description: "thumbnail (small) | preview (default) | original" },
+      },
+      required: ["assetId"],
+    },
+    handler: async (args) => {
+      const assetId = String(args.assetId);
+      const size = String(args.size || "preview");
+      const path =
+        size === "thumbnail"
+          ? `/api/assets/${encodeURIComponent(assetId)}/thumbnail`
+          : size === "original"
+            ? `/api/assets/${encodeURIComponent(assetId)}/original`
+            : `/api/assets/${encodeURIComponent(assetId)}/preview`;
+      const creds = await getImmichCredentials();
+      const res = await fetch(`${creds.url}${path}`, { headers: { "x-api-key": creds.api_key, Accept: "*/*" } });
+      if (!res.ok) {
+        let detail: unknown = null;
+        const text = await res.text().catch(() => "");
+        try {
+          detail = text ? JSON.parse(text) : { raw: text.slice(0, 200) };
+        } catch {
+          detail = { raw: text.slice(0, 200) };
+        }
+        throw new ApiError(typeof (detail as any)?.message === "string" ? (detail as any).message : `immich_http_${res.status}`, res.status, detail);
+      }
+      const mimeType = res.headers.get("content-type") || "application/octet-stream";
+      if (!/^(image|video)\//.test(mimeType)) {
+        const text = await res.text().catch(() => "");
+        throw new ApiError(`unexpected_content_type_${mimeType}`, 502, { raw: text.slice(0, 200) });
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      // videos may be large; only return images inline
+      if (mimeType.startsWith("video/")) {
+        return textResult({ ok: true, assetId, mimeType, size_bytes: buf.length, note: "Video cannot be rendered inline; use download via Immich UI." });
+      }
+      if (buf.length > 8 * 1024 * 1024) {
+        return textResult({ ok: true, assetId, mimeType, size_bytes: buf.length, error: "image_too_large_max_8mb" });
+      }
+      return imageResult(buf.toString("base64"), mimeType, `Asset ${assetId} (${mimeType}, ${buf.length} bytes):`);
+    },
+  },
+  {
+    name: "immich_assets_download",
+    description:
+      "Download an Immich asset's original file and return base64 + metadata (for saving to disk). " +
+      "For just viewing a photo use immich_assets_thumbnail instead.",
+    minRole: 0,
+    inputSchema: {
+      type: "object",
+      properties: { assetId: { type: "string" } },
+      required: ["assetId"],
+    },
+    handler: async (args) => {
+      const assetId = String(args.assetId);
+      const creds = await getImmichCredentials();
+      const res = await fetch(`${creds.url}/api/assets/${encodeURIComponent(assetId)}/original`, {
+        headers: { "x-api-key": creds.api_key, Accept: "*/*" },
+      });
+      if (!res.ok) {
+        throw new ApiError(`immich_http_${res.status}`, res.status);
+      }
+      const mimeType = res.headers.get("content-type") || "application/octet-stream";
+      const disposition = res.headers.get("content-disposition") || "";
+      const nameMatch = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)/i);
+      const buf = Buffer.from(await res.arrayBuffer());
+      return textResult({
+        ok: true,
+        assetId,
+        filename: nameMatch ? nameMatch[1] : `${assetId}.bin`,
+        content_type: mimeType,
+        size_bytes: buf.length,
+        base64: buf.toString("base64"),
+      });
+    },
   },
 ];

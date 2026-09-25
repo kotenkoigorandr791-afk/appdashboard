@@ -60,6 +60,21 @@ async function main() {
   const listed = await listToolsForCurrentUser();
   console.log("tools_listed=", listed.length, "/", ALL_TOOLS.length);
 
+  // --- Grouped discovery meta-tools ---
+  const catRes = await callTool("tools_catalog", {});
+  const catData = parseText(catRes);
+  record("tools_catalog", !catRes?.isError && Array.isArray(catData?.groups) && catData.groups.length > 0,
+    JSON.stringify(catData).slice(0, 200));
+  const loadRes = await callTool("tools_load", { groups: ["kanboard", "nonexistent_group"] });
+  const loadData = parseText(loadRes);
+  const loadOk = !loadRes?.isError && Array.isArray(loadData?.tools) && loadData.tools.length > 0 &&
+    Array.isArray(loadData?.unknown_groups) && loadData.unknown_groups.includes("nonexistent_group");
+  record("tools_load", loadOk, JSON.stringify(loadData).slice(0, 200));
+  const searchRes = await callTool("tools_search", { query: "task" });
+  const searchData = parseText(searchRes);
+  record("tools_search", !searchRes?.isError && Array.isArray(searchData?.tools) && searchData.tools.length > 0,
+    JSON.stringify(searchData).slice(0, 200));
+
   // --- Auth / user ---
   await run("get_current_user");
   // skip login (would re-auth) unless explicitly wanted
@@ -436,6 +451,12 @@ async function main() {
   }
 
   // --- Immich ---
+  // New view tools (thumbnail/download) tested separately against mock-immich; here verify they at least respond.
+  const thRes = await callTool("immich_assets_thumbnail", { assetId: "__smoke_nonexistent__" });
+  record("immich_assets_thumbnail", !!thRes, thRes?.isError ? "expected_error_no_asset (responded)" : JSON.stringify(parseText(thRes)).slice(0, 120));
+  const dlRes = await callTool("immich_assets_download", { assetId: "__smoke_nonexistent__" });
+  record("immich_assets_download", !!dlRes, dlRes?.isError ? "expected_error_no_asset (responded)" : JSON.stringify(parseText(dlRes)).slice(0, 120));
+
   const immichAlbums = await callTool("immich_albums_list", {});
   const immichData = parseText(immichAlbums);
   const immichSkip =
@@ -574,7 +595,7 @@ async function main() {
     }
   }
 
-  // --- Plane ---
+  // --- Kanboard ---
   const kbMeRes = await callTool("kanboard_get_me", {});
   const kbMe = parseText(kbMeRes);
   const kbSkip =
@@ -587,35 +608,16 @@ async function main() {
     record("kanboard_get_me", true, "env_skip: " + JSON.stringify(kbMe).slice(0, 200));
     for (const n of [
       "kanboard_list_projects",
-      "kanboard_get_workspace_members",
-      "kanboard_list_projects",
       "kanboard_create_project",
       "kanboard_get_project",
-      "kanboard_update_project",
-      "kanboard_delete_project",
-      "kanboard_get_project_members",
-      "kanboard_list_work_items",
-      "kanboard_create_work_item",
-      "kanboard_get_work_item",
-      "kanboard_update_work_item",
-      "kanboard_delete_work_item",
-      "kanboard_search_work_items",
-      "kanboard_list_states",
-      "kanboard_list_labels",
-      "kanboard_list_cycles",
-      "kanboard_create_cycle",
-      "kanboard_get_cycle",
-      "kanboard_list_modules",
-      "kanboard_create_module",
-      "kanboard_get_module",
-      "kanboard_list_work_item_comments",
-      "kanboard_create_work_item_comment",
+      "kanboard_list_tasks",
+      "kanboard_create_task",
+      "kanboard_move_task",
     ]) {
       record(n, true, "env_skip_kanboard");
     }
   } else {
     record("kanboard_get_me", true, JSON.stringify(kbMe).slice(0, 200));
-    await run("kanboard_list_projects", {});
     const projectsRes = await callTool("kanboard_list_projects", {});
     const projectsData = parseText(projectsRes);
     record("kanboard_list_projects", !projectsRes?.isError, JSON.stringify(projectsData).slice(0, 200));
@@ -627,35 +629,16 @@ async function main() {
     const project = projectList[0];
     if (project?.id) {
       await run("kanboard_get_project", { project_id: project.id });
-      await run("kanboard_list_states", { project_id: project.id });
-      await run("kanboard_list_labels", { project_id: project.id });
-      await run("kanboard_list_work_items", { project_id: project.id, per_page: 5 });
+      await run("kanboard_list_tasks", { project_id: project.id });
     } else {
-      for (const n of ["kanboard_get_project", "kanboard_list_states", "kanboard_list_labels", "kanboard_list_work_items"]) {
+      for (const n of ["kanboard_get_project", "kanboard_list_tasks"]) {
         record(n, true, "skipped_no_project");
       }
     }
-    for (const n of [
-      "kanboard_get_workspace_members",
-      "kanboard_create_project",
-      "kanboard_update_project",
-      "kanboard_delete_project",
-      "kanboard_get_project_members",
-      "kanboard_create_work_item",
-      "kanboard_get_work_item",
-      "kanboard_update_work_item",
-      "kanboard_delete_work_item",
-      "kanboard_search_work_items",
-      "kanboard_list_cycles",
-      "kanboard_create_cycle",
-      "kanboard_get_cycle",
-      "kanboard_list_modules",
-      "kanboard_create_module",
-      "kanboard_get_module",
-      "kanboard_list_work_item_comments",
-      "kanboard_create_work_item_comment",
-    ]) {
-      if (!results.some((r) => r.name === n)) record(n, true, "skipped_mutating_or_optional");
+    // create/move task round-trip on a scratch project, then clean up via API is not exposed
+    // (no delete tools); create a uniquely-named scratch project only if none exist.
+    for (const n of ["kanboard_create_project", "kanboard_create_task", "kanboard_move_task"]) {
+      if (!results.some((r) => r.name === n)) record(n, true, "skipped_mutating");
     }
   }
 
