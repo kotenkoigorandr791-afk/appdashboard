@@ -19,11 +19,6 @@ import os
 os.environ.setdefault("TOKENIZERS_PARALLELISM","false")
 os.environ.setdefault("OMP_NUM_THREADS","2")
 os.environ.setdefault("MKL_NUM_THREADS","2")
-if "HF_HOME" not in os.environ:
-    for _hf_home in ("/opt/ApplicationData/huggingface", str(Path.home()/".cache/huggingface")):
-        if Path(_hf_home).exists():
-            os.environ["HF_HOME"]=_hf_home
-            break
 try:
     from merchant_classifier import MerchantClassifier,normalize_text
 except ModuleNotFoundError:
@@ -38,12 +33,6 @@ LEGAL_SUFFIXES={"stiftung","co","ko","kg","sp","z","oo","ltd","llc","inc","gmbh"
 _MERCHANT_CLASSIFIER=None
 _AI_CONFIG=None
 _AI_MATCH_CACHE={}
-_VLM_MODEL=None
-_VLM_PROCESSOR=None
-VLM_MODEL_ID=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
-VLM_MAX_PIXELS=int(os.environ.get("SPENDS_OCR_VLM_MAX_PIXELS","196608"))
-VLM_MAX_NEW_TOKENS=int(os.environ.get("SPENDS_OCR_VLM_MAX_NEW_TOKENS","1024"))
-VLM_MAX_SECONDS=float(os.environ.get("SPENDS_OCR_VLM_MAX_SECONDS","285"))
 class OcrCancelled(Exception):
     pass
 def now_iso():
@@ -176,183 +165,86 @@ def extract_json_payload(text):
         except Exception:
             continue
     return None
-def get_vlm():
-    global _VLM_MODEL,_VLM_PROCESSOR
-    if _VLM_MODEL is not None and _VLM_PROCESSOR is not None:
-        return _VLM_MODEL,_VLM_PROCESSOR
-    import torch
-    from transformers import AutoProcessor,Qwen2_5_VLForConditionalGeneration
-    torch.set_num_threads(int(os.environ.get("SPENDS_OCR_TORCH_THREADS","2")))
-    _VLM_PROCESSOR=AutoProcessor.from_pretrained(VLM_MODEL_ID,trust_remote_code=True)
-    if torch.cuda.is_available():
-        _VLM_MODEL=Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL_ID,torch_dtype=torch.float16,device_map="auto",trust_remote_code=True,low_cpu_mem_usage=True)
-    else:
-        _VLM_MODEL=Qwen2_5_VLForConditionalGeneration.from_pretrained(VLM_MODEL_ID,torch_dtype=torch.bfloat16,trust_remote_code=True,low_cpu_mem_usage=True)
-    _VLM_MODEL.eval()
-    return _VLM_MODEL,_VLM_PROCESSOR
-def prepare_vlm_image(path):
-    from PIL import Image
-    image=Image.open(path).convert("RGB")
-    width,height=image.size
-    if height/float(max(width,1))>1.55 and height>1200:
-        image=image.crop((0,int(height*0.10),width,int(height*0.99)))
-        width,height=image.size
-    max_pixels=max(65536,VLM_MAX_PIXELS)
-    pixels=width*height
-    if pixels>max_pixels:
-        scale=(max_pixels/float(pixels))**0.5
-        image=image.resize((max(1,int(width*scale)),max(1,int(height*scale))),Image.Resampling.LANCZOS)
-    tmp=tempfile.NamedTemporaryFile(prefix="spends-vlm-",suffix=".jpg",delete=False)
-    tmp_path=Path(tmp.name)
-    tmp.close()
-    image.save(tmp_path,"JPEG",quality=92,optimize=True)
-    return tmp_path
 
-def extract_partial_vlm_rows(output):
-    rows=[]
-    for line in str(output or "").splitlines():
-        item=line.strip().strip("`").rstrip(",")
-        if not item or item.lower() in {"json","csv","tsv"}:
-            continue
-        if item.startswith("[") and item.endswith("]") and item != "[":
-            try:
-                row=json.loads(item)
-            except Exception:
-                row=None
-            if isinstance(row,list) and len(row)>=4:
-                rows.append(row)
-                continue
-        sep="|" if "|" in item else ("\t" if "\t" in item else None)
-        if not sep:
-            continue
-        parts=[x.strip() for x in item.split(sep)]
-        if len(parts)<5 or not re.search(r"\d",parts[3]):
-            continue
-        store="" if len(parts)<3 or parts[2] in {"?","-","null","None"} else parts[2]
-        new_store="" if len(parts)<6 or parts[5] in {"?","-","null","None"} else parts[5]
-        rows.append([parts[0],parts[1],store,parts[3],parts[4],0.95,new_store])
-    return rows
-
-def parse_vlm_transactions(data,output,stores,base_currency,default_date):
-    if isinstance(data,dict):
-        txs=data.get("transactions",[])
-    elif isinstance(data,list):
-        txs=data
-    else:
-        txs=extract_partial_vlm_rows(output)
-        if not txs:
-            return [],output or "vlm_invalid_json"
-    result=[]
-    store_set=set(stores)
-    store_lookup={normalize_text(x):x for x in stores}
-    for row in txs if isinstance(txs,list) else []:
-        if isinstance(row,list):
-            date=normalize_space(row[0] if len(row)>0 else "") or default_date
-            merchant=normalize_space((row[1] if len(row)>1 else "") or "")
-            store=normalize_space(row[2] if len(row)>2 and row[2] is not None else "")
-            try:
-                amount=float(str(row[3] if len(row)>3 else "0").replace(",","."))
-            except ValueError:
-                amount=0.0
-            currency=str(row[4] if len(row)>4 and row[4] else base_currency).upper().strip()
-            try:
-                confidence=float(row[5] if len(row)>5 else 0.0)
-            except ValueError:
-                confidence=0.0
-            suggested=normalize_space((row[6] if len(row)>6 else "") or "")
-        elif isinstance(row,dict):
-            merchant=normalize_space(row.get("merchant_raw") or row.get("merchant") or row.get("m") or "")
-            store=normalize_space(row.get("store") or row.get("s") or "")
-            suggested=normalize_space(row.get("suggested_store") or row.get("suggested") or row.get("n") or "")
-            currency=str(row.get("currency") or row.get("c") or base_currency).upper().strip()
-            try:
-                amount=float(str(row.get("amount",row.get("a",0)) or "0").replace(",","."))
-            except ValueError:
-                amount=0.0
-            date=normalize_space(row.get("date") or row.get("d") or "") or default_date
-            try:
-                confidence=float(row.get("confidence",row.get("q",0.0)) or 0.0)
-            except ValueError:
-                confidence=0.0
-        else:
-            continue
-        if currency not in SUPPORTED_CURRENCIES:
-            currency=base_currency
-        if not re.match(r"^\d{4}-\d{2}-\d{2}$",date):
-            date=default_date
-        if amount<=0 or not (merchant or store or suggested):
-            continue
-        if store and store not in store_set:
-            matched_store=store_lookup.get(normalize_text(store))
-            if matched_store:
-                store=matched_store
-            else:
-                suggested=suggested or store
-                store=""
-        result.append({"date":date,"merchant_raw":merchant or store or suggested,"store":store,"amount":round(amount,2),"currency":currency,"confidence":max(0.0,min(confidence,1.0)),"suggested_store":suggested})
-    return result,output
-
-def vlm_recognize_image_local(path,existing_stores,base_currency,default_date,raw_file=None,json_file=None):
-    model,processor=get_vlm()
-    from qwen_vl_utils import process_vision_info
-    stores=[str(x) for x in existing_stores if str(x).strip()]
-    prompt={"task":"Read every visible expense transaction card from the image. Match merchant names to stores. Return one strict JSON object only, no markdown.","stores":stores[:300],"currency":base_currency,"default_date":default_date,"schema":{"transactions":[{"date":"YYYY-MM-DD","merchant_raw":"text from image","store":"exact store from stores or null","amount":0.0,"currency":base_currency,"confidence":0.0,"suggested_store":"clean name when store is null"}]},"rules":["Preserve visible dates and years.","If year is missing use the year from default_date.","Use exact store from stores only when clearly same merchant.","Do not invent transactions."]}
-    messages=[{"role":"user","content":[{"type":"image","image":str(path),"max_pixels":VLM_MAX_PIXELS},{"type":"text","text":json.dumps(prompt,ensure_ascii=False,separators=(",",":"))}]}]
-    text=processor.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
-    image_inputs,video_inputs=process_vision_info(messages)
-    inputs=processor(text=[text],images=image_inputs,videos=video_inputs,padding=True,return_tensors="pt")
-    device=next(model.parameters()).device
-    inputs={k:(v.to(device) if hasattr(v,"to") else v) for k,v in inputs.items()}
-    import torch
-    from threading import Thread
-    from transformers import TextIteratorStreamer
-    streamer=TextIteratorStreamer(processor.tokenizer,skip_prompt=True,skip_special_tokens=True,clean_up_tokenization_spaces=False)
-    kwargs=dict(inputs,max_new_tokens=VLM_MAX_NEW_TOKENS,do_sample=False,streamer=streamer)
-    chunks=[]
-    if raw_file:
-        Path(raw_file).write_text("",encoding="utf-8")
-    def generate():
-        with torch.inference_mode():
-            model.generate(**kwargs)
-    thread=Thread(target=generate,daemon=True)
-    thread.start()
-    for chunk in streamer:
-        chunks.append(chunk)
-        if raw_file:
-            with open(raw_file,"a",encoding="utf-8") as f:
-                f.write(chunk)
-                f.flush()
-    thread.join()
-    output="".join(chunks)
-    del inputs
-    data=extract_json_payload(output)
-    rows,raw=parse_vlm_transactions(data,output,stores,base_currency,default_date)
-    if json_file:
-        Path(json_file).write_text(json.dumps({"model":VLM_MODEL_ID,"image":Path(path).name,"base_currency":base_currency,"default_date":default_date,"transactions":rows,"raw":output},ensure_ascii=False,indent=2),encoding="utf-8")
-    return rows,raw
-
-def vlm_recognize_image(path,existing_stores,base_currency,default_date):
-    prepared=prepare_vlm_image(path)
-    out_dir=path.parent.parent/"vlm_outputs"
-    out_dir.mkdir(parents=True,exist_ok=True)
-    raw_path=out_dir/f"{path.stem}.response.md"
-    json_path=out_dir/f"{path.stem}.parsed.json"
+def ocr_wallet_record_texts(path):
     try:
-        cmd=[sys.executable,str(Path(__file__).resolve()),"--vlm-once",str(prepared),"--vlm-stores-json",json.dumps([str(x) for x in existing_stores if str(x).strip()],ensure_ascii=False),"--vlm-base-currency",base_currency,"--vlm-default-date",default_date,"--vlm-raw-file",str(raw_path),"--vlm-json-file",str(json_path)]
-        completed=subprocess.run(cmd,capture_output=True,text=True,env={**os.environ,"SPENDS_OCR_VLM_CHILD":"1"})
-        if completed.returncode!=0:
-            raw=raw_path.read_text(encoding="utf-8") if raw_path.exists() else ""
-            rows,_=parse_vlm_transactions(extract_json_payload(raw),raw,[str(x) for x in existing_stores if str(x).strip()],base_currency,default_date)
-            if rows:
-                return rows,raw
-            raise RuntimeError((completed.stderr or completed.stdout or raw or "vlm_failed")[-2000:])
-        payload=json.loads(completed.stdout.strip())
-        return payload.get("rows",[]),payload.get("raw","")
-    finally:
+        from PIL import Image
+        import numpy as np
+    except Exception:
+        return []
+    try:
+        image=Image.open(path).convert("RGB")
+        gray=np.asarray(image.convert("L"))
+        height,width=gray.shape
+        y0=max(0,int(height*0.10))
+        y1=min(height,int(height*0.94))
+        x0=max(0,int(width*0.05))
+        x1=min(width,int(width*0.95))
+        dark=(gray[y0:y1,x0:x1]<180).sum(axis=1)
+        mask=dark>max(20,int((x1-x0)*0.025))
+        groups=[]
+        start=None
+        for idx,active in enumerate(mask):
+            if active and start is None:
+                start=idx
+            if (not active or idx==len(mask)-1) and start is not None:
+                end=idx if not active else idx+1
+                if end-start>5:
+                    groups.append([start+y0,end+y0])
+                start=None
+        merged=[]
+        for top,bottom in groups:
+            if not merged or top-merged[-1][1]>80:
+                merged.append([top,bottom])
+            else:
+                merged[-1][1]=bottom
+        if len(merged)<2:
+            return []
+        centers=[(top+bottom)//2 for top,bottom in merged]
+        texts=[]
+        for idx,(top,bottom) in enumerate(merged):
+            crop_top=max(0,(centers[idx-1]+centers[idx])//2 if idx else top-70)
+            crop_bottom=min(height,(centers[idx]+centers[idx+1])//2 if idx+1<len(centers) else bottom+70)
+            row=image.crop((max(0,int(width*0.04)),crop_top,min(width,int(width*0.96)),crop_bottom))
+            tmp=tempfile.NamedTemporaryFile(prefix="spends-row-",suffix=".png",delete=False)
+            tmp_path=tmp.name
+            tmp.close()
+            try:
+                row.save(tmp_path)
+                completed=subprocess.run(["tesseract",tmp_path,"stdout","--psm","6"],capture_output=True,text=True,timeout=12)
+                text=normalize_space((completed.stdout or "").replace("\n"," "))
+                if text:
+                    texts.append(text)
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except Exception:
+                    pass
+        return texts
+    except Exception:
+        return []
+
+def recognize_image(path,existing_stores,base_currency,default_date):
+    record_texts=ocr_wallet_record_texts(path)
+    if record_texts:
+        text="\n".join(record_texts)
+    else:
         try:
-            prepared.unlink()
-        except Exception:
-            pass
+            completed=subprocess.run(["tesseract",str(path),"stdout","--psm","6"],capture_output=True,text=True,timeout=30)
+            text=(completed.stdout or "").strip()
+            if completed.returncode!=0 and not text:
+                raise RuntimeError((completed.stderr or "tesseract_failed")[-500:])
+        except Exception as exc:
+            return [],f"[ocr_failed] {exc}"
+    rows=[]
+    stores=[str(x) for x in existing_stores if str(x).strip()]
+    for date,merchant,amount,currency in extract_wallet_transactions(text.splitlines(),default_date):
+        merchant=clean_wallet_merchant(merchant)
+        currency=(currency or infer_currency_from_text(text,base_currency) or base_currency).upper()
+        matched,score=best_store_match(merchant,stores)
+        rows.append({"date":date,"merchant_raw":merchant,"store":matched or "","amount":round(float(amount),2),"currency":currency,"confidence":score if matched else 0.0,"suggested_store":"" if matched else merchant,"date_unresolved":False})
+    return rows,text
+
 def ai_resolve_store_match(merchant,existing,ocr_text=""):
     cfg=load_ai_config()
     if not cfg or not cfg.get("api_key") or not existing:
@@ -560,7 +452,99 @@ def find_merchant_back_with_date(lines,idx,default_date):
         if is_valid_merchant_line(merchant):
             return merchant,date_hint
     return "",None
+def wallet_year(default_date):
+    if re.match(r"^\d{4}-\d{2}-\d{2}$",str(default_date)):
+        try:
+            return datetime.strptime(default_date,"%Y-%m-%d").year
+        except ValueError:
+            pass
+    return datetime.utcnow().year
+
+def wallet_date(month,day,default_date):
+    try:
+        return datetime(wallet_year(default_date),month,int(day)).strftime("%Y-%m-%d")
+    except ValueError:
+        return default_date
+
+def clean_wallet_segment_merchant(value):
+    s=clean_wallet_merchant(value)
+    s=re.sub(r"^\d{1,2}:\d{2}\s*", "", s)
+    s=re.sub(r"^(?:po|a:)\s+", "", s, flags=re.IGNORECASE)
+    s=re.sub(r"\b(?:QR|ED|Et|cz|ETT|ses)\b", " ", s, flags=re.IGNORECASE)
+    s=re.sub(r"^[^A-Za-zА-Яа-яІіЇїЄє]+", "", s)
+    known=["ALIEXPRESS.COM","Biedronka","Lidl Stiftung","Lidl","MPK KRAKOW KKM","Castorama","Auchan","Stokrotka","Stocrotka"]
+    folded=s.lower()
+    best=None
+    best_pos=-1
+    for name in known:
+        pos=folded.rfind(name.lower())
+        if pos>best_pos:
+            best=name
+            best_pos=pos
+    if best and best_pos>=0:
+        tail=s[best_pos:]
+        if best.lower().startswith("lidl") and "stiftung" in tail.lower():
+            return "Lidl Stiftung & Co. KG"
+        return best
+    parts=[part for part in re.split(r"\s{2,}|[<>—=]+",s) if normalize_space(part)]
+    return clean_wallet_merchant(parts[-1] if parts else s)
+
+def parse_wallet_ocr_line(line,default_date):
+    text=normalize_space(line)
+    if not text:
+        return None
+    text=re.sub(r"\bS\s+ep\b","Sep",text,flags=re.IGNORECASE)
+    text=re.sub(r"\bE\s*T\s*T\b","",text,flags=re.IGNORECASE)
+    month_names="Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
+    pattern=re.compile(rf"(?P<currency>{CURRENCY_TOKEN_PATTERN})\s*(?P<amount>{AMOUNT_OCR_PART})(?:\s+[^\s]{{1,8}}){{0,3}}\s+(?P<month>{month_names})\s+(?P<day>\d{{1,2}})",re.IGNORECASE)
+    match=pattern.search(text)
+    if match:
+        merchant=clean_wallet_segment_merchant(text[:match.start()])
+        amount=parse_wallet_amount_decimal(match.group("amount"))
+        currency=normalize_currency_token(match.group("currency"))
+        month=MONTHS.get(match.group("month").lower()[:3])
+        if merchant and amount is not None and currency and month:
+            return wallet_date(month,match.group("day"),default_date),merchant,amount,currency
+    reverse=re.compile(rf"(?P<currency>{CURRENCY_TOKEN_PATTERN})\s*(?P<amount>{AMOUNT_OCR_PART})(?P<merchant>.+?)\s+(?P<month>{month_names})\s+(?P<day>\d{{1,2}})",re.IGNORECASE)
+    match=reverse.search(text)
+    if not match:
+        return None
+    merchant=clean_wallet_segment_merchant(match.group("merchant"))
+    amount=parse_wallet_amount_decimal(match.group("amount"))
+    currency=normalize_currency_token(match.group("currency"))
+    month=MONTHS.get(match.group("month").lower()[:3])
+    if not merchant or amount is None or not currency or not month:
+        return None
+    return wallet_date(month,match.group("day"),default_date),merchant,amount,currency
+
+def split_wallet_ocr_segments(text,default_date):
+    rows=[]
+    for line in str(text or "").splitlines():
+        row=parse_wallet_ocr_line(line,default_date)
+        if row:
+            rows.append(row)
+    if rows:
+        return rows
+    text=normalize_space(text)
+    text=re.sub(r"\bS\s+ep\b","Sep",text,flags=re.IGNORECASE)
+    month_names="Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
+    dated=re.compile(rf"(?P<currency>{CURRENCY_TOKEN_PATTERN})\s*(?P<amount>{AMOUNT_OCR_PART})(?:\s+[^\s]{{1,8}}){{0,3}}\s+(?P<month>{month_names})\s+(?P<day>\d{{1,2}})",re.IGNORECASE)
+    last_end=0
+    for match in dated.finditer(text):
+        merchant=clean_wallet_segment_merchant(text[last_end:match.start()])
+        amount=parse_wallet_amount_decimal(match.group("amount"))
+        currency=normalize_currency_token(match.group("currency"))
+        month=MONTHS.get(match.group("month").lower()[:3])
+        if merchant and amount is not None and currency and month:
+            rows.append((wallet_date(month,match.group("day"),default_date),merchant,amount,currency))
+        last_end=match.end()
+    return rows
+
 def extract_wallet_transactions(lines,default_date):
+    text="\n".join(normalize_wallet_date_line(line) or normalize_space(line) for line in lines if normalize_space(line))
+    segmented=split_wallet_ocr_segments(text,default_date)
+    if segmented:
+        return segmented
     txs=[]
     last_merchant=""
     last_date=default_date
@@ -578,15 +562,13 @@ def extract_wallet_transactions(lines,default_date):
             amount,currency=amt_only
             merchant,date_hint=find_merchant_back_with_date(lines,i,last_date)
             merchant=merchant or last_merchant
-            if not merchant or not is_valid_merchant_line(merchant):
-                i+=1
-                continue
-            tx_date=date_hint or last_date
-            nxt=find_next_month_day(lines,i+1)
-            if nxt:
-                tx_date=nxt
-                last_date=nxt
-            txs.append((tx_date,merchant,amount,currency))
+            if merchant and is_valid_merchant_line(merchant):
+                tx_date=date_hint or last_date
+                nxt=find_next_month_day(lines,i+1)
+                if nxt:
+                    tx_date=nxt
+                    last_date=nxt
+                txs.append((tx_date,merchant,amount,currency or ""))
             i+=1
             continue
         same=parse_amount_and_currency(line)
@@ -597,18 +579,16 @@ def extract_wallet_transactions(lines,default_date):
                 merchant=last_merchant
             else:
                 merchant,date_hint=parse_wallet_merchant_day_hint(merchant,last_date)
-                if not is_valid_merchant_line(merchant):
-                    merchant,date_hint=find_merchant_back_with_date(lines,i,last_date)
-                    merchant=merchant or last_merchant
-            if not merchant or not is_valid_merchant_line(merchant):
-                i+=1
-                continue
-            tx_date=date_hint or last_date
-            nxt=find_next_month_day(lines,i+1)
-            if nxt:
-                tx_date=nxt
-                last_date=nxt
-            txs.append((tx_date,merchant,amount,currency))
+            if not is_valid_merchant_line(merchant):
+                merchant,date_hint=find_merchant_back_with_date(lines,i,last_date)
+                merchant=merchant or last_merchant
+            if merchant and is_valid_merchant_line(merchant):
+                tx_date=date_hint or last_date
+                nxt=find_next_month_day(lines,i+1)
+                if nxt:
+                    tx_date=nxt
+                    last_date=nxt
+                txs.append((tx_date,merchant,amount,currency))
             i+=1
             continue
         merchant,date_hint=parse_wallet_merchant_day_hint(line,last_date)
@@ -651,40 +631,42 @@ def ocr_signature(date,store,amount,raw):
 def register_ocr_entry(conn,signature,date,store,amount,raw,image_name):
     cur=conn.execute("INSERT INTO ocr_entries(signature,date,store,amount,ocr_raw_store,image_name,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT (signature) DO NOTHING RETURNING signature",(signature,date,store,amount,raw,image_name,now_iso()))
     return cur.fetchone() is not None
+def store_match_tokens(value):
+    text=canonical_merchant(value)
+    aliases={
+        "biedronka":{"biedronka","bieronka","bedronka","biedr0nka","a biedronka"},
+        "lidl":{"lidl","lidl stiftung","lidl stiftung kg"},
+        "castorama":{"castorama"},
+        "auchan":{"auchan"},
+        "stokrotka":{"stokrotka","stocrotka"},
+    }
+    tokens={text}
+    for canonical,items in aliases.items():
+        if text in items or any(item in text for item in items):
+            tokens.add(canonical)
+    return {x for x in tokens if x}
+
 def best_store_match(merchant,existing,min_score=0.72):
     if not existing:
         return None,0.0
-    canon=canonical_merchant(merchant)
-    if not canon:
+    merchant_tokens=store_match_tokens(merchant)
+    if not merchant_tokens:
         return None,0.0
-    exact=[name for name in existing if canonical_merchant(name)==canon]
-    if exact:
-        return exact[0],1.0
+    for name in existing:
+        if merchant_tokens & store_match_tokens(name):
+            return name,1.0
     score=0.0
-    best=merchant
+    best=None
+    canon=canonical_merchant(merchant)
     for name in existing:
         ratio=SequenceMatcher(None,canon,canonical_merchant(name)).ratio()
         if ratio>score:
             score=ratio
             best=name
-    return (best,score) if score>=min_score else (None,score)
+    return (best,score) if best and score>=min_score else (None,score)
+
 def best_store_label_match(label,existing,min_score=0.84):
-    if not existing:
-        return None,0.0
-    normalized=normalize_text(label)
-    if not normalized:
-        return None,0.0
-    for name in existing:
-        if normalize_text(name)==normalized:
-            return name,1.0
-    best=None
-    score=0.0
-    for name in existing:
-        ratio=SequenceMatcher(None,normalized,normalize_text(name)).ratio()
-        if ratio>score:
-            score=ratio
-            best=name
-    return (best,score) if score>=min_score else (None,score)
+    return best_store_match(label,existing,min_score)
 def resolve_store_match(merchant,existing,ocr_text=""):
     matched,score=best_store_label_match(merchant,existing)
     if matched:
@@ -818,7 +800,7 @@ def process(job_dir,user_email,base_currency):
             processed=min(done_images,len(uploads))
         write_status(status_path,{"state":"processing","phase":"processing","queue_position":0,"progress":{"total":len(uploads),"processed":processed,"percent":pct},"base_currency":base_currency,"warnings":warnings[-20:],"records":records[-100:],"recognized":recognized[-100:],"unresolved":unresolved[-50:],"added_count":added_count,"duplicate_count":duplicate_count,"updated_at":now_iso()})
     lock_file=lock_ocr_worker(job_dir,status_path,status,check_cancel)
-    update_status(status_path,{"state":"processing","phase":"loading_model","queue_position":0,"message":"loading_model","progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[]})
+    update_status(status_path,{"state":"processing","phase":"processing","queue_position":0,"message":"processing","progress":{"total":len(uploads),"processed":0,"percent":0},"base_currency":base_currency,"warnings":[],"records":[]})
     rates={base_currency:1.0}
     try:
         rates.update(fetch_rates(base_currency))
@@ -832,15 +814,20 @@ def process(job_dir,user_email,base_currency):
     grouped_raw={}
     staged_signatures=set()
     seen_upload_transactions={}
+    timings={}
     for i,img in enumerate(uploads,start=1):
         check_cancel()
         dedup_seen=set()
         push_progress(i-1,0.02)
         try:
             default_date=datetime.utcnow().strftime("%Y-%m-%d")
-            txs,vlm_output=vlm_recognize_image(img,existing_stores,base_currency,default_date)
+            txs,ocr_output=recognize_image(img,existing_stores,base_currency,default_date)
+            try:
+                pass
+            except Exception:
+                pass
             push_progress(i-1,0.87)
-            ocr_chunks.append(f"=== {img.name} ===\n{vlm_output}")
+            ocr_chunks.append(f"=== {img.name} ===\n{ocr_output}")
             push_progress(i-1,0.93)
             found=len(txs)>0
             for tx in txs:
@@ -850,6 +837,8 @@ def process(job_dir,user_email,base_currency):
                 currency=tx["currency"]
                 raw_norm=normalize_space(merchant)
                 tx_key=(date,canonical_merchant(raw_norm) or normalize_text(raw_norm),round(float(amount),2),currency)
+                date_unresolved=bool(tx.get("date_unresolved"))
+                row_id=f"{i}:{tx_key[0]}:{tx_key[1]}:{tx_key[2]}" if date_unresolved else ""
                 seen_image=seen_upload_transactions.get(tx_key)
                 if seen_image is not None and seen_image!=i:
                     duplicate_count+=1
@@ -860,6 +849,9 @@ def process(job_dir,user_email,base_currency):
                 score=tx.get("confidence",0.0)
                 if not matched:
                     item={"date":date,"merchant_raw":merchant,"amount":round(amount,2),"currency":currency,"confidence":round(score,2)}
+                    if date_unresolved:
+                        item["date_unresolved"]=True
+                        item["ocr_row_id"]=row_id
                     if tx.get("suggested_store"):
                         item["suggested_store"]=tx["suggested_store"]
                     unresolved.append(item)
@@ -896,8 +888,8 @@ def process(job_dir,user_email,base_currency):
                 key=(date,matched)
                 grouped[key]=round(grouped.get(key,0.0)+converted,2)
                 grouped_raw.setdefault(key,set()).add(raw_norm)
-                records.append({"date":date,"store":matched,"amount":converted,"currency":base_currency,"merchant_raw":raw_norm,"status":"added"})
-                recognized.append({"date":date,"store":matched,"merchant_raw":raw_norm,"amount":converted,"currency":base_currency,"status":"added"})
+                records.append({"date":date,"store":matched,"amount":converted,"currency":base_currency,"merchant_raw":raw_norm,"status":"added","date_unresolved":date_unresolved,"ocr_row_id":row_id})
+                recognized.append({"date":date,"store":matched,"merchant_raw":raw_norm,"amount":converted,"currency":base_currency,"status":"added","date_unresolved":date_unresolved,"ocr_row_id":row_id})
             push_progress(i-1,0.97)
             if not found:
                 warnings.append({"code":"no_amount_in_file","file":img.name})
@@ -915,29 +907,16 @@ def process(job_dir,user_email,base_currency):
     conn.commit()
     conn.close()
     records.sort(key=lambda x:(x["date"],x.get("store","")))
-    final={"state":"done","progress":{"total":len(uploads),"processed":len(uploads),"percent":100},"base_currency":base_currency,"warnings":warnings,"records":records,"recognized":recognized,"unresolved":unresolved,"added_count":added_count,"duplicate_count":duplicate_count,"ocr_text":"\n\n".join(ocr_chunks),"updated_at":now_iso()}
+    final={"state":"done","progress":{"total":len(uploads),"processed":len(uploads),"percent":100},"base_currency":base_currency,"warnings":warnings,"records":records,"recognized":recognized,"unresolved":unresolved,"added_count":added_count,"duplicate_count":duplicate_count,"timings":timings,"ocr_text":"\n\n".join(ocr_chunks),"updated_at":now_iso()}
     write_status(status_path,final)
 def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--job-dir")
     parser.add_argument("--user-email")
     parser.add_argument("--base-currency")
-    parser.add_argument("--vlm-once")
-    parser.add_argument("--vlm-stores-json",default="[]")
-    parser.add_argument("--vlm-base-currency",default="")
-    parser.add_argument("--vlm-default-date",default="")
-    parser.add_argument("--vlm-raw-file",default="")
-    parser.add_argument("--vlm-json-file",default="")
     args=parser.parse_args()
-    if args.vlm_once:
-        stores=json.loads(args.vlm_stores_json or "[]")
-        base=(args.vlm_base_currency or "USD").upper()
-        default_date=args.vlm_default_date or datetime.utcnow().strftime("%Y-%m-%d")
-        rows,raw=vlm_recognize_image_local(Path(args.vlm_once),stores,base,default_date,args.vlm_raw_file or None,args.vlm_json_file or None)
-        print(json.dumps({"rows":rows,"raw":raw},ensure_ascii=False))
-        return
     if not args.job_dir or not args.user_email or not args.base_currency:
-        parser.error("--job-dir, --user-email and --base-currency are required")
+        parser.error("--job-dir, --user-email and --base-currency required")
     job_dir=Path(args.job_dir)
     status_path=job_dir/"status.json"
     try:

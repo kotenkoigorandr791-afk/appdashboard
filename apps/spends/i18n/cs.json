@@ -228,7 +228,7 @@
     "trim_empty_months_hint": "Pokud měsíc nemá žádné výdaje ani příjmy, nezobrazí se na grafu.",
     "receipt_ocr": {
         "title": "OCR účtenek",
-        "subtitle": "Nahrajte snímky účtenek, ořízněte potřebné oblasti a importujte rozpoznané výdaje.",
+        "subtitle": "Nahrajte snímky účtenek a importujte rozpoznané výdaje.",
         "hero_idle": "Připraveno k importu",
         "hero_crop": "Ořez účtenek",
         "hero_scan": "Rozpoznávání účtenek",
@@ -297,7 +297,13 @@
         "currency": "Měna",
         "store_name": "Název obchodu",
         "cancel": "Zrušit",
-        "delete": "Smazat"
+        "delete": "Smazat",
+        "date_unresolved_title": "Nerozpoznaná data",
+        "date_unresolved_hint": "Datum se nepodařilo přečíst z obrázku u těchto řádků. Zvolte správné datum pro každý.",
+        "date_unresolved_badge": "Datum?",
+        "choose_date": "Zvolte datum",
+        "save_dates": "Uložit data",
+        "dates_saved": "Data uložena: {count}"
     },
     "store_category_build": "Stavba"
 }
