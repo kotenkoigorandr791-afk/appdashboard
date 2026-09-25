@@ -2,7 +2,7 @@
 
 Prebuilt MCP server for AppDashboard (stdio). Clients install with **one command** — no local build.
 
-One server key: **`appdashboard-mcp`**. Tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Plane) live in the same package.
+One server key: **`appdashboard-mcp`**. Tools for the service shell and all apps (Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Kanboard) live in the same package.
 
 ## Install (from AppDashboard UI)
 
@@ -76,6 +76,47 @@ Restart the agent after setup.
 
 Local develop entry uses `node` + `dist/index.js` instead of `npx`.
 
+## Grouped tool discovery (default)
+
+Instead of exposing one huge flat tool list (100+ tools), the server advertises only 4 meta-tools:
+
+| Tool | Purpose |
+|------|---------|
+| `tools_catalog` | List tool groups with counts and descriptions |
+| `tools_load` | Get full schemas for the groups you need (e.g. `{"groups":["kanboard"]}`) |
+| `tools_search` | Find tools by keyword across all groups |
+| `mcp_check_update` | Check for a newer MCP package and auto-update |
+
+The agent is instructed to call these tools **only when the task explicitly requires AppDashboard** (its apps or server management); regular local coding tasks must not trigger MCP calls.
+
+Environment variables:
+
+| Variable | Default | Meaning |
+|----------|---------|---------|
+| `MCP_GROUPED_TOOLS` | `1` | `0` disables grouped mode (legacy flat list) |
+| `MCP_GROUPS` | *(unset)* | Comma-separated allow-list of group ids (e.g. `kanboard,gitea`); `all` = no restriction |
+| `APPDASHBOARD_MCP_AUTOUPDATE` | `1` | `0` disables the background auto-updater |
+| `IMMICH_URL` / `IMMICH_API_KEY` | *(unset)* | Override Immich credentials (bypass dashboard integration; useful for tests) |
+| `GITEA_URL` / `GITEA_TOKEN` | *(unset)* | Override Gitea credentials |
+| `KANBOARD_URL` / `KANBOARD_USERNAME` / `KANBOARD_API_TOKEN` | *(unset)* | Override Kanboard credentials |
+
+## Auto-update
+
+On start (and every 6 hours) the server compares the installed package fingerprint
+(`~/.config/appdashboard-mcp/package.json`, written by `setup`) with `GET APPDASHBOARD_URL/mcp/info`.
+If a new version is published, the server downloads the tgz, verifies its sha256,
+extracts it into `~/.cache/appdashboard-mcp/`, links `node_modules` and re-execs itself from the
+updated copy. The user's agent session stays functional; no manual reinstall needed.
+
+`mcp_check_update` triggers the same flow on demand.
+
+## Viewing photos (Immich)
+
+`immich_assets_thumbnail` returns an MCP image content block, so the agent can actually
+see the photo (preview/thumbnail/original). `immich_assets_download` returns the original
+file as base64 for saving to disk. Typical flow: `tools_load ["immich"]` → `immich_assets_list`
+(or `immich_search_smart`) → `immich_assets_thumbnail {assetId}`.
+
 ## Develop
 
 ```bash
@@ -108,9 +149,9 @@ Produces `downloads/appdashboard-mcp.tgz` served at `/mcp/appdashboard-mcp.tgz`.
 
 All `steps_*`, `immich_*`, `gitea_*`, and `kanboard_*` tools are available to any authenticated user (no Admin role required).
 
-## Automatic Immich / Gitea / Plane credentials
+## Automatic Immich / Gitea / Kanboard credentials
 
-After token setup, Immich, Gitea, and Plane tools do **not** ask for API keys or tokens. On first use the MCP client calls:
+After token setup, Immich, Gitea, and Kanboard tools do **not** ask for API keys or tokens. On first use the MCP client calls:
 
 - `GET /public-api/integrations/immich` → `{ url, api_key }`
 - `GET /public-api/integrations/gitea` → `{ url, access_token }`

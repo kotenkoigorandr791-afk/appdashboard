@@ -7,6 +7,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { saveTokenCredentials } from "./auth.js";
 import { normalizeRole, type Role } from "./roles.js";
+import { writeLocalFingerprint } from "./updater.js";
 
 type Agent = "claude" | "cursor" | "vscode" | "opencode";
 
@@ -177,6 +178,14 @@ export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<
     if (!token) throw new Error("Token is required (--token or APPDASHBOARD_TOKEN)");
     const role = await validateToken(url, token);
     saveTokenCredentials(url, token, role);
+    // Record package fingerprint so background auto-update can detect new versions.
+    try {
+      const info = await fetch(`${url}/mcp/info`, { signal: AbortSignal.timeout(10_000) });
+      const meta = info.ok ? await info.json() : null;
+      if (meta?.ok && meta?.sha256) writeLocalFingerprint(String(meta.sha256), String(meta.version || ""));
+    } catch {
+      /* non-fatal */
+    }
     let packageUrl = (pkgArg || process.env.APPDASHBOARD_MCP_PACKAGE_URL || "").trim();
     if (!packageUrl) packageUrl = `${url}/mcp/download`;
     const merged = mergeServerEntry(agent, existing, url, token, packageUrl);

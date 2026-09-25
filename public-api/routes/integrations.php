@@ -317,12 +317,12 @@ function integrations_kanboard_ensure_user(PDO $pdo, string $email, string $name
     $stmt->execute([':email' => $email, ':u' => $username]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($row) {
-        $pdo->prepare('UPDATE users SET email = :email, name = :name, role = :role, is_active = 1, notifications_enabled = 1 WHERE id = :id')
+        $pdo->prepare('UPDATE users SET email = :email, name = :name, role = :role, is_active = TRUE, notifications_enabled = TRUE WHERE id = :id')
             ->execute([':email' => $email, ':name' => $name !== '' ? $name : $username, ':role' => $role, ':id' => $row['id']]);
         $row['username'] = $username;
         return $row;
     }
-    $ins = $pdo->prepare('INSERT INTO users (username, password, email, name, role, is_active, notifications_enabled) VALUES (:u, :p, :e, :n, :r, 1, 1) RETURNING id, username, api_access_token');
+    $ins = $pdo->prepare('INSERT INTO users (username, password, email, name, role, is_active, notifications_enabled) VALUES (:u, :p, :e, :n, :r, TRUE, TRUE) RETURNING id, username, api_access_token');
     try {
         $ins->execute([
             ':u' => $username,
@@ -359,7 +359,7 @@ function integrations_kanboard_credentials(string $email, bool $refresh = false)
     $username = (string)$user['username'];
     $userId = (int)($user['id'] ?? 0);
     if ($userId > 0) {
-        $pdo->prepare('UPDATE users SET notifications_enabled = 1 WHERE id = :id')->execute([':id' => $userId]);
+        $pdo->prepare('UPDATE users SET notifications_enabled = TRUE WHERE id = :id')->execute([':id' => $userId]);
         try {
             $hasWeb = $pdo->prepare('SELECT 1 FROM user_has_notification_types WHERE user_id = :id AND notification_type = :t LIMIT 1');
             $hasWeb->execute([':id' => $userId, ':t' => 'web']);

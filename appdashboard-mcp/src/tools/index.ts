@@ -20,6 +20,8 @@ import { immichTools } from "./immich.js";
 import { giteaTools } from "./gitea.js";
 import { kanboardTools } from "./kanboard.js";
 import { newsTools } from "./news.js";
+import { groupForTool, parseGroupList } from "./groups.js";
+import { buildCatalogTools } from "./catalog.js";
 import type { ToolDef } from "./types.js";
 
 export type { ToolDef } from "./types.js";
@@ -54,12 +56,34 @@ export async function resolveRole(): Promise<Role | null> {
   return getToken() ? getCachedRole() : null;
 }
 
+const CATALOG_MODE_ENV = "MCP_GROUPED_TOOLS";
+
+function groupedModeEnabled(): boolean {
+  const raw = (process.env[CATALOG_MODE_ENV] ?? "").trim().toLowerCase();
+  return raw === "" || raw === "1" || raw === "true" || raw === "yes" || raw === "on";
+}
+
+/**
+ * Returns tools visible to the current user.
+ *
+ * Grouped mode (default):
+ *   Only 3 meta-tools are advertised: tools_catalog, tools_load, tools_search.
+ *   The agent must call tools_catalog first, then tools_load for the groups it needs.
+ *   MCP_GROUPS env can pre-restrict which groups are loadable (comma-separated ids, "all" disables filter).
+ *
+ * Flat mode (MCP_GROUPED_TOOLS=0): every tool is advertised directly (legacy behavior).
+ */
 export async function listToolsForCurrentUser() {
   const role = await resolveRole();
   if (role === null) {
     return [];
   }
-  return filterToolsByRole(ALL_TOOLS, role).map(toMcpTool);
+  const visible = filterToolsByRole(ALL_TOOLS, role);
+  const catalog = buildCatalogTools(() => Promise.resolve(visible));
+  if (!groupedModeEnabled()) {
+    return [...catalog, ...visible].map(toMcpTool);
+  }
+  return catalog.map(toMcpTool);
 }
 
 function toMcpTool(t: ToolDef) {
@@ -71,13 +95,31 @@ function toMcpTool(t: ToolDef) {
 }
 
 export async function callTool(name: string, args: Record<string, unknown>) {
-  const tool = byName.get(name);
-  if (!tool) {
-    return textResult({ error: "unknown_tool", name });
-  }
   const role = await resolveRole();
   if (role === null) {
     return textResult({ error: "not_authenticated", message: "Run setup with --token or set APPDASHBOARD_TOKEN." });
+  }
+  // Catalog meta-tools (tools_catalog/tools_load/tools_search) are handled directly.
+  const catalog = buildCatalogTools(async () => filterToolsByRole(ALL_TOOLS, role));
+  const catalogTool = catalog.find((t) => t.name === name);
+  if (catalogTool) {
+    try {
+      return await catalogTool.handler(args || {});
+    } catch (err) {
+      return errorResult(err);
+    }
+  }
+  const tool = byName.get(name);
+  if (!tool) {
+    return textResult({ error: "unknown_tool", name, hint: "Use tools_catalog / tools_load / tools_search to discover tools." });
+  }
+  // Optional MCP_GROUPS allow-list (comma-separated group ids, "all" = no restriction).
+  const groupFilter = parseGroupList(process.env.MCP_GROUPS);
+  if (groupFilter.size && !groupFilter.has("all")) {
+    const gid = groupForTool(name);
+    if (!groupFilter.has(gid)) {
+      return textResult({ error: "group_not_allowed", group: gid, hint: `Group '${gid}' is disabled via MCP_GROUPS env.` });
+    }
   }
   const required = TOOL_MIN_ROLE[name] ?? tool.minRole;
   if (required > role) {

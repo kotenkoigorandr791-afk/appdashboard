@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { authStorage, ensureAuth, getHost, getToken } from "./auth.js";
 import { callTool, listToolsForCurrentUser } from "./tools/index.js";
 import { runSetup } from "./setup.js";
+import { startAutoUpdater } from "./updater.js";
 import {
   authorizationServerMetadata,
   handleAuthorize,
@@ -48,7 +49,14 @@ function clientIp(req: express.Request): string {
 function createMcpServer(): Server {
   const server = new Server(
     { name: "appdashboard-mcp", version: "1.0.0" },
-    { capabilities: { tools: {} } },
+    {
+      capabilities: { tools: {} },
+      instructions:
+        "AppDashboard MCP server. Tools are grouped: call tools_catalog first, then tools_load for ONLY the groups your current task needs (e.g. kanboard, gitea, cloud). Use tools_search to find tools by keyword.\n\n" +
+        "IMPORTANT: Use these tools ONLY when the user's task explicitly requires interacting with AppDashboard or its apps " +
+        "(Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Kanboard, News) or the server itself. " +
+        "For regular coding/file/shell tasks on the local machine, do NOT call these MCP tools — work directly with the local environment instead.",
+    },
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -221,10 +229,12 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
     app.listen(port, "0.0.0.0", () => {
       console.error(`[appdashboard-mcp] HTTP transport listening on /mcp port ${port}`);
     });
+    startAutoUpdater();
     return;
   }
 
   const server = createMcpServer();
+  startAutoUpdater();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
