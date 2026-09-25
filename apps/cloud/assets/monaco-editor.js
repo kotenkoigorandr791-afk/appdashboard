@@ -8,8 +8,6 @@ let monacoModelRefs = new Map(); // path -> active editor count
 let monacoTabModelPaths = new Map(); // tabId -> path
 let monacoIsTouchDevice = false;
 let monacoSelectionHandlesCSSInjected = false;
-const _MONACO_HANDLE_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='32' viewBox='0 0 12 32'%3E%3Cpath d='M6 0 C6 0 0 14 0 20 C0 26.627 2.686 32 6 32 C9.314 32 12 26.627 12 20 C12 14 6 0 6 0 Z' fill='%23fff'/%3E%3C/svg%3E";
-const _MONACO_HANDLE_MASK = `-webkit-mask-image:url("${_MONACO_HANDLE_SVG}");mask-image:url("${_MONACO_HANDLE_SVG}");-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;`;
 let monacoAiEditDecorations = new Map(); // tabId -> decoration ids
 let monacoAiEditZones = new Map(); // tabId -> view zone ids
 let monacoRemoteCursorWidgets = new Map(); // tabId -> Map(clientId -> widget)
@@ -178,57 +176,63 @@ function monacoInjectSelectionHandlesCSS() {
     if (monacoSelectionHandlesCSSInjected) return;
 
     const style = document.createElement('style');
+    // Word-style handles: thin vertical line with a dot on top (start) and a
+    // horizontal bar with a dot underneath (end), matching the reference design.
     style.textContent = `
         .monaco-touch-selection-handles {
             pointer-events: none !important;
         }
-        .monaco-selection-handle {
+        .word-handle {
+            position: absolute !important;
             pointer-events: auto !important;
             touch-action: none !important;
             z-index: 10000 !important;
-            width: 12px !important;
-            height: 32px !important;
-            background: linear-gradient(180deg, #63a1e4 0%, #4a90d9 50%, #3478c5 100%) !important;
-            border: 2px solid rgba(255,255,255,0.9) !important;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.4) !important;
-            position: relative !important;
-            -webkit-mask-image: url("${_MONACO_HANDLE_SVG}") !important;
-            mask-image: url("${_MONACO_HANDLE_SVG}") !important;
-            -webkit-mask-size: 100% 100% !important;
-            mask-size: 100% 100% !important;
-            -webkit-mask-repeat: no-repeat !important;
-            mask-repeat: no-repeat !important;
+            opacity: 0;
+            transition: opacity .08s linear;
+            will-change: top, left;
+            cursor: pointer !important;
         }
-        /* Teardrop shape: left handle */
-        .monaco-selection-handle-start {
-            transform: translate(-50%, -30%) !important;
+        .word-handle.top-line {
+            width: 1.5px !important;
+            height: 18px !important;
+            background: #3b82f6 !important;
+            border-radius: 1px !important;
+            box-shadow: 0 0 3px rgba(59,130,246,.6) !important;
         }
-        /* Teardrop shape: right handle */
-        .monaco-selection-handle-end {
-            transform: translate(-50%, -20%) !important;
+        .word-handle.bottom-line {
+            height: 1.5px !important;
+            width: 6px !important;
+            background: #3b82f6 !important;
+            border-radius: 1px !important;
+            box-shadow: 0 0 3px rgba(59,130,246,.6) !important;
         }
-        /* Enlarged click area for both handles */
-        .monaco-selection-handle::before {
+        .word-handle.top-line::before {
             content: '' !important;
             position: absolute !important;
-            top: -15px !important;
-            left: -15px !important;
-            right: -15px !important;
-            bottom: -15px !important;
-            pointer-events: auto !important;
+            top: -3px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 5px !important;
+            height: 5px !important;
+            background: #3b82f6 !important;
+            border-radius: 50% !important;
+            box-shadow: 0 0 4px rgba(59,130,246,.8) !important;
         }
-        .monaco-selection-handle:active {
+        .word-handle.bottom-line::after {
+            content: '' !important;
+            position: absolute !important;
+            bottom: -3px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 5px !important;
+            height: 5px !important;
+            background: #3b82f6 !important;
+            border-radius: 50% !important;
+            box-shadow: 0 0 4px rgba(59,130,246,.8) !important;
+        }
+        /* Enlarged click area for both handles */
+        .word-handle:active {
             filter: brightness(1.2) !important;
-        }
-        .monaco-selection-handle-start:active {
-            transform: scale(1.25) translate(-50%, -30%) !important;
-        }
-        .monaco-selection-handle-end:active {
-            transform: scale(1.25) translate(-50%, -20%) !important;
-        }
-        body[data-theme="dark"] .monaco-selection-handle {
-            background: linear-gradient(180deg, #7aaee9 0%, #5693d8 50%, #3e7cc8 100%) !important;
-            border-color: rgba(224,224,224,0.9) !important;
         }
         .monaco-spellcheck-error {
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='4' viewBox='0 0 12 4'%3E%3Cpath d='M0 3 Q3 0 6 3 T12 3' fill='none' stroke='%23e53935' stroke-width='1.4'/%3E%3C/svg%3E") !important;
@@ -323,11 +327,15 @@ function monacoInjectSelectionHandlesCSS() {
     monacoSelectionHandlesCSSInjected = true;
 }
 
-// Detect touch device
+// Detect touch device. Only coarse pointers count so touch-capable laptops
+// with a mouse do not get mobile-only UI (touch selection handles etc.).
 function monacoDetectTouchDevice() {
-    return ('ontouchstart' in window) ||
-           (navigator.maxTouchPoints > 0) ||
-           (navigator.msMaxTouchPoints > 0);
+    try {
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return true;
+    } catch (_) {}
+    // Fallback for browsers without matchMedia support
+    if (!('ontouchstart' in window) && !(navigator.maxTouchPoints > 0)) return false;
+    return window.innerWidth <= 768;
 }
 
 // Detect if device is in portrait orientation (vertical screen)
@@ -1879,44 +1887,14 @@ function monacoEnableTouchSelection(editor, container) {
         selectionHandles.className = 'monaco-touch-selection-handles';
         selectionHandles.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:hidden;';
 
-        // Left handle (teardrop shape, wider + enlarged click area)
+        // Start handle: thin vertical Word-style line above selection start
         const startHandle = document.createElement('div');
-        startHandle.className = 'monaco-selection-handle monaco-selection-handle-start';
-        startHandle.style.cssText = `
-            position: absolute;
-            width: 12px;
-            height: 32px;
-            background: linear-gradient(180deg,#63a1e4 0%,#4a90d9 50%,#3478c5 100%);
-            border: 2px solid rgba(255,255,255,0.9);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
-            pointer-events: auto;
-            touch-action: none;
-            ${_MONACO_HANDLE_MASK}
-            transform: translate(-50%, -30%);
-            cursor: pointer;
-            display: none;
-            position: relative;
-        `;
+        startHandle.className = 'word-handle top-line';
         startHandle.dataset.handle = 'start';
 
-        // Right handle (teardrop shape, wider + enlarged click area, raised higher)
+        // End handle: horizontal Word-style bar below selection end
         const endHandle = document.createElement('div');
-        endHandle.className = 'monaco-selection-handle monaco-selection-handle-end';
-        endHandle.style.cssText = `
-            position: absolute;
-            width: 12px;
-            height: 32px;
-            background: linear-gradient(180deg,#63a1e4 0%,#4a90d9 50%,#3478c5 100%);
-            border: 2px solid rgba(255,255,255,0.9);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
-            pointer-events: auto;
-            touch-action: none;
-            ${_MONACO_HANDLE_MASK}
-            transform: translate(-50%, -20%);
-            cursor: pointer;
-            display: none;
-            position: relative;
-        `;
+        endHandle.className = 'word-handle bottom-line';
         endHandle.dataset.handle = 'end';
 
         selectionHandles.appendChild(startHandle);
@@ -1969,8 +1947,8 @@ function monacoEnableTouchSelection(editor, container) {
             return;
         }
 
-        const startHandle = selectionHandles.querySelector('.monaco-selection-handle-start');
-        const endHandle = selectionHandles.querySelector('.monaco-selection-handle-end');
+        const startHandle = selectionHandles.querySelector('.word-handle.top-line');
+        const endHandle = selectionHandles.querySelector('.word-handle.bottom-line');
         if (!startHandle || !endHandle) return;
 
         const editorDom = editor.getDomNode();
@@ -1994,28 +1972,32 @@ function monacoEnableTouchSelection(editor, container) {
 
         const lineHeight = editor.getOption(monaco.editor.EditorOption.lineHeight);
 
-        // Left handle position (selection start) - at mid line height
+        // Top line sits above the selection start; bottom bar below the end
         const startX = startCoords.left;
-        const startY = startCoords.top + (lineHeight / 2);
+        const startY = startCoords.top - 2;
+        const endX = endCoords.left;
+        const endY = endCoords.top + lineHeight - 1;
 
-        // Right handle position (selection end) - half a line higher
-        const endLineContent = editor.getModel().getLineContent(selection.endLineNumber);
-        const endColumnX = endCoords.left;
-        const endY = endCoords.top + (lineHeight / 2) - (lineHeight / 2);
-
-        startHandle.style.left = startX + 'px';
+        startHandle.style.left = (startX - 0.75) + 'px';
         startHandle.style.top = startY + 'px';
         startHandle.style.display = 'block';
+        startHandle.style.opacity = '0.95';
 
-        endHandle.style.left = endColumnX + 'px';
+        endHandle.style.left = (endX - 3) + 'px';
         endHandle.style.top = endY + 'px';
         endHandle.style.display = 'block';
+        endHandle.style.opacity = '0.95';
+
+        // Very short single-line selection: spread the markers apart
+        if (selection.startLineNumber === selection.endLineNumber && (endX - startX) < 4) {
+            endHandle.style.left = (endX + 1) + 'px';
+        }
     }
 
     function hideSelectionHandles() {
         if (!selectionHandles) return;
-        const startHandle = selectionHandles.querySelector('.monaco-selection-handle-start');
-        const endHandle = selectionHandles.querySelector('.monaco-selection-handle-end');
+        const startHandle = selectionHandles.querySelector('.word-handle.top-line');
+        const endHandle = selectionHandles.querySelector('.word-handle.bottom-line');
         if (startHandle) startHandle.style.display = 'none';
         if (endHandle) endHandle.style.display = 'none';
     }
@@ -2398,7 +2380,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             automaticLayout: true,
             fontSize: monacoIsTouchDevice ? 18 : 14,
             fontFamily: 'Consolas, "Courier New", monospace',
-            lineNumbers: monacoIsTouchDevice ? 'off' : 'on',
+            lineNumbers: 'on',
             roundedSelection: true,
             scrollBeyondLastLine: true,
             
@@ -2673,16 +2655,15 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
-        // Add a Select All command for touch
-        if (monacoIsTouchDevice) {
-            editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, function() {
-                const model = editor.getModel();
-                if (model) {
-                    const fullRange = model.getFullModelRange();
-                    editor.setSelection(fullRange);
-                }
-            });
-        }
+        // Add a Select All command for all devices so it always wins over app-level handlers
+        editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA, function() {
+            const model = editor.getModel();
+            if (model) {
+                const fullRange = model.getFullModelRange();
+                editor.setSelection(fullRange);
+                editor.revealRange(fullRange);
+            }
+        });
 
         if (!readOnly && language === 'plaintext') {
             let isApplyingAutoCase = false;
@@ -3016,10 +2997,12 @@ function monacoCreateRemoteCursorWidget(editor, clientId, color, name) {
     domNode.appendChild(caret);
     let labelNode = null;
     if (name) {
+        // On the first line place the label below the caret so it is not clipped
+        const initialLabelTop = '0.2em';
         labelNode = document.createElement('div');
         labelNode.className = 'monaco-remote-cursor-widget-label';
         labelNode.textContent = name;
-        labelNode.style.cssText = `color:#fff;background:${color};border-radius:999px;padding:1px 6px;margin-left:4px;font-size:11px;line-height:16px;white-space:nowrap;position:absolute;top:-1.4em;left:0;`;
+        labelNode.style.cssText = `color:#fff;background:${color};border-radius:999px;padding:1px 6px;margin-left:4px;font-size:11px;line-height:16px;white-space:nowrap;position:absolute;top:${initialLabelTop};left:0;`;
         domNode.appendChild(labelNode);
     }
     const widget = {
@@ -3048,15 +3031,19 @@ function monacoCreateRemoteCursorWidget(editor, clientId, color, name) {
             this.color = nextColor;
             this.name = nextName || '';
             this.caretNode.style.background = nextColor;
+            // On the first line the label must go BELOW the caret, otherwise it gets
+            // clipped by the top edge of the editor / viewport.
+            const labelTop = ((position && position.lineNumber) || 1) <= 1 ? '0.2em' : '-1.4em';
             if (this.labelNode) {
                 this.labelNode.textContent = this.name;
                 this.labelNode.style.background = nextColor;
                 this.labelNode.style.display = this.name ? '' : 'none';
+                this.labelNode.style.top = labelTop;
             } else if (this.name) {
                 this.labelNode = document.createElement('div');
                 this.labelNode.className = 'monaco-remote-cursor-widget-label';
                 this.labelNode.textContent = this.name;
-                this.labelNode.style.cssText = `color:#fff;background:${nextColor};border-radius:999px;padding:1px 6px;margin-left:4px;font-size:11px;line-height:16px;white-space:nowrap;position:absolute;top:-1.4em;left:0;`;
+                this.labelNode.style.cssText = `color:#fff;background:${nextColor};border-radius:999px;padding:1px 6px;margin-left:4px;font-size:11px;line-height:16px;white-space:nowrap;position:absolute;top:${labelTop};left:0;`;
                 this.domNode.appendChild(this.labelNode);
             }
             this.editor.layoutContentWidget(this);

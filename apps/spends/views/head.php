@@ -391,7 +391,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             .ocr-shell .ocrw-shell { padding-top:74px!important; }
             .header { justify-content:flex-end; align-content:center; }
             .header h2 { display:none; }
-            .header-buttons { gap:5px; justify-content:flex-end; width:100%; }
+            .header-buttons { gap:4px; justify-content:flex-end; width:100%; flex-shrink:0; flex-wrap:nowrap; overflow-x:auto; white-space:nowrap; padding-bottom:2px; }
             .header-btn { padding:4px; }
             .chart-container { max-width:100%; }
             .modal { padding:0!important; align-items:stretch!important; justify-content:stretch!important; }

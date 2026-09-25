@@ -254,6 +254,26 @@
                     lineNumbers: 'on'
                 });
                 if (window.monacoTouchSelection) window.monacoTouchSelection.enable(editor, document.getElementById('editor-container'));
+                // Realtime collaboration via the shared cloud-collab-ws tunnel
+                if (window.cloudIframeCollab) {
+                    window.cloudIframeCollab.enable({
+                        editor: editor,
+                        container: document.getElementById('editor-container'),
+                        filePath: filePath,
+                        root: root,
+                        user: user,
+                        userName: user,
+                        getLocalContent: () => editor.getValue(),
+                        onRemoteContent: (content) => {
+                            if (typeof content !== 'string' || editor.getValue() === content) return;
+                            const pos = editor.getPosition();
+                            editor.setValue(content);
+                            if (pos) { try { editor.setPosition(pos); } catch (_) {} }
+                            schedulePreviewUpdate();
+                            updateButtonStates();
+                        }
+                    });
+                }
                 editor.onDidChangeModelContent(() => {
                     schedulePreviewUpdate();
                     if (!isInitialLoad) startAutoSaveTimer();

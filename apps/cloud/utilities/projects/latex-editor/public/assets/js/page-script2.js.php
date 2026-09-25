@@ -161,7 +161,7 @@
         // ── Touch-adaptive settings ──────────────────────────────────────────
         // Larger font & hidden line numbers make tap targets comfortable on phones
         fontSize:    isTouchDevice ? 18 : 16,
-        lineNumbers: isTouchDevice ? 'off' : 'on',
+        lineNumbers: 'on',
         // Increase the left margin so fingers don't accidentally hit the gutter
         lineDecorationsWidth: isTouchDevice ? 20 : 10,
         // Extra space between lines so individual lines are easier to tap
@@ -214,6 +214,44 @@
       });
 
       enableTouchSelection(editor, monacoContainer);
+
+      // Realtime collaboration via the shared cloud-collab-ws tunnel
+      const latexFilePath = '<?php echo htmlspecialchars($filePath, ENT_QUOTES); ?>';
+      const latexRoot = '<?php echo htmlspecialchars($root, ENT_QUOTES); ?>';
+      const latexUser = '<?php echo htmlspecialchars($currentUser, ENT_QUOTES); ?>';
+      let suppressCollabContent = false;
+      if (window.cloudIframeCollab) {
+        window.cloudIframeCollab.enable({
+          editor: editor,
+          container: monacoContainer,
+          filePath: latexFilePath,
+          root: latexRoot,
+          user: latexUser,
+          userName: latexUser,
+          getLocalContent: function() { return editor.getValue(); },
+          onRemoteContent: function(content) {
+            if (typeof content !== 'string') return;
+            suppressCollabContent = true;
+            try {
+              var viewState = editor.saveViewState();
+              var pos = editor.getPosition();
+              editor.setValue(content);
+              if (viewState) editor.restoreViewState(viewState);
+              if (pos) { try { editor.setPosition(pos); } catch (e) {} }
+              lastContent = content;
+            } finally {
+              suppressCollabContent = false;
+            }
+          },
+          onCompiling: function(msg) {
+            setStatus((msg && msg.name ? msg.name : 'user') + ': ' + (t['compiling'] || 'compiling...'), 'status-compiling');
+          },
+          onRemoteCompile: function(msg) {
+            // Another user compiled the document - refresh the PDF preview
+            recompilePreviewAfterRemoteCompile();
+          }
+        });
+      }
       if (isTouchDevice) {
         editor.addAction({
           id: 'touch-select-all',
@@ -1152,10 +1190,30 @@
 
 
 
+    // Re-fetch and re-render the compiled PDF (viewer side of a remote compile)
+    function recompilePreviewAfterRemoteCompile() {
+      const formData = new FormData();
+      formData.append('latex', editor ? editor.getValue() : '');
+      setStatus(t['compiling'], 'status-compiling');
+      return fetch('', { method: 'POST', body: formData })
+        .then(async response => {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/pdf')) return { kind: 'pdf', blob: await response.blob() };
+          throw new Error('no pdf');
+        })
+        .then(result => {
+          if (result.kind === 'pdf') {
+            displayPdf(result.blob);
+            setStatus(t['success'], 'status-ok');
+          }
+        })
+        .catch(() => { setStatus(t['error'], 'status-error'); });
+    }
     function compileLatex(savePdf = false) {
         const runCompile = () => {
         const latexContent = editor ? editor.getValue() : '';
         setStatus(t['compiling'], 'status-compiling');
+        if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) window.cloudIframeCollab.notifyLatexCompiling();
         const formData = new FormData();
         formData.append('latex', latexContent);
         if (savePdf) formData.append('save_pdf', 'true');
@@ -1181,6 +1239,7 @@
                 if (data && data.success && data.pdf_path && Number(data.size || 0) > 0) {
                     setStatus(t['success'], 'status-ok');
                     showNotification(t['save_pdf'], t['compilation_success'], 'success');
+                    if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) window.cloudIframeCollab.notifyLatexCompiled({ pdf_path: data.pdf_path });
                     if (window.parent) {
                         window.parent.postMessage({
                             type: 'PDF_SAVED',
@@ -1196,6 +1255,7 @@
             }
             displayPdf(result.blob);
             setStatus(t['success'], 'status-ok');
+            if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) window.cloudIframeCollab.notifyLatexCompiled({});
             return { success: true };
         })
         .catch(error => {

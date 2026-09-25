@@ -42,7 +42,7 @@ try{
     if($mcpUserEmail!==''){
         $tokenDb=getDB();
         ensureClientAuthTokensSchema($tokenDb);
-        $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 AND (device_id = 'mcp_external' OR platform = 'mcp') ORDER BY created_at DESC");
+        $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 AND device_id = 'mcp_external' AND platform = 'mcp' ORDER BY created_at DESC");
         $stmt->bindValue(':email',$mcpUserEmail,PDO::PARAM_STR);
         $result=$stmt->execute();
         while($row=$result->fetch(PDO::FETCH_ASSOC)){
@@ -98,7 +98,8 @@ try{
 .mcp-agent-current{width:100%;height:46px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 12px;border:1px solid var(--border-color);border-radius:12px;background:var(--input-bg,var(--modal-bg));color:var(--text-color);cursor:pointer;font:inherit;}
 .mcp-agent-current-main{display:flex;align-items:center;gap:10px;min-width:0;}
 .mcp-agent-icon{width:22px;height:22px;flex:0 0 auto;color:var(--primary-color,#2563eb);}
-.mcp-agent-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;z-index:999999;padding:6px;border:1px solid var(--border-color);border-radius:12px;background:<?php echo ($config['theme']??'light')==='dark'?'#18202b':'#ffffff'; ?>;box-shadow:0 14px 32px rgba(0,0,0,.22);overflow:hidden;box-sizing:border-box;}
+.mcp-agent-menu{display:none;position:absolute;top:calc(100% + 6px);left:0;width:100%;z-index:999999;padding:6px;border:1px solid var(--border-color);border-radius:12px;background:var(--modal-bg,#ffffff);box-shadow:0 14px 32px rgba(0,0,0,.22);overflow:hidden;box-sizing:border-box;}
+body.dark-theme .mcp-agent-menu{background:#18202b;}
 .mcp-agent-picker.open .mcp-agent-menu{display:block;}
 .mcp-agent-option{width:100%;height:42px;border:0;border-radius:9px;background:transparent;color:var(--text-color);display:flex;align-items:center;gap:10px;padding:0 10px;cursor:pointer;font:inherit;text-align:left;}
 .mcp-agent-option:hover,.mcp-agent-option.active{background:color-mix(in srgb,var(--primary-color,#2563eb) 14%,transparent);}
@@ -167,11 +168,13 @@ try{
                 <div class="mcp-token-output" id="mcp-token-output">
                     <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
                     <code id="mcp-token-value"></code>
+                    <button type="button" class="mcp-setup-copy" id="mcp-copy-token"></button>
                 </div>
                 <?php if($mcpGeneratedToken!==''): ?>
                 <div class="mcp-token-output" style="display:block;">
                     <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
                     <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
+                    <button type="button" class="mcp-setup-copy" id="mcp-copy-generated-token"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button>
                 </div>
                 <?php endif; ?>
                 <table class="mcp-token-table">
@@ -282,6 +285,9 @@ try{
         if(agentPicker)agentPicker.classList.remove('open');
         if(agentCurrent)agentCurrent.setAttribute('aria-expanded','false');
         if(agentMenu)agentMenu.querySelectorAll('.mcp-agent-option').forEach(function(btn){btn.classList.toggle('active',btn.dataset.agent===agent);});
+        showMcpTab('tokens');
+        const tokenPane=modal?modal.querySelector('.mcp-token-panel.mcp-setup-pane'):null;
+        if(tokenPane&&typeof tokenPane.scrollIntoView==='function')tokenPane.scrollIntoView({behavior:'smooth',block:'start'});
     }
     function showMcpTab(name){
         tabs.forEach(function(tab){tab.classList.toggle('active',tab.getAttribute('data-mcp-tab')===name);});
@@ -422,6 +428,24 @@ try{
         }catch(e){setCopied(endpointCopy);}
     });
     if(endpointCopy)endpointCopy.innerHTML=copyButtonContent(copyLabel,false);
+    const copyTokenBtn=document.getElementById('mcp-copy-token');
+    const copyGeneratedTokenBtn=document.getElementById('mcp-copy-generated-token');
+    if(copyTokenBtn){
+        copyTokenBtn.innerHTML=copyButtonContent(copyLabel,false);
+        copyTokenBtn.addEventListener('click',async function(){
+            const text=tokenValue?tokenValue.textContent.trim():'';
+            try{await navigator.clipboard.writeText(text);}catch(e){}
+            setCopied(copyTokenBtn);
+        });
+    }
+    if(copyGeneratedTokenBtn){
+        copyGeneratedTokenBtn.addEventListener('click',async function(){
+            const code=copyGeneratedTokenBtn.parentElement?copyGeneratedTokenBtn.parentElement.querySelector('code'):null;
+            const text=code?code.textContent.trim():'';
+            try{await navigator.clipboard.writeText(text);}catch(e){}
+            setCopied(copyGeneratedTokenBtn);
+        });
+    }
     if(tokenBtn) tokenBtn.addEventListener('click',async function(){
         tokenErr.style.display='none';
         tokenOut.style.display='none';
@@ -432,6 +456,7 @@ try{
             fd.append('generate_mcp_token','1');
             fd.append('ajax','1');
             fd.append('mcp_token_name',(tokenName&&tokenName.value.trim())||tokenDefaultName);
+            fd.append('mcp_token_purpose','mcp_agent');
             const res=await fetch('/main',{method:'POST',body:fd,credentials:'same-origin'});
             const data=await res.json();
             if(!data.success||!data.token) throw new Error(data.error||tokenFailed);

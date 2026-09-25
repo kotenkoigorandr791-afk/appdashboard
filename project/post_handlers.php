@@ -602,7 +602,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $tokenName=trim((string)($_POST['mcp_token_name']??''));
                 if($tokenName==='')$tokenName='MCP';
                 $tokenName=substr($tokenName,0,80);
-                $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$tokenName);
+                // Only tokens requested by the MCP setup modal are marked platform='mcp';
+                // other consumers of this endpoint (e.g. mobile app pairing) keep their own platform so
+                // they never show up in the MCP token list.
+                $mcpPlatform=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':$tokenName;
+                $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$mcpPlatform);
                 $_SESSION['mcp_generated_token']=(string)$tokenData['token'];
                 $profileSuccess=$translations['mcp_setup_token_generated'];
                 if(isset($_POST['ajax'])){

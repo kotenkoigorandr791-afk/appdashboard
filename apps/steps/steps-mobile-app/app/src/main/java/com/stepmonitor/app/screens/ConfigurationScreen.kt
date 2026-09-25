@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Info
@@ -81,7 +83,10 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
             prefs.setEnabledDataTypes(HealthDataType.values().toSet())
         }
     }
-    Column(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.home_title), style = MaterialTheme.typography.titleLarge)
@@ -118,7 +123,66 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
         }
         NextSyncCard(prefs = prefs)
         ManualSyncCard()
+        UpdateNowCard(prefs = prefs)
         BuildInfoCard()
+    }
+}
+
+@Composable
+private fun UpdateNowCard(prefs: PreferencesManager) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val checker = remember { AppUpdateChecker(context) }
+    val connected = prefs.getWebhookConfigs().any { it.isEnabled }
+    var busy by remember { mutableStateOf(false) }
+    var statusText by remember { mutableStateOf<String?>(null) }
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = {
+                    scope.launch {
+                        busy = true
+                        statusText = context.getString(R.string.update_checking)
+                        val check = checker.checkForUpdate()
+                        when (check.outcome) {
+                            CheckOutcome.NOT_CONNECTED -> statusText = context.getString(R.string.update_not_connected)
+                            CheckOutcome.UP_TO_DATE -> statusText = context.getString(R.string.update_up_to_date)
+                            CheckOutcome.ERROR -> statusText = context.getString(R.string.update_check_failed)
+                            CheckOutcome.UPDATE_AVAILABLE -> {
+                                val info = check.info ?: return@launch
+                                statusText = context.getString(R.string.update_downloading)
+                                val file = checker.downloadApk(info)
+                                statusText = if (file != null) {
+                                    checker.install(file)
+                                    context.getString(R.string.update_downloaded_text, info.version_name)
+                                } else {
+                                    context.getString(R.string.update_download_failed)
+                                }
+                            }
+                        }
+                        busy = false
+                    }
+                },
+                enabled = connected && !busy,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (busy) {
+                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.size(8.dp))
+                    Text(stringResource(R.string.update_checking))
+                } else {
+                    Icon(Icons.Filled.Update, contentDescription = null)
+                    Text(stringResource(R.string.update_install_now), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+            if (!connected) {
+                Text(stringResource(R.string.update_not_connected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            statusText?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
     }
 }
 
