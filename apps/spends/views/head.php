@@ -559,7 +559,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         #crop-modal{z-index:30000!important;}
         #crop-modal .modal-content{z-index:30001!important;}
         @media (min-width:769px){.chart-controls-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important;}.chart-controls-row .currency-selector{grid-column:1!important;justify-self:start!important;display:flex!important;flex-wrap:nowrap!important;min-width:0!important;}.chart-controls-row .chart-controls-nav{grid-column:2!important;justify-self:center!important;display:flex!important;gap:8px!important;}.chart-controls-row .chart-controls-actions{grid-column:3!important;justify-self:end!important;display:flex!important;gap:10px!important;align-items:center!important;min-width:0!important;}.chart-controls-row .open-table-desktop,.chart-controls-row .chart-toggle-btn{white-space:nowrap!important;}.chart-controls-row .chart-year{display:none!important;}}
-        @media(max-width:768px){.financial-summary-bar,.analytics-summary-grid{grid-template-columns:1fr;}}
+        @media(max-width:768px){.analytics-summary-grid{grid-template-columns:1fr;}.financial-summary-bar{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.financial-summary-bar>div{padding:8px;}.financial-summary-bar span{font-size:10px;margin-bottom:2px;}.financial-summary-bar strong{font-size:14px;}}
     </style>
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
