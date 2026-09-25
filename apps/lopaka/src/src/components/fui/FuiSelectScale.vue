@@ -34,6 +34,16 @@ function scaleUp() {
     session.scaleUp();
 }
 
+// zoom with mouse wheel while hovering the scale control (no click needed)
+function handleWheel(event: WheelEvent) {
+    event.preventDefault();
+    if (event.deltaY < 0) {
+        scaleUp();
+    } else if (event.deltaY > 0) {
+        scaleDown();
+    }
+}
+
 onMounted(() => {
     window.addEventListener('keydown', handleKeyDown);
 });
@@ -43,7 +53,10 @@ onUnmounted(() => {
 });
 </script>
 <template>
-    <div class="fui-scale flex flex-row items-center">
+    <div
+        class="fui-scale flex flex-row items-center"
+        @wheel.prevent="handleWheel"
+    >
         <label
             for="canvas-scale"
             class="text-sm pr-1 pb-1"
