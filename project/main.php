@@ -4990,9 +4990,10 @@ function detectAndApplySystemTheme(){const themeSelect=document.querySelector('s
 .ap-user-menu-btn:hover { background: var(--group-block-bg); border-color: var(--primary-color); }
 .ap-user-menu-dropdown {
     display: none; position: absolute; right: 0; top: calc(100% + 4px); min-width: 190px;
-    background: var(--modal-bg); border: 1px solid var(--border-color); border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 200; padding: 4px 0;
+    background: #161d27; border: 1px solid var(--border-color); border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35); z-index: 200; padding: 4px 0;
 }
+body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 .ap-user-actions-menu.open .ap-user-menu-dropdown { display: block; }
 .ap-user-menu-item {
     display: block; width: 100%; text-align: left; padding: 8px 14px; border: none; background: none;

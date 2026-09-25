@@ -228,7 +228,7 @@
     "trim_empty_months_hint": "Jeśli miesiąc nie ma wydatków ani przychodów, jest ukryty na wykresie.",
     "receipt_ocr": {
         "title": "OCR paragonów",
-        "subtitle": "Prześlij zrzuty ekranów paragonów, przytnij potrzebne obszary i zaimportuj rozpoznane wydatki.",
+        "subtitle": "Prześlij zrzuty ekranów paragonów i zaimportuj rozpoznane wydatki.",
         "hero_idle": "Gotowe do importu",
         "hero_crop": "Przycinanie paragonów",
         "hero_scan": "Rozpoznawanie paragonów",
@@ -297,7 +297,13 @@
         "currency": "Waluta",
         "store_name": "Nazwa sklepu",
         "cancel": "Anuluj",
-        "delete": "Usuń"
+        "delete": "Usuń",
+        "date_unresolved_title": "Nierozpoznane daty",
+        "date_unresolved_hint": "Nie udało się odczytać daty z obrazu dla tych wierszy. Wybierz poprawną datę dla każdej.",
+        "date_unresolved_badge": "Data?",
+        "choose_date": "Wybierz datę",
+        "save_dates": "Zapisz daty",
+        "dates_saved": "Zapisano daty: {count}"
     },
     "store_category_build": "Budowa"
 }

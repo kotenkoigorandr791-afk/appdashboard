@@ -257,7 +257,7 @@
     "msg_invalid_request": "Invalid request",
     "receipt_ocr": {
         "title": "Receipt OCR",
-        "subtitle": "Upload receipt screenshots, crop useful areas, and import recognized expenses.",
+        "subtitle": "Upload receipt screenshots and import recognized expenses.",
         "hero_idle": "Ready to import",
         "hero_crop": "Crop receipt areas",
         "hero_scan": "Recognizing receipts",
@@ -329,7 +329,13 @@
         "currency": "Currency",
         "store_name": "Store Name",
         "cancel": "Cancel",
-        "delete": "Delete"
+        "delete": "Delete",
+        "date_unresolved_title": "Unrecognized dates",
+        "date_unresolved_hint": "The date could not be read from the image for these rows. Pick the correct date for each of them.",
+        "date_unresolved_badge": "Date?",
+        "choose_date": "Choose date",
+        "save_dates": "Save dates",
+        "dates_saved": "Dates saved: {count}"
     },
     "store_category_build": "Construction"
 }

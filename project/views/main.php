@@ -1039,8 +1039,10 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
 
 
         /* Delete User Modal */
-        #delete-user-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.12);justify-content:center;align-items:center;z-index:95000;}
-        #delete-user-content{background:var(--modal-bg);padding:40px 24px 24px 24px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:92%;max-width:700px;max-height:90vh;overflow-y:auto;z-index:95001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
+        #delete-user-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:95000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
+        #delete-user-content{background:var(--modal-bg);padding:0;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;max-width:700px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;z-index:95001;border:1px solid var(--border-color);box-shadow:var(--glass-shadow);box-sizing:border-box;}
+        #delete-user-content .std-topbar{background:transparent;border-bottom:1px solid var(--border-color);flex-shrink:0;}
+        #delete-user-content .modal-scroll-body{overflow-y:auto;flex:1;min-height:0;}
         #close-delete-user{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:12002;}
         .delete-user-files-list{max-height:280px;overflow-y:auto;border:1px solid var(--border-color);border-radius:6px;margin:12px 0;padding:4px 0;}
         .delete-user-file-row{padding:6px 12px;border-bottom:1px solid var(--border-color);font-size:12px;display:flex;justify-content:space-between;align-items:center;}
@@ -1061,8 +1063,10 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .do-delete-btn{width:100%;padding:12px;background:#cc0000;color:#fff;border:none;border-radius:24px;cursor:pointer;font-size:15px;font-weight:bold;margin-top:8px;transition:all 0.2s;}
         .do-delete-btn:disabled{opacity:0.4;cursor:not-allowed;}
         .do-delete-btn:not(:disabled):hover{background:#aa0000;}
-        #reset-user-password-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.12);justify-content:center;align-items:center;z-index:95000;}
-        #reset-user-password-content{background:var(--modal-bg);padding:40px 24px 24px 24px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:92%;max-width:520px;max-height:90vh;overflow-y:auto;z-index:95001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
+        #reset-user-password-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:95000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
+        #reset-user-password-content{background:var(--modal-bg);padding:0;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;max-width:520px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;z-index:95001;border:1px solid var(--border-color);box-shadow:var(--glass-shadow);box-sizing:border-box;}
+        #reset-user-password-content .std-topbar{background:transparent;border-bottom:1px solid var(--border-color);flex-shrink:0;}
+        #reset-user-password-content .modal-scroll-body{overflow-y:auto;flex:1;min-height:0;}
         #close-reset-user-password{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:12002;}
         .reset-password-field-row{display:flex;gap:8px;align-items:stretch;margin:12px 0;}
         .reset-password-field-row input{flex:1;padding:12px;border:1px solid var(--border-color);border-radius:6px;background:var(--modal-bg);color:var(--text-color);font-family:monospace;font-size:14px;}
@@ -1180,7 +1184,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .app-desc-text{display:block;overflow:visible;word-break:break-word;text-align:center;}
         .tooltip{backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border:1px solid var(--border-color);border-radius:10px;box-shadow:var(--glass-shadow);}
         .modal-scroll-body{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;}
-        #shared-files-content,#sessions-content,#profile-content,#qr-content,#email-form,#users-content,#stats-content,#tg-bot-content,#delete-user-content,#reset-user-password-content,#edit-stats-content,#shortcuts-content{overflow:hidden;}
+        #shared-files-content,#sessions-content,#profile-content,#qr-content,#email-form,#users-content,#stats-content,#tg-bot-content,#edit-stats-content,#shortcuts-content{overflow:hidden;}
         #shared-files-content{border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #sessions-content{border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);padding:0;display:flex;flex-direction:column;}
         #sessions-content .modal-scroll-body{padding:20px;}
@@ -1193,6 +1197,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #email-form .modal-scroll-body{padding:40px 20px 20px;}
         #users-content .modal-scroll-body{padding:40px 20px 20px;}
         #tg-bot-modal,#delete-user-modal,#reset-user-password-modal,#edit-stats-modal,#profile-modal{backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);background:rgba(6,10,16,0.28);}
+        #delete-user-modal .std-topbar{flex-shrink:0;}
         #shortcuts-content{background:var(--modal-bg);border-radius:var(--casa-radius);border:1px solid var(--border-color);box-shadow:var(--glass-shadow);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));overflow:auto;max-height:90vh;}
         .settings-table{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:max-content;align-items:start;align-content:start;gap:1px;width:100%;height:auto;margin-bottom:15px;border:1px solid var(--border-color);border-radius:14px;background:var(--border-color);position:relative;overflow:visible;}
         .settings-table-cell{display:flex;align-self:start;box-sizing:border-box;flex-direction:column;gap:4px;height:auto;min-height:0;padding:6px 8px;background:color-mix(in srgb,var(--modal-bg) 55%,transparent);overflow:visible;}
@@ -3505,11 +3510,12 @@ endif; // showOtpPage
 
     <!-- Delete User Modal (admin only) -->
     <div id="delete-user-modal">
-        <div class="std-topbar">
-            <h3 class="std-topbar-title" id="delete-user-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h3>
-            <button id="close-delete-user" type="button" class="std-topbar-close">&times;</button>
-        </div>
         <div id="delete-user-content">
+            <div class="std-topbar">
+                <h3 class="std-topbar-title" id="delete-user-title"><?php echo my_htmlspecialchars($translations['delete_user'] ?? 'Delete User'); ?></h3>
+                <button id="close-delete-user" type="button" class="std-topbar-close">&times;</button>
+            </div>
+            <div class="modal-scroll-body" style="padding:24px;">
             <p id="delete-user-email-display" style="color:#888;font-size:13px;margin-bottom:12px;"></p>
 
             <div id="delete-user-files-section">
@@ -3561,15 +3567,17 @@ endif; // showOtpPage
                 </div>
             </div>
             <input type="hidden" id="delete-user-target-email" value="">
+            </div>
         </div>
     </div>
 
     <div id="reset-user-password-modal">
-        <div class="std-topbar">
-            <h3 class="std-topbar-title" id="reset-user-password-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h3>
-            <button id="close-reset-user-password" type="button" class="std-topbar-close">&times;</button>
-        </div>
         <div id="reset-user-password-content">
+            <div class="std-topbar">
+                <h3 class="std-topbar-title" id="reset-user-password-title"><?php echo my_htmlspecialchars($translations['reset_user_password'] ?? 'Reset password'); ?></h3>
+                <button id="close-reset-user-password" type="button" class="std-topbar-close">&times;</button>
+            </div>
+            <div class="modal-scroll-body" style="padding:24px;">
             <p id="reset-user-password-email-display" style="color:#888;font-size:13px;margin-bottom:12px;"></p>
             <p style="font-size:13px;opacity:.8;margin:0 0 8px 0;"><?php echo my_htmlspecialchars($translations['reset_user_password_hint'] ?? 'A strong password will be set for this user. Share it securely after reset.'); ?></p>
             <div id="reset-password-form-section">
@@ -3598,6 +3606,7 @@ endif; // showOtpPage
                 </div>
             </div>
             <input type="hidden" id="reset-user-password-target-email" value="">
+            </div>
         </div>
     </div>
 <?php endif;?>

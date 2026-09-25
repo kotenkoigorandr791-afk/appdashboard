@@ -1014,6 +1014,11 @@ function bindAuthLink(el) {
   }
 
   function showEngagementPromo() {
+    // Показывать промо только незарегистрированным: если пользователь уже
+    // имеет аккаунт (cookie ставится при логине) — не показываем вовсе.
+    try {
+      if (('; ' + document.cookie + ';').indexOf('; sk_user_has_account=1;') !== -1) return;
+    } catch (e) {}
     if ($('engagementToast')) return;
     const t = I18N[lang] || I18N.en;
     const toast = document.createElement('div');
@@ -1041,7 +1046,8 @@ function bindAuthLink(el) {
   function scheduleEngagement() {
     if (engagementScheduled) return;
     engagementScheduled = true;
-    setTimeout(showEngagementPromo, 2500);
+    // Показываем только тем, кто долго находится на странице и не имеет аккаунта
+    setTimeout(showEngagementPromo, 30000);
   }
 
   const EXPLORE_KEY = 'sk_explore_dismissed';
