@@ -563,6 +563,22 @@ if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path
         header('Location: /login' . ($loginParams ? '?' . http_build_query($loginParams) : ''));
         exit;
     }
+}elseif($path==='/apps/lopaka/'||$path==='/apps/lopaka'){
+    if(isset($_SESSION['user'])&&!$needsAuth){
+        $showLogin=false;
+    }else{
+        $loginParams=[];if($themeFromUrl)$loginParams['theme']=$themeFromUrl;if($langFromUrl)$loginParams['lang']=$langFromUrl;if($colorFromUrl)$loginParams['color']=$colorFromUrl;
+        header('Location: /login' . ($loginParams ? '?' . http_build_query($loginParams) : ''));
+        exit;
+    }
+}elseif(str_starts_with($path, '/apps/') && str_ends_with($path, '.php') && !str_contains($path, 'webdav.php')){
+    if(isset($_SESSION['user'])&&!$needsAuth){
+        $showLogin=false;
+    }else{
+        $loginParams=[];if($themeFromUrl)$loginParams['theme']=$themeFromUrl;if($langFromUrl)$loginParams['lang']=$langFromUrl;if($colorFromUrl)$loginParams['color']=$colorFromUrl;
+        header('Location: /login' . ($loginParams ? '?' . http_build_query($loginParams) : ''));
+        exit;
+    }
 }elseif($path==='/'||$path===''){
     include __DIR__ . '/views/home.html';
     exit;

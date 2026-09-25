@@ -190,6 +190,36 @@ body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
 .ap-gate-oauth .oauth-provider-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.18)}
 .ap-gate-oauth .oauth-provider-btn svg{width:24px;height:24px;display:block}
 
+/* Light theme overrides for the admin gate modal */
+body.light-theme #ap-gate-login{
+    border-color:rgba(17,150,0,0.30);
+    background:
+        radial-gradient(120% 90% at 0% 0%, rgba(34,197,94,0.08) 0%, transparent 55%),
+        radial-gradient(90% 70% at 100% 100%, rgba(59,130,246,0.08) 0%, transparent 50%),
+        linear-gradient(165deg, rgba(255,255,255,0.94) 0%, rgba(241,245,250,0.97) 100%);
+    box-shadow:0 24px 64px rgba(15,23,42,0.16),0 0 0 1px rgba(17,150,0,0.05) inset,0 0 60px -24px rgba(17,150,0,0.25),0 0 80px -40px rgba(59,130,246,0.30);
+    backdrop-filter:blur(20px) saturate(160%);
+    -webkit-backdrop-filter:blur(20px) saturate(160%);
+}
+body.light-theme #ap-gate-login::before{
+    background:linear-gradient(135deg,transparent 0%,rgba(22,163,74,0.65) 20%,rgba(14,165,233,0.40) 40%,transparent 55%,rgba(59,130,246,0.45) 75%,transparent 100%);
+    background-size:300% 300%;
+    opacity:.7;
+}
+body.light-theme #ap-gate-login::after{
+    background:radial-gradient(circle at 30% 20%,rgba(255,255,255,0.65),transparent 55%);
+}
+body.light-theme #ap-loading-skeleton::before{
+    background-image:
+        linear-gradient(rgba(37,99,235,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37,99,235,0.07) 1px, transparent 1px);
+}
+body.light-theme #ap-gate-password{background:rgba(255,255,255,0.85)}
+body.light-theme #ap-gate-password-toggle{color:rgba(15,23,42,0.65)!important}
+body.light-theme #ap-gate-password-toggle.active{color:#0f172a!important}
+body.light-theme .ap-gate-oauth .oauth-provider-btn{box-shadow:0 4px 14px rgba(15,23,42,0.08)}
+body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px rgba(15,23,42,0.16)}
+
 /* Top Bar */
 #ap-topbar {
     display: flex;
