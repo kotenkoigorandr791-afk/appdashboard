@@ -225,10 +225,10 @@ function oauth_embed_app_path(string $app): string {
 
 function oauth_iframe_app_url(string $app): string {
     $embedPath = oauth_embed_app_path($app);
-    if ($embedPath === '') {
-        return oauth_external_app_url($app);
-    }
     $external = oauth_external_app_url($app);
+    if ($embedPath === '') {
+        return $external;
+    }
     $origin = oauth_public_origin();
     $ext = parse_url($external) ?: [];
     $pub = parse_url($origin) ?: [];
@@ -236,10 +236,10 @@ function oauth_iframe_app_url(string $app): string {
     $pubPort = (int)($pub['port'] ?? ((($pub['scheme'] ?? '') === 'https') ? 443 : 80));
     $extHost = strtolower((string)($ext['host'] ?? ''));
     $pubHost = strtolower((string)($pub['host'] ?? ''));
-    if ($extHost === $pubHost && $extPort === $pubPort) {
-        return $external;
+    if ($extHost === $pubHost && $extPort !== $pubPort) {
+        return rtrim($origin, '/') . $embedPath;
     }
-    return rtrim($origin, '/') . $embedPath;
+    return $external;
 }
 
 function oauth_redirect_iframe(string $url): void {
