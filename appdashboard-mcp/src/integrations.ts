@@ -287,7 +287,7 @@ export async function giteaFetch(
 
 export async function kanboardRpc(
   method: string,
-  params: unknown[] = [],
+  params: unknown[] | Record<string, unknown> = [],
   retried = false,
 ): Promise<any> {
   const creds = await getKanboardCredentials();

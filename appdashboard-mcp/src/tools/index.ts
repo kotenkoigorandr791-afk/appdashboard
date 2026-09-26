@@ -100,7 +100,7 @@ export async function callTool(name: string, args: Record<string, unknown>) {
     return textResult({ error: "not_authenticated", message: "Run setup with --token or set APPDASHBOARD_TOKEN." });
   }
   // Catalog meta-tools (tools_catalog/tools_load/tools_search) are handled directly.
-  const catalog = buildCatalogTools(async () => filterToolsByRole(ALL_TOOLS, role));
+  const catalog = buildCatalogTools(async () => filterToolsByRole(ALL_TOOLS, role), callTool);
   const catalogTool = catalog.find((t) => t.name === name);
   if (catalogTool) {
     try {

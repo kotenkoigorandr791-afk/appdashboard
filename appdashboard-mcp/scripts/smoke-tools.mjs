@@ -609,10 +609,12 @@ async function main() {
     for (const n of [
       "kanboard_list_projects",
       "kanboard_create_project",
-      "kanboard_get_project",
+      "kanboard_get_board",
       "kanboard_list_tasks",
+      "kanboard_get_task",
       "kanboard_create_task",
-      "kanboard_move_task",
+      "kanboard_update_task",
+      "kanboard_add_comment",
     ]) {
       record(n, true, "env_skip_kanboard");
     }
@@ -628,16 +630,15 @@ async function main() {
         : [];
     const project = projectList[0];
     if (project?.id) {
-      await run("kanboard_get_project", { project_id: project.id });
+      await run("kanboard_get_board", { project_id: project.id });
       await run("kanboard_list_tasks", { project_id: project.id });
     } else {
-      for (const n of ["kanboard_get_project", "kanboard_list_tasks"]) {
+      for (const n of ["kanboard_get_board", "kanboard_list_tasks"]) {
         record(n, true, "skipped_no_project");
       }
     }
-    // create/move task round-trip on a scratch project, then clean up via API is not exposed
-    // (no delete tools); create a uniquely-named scratch project only if none exist.
-    for (const n of ["kanboard_create_project", "kanboard_create_task", "kanboard_move_task"]) {
+    await run("kanboard_list_tasks", {});
+    for (const n of ["kanboard_create_project", "kanboard_get_task", "kanboard_create_task", "kanboard_update_task", "kanboard_add_comment"]) {
       if (!results.some((r) => r.name === n)) record(n, true, "skipped_mutating");
     }
   }
