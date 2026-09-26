@@ -257,6 +257,7 @@ server {
         proxy_set_header Connection $connection_upgrade;
         proxy_read_timeout 86400;
         proxy_redirect ~^https?://[^/]+(/.*)$ /embed/git$1;
+        proxy_redirect / /embed/git/;
         proxy_cookie_path / /embed/git/;
         proxy_hide_header X-Frame-Options;
         proxy_hide_header Content-Security-Policy;
