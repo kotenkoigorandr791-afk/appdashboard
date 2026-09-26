@@ -3084,7 +3084,7 @@ endif; // showOtpPage
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">
                     <input type="hidden" name="reg_method" value="<?php echo my_htmlspecialchars($pendingGoogleData['reg_method'] ?? (($pendingGoogleData['provider'] ?? '') === 'github' ? 'GitHub' : 'Google')); ?>">
                     <div class="password-input-container">
-                        <input type="password" name="password" id="register-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['set_password']); ?>" required>
+                        <input type="password" name="password" id="register-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['set_password']); ?>"<?php echo passwordPolicyInputAttrs(adminIsAdminUser(getUserByEmail((string)($pendingGoogleData['email'] ?? '')) ?: [])); ?> required>
                         <button type="button" class="password-toggle" data-target="register-password">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
@@ -3333,7 +3333,7 @@ endif; // showOtpPage
                         <div id="password-new-step" class="password-new-fields" style="display:none">
                             <div class="password-input-row">
                                 <div class="password-input-container">
-                                    <input type="password" name="new_password" id="change-new-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['new_password']); ?>" autocomplete="new-password" disabled>
+                                    <input type="password" name="new_password" id="change-new-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['new_password']); ?>" autocomplete="new-password"<?php echo passwordPolicyInputAttrs(adminIsAdminUser()); ?> disabled>
                                     <button type="button" class="password-toggle" data-target="change-new-password">
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                                             <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
@@ -5931,15 +5931,23 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         // Password validation (global policy: min 6 chars, letter + digit)
         (function(){
             const PASSWORD_MIN_LENGTH = <?php echo PASSWORD_MIN_LENGTH; ?>;
-            function isPasswordValid(p){
-                return p.length >= PASSWORD_MIN_LENGTH && /\p{L}/u.test(p) && /\d/.test(p);
-            }
-            function passwordStrengthMessage(p){
+            function passwordStrengthMessage(p, policy){
+                const min = (policy && policy.min) || PASSWORD_MIN_LENGTH;
+                const weak = (policy && policy.weak) || [];
                 if(!p.length) return '';
-                if(p.length < PASSWORD_MIN_LENGTH) return '<?php echo my_htmlspecialchars($translations['password_too_short'] ?? 'Password must be at least 6 characters'); ?>';
+                if(p.length < min) return min > PASSWORD_MIN_LENGTH ? '<?php echo my_htmlspecialchars($translations['password_too_short_admin'] ?? 'Administrator password must be at least 10 characters'); ?>' : '<?php echo my_htmlspecialchars($translations['password_too_short'] ?? 'Password must be at least 8 characters'); ?>';
                 if(!/\p{L}/u.test(p)) return '<?php echo my_htmlspecialchars($translations['password_needs_letter'] ?? 'Password must contain at least one letter'); ?>';
                 if(!/\d/.test(p)) return '<?php echo my_htmlspecialchars($translations['password_needs_digit'] ?? 'Password must contain at least one digit'); ?>';
+                if(weak.includes(p.toLowerCase())) return '<?php echo my_htmlspecialchars($translations['password_too_common'] ?? 'Password is too common or weak'); ?>';
                 return '';
+            }
+            function isPasswordValid(p, policy){
+                return p.length > 0 && passwordStrengthMessage(p, policy) === '';
+            }
+            function passwordPolicyOf(input){
+                let weak = [];
+                try { weak = JSON.parse(input.dataset.weak || '[]'); } catch(e) {}
+                return { min: parseInt(input.dataset.minLength || '', 10) || PASSWORD_MIN_LENGTH, weak };
             }
             window.isPasswordValid = isPasswordValid;
             window.passwordStrengthMessage = passwordStrengthMessage;
@@ -5951,8 +5959,9 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 function validate(){
                     const p = pwd.value;
                     const c = confirm.value;
-                    const strong = isPasswordValid(p);
-                    const strengthMsg = passwordStrengthMessage(p);
+                    const policy = passwordPolicyOf(pwd);
+                    const strong = isPasswordValid(p, policy);
+                    const strengthMsg = passwordStrengthMessage(p, policy);
                     if(matchEl){
                         if(c.length === 0){
                             matchEl.textContent = strengthMsg;

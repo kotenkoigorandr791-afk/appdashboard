@@ -114,6 +114,7 @@ if [ -f "$APPDATA_DATA_DIR/db.env" ]; then
   grep -q '^REDIS_PORT=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-6379}" >> "$APPDATA_DATA_DIR/db.env"
   grep -q '^REDIS_DATABASE=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> "$APPDATA_DATA_DIR/db.env"
   grep -q '^REDIS_PREFIX=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}" >> "$APPDATA_DATA_DIR/db.env"
+  chown www-data:www-data "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   chmod 0600 "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
 fi
 for docker_sock in /var/run/docker.sock /run/docker-desktop.sock; do
