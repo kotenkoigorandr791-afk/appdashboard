@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cookie_consent.php';
 function app_sentry_bootstrap(string $appId): void
 {
     static $booted = false;
@@ -52,7 +53,7 @@ function app_sentry_capture_exception(Throwable $exception): void
 function app_sentry_browser_script(string $appId): void
 {
     $dsn = (string)(getenv('SENTRY_BROWSER_DSN') ?: (getenv('SENTRY_DSN') ?: 'https://d1dce542fdd62eb4e5cc6dae1a4cc7ac@o4512096935280640.ingest.de.sentry.io/4512096937902160'));
-    if ($dsn === '') {
+    if ($dsn === '' || !app_cookie_consent_allows('analytics')) {
         return;
     }
     $environment = (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production'));

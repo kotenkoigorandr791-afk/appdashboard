@@ -13,6 +13,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
     <link rel="icon" href="/project/views/icon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES); ?>;(function(){function tok(){var m=document.querySelector('meta[name="csrf-token"]');var v=(m&&m.getAttribute('content'))||window.__AP_CSRF__||'';return String(v||'');}function remember(t){if(!t)return;window.__AP_CSRF__=String(t);var m=document.querySelector('meta[name="csrf-token"]');if(m)m.setAttribute('content',String(t));}window.__AP_REMEMBER_CSRF__=remember;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){var t=tok();if(t){n.headers=new Headers(n.headers||{});n.headers.set('X-CSRF-TOKEN',t);if(typeof FormData!=='undefined'&&n.body instanceof FormData){if(n.body.has('_csrf'))n.body.set('_csrf',t);else n.body.append('_csrf',t);}}}return f.call(this,i,n).then(function(r){try{var ct=r.headers.get('content-type')||'';if(ct.indexOf('application/json')!==-1){r.clone().json().then(function(d){if(d&&d.csrf)remember(d.csrf);}).catch(function(){});}}catch(e){}return r;});};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;var t=tok();if(!t)return;var existing=form.querySelector('input[name="_csrf"]');if(existing){existing.value=t;return;}var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
+    <?php app_cookie_consent_browser_script(); ?>
     <?php require_once APP_ROOT . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('dashboard'); ?>
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
@@ -2727,8 +2728,8 @@ $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
             btn.addEventListener('click',function(){
                 var theme=this.dataset.theme;
                 window.applyAuthTheme(theme);
-                document.cookie=TOPBAR_THEME_COOKIE+'='+theme+'; path=/; max-age=31536000; samesite=Lax';
-                document.cookie=BROWSER_THEME_COOKIE+'='+theme+'; path=/; max-age=86400; samesite=Lax';
+                window.apSetPreferenceCookie(TOPBAR_THEME_COOKIE,theme,31536000);
+                window.apSetPreferenceCookie(BROWSER_THEME_COOKIE,theme,86400);
                 var url=new URL(window.location.href);
                 url.searchParams.set('theme',theme);
                 window.history.replaceState({},'',url);
@@ -2759,7 +2760,7 @@ $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
         });
     }
     window.setLanguage=function(lang){
-        document.cookie='sk_language='+lang+'; path=/; max-age=31536000; samesite=Lax';
+        window.apSetPreferenceCookie('sk_language',lang,31536000);
         var url=new URL(window.location.href);
         url.searchParams.set('lang',lang);
         window.history.replaceState({},'',url);
@@ -4381,11 +4382,20 @@ var T=<?php echo json_encode([
     'device_removed_trusted'=>$translations['device_removed_trusted']??'Device removed from trusted list',
     'trusted_device_restore_failed'=>$translations['trusted_device_restore_failed']??'Saved session on this device could not be restored. Sign in again to renew it.',
     'trusted_device_storage_failed'=>$translations['trusted_device_storage_failed']??'The browser did not fully save the remembered-device state. Automatic restore on this PC may not work until storage/cookies are allowed.',
-    'cookie_consent_title'=>$translations['cookie_consent_title']??'Cookie preferences',
-    'cookie_consent_message'=>$translations['cookie_consent_message']??'We use cookies to keep your session active, remember this device, save settings, and improve security. Please choose whether to allow these cookies on this site.',
-    'cookie_consent_accept'=>$translations['cookie_consent_accept']??'Accept',
-    'cookie_consent_decline'=>$translations['cookie_consent_decline']??'Decline',
+    'cookie_consent_title'=>$translations['cookie_consent_title']??'We care about your privacy',
+    'cookie_consent_message'=>$translations['cookie_consent_message']??'We use cookies to make the app work correctly and more conveniently. Choose the mode that suits you.',
+    'cookie_consent_accept_all'=>$translations['cookie_consent_accept_all']??'Accept all',
+    'cookie_consent_necessary_only'=>$translations['cookie_consent_necessary_only']??'Necessary only',
+    'cookie_consent_customize'=>$translations['cookie_consent_customize']??'Customize',
+    'cookie_consent_save'=>$translations['cookie_consent_save']??'Save selection',
+    'cookie_consent_necessary'=>$translations['cookie_consent_necessary']??'Necessary',
+    'cookie_consent_necessary_desc'=>$translations['cookie_consent_necessary_desc']??'Session, sign-in, security and your cookie choice. Always on.',
+    'cookie_consent_preferences'=>$translations['cookie_consent_preferences']??'Preferences',
+    'cookie_consent_preferences_desc'=>$translations['cookie_consent_preferences_desc']??'Remember language, theme and interface settings on this device.',
+    'cookie_consent_analytics'=>$translations['cookie_consent_analytics']??'Error monitoring',
+    'cookie_consent_analytics_desc'=>$translations['cookie_consent_analytics_desc']??'Send error reports to Sentry so we can find and fix problems.',
     'cookie_consent_saved'=>$translations['cookie_consent_saved']??'Cookie preference saved',
+    'privacy_policy'=>$translations['privacy_policy']??'Privacy Policy',
     'remove_trusted_device'=>$translations['remove_trusted_device']??'Remove from Trusted',
     'no_trusted_devices'=>$translations['no_trusted_devices']??'No trusted devices',
     'trusted_ip'=>$translations['trusted_ip']??'Trusted IP',
@@ -4510,7 +4520,7 @@ var T=<?php echo json_encode([
     document.addEventListener('DOMContentLoaded',function(){
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const browserTheme = prefersDark ? 'dark' : 'light';
-    document.cookie = "browser_theme=" + browserTheme + "; path=/; max-age=86400";
+    window.apSetPreferenceCookie('browser_theme', browserTheme, 86400);
         applyThemeRuntime(<?php echo $showLogin ? ($themeFromUrl ? json_encode($config['theme']) : 'browserTheme') : 'getSelectedThemeValue()'; ?>);
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyAutoTheme);
@@ -5068,12 +5078,49 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
             const existing = document.getElementById('cookie-consent-overlay');
             if (existing) existing.remove();
         }
-        function saveCookieConsent(status) {
+        function saveCookieConsent(choice) {
             return fetch('/main?api=privacy&action=save_cookie_consent', {
                 method: 'POST',
                 headers: privacyRequestHeaders(),
-                body: JSON.stringify({status: status})
+                body: JSON.stringify(choice)
             }).then(r => r.json());
+        }
+        const COOKIE_CONSENT_CSS = '#cookie-consent-overlay{position:fixed;right:20px;bottom:20px;width:min(400px,calc(100% - 40px));box-sizing:border-box;background:#fff;border-radius:20px;padding:24px;box-shadow:0 -5px 25px rgba(74,93,35,.15);z-index:100002;border:1px solid #e0e6d5;color:#4a5d23;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;animation:ccSlideUp .4s ease-out;max-height:calc(100vh - 40px);overflow-y:auto}'
+            + '#cookie-consent-overlay [hidden]{display:none!important}'
+            + '#cookie-consent-overlay .cc-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}'
+            + '#cookie-consent-overlay .cc-header svg{color:#7a9c3e;width:24px;height:24px;flex-shrink:0}'
+            + '#cookie-consent-overlay .cc-header h3{margin:0;font-size:1.1rem;color:#3b4a1a}'
+            + '#cookie-consent-overlay p{font-size:.85rem;color:#6b7c4e;line-height:1.5;margin:0 0 20px}'
+            + '#cookie-consent-overlay a{color:#7a9c3e!important;text-decoration:underline;font-size:.8rem}'
+            + '#cookie-consent-overlay .cc-options{display:flex;flex-direction:column;gap:10px;margin:0 0 20px}'
+            + '#cookie-consent-overlay .cc-option{position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #e0e6d5;border-radius:12px;background:#f8faf4;cursor:pointer}'
+            + '#cookie-consent-overlay .cc-option-text{flex:1;display:flex;flex-direction:column;gap:2px}'
+            + '#cookie-consent-overlay .cc-option-text strong{font-size:.9rem;color:#3b4a1a}'
+            + '#cookie-consent-overlay .cc-option-text small{font-size:.78rem;color:#6b7c4e;line-height:1.4}'
+            + '#cookie-consent-overlay .cc-option input{position:absolute;opacity:0;width:0;height:0}'
+            + '#cookie-consent-overlay .cc-switch{position:relative;width:40px;height:22px;border-radius:11px;background:#cbd6b3;flex-shrink:0;transition:background .2s}'
+            + '#cookie-consent-overlay .cc-switch::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}'
+            + '#cookie-consent-overlay .cc-option input:checked+.cc-switch{background:#7a9c3e}'
+            + '#cookie-consent-overlay .cc-option input:checked+.cc-switch::after{transform:translateX(18px)}'
+            + '#cookie-consent-overlay .cc-option input:disabled+.cc-switch{opacity:.6}'
+            + '#cookie-consent-overlay .cc-option input:focus-visible+.cc-switch{outline:2px solid #7a9c3e;outline-offset:2px}'
+            + '#cookie-consent-overlay .cc-buttons{display:flex;flex-direction:column;gap:10px}'
+            + '#cookie-consent-overlay .cc-btn-primary{background:#7a9c3e;color:#fff!important;border:none;padding:14px;border-radius:12px;font-size:.95rem;font-weight:600;cursor:pointer;transition:background .2s}'
+            + '#cookie-consent-overlay .cc-btn-primary:hover{background:#6b8a32}'
+            + '#cookie-consent-overlay .cc-btn-secondary{background:transparent;color:#5c6e3a!important;border:2px solid #cbd6b3;padding:12px;border-radius:12px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s}'
+            + '#cookie-consent-overlay .cc-btn-secondary:hover{border-color:#7a9c3e;background:#f4f7ef}'
+            + '#cookie-consent-overlay .cc-btn-text{background:none;border:none;color:#8fa36b!important;font-size:.85rem;text-decoration:underline;cursor:pointer;padding:5px;margin-top:5px}'
+            + '@keyframes ccSlideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}';
+        function ensureCookieConsentStyle() {
+            if (document.getElementById('cookie-consent-style')) return;
+            const style = document.createElement('style');
+            style.id = 'cookie-consent-style';
+            style.textContent = COOKIE_CONSENT_CSS;
+            document.head.appendChild(style);
+        }
+        function cookieConsentOption(key, checked, disabled) {
+            return '<label class="cc-option"><span class="cc-option-text"><strong>' + escHtml(T['cookie_consent_' + key]) + '</strong><small>' + escHtml(T['cookie_consent_' + key + '_desc']) + '</small></span>'
+                + '<input type="checkbox" data-consent="' + key + '"' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + '><span class="cc-switch"></span></label>';
         }
         function showCookieConsentModal() {
             if (document.getElementById('cookie-consent-overlay')) return;
@@ -5082,24 +5129,26 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
                 headers: privacyRequestHeaders(),
                 body: JSON.stringify({})
             }).catch(() => {});
-
-            const overlay = document.createElement('div');
-            overlay.id = 'cookie-consent-overlay';
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(6,10,16,0.28);display:flex;align-items:flex-end;justify-content:center;z-index:100002;padding:20px;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);';
-            const box = document.createElement('div');
-            box.style.cssText = 'width:min(680px,100%);background:var(--modal-bg,#fff);color:var(--text-color,#000);border:1px solid var(--border-color,#ccc);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--glass-shadow,0 20px 60px rgba(0,0,0,0.28));backdrop-filter:blur(var(--glass-blur,32px)) saturate(var(--glass-sat,180%));-webkit-backdrop-filter:blur(var(--glass-blur,32px)) saturate(var(--glass-sat,180%));';
-            box.innerHTML =
-                '<div style="font-size:16px;font-weight:600;margin-bottom:8px;">' + escHtml(T.cookie_consent_title || 'Cookie preferences') + '</div>' +
-                '<div style="font-size:13px;line-height:1.55;opacity:.88;margin-bottom:14px;">' + escHtml(T.cookie_consent_message || 'We use cookies to keep your session active, remember this device, save settings, and improve security. Please choose whether to allow these cookies on this site.') + '</div>' +
-                '<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">' +
-                    '<button type="button" id="cookie-consent-decline" style="padding:9px 16px;border:1px solid var(--border-color,#ccc);border-radius:8px;background:transparent;color:var(--text-color,#000);cursor:pointer;">' + escHtml(T.cookie_consent_decline || 'Decline') + '</button>' +
-                    '<button type="button" id="cookie-consent-accept" style="padding:9px 16px;border:none;border-radius:8px;background:var(--primary-color,#007bff);color:#fff;cursor:pointer;">' + escHtml(T.cookie_consent_accept || 'Accept') + '</button>' +
-                '</div>';
-            overlay.appendChild(box);
-            document.body.appendChild(overlay);
-
-            const finish = (status) => {
-                saveCookieConsent(status)
+            ensureCookieConsentStyle();
+            const banner = document.createElement('div');
+            banner.id = 'cookie-consent-overlay';
+            banner.setAttribute('role', 'dialog');
+            banner.setAttribute('aria-labelledby', 'cookie-consent-title');
+            banner.innerHTML =
+                '<div class="cc-header"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg><h3 id="cookie-consent-title">' + escHtml(T.cookie_consent_title) + '</h3></div>'
+                + '<p>' + escHtml(T.cookie_consent_message) + ' <a href="/privacy" target="_blank" rel="noopener">' + escHtml(T.privacy_policy) + '</a></p>'
+                + '<div class="cc-options" hidden>' + cookieConsentOption('necessary', true, true) + cookieConsentOption('preferences', window.apCookieConsentAllows('preferences'), false) + cookieConsentOption('analytics', window.apCookieConsentAllows('analytics'), false) + '</div>'
+                + '<div class="cc-buttons">'
+                + '<button type="button" id="cookie-consent-accept" class="cc-btn-primary">' + escHtml(T.cookie_consent_accept_all) + '</button>'
+                + '<button type="button" id="cookie-consent-save" class="cc-btn-secondary" hidden>' + escHtml(T.cookie_consent_save) + '</button>'
+                + '<button type="button" id="cookie-consent-decline" class="cc-btn-secondary">' + escHtml(T.cookie_consent_necessary_only) + '</button>'
+                + '<button type="button" id="cookie-consent-customize" class="cc-btn-text">' + escHtml(T.cookie_consent_customize) + '</button>'
+                + '</div>';
+            document.body.appendChild(banner);
+            const byId = id => document.getElementById(id);
+            const picked = key => banner.querySelector('input[data-consent="' + key + '"]').checked;
+            const finish = (choice) => {
+                saveCookieConsent(choice)
                     .then((data) => {
                         if (!data || !data.ok) throw new Error((data && data.error) || 'save_failed');
                         closeCookieConsentModal();
@@ -5113,9 +5162,16 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
                         }
                     });
             };
-            document.getElementById('cookie-consent-accept').addEventListener('click', () => finish('accepted'));
-            document.getElementById('cookie-consent-decline').addEventListener('click', () => finish('declined'));
+            byId('cookie-consent-accept').addEventListener('click', () => finish({status: 'accepted', preferences: true, analytics: true}));
+            byId('cookie-consent-decline').addEventListener('click', () => finish({status: 'declined', preferences: false, analytics: false}));
+            byId('cookie-consent-save').addEventListener('click', () => finish({status: 'custom', preferences: picked('preferences'), analytics: picked('analytics')}));
+            byId('cookie-consent-customize').addEventListener('click', () => {
+                banner.querySelector('.cc-options').hidden = false;
+                byId('cookie-consent-customize').hidden = true;
+                byId('cookie-consent-save').hidden = false;
+            });
         }
+        window.openCookieSettings = showCookieConsentModal;
         function scheduleCookieConsentPrompt() {
             const delayMs = 2000 + Math.floor(Math.random() * 5000);
             window.setTimeout(() => {
@@ -5134,9 +5190,7 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
             }, delayMs);
         }
         ensureBrowserDeviceId();
-        <?php if(!$showLogin): ?>
         scheduleCookieConsentPrompt();
-        <?php endif; ?>
         function showTrustedConfirm(message, callback, buttonLabel) {
             var existing = document.getElementById('trusted-confirm-overlay');
             if(existing) existing.remove();
