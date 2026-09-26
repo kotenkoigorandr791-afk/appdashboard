@@ -248,6 +248,9 @@ function oauth_iframe_app_url(string $app): string {
         return $external;
     }
     $origin = oauth_public_origin();
+    if ($app === 'gitea') {
+        return rtrim($origin, '/') . $embedPath;
+    }
     $ext = parse_url($external) ?: [];
     $pub = parse_url($origin) ?: [];
     $extPort = (int)($ext['port'] ?? ((($ext['scheme'] ?? '') === 'https') ? 443 : 80));
@@ -258,6 +261,18 @@ function oauth_iframe_app_url(string $app): string {
         return rtrim($origin, '/') . $embedPath;
     }
     return $external;
+}
+
+function oauth_browser_redirect_uri(string $clientId, string $redirectUri): string {
+    if ($clientId !== 'gitea') {
+        return $redirectUri;
+    }
+    $embed = rtrim(oauth_public_origin(), '/') . '/embed/git';
+    $external = rtrim(oauth_external_app_url('gitea'), '/');
+    if ($external !== '' && str_starts_with($redirectUri, $external)) {
+        return $embed . substr($redirectUri, strlen($external));
+    }
+    return $redirectUri;
 }
 
 function oauth_redirect_iframe(string $url): void {
@@ -547,6 +562,7 @@ function oauth_redirect_with_error(string $redirectUri, string $state, string $e
         echo my_htmlspecialchars($error);
         exit;
     }
+    $redirectUri = oauth_browser_redirect_uri('gitea', $redirectUri);
     $sep = str_contains($redirectUri, '?') ? '&' : '?';
     $params = ['error' => $error];
     if ($state !== '') $params['state'] = $state;
@@ -620,8 +636,9 @@ function oauth_route_authorize(): void {
     $code = oauth_create_auth_code($db, $client['client_id'], $email, $redirectUri, $scope, $nonce, $codeChallenge, $codeChallengeMethod, (int)($_SESSION['auth_time'] ?? time()));
     $params = ['code' => $code];
     if ($state !== '') $params['state'] = $state;
-    $sep = str_contains($redirectUri, '?') ? '&' : '?';
-    header('Location: ' . $redirectUri . $sep . http_build_query($params));
+    $browserRedirect = oauth_browser_redirect_uri((string)$client['client_id'], $redirectUri);
+    $sep = str_contains($browserRedirect, '?') ? '&' : '?';
+    header('Location: ' . $browserRedirect . $sep . http_build_query($params));
     exit;
 }
 
