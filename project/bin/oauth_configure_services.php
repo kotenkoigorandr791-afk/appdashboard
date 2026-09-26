@@ -207,12 +207,10 @@ function oauth_cfg_configure_immich(string $issuer, string $immichUrl, string $s
             }
         }
         $config['oauth'] = array_merge(is_array($config['oauth'] ?? null) ? $config['oauth'] : [], $oauth);
-        $embedUrl = rtrim(oauth_iframe_app_url('immich'), '/');
-        if ($embedUrl !== rtrim($immichUrl, '/')) {
-            $config['server'] = array_merge(is_array($config['server'] ?? null) ? $config['server'] : [], [
-                'externalDomain' => $embedUrl,
-            ]);
-        }
+        $iframeUrl = rtrim(oauth_iframe_app_url('immich'), '/');
+        $config['server'] = array_merge(is_array($config['server'] ?? null) ? $config['server'] : [], [
+            'externalDomain' => $iframeUrl !== '' ? $iframeUrl : rtrim($immichUrl, '/'),
+        ]);
         $payload = json_encode($config, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         $upsert = $pdo->prepare("INSERT INTO system_metadata (key, value) VALUES ('system-config', CAST(:value AS jsonb))
             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value");
