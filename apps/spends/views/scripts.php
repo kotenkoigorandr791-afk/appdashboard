@@ -609,310 +609,130 @@ function changeChartYear(d) {
 function toggleChartMode(){chartMode=chartMode==='total'?'stores':'total';updateChart();}
 
 // ══ Exchange Rates ══════════════════════════════════════════════════════════
+// ══ Exchange Rates (redesigned) ══════════════════════════════════════════════
+let xrBase = 'EUR';
+let xrHistory = null;      // {dates:[], history:{CUR:{date:value}}}
+const xrHistoryCache = {};
+const XR_CURRENCIES = ['EUR','USD','UAH','PLN','BYN'];
+const XR_NAMES = {EUR:'Euro',USD:'US Dollar',UAH:'Ukrainian Hryvnia',PLN:'Polish Zloty',BYN:'Belarusian Ruble'};
+
+function xrFmt(v){
+    if(!v&&v!==0)return'—';
+    const a=Math.abs(v);
+    if(a>=1000)return v.toFixed(0);
+    if(a>=100)return v.toFixed(2);
+    if(a>=1)return v.toFixed(4);
+    return v.toFixed(5);
+}
+
+function xrSparkPath(values,w,h){
+    const pts=values.filter(v=>v!==null&&v!==undefined&&isFinite(v));
+    if(pts.length<2)return'';
+    const min=Math.min(...pts),max=Math.max(...pts),rng=(max-min)||1;
+    const step=w/(values.length-1);
+    return values.map((v,i)=>{
+        if(v===null||v===undefined||!isFinite(v))return'';
+        const x=(i*step).toFixed(1),y=(h-2-((v-min)/rng)*(h-4)).toFixed(1);
+        return (i===0||values.slice(0,i).some(p=>p===null||p===undefined)?'M':'L')+x+' '+y;
+    }).join(' ');
+}
+
+function xrSparkline(cur,color){
+    const ns='http://www.w3.org/2000/svg';
+    const svg=document.createElementNS(ns,'svg');
+    svg.setAttribute('class','xr-spark');
+    svg.setAttribute('viewBox','0 0 60 24');
+    svg.setAttribute('preserveAspectRatio','none');
+    const series=xrHistory&&xrHistory.history&&xrHistory.history[cur]?Object.values(xrHistory.history[cur]):[];
+    if(series.length>=2){
+        const p=document.createElementNS(ns,'path');
+        p.setAttribute('d',xrSparkPath(series,60,24));
+        p.setAttribute('stroke',color);
+        svg.appendChild(p);
+    }
+    return svg;
+}
+
+function xrRenderRows(){
+    const wrap=document.getElementById('xr-rows');
+    if(!wrap)return;
+    wrap.innerHTML='';
+    const dates=xrHistory&&xrHistory.dates?xrHistory.dates:[];
+    XR_CURRENCIES.filter(c=>c!==xrBase).forEach((cur,idx)=>{
+        const series=xrHistory&&xrHistory.history&&xrHistory.history[cur]?xrHistory.history[cur]:null;
+        const vals=series?Object.values(series).filter(v=>v!==null):[];
+        const last=vals.length?vals[vals.length-1]:null;
+        const prev=series&&dates.length>=2?(series[dates[dates.length-2]]??null):null;
+        const diff=(last!==null&&prev!==null&&prev!==0)?((last-prev)/prev*100):null;
+        const row=document.createElement('div');
+        row.className='xr-row'+(diff!==null&&Math.abs(diff)<0.005?' active':'');
+        row.innerHTML=`<div class="xr-flag">${cur.slice(0,2)}</div>`+
+            `<div class="xr-info"><strong>${cur}</strong><span>${XR_NAMES[cur]||''}</span></div>`+
+            `<div class="xr-rate">${xrFmt(last)}<small>${xrBase}</small></div>`;
+        const ch=document.createElement('div');
+        ch.className='xr-change '+(diff===null?'flat':(diff>=0?'up':'down'));
+        ch.textContent=diff===null?'—':`${diff>=0?'▲':'▼'} ${Math.abs(diff).toFixed(2)}%`;
+        row.appendChild(ch);
+        row.appendChild(xrSparkline(cur,diff!==null&&diff<0?'#ff5656':'#2ecb71'));
+        wrap.appendChild(row);
+    });
+}
+
+function xrRenderTabs(){
+    document.querySelectorAll('#xr-base-tabs .xr-base-tab').forEach(b=>{
+        b.classList.toggle('active',b.dataset.base===xrBase);
+    });
+}
+
 function loadExchangeRates() {
-    const base = document.getElementById('base-currency-select').value;
-    const loader = document.getElementById('rates-loading');
-    const table = document.getElementById('rates-table-container');
-    if(loader) loader.style.display='block';
-    if(table) table.style.display='none';
-    fetch(`?get_exchange_rates=1&base=${base}`)
+    const loader=document.getElementById('rates-loading');
+    const cached=xrHistoryCache[xrBase];
+    if(loader)loader.style.display=cached?'none':'block';
+    if(cached){ xrHistory=cached; xrRenderRows(); }
+    // current snapshot (for other app features) + 14-day history for sparklines
+    fetch(`?get_exchange_rates=1&base=${xrBase}`)
         .then(r=>r.json())
         .then(data=>{
-            if(loader) loader.style.display='none';
-            if(table) table.style.display='';
-            if(data.status==='success') {
-                currentRates = data.rates;
-                displayRatesTable(base, data.rates);
-                updateRateChart();
-            } else {
-                showNotification(t('failed_load_exchange_rates','Failed to load exchange rates'), 'error');
+            if(data.status==='success'){
+                currentRates=data.rates;
+                window.currentRates=data.rates;
+            }
+        })
+        .catch(()=>{});
+    fetch(`?get_exchange_history=1&base=${xrBase}&days=14`)
+        .then(r=>r.json())
+        .then(data=>{
+            if(loader)loader.style.display='none';
+            if(data.status==='success'){
+                xrHistoryCache[xrBase]=data;
+                xrHistory=data;
+                xrRenderRows();
+                const up=document.getElementById('xr-updated');
+                if(up)up.textContent=new Date().toLocaleTimeString();
+            } else if(!cached) {
+                showNotification(t('failed_load_exchange_rates','Failed to load exchange rates'),'error');
             }
         })
         .catch(e=>{
-            if(loader) loader.style.display='none';
-            if(table) table.style.display='';
-            showNotification(`${t('network_error','Network error')}: ${e}`, 'error');
+            if(loader)loader.style.display='none';
+            if(!cached)showNotification(`${t('network_error','Network error')}: ${e}`,'error');
         });
 }
 
-function displayRatesTable(base, rates) {
-    drawSpiderWeb(base, rates);
+function xrSetBase(base){
+    xrBase=base;
+    xrRenderTabs();
+    loadExchangeRates();
 }
 
-function drawSpiderWeb(base, rates) {
-    const canvas = document.getElementById('rates-spider-canvas');
-    const tooltip = document.getElementById('rates-spider-tooltip');
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    const centerX = width / 2;
-    const centerY = height / 2;
-    
-    // Stop any existing animation
-    if (canvas._animationId) {
-        cancelAnimationFrame(canvas._animationId);
-        canvas._animationId = null;
-    }
-    
-    // Clear canvas
-    ctx.clearRect(0, 0, width, height);
-    
-    // Currencies (excluding base)
-    const currencies = ['USD', 'EUR', 'UAH', 'PLN', 'BYN'].filter(c => c !== base);
-    
-    // Convert to EUR as center (1 EUR = base)
-    const eurRates = {};
-    if (base === 'EUR') {
-        currencies.forEach(cur => {
-            eurRates[cur] = rates[cur] || 1;
-        });
-    } else {
-        // Convert rates through base currency to EUR
-        const eurToBase = rates['EUR'] || 1;
-        currencies.forEach(cur => {
-            if (cur === 'EUR') {
-                eurRates[cur] = 1 / eurToBase;
-            } else {
-                eurRates[cur] = (rates[cur] || 1) / eurToBase;
-            }
-        });
-    }
-    
-    // Node data - horizontal X shape layout
-    const nodes = [];
-    const radius = 140;
-    
-    // Define X shape positions: top-left, top-right, bottom-right, bottom-left
-    const xPositions = [
-        { angle: Math.PI * 0.75, label: 'top-left' },     // Upper left
-        { angle: Math.PI * 0.25, label: 'top-right' },    // Upper right
-        { angle: -Math.PI * 0.25, label: 'bottom-right' }, // Lower right
-        { angle: -Math.PI * 0.75, label: 'bottom-left' }   // Lower left
-    ];
-    
-    currencies.forEach((cur, index) => {
-        if (index < xPositions.length) {
-            const pos = xPositions[index];
-            nodes.push({
-                currency: cur,
-                rate: eurRates[cur],
-                x: centerX + Math.cos(pos.angle) * radius,
-                y: centerY + Math.sin(pos.angle) * radius,
-                angle: pos.angle,
-                label: pos.label
-            });
-        }
-    });
-    
-    // Animation state
-    let animationProgress = 1; // Start fully drawn to avoid flicker
-    let hoveredNode = null;
-    
-    // Mouse tracking
-    canvas.onmousemove = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
-        const mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
-        
-        let prevHovered = hoveredNode;
-        hoveredNode = null;
-        
-        nodes.forEach(node => {
-            const dist = Math.sqrt((mouseX - node.x) ** 2 + (mouseY - node.y) ** 2);
-            if (dist < 35) {
-                hoveredNode = node;
-                tooltip.style.opacity = '1';
-                tooltip.style.left = `${e.clientX - rect.left + 15}px`;
-                tooltip.style.top = `${e.clientY - rect.top + 15}px`;
-                tooltip.innerHTML = `<strong>${node.currency}</strong><br>1 EUR = ${node.rate.toFixed(4)} ${node.currency}`;
-            }
-        });
-        
-        if (!hoveredNode) {
-            tooltip.style.opacity = '0';
-        }
-        
-        if (prevHovered !== hoveredNode) {
-            draw();
-        }
-    };
-    
-    canvas.onmouseleave = () => {
-        hoveredNode = null;
-        tooltip.style.opacity = '0';
-        draw();
-    };
-    
-    function draw() {
-        ctx.clearRect(0, 0, width, height);
-        
-        // Draw connection lines with soft gradient and blur
-        nodes.forEach(node => {
-            const gradient = ctx.createLinearGradient(centerX, centerY, node.x, node.y);
-            gradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
-            gradient.addColorStop(1, 'rgba(147, 51, 234, 0.2)');
-            
-            // Soft blur for edges
-            ctx.shadowBlur = 8;
-            ctx.shadowColor = hoveredNode === node ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.2)';
-            
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.lineTo(node.x, node.y);
-            ctx.strokeStyle = hoveredNode === node ? 'rgba(59, 130, 246, 0.6)' : gradient;
-            ctx.lineWidth = hoveredNode === node ? 2 : 1.5;
-            ctx.stroke();
-            
-            ctx.shadowBlur = 0;
-        });
-        
-        // Draw center node (EUR) with soft edges
-        const centerRadius = 40;
-        
-        // Outer glow
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = 'rgba(59, 130, 246, 0.4)';
-        
-        const centerGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, centerRadius);
-        centerGradient.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
-        centerGradient.addColorStop(0.7, 'rgba(37, 99, 235, 0.6)');
-        centerGradient.addColorStop(1, 'rgba(37, 99, 235, 0.1)');
-        
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, centerRadius, 0, Math.PI * 2);
-        ctx.fillStyle = centerGradient;
-        ctx.fill();
-        
-        ctx.shadowBlur = 0;
-        
-        // EUR text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('EUR', centerX, centerY - 6);
-        ctx.font = '12px system-ui, -apple-system, sans-serif';
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        ctx.fillText('1.0000', centerX, centerY + 10);
-        
-        // Draw currency nodes with soft edges
-        nodes.forEach(node => {
-            const nodeRadius = hoveredNode === node ? 34 : 30;
-            const nodeX = node.x;
-            const nodeY = node.y;
-            
-            // Soft glow
-            ctx.shadowBlur = hoveredNode === node ? 12 : 8;
-            ctx.shadowColor = hoveredNode === node ? 'rgba(147, 51, 234, 0.5)' : 'rgba(147, 51, 234, 0.3)';
-            
-            // Node gradient with soft edges
-            const nodeGradient = ctx.createRadialGradient(nodeX, nodeY, 0, nodeX, nodeY, nodeRadius);
-            nodeGradient.addColorStop(0, 'rgba(147, 51, 234, 0.7)');
-            nodeGradient.addColorStop(0.7, 'rgba(126, 34, 206, 0.5)');
-            nodeGradient.addColorStop(1, 'rgba(126, 34, 206, 0.1)');
-            
-            ctx.beginPath();
-            ctx.arc(nodeX, nodeY, nodeRadius, 0, Math.PI * 2);
-            ctx.fillStyle = nodeGradient;
-            ctx.fill();
-            
-            ctx.shadowBlur = 0;
-            
-            // Currency text
-            ctx.fillStyle = '#ffffff';
-            ctx.font = 'bold 14px system-ui, -apple-system, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(node.currency, nodeX, nodeY - 6);
-            
-            // Rate text
-            ctx.font = '11px system-ui, -apple-system, sans-serif';
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-            ctx.fillText(node.rate.toFixed(2), nodeX, nodeY + 8);
-        });
-    }
-    
-    // Initial draw without animation
-    draw();
-    
-    // Optional: subtle continuous animation for particles (very slow)
-    let particleTime = 0;
-    function animateParticles() {
-        if (!canvas.isConnected) return;
-        
-        particleTime += 0.003;
-        
-        // Only redraw particles if needed
-        nodes.forEach((node, index) => {
-            const offset = (particleTime + index * 0.25) % 1;
-            const px = centerX + (node.x - centerX) * offset;
-            const py = centerY + (node.y - centerY) * offset;
-            
-            ctx.shadowBlur = 4;
-            ctx.shadowColor = 'rgba(147, 197, 253, 0.5)';
-            ctx.beginPath();
-            ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-            const alpha = Math.sin(offset * Math.PI) * 0.2;
-            ctx.fillStyle = `rgba(147, 197, 253, ${alpha})`;
-            ctx.fill();
-            ctx.shadowBlur = 0;
-        });
-        
-        canvas._animationId = requestAnimationFrame(animateParticles);
-    }
-    
-    // Start subtle particle animation
-    canvas._animationId = requestAnimationFrame(animateParticles);
-}
+document.addEventListener('click',e=>{
+    const tab=e.target.closest('#xr-base-tabs .xr-base-tab');
+    if(tab)xrSetBase(tab.dataset.base);
+});
 
 function updateRateChart() {
-    const currency = document.getElementById('chart-currency-select').value;
-    if (!currentRates[currency]) return;
-    
-    const ctx = document.getElementById('rate-chart').getContext('2d');
-    const baseRate = currentRates[currency];
-    const historicalRates = [];
-    const dateLabels = [];
-    const today = new Date();
-    for (let i = 30; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i);
-        const mm = String(d.getMonth()+1).padStart(2,'0');
-        const dd = String(d.getDate()).padStart(2,'0');
-        dateLabels.push(`${dd}.${mm}`);
-        const variation = 1 + (Math.sin(i / 5) * 0.05);
-        historicalRates.push(parseFloat((baseRate * variation).toFixed(4)));
-    }
-    
-    if (rateChart) rateChart.destroy();
-    rateChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: dateLabels,
-            datasets: [{
-                label: `${currency} vs ${document.getElementById('base-currency-select').value}`,
-                data: historicalRates,
-                borderColor: storeColors[0],
-                backgroundColor: storeColors[0] + '20',
-                tension: 0.4,
-                fill: true,
-                pointRadius: 2,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: true,
-            plugins: {
-                legend: { labels: { color: '<?= $theme==='dark'?'#fff':'#000' ?>' } }
-            },
-            scales: {
-                y: { ticks: { color: '<?= $theme==='dark'?'#fff':'#000' ?>' } },
-                x: { ticks: { color: '<?= $theme==='dark'?'#fff':'#000' ?>', maxTicksLimit: 10 } }
-            }
-        }
-    });
+    // Rate chart was removed with the modal redesign; sparklines show history inline.
+    if (rateChart) { rateChart.destroy(); rateChart = null; }
 }
 function buildOCRAnalyticsChart(payload,selectedStore){
     const canvas=document.getElementById('ocr-analytics-chart');
@@ -927,7 +747,7 @@ function buildOCRAnalyticsChart(payload,selectedStore){
         const datasets=stores.map((store,i)=>({type:'bar',label:store,data:labels.map(ym=>{const row=monthly.find(r=>r.ym===ym&&r.store===store);return row?Number(row.amount_sum):0;}),backgroundColor:storeColors[i%storeColors.length]+'55',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
         const intensity=labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((s,r)=>s+Number(r.intensity||0),0));
         datasets.push({type:'line',label:t('chart_intensity','Intensity'),data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.3,pointRadius:3});
-        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:t('chart_amount','Amount'),color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},title:{display:true,text:t('chart_intensity','Intensity'),color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'}},x:{ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:t('chart_amount','Amount'),color:chartTextColor()},ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:chartTextColor()},title:{display:true,text:t('chart_intensity','Intensity'),color:chartTextColor()}},x:{ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
         return;
     }
     const labels=[...new Set(daily.map(r=>r.date))].sort();
@@ -935,7 +755,7 @@ function buildOCRAnalyticsChart(payload,selectedStore){
     const monthIntensity={};
     monthly.forEach(r=>{monthIntensity[r.ym]=Number(r.intensity||0);});
     const intensity=labels.map(d=>monthIntensity[d.slice(0,7)]||0);
-    ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets:[{type:'bar',label:`${selectedStore} amount`,data:amounts,backgroundColor:'rgba(54,162,235,.38)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{type:'line',label:'Intensity',data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.25,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:'Amount',color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},title:{display:true,text:'Intensity',color:'<?= $theme==='dark'?'#d1d5db':'#111827' ?>'}},x:{ticks:{color:'<?= $theme==='dark'?'#e5e7eb':'#111827' ?>'},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#f3f4f6':'#111827' ?>'}}}}});
+    ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets:[{type:'bar',label:`${selectedStore} amount`,data:amounts,backgroundColor:'rgba(54,162,235,.38)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{type:'line',label:'Intensity',data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.25,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:'Amount',color:chartTextColor()},ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:chartTextColor()},title:{display:true,text:'Intensity',color:chartTextColor()}},x:{ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
 }
 function loadOCRAnalytics(){
     const select=document.getElementById('ocr-analytics-store');
@@ -1409,33 +1229,6 @@ function renderShareChartCanvas(width,height,isMobile,titleSize){
     inst.update('none');
     return {canvas,chart:inst};
 }
-function canvasToPngBlob(canvas){
-    return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('empty')),'image/png'));
-}
-async function copyImageBlob(blob){
-    if(navigator.clipboard&&window.isSecureContext&&window.ClipboardItem){
-        await navigator.clipboard.write([new ClipboardItem({'image/png':blob})]);
-        return;
-    }
-    const url=URL.createObjectURL(blob);
-    const img=new Image();
-    await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
-    const box=document.createElement('div');
-    box.contentEditable='true';
-    box.style.cssText='position:fixed;left:-9999px;top:0;opacity:0;';
-    box.appendChild(img);
-    document.body.appendChild(box);
-    const range=document.createRange();
-    range.selectNode(img);
-    const sel=window.getSelection();
-    sel.removeAllRanges();
-    sel.addRange(range);
-    const ok=document.execCommand('copy');
-    document.body.removeChild(box);
-    sel.removeAllRanges();
-    URL.revokeObjectURL(url);
-    if(!ok)throw new Error('copy');
-}
 function showShareModal(){
     if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
     showModal('share-modal');
@@ -1452,7 +1245,7 @@ function showShareModal(){
             ctx.fillStyle='white';ctx.fillRect(0,0,w,h);
             shareChart=new Chart(ctx,{type:'line',data:getShareChartData(),options:shareChartOptions(isMobile)});
             shareChart.update('none');
-        }catch(e){showNotification(translations.copy_failed||'Failed to copy','error');}
+        }catch(e){showNotification(t('chart_render_failed','Failed to render chart'),'error');}
     });
 }
 function downloadChartImage(){
@@ -1467,16 +1260,139 @@ function downloadChartImage(){
         showNotification(translations.chart_downloaded||'Chart downloaded','success');
     }catch(e){showNotification(translations.copy_failed||'Failed to copy','error');}
 }
-async function copyChartToClipboard(){
-    if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
-    try{
-        const {canvas,chart:dc}=renderShareChartCanvas(1000,600,false,24);
-        const blob=await canvasToPngBlob(canvas);
-        dc.destroy();
-        await copyImageBlob(blob);
-        showNotification(translations.chart_copied||'Chart copied','success');
-    }catch(e){showNotification(translations.copy_failed||'Failed to copy','error');}
+function chartShareDataUrl(){
+    const {canvas,chart:dc}=renderShareChartCanvas(1000,600,false,24);
+    const dataUrl=canvas.toDataURL('image/png');
+    dc.destroy();
+    return dataUrl;
 }
+async function shareChartToCloud(){
+    if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
+    const btn=document.getElementById('share-link-btn');
+    if(btn)btn.disabled=true;
+    try{
+        const image=chartShareDataUrl();
+        const fd=new FormData();
+        fd.append('share_chart_to_cloud','1');
+        fd.append('image',new File([await (await fetch(image)).blob()],`expenses-chart-${currentChartYear}.png`,{type:'image/png'}));
+        const res=await fetch('?',{method:'POST',body:fd});
+        const data=await res.json();
+        if(data.status!=='success')throw new Error(data.message||'failed');
+        await showChartShareLinkModal(data.link);
+    }catch(e){
+        showNotification(`${t('error','Error')}: ${e.message}`,'error');
+    }finally{
+        if(btn)btn.disabled=false;
+    }
+}
+async function showChartShareLinkModal(link){
+    closeModal('share-modal');
+    showModal('chart-share-link-modal');
+    const linkEl=document.getElementById('csl-link');
+    linkEl.href=link;linkEl.textContent=link;
+    const qrHost=document.getElementById('csl-qr');
+    qrHost.innerHTML='';
+    try{
+        if(typeof QRCodeStyling==='undefined'){
+            const url='https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
+            const code=await (await fetch(url,{cache:'no-store'})).text();
+            const prevDefine=typeof define!=='undefined'?define:undefined;
+            try{ if(typeof window!=='undefined')window.define=undefined; (0,eval)(code);}finally{ if(typeof window!=='undefined'&&typeof prevDefine!=='undefined')window.define=prevDefine; }
+        }
+        const wrap=document.createElement('div');wrap.className='csl-qr-wrap';
+        const qr=new QRCodeStyling({width:200,height:200,type:'svg',data:link,margin:4,qrOptions:{errorCorrectionLevel:'H'},dotsOptions:{type:'rounded',color:'#2563eb'},cornersSquareOptions:{type:'extra-rounded',color:'#2563eb'},cornersDotOptions:{type:'dot',color:'#7c3aed'},backgroundOptions:{color:'rgba(255,255,255,0)'}});
+        qr.append(wrap);qrHost.appendChild(wrap);
+    }catch(e){
+        qrHost.innerHTML='<div class="ccm-empty">QR unavailable</div>';
+    }
+    const copyBtn=document.getElementById('csl-copy-btn');
+    copyBtn.onclick=async()=>{
+        try{await navigator.clipboard.writeText(link);showNotification(t('link_copied','Link copied'),'success');}
+        catch(e){
+            const ta=document.createElement('textarea');ta.value=link;document.body.appendChild(ta);ta.select();
+            try{document.execCommand('copy');showNotification(t('link_copied','Link copied'),'success');}catch(_){showNotification(t('copy_failed','Copy failed'),'error');}
+            ta.remove();
+        }
+    };
+}
+let ccmRecipient=null;
+let ccmPngDataUrl=null;
+function openChartChatSend(){
+    if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
+    ccmPngDataUrl=chartShareDataUrl();
+    closeModal('share-modal');
+    closeModal('chart-share-link-modal');
+    showModal('chart-chat-modal');
+    ccmBackToUsers();
+}
+function ccmBackToUsers(){
+    ccmRecipient=null;
+    document.getElementById('ccm-step-user').style.display='flex';
+    document.getElementById('ccm-step-compose').style.display='none';
+    const inp=document.getElementById('ccm-user-search');
+    inp.value='';
+    document.getElementById('ccm-user-results').innerHTML=`<div class="ccm-empty">${t('share_search_hint','Type the full email of a user')}</div>`;
+    setTimeout(()=>inp.focus(),100);
+}
+async function ccmSearchUsers(){
+    const q=document.getElementById('ccm-user-search').value.trim();
+    const box=document.getElementById('ccm-user-results');
+    if(!q||!q.includes('@')){box.innerHTML=`<div class="ccm-empty">${t('share_search_hint','Type the full email of a user')}</div>`;return;}
+    box.innerHTML='<div class="ccm-empty">…</div>';
+    try{
+        const res=await fetch(`?chat_search_users=1&q=${encodeURIComponent(q)}`);
+        const data=await res.json();
+        const users=(data.users||[]);
+        if(!users.length){box.innerHTML=`<div class="ccm-empty">${t('no_users_found','No users found')}</div>`;return;}
+        box.innerHTML='';
+        users.forEach(u=>{
+            const b=document.createElement('button');b.type='button';b.className='ccm-user-row';
+            const initials=(u.name||u.email||'?').slice(0,2).toUpperCase();
+            b.innerHTML=(u.photo?`<img src="/storage/${u.photo}" alt="" onerror="this.outerHTML='<span class=ccm-user-avatar>${initials}</span>'">`:`<span class="ccm-user-avatar">${initials}</span>`)+
+                `<span class="ccm-user-info"><strong>${u.name||u.email}</strong><span>${u.email}</span></span>`;
+            b.onclick=()=>ccmPickUser(u);
+            box.appendChild(b);
+        });
+    }catch(e){box.innerHTML=`<div class="ccm-empty">${t('network_error','Network error')}</div>`;}
+}
+function ccmPickUser(u){
+    ccmRecipient=u;
+    document.getElementById('ccm-step-user').style.display='none';
+    document.getElementById('ccm-step-compose').style.display='flex';
+    document.getElementById('ccm-recipient-name').textContent=u.name||u.email;
+    document.getElementById('ccm-recipient-email').textContent=u.email;
+    document.getElementById('ccm-recipient-flag').textContent=(u.name||u.email||'?').slice(0,2).toUpperCase();
+    document.getElementById('ccm-preview').src=ccmPngDataUrl;
+    document.getElementById('ccm-caption').value='';
+}
+async function ccmSend(){
+    if(!ccmRecipient)return;
+    const btn=document.getElementById('ccm-send-btn');
+    if(btn)btn.disabled=true;
+    try{
+        const fd=new FormData();
+        fd.append('chat_send_message','1');
+        fd.append('peer_email',ccmRecipient.email);
+        fd.append('message',document.getElementById('ccm-caption').value.trim());
+        const blob=await (await fetch(ccmPngDataUrl)).blob();
+        fd.append('media',new File([blob],`expenses-chart-${currentChartYear}.png`,{type:'image/png'}));
+        const res=await fetch('?',{method:'POST',body:fd});
+        const data=await res.json();
+        if(data.status!=='success')throw new Error(data.message||'failed');
+        showNotification(t('message_sent','Message sent'),'success');
+        closeModal('chart-chat-modal');
+    }catch(e){
+        showNotification(`${t('error','Error')}: ${e.message}`,'error');
+    }finally{
+        if(btn)btn.disabled=false;
+    }
+}
+document.addEventListener('input',e=>{
+    if(e.target&&e.target.id==='ccm-user-search'){
+        clearTimeout(e.target._t);
+        e.target._t=setTimeout(ccmSearchUsers,350);
+    }
+});
 // ══ Table keyboard navigation ══════════════════════════════════════════════
 function handleTableNavigation(e){
     if(e.key==='Enter'){
@@ -1538,7 +1454,29 @@ function renderAnalyticsSummaries(payload){
     renderAnalyticsSummaryTable('analytics-store-summary',stores,t('store_name','Store'));
     renderAnalyticsSummaryTable('analytics-category-summary',categories,t('store_category','Category'));
 }
-function chartTextColor(){return document.documentElement.classList.contains('dark')?'#f3f4f6':'#111827';}
+function chartTextColor(){
+    const html=document.documentElement;
+    if(html.classList.contains('dark')||html.classList.contains('theme-dark'))return '#f3f4f6';
+    if(html.classList.contains('light')||html.classList.contains('theme-light'))return '#111827';
+    // Fallback: detect theme from CSS variable (--bg-color set server-side)
+    const bg=getComputedStyle(html).getPropertyValue('--bg-color').trim().toLowerCase();
+    if(bg){
+        const m=bg.match(/^#([0-9a-f]{6})$/);
+        if(m){
+            const v=parseInt(m[1],16),r=(v>>16)&255,g=(v>>8)&255,b=v&255;
+            return (r*0.299+g*0.587+b*0.114)<128?'#f3f4f6':'#111827';
+        }
+        if(bg.includes('rgba')||bg.includes('rgb')){
+            const nums=bg.match(/[\d.]+/g);
+            if(nums&&nums.length>=3){
+                const lum=(+nums[0])*0.299+(+nums[1])*0.587+(+nums[2])*0.114;
+                return lum<128?'#f3f4f6':'#111827';
+            }
+        }
+    }
+    return '#111827';
+}
+window.chartTextColor=chartTextColor;
 function buildOCRAnalyticsChart(payload,selectedStore){
     renderAnalyticsSummaries(payload);
     const canvas=document.getElementById('ocr-analytics-chart');
@@ -1551,13 +1489,13 @@ function buildOCRAnalyticsChart(payload,selectedStore){
         const labels=[...new Set(monthly.map(r=>r.ym))].sort();
         const categories=[...new Set((payload.category_summary||[]).map(r=>r.category))];
         const datasets=categories.map((cat,i)=>({type:'bar',label:categoryLabel(cat),data:labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((sum,r)=>{const st=(payload.store_summary||[]).find(s=>s.store===r.store);return sum+(st&&st.category===cat?Number(r.amount_sum||0):0);},0)),backgroundColor:storeColors[i%storeColors.length]+'66',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
-        ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color}},y:{stacked:true,beginAtZero:true,ticks:{color}}},plugins:{legend:{labels:{color}}}}});
+        ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:chartTextColor()}},y:{stacked:true,beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
         return;
     }
     const daily=payload.daily||[];
     const labels=[...new Set(daily.map(r=>r.date))].sort();
     const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
-    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(239,68,68,.45)',borderColor:'rgba(239,68,68,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color}},y:{beginAtZero:true,ticks:{color}}},plugins:{legend:{labels:{color}}}}});
+    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(239,68,68,.45)',borderColor:'rgba(239,68,68,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:chartTextColor()}},y:{beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
 }
 function loadOCRAnalytics(){
     const select=document.getElementById('ocr-analytics-store');
