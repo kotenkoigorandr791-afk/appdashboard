@@ -230,6 +230,7 @@ server {
     }
 
     location ~ ^/(photos|explore|map|sharing|search|favorites|archive|utilities|locked|trash|albums|settings|user-settings|partners|admin-system-settings)(/|$) {
+        absolute_redirect off;
         return 302 /embed/photo$uri$is_args$args;
     }
 
@@ -238,6 +239,7 @@ server {
     }
 
     location = /embed/git/authorize {
+        absolute_redirect off;
         return 302 /authorize$is_args$args;
     }
 
@@ -264,6 +266,7 @@ server {
     }
 
     location = /embed/photo/authorize {
+        absolute_redirect off;
         return 302 /authorize$is_args$args;
     }
 
