@@ -330,10 +330,10 @@ if (isset($_POST['share_chart_to_cloud'])) {
     $safeExec = static function (string $sql) use ($db): void {
         try { $db->exec($sql); } catch (Exception $e) {}
     };
+    $need = ['is_folder' => 'INTEGER NOT NULL DEFAULT 0', 'user_email' => "TEXT NOT NULL DEFAULT ''", 'expires' => ($isPg ? 'BIGINT' : 'INTEGER') . ' DEFAULT NULL', 'expires_option' => "TEXT NOT NULL DEFAULT 'never'", 'password_hash' => "TEXT NOT NULL DEFAULT ''", 'view_only' => 'INTEGER NOT NULL DEFAULT 0', 'disable_download' => 'INTEGER NOT NULL DEFAULT 0', 'disable_copy' => 'INTEGER NOT NULL DEFAULT 0', 'max_views' => 'INTEGER NOT NULL DEFAULT 0', 'view_count' => 'INTEGER NOT NULL DEFAULT 0'];
     if ($isPg) {
-        foreach (['is_folder INTEGER NOT NULL DEFAULT 0', "user_email TEXT NOT NULL DEFAULT ''", 'expires BIGINT DEFAULT NULL', "expires_option TEXT NOT NULL DEFAULT 'never'", "password_hash TEXT NOT NULL DEFAULT ''", 'view_only INTEGER NOT NULL DEFAULT 0', 'disable_download INTEGER NOT NULL DEFAULT 0', 'disable_copy INTEGER NOT NULL DEFAULT 0', 'max_views INTEGER NOT NULL DEFAULT 0', 'view_count INTEGER NOT NULL DEFAULT 0'] as $ddl) {
-            $parts = explode(' ', $ddl);
-            $safeExec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS {$parts[0]} {$ddl}");
+        foreach ($need as $col => $ddl) {
+            $safeExec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS {$col} {$ddl}");
         }
     } else {
         $cols = [];
@@ -341,7 +341,6 @@ if (isset($_POST['share_chart_to_cloud'])) {
             $cr = $db->query("PRAGMA table_info(shared_files)");
             while ($c = $cr->fetch(PDO::FETCH_ASSOC)) $cols[] = (string)($c['name'] ?? '');
         } catch (Exception $e) {}
-        $need = ['is_folder' => 'INTEGER NOT NULL DEFAULT 0', 'user_email' => "TEXT NOT NULL DEFAULT ''", 'expires' => 'INTEGER DEFAULT NULL', 'expires_option' => "TEXT NOT NULL DEFAULT 'never'", 'password_hash' => "TEXT NOT NULL DEFAULT ''", 'view_only' => 'INTEGER NOT NULL DEFAULT 0', 'disable_download' => 'INTEGER NOT NULL DEFAULT 0', 'disable_copy' => 'INTEGER NOT NULL DEFAULT 0', 'max_views' => 'INTEGER NOT NULL DEFAULT 0', 'view_count' => 'INTEGER NOT NULL DEFAULT 0'];
         foreach ($need as $col => $ddl) {
             if (!in_array($col, $cols, true)) $safeExec("ALTER TABLE shared_files ADD COLUMN {$col} {$ddl}");
         }
@@ -351,8 +350,7 @@ if (isset($_POST['share_chart_to_cloud'])) {
         $shareId = bin2hex(random_bytes(12));
         $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE share_id = :sid');
         $stmt->bindValue(':sid', $shareId);
-        $stmt->execute();
-    } while ($stmt->fetch(PDO::FETCH_ASSOC));
+    } while ($stmt->execute()->fetch(PDO::FETCH_ASSOC));
 
     $createdAtExpr = $isPg ? 'NOW()' : 'datetime("now", "localtime")';
     $stmt = $db->prepare("INSERT INTO shared_files (share_id, file_name, file_path, is_folder, user_email, created_at, expires, expires_option, password_hash, view_only, disable_download, disable_copy, max_views, view_count)

@@ -1266,15 +1266,20 @@ function chartShareDataUrl(){
     dc.destroy();
     return dataUrl;
 }
+function dataUrlToPngFile(dataUrl){
+    const bin=atob(dataUrl.split(',')[1]||'');
+    const bytes=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+    return new File([bytes],`expenses-chart-${currentChartYear}.png`,{type:'image/png'});
+}
 async function shareChartToCloud(){
     if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
     const btn=document.getElementById('share-link-btn');
     if(btn)btn.disabled=true;
     try{
-        const image=chartShareDataUrl();
         const fd=new FormData();
         fd.append('share_chart_to_cloud','1');
-        fd.append('image',new File([await (await fetch(image)).blob()],`expenses-chart-${currentChartYear}.png`,{type:'image/png'}));
+        fd.append('image',dataUrlToPngFile(chartShareDataUrl()));
         const res=await fetch('?',{method:'POST',body:fd});
         const data=await res.json();
         if(data.status!=='success')throw new Error(data.message||'failed');
@@ -1374,8 +1379,7 @@ async function ccmSend(){
         fd.append('chat_send_message','1');
         fd.append('peer_email',ccmRecipient.email);
         fd.append('message',document.getElementById('ccm-caption').value.trim());
-        const blob=await (await fetch(ccmPngDataUrl)).blob();
-        fd.append('media',new File([blob],`expenses-chart-${currentChartYear}.png`,{type:'image/png'}));
+        fd.append('media',dataUrlToPngFile(ccmPngDataUrl));
         const res=await fetch('?',{method:'POST',body:fd});
         const data=await res.json();
         if(data.status!=='success')throw new Error(data.message||'failed');

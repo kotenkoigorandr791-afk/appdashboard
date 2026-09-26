@@ -22,7 +22,7 @@ function ensureViewerSchema(AppDatabase $db): void {
     )');
     $db->exec('INSERT INTO viewer_meta (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
 }
-function getDB(): ?AppDatabase {
+function viewerDB(): ?AppDatabase {
     static $db = null;
     if ($db === null) {
         try {
