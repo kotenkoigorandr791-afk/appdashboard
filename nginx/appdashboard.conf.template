@@ -233,10 +233,6 @@ server {
         return 302 /embed/photo$uri$is_args$args;
     }
 
-    location ^~ /api/ {
-        return 302 /embed/photo$request_uri;
-    }
-
     location = /embed/git {
         return 302 /embed/git/;
     }
