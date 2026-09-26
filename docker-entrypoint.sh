@@ -286,6 +286,9 @@ foreach ($seed as $k => $v) {
 }
 ' >/var/log/supervisor/domain-seed.log 2>&1 || true
 fi
+if [ -f /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php ]; then
+  /usr/local/bin/php /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php >/var/log/supervisor/oauth-integrations.log 2>&1 || true
+fi
 if [ -f /var/www/AppDashboard/supervisord.conf ]; then
   cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 fi

@@ -256,12 +256,13 @@ export const spendsTools: ToolDef[] = [
       properties: { file_path: { type: "string", description: "Local path to CSV file" } },
       required: ["file_path"],
     },
-    handler: async (args) =>
-      textResult(
-        await apiUpload(SPENDS, { bank_csv_analyze: "1" }, [
-          { field: "bank_csv_file", filePath: String(args.file_path) },
-        ]),
-      ),
+    handler: async (args) => {
+      const filePath = args.file_path != null ? String(args.file_path).trim() : "";
+      if (!filePath) return textResult({ error: "file_path required" });
+      return textResult(
+        await apiUpload(SPENDS, { bank_csv_analyze: "1" }, [{ field: "bank_csv_file", filePath }]),
+      );
+    },
   },
   {
     name: "bank_csv_apply",

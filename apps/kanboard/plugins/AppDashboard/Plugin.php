@@ -74,6 +74,7 @@ class Plugin extends Base
         ], $admin);
 
         $this->dispatcher->addListener(AuthenticationManager::EVENT_SUCCESS, function () {
+            $this->userSession->setPostAuthenticationAsValidated();
             $this->syncShellPreferences(true);
             $this->enableShellNotifications();
         });

@@ -6,6 +6,7 @@ use JsonRPC\Exception\AccessDeniedException;
 use JsonRPC\Exception\AuthenticationFailureException;
 use JsonRPC\MiddlewareInterface;
 use Kanboard\Auth\ApiAccessTokenAuth;
+use Kanboard\Auth\DatabaseAuth;
 use Kanboard\Core\Base;
 use Symfony\Contracts\EventDispatcher\Event;
 
@@ -58,12 +59,15 @@ class AuthenticationMiddleware extends Base implements MiddlewareInterface
             return false;
         }
 
-        if ($this->userModel->has2FA($username)) {
-            $this->logger->info('This API user ('.$username.') as 2FA enabled: only API keys are authorized');
-            $this->authenticationManager->reset();
-            $this->authenticationManager->register(new ApiAccessTokenAuth($this->container));
+        $this->authenticationManager->reset();
+        $this->authenticationManager->register(new ApiAccessTokenAuth($this->container));
+        if ($this->authenticationManager->passwordAuthentication($username, $password)) {
+            return true;
         }
-
+        if ($this->userModel->has2FA($username)) {
+            return false;
+        }
+        $this->authenticationManager->register(new DatabaseAuth($this->container));
         return $this->authenticationManager->passwordAuthentication($username, $password);
     }
 

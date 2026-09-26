@@ -102,23 +102,88 @@ function oauth_normalize_public_origin(string $origin): string {
     return $origin;
 }
 
+function oauth_is_internal_service_host(string $host): bool {
+    $host = strtolower(trim($host));
+    if ($host === '' || oauth_is_loopback_origin('http://' . $host)) {
+        return true;
+    }
+    if (in_array($host, ['appdashboard'], true)) {
+        return true;
+    }
+    return !str_contains($host, '.') && preg_match('/^[a-z0-9-]+$/', $host) === 1;
+}
+
 function oauth_public_origin(): string {
-    $request = rtrim(oauth_request_scheme() . '://' . oauth_request_host(), '/');
     $configured = function_exists('getConfig') ? rtrim(trim(getConfig('app_public_base_url', '')), '/') : '';
     $fromEnv = function_exists('app_public_url') ? rtrim(app_public_url(''), '/') : '';
-    // Prefer a real public origin: never advertise localhost issuer to external OIDC clients.
-    foreach ([$configured, $fromEnv, $request] as $candidate) {
-        if ($candidate !== '' && !oauth_is_loopback_origin($candidate)) {
-            return oauth_normalize_public_origin($candidate);
+    foreach ([$configured, $fromEnv] as $candidate) {
+        if ($candidate === '') {
+            continue;
+        }
+        if (oauth_is_loopback_origin($candidate)) {
+            return $candidate;
+        }
+        return oauth_normalize_public_origin($candidate);
+    }
+    $request = rtrim(oauth_request_scheme() . '://' . oauth_request_host(), '/');
+    $host = strtolower((string)(parse_url($request, PHP_URL_HOST) ?: ''));
+    if ($request !== '' && !oauth_is_internal_service_host($host)) {
+        return oauth_normalize_public_origin($request);
+    }
+    return 'http://localhost';
+}
+
+function oauth_internal_discovery_url(): string {
+    $issuer = oauth_issuer();
+    $configured = trim((string)(getenv('OAUTH_INTERNAL_DISCOVERY_URL') ?: ''));
+    $candidates = array_values(array_filter([
+        $configured !== '' ? $configured : null,
+        'http://appdashboard/.well-known/openid-configuration',
+        'http://host.docker.internal/.well-known/openid-configuration',
+        $issuer . '/.well-known/openid-configuration',
+    ]));
+    foreach ($candidates as $url) {
+        $url = rtrim($url, '/');
+        $ctx = stream_context_create(['http' => ['timeout' => 3, 'ignore_errors' => true]]);
+        $body = @file_get_contents($url, false, $ctx);
+        if (!is_string($body) || $body === '') {
+            continue;
+        }
+        $json = json_decode($body, true);
+        if (is_array($json) && (string)($json['issuer'] ?? '') === $issuer) {
+            return $url;
         }
     }
-    if ($configured !== '') {
-        return $configured;
+    return $issuer . '/.well-known/openid-configuration';
+}
+
+function oauth_meta_get(string $key): string {
+    if (!function_exists('getDB')) {
+        return '';
     }
-    if ($fromEnv !== '') {
-        return $fromEnv;
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('SELECT value FROM app_meta WHERE key = :k LIMIT 1');
+        $stmt->bindValue(':k', $key);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? trim((string)($row['value'] ?? '')) : '';
+    } catch (\Exception $e) {
+        return '';
     }
-    return $request !== '' ? $request : 'http://localhost';
+}
+
+function oauth_meta_set(string $key, string $value): void {
+    if (!function_exists('getDB')) {
+        return;
+    }
+    try {
+        $db = getDB();
+        $stmt = $db->prepare('INSERT INTO app_meta(key, value) VALUES(:k, :v) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value');
+        $stmt->bindValue(':k', $key);
+        $stmt->bindValue(':v', $value);
+        $stmt->execute();
+    } catch (\Exception $e) {
+    }
 }
 
 function oauth_issuer(): string {
@@ -126,6 +191,17 @@ function oauth_issuer(): string {
 }
 
 function oauth_service_url(string $key, string $default): string {
+    static $envKeys = [
+        'gitea_url' => 'GITEA_PUBLIC_URL',
+        'immich_url' => 'IMMICH_PUBLIC_URL',
+        'dawarich_url' => 'DAWARICH_PUBLIC_URL',
+    ];
+    if (isset($envKeys[$key])) {
+        $fromEnv = trim((string)(getenv($envKeys[$key]) ?: ''));
+        if ($fromEnv !== '') {
+            return rtrim($fromEnv, '/');
+        }
+    }
     $configured = function_exists('getConfig') ? rtrim(trim(getConfig($key, '')), '/') : '';
     return $configured !== '' ? $configured : rtrim($default, '/');
 }
@@ -137,6 +213,38 @@ function oauth_external_app_url(string $app): string {
         'dawarich' => oauth_service_url('dawarich_url', app_public_url('dawarich')),
         default => oauth_public_origin(),
     };
+}
+
+function oauth_embed_app_path(string $app): string {
+    return match ($app) {
+        'gitea' => '/embed/git',
+        'immich' => '/embed/photo',
+        default => '',
+    };
+}
+
+function oauth_iframe_app_url(string $app): string {
+    $embedPath = oauth_embed_app_path($app);
+    if ($embedPath === '') {
+        return oauth_external_app_url($app);
+    }
+    $external = oauth_external_app_url($app);
+    $origin = oauth_public_origin();
+    $ext = parse_url($external) ?: [];
+    $pub = parse_url($origin) ?: [];
+    $extPort = (int)($ext['port'] ?? ((($ext['scheme'] ?? '') === 'https') ? 443 : 80));
+    $pubPort = (int)($pub['port'] ?? ((($pub['scheme'] ?? '') === 'https') ? 443 : 80));
+    $extHost = strtolower((string)($ext['host'] ?? ''));
+    $pubHost = strtolower((string)($pub['host'] ?? ''));
+    if ($extHost === $pubHost && $extPort === $pubPort) {
+        return $external;
+    }
+    return rtrim($origin, '/') . $embedPath;
+}
+
+function oauth_redirect_iframe(string $url): void {
+    header('Location: ' . $url);
+    exit;
 }
 
 function oauth_redirect_html(string $url): void {
@@ -428,15 +536,25 @@ function oauth_redirect_with_error(string $redirectUri, string $state, string $e
     exit;
 }
 
-function oauth_route_discovery(): void {
-    header('Content-Type: application/json; charset=utf-8');
+function oauth_discovery_endpoints(): array {
     $issuer = oauth_issuer();
-    echo json_encode([
+    $host = strtolower(oauth_request_host());
+    $apiBase = $issuer;
+    if (oauth_is_loopback_origin($issuer) && oauth_is_internal_service_host($host)) {
+        $apiBase = 'http://appdashboard';
+    }
+    return [
         'issuer' => $issuer,
         'authorization_endpoint' => $issuer . '/authorize',
-        'token_endpoint' => $issuer . '/token',
-        'userinfo_endpoint' => $issuer . '/userinfo',
-        'jwks_uri' => $issuer . '/.well-known/jwks.json',
+        'token_endpoint' => $apiBase . '/token',
+        'userinfo_endpoint' => $apiBase . '/userinfo',
+        'jwks_uri' => $apiBase . '/.well-known/jwks.json',
+    ];
+}
+
+function oauth_route_discovery(): void {
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(array_merge(oauth_discovery_endpoints(), [
         'response_types_supported' => ['code'],
         'subject_types_supported' => ['public'],
         'id_token_signing_alg_values_supported' => ['RS256'],
@@ -445,7 +563,7 @@ function oauth_route_discovery(): void {
         'claims_supported' => ['sub', 'email', 'email_verified', 'name', 'preferred_username', 'picture', 'role', 'is_admin'],
         'code_challenge_methods_supported' => ['S256', 'plain'],
         'grant_types_supported' => ['authorization_code', 'refresh_token'],
-    ], JSON_UNESCAPED_SLASHES);
+    ]), JSON_UNESCAPED_SLASHES);
     exit;
 }
 
@@ -655,12 +773,19 @@ function oauth_immich_db(): ?PDO {
     if ($tried) return $pdo;
     $tried = true;
     $vars = oauth_env_file('/opt/docker/immich/.env');
-    $user = (string)($vars['DB_USERNAME'] ?? 'postgres');
-    $password = (string)($vars['DB_PASSWORD'] ?? 'postgres');
+    $user = (string)($vars['DB_USERNAME'] ?? getenv('IMMICH_DB_USER') ?: 'immich');
+    $password = (string)($vars['DB_PASSWORD'] ?? getenv('IMMICH_DB_PASSWORD') ?: 'immich_dev_password');
     $dbname = (string)($vars['DB_DATABASE_NAME'] ?? 'immich');
-    $hosts = ['127.0.0.1', 'host.docker.internal'];
-    $ip = trim((string)shell_exec("docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' immich_postgres 2>/dev/null"));
-    if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) $hosts[] = $ip;
+    $hosts = array_values(array_filter([
+        getenv('IMMICH_DB_HOST') ?: null,
+        'immich-db',
+        '127.0.0.1',
+        'host.docker.internal',
+    ]));
+    foreach (['immich-db', 'immich_postgres'] as $container) {
+        $ip = trim((string)shell_exec("docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {$container} 2>/dev/null"));
+        if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP) && !in_array($ip, $hosts, true)) $hosts[] = $ip;
+    }
     foreach (['172.17.0.1', '172.19.0.1'] as $extra) {
         if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
@@ -816,6 +941,26 @@ function oauth_route_gitea_user(): void {
 
 
 
+function oauth_gitea_login_source_id(): int {
+    static $id = null;
+    if ($id !== null) {
+        return $id;
+    }
+    $id = 1;
+    $pdo = oauth_gitea_db();
+    if (!$pdo) {
+        return $id;
+    }
+    try {
+        $row = $pdo->query("SELECT id FROM login_source WHERE lower(name) = 'appdashboard' AND is_active = true ORDER BY id ASC LIMIT 1")->fetchColumn();
+        if ($row) {
+            $id = (int)$row;
+        }
+    } catch (\Exception $e) {
+    }
+    return $id;
+}
+
 function oauth_gitea_db(): ?PDO {
     static $pdo = null;
     static $tried = false;
@@ -867,6 +1012,21 @@ function oauth_split_name(string $name, string $fallback): array {
     return [$first, $last];
 }
 
+function oauth_immich_cluster_group_id(PDO $pdo): ?string {
+    try {
+        $id = $pdo->query('SELECT id FROM cluster_group ORDER BY "createdAt" ASC LIMIT 1')->fetchColumn();
+        if (is_string($id) && $id !== '') return $id;
+        $id = $pdo->query('SELECT id FROM cluster_group ORDER BY "createdAt" ASC LIMIT 1 FOR UPDATE')->fetchColumn();
+        if (is_string($id) && $id !== '') return $id;
+        $ins = $pdo->prepare('INSERT INTO cluster_group (name) VALUES (:name) RETURNING id');
+        $ins->execute([':name' => 'default']);
+        $id = $ins->fetchColumn();
+        return is_string($id) && $id !== '' ? $id : null;
+    } catch (\Exception $e) {
+        return null;
+    }
+}
+
 function oauth_ensure_immich_user(string $email, string $name, bool $isAdmin): void {
     $pdo = oauth_immich_db();
     if (!$pdo) return;
@@ -883,7 +1043,9 @@ function oauth_ensure_immich_user(string $email, string $name, bool $isAdmin): v
             }
             return;
         }
-        $ins = $pdo->prepare('INSERT INTO "user" (email, name, password, "isAdmin", "oauthId", "shouldChangePassword", status) VALUES (:email, :name, :password, :admin, :oid, false, :status)');
+        $clusterGroupId = oauth_immich_cluster_group_id($pdo);
+        if ($clusterGroupId === null) return;
+        $ins = $pdo->prepare('INSERT INTO "user" (email, name, password, "isAdmin", "oauthId", "shouldChangePassword", status, "clusterGroupId") VALUES (:email, :name, :password, :admin, :oid, false, :status, :clusterGroupId)');
         $ins->execute([
             ':email' => $email,
             ':name' => $name !== '' ? $name : $email,
@@ -891,6 +1053,7 @@ function oauth_ensure_immich_user(string $email, string $name, bool $isAdmin): v
             ':admin' => $isAdmin ? 't' : 'f',
             ':oid' => $email,
             ':status' => 'active',
+            ':clusterGroupId' => $clusterGroupId,
         ]);
     } catch (\Exception $e) {
     }
@@ -965,8 +1128,9 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
                 }
             }
             $now = time();
+            $loginSourceId = oauth_gitea_login_source_id();
             $ins = $pdo->prepare('INSERT INTO "user" (lower_name, name, full_name, email, keep_email_private, email_notifications_preference, passwd, passwd_hash_algo, must_change_password, login_type, login_source, login_name, type, rands, salt, language, description, created_unix, updated_unix, max_repo_creation, is_active, is_admin, is_restricted, allow_create_organization, prohibit_login, avatar, avatar_email, use_custom_avatar, num_following, visibility, repo_admin_change_team_access, diff_view_style, theme, keep_activity_private)
-                VALUES (:lower, :name, :full, :email, false, :notif, :passwd, :algo, false, 0, 1, :login_name, 0, :rands, :salt, :lang, :descr, :now, :now, -1, true, :admin, false, true, false, :avatar, :email2, false, 0, 0, false, :diff, :theme, false)
+                VALUES (:lower, :name, :full, :email, false, :notif, :passwd, :algo, false, 0, :login_source, :login_name, 0, :rands, :salt, :lang, :descr, :now, :now, -1, true, :admin, false, true, false, :avatar, :email2, false, 0, 0, false, :diff, :theme, false)
                 RETURNING id');
             $ins->execute([
                 ':lower' => $username,
@@ -976,6 +1140,7 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
                 ':notif' => 'enabled',
                 ':passwd' => '',
                 ':algo' => '',
+                ':login_source' => oauth_gitea_login_source_id(),
                 ':login_name' => $email,
                 ':rands' => bin2hex(random_bytes(16)),
                 ':salt' => '',
@@ -992,23 +1157,27 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
             $pdo->prepare('INSERT INTO email_address (uid, email, lower_email, is_activated, is_primary) SELECT :uid, :email, :lower, true, true WHERE NOT EXISTS (SELECT 1 FROM email_address WHERE lower_email = :lower2)')
                 ->execute([':uid' => $userId, ':email' => $email, ':lower' => strtolower($email), ':lower2' => strtolower($email)]);
         } else {
-            $pdo->prepare("UPDATE \"user\" SET is_admin = :admin, theme = :theme, full_name = CASE WHEN full_name = '' OR full_name IS NULL THEN :full ELSE full_name END, login_source = 1, login_name = COALESCE(NULLIF(login_name, ''), :login), updated_unix = :now WHERE id = :id")
+            $loginSourceId = oauth_gitea_login_source_id();
+            $pdo->prepare("UPDATE \"user\" SET is_admin = :admin, theme = :theme, full_name = CASE WHEN full_name = '' OR full_name IS NULL THEN :full ELSE full_name END, login_source = :login_source, login_name = COALESCE(NULLIF(login_name, ''), :login), updated_unix = :now WHERE id = :id")
                 ->execute([
                     ':admin' => $isAdmin ? 't' : 'f',
                     ':theme' => $giteaTheme,
                     ':full' => $name,
                     ':login' => $email,
+                    ':login_source' => $loginSourceId,
                     ':now' => time(),
                     ':id' => $userId,
                 ]);
         }
+        $loginSourceId = oauth_gitea_login_source_id();
         $ext = $pdo->prepare("INSERT INTO external_login_user (external_id, user_id, login_source_id, provider, email, name, nick_name, avatar_url, raw_data)
-            VALUES (:ext, :uid, 1, 'AppDashboard', :email, :name, :nick, :avatar, CAST(:raw AS jsonb))
+            VALUES (:ext, :uid, :login_source, 'AppDashboard', :email, :name, :nick, :avatar, CAST(:raw AS jsonb))
             ON CONFLICT (external_id, login_source_id) DO UPDATE SET user_id = EXCLUDED.user_id, email = EXCLUDED.email, name = EXCLUDED.name, nick_name = EXCLUDED.nick_name, avatar_url = EXCLUDED.avatar_url");
         $nick = oauth_sanitize_username(strstr($email, '@', true) ?: $email);
         $ext->execute([
             ':ext' => $email,
             ':uid' => (int)$userId,
+            ':login_source' => $loginSourceId,
             ':email' => $email,
             ':name' => $name !== '' ? $name : $nick,
             ':nick' => $nick,
@@ -1018,7 +1187,6 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
     } catch (\Exception $e) {
     }
 }
-
 
 function oauth_provision_user_services(string $email, array $user = []): void {
     $email = trim($email);

@@ -413,14 +413,8 @@ async function main() {
     record("delete_shared_file", true, "skipped_no_shares");
   }
 
-  // avatar / password — skip mutating root password; reset_avatar is ok
-  await run("reset_avatar");
-  record("change_password", true, "skipped_mutating_root");
-  record("change_avatar", true, "skipped_needs_image");
-  record("login", true, "skipped_already_authed");
-  record("update_user", true, "skipped_mutating");
-  record("delete_user", true, "skipped_mutating");
-  record("write_json_file", true, "skipped_mutating_repo_json");
+  await run("mcp_check_update");
+  await run("tools_call", { name: "list_apps", arguments: {} });
 
   const failed = results.filter((r) => !r.ok);
   const passed = results.filter((r) => r.ok);

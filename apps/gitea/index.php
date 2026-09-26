@@ -7,12 +7,11 @@ require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
-$isLoggedIn = isset($_SESSION['user']['email']) && getUserFromActiveSessions(session_id()) !== null;
 $themeParam = (string)($_GET['theme'] ?? '');
 $cookieTheme = (string)($_COOKIE['browser_theme'] ?? '');
 $theme = in_array($themeParam, ['light', 'dark', 'auto'], true) ? $themeParam : (in_array($cookieTheme, ['light', 'dark'], true) ? $cookieTheme : 'light');
 $giteaTheme = $theme === 'auto' ? 'gitea-auto' : ($theme === 'dark' ? 'gitea-dark' : 'gitea-light');
-if (!$isLoggedIn) {
+if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
     oauth_redirect_html(oauth_login_url());
 }
 if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
@@ -21,10 +20,9 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
     gitea_sync_user_theme((string)($_SESSION['user']['email'] ?? ''), $giteaTheme);
     gitea_sync_all_user_themes($giteaTheme);
     gitea_clear_sessions();
-    $u = oauth_external_app_url('gitea') . '/user/oauth2/AppDashboard';
+    $u = oauth_iframe_app_url('gitea') . '/user/oauth2/AppDashboard';
     if ($theme !== '') $u .= '?' . http_build_query(['theme' => $giteaTheme]);
-    header('Location: ' . $u);
-    exit;
+    oauth_redirect_iframe($u);
 }
 oauth_redirect_html(oauth_app_bridge_url('gitea', $theme));
 

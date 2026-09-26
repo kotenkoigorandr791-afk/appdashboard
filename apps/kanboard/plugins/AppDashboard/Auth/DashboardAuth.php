@@ -55,8 +55,10 @@ class DashboardAuth extends Base implements PreAuthenticationProviderInterface, 
                     $session['theme'] = $theme;
                 }
                 $session['role'] = Role::APP_MANAGER;
+                $session['twofactor_activated'] = false;
                 session_set('user', $session);
             }
+            $this->userSession->setPostAuthenticationAsValidated();
         }
         return $ok;
     }

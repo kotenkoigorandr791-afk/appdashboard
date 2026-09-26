@@ -113,6 +113,11 @@ function integrations_gitea_url(): string {
     return rtrim($url, '/');
 }
 
+function integrations_gitea_api_base(): string {
+    $internal = trim((string)(getenv('GITEA_INTERNAL_URL') ?: 'http://gitea:3000'));
+    return rtrim($internal !== '' ? $internal : integrations_gitea_url(), '/');
+}
+
 function integrations_gitea_admin_auth(): ?array {
     $user = trim((string)(getenv('GITEA_ADMIN_USER') ?: ''));
     $pass = (string)(getenv('GITEA_ADMIN_PASSWORD') ?: '');
@@ -147,7 +152,7 @@ function integrations_gitea_username(string $email): string {
 }
 
 function integrations_gitea_http(string $method, string $path, ?array $auth, ?array $json = null, string $token = ''): array {
-    $url = integrations_gitea_url() . '/api/v1' . $path;
+    $url = integrations_gitea_api_base() . '/api/v1' . $path;
     $headers = ['Accept: application/json', 'Content-Type: application/json'];
     if ($token !== '') {
         $headers[] = 'Authorization: token ' . $token;
@@ -359,7 +364,8 @@ function integrations_kanboard_credentials(string $email, bool $refresh = false)
     $username = (string)$user['username'];
     $userId = (int)($user['id'] ?? 0);
     if ($userId > 0) {
-        $pdo->prepare('UPDATE users SET notifications_enabled = TRUE WHERE id = :id')->execute([':id' => $userId]);
+        $pdo->prepare('UPDATE users SET notifications_enabled = TRUE, nb_failed_login = 0, lock_expiration_date = 0 WHERE id = :id')
+            ->execute([':id' => $userId]);
         try {
             $hasWeb = $pdo->prepare('SELECT 1 FROM user_has_notification_types WHERE user_id = :id AND notification_type = :t LIMIT 1');
             $hasWeb->execute([':id' => $userId, ':t' => 'web']);

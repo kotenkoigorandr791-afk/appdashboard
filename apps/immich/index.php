@@ -7,9 +7,8 @@ require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
-$isLoggedIn = isset($_SESSION['user']['email']) && getUserFromActiveSessions(session_id()) !== null;
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
-if (!$isLoggedIn) {
+if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
     oauth_redirect_html(oauth_login_url());
 }
 if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
@@ -21,7 +20,6 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
         $params['color-theme'] = $theme;
         $params['appearance'] = $theme;
     }
-    header('Location: ' . oauth_external_app_url('immich') . '/auth/login?' . http_build_query($params));
-    exit;
+    oauth_redirect_iframe(oauth_iframe_app_url('immich') . '/auth/login?' . http_build_query($params));
 }
 oauth_redirect_html(oauth_app_bridge_url('immich', $theme));

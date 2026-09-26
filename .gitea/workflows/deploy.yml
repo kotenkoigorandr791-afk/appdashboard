@@ -48,6 +48,7 @@ jobs:
             docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d appdashboard
           fi
           docker exec appdashboard php /var/www/AppDashboard/deploy/scripts/fix-public-urls.php || true
+          docker exec appdashboard php /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php || true
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
           docker exec appdashboard /var/www/AppDashboard/bot/.venv/bin/pip install -q -r /var/www/AppDashboard/bot/requirements.txt
