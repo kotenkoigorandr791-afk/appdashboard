@@ -24,25 +24,21 @@
     "cloud": "Cloud file manager with editors (3MF, PDF, LaTeX...)",
     "films": "Movie manager – collection, comments",
     "map": "Map viewer, KML, GPS, favorites",
-    "media_viewer": "Media gallery with albums",
     "performance": "Server performance monitor",
     "recipes": "Custom recipes manager",
     "spends": "Expense tracker with charts",
     "steps": "Health & activity tracker",
-    "tft_generator": "TFT screen code generator",
-    "viewer": "Local network device viewer"
+    "tft_generator": "TFT screen code generator"
   },
   "app_details": {
     "portal": "The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.",
     "cloud": "Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.",
     "films": "Personal movie database with comments, watchlist, and categories. Track what you've watched and share reviews.",
     "map": "Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.",
-    "media_viewer": "Media gallery with automatic album creation, previews for images/videos, and sharing options.",
     "performance": "Real-time server monitor: CPU load, memory usage, disk I/O, Apache module status. Historical graphs.",
     "recipes": "Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.",
     "spends": "Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.",
     "steps": "Activity tracker for steps, distance, calories. Set daily goals and view progress over time.",
-    "tft_generator": "Generate TFT screen code from canvas drawings. Convert sketches into display-ready code.",
-    "viewer": "Discover and monitor local network devices (routers, smart devices) with dashboard view."
+    "tft_generator": "Generate TFT screen code from canvas drawings. Convert sketches into display-ready code."
   }
 }

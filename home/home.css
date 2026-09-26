@@ -708,6 +708,8 @@ body.light-theme .feature-card:hover {
   box-shadow: 0 14px 38px rgba(26,43,51,0.16), 0 0 16px rgba(30,100,180,0.1);
 }
 .feature-card svg { width: 34px; height: 34px; stroke: currentColor; stroke-width: 1.8; fill: none; margin-bottom: 12px; opacity: 0.88; }
+.feature-card img.app-real-icon { width: 34px; height: 34px; object-fit: contain; margin-bottom: 12px; opacity: 0.95; }
+.explore-app-icon img.app-real-icon { width: 20px; height: 20px; display: block; flex: 0 0 auto; object-fit: contain; }
 .feature-card h3 { font-size: 16px; font-weight: 700; margin: 0 0 6px; }
 .feature-card .short-desc { font-size: 13px; line-height: 1.5; opacity: 0.68; }
 
