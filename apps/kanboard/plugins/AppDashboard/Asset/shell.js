@@ -151,22 +151,29 @@
       }
     }
   }
+  function setBoardHeight(board, container, lists, h) {
+    container.style.minHeight = h + 'px';
+    board.style.minHeight = h + 'px';
+    var headerRow = board.querySelector('tr:first-child');
+    var headerH = headerRow ? headerRow.getBoundingClientRect().height : 48;
+    var listH = Math.max(200, h - headerH - 8);
+    for (var i = 0; i < lists.length; i++) {
+      lists[i].style.minHeight = listH + 'px';
+      lists[i].style.maxHeight = listH + 'px';
+    }
+  }
   function fillBoardHeight() {
     var board = document.getElementById('board');
     var container = document.getElementById('board-container');
     if (!board || !container) return;
-    var top = container.getBoundingClientRect().top;
-    var h = Math.max(280, window.innerHeight - top - 16);
-    container.style.minHeight = h + 'px';
-    board.style.minHeight = h + 'px';
     var lists = board.querySelectorAll('.board-task-list.board-column-expanded');
-    var headerRow = board.querySelector('tr:first-child');
-    var headerH = headerRow ? headerRow.getBoundingClientRect().height : 48;
-    var listH = Math.max(200, h - headerH - 8);
+    var top = container.getBoundingClientRect().top + window.scrollY;
+    var h = Math.max(280, window.innerHeight - top - 16);
+    setBoardHeight(board, container, lists, h);
+    var over = document.documentElement.scrollHeight - window.innerHeight;
+    if (over > 0) setBoardHeight(board, container, lists, Math.max(280, h - over));
     var needsScroll = false;
     for (var i = 0; i < lists.length; i++) {
-      lists[i].style.minHeight = listH + 'px';
-      lists[i].style.maxHeight = listH + 'px';
       if (lists[i].scrollHeight > lists[i].clientHeight + 2) needsScroll = true;
     }
     var needsX = board.scrollWidth > container.clientWidth + 2;
@@ -268,7 +275,7 @@
   }
   function polishUploadModal(box, content) {
     var drop = content.querySelector('#file-dropzone');
-    if (!drop) {
+    if (!drop || content.querySelector('.task-form-container')) {
       box.classList.remove('kb-upload-modal');
       content.classList.remove('kb-upload-content');
       return;
