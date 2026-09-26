@@ -144,7 +144,7 @@ if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
-if [ -d /usr/local/share/lopaka ]; then
+if [ -d /usr/local/share/lopaka ] && [ ! -f /var/www/AppDashboard/apps/lopaka/index.html ]; then
   rm -rf /var/www/AppDashboard/apps/lopaka
   mkdir -p /var/www/AppDashboard/apps/lopaka
   cp -a /usr/local/share/lopaka/. /var/www/AppDashboard/apps/lopaka/
