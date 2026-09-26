@@ -25,6 +25,8 @@ def main() -> int:
     omni_upstream = (os.environ.get("OMNIROUTE_UPSTREAM") or "http://127.0.0.1:20128").rstrip("/")
     gitea_upstream = (os.environ.get("GITEA_INTERNAL_URL") or "http://gitea:3000").rstrip("/")
     immich_upstream = (os.environ.get("IMMICH_INTERNAL_URL") or "http://immich-server:2283").rstrip("/")
+    gitea_proxy_host = (os.environ.get("GITEA_PROXY_HOST") or f"git.{base}").strip()
+    immich_proxy_host = (os.environ.get("IMMICH_PROXY_HOST") or f"photo.{base}").strip()
     app_url = (os.environ.get("APP_PUBLIC_BASE_URL") or f"{scheme}://{base}").rstrip("/")
     app_url_http = f"http://{base}"
     repl = {
@@ -35,6 +37,8 @@ def main() -> int:
         "__OMNIROUTE_UPSTREAM__": omni_upstream,
         "__GITEA_UPSTREAM__": gitea_upstream,
         "__IMMICH_UPSTREAM__": immich_upstream,
+        "__GITEA_PROXY_HOST__": gitea_proxy_host,
+        "__IMMICH_PROXY_HOST__": immich_proxy_host,
         "__APP_PUBLIC_URL_HTTP__": app_url_http,
         "__APP_PUBLIC_URL__": app_url,
         "__AI_PUBLIC_URL__": ai_url,

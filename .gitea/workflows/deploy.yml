@@ -71,8 +71,10 @@ jobs:
           set +a
           export BASE_DOMAIN="${BASE_DOMAIN:-serverkherson.xyz}"
           export APP_PUBLIC_SCHEME="${APP_PUBLIC_SCHEME:-https}"
-          export GITEA_INTERNAL_URL="${GITEA_INTERNAL_URL:-http://host.docker.internal:3000}"
-          export IMMICH_INTERNAL_URL="${IMMICH_INTERNAL_URL:-http://host.docker.internal:2283}"
+          export GITEA_INTERNAL_URL="${GITEA_INTERNAL_URL:-https://git.${BASE_DOMAIN}}"
+          export IMMICH_INTERNAL_URL="${IMMICH_INTERNAL_URL:-https://photo.${BASE_DOMAIN}}"
+          export GITEA_PROXY_HOST="${GITEA_PROXY_HOST:-git.${BASE_DOMAIN}}"
+          export IMMICH_PROXY_HOST="${IMMICH_PROXY_HOST:-photo.${BASE_DOMAIN}}"
           python3 /opt/docker/appdashboard/code/deploy/scripts/render-nginx-conf.sh \
             /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf \
             /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf.rendered
