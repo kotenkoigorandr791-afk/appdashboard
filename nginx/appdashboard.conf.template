@@ -52,7 +52,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "geolocation=(self), microphone=(), camera=(self), usb=()" always;
     add_header Strict-Transport-Security "$hsts_header" always;
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self' https://accounts.google.com https://github.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws: wss: ws://localhost:* ws://127.0.0.1:*; worker-src 'self' blob:; manifest-src 'self'; $uir_token" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'self'; frame-ancestors 'self'; form-action 'self' https://accounts.google.com https://github.com; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws: wss: ws://localhost:* ws://127.0.0.1:*; worker-src 'self' blob:; manifest-src 'self'; $uir_token" always;
 
     if ($request_uri ~* "^(.*/)index\.(php|html?)$") {
         return 301 $1;
@@ -227,6 +227,79 @@ server {
         fastcgi_param REQUEST_URI $request_uri;
         fastcgi_param HTTP_AUTHORIZATION $http_authorization;
         fastcgi_hide_header X-Powered-By;
+    }
+
+    location ~ ^/(photos|explore|map|sharing|search|favorites|archive|utilities|locked|trash|albums|settings|user-settings|partners|admin-system-settings)(/|$) {
+        return 302 /embed/photo$uri$is_args$args;
+    }
+
+    location = /embed/git {
+        return 302 /embed/git/;
+    }
+
+    location = /embed/git/authorize {
+        return 302 /authorize$is_args$args;
+    }
+
+    location ^~ /embed/git/ {
+        absolute_redirect off;
+        proxy_pass __GITEA_UPSTREAM__/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_redirect ~^https?://[^/]+(/.*)$ /embed/git$1;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self'" always;
+    }
+
+    location = /embed/photo {
+        return 302 /embed/photo/;
+    }
+
+    location = /embed/photo/authorize {
+        return 302 /authorize$is_args$args;
+    }
+
+    location ^~ /embed/photo/ {
+        absolute_redirect off;
+        proxy_pass __IMMICH_UPSTREAM__/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_redirect ~^https?://[^/]+(/.*)$ /embed/photo$1;
+        proxy_cookie_path / /embed/photo/;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self'" always;
+        sub_filter_once off;
+        sub_filter_types text/css application/javascript application/json text/javascript;
+        sub_filter '<head>' '<head><base href="/embed/photo/"><script>(function(){var p="/embed/photo",a=["/api","/auth","/_app","/.well-known","/favicon","/manifest","/service-worker","/photos","/explore","/map","/sharing","/search","/albums","/settings","/user-settings","/archive","/favorites","/trash","/utilities","/locked","/partners","/admin-system-settings"];function m(u){for(var i=0;i<a.length;i++){var v=a[i];if(u===v||u.indexOf(v+"/")===0||u.indexOf(v+"?")===0)return true}return false}function r(u){if(typeof u!=="string"||u==="")return u;if(u===p||u.indexOf(p+"/")===0)return u;if(u.indexOf(location.origin)===0)u=u.slice(location.origin.length);if(m(u))return p+u;return u}var f=window.fetch;if(f)window.fetch=function(i,n){if(typeof i==="string")i=r(i);else if(i&&typeof Request!=="undefined"&&i instanceof Request){var x=new URL(i.url,location.href),u=r(x.pathname+x.search);if(u!==(x.pathname+x.search))i=new Request(u,i)}return f.call(this,i,n)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(mth,u){arguments[1]=r(u);return o.apply(this,arguments)};var ps=history.pushState;history.pushState=function(s,t,u){return ps.call(this,s,t,typeof u==="string"?r(u):u)};var rs=history.replaceState;history.replaceState=function(s,t,u){return rs.call(this,s,t,typeof u==="string"?r(u):u)};if(m(location.pathname)&&location.pathname.indexOf(p)!==0){rs.call(history,history.state,document.title,r(location.pathname+location.search+location.hash))}})();</script>';
+        sub_filter '"/_app/' '"/embed/photo/_app/';
+        sub_filter "'/_app/" "'/embed/photo/_app/";
+        sub_filter 'href="/_app/' 'href="/embed/photo/_app/';
+        sub_filter 'src="/_app/' 'src="/embed/photo/_app/';
+        sub_filter '"/api/' '"/embed/photo/api/';
+        sub_filter "'/api/" "'/embed/photo/api/";
+        sub_filter '"/auth/' '"/embed/photo/auth/';
+        sub_filter "'/auth/" "'/embed/photo/auth/";
+        sub_filter '"/.well-known/' '"/embed/photo/.well-known/';
+        sub_filter '"/favicon' '"/embed/photo/favicon';
+        sub_filter '"/manifest' '"/embed/photo/manifest';
+        sub_filter '"/service-worker' '"/embed/photo/service-worker';
     }
 
     location = /admin-omniroute {

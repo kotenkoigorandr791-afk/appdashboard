@@ -177,6 +177,13 @@ onUnmounted(() => {
     outline: none;
 }
 
+/* code must be scrollable inside its own box (especially on mobile) */
+.fui-code .cm-scroller {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+}
+
 .fui-code .cm-gutters {
     background: transparent;
     border-right: 1px solid color-mix(in srgb, var(--border-color, #888) 40%, transparent);

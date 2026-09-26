@@ -311,6 +311,8 @@
         "cancel_job": "Отменить",
         "cancel_busy": "Отмена...",
         "cancel_done": "OCR отменен",
+        "processing_line": "Обработано {cur} из {total} ({pct}%)",
+        "queued_line": "Ожидание в очереди: #{pos}",
         "progress_line": "Обработано {cur} из {total} ({pct}%)",
         "occurrences": "Совпадений",
         "suggested": "Предложено",

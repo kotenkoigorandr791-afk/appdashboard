@@ -264,14 +264,6 @@ function onMouseClick() {
     />
 
     <!-- Mobile layers modal -->
-    <button
-        type="button"
-        class="btn btn-sm fui-layers-modal-trigger"
-        @click="layersOpen = true"
-    >
-        <Icon type="collapse" sm />
-        Layers
-    </button>
     <div
         v-if="layersOpen"
         class="fui-layers-modal fixed inset-0 z-50 flex items-end sm:items-center justify-center"
@@ -303,7 +295,7 @@ function onMouseClick() {
         </div>
         <div class="fui-editor__top pb-1">
             <slot name="title"></slot>
-            <div class="flex flex-row text-sm mb-2 justify-center">
+            <div class="fui-editor-header-row">
                 <FuiSelectPlatform></FuiSelectPlatform>
                 <FuiSelectDisplay></FuiSelectDisplay>
                 <FuiSelectColors
@@ -312,24 +304,27 @@ function onMouseClick() {
                 ></FuiSelectColors>
             </div>
             <div
-                class="font-sans flex flex-row gap-4 justify-between items-center flex-wrap fui-toolbar-row"
+                class="font-sans flex flex-row gap-4 items-center flex-nowrap fui-toolbar-row"
                 v-if="isScreenLoaded && !isScreenNotFound"
             >
-                <div class="w-1/6 text-center">
-                    <Button
-                        v-if="isFlipper && isSerialSupported"
-                        @click="toggleFlipperPreview"
-                        title="Preview your design in real-time on your Flipper via USB"
-                    >
-                        {{ flipperPreviewBtnText }}
-                    </Button>
-                </div>
-                <div class="flex flex-1 items-center justify-start gap-4">
+                <div class="flex flex-1 items-center justify-start gap-1 min-w-0 fui-tools-area">
                     <FuiTools v-if="!readonly"></FuiTools>
                     <PaintColorModeToggle v-if="!readonly && showColorModeToggle" />
                     <PaintBrushColorInput v-if="!readonly && shouldShowBrushControls" />
                 </div>
                 <FuiSelectScale></FuiSelectScale>
+                <!-- mobile: layers trigger sits inside the frame, same row as zoom -->
+                <Button
+                    class="fui-layers-modal-trigger"
+                    @click="layersOpen = true"
+                    title="Show layers"
+                >
+                    <Icon
+                        type="stack"
+                        sm
+                    />
+                    Layers
+                </Button>
             </div>
             <div
                 v-if="!isScreenLoaded && !isScreenNotFound"
@@ -563,25 +558,65 @@ body {
 .fui-layers-modal {
     display: none;
 }
-
-/* toolbar row: never overflow horizontally */
+/* toolbar row: tools stay in one row, they shrink if needed; zoom pushed right */
 .fui-toolbar-row {
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     min-width: 0;
     justify-content: flex-start;
+    gap: 8px;
 }
 .fui-toolbar-row > * {
     min-width: 0;
 }
-/* empty flexer placeholder stays small */
-.fui-toolbar-row > .w-1\/6 {
-    width: auto;
+.fui-toolbar-row .fui-scale {
+    margin-left: auto;
     flex: 0 0 auto;
 }
-.fui-toolbar-row > .flex-1 {
+.fui-tools-area {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+/* tools never wrap to a second row: shrink buttons and icons instead */
+.fui-tools-area > div:first-child {
+    flex-wrap: nowrap;
+    min-width: 0;
     flex: 0 1 auto;
+    overflow: hidden;
+}
+.fui-tools-area > div:first-child > div {
+    min-width: 0;
+    flex: 0 1 auto;
+}
+.fui-tools-area .btn-square {
+    width: auto !important;
+    min-width: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+}
+.fui-tools-area .btn-square svg {
+    max-width: 100%;
+    width: 100% !important;
+    height: auto !important;
+    max-height: 20px;
+    min-width: 0;
+}
+/* header selects framed */
+.fui-editor-header-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-start;
-    margin-left: 4px;
+    gap: 4px 10px;
+    text-align: left;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    margin-bottom: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--bg-color, #000) 35%, transparent);
+    min-width: 0;
 }
 /* zoom block with frame */
 .fui-scale {
@@ -601,15 +636,22 @@ body {
         min-height: 0;
         overflow: hidden;
     }
-    /* hide desktop layers sidebar */
-    .fui-editor__left {
-        display: none;
-    }
-    /* layers modal trigger visible */
+    /* layers trigger lives inside the top frame, same row as zoom */
     .fui-layers-modal-trigger {
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        flex: 0 0 auto;
+        margin-left: 4px;
+        height: 28px;
+        min-height: 28px;
+        font-size: 11px;
+        padding: 0 8px;
+        border-radius: 8px;
+    }
+    /* hide the desktop layers sidebar */
+    .fui-editor__left {
+        display: none;
     }
     /* modal itself must render on mobile (base rule keeps it hidden) */
     .fui-layers-modal {
@@ -620,15 +662,43 @@ body {
         flex-direction: column;
         gap: 8px;
         flex: 0 0 auto;
-        padding: 8px 8px 4px;
-        margin: 0 6px;
+        padding: 8px;
+        margin: 8px 6px 0;
         border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
         border-radius: 12px;
         background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
     }
+    .fui-editor__top .fui-editor-header-row {
+        flex-wrap: wrap;
+        border: none;
+        background: transparent;
+        padding: 0;
+        margin-bottom: 0;
+    }
     .fui-editor__top .flex-row {
         flex-wrap: wrap;
         gap: 8px;
+    }
+    /* narrow screens: tools take the full row, zoom+layers wrap below it */
+    .fui-toolbar-row {
+        flex-wrap: wrap;
+    }
+    .fui-toolbar-row .fui-tools-area {
+        flex: 1 1 100%;
+    }
+    .fui-toolbar-row .fui-scale {
+        margin-left: 0;
+    }
+    /* zoom slider shrinks on narrow phones so scale+layers fit one row */
+    .fui-scale__range {
+        width: 72px !important;
+    }
+    /* canvas box must clip the (transformed) canvas so it never widens the page */
+    .fui-editor__main {
+        overflow: hidden;
+    }
+    .fui-editor__canvas .canvas-wrapper {
+        max-width: 100%;
     }
     /* strict zone separation */
     .fui-editor__main {
@@ -646,8 +716,8 @@ body {
         background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
     }
     .fui-layers-modal-trigger {
-        margin: 8px 6px 0;
-        align-self: flex-end;
+        display: inline-flex;
+        margin-left: 4px;
     }
     .fui-editor__main-right {
         margin: 8px 6px 0;
@@ -657,11 +727,20 @@ body {
         background: color-mix(in srgb, var(--secondary-color) 55%, transparent);
         padding-right: 12px;
     }
+    /* page scrolls vertically when boxes don't fit the screen */
+    .fui-editor {
+        overflow-y: auto;
+        overflow-x: hidden;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
     .fui-editor__main {
         height: auto;
         min-height: 0;
-        overflow: visible;
         flex: 0 0 auto;
+        /* clip the transformed canvas so it never widens the page */
+        overflow-x: hidden;
+        overflow-y: visible;
     }
     .fui-editor__canvas {
         height: 38vw;
@@ -679,24 +758,35 @@ body {
     .fui-editor__canvas .canvas-wrapper {
         transform-origin: 0 0;
     }
+    /* touches on the canvas must never scroll the page */
+    .fui-editor__canvas,
+    .fui-editor__canvas .canvas-wrapper,
+    .fui-editor__canvas .fui-grid,
+    .fui-editor__canvas .screen {
+        touch-action: none;
+    }
     .fui-editor__main-right {
         border-left: none !important;
         margin: 8px 6px 0;
         width: calc(100% - 12px);
         padding-right: 12px;
-        flex: 1 1 auto;
-        min-height: 30vh;
-        overflow-y: auto;
-        overflow-x: hidden;
-        overscroll-behavior: contain;
+        flex: 0 0 auto;
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
     }
     .fui-editor__bottom {
         flex-direction: column;
-        padding: 0 4px;
+        padding: 8px;
         width: calc(100% - 12px);
-        flex: 0 1 auto;
+        flex: 0 0 auto;
         min-height: 0;
-        overflow-y: auto;
+        overflow: visible;
+    }
+    /* code box scrolls inside its own frame on mobile */
+    .fui-editor__bottom .fui-code {
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
     }
     .fui-editor__bottom-right {
@@ -713,12 +803,46 @@ body {
         height: 18vh;
         min-height: 110px;
     }
+    /* topbar row must fit narrow screens: let buttons wrap to a second line */
     .fui-code-topbar__actions {
-        gap: 4px;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+        width: 100%;
     }
     .fui-code-topbar__actions .btn {
-        padding: 0 10px;
+        padding: 0 8px;
         gap: 4px;
+        font-size: 11px;
+    }
+    .fui-code-topbar__actions .btn svg {
+        width: 14px;
+        height: 14px;
+    }
+    .fui-code-topbar__actions > * {
+        min-width: 0;
+    }
+}
+
+@media (max-width: 340px) {
+    /* very narrow screens: buttons wrap to two lines instead of overflowing */
+    .fui-code-topbar__actions {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+    /* the Import+Cloud group also wraps internally */
+    .fui-code-topbar__actions > .tooltip {
+        flex-wrap: wrap;
+        height: auto;
+        max-width: 100%;
+        row-gap: 4px;
+    }
+    .fui-code-topbar__actions .btn {
+        flex-shrink: 1;
+        min-width: 0;
+    }
+    .fui-code-topbar {
+        padding-left: 8px;
+        padding-right: 8px;
     }
 }
 
@@ -744,10 +868,59 @@ body {
     .fui-editor__main-right {
         padding-right: 10px;
         min-height: 28vh;
-    }
-    .fui-code {
+    }    .fui-code {
         height: 16vh;
         min-height: 100px;
+    }
+}
+
+/* --- Scrollbars must never stick out past rounded box corners --- */
+.fui-editor__left,
+.fui-editor__main-right,
+.fui-editor__bottom,
+.fui-editor__bottom-right,
+.fui-code {
+    border-radius: 12px;
+}
+/* scrollable containers clip their scrollbars with the rounded corner */
+.fui-editor__left,
+.fui-editor__bottom-right {
+    overflow-y: auto;
+}
+.fui-editor__bottom-right {
+    border-radius: 12px;
+}
+.fui-code {
+    border-radius: 8px;
+}
+/* keep gutters visually inside: thin scrollbar + right padding compensation */
+.fui-editor__left,
+.fui-editor__main-right {
+    scrollbar-gutter: stable;
+}
+.fui-editor__left::-webkit-scrollbar:vertical,
+.fui-editor__main-right::-webkit-scrollbar:vertical,
+.fui-editor__bottom-right::-webkit-scrollbar:vertical,
+.fui-code::-webkit-scrollbar:vertical {
+    width: 8px;
+}
+.fui-code::-webkit-scrollbar:horizontal {
+    height: 8px;
+}
+.fui-editor__left::-webkit-scrollbar-thumb,
+.fui-editor__main-right::-webkit-scrollbar-thumb,
+.fui-editor__bottom-right::-webkit-scrollbar-thumb,
+.fui-code::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+}
+/* on mobile the page itself scrolls, so boxes don't need inner scroll */
+@media (max-width: 768px) {
+    .fui-editor__left,
+    .fui-editor__main-right {
+        overflow: visible;
+    }
+    .fui-code {
+        border-radius: 8px;
     }
 }
 </style>

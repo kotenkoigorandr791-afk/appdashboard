@@ -7,9 +7,8 @@ require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
-$isLoggedIn = isset($_SESSION['user']['email']) && getUserFromActiveSessions(session_id()) !== null;
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
-if (!$isLoggedIn) {
+if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
     oauth_redirect_html(oauth_login_url());
 }
 if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
@@ -19,9 +18,7 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
         dawarich_sync_user_theme($email, $theme);
         dawarich_sync_all_user_themes($theme);
     }
-    $u = oauth_external_app_url('dawarich') . '/users/sign_in';
-    header('Location: ' . $u);
-    exit;
+    oauth_redirect_iframe(oauth_external_app_url('dawarich') . '/users/sign_in');
 }
 oauth_redirect_html(oauth_app_bridge_url('dawarich', $theme));
 

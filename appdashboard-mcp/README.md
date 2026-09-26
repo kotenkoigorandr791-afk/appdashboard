@@ -78,13 +78,14 @@ Local develop entry uses `node` + `dist/index.js` instead of `npx`.
 
 ## Grouped tool discovery (default)
 
-Instead of exposing one huge flat tool list (100+ tools), the server advertises only 4 meta-tools:
+Instead of exposing one huge flat tool list (100+ tools), the server advertises only 5 meta-tools:
 
 | Tool | Purpose |
 |------|---------|
 | `tools_catalog` | List tool groups with counts and descriptions |
 | `tools_load` | Get full schemas for the groups you need (e.g. `{"groups":["kanboard"]}`) |
 | `tools_search` | Find tools by keyword across all groups |
+| `tools_call` | Run a loaded tool: `{"name":"kanboard_list_tasks","arguments":{}}` (clients only allow calling advertised tools) |
 | `mcp_check_update` | Check for a newer MCP package and auto-update |
 
 The agent is instructed to call these tools **only when the task explicitly requires AppDashboard** (its apps or server management); regular local coding tasks must not trigger MCP calls.

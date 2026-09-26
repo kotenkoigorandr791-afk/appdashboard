@@ -117,6 +117,9 @@ opencode.json
 # Test artifacts
 /tests/tmp/
 /tests/tests/tmp/
+appdashboard-mcp/smoke-*-results.txt
+appdashboard-mcp/tmp-*
+appdashboard-mcp/tmp-gitea-wf/
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
 .aider*

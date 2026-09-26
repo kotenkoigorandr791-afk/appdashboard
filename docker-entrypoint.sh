@@ -114,6 +114,7 @@ if [ -f "$APPDATA_DATA_DIR/db.env" ]; then
   grep -q '^REDIS_PORT=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PORT=%s\n' "${REDIS_PORT:-6379}" >> "$APPDATA_DATA_DIR/db.env"
   grep -q '^REDIS_DATABASE=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_DATABASE=%s\n' "${REDIS_DATABASE:-0}" >> "$APPDATA_DATA_DIR/db.env"
   grep -q '^REDIS_PREFIX=' "$APPDATA_DATA_DIR/db.env" || printf 'REDIS_PREFIX=%s\n' "${REDIS_PREFIX:-appdashboard:}" >> "$APPDATA_DATA_DIR/db.env"
+  chown www-data:www-data "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   chmod 0600 "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
 fi
 for docker_sock in /var/run/docker.sock /run/docker-desktop.sock; do
@@ -143,7 +144,7 @@ if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
-if [ -d /usr/local/share/lopaka ]; then
+if [ -d /usr/local/share/lopaka ] && [ ! -f /var/www/AppDashboard/apps/lopaka/index.html ]; then
   rm -rf /var/www/AppDashboard/apps/lopaka
   mkdir -p /var/www/AppDashboard/apps/lopaka
   cp -a /usr/local/share/lopaka/. /var/www/AppDashboard/apps/lopaka/
@@ -284,6 +285,9 @@ foreach ($seed as $k => $v) {
   }
 }
 ' >/var/log/supervisor/domain-seed.log 2>&1 || true
+fi
+if [ -f /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php ]; then
+  /usr/local/bin/php /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php >/var/log/supervisor/oauth-integrations.log 2>&1 || true
 fi
 if [ -f /var/www/AppDashboard/supervisord.conf ]; then
   cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf

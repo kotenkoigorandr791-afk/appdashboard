@@ -10,7 +10,7 @@ function viewerJsonError(string $msg): void {
 function handleViewerApi(int $userRole): bool {
     if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action'])) {
         header('Content-Type: application/json; charset=UTF-8');
-        $db = getDB();
+        $db = viewerDB();
         if (!$db) viewerJsonError('Database unavailable');
         if ($_GET['action'] === 'load_config') {
             viewerEnsureToken($db);
@@ -29,7 +29,7 @@ function handleViewerApi(int $userRole): bool {
         header('Content-Type: application/json; charset=UTF-8');
         $data = json_decode(file_get_contents('php://input'), true);
         if (!$data) viewerJsonError('Invalid JSON data');
-        $db = getDB();
+        $db = viewerDB();
         if (!$db) viewerJsonError('Database unavailable');
         viewerEnsureToken($db);
         $currentConfig = viewerLoadConfigArray($db);

@@ -196,6 +196,11 @@ function validateAdminPasswordPolicy(string $password): ?string {
     return null;
 }
 
+function passwordPolicyInputAttrs(bool $isAdmin): string {
+    if (!$isAdmin) return ' data-min-length="' . PASSWORD_MIN_LENGTH . '"';
+    return ' data-min-length="' . ADMIN_PASSWORD_MIN_LENGTH . '" data-weak="' . htmlspecialchars(json_encode(adminWeakPasswords()), ENT_QUOTES) . '"';
+}
+
 function adminMutationThrottle(string $key, int $max = 10, int $windowSec = 60): bool {
     $ip = function_exists('getClientIp') ? getClientIp() : '0.0.0.0';
     $bucket = 'admin_throttle:' . $key . ':' . $ip;

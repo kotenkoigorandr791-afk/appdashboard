@@ -53,39 +53,27 @@
 
 <!-- Exchange Rates Modal -->
 <div id="exchange-rates-modal" class="modal">
-    <div class="modal-content" style="max-width:min(1000px,calc(100vw - 32px));">
+    <div class="modal-content" style="max-width:min(560px,calc(100vw - 32px));">
         <button class="modal-close" onclick="closeModal('exchange-rates-modal')">×</button>
-        <h3 style="margin-top:0;color:var(--text-color);"><?= htmlspecialchars($translations['exchange_rates']) ?></h3>
-        <div class="form-row">
-            <label><?= htmlspecialchars($translations['base_currency']) ?>:</label>
-            <select id="base-currency-select" class="currency-select" onchange="loadExchangeRates()">
-                <option value="EUR" selected>EUR</option>
-                <option value="USD">USD</option>
-                <option value="UAH">UAH</option>
-                <option value="PLN">PLN</option>
-                <option value="BYN">BYN</option>
-            </select>
+        <h3 style="margin-top:0;color:var(--text-color);display:flex;align-items:center;gap:10px;">
+            <?= htmlspecialchars($translations['currency_rates'] ?? $translations['exchange_rates']) ?>
+            <span class="xr-pill"><i class="xr-dot"></i><?= htmlspecialchars($translations['rate_live'] ?? 'LIVE') ?></span>
+        </h3>
+        <div class="xr-base-tabs" id="xr-base-tabs">
+            <button type="button" class="xr-base-tab active" data-base="EUR">EUR</button>
+            <button type="button" class="xr-base-tab" data-base="USD">USD</button>
+            <button type="button" class="xr-base-tab" data-base="UAH">UAH</button>
+            <button type="button" class="xr-base-tab" data-base="PLN">PLN</button>
+            <button type="button" class="xr-base-tab" data-base="BYN">BYN</button>
         </div>
         <div id="rates-loading" style="display:none;text-align:center;padding:40px 0;color:var(--text-color);">
             <div class="rates-spinner"></div>
             <p style="margin-top:12px;font-size:14px;opacity:.8;"><?= htmlspecialchars($translations['loading_rates'] ?? 'Loading exchange rates...') ?></p>
         </div>
-        <div id="rates-spider-container" style="position:relative;min-height:400px;display:flex;align-items:center;justify-content:center;margin:16px 0;">
-            <canvas id="rates-spider-canvas" width="600" height="400" style="max-width:100%;height:auto;"></canvas>
-            <div id="rates-spider-tooltip" style="position:absolute;background:rgba(0,0,0,0.85);color:#fff;padding:8px 12px;border-radius:8px;font-size:13px;pointer-events:none;opacity:0;transition:opacity 0.2s;backdrop-filter:blur(8px);"></div>
-        </div>
-        <div class="rate-chart-container">
-            <h4><?= htmlspecialchars($translations['rate_chart']) ?></h4>
-            <div class="form-row">
-                <label><?= htmlspecialchars($translations['select_currency']) ?>:</label>
-                <select id="chart-currency-select" class="currency-select" onchange="updateRateChart()">
-                    <option value="EUR">EUR</option>
-                    <option value="UAH">UAH</option>
-                    <option value="PLN">PLN</option>
-                    <option value="BYN">BYN</option>
-                </select>
-            </div>
-            <canvas id="rate-chart" style="max-height:300px; width:100%;"></canvas>
+        <div class="xr-rows" id="xr-rows"></div>
+        <div class="xr-foot">
+            <span><i class="fa-solid fa-building-columns"></i><?= htmlspecialchars($translations['rate_sources'] ?? 'NBU · NBP · NBRB') ?></span>
+            <span id="xr-updated"></span>
         </div>
     </div>
 </div>
@@ -466,14 +454,69 @@
             <canvas id="share-chart" width="500" height="300"></canvas>
         </div>
         <div class="share-actions">
-            <button class="action-btn" onclick="downloadChartImage()" style="padding:10px 20px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px;"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                <?= htmlspecialchars($translations['download_chart']) ?>
+            <button type="button" class="share-act-btn" onclick="downloadChartImage()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                <span><?= htmlspecialchars($translations['download_chart']) ?></span>
             </button>
-            <button class="action-btn" onclick="copyChartToClipboard()" style="padding:10px 20px;">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" style="margin-right:8px;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                <?= htmlspecialchars($translations['copy_chart']) ?>
+            <button type="button" class="share-act-btn" id="share-link-btn" onclick="shareChartToCloud()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <span><?= htmlspecialchars($translations['share_create_link'] ?? 'Create link') ?></span>
             </button>
+            <button type="button" class="share-act-btn" onclick="openChartChatSend()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span><?= htmlspecialchars($translations['share_send_chat'] ?? 'Send in chat') ?></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Chart share link modal (QR + settings, mirrors apps/cloud share dialog) -->
+<div id="chart-share-link-modal" class="modal">
+    <div class="modal-content" style="max-width:min(480px,calc(100vw - 32px));">
+        <button class="modal-close" onclick="closeModal('chart-share-link-modal')">×</button>
+        <h3><?= htmlspecialchars($translations['share_modal_title'] ?? 'Share link') ?></h3>
+        <div class="csl-body">
+            <div class="csl-link-box"><a id="csl-link" href="#" target="_blank" rel="noopener"></a></div>
+            <div id="csl-qr" class="csl-qr"></div>
+            <div class="csl-actions">
+                <button type="button" class="share-act-btn" id="csl-copy-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span><?= htmlspecialchars($translations['share_copy_button'] ?? 'Copy link') ?></span>
+                </button>
+                <button type="button" class="share-act-btn" onclick="openChartChatSend()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <span><?= htmlspecialchars($translations['share_send_chat'] ?? 'Send in chat') ?></span>
+                </button>
+            </div>
+            <p class="csl-note"><?= htmlspecialchars($translations['share_cloud_note'] ?? 'The chart image is stored in your cloud storage (temp folder).') ?></p>
+        </div>
+    </div>
+</div>
+
+<!-- Send chart to chat modal -->
+<div id="chart-chat-modal" class="modal">
+    <div class="modal-content" style="max-width:min(480px,calc(100vw - 32px));">
+        <button class="modal-close" onclick="closeModal('chart-chat-modal')">×</button>
+        <h3><?= htmlspecialchars($translations['share_send_chat'] ?? 'Send in chat') ?></h3>
+        <div class="csl-body">
+            <div id="ccm-step-user" class="ccm-step">
+                <label class="ccm-label"><?= htmlspecialchars($translations['share_pick_user'] ?? 'Pick a recipient') ?></label>
+                <input type="email" id="ccm-user-search" class="ccm-input" autocomplete="off" placeholder="<?= htmlspecialchars($translations['support_chat_search_placeholder'] ?? 'Search by email…') ?>">
+                <div id="ccm-user-results" class="ccm-results"></div>
+            </div>
+            <div id="ccm-step-compose" class="ccm-step" style="display:none;">
+                <div class="ccm-recipient">
+                    <div class="xr-flag" id="ccm-recipient-flag">?</div>
+                    <div class="xr-info"><strong id="ccm-recipient-name"></strong><span id="ccm-recipient-email"></span></div>
+                    <button type="button" class="ccm-change-user" onclick="ccmBackToUsers()"><?= htmlspecialchars($translations['change'] ?? 'Change') ?></button>
+                </div>
+                <img id="ccm-preview" class="ccm-preview" alt="">
+                <textarea id="ccm-caption" class="ccm-input" rows="3" placeholder="<?= htmlspecialchars($translations['share_caption_placeholder'] ?? 'Add a caption…') ?>"></textarea>
+                <button type="button" class="share-act-btn share-act-btn-primary" id="ccm-send-btn" onclick="ccmSend()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                    <span><?= htmlspecialchars($translations['support_chat_send'] ?? 'Send') ?></span>
+                </button>
+            </div>
         </div>
     </div>
 </div>

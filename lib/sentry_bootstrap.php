@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/cookie_consent.php';
 function app_sentry_bootstrap(string $appId): void
 {
     static $booted = false;
@@ -52,11 +53,11 @@ function app_sentry_capture_exception(Throwable $exception): void
 function app_sentry_browser_script(string $appId): void
 {
     $dsn = (string)(getenv('SENTRY_BROWSER_DSN') ?: (getenv('SENTRY_DSN') ?: 'https://d1dce542fdd62eb4e5cc6dae1a4cc7ac@o4512096935280640.ingest.de.sentry.io/4512096937902160'));
-    if ($dsn === '') {
+    if ($dsn === '' || !app_cookie_consent_allows('analytics')) {
         return;
     }
     $environment = (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production'));
     $release = (string)(getenv('SENTRY_RELEASE') ?: '');
     echo '<script src="https://browser.sentry-cdn.com/8.55.0/bundle.min.js" crossorigin="anonymous"></script>';
-    echo '<script>(function(){if(!window.Sentry)return;Sentry.init({dsn:' . json_encode($dsn) . ',environment:' . json_encode($environment) . ',release:' . json_encode($release) . ',tracesSampleRate:0.1,initialScope:{tags:{app:' . json_encode($appId) . '}}});var original=console.error;console.error=function(){try{var args=[].slice.call(arguments);var first=args[0];if(first instanceof Error)Sentry.captureException(first);else Sentry.captureMessage(args.map(function(v){try{return typeof v==="string"?v:JSON.stringify(v)}catch(e){return String(v)}}).join(" "),"error");}catch(e){}return original.apply(console,args);};})();</script>';
+    echo '<script>(function(){if(!window.Sentry)return;Sentry.init({dsn:' . json_encode($dsn) . ',environment:' . json_encode($environment) . ',release:' . json_encode($release) . ',tracesSampleRate:0.1,initialScope:{tags:{app:' . json_encode($appId) . '}}});var unloading=false;addEventListener("pagehide",function(){unloading=true});addEventListener("beforeunload",function(){unloading=true});var isNetworkAbort=function(e){return e&&(e.name==="AbortError"||(e.name==="TypeError"&&/fetch|load failed|network/i.test(e.message||"")))};var original=console.error;console.error=function(){var args=[].slice.call(arguments);try{var err=args.find(function(v){return v instanceof Error});if(!(err&&unloading&&isNetworkAbort(err))){var text=args.map(function(v){if(typeof v==="string")return v;if(v instanceof Error)return v.name+": "+v.message;try{return JSON.stringify(v)}catch(e){return String(v)}}).join(" ");if(err)Sentry.captureException(err,{extra:{console:text}});else Sentry.captureMessage(text,"error");}}catch(e){}return original.apply(console,args);};})();</script>';
 }

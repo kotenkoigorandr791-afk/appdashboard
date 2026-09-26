@@ -23,6 +23,8 @@ def main() -> int:
     ai_url = (os.environ.get("AI_PUBLIC_URL") or f"{scheme}://{ai_host}").rstrip("/")
     # Prefer explicit upstream; default to local OmniRoute port (prod: same host; docker: set OMNIROUTE_UPSTREAM).
     omni_upstream = (os.environ.get("OMNIROUTE_UPSTREAM") or "http://127.0.0.1:20128").rstrip("/")
+    gitea_upstream = (os.environ.get("GITEA_INTERNAL_URL") or "http://gitea:3000").rstrip("/")
+    immich_upstream = (os.environ.get("IMMICH_INTERNAL_URL") or "http://immich-server:2283").rstrip("/")
     app_url = (os.environ.get("APP_PUBLIC_BASE_URL") or f"{scheme}://{base}").rstrip("/")
     app_url_http = f"http://{base}"
     repl = {
@@ -31,6 +33,8 @@ def main() -> int:
         "__AI_HOST__": ai_host,
         "__BASE_DOMAIN__": base,
         "__OMNIROUTE_UPSTREAM__": omni_upstream,
+        "__GITEA_UPSTREAM__": gitea_upstream,
+        "__IMMICH_UPSTREAM__": immich_upstream,
         "__APP_PUBLIC_URL_HTTP__": app_url_http,
         "__APP_PUBLIC_URL__": app_url,
         "__AI_PUBLIC_URL__": ai_url,

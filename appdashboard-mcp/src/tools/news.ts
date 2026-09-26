@@ -1,4 +1,4 @@
-import { apiGet, apiPost, textResult } from "../api.js";
+import { apiGet, textResult } from "../api.js";
 import type { ToolDef } from "./types.js";
 
 const NEWS = "/main";
@@ -25,17 +25,5 @@ export const newsTools: ToolDef[] = [
           offset: Math.max(0, Number(args.offset) || 0),
         }),
       ),
-  },
-  {
-    name: "news_delete",
-    description: "Delete a news article by its id. Requires Manager+ (role ≥ 1) on the server.",
-    minRole: 1,
-    inputSchema: {
-      type: "object",
-      properties: { id: { type: "string", description: "Article id returned by news_list" } },
-      required: ["id"],
-    },
-    handler: async (args) =>
-      textResult(await apiPost(NEWS, { id: String(args.id) }, { api: "news", action: "delete" })),
   },
 ];

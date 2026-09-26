@@ -1,5 +1,6 @@
 <?php
 require_once APP_ROOT . '/storage_helper.php';
+require_once APP_ROOT . '/lib/cookie_consent.php';
 
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
     return htmlspecialchars($string ?? '', $flags, $encoding, $double_encode);
@@ -43,9 +44,7 @@ function ap_normalize_pref_language(string $lang, string $fallback = 'en'): stri
     return in_array($lang, ['en', 'ru', 'uk', 'be', 'pl', 'cs'], true) ? $lang : $fallback;
 }
 function ap_pref_cookie_secure(): bool {
-    return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-        || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
+    return app_cookie_request_secure();
 }
 function ap_read_pref_cookies(array $fallback): array {
     return [
@@ -55,7 +54,7 @@ function ap_read_pref_cookies(array $fallback): array {
     ];
 }
 function ap_write_pref_cookies(array $config): void {
-    if (headers_sent()) return;
+    if (headers_sent() || !app_cookie_consent_allows('preferences')) return;
     $opts = [
         'expires' => time() + 365 * 86400,
         'path' => '/',
@@ -333,17 +332,8 @@ function loginUserSession(string $email, array $users): bool {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
-    if (!headers_sent()) {
-        $__secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || ((string)($_SERVER['SERVER_PORT'] ?? '') === '443')
-            || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
-        setcookie('sk_user_has_account', '1', [
-            'expires' => time() + 365 * 86400,
-            'path' => '/',
-            'secure' => $__secure,
-            'httponly' => false,
-            'samesite' => 'Lax',
-        ]);
+    if (!headers_sent() && app_cookie_consent_allows('preferences')) {
+        app_cookie_consent_set('sk_user_has_account', '1', time() + 365 * 86400);
         ap_write_pref_cookies($users[$email]);
     }
     return true;
@@ -512,12 +502,23 @@ if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
     if ($action === 'cookie_consent_status') {
         if ($deviceId === '') json_out(['ok' => false, 'error' => 'missing_device_id'], 400);
         $record = getCookieConsentRecord($deviceId);
+        $status = (string)($record['status'] ?? '');
+        if (in_array($status, ['accepted', 'declined'], true)) {
+            $choices = [];
+            foreach (APP_COOKIE_CONSENT_OPTIONAL as $category) {
+                $categoryStatus = (string)(getCookieConsentRecord($deviceId, $category)['status'] ?? $status);
+                $choices[$category] = $categoryStatus === 'accepted';
+            }
+            app_cookie_consent_write($choices['preferences'], $choices['analytics']);
+        }
+        $consent = app_cookie_consent();
         json_out([
             'ok' => true,
             'device_id' => $deviceId,
             'has_record' => $record !== null,
-            'status' => (string)($record['status'] ?? ''),
-            'should_prompt' => $record === null,
+            'status' => $status,
+            'consent' => $consent,
+            'should_prompt' => !$consent['decided'],
         ]);
     }
     if ($action === 'cookie_consent_prompted') {
@@ -528,11 +529,18 @@ if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
     if ($action === 'save_cookie_consent') {
         if ($deviceId === '') json_out(['ok' => false, 'error' => 'missing_device_id'], 400);
         $status = trim((string)($input['status'] ?? ''));
-        if (!in_array($status, ['accepted', 'declined'], true)) {
+        if (!in_array($status, ['accepted', 'declined', 'custom'], true)) {
             json_out(['ok' => false, 'error' => 'invalid_status'], 400);
         }
+        $choices = [];
+        foreach (APP_COOKIE_CONSENT_OPTIONAL as $category) {
+            $choices[$category] = array_key_exists($category, $input) ? !empty($input[$category]) : $status === 'accepted';
+            saveCookieConsentDecision($deviceId, $choices[$category] ? 'accepted' : 'declined', $email, $category);
+        }
+        $status = in_array(false, $choices, true) ? 'declined' : 'accepted';
         saveCookieConsentDecision($deviceId, $status, $email);
-        json_out(['ok' => true, 'status' => $status]);
+        app_cookie_consent_write($choices['preferences'], $choices['analytics']);
+        json_out(['ok' => true, 'status' => $status, 'consent' => app_cookie_consent()]);
     }
     json_out(['ok' => false, 'error' => 'unknown_action'], 400);
 }

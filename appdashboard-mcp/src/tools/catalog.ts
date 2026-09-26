@@ -11,7 +11,9 @@ export type CatalogTool = {
   handler: (args: Record<string, unknown>) => Promise<{ content: Array<{ type: "text"; text: string }>; isError?: boolean }>;
 };
 
-export function buildCatalogTools(visible: () => Promise<ToolDef[]>): CatalogTool[] {
+export type ToolInvoker = (name: string, args: Record<string, unknown>) => Promise<any>;
+
+export function buildCatalogTools(visible: () => Promise<ToolDef[]>, invoke?: ToolInvoker): CatalogTool[] {
   const catalog: CatalogTool = {
     name: "tools_catalog",
     description:
@@ -34,7 +36,8 @@ export function buildCatalogTools(visible: () => Promise<ToolDef[]>): CatalogToo
     name: "tools_load",
     description:
       "Load full tool definitions (name, description, schema) for one or more groups from tools_catalog. " +
-      'Example: {"groups":["kanboard"]}. Load only groups relevant to the current task to save context.',
+      'Example: {"groups":["kanboard"]}. Load only groups relevant to the current task to save context. ' +
+      "Run the loaded tools with tools_call.",
     minRole: 0,
     inputSchema: {
       type: "object",
@@ -110,7 +113,28 @@ export function buildCatalogTools(visible: () => Promise<ToolDef[]>): CatalogToo
     handler: async () => textResult(await checkForUpdateNow()),
   };
 
-  return [catalog, load, search, checkUpdate];
+  const call: CatalogTool = {
+    name: "tools_call",
+    description:
+      "Run a tool found via tools_load or tools_search. " +
+      'Example: {"name":"kanboard_list_tasks","arguments":{"project_id":1}}.',
+    minRole: 0,
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Tool name" },
+        arguments: { type: "object", description: "Tool arguments matching its inputSchema" },
+      },
+      required: ["name"],
+    },
+    handler: async (args) => {
+      const name = String(args.name || "");
+      if (!invoke || name.startsWith("tools_")) return textResult({ error: "invalid_tool", name });
+      return invoke(name, (args.arguments as Record<string, unknown>) || {});
+    },
+  };
+
+  return [catalog, load, search, call, checkUpdate];
 }
 
 function summarize(t: ToolDef) {

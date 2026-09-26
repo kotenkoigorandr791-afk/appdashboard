@@ -220,29 +220,6 @@ export const immichTools: ToolDef[] = [
     },
   },
   {
-    name: "immich_assets_bulk_update",
-    description: "Bulk-update Immich assets (favorite/archive/stack).",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: {
-        assetIds: { type: "array", items: { type: "string" } },
-        isFavorite: { type: "boolean" },
-        isArchived: { type: "boolean" },
-        removeParent: { type: "boolean" },
-        stackParentId: { type: "string" },
-      },
-      required: ["assetIds"],
-    },
-    handler: async (args) => {
-      const body: Record<string, unknown> = {
-        ids: Array.isArray(args.assetIds) ? args.assetIds.map(String) : [],
-      };
-      Object.assign(body, pick(args, ["isFavorite", "isArchived", "removeParent", "stackParentId"]));
-      return textResult(await immichFetch("PUT", "/api/assets", { body }));
-    },
-  },
-  {
     name: "immich_assets_get_statistics",
     description: "Get Immich asset statistics.",
     minRole: 0,
@@ -255,19 +232,6 @@ export const immichTools: ToolDef[] = [
     },
     handler: async (args) =>
       textResult(await immichFetch("GET", "/api/assets/statistics", { query: pick(args, ["isArchived", "isFavorite"]) })),
-  },
-  {
-    name: "immich_assets_get_random",
-    description: "Get random Immich assets.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: { count: { type: "number", description: "Number of assets (1-100, default 1)" } },
-    },
-    handler: async (args) => {
-      const count = Math.min(100, Math.max(1, args.count != null ? Number(args.count) : 1));
-      return textResult(await immichFetch("POST", "/api/search/random", { body: { size: count } }));
-    },
   },
   {
     name: "immich_search_general",
@@ -362,13 +326,6 @@ export const immichTools: ToolDef[] = [
       );
       return textResult(await immichFetch("POST", "/api/search/metadata", { body }));
     },
-  },
-  {
-    name: "immich_search_explore",
-    description: "Explore Immich by detected objects/faces/places.",
-    minRole: 0,
-    inputSchema: { type: "object", properties: {} },
-    handler: async () => textResult(await immichFetch("GET", "/api/search/explore")),
   },
   {
     name: "immich_assets_thumbnail",

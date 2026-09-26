@@ -143,6 +143,332 @@ if (isset($_GET['get_exchange_rates'])) {
     }
 }
 
+// ─── Historical exchange rates (per-bank sources, last N days) ────────────────
+if (isset($_GET['get_exchange_history'])) {
+    $currencies = isset($_GET['currencies']) ? array_slice(array_filter(array_map('trim', explode(',', strtoupper($_GET['currencies'])))), 0, 10) : ['EUR', 'USD', 'UAH', 'PLN', 'BYN'];
+    $currencies = array_values(array_unique(array_merge(['EUR', 'USD', 'UAH', 'PLN', 'BYN'], $currencies)));
+    $days = min(30, max(2, (int)($_GET['days'] ?? 14)));
+    $base = strtoupper(trim($_GET['base'] ?? 'EUR'));
+
+    $dates = [];
+    for ($i = $days - 1; $i >= 0; $i--) {
+        $dates[] = date('Y-m-d', strtotime("-$i day"));
+    }
+
+    // source['NBU'|'NBP'|'NBRB'][currency][date] = rate quoted in that bank's base currency
+    $source = [];
+    $quoteBaseOf = ['NBU' => 'UAH', 'NBP' => 'PLN', 'NBRB' => 'BYN'];
+
+    $http = function (string $url): ?array {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_CONNECTTIMEOUT => 5,
+        ]);
+        $raw = curl_exec($ch);
+        if (!$raw) return null;
+        $data = json_decode($raw, true);
+        return is_array($data) ? $data : null;
+    };
+
+    // NBU (Ukraine): daily rates, quoted in UAH (e.g. 1 EUR = 51.36 UAH)
+    foreach ($dates as $d) {
+        $ymd = str_replace('-', '', $d);
+        $data = $http("https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?date={$ymd}&json");
+        if (!is_array($data)) continue;
+        foreach ($data as $r) {
+            $cc = strtoupper($r['cc'] ?? '');
+            if (in_array($cc, $currencies, true) && isset($r['rate']) && $r['rate'] > 0) {
+                $source['NBU'][$cc][$d] = (float)$r['rate'];
+            }
+        }
+    }
+
+    // NBP (Poland): table A, last N quotes, quoted in PLN
+    $nbp = $http("https://api.nbp.pl/api/exchangerates/tables/A/last/{$days}/?format=json");
+    if (is_array($nbp)) {
+        foreach ($nbp as $table) {
+            $d = $table['effectiveDate'] ?? null;
+            if (!$d || !in_array($d, $dates, true)) continue;
+            foreach (($table['rates'] ?? []) as $r) {
+                $code = strtoupper($r['code'] ?? '');
+                if (in_array($code, $currencies, true) && isset($r['mid']) && $r['mid'] > 0) {
+                    if (!isset($source['NBP'][$code][$d])) $source['NBP'][$code][$d] = (float)$r['mid'];
+                }
+            }
+        }
+    }
+
+    // NBRB (Belarus): quoted in BYN; Cur_ID: USD=431, EUR=451, UAH=449 (per 100), PLN=452 (per 10)
+    $nbrbIds = ['USD' => 431, 'EUR' => 451, 'UAH' => 449, 'PLN' => 452];
+    foreach ($nbrbIds as $code => $id) {
+        if (!in_array($code, $currencies, true)) continue;
+        $range = $http("https://api.nbrb.by/exrates/rates/dynamics/{$id}?startDate={$dates[0]}&endDate={$dates[count($dates)-1]}");
+        $rows = is_array($range) ? $range : [];
+        foreach ($rows as $r) {
+            $d = substr($r['Date'] ?? '', 0, 10);
+            if ($d && isset($r['Cur_OfficialRate']) && $r['Cur_OfficialRate'] > 0) {
+                $source['NBRB'][$code][$d] = (float)$r['Cur_OfficialRate'];
+            }
+        }
+        // NBRB quotes UAH per 100 and PLN per 10 — fetch the scale and normalize per unit
+        $sample = $http("https://api.nbrb.by/exrates/rates/{$id}?ondate={$dates[count($dates)-1]}&periodicity=0");
+        if (is_array($sample) && isset($sample['Cur_Scale'])) {
+            $sc = max(1, (int)$sample['Cur_Scale']);
+            if ($sc > 1 && isset($source['NBRB'][$code])) {
+                foreach ($source['NBRB'][$code] as $d => $v) $source['NBRB'][$code][$d] = $v / $sc;
+            }
+        }
+    }
+
+    // Pick the best source per currency: the one covering the most dates in the window.
+    $pickSource = function (string $cur) use ($source, $dates): ?string {
+        $best = null;
+        $bestCount = 0;
+        foreach (array_keys($source) as $bank) {
+            if (empty($source[$bank][$cur])) continue;
+            $cnt = 0;
+            foreach ($dates as $d) if (isset($source[$bank][$cur][$d])) $cnt++;
+            if ($cnt > $bestCount) { $bestCount = $cnt; $best = $bank; }
+        }
+        return $best;
+    };
+
+    // Convert a currency's series from its bank's quote base to the requested base.
+    // Direct quotes: source[bank][cur][d] = how many quoteBase units 1 cur costs.
+    // Normalize inside the same quote base: cur_in_base = (cur in qb) / (base in qb).
+    $rateOfInBase = function (string $bank, string $cur, string $d) use ($source, $quoteBaseOf, $base): ?float {
+        $qb = $quoteBaseOf[$bank];
+        $val = $source[$bank][$cur][$d] ?? null;
+        if ($val === null) return null;
+        $val = (float)$val;
+        if ($qb === $base) return $val;                    // already quoted in base
+        if ($qb === $cur) return $val > 0 ? 1.0 / $val : null; // inverse quote
+        // price `base` in the same quote base using the same bank
+        $baseInQb = $source[$bank][$base][$d] ?? null;     // qb units per 1 base
+        if ($baseInQb !== null && $baseInQb > 0) return $val / (float)$baseInQb;
+        return null;
+    };
+
+    $history = [];
+    foreach ($currencies as $cur) {
+        if ($cur === $base) { $history[$cur] = array_fill_keys($dates, 1.0); continue; }
+        $bank = $pickSource($cur);
+        if ($bank === null) { $history[$cur] = null; continue; }
+        $series = [];
+        foreach ($dates as $d) {
+            $v = $rateOfInBase($bank, $cur, $d);
+            $series[$d] = ($v !== null && $v > 0) ? round($v, 6) : null;
+        }
+        $history[$cur] = $series;
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    exit(json_encode([
+        'status' => 'success',
+        'base' => $base,
+        'days' => $days,
+        'dates' => $dates,
+        'history' => $history,
+        'timestamp' => time(),
+    ]));
+}
+
+// ─── Chart share: upload PNG to apps/cloud temp storage + create share link ────
+if (isset($_POST['share_chart_to_cloud'])) {
+    if (empty($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+        exit(json_encode(['status' => 'error', 'message' => 'invalid image']));
+    }
+    $tmp = (string)$_FILES['image']['tmp_name'];
+    if (!is_uploaded_file($tmp)) {
+        exit(json_encode(['status' => 'error', 'message' => 'invalid upload']));
+    }
+    $info = @getimagesize($tmp);
+    if (!is_array($info) || (int)($info[2] ?? 0) !== IMAGETYPE_PNG) {
+        exit(json_encode(['status' => 'error', 'message' => 'png required']));
+    }
+    $binary = (string)file_get_contents($tmp);
+    if (strlen($binary) < 100) {
+        exit(json_encode(['status' => 'error', 'message' => 'image too small']));
+    }
+
+    // Resolve the current user's cloud storage without including cloud api.php
+    // (it redeclares functions also present in spends auth.php).
+    $sessionEmail = getCurrentUserFromActiveSessions();
+    if (!is_string($sessionEmail) || $sessionEmail === '' || str_starts_with($sessionEmail, 'user_')) {
+        exit(json_encode(['status' => 'error', 'message' => 'not authenticated']));
+    }
+    $userEmail = strtolower(trim($sessionEmail));
+    $user = getSafeFolderName($userEmail); // same scheme as cloud email_to_cloud_username
+
+    // Save PNG into the user's cloud temp folder
+    $helperPath = dirname(__DIR__, 3) . '/storage_helper.php';
+    if (!is_file($helperPath)) {
+        exit(json_encode(['status' => 'error', 'message' => 'storage helper missing']));
+    }
+    require_once $helperPath;
+    $base = appdata_user_root_dir('cloud', $user, 'main', true);
+    $tempDir = $base . '/temp';
+    if (!is_dir($tempDir) && !@mkdir($tempDir, 0775, true)) {
+        exit(json_encode(['status' => 'error', 'message' => 'cannot create temp dir']));
+    }
+    $fileName = 'expenses-chart-' . date('Ymd-His') . '-' . bin2hex(random_bytes(3)) . '.png';
+    if (@file_put_contents($tempDir . '/' . $fileName, $binary) === false) {
+        exit(json_encode(['status' => 'error', 'message' => 'write failed']));
+    }
+    @chmod($tempDir . '/' . $fileName, 0644);
+    $cloudPath = 'temp/' . $fileName;
+    $absolutePath = str_replace('\\', '/', realpath($tempDir . '/' . $fileName));
+
+    // Create the share record directly (same as cloud api action=share_file)
+    $db = getDB();
+    if (!$db) {
+        exit(json_encode(['status' => 'error', 'message' => 'db unavailable']));
+    }
+    $isPg = function_exists('app_db_is_pgsql') && app_db_is_pgsql();
+    $safeExec = static function (string $sql) use ($db): void {
+        try { $db->exec($sql); } catch (Exception $e) {}
+    };
+    $need = ['is_folder' => 'INTEGER NOT NULL DEFAULT 0', 'user_email' => "TEXT NOT NULL DEFAULT ''", 'expires' => ($isPg ? 'BIGINT' : 'INTEGER') . ' DEFAULT NULL', 'expires_option' => "TEXT NOT NULL DEFAULT 'never'", 'password_hash' => "TEXT NOT NULL DEFAULT ''", 'view_only' => 'INTEGER NOT NULL DEFAULT 0', 'disable_download' => 'INTEGER NOT NULL DEFAULT 0', 'disable_copy' => 'INTEGER NOT NULL DEFAULT 0', 'max_views' => 'INTEGER NOT NULL DEFAULT 0', 'view_count' => 'INTEGER NOT NULL DEFAULT 0'];
+    if ($isPg) {
+        foreach ($need as $col => $ddl) {
+            $safeExec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS {$col} {$ddl}");
+        }
+    } else {
+        $cols = [];
+        try {
+            $cr = $db->query("PRAGMA table_info(shared_files)");
+            while ($c = $cr->fetch(PDO::FETCH_ASSOC)) $cols[] = (string)($c['name'] ?? '');
+        } catch (Exception $e) {}
+        foreach ($need as $col => $ddl) {
+            if (!in_array($col, $cols, true)) $safeExec("ALTER TABLE shared_files ADD COLUMN {$col} {$ddl}");
+        }
+    }
+
+    do {
+        $shareId = bin2hex(random_bytes(12));
+        $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE share_id = :sid');
+        $stmt->bindValue(':sid', $shareId);
+    } while ($stmt->execute()->fetch(PDO::FETCH_ASSOC));
+
+    $createdAtExpr = $isPg ? 'NOW()' : 'datetime("now", "localtime")';
+    $stmt = $db->prepare("INSERT INTO shared_files (share_id, file_name, file_path, is_folder, user_email, created_at, expires, expires_option, password_hash, view_only, disable_download, disable_copy, max_views, view_count)
+                          VALUES (:share_id, :file_name, :file_path, 0, :user_email, {$createdAtExpr}, NULL, 'never', '', 0, 0, 0, 0, 0)");
+    $stmt->bindValue(':share_id', $shareId);
+    $stmt->bindValue(':file_name', $fileName);
+    $stmt->bindValue(':file_path', $absolutePath);
+    $stmt->bindValue(':user_email', $userEmail);
+    if (!$stmt->execute()) {
+        exit(json_encode(['status' => 'error', 'message' => 'share record failed']));
+    }
+
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $link = $scheme . '://' . $host . '/?sharedFile=' . urlencode($shareId);
+
+    exit(json_encode([
+        'status' => 'success',
+        'share_id' => $shareId,
+        'link' => $link,
+        'cloud_path' => $cloudPath,
+        'file_name' => $fileName,
+    ]));
+}
+
+// ─── Chat: search users for the send-to-chat picker ─────────────────────────
+if (isset($_GET['chat_search_users'])) {
+    $q = trim((string)($_GET['q'] ?? ''));
+    $db = getDB();
+    if (!$db) exit(json_encode(['status' => 'error', 'message' => 'db unavailable']));
+    $me = strtolower((string)($_SESSION['user']['email'] ?? ''));
+    if ($me === '') exit(json_encode(['status' => 'error', 'message' => 'not authenticated']));
+    $emailQ = strtolower($q);
+    if ($emailQ === '' || !filter_var($emailQ, FILTER_VALIDATE_EMAIL) || $emailQ === $me) {
+        exit(json_encode(['status' => 'success', 'users' => []]));
+    }
+    try {
+        $stmt = $db->prepare('SELECT email, name, photo FROM users WHERE lower(email) = :email LIMIT 1');
+        $stmt->bindValue(':email', $emailQ);
+        $res = $stmt->execute();
+        $users = [];
+        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+            if (strtolower((string)$row['email']) === $me) continue;
+            $users[] = ['email' => $row['email'], 'name' => $row['name'] ?: $row['email'], 'photo' => $row['photo'] ?: ''];
+        }
+        exit(json_encode(['status' => 'success', 'users' => $users]));
+    } catch (Exception $e) {
+        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+    }
+}
+
+// ─── Chat: send message with media (proxies to core support_chat storage) ────
+if (isset($_POST['chat_send_message'])) {
+    $recipient = strtolower(trim((string)($_POST['peer_email'] ?? '')));
+    $message = trim((string)($_POST['message'] ?? ''));
+    $me = strtolower((string)($_SESSION['user']['email'] ?? ''));
+    if ($me === '') exit(json_encode(['status' => 'error', 'message' => 'not authenticated']));
+    if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        exit(json_encode(['status' => 'error', 'message' => 'invalid recipient']));
+    }
+    if ($message === '' && empty($_FILES['media'])) {
+        exit(json_encode(['status' => 'error', 'message' => 'empty message']));
+    }
+
+    $mediaPath = null;
+    $mediaType = null;
+    if (!empty($_FILES['media']) && $_FILES['media']['error'] === UPLOAD_ERR_OK) {
+        $file = $_FILES['media'];
+        if ($file['size'] > 20 * 1024 * 1024) exit(json_encode(['status' => 'error', 'message' => 'file too large']));
+        $tmp = (string)$file['tmp_name'];
+        if (!is_uploaded_file($tmp)) exit(json_encode(['status' => 'error', 'message' => 'invalid upload']));
+        $info = @getimagesize($tmp);
+        $allowed = [IMAGETYPE_JPEG, IMAGETYPE_PNG, IMAGETYPE_GIF, IMAGETYPE_WEBP];
+        if (!is_array($info) || !in_array((int)($info[2] ?? 0), $allowed, true)) {
+            exit(json_encode(['status' => 'error', 'message' => 'only images are supported']));
+        }
+        $ext = image_type_to_extension($info[2], false);
+        $uploadsBase = '/opt/ApplicationData/dashboard/uploads';
+        $spendsHelper = dirname(__DIR__, 2) . '/storage_helper.php';
+        if (is_file($spendsHelper)) {
+            require_once $spendsHelper;
+            $uploadsBase = appdata_uploads_base_dir();
+        }
+        $uploadDir = $uploadsBase . '/support_chat/';
+        if (!is_dir($uploadDir)) @mkdir($uploadDir, 0755, true);
+        $newName = 'img_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
+        if (!@move_uploaded_file($tmp, $uploadDir . $newName)) {
+            exit(json_encode(['status' => 'error', 'message' => 'save failed']));
+        }
+        @chmod($uploadDir . $newName, 0644);
+        $mediaPath = 'uploads/support_chat/' . $newName;
+        $mediaType = 'image';
+    }
+
+    $db = getDB();
+    if (!$db) exit(json_encode(['status' => 'error', 'message' => 'db unavailable']));
+    try {
+        // Same conversation key layout as the core messenger (peer chats)
+        $pair = [$me, $recipient];
+        sort($pair);
+        $chatUserEmail = $pair[0];
+        $recipientEmail = $pair[1];
+        $stmt = $db->prepare("INSERT INTO support_chat (user_email, recipient_email, chat_type, sender_email, message, media_path, media_type, created_at)
+                              VALUES (:u, :r, 'peer', :s, :m, :mp, :mt, :ts)");
+        $stmt->bindValue(':u', $chatUserEmail);
+        $stmt->bindValue(':r', $recipientEmail);
+        $stmt->bindValue(':s', $me);
+        $stmt->bindValue(':m', $message);
+        $stmt->bindValue(':mp', $mediaPath, $mediaPath ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':mt', $mediaType, $mediaType ? PDO::PARAM_STR : PDO::PARAM_NULL);
+        $stmt->bindValue(':ts', time(), PDO::PARAM_INT);
+        $stmt->execute();
+        exit(json_encode(['status' => 'success', 'message_id' => $db->lastInsertRowID()]));
+    } catch (Exception $e) {
+        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+    }
+}
+
 // ─── Expenses page data (AJAX for table) ──────────────────────────────────────
 if (isset($_GET['get_expenses_page'])) {
     $search       = trim($_GET['search'] ?? '');

@@ -268,9 +268,11 @@
         const gridColumns = document.getElementById('gridColumns').value;
         const fontSize = document.getElementById('fontSize').value;
         const albumsPerPage = document.getElementById('albumsPerPage').value;
-        document.cookie = `grid_columns=${gridColumns}; path=/; max-age=31536000`;
-        document.cookie = `font_size=${fontSize}; path=/; max-age=31536000`;
-        document.cookie = `albums_per_page=${albumsPerPage}; path=/; max-age=31536000`;
+        if (/(?:^|;\s*)ap_cookie_consent=v1\.p1/.test(document.cookie)) {
+            document.cookie = `grid_columns=${gridColumns}; path=/; max-age=31536000`;
+            document.cookie = `font_size=${fontSize}; path=/; max-age=31536000`;
+            document.cookie = `albums_per_page=${albumsPerPage}; path=/; max-age=31536000`;
+        }
         const albumsGrid = document.getElementById('albumsGrid');
         if (albumsGrid) albumsGrid.style.setProperty('--grid-columns', gridColumns);
         document.querySelectorAll('.album-title').forEach(title => { title.style.fontSize = `${fontSize}px`; });
