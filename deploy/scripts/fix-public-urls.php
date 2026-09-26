@@ -54,6 +54,11 @@ $updates = [
     'app_public_base_url' => $want,
     'tg_webapp_base_url' => $want,
     'search_engine_url' => 'https://search.' . $wantHost,
+    'gitea_url' => 'https://git.' . $wantHost,
+    'immich_url' => 'https://photo.' . $wantHost,
+    'dawarich_url' => 'https://dawarich.' . $wantHost,
+    'docker_host' => 'https://docker.' . $wantHost,
+    'docker_domain' => 'docker.' . $wantHost,
 ];
 foreach ($updates as $key => $value) {
     $cur = trim((string)getConfig($key, ''));

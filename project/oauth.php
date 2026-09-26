@@ -190,20 +190,38 @@ function oauth_issuer(): string {
     return oauth_public_origin();
 }
 
+function oauth_is_loopback_url(string $url): bool {
+    $host = strtolower((string)(parse_url($url, PHP_URL_HOST) ?: ''));
+    return $host === '' || $host === 'localhost' || $host === '127.0.0.1' || $host === '::1' || str_ends_with($host, '.localhost');
+}
+
 function oauth_service_url(string $key, string $default): string {
     static $envKeys = [
         'gitea_url' => 'GITEA_PUBLIC_URL',
         'immich_url' => 'IMMICH_PUBLIC_URL',
         'dawarich_url' => 'DAWARICH_PUBLIC_URL',
     ];
+    $candidates = [];
     if (isset($envKeys[$key])) {
         $fromEnv = trim((string)(getenv($envKeys[$key]) ?: ''));
         if ($fromEnv !== '') {
-            return rtrim($fromEnv, '/');
+            $candidates[] = rtrim($fromEnv, '/');
         }
     }
     $configured = function_exists('getConfig') ? rtrim(trim(getConfig($key, '')), '/') : '';
-    return $configured !== '' ? $configured : rtrim($default, '/');
+    if ($configured !== '') {
+        $candidates[] = $configured;
+    }
+    $default = rtrim($default, '/');
+    if ($default !== '') {
+        $candidates[] = $default;
+    }
+    foreach ($candidates as $url) {
+        if ($url !== '' && !oauth_is_loopback_url($url)) {
+            return $url;
+        }
+    }
+    return $candidates[0] ?? '';
 }
 
 function oauth_external_app_url(string $app): string {
