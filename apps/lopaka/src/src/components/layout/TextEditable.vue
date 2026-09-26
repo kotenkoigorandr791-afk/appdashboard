@@ -21,7 +21,8 @@ function edit(e) {
     newText.value = props.text;
     isEditing.value = true;
     nextTick(() => {
-        textInput.value.focus();
+        // preventScroll: focusing must never scroll the page (mobile inspector below canvas)
+        textInput.value.focus({ preventScroll: true });
         textInput.value.select();
     });
 }

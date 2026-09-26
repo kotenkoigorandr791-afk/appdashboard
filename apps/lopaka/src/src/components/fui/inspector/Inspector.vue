@@ -331,8 +331,25 @@ watch(textEditMode, () => {
             // Focus the first text input or textarea when editing starts.
             const textInput = textInputRef.value?.[0];
             if (textInput && !textInput.disabled) {
-                textInput.focus();
+                // Remember scroll positions: focusing must never scroll the page
+                // (especially on mobile, where the inspector sits below the canvas).
+                const scrollables: { el: HTMLElement; top: number; left: number }[] = [];
+                let el = textInput.parentElement;
+                while (el) {
+                    if (el.scrollHeight > el.clientHeight || el.scrollWidth > el.clientWidth) {
+                        scrollables.push({ el, top: el.scrollTop, left: el.scrollLeft });
+                    }
+                    el = el.parentElement;
+                }
+                textInput.focus({ preventScroll: true });
                 textInput.select();
+                // Restore anything the focus/selection may have scrolled.
+                requestAnimationFrame(() => {
+                    scrollables.forEach(({ el, top, left }) => {
+                        el.scrollTop = top;
+                        el.scrollLeft = left;
+                    });
+                });
             }
         });
     }
