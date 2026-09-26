@@ -2,14 +2,10 @@ import { getToken, fetchMe, getCachedRole } from "../auth.js";
 import { filterToolsByRole, insufficientRoleError, TOOL_MIN_ROLE, type Role } from "../roles.js";
 import { errorResult, textResult } from "../api.js";
 import { authTools } from "./auth.js";
-import { usersTools } from "./users.js";
 import { appsTools } from "./apps.js";
 import { dockerTools } from "./docker.js";
 import { filesTools } from "./files.js";
-import { configTools } from "./config.js";
-import { monitorTools } from "./monitor.js";
 import { backupTools } from "./backup.js";
-import { commandsTools } from "./commands.js";
 import { supportTools } from "./support.js";
 import { spendsTools } from "./spends.js";
 import { cloudTools } from "./cloud.js";
@@ -28,14 +24,10 @@ export type { ToolDef } from "./types.js";
 
 export const ALL_TOOLS: ToolDef[] = [
   ...authTools,
-  ...usersTools,
   ...appsTools,
   ...dockerTools,
   ...filesTools,
-  ...configTools,
-  ...monitorTools,
   ...backupTools,
-  ...commandsTools,
   ...supportTools,
   ...spendsTools,
   ...cloudTools,
@@ -63,16 +55,6 @@ function groupedModeEnabled(): boolean {
   return raw === "" || raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
-/**
- * Returns tools visible to the current user.
- *
- * Grouped mode (default):
- *   Only 3 meta-tools are advertised: tools_catalog, tools_load, tools_search.
- *   The agent must call tools_catalog first, then tools_load for the groups it needs.
- *   MCP_GROUPS env can pre-restrict which groups are loadable (comma-separated ids, "all" disables filter).
- *
- * Flat mode (MCP_GROUPED_TOOLS=0): every tool is advertised directly (legacy behavior).
- */
 export async function listToolsForCurrentUser() {
   const role = await resolveRole();
   if (role === null) {
@@ -99,7 +81,6 @@ export async function callTool(name: string, args: Record<string, unknown>) {
   if (role === null) {
     return textResult({ error: "not_authenticated", message: "Run setup with --token or set APPDASHBOARD_TOKEN." });
   }
-  // Catalog meta-tools (tools_catalog/tools_load/tools_search) are handled directly.
   const catalog = buildCatalogTools(async () => filterToolsByRole(ALL_TOOLS, role), callTool);
   const catalogTool = catalog.find((t) => t.name === name);
   if (catalogTool) {
@@ -113,7 +94,6 @@ export async function callTool(name: string, args: Record<string, unknown>) {
   if (!tool) {
     return textResult({ error: "unknown_tool", name, hint: "Use tools_catalog / tools_load / tools_search to discover tools." });
   }
-  // Optional MCP_GROUPS allow-list (comma-separated group ids, "all" = no restriction).
   const groupFilter = parseGroupList(process.env.MCP_GROUPS);
   if (groupFilter.size && !groupFilter.has("all")) {
     const gid = groupForTool(name);

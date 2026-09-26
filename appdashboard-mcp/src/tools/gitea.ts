@@ -65,48 +65,6 @@ export const giteaTools: ToolDef[] = [
         },
     },
     {
-        name: "gitea_repo_fork",
-        description: "Fork a Gitea repository.",
-        minRole: 0,
-        inputSchema: {
-            type: "object",
-            properties: {
-                owner: { type: "string" },
-                repo: { type: "string" },
-                organization: { type: "string", description: "Org to fork into" },
-            },
-            required: ["owner", "repo"],
-        },
-        handler: async (args: Record<string, unknown>) => {
-            const { owner, repo } = ownerRepo(args);
-            const body: Record<string, unknown> = {};
-            if (args.organization)
-                body.organization = String(args.organization);
-            return textResult(await giteaFetch("POST", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/forks`, { body }));
-        },
-    },
-    {
-        name: "gitea_repo_list_tags",
-        description: "List tags in a Gitea repository.",
-        minRole: 0,
-        inputSchema: {
-            type: "object",
-            properties: {
-                owner: { type: "string" },
-                repo: { type: "string" },
-                page: { type: "number" },
-                limit: { type: "number" },
-            },
-            required: ["owner", "repo"],
-        },
-        handler: async (args: Record<string, unknown>) => {
-            const { owner, repo } = ownerRepo(args);
-            return textResult(await giteaFetch("GET", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/tags`, {
-                query: pageQuery(args),
-            }));
-        },
-    },
-    {
         name: "gitea_issue_get_by_index",
         description: "Get a Gitea issue by index.",
         minRole: 0,
@@ -376,82 +334,6 @@ export const giteaTools: ToolDef[] = [
             return textResult(await giteaFetch("GET", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/labels`, {
                 query: pageQuery(args),
             }));
-        },
-    },
-    {
-        name: "gitea_label_create",
-        description: "Create a repository label.",
-        minRole: 0,
-        inputSchema: {
-            type: "object",
-            properties: {
-                owner: { type: "string" },
-                repo: { type: "string" },
-                name: { type: "string" },
-                color: { type: "string", description: "Hex color without #" },
-                description: { type: "string" },
-            },
-            required: ["owner", "repo", "name", "color"],
-        },
-        handler: async (args: Record<string, unknown>) => {
-            const { owner, repo } = ownerRepo(args);
-            const body: Record<string, unknown> = {
-                name: String(args.name),
-                color: String(args.color).replace(/^#/, ""),
-                exclusive: String(args.name).includes("/"),
-            };
-            if (args.description != null)
-                body.description = String(args.description);
-            return textResult(await giteaFetch("POST", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/labels`, { body }));
-        },
-    },
-    {
-        name: "gitea_label_edit",
-        description: "Edit a repository label.",
-        minRole: 0,
-        inputSchema: {
-            type: "object",
-            properties: {
-                owner: { type: "string" },
-                repo: { type: "string" },
-                labelId: { type: "number" },
-                name: { type: "string" },
-                color: { type: "string" },
-                description: { type: "string" },
-            },
-            required: ["owner", "repo", "labelId"],
-        },
-        handler: async (args: Record<string, unknown>) => {
-            const { owner, repo } = ownerRepo(args);
-            const body: Record<string, unknown> = {};
-            if (args.name != null) {
-                body.name = String(args.name);
-                body.exclusive = String(args.name).includes("/");
-            }
-            if (args.color != null)
-                body.color = String(args.color).replace(/^#/, "");
-            if (args.description != null)
-                body.description = String(args.description);
-            return textResult(await giteaFetch("PATCH", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/labels/${Number(args.labelId)}`, { body }));
-        },
-    },
-    {
-        name: "gitea_label_delete",
-        description: "Delete a repository label.",
-        minRole: 0,
-        inputSchema: {
-            type: "object",
-            properties: {
-                owner: { type: "string" },
-                repo: { type: "string" },
-                labelId: { type: "number" },
-            },
-            required: ["owner", "repo", "labelId"],
-        },
-        handler: async (args: Record<string, unknown>) => {
-            const { owner, repo } = ownerRepo(args);
-            await giteaFetch("DELETE", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/labels/${Number(args.labelId)}`);
-            return textResult({ success: true, labelId: Number(args.labelId) });
         },
     },
     {
