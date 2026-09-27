@@ -120,6 +120,12 @@ if (!function_exists('apSecCsrfField')) {
         return '<input type="hidden" name="_csrf" value="' . htmlspecialchars(apSecCsrfToken(), ENT_QUOTES, 'UTF-8') . '">';
     }
 }
+// Prime the CSRF token while the session is still open so it is persisted to
+// session storage. Otherwise the token rendered in the view (after
+// session_write_close() in runtime.php) never reaches storage and every POST
+// (e.g. logout) fails with csrf_forbidden once the PHP session has been
+// recreated (idle expiry) while auth is restored via trusted-device cookies.
+apSecCsrfToken();
 if (!function_exists('apSecSafeFileExt')) {
     function apSecSafeFileExt(string $original, array $whitelist, string $fallback = 'bin'): string {
         $ext = strtolower((string)pathinfo($original, PATHINFO_EXTENSION));
