@@ -144,12 +144,16 @@ uk: {
   const PREV_ORIG = 'preview/';
   const PREV_WEB = 'preview/web/';
   const PREVIEWS = {
-    portal: ['site_home.jpg', 'site_login.jpg', 'site_register.jpg'],
-    cloud: ['cloud_code.jpg', 'cloud_exel.jpg', 'cloud_latex.jpg', 'cloud_markdown.jpg', 'cloud_presentation.jpg', 'cloud_word.jpg'],
-    films: ['films_comments.jpg', 'films_main.jpg', 'films_picture-in-picture.jpg', 'films_player.jpg', 'films_settings_bar.jpg'],
-    dawarich: ['maps_add_route.jpg', 'maps_api_docs.jpg', 'maps__main_layout.jpg', 'maps_main_table.jpg', 'maps_settings_bar.jpg'],
-    recipes: ['recipe_product_card.jpg', 'recipes_main.jpg'],
-    spends: [], steps: []
+    portal: ['site_home_light.jpg', 'site_home_dark.jpg', 'site_login_light.jpg', 'site_login_dark.jpg', 'site_register_light.jpg', 'site_register_dark.jpg'],
+    cloud: ['cloud_main_light.jpg', 'cloud_main_dark.jpg'],
+    films: ['films_main_light.jpg', 'films_main_dark.jpg'],
+    dawarich: [],
+    gitea: [], immich: [], lopaka: [],
+    kanboard: ['kanboard_main_light.jpg', 'kanboard_main_dark.jpg'],
+    recipes: ['recipes_main_light.jpg', 'recipes_main_dark.jpg'],
+    smart_home: ['smart_home_main_light.jpg', 'smart_home_main_dark.jpg'],
+    spends: ['spends_main_light.jpg', 'spends_main_dark.jpg'],
+    steps: ['steps_main_light.jpg', 'steps_main_dark.jpg']
   };
 
   function webSrc(f) { return PREV_WEB + f.replace(/\.(jpe?g|png)$/i, '.webp'); }
