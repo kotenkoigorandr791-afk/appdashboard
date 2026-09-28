@@ -82,6 +82,25 @@ function cloud_webdav_cleanup_expired_locks(string $path): void {
         fclose($fp);
     }
 }
+// Hidden on-disk folder => public WebDAV name. The directory structure on disk
+// stays exactly the same; only the names exposed over WebDAV are changed.
+const CLOUD_WEBDAV_ROOT_ALIASES = [
+    '.archive'      => 'Archive',
+    '.temp_files'   => 'Temp Files',
+    '.documents'    => 'Documents',
+    '.photos'       => 'Photos',
+    '.pdf'          => 'PDF',
+    '.trash'        => 'Trash',
+    '.cloud_groups' => 'Groups',
+];
+function cloud_webdav_alias_for(string $diskName): ?string {
+    return CLOUD_WEBDAV_ROOT_ALIASES[$diskName] ?? null;
+}
+function cloud_webdav_disk_name(string $publicName): ?string {
+    static $reverse = null;
+    if ($reverse === null) $reverse = array_flip(CLOUD_WEBDAV_ROOT_ALIASES);
+    return $reverse[$publicName] ?? null;
+}
 final class CloudWebDavDirectory extends FS\Directory {
     private string $email;
     private string $rootPath;
@@ -90,16 +109,37 @@ final class CloudWebDavDirectory extends FS\Directory {
         $this->email = $email;
         $this->rootPath = rtrim(str_replace('\\', '/', $rootPath), '/');
     }
+    private function isRoot(): bool {
+        return rtrim(str_replace('\\', '/', $this->path), '/') === $this->rootPath;
+    }
     public function createFile($name, $data = null) {
-        cloud_webdav_write_file($this->path . '/' . $name, $data);
+        $dirPath = $this->isRoot() && ($disk = cloud_webdav_disk_name((string)$name)) !== null
+            ? $this->path . '/' . $disk
+            : $this->path;
+        cloud_webdav_write_file($dirPath . '/' . $name, $data);
         $this->changed();
     }
     public function createDirectory($name) {
+        if ($this->isRoot() && ($disk = cloud_webdav_disk_name((string)$name)) !== null) {
+            if (!is_dir($this->path . '/' . $disk)) @mkdir($this->path . '/' . $disk, 0775, true);
+            $this->changed();
+            return;
+        }
         parent::createDirectory($name);
         $this->changed();
     }
     public function getChild($name) {
-        if ($this->isHiddenEntry((string)$name)) throw new DAV\Exception\NotFound('File with name ' . $name . ' could not be located');
+        if ($this->isRoot()) {
+            $disk = cloud_webdav_disk_name((string)$name);
+            if ($disk !== null) {
+                $path = $this->path . '/' . $disk;
+                if (!is_dir($path)) throw new DAV\Exception\NotFound('File with name ' . $name . ' could not be located');
+                return new self($path, $this->email, $this->rootPath, $name);
+            }
+            if (cloud_webdav_alias_for((string)$name) !== null || $this->isHiddenEntry((string)$name)) {
+                throw new DAV\Exception\NotFound('File with name ' . $name . ' could not be located');
+            }
+        }
         $path = $this->path . '/' . $name;
         if (!file_exists($path)) throw new DAV\Exception\NotFound('File with name ' . $path . ' could not be located');
         return is_dir($path)
@@ -109,13 +149,29 @@ final class CloudWebDavDirectory extends FS\Directory {
     public function getChildren() {
         $nodes = [];
         $iterator = new FilesystemIterator($this->path, FilesystemIterator::CURRENT_AS_SELF | FilesystemIterator::SKIP_DOTS);
+        $seen = [];
         foreach ($iterator as $entry) {
-            if ($this->isHiddenEntry($entry->getFilename())) continue;
-            $nodes[] = $this->getChild($entry->getFilename());
+            $name = $entry->getFilename();
+            $seen[$name] = true;
+            if ($this->isHiddenEntry($name)) continue;
+            $nodes[] = $this->getChild($name);
+        }
+        if ($this->isRoot()) {
+            foreach (CLOUD_WEBDAV_ROOT_ALIASES as $disk => $alias) {
+                $path = $this->path . '/' . $disk;
+                if (!is_dir($path)) {
+                    @mkdir($path, 0775, true);
+                    if (!is_dir($path)) continue;
+                }
+                $nodes[] = new self($path, $this->email, $this->rootPath, $alias);
+            }
         }
         return $nodes;
     }
     public function childExists($name) {
+        if ($this->isRoot() && cloud_webdav_disk_name((string)$name) !== null) {
+            return is_dir($this->path . '/' . cloud_webdav_disk_name((string)$name));
+        }
         return !$this->isHiddenEntry((string)$name) && parent::childExists($name);
     }
     public function getQuotaInfo() {
@@ -139,7 +195,10 @@ final class CloudWebDavDirectory extends FS\Directory {
         $this->changed();
     }
     private function isHiddenRootEntry(string $name): bool {
-        return rtrim(str_replace('\\', '/', $this->path), '/') === $this->rootPath && in_array($name, ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'], true);
+        if (rtrim(str_replace('\\', '/', $this->path), '/') !== $this->rootPath) return false;
+        if (array_key_exists($name, CLOUD_WEBDAV_ROOT_ALIASES)) return true;
+        // Legacy sync root on disk is never exposed.
+        return str_starts_with($name, '.client');
     }
     private function isHiddenEntry(string $name): bool {
         return str_starts_with($name, '.webdav-upload-') || $this->isHiddenRootEntry($name);
@@ -153,6 +212,10 @@ final class CloudWebDavFile extends FS\File {
     public function __construct(string $path, string $email, string $rootPath = '') {
         parent::__construct($path);
         $this->email = $email;
+    }
+    public function getName(): string {
+        $name = parent::getName();
+        return cloud_webdav_alias_for($name) ?? $name;
     }
     public function put($data) {
         cloud_webdav_write_file($this->path, $data);
@@ -189,7 +252,7 @@ if ($webdavEmail === '') {
 }
 $requestPath = parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '/webdav/';
 $user = email_to_cloud_username($webdavEmail);
-$root = user_root($user, 'clientsync');
+$root = user_root($user, 'main');
 if (!is_dir($root)) @mkdir($root, 0775, true);
 $server = new DAV\Server(new CloudWebDavDirectory($root, $webdavEmail, $root));
 $baseUri = str_starts_with(strtolower($requestPath), '/webdav') ? '/webdav/' : '/apps/cloud/webdav.php/';

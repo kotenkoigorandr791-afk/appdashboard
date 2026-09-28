@@ -34,8 +34,6 @@ const CLOUD_AI_TEXT_EXTENSIONS = [
 function cloud_ai_normalize_root_path(string &$rootKey, string &$path): void
 {
     $map = [
-        'clientsync' => 'clientsync',
-        '.clientsync' => 'clientsync',
         'documents' => 'documents',
         '.documents' => 'documents',
         'photos' => 'photos',
@@ -105,7 +103,7 @@ function cloud_ai_resolve_user_file(string $path, ?string $rootKey = null): arra
     $safePath = safe_path($path);
     $target = $base . '/' . $safePath;
     if (!file_exists($target)) {
-        foreach (['main', 'documents', 'clientsync'] as $fallbackRoot) {
+        foreach (['main', 'documents'] as $fallbackRoot) {
             if ($fallbackRoot === $rootKey) {
                 continue;
             }
@@ -133,7 +131,7 @@ function cloud_ai_resolve_user_path_for_write(string $path, ?string $rootKey = n
     $safePath = safe_path($path);
     $target = $base . '/' . $safePath;
     if (!file_exists($target)) {
-        foreach (['main', 'documents', 'clientsync'] as $fallbackRoot) {
+        foreach (['main', 'documents'] as $fallbackRoot) {
             if ($fallbackRoot === $rootKey) {
                 continue;
             }

@@ -750,7 +750,7 @@ python3 cloud_sync_client.py --base-url https://ВАШ_ХОСТ/apps/cloud --mod
 | `--base-url` | — | `https://host/apps/cloud` (без слэша в конце) |
 | `--token-file` | `token.txt` | Файл с токеном |
 | `--cache` | `./CloudSync` | Локальное зеркало |
-| `--root` | `clientsync` | Корень на сервере |
+| `--root` | `main` | Корень на сервере |
 | `--base-path` | `` | Подпапка внутри root |
 | `--mode` | `sync` | `pull` / `push` / `sync` / `watch` |
 

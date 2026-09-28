@@ -298,7 +298,7 @@ function cloud_group_document_download_params(string $rootKey, string $path): ?a
 }
 function cloud_main_tree_hidden_prefixes(): array
 {
-    return ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'];
+    return ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.cloud_groups'];
 }
 function cloud_is_hidden_main_tree_path(string $path): bool
 {

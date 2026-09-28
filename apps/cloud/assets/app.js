@@ -257,7 +257,7 @@ function t(i18n, key, params = {}) {
   });
   return str;
 }
-const cloudRootState={current:localStorage.getItem('cloudRoot')||'main',allowed:new Set(['main','trash','archive','temp','documents','photos','pdf','clientsync'])};
+const cloudRootState={current:localStorage.getItem('cloudRoot')||'main',allowed:new Set(['main','trash','archive','temp','documents','photos','pdf'])};
 let currentUserState={user:null};
 function isCloudGroupRoot(root){return String(root||'').startsWith('group:');}
 function getCurrentCloudRoot(){const c=cloudRootState.current;return(cloudRootState.allowed.has(c)||isCloudGroupRoot(c))?c:'main';}
@@ -270,7 +270,7 @@ function setCurrentUser(user){
     window.cloudCurrentUser = user || '';
 }
 function getRootFolderPrefix(root) {
-    const map = {'archive': '.archive', 'temp': '.temp_files', 'documents': '.documents', 'photos': '.photos', 'pdf': '.pdf', 'trash': '.trash', 'clientsync': '.clientsync'};
+    const map = {'archive': '.archive', 'temp': '.temp_files', 'documents': '.documents', 'photos': '.photos', 'pdf': '.pdf', 'trash': '.trash'};
     return map[root] || '';
 }
 function pathStartsWithRootPrefix(path, root) {
@@ -302,8 +302,7 @@ function getRootFromPath(path) {
         '.temp_files': 'temp',
         '.documents': 'documents',
         '.photos': 'photos',
-        '.pdf': 'pdf',
-        '.clientsync': 'clientsync'
+        '.pdf': 'pdf'
     };
     
     // Check if path starts with any of the hidden root folders
@@ -322,8 +321,7 @@ const CLOUD_ROOT_DISPLAY_KEYS = {
     documents: 'documentsRoot',
     photos: 'photosRoot',
     pdf: 'pdfRoot',
-    trash: 'trashRoot',
-    clientsync: 'clientsyncRoot'
+    trash: 'trashRoot'
 };
 const CLOUD_ROOT_PREFIXES = {
     archive: '.archive',
@@ -331,8 +329,7 @@ const CLOUD_ROOT_PREFIXES = {
     documents: '.documents',
     photos: '.photos',
     pdf: '.pdf',
-    trash: '.trash',
-    clientsync: '.clientsync'
+    trash: '.trash'
 };
 function stripSearchRootPrefix(path, root = 'main') {
     const normalized = String(path || '').replace(/^\/+/, '');
@@ -7092,7 +7089,7 @@ async function buildTree(path) {
 
         // If cache returned something (even an empty array), render from it
         if (items !== null) {
-            const hiddenRoots = ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'];
+            const hiddenRoots = ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.cloud_groups'];
             let mergedItems = items;
             try {
                 const freshRoot = await api('list', { path: '' }, 'GET');
@@ -7133,17 +7130,6 @@ async function buildTree(path) {
         if (browsePath) root.items = root.items.filter((item) => String(item?.path || '') !== browsePath);
         let renderItems = root.items;
         let renderBase = listPath;
-        if (requestRoot === 'clientsync' && !path) {
-            const topDirs = root.items.filter(i => i.type === 'dir');
-            if (topDirs.length === 1) {
-                try {
-                    const inner = await api('list', { path: topDirs[0].path }, 'GET');
-                    if (requestId !== buildTreeRequestId || requestRoot !== getCurrentCloudRoot()) return;
-                    renderItems = sortItems(dedupeTreeItemsByPath(inner.items), sortState.currentSort);
-                    renderBase = topDirs[0].path;
-                } catch (_) {}
-            }
-        }
         const container = renderNodes(renderItems, renderBase, 0);
         tree.appendChild(container);
         dedupeRenderedTreeNodesByPath(tree);
@@ -7180,7 +7166,7 @@ function getOpenTreeFolderPaths() {
 }
 
 function isVisibleMainTreeItem(item) {
-    const hiddenRoots = ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.clientsync', '.cloud_groups'];
+    const hiddenRoots = ['.archive', '.temp_files', '.documents', '.photos', '.pdf', '.trash', '.cloud_groups'];
     if (!item || !item.path) return false;
     if (hiddenRoots.some((root) => item.path === root || item.path.startsWith(root + '/'))) return false;
     return true;

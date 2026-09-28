@@ -18,7 +18,7 @@ $color = isset($_GET['color']) ? (string)$_GET['color'] : '#85b503';
 if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) $color = '#85b503';
 if ($color[0] !== '#') $color = '#' . $color;
 $rootKey = isset($_GET['root']) ? (string)$_GET['root'] : (string)($_SESSION['cloud_root_context'] ?? 'main');
-$validRootKeys = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash', 'clientsync'];
+$validRootKeys = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash'];
 if (!in_array($rootKey, $validRootKeys, true) && !cloud_parse_group_id($rootKey)) $rootKey = 'main';
 function cloud_onlyoffice_error(string $message, int $code = 400): void {
     http_response_code($code);

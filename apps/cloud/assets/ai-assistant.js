@@ -5376,7 +5376,6 @@
     function normalizeVisibleTreePath(path, root = '') {
         let p = normalizeTreePath(path);
         const prefixes = {
-            clientsync: ['clientsync/', '.clientsync/'],
             documents: ['documents/', '.documents/'],
             photos: ['photos/', '.photos/'],
             pdf: ['pdf/', '.pdf/'],

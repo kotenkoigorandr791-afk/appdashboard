@@ -25,7 +25,7 @@ function python_bin() {
 }
 function tts_split_root_path(string $relativePath): array {
     $path = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
-    $map = ['.archive' => 'archive', '.temp_files' => 'temp', '.documents' => 'documents', '.photos' => 'photos', '.pdf' => 'pdf', '.trash' => 'trash', '.clientsync' => 'clientsync'];
+    $map = ['.archive' => 'archive', '.temp_files' => 'temp', '.documents' => 'documents', '.photos' => 'photos', '.pdf' => 'pdf', '.trash' => 'trash'];
     foreach ($map as $prefix => $rootKey) {
         if ($path === $prefix) return [$rootKey, ''];
         if (str_starts_with($path, $prefix . '/')) return [$rootKey, substr($path, strlen($prefix) + 1)];
