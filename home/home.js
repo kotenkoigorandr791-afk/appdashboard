@@ -1478,6 +1478,11 @@ function bindAuthLink(el) {
     }, 5000);
   }
 
+  // Серверный флаг: true, если у пользователя есть активная сессия с аккаунтом.
+  function hasServerAccount() {
+    try { return window.__skUserLoggedIn === true; } catch (e) { return false; }
+  }
+
   function refreshToastI18n() {
     const t = I18N[lang] || I18N.en;
     const el = $('engagementToast');
@@ -1500,8 +1505,13 @@ function bindAuthLink(el) {
   function showEngagementPromo() {
     // Показывать промо только незарегистрированным: если пользователь уже
     // имеет аккаунт (cookie ставится при логине) — не показываем вовсе.
+    if (hasServerAccount()) return;
     try {
       if (('; ' + document.cookie + ';').indexOf('; sk_user_has_account=1;') !== -1) return;
+    } catch (e) {}
+    // Если пользователь уже закрывал промо — больше не показываем (перманентно).
+    try {
+      if (localStorage.getItem(PROMO_KEY) === '1' || sessionStorage.getItem(PROMO_KEY) === '1') return;
     } catch (e) {}
     if ($('engagementToast')) return;
     const t = I18N[lang] || I18N.en;
@@ -1520,7 +1530,7 @@ function bindAuthLink(el) {
       location.href = url.toString();
     });
     toast.querySelector('.engagement-toast-close').addEventListener('click', () => {
-      try { sessionStorage.setItem(PROMO_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(PROMO_KEY, '1'); } catch (e) {}
       toast.remove();
       setTimeout(updateToastPositions, 50);
     });
@@ -1546,6 +1556,15 @@ function bindAuthLink(el) {
 
   function showExploreWidget() {
     if ($('exploreWidget')) return;
+    // Показывать только новым пользователям без аккаунта.
+    if (hasServerAccount()) return;
+    try {
+      if (('; ' + document.cookie + ';').indexOf('; sk_user_has_account=1;') !== -1) return;
+    } catch (e) {}
+    // Если пользователь уже закрывал виджет — больше не показываем (перманентно).
+    try {
+      if (localStorage.getItem(EXPLORE_KEY) === '1' || sessionStorage.getItem(EXPLORE_KEY) === '1') return;
+    } catch (e) {}
     const t = I18N[lang] || I18N.en;
     const allApps = [{ id: 'portal', name: t.portal_title, desc: t.apps.portal, icon: ICONS.portal }].concat(
       APPS.map(a => ({ id: a.id, name: a.name, desc: t.apps[a.id] || '', icon: iconHtml(a.id) }))
@@ -1578,7 +1597,7 @@ function bindAuthLink(el) {
       list.appendChild(item);
     });
     widget.querySelector('.explore-widget-close').addEventListener('click', () => {
-      try { sessionStorage.setItem(EXPLORE_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(EXPLORE_KEY, '1'); } catch (e) {}
       widget.remove();
       setTimeout(updateToastPositions, 50);
     });

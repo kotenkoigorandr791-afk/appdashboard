@@ -51,6 +51,15 @@
         html[data-theme="light"] select, html[data-theme="light"] button {border-color: rgba(0,123,255,0.28);}
         button {display: inline-flex; align-items: center; gap: 8px;}
         button .dot {width: 10px; height: 10px; border-radius: 50%;}
+        .theme-toggle {display: inline-flex; gap: 3px; background: rgba(255,255,255,0.06); border-radius: 30px; padding: 4px; border: 1px solid rgba(96,165,250,0.2); box-shadow: 0 0 20px rgba(59,130,246,0.08), 0 0 0 1px rgba(255,255,255,0.02) inset; transition: all .3s ease; padding: 0;}
+        .theme-toggle:hover {border-color: rgba(96,165,250,0.35); box-shadow: 0 0 25px rgba(59,130,246,0.15), 0 0 0 1px rgba(255,255,255,0.04) inset;}
+        .theme-toggle button {background: transparent; border: none; color: rgba(234,242,251,0.7); padding: 5px 13px; border-radius: 30px; cursor: pointer; font-weight: 600; font-size: 13px; transition: all .25s cubic-bezier(0.23,1,0.32,1);}
+        .theme-toggle button:hover {color: #eaf2fb; background: rgba(96,165,250,0.12);}
+        .theme-toggle button.active {background: linear-gradient(135deg, rgba(59,130,246,0.4), rgba(34,211,238,0.25)); color: #fff; box-shadow: 0 0 16px rgba(59,130,246,0.4), 0 0 0 1px rgba(96,165,250,0.3) inset; text-shadow: 0 0 8px rgba(96,165,250,0.6);}
+        html[data-theme="light"] .theme-toggle {background: rgba(255,255,255,0.55); border-color: rgba(30,80,140,0.2); box-shadow: 0 0 20px rgba(37,99,235,0.06), 0 0 0 1px rgba(255,255,255,0.5) inset;}
+        html[data-theme="light"] .theme-toggle button {color: rgba(22,50,79,0.65);}
+        html[data-theme="light"] .theme-toggle button:hover {color: #16324f; background: rgba(37,99,235,0.1);}
+        html[data-theme="light"] .theme-toggle button.active {background: linear-gradient(135deg, rgba(37,99,235,0.85), rgba(8,145,178,0.7)); color: #fff; box-shadow: 0 0 16px rgba(37,99,235,0.4), 0 0 0 1px rgba(37,99,235,0.3) inset; text-shadow: 0 0 8px rgba(255,255,255,0.3);}
         .back-home-btn {
             border: none;
             color: #fff;
@@ -94,7 +103,7 @@
     </div>
     <div class="controls">
         <button type="button" id="backHomeBtn" class="back-home-btn" aria-label="Home">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
             <span data-i18n="backHome">Home</span>
         </button>
         <select id="languageSelect">
@@ -105,10 +114,10 @@
             <option value="pl">PL</option>
             <option value="cs">CZ</option>
         </select>
-        <button type="button" id="themeToggle">
-            <span id="themeLabel"></span>
-            <span class="dot" id="themeDot"></span>
-        </button>
+        <div class="theme-toggle" id="themeToggle">
+            <button type="button" data-theme="dark" class="active">🌙 <span class="theme-label" data-theme-label="dark">Dark</span></button>
+            <button type="button" data-theme="light">☀️ <span class="theme-label" data-theme-label="light">Light</span></button>
+        </div>
     </div>
 </header>
 
@@ -255,7 +264,7 @@ const translations = {
         section8Sub4: "Изоляция данных и контроль доступа",
         section8Text4: "Данные пользователей изолированы с помощью контроля доступа на основе ролей (RBAC). Root-пользователи имеют полный административный доступ, тогда как гости взаимодействуют только с разрешёнными приложениями. Доступ к базе данных ограничен авторизованными сервисами, прямой доступ пользователей к хранилищу невозможен.",
         contactText: "Для запросов на доступ, исправление, удаление данных или вопросов конфиденциальности обращайтесь:",
-        backHome: "← На главную"
+        backHome: "Home"
     },
     uk: {
         docTitle: "Політика конфіденційності - Shell App",
@@ -297,7 +306,7 @@ const translations = {
         section8Sub4: "Ізоляція даних та контроль доступу",
         section8Text4: "Дані користувачів ізольовані за допомогою контролю доступу на основі ролей (RBAC). Root-користувачі мають повний адміністративний доступ, тоді як гості взаємодіють тільки з дозволеними додатками. Доступ до бази даних обмежений авторизованими сервісами, прямий доступ користувачів до сховища неможливий.",
         contactText: "Запити на доступ/видалення даних:",
-        backHome: "← На головну"
+        backHome: "На головну"
     },
     be: {
         docTitle: "Палітыка канфідэнцыяльнасці - Shell App",
@@ -339,7 +348,7 @@ const translations = {
         section8Sub4: "Ізаляцыя даных і кантроль доступу",
         section8Text4: "Даныя карыстальнікаў ізаляваныя з дапамогай кантролю доступу на аснове роляў (RBAC). Root-карыстальнікі маюць поўны адміністратыўны доступ, у той час як госці ўзаемадзейнічаюць толькі з дазволенымі праграмамі. Доступ да базы даных абмежаваны аўтарызаванымі сэрвісамі, прамы доступ карыстальнікаў да сховішча немагчымы.",
         contactText: "Запрасы па дадзеных:",
-        backHome: "← На галоўную"
+        backHome: "На галоўную"
     },
     pl: {
         docTitle: "Polityka prywatności - Shell App",
@@ -381,7 +390,7 @@ const translations = {
         section8Sub4: "Izolacja danych i kontrola dostępu",
         section8Text4: "Dane użytkowników są izolowane za pomocą kontroli dostępu opartej na rolach (RBAC). Użytkownicy root mają pełny dostęp administracyjny, podczas gdy goście mogą wchodzić w interakcję tylko z dozwolonymi aplikacjami. Dostęp do bazy danych jest ograniczony do autoryzowanych serwisów, bez bezpośredniego dostępu użytkowników do podstawowej pamięci.",
         contactText: "W sprawach dostępu do danych, korekty, usunięcia lub pytań o prywatność, kontakt:",
-        backHome: "← Strona główna"
+        backHome: "Strona główna"
     },
     cs: {
         docTitle: "Zásady ochrany soukromí - Shell App",
@@ -423,11 +432,11 @@ const translations = {
         section8Sub4: "Izolace dat a řízení přístupu",
         section8Text4: "Data uživatelů jsou izolována pomocí řízení přístupu na základě rolí (RBAC). Uživatelé root mají plný administrativní přístup, zatímco hosté mohou komunikovat pouze s povolenými aplikacemi. Přístup k databázi je omezen na autorizované služby, přímý přístup uživatelů k úložišti není možný.",
         contactText: "Pro přístup k datům, opravu, smazání nebo dotazy na soukromí kontaktujte:",
-        backHome: "← Domů"
+        backHome: "Domů"
     }
 };
 const themeLabels = {en: {light: "Light", dark: "Dark"}, ru: {light: "Светлая", dark: "Тёмная"}, uk: {light: "Світла", dark: "Темна"}, be: {light: "Светлая", dark: "Цёмная"}, pl: {light: "Jasny", dark: "Ciemny"}, cs: {light: "Světlý", dark: "Tmavý"}};
-const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), themeLabel = document.getElementById("themeLabel"), themeDot = document.getElementById("themeDot"), backHomeBtn = document.getElementById("backHomeBtn");
+const languageSelect = document.getElementById("languageSelect"), themeToggle = document.getElementById("themeToggle"), backHomeBtn = document.getElementById("backHomeBtn");
 
 // Function to validate a color
 function isValidColor(color) {
@@ -524,7 +533,6 @@ function loadSettings() {
     
     applyTranslations(initialLang);
     applyThemeLabel(initialLang, initialTheme);
-    themeDot.style.backgroundColor = initialTheme === "dark" ? "#ffd54f" : "#222222";
     applyColor(initialColor);
     
     // Update the URL if parameters do not match or are missing
@@ -544,7 +552,12 @@ function applyTranslations(lang) {
 
 function applyThemeLabel(lang, theme) {
     const labels = themeLabels[lang] || themeLabels.en;
-    themeLabel.textContent = labels[theme];
+    themeToggle.querySelectorAll("button").forEach(btn => {
+        const t = btn.dataset.theme;
+        btn.classList.toggle("active", t === theme);
+        const label = btn.querySelector(".theme-label");
+        if (label && labels[t]) label.textContent = labels[t];
+    });
 }
 
 // Language handler
@@ -561,18 +574,16 @@ languageSelect.addEventListener("change", () => {
 });
 
 // Theme handler
-themeToggle.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") || "light";
-    const next = current === "light" ? "dark" : "light";
+themeToggle.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => {
+    const next = btn.dataset.theme;
+    if (next === (document.documentElement.getAttribute("data-theme") || "light")) return;
     const currentLang = languageSelect.value;
     const currentColor = localStorage.getItem("doc_color") || "#007bff";
-    
     document.documentElement.setAttribute("data-theme", next);
     localStorage.setItem("doc_theme", next);
     applyThemeLabel(currentLang, next);
-    themeDot.style.backgroundColor = next === "dark" ? "#ffd54f" : "#222222";
     updateUrlParams(currentLang, next, currentColor);
-});
+}));
 
 backHomeBtn.addEventListener("click", () => {
     const urlParams = getUrlParams();

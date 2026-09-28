@@ -54,12 +54,21 @@ if (isset($__performancePhp[$__pathLower])) {
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
     if ($__path === '/' || $__path === '' || $__pathLower === '/news') {
         header('Content-Type: text/html; charset=UTF-8');
+        // Проверяем сессию на сервере: залогиненным пользователям промо/виджеты
+        // на домашней странице не показываются вовсе (флаг читается в home.js).
+        require_once __DIR__ . '/bootstrap.php';
+        $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
         $__homeHtml = file_get_contents(APP_ROOT . '/project/views/home.html');
         if ($__homeHtml !== false) {
             $__cssVersion = is_file(APP_ROOT . '/home/home.css') ? (string)filemtime(APP_ROOT . '/home/home.css') : '1';
             $__jsVersion = is_file(APP_ROOT . '/home/home.js') ? (string)filemtime(APP_ROOT . '/home/home.js') : '1';
             $__homeHtml = str_replace('href="/home/home.css"', 'href="/home/home.css?v=' . $__cssVersion . '"', $__homeHtml);
             $__homeHtml = str_replace('src="/home/home.js"', 'src="/home/home.js?v=' . $__jsVersion . '"', $__homeHtml);
+            $__homeHtml = str_replace(
+                '<script src="/home/home.js"',
+                '<script>window.__skUserLoggedIn = ' . ($__skHomeLoggedIn ? 'true' : 'false') . ';</script>' . "\n    " . '<script src="/home/home.js"',
+                $__homeHtml
+            );
             echo $__homeHtml;
         }
         exit;
