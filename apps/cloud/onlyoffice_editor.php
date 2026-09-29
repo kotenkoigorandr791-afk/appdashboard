@@ -2,9 +2,11 @@
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/includes/session.php';
+require_once __DIR__ . '/includes/auth_gate.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 cloud_session_start();
+cloud_require_session_auth();
 
 $DOC_SERV_URL = rtrim((string)(getenv('DOCUMENT_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('document') : '')), '/');
 if ($DOC_SERV_URL === '') { $DOC_SERV_URL = 'http://document.localhost'; }
@@ -18,7 +20,7 @@ $color = isset($_GET['color']) ? (string)$_GET['color'] : '#85b503';
 if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) $color = '#85b503';
 if ($color[0] !== '#') $color = '#' . $color;
 $rootKey = isset($_GET['root']) ? (string)$_GET['root'] : (string)($_SESSION['cloud_root_context'] ?? 'main');
-$validRootKeys = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash', 'clientsync'];
+$validRootKeys = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash'];
 if (!in_array($rootKey, $validRootKeys, true) && !cloud_parse_group_id($rootKey)) $rootKey = 'main';
 function cloud_onlyoffice_error(string $message, int $code = 400): void {
     http_response_code($code);

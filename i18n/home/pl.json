@@ -24,25 +24,21 @@
     "cloud": "Menedżer plików w chmurze z edytorami (3MF, PDF, LaTeX...)",
     "films": "Menedżer filmów – kolekcja, komentarze",
     "map": "Mapy, KML, GPS, ulubione",
-    "media_viewer": "Galeria multimediów z albumami",
     "performance": "Monitor wydajności serwera",
     "recipes": "Menedżer przepisów",
     "spends": "Śledzenie wydatków z wykresami",
     "steps": "Tracker zdrowia i aktywności",
-    "tft_generator": "Generator kodu ekranu TFT",
-    "viewer": "Podgląd urządzeń sieciowych"
+    "tft_generator": "Generator kodu ekranu TFT"
   },
   "app_details": {
     "portal": "Główny hub ServerKherson: strona główna, logowanie i rejestracja — brama do wszystkich aplikacji na serwerze.",
     "cloud": "Menedżer plików w chmurze z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcją audio. Współpraca w czasie rzeczywistym.",
     "films": "Baza filmów z komentarzami, listą do obejrzenia i kategoriami.",
     "map": "Interaktywne mapy z obsługą KML, GPS. Ulubione, pomiary tras.",
-    "media_viewer": "Galeria multimediów z automatycznym tworzeniem albumów, podglądem zdjęć/filmów.",
     "performance": "Monitorowanie serwera w czasie rzeczywistym: CPU, pamięć, moduły Apache, wykresy.",
     "recipes": "Twórz, udostępniaj i zbieraj przepisy. Organizacja według składników i tagów.",
     "spends": "Tracker wydatków jak arkusz kalkulacyjny z wykresami i statystykami.",
     "steps": "Tracker aktywności: kroki, dystans, kalorie. Ustaw dzienne cele.",
-    "tft_generator": "Generuj kod ekranu TFT z rysunków na płótnie. Konwertuj szkice na kod.",
-    "viewer": "Znajduj urządzenia w sieci lokalnej (routery, urządzenia smart) z widokiem dashboardu."
+    "tft_generator": "Generuj kod ekranu TFT z rysunków na płótnie. Konwertuj szkice na kod."
   }
 }

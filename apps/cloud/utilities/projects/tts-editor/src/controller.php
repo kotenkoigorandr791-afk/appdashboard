@@ -11,6 +11,10 @@ $ttsApiUrl = cloud_url('tts_api.php');
 if (!$textPath) {
     die('No text file specified');
 }
+require_once dirname(__DIR__, 4) . '/includes/session.php';
+require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
+cloud_session_start();
+cloud_require_session_auth();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 function app_path($relativePath = '') {
     $baseDir = CLOUD_APP_ROOT;

@@ -8,7 +8,7 @@ const TRANSLATE = "/public-api/cloud/translate_api_simple.php";
 const TTS = "/public-api/cloud/tts_api.php";
 
 const ROOT =
-  "Storage root: main (default), documents, photos, archive, temp, trash, pdf, clientsync, or group_<id>.";
+  "Storage root: main (default), documents, photos, archive, temp, trash, pdf, or group_<id>.";
 
 function rootOf(args: Record<string, unknown>, fallback = "main"): string {
   return args.root != null && String(args.root) !== "" ? String(args.root) : fallback;

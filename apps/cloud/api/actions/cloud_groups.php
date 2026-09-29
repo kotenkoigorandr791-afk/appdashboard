@@ -200,7 +200,7 @@ if ($action === 'groups_delete') {
     $adminUser = cloud_path_username((string)$group['admin_email']);
     $srcBase = appdata_user_root_dir('cloud', $adminUser, 'main', false) . '/' . cloud_group_storage_rel($groupId);
     if ($moveTargetRoot !== '') {
-        $allowed = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'clientsync'];
+        $allowed = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf'];
         if (!in_array($moveTargetRoot, $allowed, true)) json_out(['ok' => false, 'error' => 'invalid target root'], 400);
         $dstBase = user_root($adminUser, $moveTargetRoot);
         $dstDir = $moveTargetPath === '' ? $dstBase : $dstBase . '/' . $moveTargetPath;

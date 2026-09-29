@@ -5,7 +5,7 @@ const CLOUD_SYNC_WS_PATH = '/cloud-sync-ws';
 const CLOUD_SYNC_DEFAULT_PORT = 8770;
 const CLOUD_SYNC_CHUNK_BYTES = 262144;
 const CLOUD_SYNC_MANIFEST_PAGE = 500;
-const CLOUD_SYNC_ALLOWED_ROOTS = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash', 'clientsync'];
+const CLOUD_SYNC_ALLOWED_ROOTS = ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash'];
 function cloud_sync_encode(array $msg): string {
     return json_encode($msg, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
 }

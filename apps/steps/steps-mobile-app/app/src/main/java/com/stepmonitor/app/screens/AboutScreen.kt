@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -295,10 +296,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                                 color = MaterialTheme.colorScheme.errorContainer
                             ) {
                                 Icon(
-                                    Icons.Filled.LinkOff,
+                                    Icons.Filled.CloudOff,
                                     contentDescription = null,
                                     modifier = Modifier.padding(12.dp),
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
+                                    tint = Color(0xFFFFC107)
                                 )
                             }
                             Button(onClick = {

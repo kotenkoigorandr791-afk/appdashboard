@@ -308,7 +308,7 @@ if ($action === 'restore_from_trash') {
   if (!isset($meta[$id])) json_out(['error' => 'not found'], 404);
 
   $item = $meta[$id];
-  $targetRoot = in_array(($item['original_root'] ?? 'main'), ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'clientsync'], true)
+  $targetRoot = in_array(($item['original_root'] ?? 'main'), ['main', 'archive', 'temp', 'documents', 'photos', 'pdf'], true)
       ? $item['original_root']
       : 'main';
   $targetPath = safe_path((string)($item['original_path'] ?? ''));
@@ -772,7 +772,7 @@ if ($action === 'rename') {
   $new_name = trim((string)($_POST['new_name'] ?? ''));
   if ($old_path==='' || $new_name==='') json_out(['error'=>'bad params'], 400);
   if (($nameError = cloud_validate_file_name($new_name)) !== null) json_out(['error'=>$nameError], 400);
-  remap_clientsync_path($rootKey, $old_path);
+  // clientsync root removed
   $base = user_root($user, $rootKey);
   $old_dir = dirname($old_path);
   $new_path = ($old_dir === '.' || $old_dir === '') ? $new_name : ($old_dir . '/' . $new_name);
@@ -1744,7 +1744,7 @@ if ($action === 'list') {
     json_out(['items' => $items]);
   }
   $path = safe_path((string)($_GET['path'] ?? ''));
-  remap_clientsync_path($rootKey, $path);
+  // clientsync root removed
   $base = user_root($user, $rootKey);
   $dir = $base . '/' . $path;
   $dir = rtrim($dir, '/');
@@ -1761,7 +1761,7 @@ if ($action === 'list') {
     if (preg_match('/\.zip\.[A-Za-z0-9]{6,}$/', $it)) continue;
     $full = $dir . '/' . $it;
     $isDir = is_dir($full);
-    if ($rootKey === 'clientsync' && should_hide_clientsync_virtual_entry($it, $isDir)) continue;
+
     $rel = $path ? $path . '/' . $it : $it;
     if (cloud_is_group_root($rootKey) && cloud_is_hidden_group_tree_path($rel)) continue;
     $items[] = [
@@ -1790,11 +1790,11 @@ if ($action === 'mkdir') {
   if (($nameError = cloud_validate_relative_path_names($path)) !== null) json_out(['error'=>$nameError], 400);
   $rootKey = get_requested_root_key();
   cloud_group_require_write($rootKey);
-  remap_clientsync_path($rootKey, $path);
+  // clientsync root removed
   $rootFolderPrefix = get_root_folder_name($rootKey);
   
   // If path starts with a different root folder, use that root instead
-  $specialRoots = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash', 'clientsync' => '.clientsync'];
+  $specialRoots = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash'];
   foreach ($specialRoots as $rk => $prefix) {
       if ($path === $prefix || strpos($path, $prefix . '/') === 0) {
           $rootKey = $rk;
@@ -1863,7 +1863,7 @@ if ($action === 'upload') {
     }
     
     $rootKey = get_requested_root_key();
-    remap_clientsync_path($rootKey, $final_target_path);
+    // clientsync root removed
     session_write_close();
     $base = user_root($user, $rootKey);
     $targetDir = $base . '/' . dirname($final_target_path);
@@ -2019,7 +2019,7 @@ if ($action === 'delete') {
   cloud_group_require_write($rootKey);
   $path = safe_path((string)($_POST['path'] ?? ''));
   if ($path==='') json_out(['error'=>'path required'], 400);
-  remap_clientsync_path($rootKey, $path);
+  // clientsync root removed
   $base = user_root($user, $rootKey);
   $target = $base . '/' . $path;
   if (!file_exists($target)) json_out(['error'=>'not found'], 404);
@@ -2044,7 +2044,7 @@ if ($action === 'download') {
   $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
   $path = safe_path((string)($_GET['path'] ?? ''));
-  remap_clientsync_path($rootKey, $path);
+  // clientsync root removed
   $base = user_root($user, $rootKey);
   $target = $base . '/' . $path;
 

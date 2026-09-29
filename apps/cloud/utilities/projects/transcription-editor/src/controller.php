@@ -11,6 +11,11 @@ $transcriptionApiUrl = cloud_url('transcription_api.php');
 $apiUrl = cloud_url('api.php');
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 require_once dirname(__DIR__, 4) . '/includes/session.php';
+require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
+if (session_status() === PHP_SESSION_NONE) {
+    cloud_session_start();
+}
+cloud_require_session_auth();
 
 if (!$audioPath) {
     die('No audio file specified');

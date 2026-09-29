@@ -135,7 +135,7 @@ def main():
     ap.add_argument("--base-url", required=True, help="https://host/apps/cloud")
     ap.add_argument("--token-file", default="token.txt")
     ap.add_argument("--cache", default="./CloudSync")
-    ap.add_argument("--root", default="clientsync")
+    ap.add_argument("--root", default="main")
     ap.add_argument("--base-path", default="")
     ap.add_argument("--mode", choices=["pull", "push", "sync", "watch"], default="sync")
     ap.add_argument("--interval", type=int, default=60)

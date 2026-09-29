@@ -3,7 +3,7 @@
 en: {
       hero_title: 'Secure Cloud Shell Access',
       hero_desc1: 'ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.',
-      hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, media galleries, interactive maps, server monitoring, recipe management, expense tracking, health tracking, and network utilities — all accessible through a single account.',
+      hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, interactive maps, photo backup, movie collections, recipe management, expense tracking, health tracking, and development tools — all accessible through a single account.',
       loading_app: 'Opening app...',
       signin: 'Sign in', register: 'Register', otp_button: 'One Time PIN',
       features_title: 'Server applications overview', apps_heading: 'Installed applications',
@@ -17,13 +17,74 @@ en: {
       waiting_btn: 'Waiting...', loading_btn: 'Loading...', logging_out: 'Logging out...', news_toast_label: 'New', news_more_btn: 'View more news', news_read_more: 'Read full news',       news_empty: 'No news yet.',       cal_less: 'Less', cal_more: 'More', cal_title: 'News Calendar',
       explore_title: 'Explore more capabilities', explore_subtitle: 'Open any app to get started',
       register_tooltip: 'This is easy',
-      apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', films: 'Movie manager – collection, comments', map: 'Map viewer, KML, GPS, favorites', media_viewer: 'Media gallery with albums', performance: 'Server performance monitor', recipes: 'Custom recipes manager', spends: 'Expense tracker with charts', steps: 'Health & activity tracker', tft_generator: 'TFT display code generator', viewer: 'Network device monitoring' },
-      app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', map: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', media_viewer: 'Media gallery with automatic album creation, previews for images/videos, and sharing options.', performance: 'Real-time server monitor: CPU load, memory usage, disk I/O, Apache module status. Historical graphs.', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.', tft_generator: 'Generate TFT screen code from canvas drawings. Convert sketches into display-ready code.', viewer: 'Discover and monitor local network devices (routers, smart devices) with dashboard view.' }
+      instructions_btn: 'View instructions', instructions_close: 'Close instructions', instructions_title: 'How to use',
+      instructions_sections: {
+        cloud: { main: 'File manager', markdown: 'Markdown editor', text: 'Text editor', image: 'Image editor', zip: 'Archive viewer', pdf: 'PDF viewer' },
+        steps: { main: 'Dashboard & calendar', stats: 'Statistics', info: 'App information' },
+        spends: { main: 'Expenses overview', table: 'Expenses table', settings: 'Stores & settings', analytics: 'Statistics & charts' },
+        lopaka: { main: 'Editor & code generator' },
+        portal: { home: 'Landing page', main: 'App dashboard', login: 'Sign in', register: 'Registration' },
+        films: { main: 'Movie collection', add: 'Adding a movie', settings: 'Settings & management' },
+        kanboard: { main: 'Dashboard', board: 'Kanban board', task: 'Task view' },
+        recipes: { main: 'Recipe book', products: 'Product management', search: 'Recipe search' },
+        smart_home: { main: 'Device dashboard', device: 'Device controls' }
+      },
+      instructions_texts: {
+        cloud: {
+          main: 'The file manager is the heart of Cloud Storage. The left panel shows a tree of folders — click a folder to open it, use the context menu (right-click) or the toolbar buttons to create folders and upload files via drag & drop. Double-clicking a file opens it in a suitable built-in editor. Files can be moved (drag & drop), renamed, copied, shared by link and deleted. The top bar shows your quota and lets you search across all files.',
+          markdown: 'The Markdown editor opens .md files. The left half is a text editor with syntax highlighting, the right half is a live preview of the rendered document. The toolbar inserts headings, lists, links, tables, code blocks and images. Changes are saved automatically; use File → Export to download the result as HTML or PDF.',
+          text: 'The text editor opens plain-text and code files (js, py, css, json, ini and more). It features Monaco editor with syntax highlighting, auto-indent, search and replace (Ctrl+F / Ctrl+H), and multiple tabs — you can keep several files open at once. Everything is saved back to your cloud storage.',
+          image: 'The image editor opens photos and pictures. You can crop, rotate and flip, adjust brightness, contrast and saturation, apply filters, add text and shapes, and resize. Undo/redo is supported at every step. When you are done, save the result as PNG or JPEG back to your storage.',
+          zip: 'The archive viewer opens .zip files without downloading them. Browse the archive as a folder tree, view files inside, and extract individual files or the whole archive into any folder of your storage. You can also create a new .zip from selected files and folders.',
+          pdf: 'The PDF viewer opens .pdf documents with page thumbnails, zoom, full-text search and bookmarks navigation. You can also annotate and print. PDF files created from other editors (e.g. Markdown export) open here automatically.'
+        },
+        steps: {
+          main: 'The dashboard shows today\'s steps, distance, calories and your daily goal progress ring. The calendar below displays history for the whole month — days are colored by activity level, click any day to see or edit its details. Use the “+” button to add steps manually, e.g. when you come back from a walk without your phone.',
+          stats: 'Statistics aggregates your activity: yearly distribution of steps, monthly intensity heatmap and trends over weeks and months. Use it to spot progress, compare periods and check whether you reach your goals consistently. Charts can be switched between steps, distance and calories.',
+          info: 'The info section explains how to pair the companion Android app: scan the QR code to connect your phone, after which steps sync automatically in the background. Here you can also configure notifications, background sync interval and data export.'
+        },
+        spends: {
+          main: 'The main view is your spending dashboard: current month total, comparison with the previous month, a breakdown by stores and categories, and a chart of spending dynamics. Add a new expense with the “+” button: pick the store, amount, date and optional photo of the receipt.',
+          table: 'The expenses table is a spreadsheet-like list of all purchases. Filter by month, store or category, sort by any column, edit cells inline and delete wrong entries. The table is the fastest way to review and fix many records at once.',
+          settings: 'Settings manage stores (with logos and categories), currency and exchange rates, monthly budget limits, receipt photo OCR (automatic amount recognition) and CSV import/export for backups or migration from other trackers.',
+          analytics: 'Statistics & charts shows spending by month, quarter and year, category pie charts, per-store trends and average check. Use it to find where the money goes and how your habits change over time.'
+        },
+        lopaka: {
+          main: 'Lopaka is a graphics editor and code generator for embedded displays. Choose a platform library (TFT_eSPI, U8g2, LovyanGFX, Adafruit GFX, ESPHome, Flipper and others) and a display resolution, then draw with the toolbar: Select (V), Image (I), Paint brush (B), Text (T), Rectangle (R), Ellipse (O), Line (L), Triangle and Polygon. Each shape becomes a layer — move, resize and align it in the inspector on the right, or drag it directly on the canvas. The code panel at the bottom generates ready-to-paste firmware code (C/C++, MicroPython, ESPHome YAML) for every drawing operation; tweak code settings (wrapper function, fonts, variables) on the right and press COPY to copy the code or SAVE to keep the project. Shortcuts: Ctrl+Z undo, Ctrl+V paste import code, Del deletes the selected layer, arrows move by 1 px.'
+        },
+        portal: {
+          home: 'The landing page is the public entry point of the platform: it describes the available applications, shows the latest news and lets you switch language (6 languages) and color theme. From here you can sign in, register or open the one-time PIN login.',
+          main: 'The app dashboard (Shell Application) is your personal hub after sign-in. All installed applications appear as tiles — click one to open it in the workspace. The top bar gives you notifications, support chat and the side menu; the menu lists quick navigation (home, news, features) and profile/session actions.',
+          login: 'The sign-in page supports Google OAuth and classic email/password. After several failed attempts a one-time PIN (OTP) by email can be required as extra protection. Sessions are device-tracked — you can review and terminate them in your profile.',
+          register: 'Registration creates a free account: enter your email, name and password, confirm by the code sent to your mailbox, and you get access to all built-in applications with your personal data isolated per user.'
+        },
+        films: {
+          main: 'The movie collection shows your library as cards with posters, ratings and categories. Use the search and filters to quickly find a title; open a movie to see details, comments and the watch button. The side menu (hamburger icon) contains navigation: collection, add movie, settings.',
+          add: 'The “Add New Movie” dialog creates a record: enter the title, source language, year, content type (online link or local file), the link itself, category and star rating. The movie immediately appears in the collection and can be played with the built-in player.',
+          settings: 'Settings (admin) manage the whole library: the Manage Movies tab lists all titles with visibility toggles and deletion, Manage Comments moderates user comments, and the Settings tab holds player and storage preferences.'
+        },
+        kanboard: {
+          main: 'The dashboard is the entry point of Kanboard: it shows your projects with counters of tasks by column, “My tasks” and “My subtasks” lists, and the activity stream. Use “New project” to create a board, or the switch-project dropdown to jump between projects.',
+          board: 'The Kanban board visualizes a project as columns (Backlog, Todo, Work in progress, Done…). Drag & drop cards between columns to change their status, use the “+” in a column to add a task, the search bar to filter by status/assignee/tag, and the Overview/List tabs to switch views.',
+          task: 'The task view gathers everything about a single task: summary (status, priority, assignee, dates), description, sub-tasks with progress, internal/external links, attachments and the comment thread. The left sidebar offers actions: edit, recurrence, sub-tasks, links, comments, duplicate, move to another project and time tracking.'
+        },
+        recipes: {
+          main: 'The recipe book displays your recipes as cards with photos and tags. Create a recipe with ingredients (linked to your product list), step-by-step instructions and a photo. The toolbar buttons open product management, recipe search and settings; recipes can be shared by link.',
+          products: 'Product management maintains your pantry database: add products with units and prices, edit or delete them, and use them as ingredients in recipes. When you cook a recipe, the used products can be deducted from the stock automatically.',
+          search: 'Recipe search finds dishes by name, tags or ingredients you currently have. Combine filters to answer “what can I cook from what is in the fridge” — matching recipes are scored by the number of available ingredients.'
+        },
+        smart_home: {
+          main: 'The device dashboard shows all smart home devices as cards with live status: online/offline, room, current value and a quick toggle. Devices are grouped by rooms; the header icons switch between grid/table mode and open global settings (MQTT broker, integrations).',
+          device: 'Clicking a device card opens its control panel: status badge (online/offline), room and type tags, the Controls section with switches/sliders (power, auto-off timer, brightness…), live parameters (power draw, temperature) and the Edit button to change the device configuration.'
+        }
+      },
+      apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', dawarich: 'Interactive maps, routes, and favorites', films: 'Movie manager – collection, comments', gitea: 'Git repositories and code collaboration', immich: 'Photo & video backup with albums', kanboard: 'Kanban boards for projects and tasks', lopaka: 'Graphics editor for embedded displays', recipes: 'Custom recipes manager', smart_home: 'Smart home device dashboard', spends: 'Expense tracker with charts', steps: 'Health & activity tracker' },
+      app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', dawarich: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', gitea: 'Self-hosted Git service for repositories, issues, and pull requests with code review and collaboration.', immich: 'Self-hosted photo and video backup with albums, search, and timeline browsing.', kanboard: 'Kanban project management: boards, tasks, swimlanes, and team workflows.', lopaka: 'Graphics editor and code generator for embedded displays (TFT, U8g2, MicroPython).', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', smart_home: 'Control and monitor smart home devices from a single dashboard: sensors, switches, MQTT, and automations.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.' }
     },
 uk: {
       hero_title: 'Безпечний доступ до хмарної консолі',
       hero_desc1: 'ServerKherson — це веб-застосунок для безпечного доступу та керування серверами.',
-      hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю. Платформа пропонує різноманітні застосунки: хмарне керування файлами, медіа-галереї, інтерактивні мапи, моніторинг сервера, рецепти, облік витрат, трекер активності та мережеві утиліти — все доступне через єдиний обліковий запис.',
+      hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю. Платформа пропонує різноманітні застосунки: хмарне керування файлами, інтерактивні мапи, бекап фото, фільмотеку, рецепти, облік витрат, трекер активності та інструменти розробника — все доступне через єдиний обліковий запис.',
       loading_app: 'Відкриття застосунку...',
       signin: 'Увійти', register: 'Реєстрація', otp_button: 'Одноразовий PIN',
       features_title: 'Огляд серверних застосунків', apps_heading: 'Окремі застосунки',
@@ -37,13 +98,74 @@ uk: {
       waiting_btn: 'Очікування...', loading_btn: 'Завантаження...', logging_out: 'Вихід з акаунту...', news_toast_label: 'Нове', news_more_btn: 'Дивитись більше новин', news_read_more: 'Розгорнути новину',       news_empty: 'Новин ще немає.',       cal_less: 'Менше', cal_more: 'Більше', cal_title: 'Календар новин',
       explore_title: 'Дослідіть більше можливостей', explore_subtitle: 'Відкрийте будь-який додаток',
       register_tooltip: 'Це легко',
-      apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', films: 'Менеджер фільмів – колекція, коментарі', map: 'Перегляд мап, KML, GPS, обране', media_viewer: 'Медіа галерея з альбомами', performance: 'Моніторинг сервера', recipes: 'Менеджер рецептів', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності', tft_generator: 'Генератор коду TFT екрана', viewer: 'Переглядач пристроїв мережі' },
-      app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', map: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', media_viewer: 'Медіа галерея з автогенерацією альбомів, попереднім переглядом фото/відео.', performance: 'Моніторинг сервера в реальному часі: CPU, пам\'ять, Apache, графіки.', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.', tft_generator: 'Генерація коду для TFT екрану з малюнків на полотні.', viewer: 'Виявлення пристроїв у локальній мережі (роутери, смарт-пристрої).' }
+      instructions_btn: 'Переглянути інструкцію', instructions_close: 'Закрити інструкцію', instructions_title: 'Як користуватися',
+      instructions_sections: {
+        cloud: { main: 'Менеджер файлів', markdown: 'Markdown-редактор', text: 'Текстовий редактор', image: 'Фоторедактор', zip: 'Перегляд архівів', pdf: 'Перегляд PDF' },
+        steps: { main: 'Панель і календар', stats: 'Статистика', info: 'Інформація про застосунок' },
+        spends: { main: 'Огляд витрат', table: 'Таблиця витрат', settings: 'Магазини та налаштування', analytics: 'Статистика та графіки' },
+        lopaka: { main: 'Редактор і генератор коду' },
+        portal: { home: 'Головна сторінка', main: 'Панель застосунків', login: 'Вхід', register: 'Реєстрація' },
+        films: { main: 'Колекція фільмів', add: 'Додавання фільму', settings: 'Налаштування й керування' },
+        kanboard: { main: 'Дашборд', board: 'Kanban-дошка', task: 'Перегляд задачі' },
+        recipes: { main: 'Книга рецептів', products: 'Керування продуктами', search: 'Пошук рецептів' },
+        smart_home: { main: 'Панель пристроїв', device: 'Керування пристроєм' }
+      },
+      instructions_texts: {
+        cloud: {
+          main: 'Менеджер файлів — серце хмарного сховища. Ліва панель показує дерево папок: клацніть папку, щоб відкрити, використовуйте контекстне меню (права кнопка) або кнопки панелі, щоб створювати папки та завантажувати файли перетягуванням. Подвійний клік відкриває файл у відповідному вбудованому редакторі. Файли можна переміщувати, перейменовувати, копіювати, ділитися посиланням і видаляти. Верхня панель показує квоту та дає змогу шукати по всіх файлах.',
+          markdown: 'Markdown-редактор відкриває .md файли. Ліва половина — текстовий редактор із підсвіткою синтаксису, права — живий перегляд готового документа. Панель інструментів вставляє заголовки, списки, посилання, таблиці, блоки коду та зображення. Зміни зберігаються автоматично; через Файл → Експорт можна завантажити результат у HTML або PDF.',
+          text: 'Текстовий редактор відкриває звичайні текстові файли та код (js, py, css, json, ini тощо). Це редактор Monaco з підсвіткою синтаксису, автовідступами, пошуком і заміною (Ctrl+F / Ctrl+H) та кількома вкладками — можна тримати відкритими одразу кілька файлів. Усе зберігається назад у хмарне сховище.',
+          image: 'Фоторедактор відкриває фото та зображення. можна обрізати, обертати й віддзеркалювати, регулювати яскравість, контраст і насиченість, застосовувати фільтри, додавати текст і фігури, змінювати розмір. На кожному кроці доступні скасування/повторення. Готовий результат зберігається у PNG або JPEG назад у сховище.',
+          zip: 'Переглядач архівів відкриває .zip файли без завантаження. Перегляайте вміст архіву як дерево папок, дивіться файли всередині та розпакуйте окремі файли або весь архів у будь-яку папку сховища. Також можна створити новий .zip із вибраних файлів і папок.',
+          pdf: 'Переглядач PDF відкриває .pdf документи з мініатюрами сторінок, масштабуванням, повнотекстовим пошуком і навігацією за закладками. Також доступні анотації та друк. PDF, створені в інших редакторах (наприклад, експорт із Markdown), відкриваються тут автоматично.'
+        },
+        steps: {
+          main: 'Панель показує кроки за сьогодні, дистанцію, калорії та кільце прогресу до денної цілі. Календар нижче відображає історію за весь місяць — дні розфарбовані за рівнем активності, клацніть день, щоб переглянути чи змінити деталі. Кнопка «+» додає кроки вручну, наприклад після прогулянки без телефона.',
+          stats: 'Статистика агрегує активність: розподіл кроків за роками, карту інтенсивності по місяцях і тренди за тижнями та місяцями. Використовуйте, щоб бачити прогрес, порівнювати періоди та перевіряти, чи послідовно досягаєте цілей. Графіки перемикаються між кроками, дистанцією та калоріями.',
+          info: 'Розділ «Інформація» пояснює, як підключити Android-застосунок: відскануйте QR-код, щоб з\'єднати телефон, після чого кроки синхронізуються автоматично у фоні. Тут також можна налаштувати повідомлення, інтервал фонової синхронізації та експорт даних.'
+        },
+        spends: {
+          main: 'Головний вигляд — панель витрат: сума за поточний місяць, порівняння з попереднім, розбивка за магазинами й категоріями та графік динаміки. Додайте витрату кнопкою «+»: виберіть магазин, суму, дату та за бажанням фото чека.',
+          table: 'Таблиця витрат — список усіх покупок у вигляді електронної таблиці. Фільтруйте за місяцем, магазином або категорією, сортуйте за будь-яким стовпцем, редагуйте клітинки на місці та видаляйте помилкові записи. Це найшвидший спосіб переглянути й виправити одразу багато записів.',
+          settings: 'Налаштування керують магазинами (з логотипами й категоріями), валютою та курсами, місячними лімітами бюджету, OCR фото чеків (автоматичне розпізнавання сум) та імпортом/експортом CSV для бекапів або міграції з інших трекерів.',
+          analytics: 'Статистика й графіки показує витрати за місяць, квартал і рік, кругові діаграми за категоріями, тренди по магазинах і середній чек. Використовуйте, щоб зрозуміти, куди йдуть гроші, і як змінюються звички.'
+        },
+        lopaka: {
+          main: 'Lopaka — графічний редактор і генератор коду для вбудованих дисплеїв. Виберіть бібліотеку платформи (TFT_eSPI, U8g2, LovyanGFX, Adafruit GFX, ESPHome, Flipper та ін.) і роздільну здатність дисплея, малюйте панеллю інструментів: Вибір (V), Зображення (I), Пензель (B), Текст (T), Прямокутник (R), Еліпс (O), Лінія (L), Трикутник і Полігон. Кожна фігура стає шаром — переміщуйте, змінюйте розмір і вирівнюйте в інспекторі праворуч або перетягуйте прямо на канвасі. Панель коду внизу генерує готовий код прошивки (C/C++, MicroPython, ESPHome YAML) для кожної операції; налаштуйте параметри коду (функцію-обгортку, шрифти, змінні) праворуч і натисніть COPY, щоб скопіювати код, або SAVE, щоб зберегти проєкт. Гарячі клавіші: Ctrl+Z скасувати, Ctrl+V вставити код імпорту, Del видаляє вибраний шар, стрілки — зсув на 1 px.'
+        },
+        portal: {
+          home: 'Головна сторінка — публічна точка входу платформи: описує доступні застосунки, показує останні новини, дозволяє вибрати мову (6 мов) і колірну тему. Звідси можна увійти, зареєструватися або відкрити вхід за одноразовим PIN-кодом.',
+          main: 'Панель застосунків (Shell Application) — ваш особистий хаб після входу. Усі встановлені застосунки показані плитками — клацніть, щоб відкрити в робочій області. Верхня панель дає повідомлення, чат підтримки та бічне меню; у меню — швидка навігація (головна, новини, можливості) і дії профілю/сесій.',
+          login: 'Сторінка входу підтримує Google OAuth і класичний вхід за email/паролем. Після кількох невдалих спроб може знадобитися одноразовий PIN (OTP) з листа як додатковий захист. Сесії відстежуються за пристроями — їх можна переглянути й завершити у профілі.',
+          register: 'Реєстрація створює безкоштовний акаунт: введіть email, ім\'я та пароль, підтвердьте кодом з листа — і ви отримуєте доступ до всіх вбудованих застосунків з персональною ізоляцією даних кожного користувача.'
+        },
+        films: {
+          main: 'Колекція фільмів показує вашу бібліотеку картками з постерами, рейтингами й категоріями. Пошук і фільтри допоможуть швидко знайти фільм; відкрийте картку, щоб побачити деталі, коментарі та кнопку перегляду. Бічне меню (іконка-гамбургер) містить навігацію: колекція, додати фільм, налаштування.',
+          add: 'Діалог «Додати новий фільм» створює запис: введіть назву, мову оригіналу, рік, тип контенту (онлайн-посилання або локальний файл), саме посилання, категорію та зірковий рейтинг. Фільм одразу з\'являється в колекції та відтворюється вбудованим плеєром.',
+          settings: 'Налаштування (для адміністратора) керують усією бібліотекою: вкладка «Керування фільмами» показує всі назви з перемикачами видимості та видаленням, «Керування коментарями» модерує коментарі користувачів, а вкладка «Налаштування» зберігає параметри плеєра та сховища.'
+        },
+        kanboard: {
+          main: 'Дашборд — вхідна точка Kanboard: показує ваші проєкти з лічильниками задач за колонками, списки «Мої задачі» та «Мої підзадачі», стрічку активності. Використовуйте «Новий проєкт», щоб створити дошку, або випадний список проєктів для переключення.',
+          board: 'Kanban-дошка представляє проєкт колонками (Backlog, Todo, In progress, Done…). Перетягуйте картки між колонками, щоб змінювати статус, «+» у колонці додає задачу, рядок пошуку фільтрує за статусом/виконавцем/тегом, вкладки Overview/List перемикають вид.',
+          task: 'Перегляд задачі збирає все про задачу: зведення (статус, пріоритет, виконавець, дати), опис, підзадачі з прогресом, внутрішні/зовнішні посилання, вкладення та нитку коментарів. Ліва панель пропонує дії: редагувати, повторюваність, підзадачі, посилання, коментарі, дублювання, перенесення в інший проєкт і облік часу.'
+        },
+        recipes: {
+          main: 'Книга рецептів показує рецепти картками з фото й тегами. Створіть рецепт з інгредієнтами (пов\'язаними зі списком продуктів), покроковими інструкціями та фото. Кнопки панелі відкривають керування продуктами, пошук рецептів і налаштування; рецептами можна ділитися посиланням.',
+          products: 'Керування продуктами веде базу вашої комори: додавайте продукти з одиницями й цінами, редагуйте та видаляйте їх, використовуйте як інгредієнти в рецептах. При готуванні рецепта використані продукти можуть списуватися зі складу автоматично.',
+          search: 'Пошук рецептів знаходить страви за назвою, тегами або наявними інгредієнтами. Комбінуйте фільтри, щоб відповісти на питання «що приготувати з того, що є в холодильнику» — відповідні рецепти ранжуються за кількістю доступних інгредієнтів.'
+        },
+        smart_home: {
+          main: 'Панель пристроїв показує всі пристрої розумного дому картками зі статусом у реальному часі: онлайн/офлайн, кімната, поточне значення та швидкий перемикач. Пристрої групуються за кімнатами; іконки в шапці перемикають режим сітка/таблиця та відкривають загальні налаштування (MQTT-брокер, інтеграції).',
+          device: 'Клік по картці пристрою відкриває панель керування: бейдж статусу (онлайн/офлайн), теги кімнати й типу, секція «Керування» з перемикачами/слайдерами (живлення, таймер автовимкнення, яскравість…), живі параметри (споживання, температура) та кнопка «Редагувати» для зміни конфігурації пристрою.'
+        }
+      },
+      apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', dawarich: 'Інтерактивні мапи, маршрути та обране', films: 'Менеджер фільмів – колекція, коментарі', gitea: 'Git-репозиторії та спільна розробка', immich: 'Бекап фото й відео з альбомами', kanboard: 'Kanban-дошки для проєктів і задач', lopaka: 'Графічний редактор для вбудованих дисплеїв', recipes: 'Менеджер рецептів', smart_home: 'Панель керування розумним домом', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності' },
+      app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', dawarich: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', gitea: 'Власний Git-сервіс: репозиторії, задачі, pull request та огляд коду.', immich: 'Самостійний бекап фото й відео з альбомами, пошуком і стрічкою часу.', kanboard: 'Kanban-керування проєктами: дошки, задачі, доріжки та командна робота.', lopaka: 'Графічний редактор і генератор коду для вбудованих дисплеїв (TFT, U8g2, MicroPython).', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', smart_home: 'Керування пристроями розумного дому з однієї панелі: сенсори, перемикачі, MQTT та автоматизації.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.' }
     },
     ru: {
       hero_title: 'Безопасный доступ к облачной консоли',
       hero_desc1: 'ServerKherson — это веб-приложение для безопасного доступа и управления серверами.',
-      hero_desc2: 'Мы используем Google OAuth для защиты аккаунтов. Запрашивается только базовая информация профиля. Платформа предлагает разнообразные приложения: облачное управление файлами, медиа-галереи, интерактивные карты, мониторинг сервера, рецепты, учёт расходов, трекер активности и сетевые утилиты — всё доступно через единую учётную запись.',
+      hero_desc2: 'Мы используем Google OAuth для защиты аккаунтов. Запрашивается только базовая информация профиля. Платформа предлагает разнообразные приложения: облачное управление файлами, интерактивные карты, бекап фото, фільмотеку, рецепты, учёт расходов, трекер активности и инструменты разработчика — всё доступно через единую учётную запись.',
       loading_app: 'Открытие приложения...',
       signin: 'Войти', register: 'Регистрация', otp_button: 'Одноразовый PIN',
       features_title: 'Обзор серверных приложений', apps_heading: 'Отдельные приложения',
@@ -57,13 +179,74 @@ uk: {
       waiting_btn: 'Ожидание...', loading_btn: 'Загрузка...', logging_out: 'Выход из аккаунта...', news_toast_label: 'Новое', news_more_btn: 'Посмотреть больше новостей', news_read_more: 'Раскрыть новость',       news_empty: 'Новостей пока нет.',       cal_less: 'Меньше', cal_more: 'Больше', cal_title: 'Календарь новостей',
       explore_title: 'Исследуйте возможности', explore_subtitle: 'Откройте любое приложение',
       register_tooltip: 'Это легко',
-      apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', films: 'Менеджер фильмов – коллекция, комментарии', map: 'Карты, KML, GPS, избранное', media_viewer: 'Медиа галерея с альбомами', performance: 'Мониторинг сервера', recipes: 'Менеджер рецептов', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности', tft_generator: 'Генератор кода TFT экрана', viewer: 'Просмотр устройств сети' },
-      app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', films: 'База фильмов с комментариями, списком просмотра, категориями.', map: 'Карты с поддержкой KML, GPS. Избранное, маршруты.', media_viewer: 'Медиа галерея с альбомами и предпросмотром.', performance: 'Мониторинг сервера: CPU, память, модули Apache, графики.', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.', tft_generator: 'Генерация кода для TFT экрана из рисунков на холсте.', viewer: 'Поиск устройств в локальной сети (роутеры, умные устройства).' }
+      instructions_btn: 'Посмотреть инструкцию', instructions_close: 'Закрыть инструкцию', instructions_title: 'Как пользоваться',
+      instructions_sections: {
+        cloud: { main: 'Файловый менеджер', markdown: 'Markdown-редактор', text: 'Текстовый редактор', image: 'Фоторедактор', zip: 'Просмотр архивов', pdf: 'Просмотр PDF' },
+        steps: { main: 'Панель и календарь', stats: 'Статистика', info: 'Информация о приложении' },
+        spends: { main: 'Обзор расходов', table: 'Таблица расходов', settings: 'Магазины и настройки', analytics: 'Статистика и графики' },
+        lopaka: { main: 'Редактор и генератор кода' },
+        portal: { home: 'Главная страница', main: 'Панель приложений', login: 'Вход', register: 'Регистрация' },
+        films: { main: 'Коллекция фильмов', add: 'Добавление фильма', settings: 'Настройки и управление' },
+        kanboard: { main: 'Дашборд', board: 'Kanban-доска', task: 'Просмотр задачи' },
+        recipes: { main: 'Книга рецептов', products: 'Управление продуктами', search: 'Поиск рецептов' },
+        smart_home: { main: 'Панель устройств', device: 'Управление устройством' }
+      },
+      instructions_texts: {
+        cloud: {
+          main: 'Файловый менеджер — сердце облачного хранилища. Левая панель показывает дерево папок: щёлкните папку, чтобы открыть, используйте контекстное меню (правая кнопка) или кнопки панели, чтобы создавать папки и загружать файлы перетаскиванием. Двойной клик открывает файл в подходящем встроенном редакторе. Файлы можно перемещать, переименовывать, копировать, делиться ссылкой и удалять. Верхняя панель показывает квоту и позволяет искать по всем файлам.',
+          markdown: 'Markdown-редактор открывает .md файлы. Левая половина — текстовый редактор с подсветкой синтаксиса, правая — живой предпросмотр готового документа. Панель инструментов вставляет заголовки, списки, ссылки, таблицы, блоки кода и изображения. Изменения сохраняются автоматически; через Файл → Экспорт можно скачать результат в HTML или PDF.',
+          text: 'Текстовый редактор открывает обычные текстовые файлы и код (js, py, css, json, ini и др.). Это редактор Monaco с подсветкой синтаксиса, автоотступами, поиском и заменой (Ctrl+F / Ctrl+H) и несколькими вкладками — можно держать открытыми сразу несколько файлов. Всё сохраняется обратно в облачное хранилище.',
+          image: 'Фоторедактор открывает фото и картинки. Можно обрезать, поворачивать и отражать, регулировать яркость, контраст и насыщенность, применять фильтры, добавлять текст и фигуры, менять размер. На каждом шаге доступны отмена/повтор. Готовый результат сохраняется в PNG или JPEG обратно в хранилище.',
+          zip: 'Просмотрщик архивов открывает .zip файлы без скачивания. Просматривайте содержимое архива как дерево папок, смотрите файлы внутри и распаковывайте отдельные файлы или весь архив в любую папку хранилища. Также можно создать новый .zip из выбранных файлов и папок.',
+          pdf: 'Просмотрщик PDF открывает .pdf документы с миниатюрами страниц, масштабированием, полнотекстовым поиском и навигацией по закладкам. Также доступны аннотации и печать. PDF, созданные в других редакторах (например, экспорт из Markdown), открываются здесь автоматически.'
+        },
+        steps: {
+          main: 'Панель показывает шаги за сегодня, дистанцию, калории и кольцо прогресса к дневной цели. Календарь ниже отображает историю за весь месяц — дни раскрашены по уровню активности, щёлкните день, чтобы посмотреть или изменить детали. Кнопка «+» добавляет шаги вручную, например после прогулки без телефона.',
+          stats: 'Статистика агрегирует активность: распределение шагов по годам, карту интенсивности по месяцам и тренды за недели и месяцы. Используйте, чтобы видеть прогресс, сравнивать периоды и проверять, последовательно ли достигаете целей. Графики переключаются между шагами, дистанцией и калориями.',
+          info: 'Раздел «Информация» объясняет, как подключить Android-приложение: отсканируйте QR-код, чтобы соединить телефон, после чего шаги синхронизируются автоматически в фоне. Здесь же можно настроить уведомления, интервал фоновой синхронизации и экспорт данных.'
+        },
+        spends: {
+          main: 'Главный вид — панель расходов: сумма за текущий месяц, сравнение с предыдущим, разбивка по магазинам и категориям и график динамики. Добавьте расход кнопкой «+»: выберите магазин, сумму, дату и по желанию фото чека.',
+          table: 'Таблица расходов — список всех покупок в виде электронной таблицы. Фильтруйте по месяцу, магазину или категории, сортируйте по любому столбцу, редактируйте ячейки на месте и удаляйте ошибочные записи. Это самый быстрый способ просмотреть и исправить сразу много записей.',
+          settings: 'Настройки управляют магазинами (с логотипами и категориями), валютой и курсами, месячными лимитами бюджета, OCR фото чеков (автоматическое распознавание сумм) и импортом/экспортом CSV для бекапов или миграции с других трекеров.',
+          analytics: 'Статистика и графики показывает расходы за месяц, квартал и год, круговые диаграммы по категориям, тренды по магазинам и средний чек. Используйте, чтобы понять, куда уходят деньги, и как меняются привычки.'
+        },
+        lopaka: {
+          main: 'Lopaka — графический редактор и генератор кода для встраиваемых дисплеев. Выберите библиотеку платформы (TFT_eSPI, U8g2, LovyanGFX, Adafruit GFX, ESPHome, Flipper и др.) и разрешение дисплея, рисуйте панелью инструментов: Выбор (V), Изображение (I), Кисть (B), Текст (T), Прямоугольник (R), Эллипс (O), Линия (L), Треугольник и Полигон. Каждая фигура становится слоем — перемещайте, меняйте размер и выравнивайте в инспекторе справа или перетаскивайте прямо на канвасе. Панель кода внизу генерирует готовый код прошивки (C/C++, MicroPython, ESPHome YAML) для каждой операции; настройте параметры кода (функцию-обёртку, шрифты, переменные) справа и нажмите COPY, чтобы скопировать код, или SAVE, чтобы сохранить проект. Горячие клавиши: Ctrl+Z отменить, Ctrl+V вставить код импорта, Del удаляет выбранный слой, стрелки — сдвиг на 1 px.'
+        },
+        portal: {
+          home: 'Главная страница — публичная точка входа платформы: описывает доступные приложения, показывает последние новости, позволяет выбрать язык (6 языков) и цветовую тему. Отсюда можно войти, зарегистрироваться или открыть вход по одноразовому PIN-коду.',
+          main: 'Панель приложений (Shell Application) — ваш личный хаб после входа. Все установленные приложения показаны плитками — щёлкните, чтобы открыть в рабочей области. Верхняя панель даёт уведомления, чат поддержки и боковое меню; в меню — быстрая навигация (главная, новости, возможности) и действия профиля/сессий.',
+          login: 'Страница входа поддерживает Google OAuth и классический вход по email/паролю. После нескольких неудачных попыток может потребоваться одноразовый PIN (OTP) из письма как дополнительная защита. Сессии отслеживаются по устройствам — их можно просмотреть и завершить в профиле.',
+          register: 'Регистрация создаёт бесплатный аккаунт: введите email, имя и пароль, подтвердите кодом из письма — и вы получаете доступ ко всем встроенным приложениям с персональной изоляцией данных каждого пользователя.'
+        },
+        films: {
+          main: 'Коллекция фильмов показывает вашу библиотеку карточками с постерами, рейтингами и категориями. Поиск и фильтры помогут быстро найти фильм; откройте карточку, чтобы увидеть детали, комментарии и кнопку просмотра. Боковое меню (иконка-гамбургер) содержит навигацию: коллекция, добавить фильм, настройки.',
+          add: 'Диалог «Добавить новый фильм» создаёт запись: введите название, исходный язык, год, тип контента (онлайн-ссылка или локальный файл), саму ссылку, категорию и звёздный рейтинг. Фильм сразу появляется в коллекции и воспроизводится встроенным плеером.',
+          settings: 'Настройки (для администратора) управляют всей библиотекой: вкладка «Управление фильмами» показывает все названия с переключателями видимости и удалением, «Управление комментариями» модерирует комментарии пользователей, а вкладка «Настройки» хранит параметры плеера и хранилища.'
+        },
+        kanboard: {
+          main: 'Дашборд — входная точка Kanboard: показывает ваши проекты со счётчиками задач по колонкам, списки «Мои задачи» и «Мои подзадачи», ленту активности. Используйте «Новый проект», чтобы создать доску, или выпадающий список проектов для переключения.',
+          board: 'Kanban-доска представляет проект колонками (Backlog, Todo, In progress, Done…). Перетаскивайте карточки между колонками, чтобы менять статус, «+» в колонке добавляет задачу, строка поиска фильтрует по статусу/исполнителю/тегу, вкладки Overview/List переключают вид.',
+          task: 'Просмотр задачи собирает всё о задаче: сводка (статус, приоритет, исполнитель, даты), описание, подзадачи с прогрессом, внутренние/внешние ссылки, вложения и цепочка комментариев. Левая панель предлагает действия: редактировать, повторяемость, подзадачи, ссылки, комментарии, дублирование, перенос в другой проект и учёт времени.'
+        },
+        recipes: {
+          main: 'Книга рецептов показывает рецепты карточками с фото и тегами. Создайте рецепт с ингредиентами (связанными со списком продуктов), пошаговыми инструкциями и фото. Кнопки панели открывают управление продуктами, поиск рецептов и настройки; рецептами можно делиться ссылкой.',
+          products: 'Управление продуктами ведёт базу вашей кладовой: добавляйте продукты с единицами и ценами, редактируйте и удаляйте их, используйте как ингредиенты в рецептах. При приготовлении рецепта использованные продукты могут списываться со склада автоматически.',
+          search: 'Поиск рецептов находит блюда по названию, тегам или имеющимся ингредиентам. Комбинируйте фильтры, чтобы ответить на вопрос «что приготовить из того, что есть в холодильнике» — подходящие рецепты ранжируются по числу доступных ингредиентов.'
+        },
+        smart_home: {
+          main: 'Панель устройств показывает все устройства умного дома карточками со статусом в реальном времени: онлайн/офлайн, комната, текущее значение и быстрый переключатель. Устройства группируются по комнатам; иконки в шапке переключают режим сетка/таблица и открывают общие настройки (MQTT-брокер, интеграции).',
+          device: 'Клик по карточке устройства открывает панель управления: бейдж статуса (онлайн/офлайн), теги комнаты и типа, секция «Управление» с переключателями/слайдерами (питание, таймер автоотключения, яркость…), живые параметры (потребление, температура) и кнопка «Редактировать» для изменения конфигурации устройства.'
+        }
+      },
+      apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', dawarich: 'Интерактивные карты, маршруты и избранное', films: 'Менеджер фильмов – коллекция, комментарии', gitea: 'Git-репозитории и совместная разработка', immich: 'Бекап фото и видео с альбомами', kanboard: 'Kanban-доски для проектов и задач', lopaka: 'Графический редактор для встраиваемых дисплеев', recipes: 'Менеджер рецептов', smart_home: 'Панель управления умным домом', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности' },
+      app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', dawarich: 'Интерактивные карты с поддержкой KML, GPS. Избранное, маршруты.', films: 'База фильмов с комментариями, списком просмотра, категориями.', gitea: 'Собственный Git-сервис: репозитории, задачи, pull request и обзор кода.', immich: 'Резервное копирование фото и видео с альбомами, поиском и лентой времени.', kanboard: 'Kanban-управление проектами: доски, задачи, дорожки и командная работа.', lopaka: 'Графический редактор и генератор кода для встраиваемых дисплеев (TFT, U8g2, MicroPython).', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', smart_home: 'Управление устройствами умного дома из одной панели: датчики, реле, MQTT и автоматизации.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.' }
     },
     be: {
       hero_title: 'Бяспечны доступ да хмарнай кансолі',
       hero_desc1: 'ServerKherson — гэта вэб-праграма для бяспечнага доступу да сервераў.',
-      hero_desc2: 'Мы выкарыстоўваем Google OAuth для абароны ўліковых запісаў. Запытваецца толькі базавая інфармацыя профілю. Платформа прапануе разнастайныя прыкладанні: воблачнае кіраванне файламі, медыя-галерэі, інтерактыўныя мапы, маніторынг сервера, рэцэпты, улік выдаткаў, трэкер актыўнасці і сеткавыя ўтыліты — усё даступна праз адзіны ўліковы запіс.',
+      hero_desc2: 'Мы выкарыстоўваем Google OAuth для абароны ўліковых запісаў. Запытваецца толькі базавая інфармацыя профілю. Платформа прапануе разнастайныя прыкладанні: воблачнае кіраванне файламі, інтерактыўныя мапы, бэкап фота, фільматэка, рэцэпты, улік выдаткаў, трэкер актыўнасці і інструменты распрацоўшчыка — усё даступна праз адзіны ўліковы запіс.',
       loading_app: 'Адкрыццё прыкладання...',
       signin: 'Увайсці', register: 'Рэгістрацыя', otp_button: 'Аднаразовы PIN',
       features_title: 'Агляд серверных прыкладанняў', apps_heading: 'Асобныя прыкладанні',
@@ -76,13 +259,74 @@ uk: {
       news_section_title: 'Навіны', news_layout_edit: 'Рэдагаваць макет', news_layout_done: 'Гатова',
       waiting_btn: 'Чаканне...', loading_btn: 'Загрузка...', logging_out: 'Выхад з уліковага запісу...', news_toast_label: 'Новае', news_more_btn: 'Паглядзець больш навін', news_read_more: 'Разгарнуць навіну',       news_empty: 'Навін яшчэ няма.',       cal_less: 'Менш', cal_more: 'Больш', cal_title: 'Календар навін',
       explore_title: 'Даследуйце магчымасці', explore_subtitle: 'Адкрыйце любы дадатак',
-      apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', films: 'Менеджар фільмаў – калекцыя, каментары', map: 'Мапы, KML, GPS, абранае', media_viewer: 'Медыя галерэя з альбомамі', performance: 'Маніторынг сервера', recipes: 'Менеджар рэцэптаў', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці', tft_generator: 'Генератар кода TFT экрана', viewer: 'Праглядальнік прылад сеткі' },
-      app_details: { portal: 'Галоўны сайт ServerKherson: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', map: 'Мапы з падтрымкай KML, GPS. Абранае, маршруты.', media_viewer: 'Медыя галерэя з альбомамі і папярэднім праглядам.', performance: 'Маніторынг сервера: CPU, памяць, модулі Apache, графікі.', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.', tft_generator: 'Генерацыя кода для TFT экрана з малюнкаў на палатне.', viewer: 'Пошук прылад у лакальнай сетцы (роутары, разумныя прылады).' }
+      instructions_btn: 'Паглядзець інструкцыю', instructions_close: 'Закрыць інструкцыю', instructions_title: 'Як карыстацца',
+      instructions_sections: {
+        cloud: { main: 'Менеджар файлаў', markdown: 'Markdown-рэдактар', text: 'Тэкставы рэдактар', image: 'Фоторэдактар', zip: 'Прагляд архіваў', pdf: 'Прагляд PDF' },
+        steps: { main: 'Панэль і каляндар', stats: 'Статыстыка', info: 'Інфармацыя пра прыкладанне' },
+        spends: { main: 'Агляд выдаткаў', table: 'Табліца выдаткаў', settings: 'Крамы і налады', analytics: 'Статыстыка і графікі' },
+        lopaka: { main: 'Рэдактар і генератар кода' },
+        portal: { home: 'Галоўная старонка', main: 'Панэль прыкладанняў', login: 'Уваход', register: 'Рэгістрацыя' },
+        films: { main: 'Калекцыя фільмаў', add: 'Даданне фільма', settings: 'Налады і кіраванне' },
+        kanboard: { main: 'Дашборд', board: 'Kanban-дошка', task: 'Прагляд задачы' },
+        recipes: { main: 'Кніга рэцэптаў', products: 'Кіраванне прадуктамі', search: 'Пошук рэцэптаў' },
+        smart_home: { main: 'Панэль прылад', device: 'Кіраванне прыладай' }
+      },
+      instructions_texts: {
+        cloud: {
+          main: 'Менеджар файлаў — срэбца воблачнага сховішча. Левая панэль паказвае дрэва папак: клікніце папку, каб адкрыць, выкарыстоўвайце кантэкстнае меню (правая кнопка) або кнопкі панэлі, каб ствараць папкі і загружаць файлы перацягваннем. Падвойны клік адкрывае файл у адпаведным убудаваным рэдактары. Файлы можна перамяшчаць, перайменаваць, капіяваць, дзяліцца спасылкай і выдаляць. Верхняя панэль паказвае квоту і дазваляе шукаць па ўсіх файлах.',
+          markdown: 'Markdown-рэдактар адкрывае .md файлы. Левая палова — тэкставы рэдактар з падсветкай сінтаксісу, правая — жывы прагляд гатоваага дакумента. Панэль інструментаў устаўляе загалоўкі, спісы, спасылкі, табліцы, блокі коду і малюнкі. Змены захоўваюцца аўтаматычна; праз Файл → Экспарт можна спампаваць вынік у HTML ці PDF.',
+          text: 'Тэкставы рэдактар адкрывае звычайныя тэкставыя файлы і код (js, py, css, json, ini і інш.). Гэта рэдактар Monaco з падсветкай сінтаксісу, аўтаадступамі, пошукам і заменай (Ctrl+F / Ctrl+H) і некалькімі ўкладкамі. Усё захоўваецца назад у воблачнае сховішча.',
+          image: 'Фоторэдактар адкрывае фота і малюнкі. Можна абразаць, паварочваць і адлюстроўваць, рэгуляваць яркасць, кантраст і насошенасць, прымяняць фільтры, дадаваць тэкст і фігуры, змяняць памер. Гатовы вынік захоўваецца ў PNG або JPEG назад у сховішча.',
+          zip: 'Прагляд архіваў адкрывае .zip файлы без спампоўвання. Праглядайце змесціва архіва як дрэва папак, глядзіце файлы ўнутры і распакоўвайце асобныя файлы або ўвесь архіў у любую папку сховішча. Таксама можна стварыць новы .zip з выбраных файлаў і папак.',
+          pdf: 'Прагляд PDF адкрывае .pdf дакументы з мініяцюрамі старонак, маштабаваннем, паўнатэкставым пошукам і навігацыяй па закладках. Таксама даступныя анатацыі і друкарства.'
+        },
+        steps: {
+          main: 'Панэль паказвае крокі за сёння, адлегласць, калорыі і кольца прагрэсу да дзеннай мэты. Каляндар ніжэй адлюстроўвае гісторыю за ўвесь месяц — дні расфарбаваны па ўзроўні актыўнасці. Кнопка «+» дадае крокі ўручную.',
+          stats: 'Статыстыка агрэгуе актыўнасць: размеркаванне крокаў па гадах, карту інтэнсіўнасці па месяцах і трэнды за тыдні і месяцы. Графікі пераключаюцца паміж крокамі, адлегласцю і калорыямі.',
+          info: 'Раздзел «Інфармацыя» тлумачыць, як падключыць Android-прыкладанне: адсканіруйце QR-код, каб злучыць тэлефон, пасля чаго крокі сінхранізуюцца аўтаматычна ў фонe. Тут можна наладзіць паведамленні і экспарт даных.'
+        },
+        spends: {
+          main: 'Галоўны выгляд — панэль выдаткаў: сума за бягучы месяц, параўнанне з папярэднім, разбіўка па крамах і катэгорыях і графік дынамікі. Дадайце выдатак кнопкай «+»: выберыце краму, суму, дату і пры жаданні фота чэка.',
+          table: 'Табліца выдаткаў — спіс усіх пакупак у выглядзе электроннай табліцы. Фільтруйце па месяцы, краме або катэгорыі, сартуйце па любым слупку, рэдагуйце ячэйкі на месцы і выдаляйце памылковыя запісы.',
+          settings: 'Налады кіруюць крамамі (з лагатыпамі і катэгорыямі), валютай і курсамі, месяцовымі лімітамі бюджэту, OCR фота чэкаў і імпартам/экспартам CSV для бэкапаў або міграцыі.',
+          analytics: 'Статыстыка і графікі паказвае выдаткі за месяц, квартал і год, кругавыя дыяграмы па катэгорыях, трэнды па крамах і сярэдні чэк.'
+        },
+        lopaka: {
+          main: 'Lopaka — графічны рэдактар і генератар кода для ўбудаваных дысплеяў. Выберыце бібліятэку платформы (TFT_eSPI, U8g2, LovyanGFX, Adafruit GFX, ESPHome, Flipper і інш.) і разрозненне дысплея, маляйце панэллю інструментаў: Выбар (V), Малюнак (I), Пэндзаль (B), Тэкст (T), Прамавугольнік (R), Эліпс (O), Лінія (L), Трохвугольнік і Полігон. Кожная фігура становіцца пластом — перамяшчайце, змяняйце памер і выраўноўвайце ў інспектары справа. Панэль кода ўнізе генеруе гатовы код прашыўкі (C/C++, MicroPython, ESPHome YAML); націсніце COPY, каб скапіяваць код, або SAVE, каб захаваць праект. Гарачыя клавішы: Ctrl+Z адмяніць, Del выдаляе выбраны пласт, стрэлкі — зрух на 1 px.'
+        },
+        portal: {
+          home: 'Галоўная старонка — публічная точка ўваходу платформы: апісвае даступныя прыкладанні, паказвае апошнія навіны, дазваляе выбраць мову (6 моў) і каляровую тэму. Адсюль можна ўвайсці, зарэгістравацца або адкрыць уваход па аднаразовым PIN-кодзе.',
+          main: 'Панэль прыкладанняў (Shell Application) — ваш асабісты хаб пасля ўваходу. Усе ўстаноўленыя прыкладанні паказаны пліткамі — клікніце, каб адкрыць. Верхняя панэль дае паведамленні, чат падтрымкі і бакавое меню; у меню — хуткая навігацыя і дзеянні профілю/сесій.',
+          login: 'Старонка ўваходу падтрымлівае Google OAuth і класічны ўваход па email/паролі. Пасля некалькіх няўдалых спроб можа запатрабавацца аднаразовы PIN (OTP) з ліста. Сесіі адсочваюцца па прыладах — іх можна праглядзець і завяршыць у профілі.',
+          register: 'Рэгістрацыя стварае бясплатны ўліковы запіс: увядзіце email, імя і пароль, пацвердзіце кодам з ліста — і вы атрымліваеце доступ да ўсіх убудаваных прыкладанняў з персанальнай ізаляцыяй даных.'
+        },
+        films: {
+          main: 'Калекцыя фільмаў паказвае вашу бібліятэку карткамі з постарами, рэйтынгамі і катэгорыямі. Пошук і фільтры дапамогуць хутка знайсці фільм; адкрыйце картку, каб убачыць дэталі, каментары і кнопку прагляду. Бакавое меню змяшчае навігацыю: калекцыя, дадаць фільм, налады.',
+          add: 'Дыялог «Дадаць новы фільм» стварае запіс: увядзіце назву, мову арыгінала, год, тып кантэнту (онлайн-спасылка або лакальны файл), саму спасылку, катэгорыю і зорны рэйтынг. Фільм адразу з\'яўляецца ў калекцыі.',
+          settings: 'Налады (для адміністратара) кіруюць усёй бібліятэкай: укладка «Кіраванне фільмамі» паказвае ўсе назвы з пераключальнікамі бачнасці і выдаленнем, «Кіраванне каментарамі» мадэруе каментары, а ўкладка «Налады» змяшчае параметры плеера і сховішча.'
+        },
+        kanboard: {
+          main: 'Дашборд — уваходная точка Kanboard: паказвае вашы праекты з лічильнікамі задач па калонках, спісы «Мае задачы» і «Мае падзадачы», стужку актыўнасці. «Новы праект» стварае дошку.',
+          board: 'Kanban-дошка ўяўляе праект калонкамі (Backlog, Todo, In progress, Done…). Перацягвайце карткі паміж калонкамі, «+» у калонцы дадае задачу, радок пошуку фільтруе па статусе/выканаўцу/тэгу.',
+          task: 'Прагляд задачы збірае ўсё пра задачу: зводка (статус, прыярытэт, выканаўца, даты), апісанне, падзадачы з прагрэсам, спасылкі, укладанні і ланцуг каментараў. Левая панэль прапануе дзеянні: рэдагаваць, падзадачы, спасылкі, каментары, дубляванне, перанос у іншы праект.'
+        },
+        recipes: {
+          main: 'Кніга рэцэптаў паказвае рэцэпты карткамі з фота і тэгамі. Стварыце рэцэпт з інгрэдыентамі (звязанымі са спісам прадуктаў), пакрокавымі інструкцыямі і фота. Кнопкі панэлі адкрываюць кіраванне прадуктамі, пошук рэцэптаў і налады; рэцэптамі можна дзяліцца спасылкай.',
+          products: 'Кіраванне прадуктамі вядзе базу вашай кладоўкі: дадавайце прадукты з адзінкамі і цэнамі, рэдагуйце і выдаляйце іх, выкарыстоўвайце як інгрэдыенты ў рэцэптах. Пры гатаванні выкарыстаныя прадукты могуць спісвацца са складу аўтаматычна.',
+          search: 'Пошук рэцэптаў знаходзіць стравы па назве, тэгах або наяўных інгрэдыентах. Камбінуйце фільтры, каб адказаць на пытанне «што прыгатаваць з таго, што ёсць у халадзільніку».'
+        },
+        smart_home: {
+          main: 'Панэль прылад паказвае ўсе прылады розумнага дому карткамі са статусам у рэальным часе: онлайн/офлайн, пакой, бягучае значэнне і хуткі пераключальнік. Прылады групуюцца па пакоях; іконкі ў шапцы пераключаюць рэжым сетка/табліца і адкрываюць агульныя налады (MQTT-брокер, інтэграцыі).',
+          device: 'Клік па картцы прылады адкрывае панэль кіравання: бэйдж статуса, тэгі пакоя і тыпу, секцыя «Кіраванне» з пераключальнікамі/слайдэрамі (сілкаванне, таймер аўтаадключэння, яркасць), жывыя параметры (спажыванне, тэмпература) і кнопка «Рэдагаваць».'
+        }
+      },
+      apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', dawarich: 'Інтэрактыўныя мапы, маршруты і абранае', films: 'Менеджар фільмаў – калекцыя, каментары', gitea: 'Git-рэпазітарыі і сумесная распрацоўка', immich: 'Бэкап фота і відэа з альбомамі', kanboard: 'Kanban-дошкі для праектаў і задач', lopaka: 'Графічны рэдактар для ўбудаваных дысплеяў', recipes: 'Менеджар рэцэптаў', smart_home: 'Панэль кіравання разумным домам', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці' },
+      app_details: { portal: 'Галоўны сайт ServerKherson: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', dawarich: 'Інтэрактыўныя мапы з падтрымкай KML, GPS. Абранае, маршруты.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', gitea: 'Уласны Git-сэрвіс: рэпазітарыі, задачы, pull request і агляд кода.', immich: 'Рэзервовае капіраванне фота і відэа з альбомамі, пошукам і стужкай часу.', kanboard: 'Kanban-кіраванне праектамі: дошкі, задачы, дарожкі і камандная праца.', lopaka: 'Графічны рэдактар і генератар кода для ўбудаваных дысплеяў (TFT, U8g2, MicroPython).', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', smart_home: 'Кіраванне прыладамі разумнага дому з адной панэлі: датчыкі, рэле, MQTT і аўтаматызацыі.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.' }
     },
     pl: {
       hero_title: 'Bezpieczny dostęp do powłoki chmurowej',
       hero_desc1: 'ServerKherson to aplikacja webowa umożliwiająca bezpieczny dostęp do zdalnych serwerów.',
-      hero_desc2: 'Używamy Google OAuth do ochrony kont. Pobierane są tylko podstawowe dane profilu. Platforma oferuje różnorodne aplikacje: zarządzanie plikami w chmurze, galerie mediów, interaktywne mapy, monitorowanie serwera, przepisy, śledzenie wydatków, tracker aktywności i narzędzia sieciowe — wszystko dostępne przez jedno konto.',
+      hero_desc2: 'Używamy Google OAuth do ochrony kont. Pobierane są tylko podstawowe dane profilu. Platforma oferuje różnorodne aplikacje: zarządzanie plikami w chmurze, interaktywne mapy, kopie zapasowe zdjęć, kolekcje filmów, przepisy, śledzenie wydatków, tracker aktywności i narzędzia deweloperskie — wszystko dostępne przez jedno konto.',
       loading_app: 'Otwieranie aplikacji...',
       signin: 'Zaloguj się', register: 'Rejestracja', otp_button: 'Jednorazowy PIN',
       features_title: 'Przegląd aplikacji serwerowych', apps_heading: 'Zainstalowane aplikacje',
@@ -95,13 +339,74 @@ uk: {
       news_section_title: 'Aktualności', news_layout_edit: 'Edytuj układ', news_layout_done: 'Gotowe',
       waiting_btn: 'Czekanie...', loading_btn: 'Ładowanie...', logging_out: 'Wylogowywanie...', news_toast_label: 'Nowe', news_more_btn: 'Zobacz więcej aktualności', news_read_more: 'Rozwiń aktualność',       news_empty: 'Brak aktualności.',       cal_less: 'Mniej', cal_more: 'Więcej', cal_title: 'Kalendarz aktualności',
       explore_title: 'Odkryj więcej możliwości', explore_subtitle: 'Otwórz dowolną aplikację',
-      apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', films: 'Menedżer filmów – kolekcja, komentarze', map: 'Przeglądarka map, KML, GPS', media_viewer: 'Galeria mediów z albumami', performance: 'Monitor wydajności serwera', recipes: 'Menedżer przepisów', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności', tft_generator: 'Generator kodu ekranu TFT', viewer: 'Przeglądarka urządzeń sieciowych' },
-      app_details: { portal: 'Główny hub ServerKherson: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', map: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', media_viewer: 'Galeria mediów z automatycznym tworzeniem albumów.', performance: 'Monitor serwera w czasie rzeczywistym: CPU, pamięć, Apache, wykresy.', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.', tft_generator: 'Generowanie kodu dla ekranu TFT z rysunków.', viewer: 'Odkrywanie urządzeń w sieci lokalnej.' }
+      instructions_btn: 'Zobacz instrukcję', instructions_close: 'Zamknij instrukcję', instructions_title: 'Jak korzystać',
+      instructions_sections: {
+        cloud: { main: 'Menedżer plików', markdown: 'Edytor Markdown', text: 'Edytor tekstu', image: 'Edytor zdjęć', zip: 'Przeglądarka archiwów', pdf: 'Przeglądarka PDF' },
+        steps: { main: 'Panel i kalendarz', stats: 'Statystyki', info: 'Informacje o aplikacji' },
+        spends: { main: 'Przegląd wydatków', table: 'Tabela wydatków', settings: 'Sklepy i ustawienia', analytics: 'Statystyki i wykresy' },
+        lopaka: { main: 'Edytor i generator kodu' },
+        portal: { home: 'Strona główna', main: 'Panel aplikacji', login: 'Logowanie', register: 'Rejestracja' },
+        films: { main: 'Kolekcja filmów', add: 'Dodawanie filmu', settings: 'Ustawienia i zarządzanie' },
+        kanboard: { main: 'Pulpit', board: 'Tablica Kanban', task: 'Widok zadania' },
+        recipes: { main: 'Książka przepisów', products: 'Zarządzanie produktami', search: 'Wyszukiwanie przepisów' },
+        smart_home: { main: 'Panel urządzeń', device: 'Sterowanie urządzeniem' }
+      },
+      instructions_texts: {
+        cloud: {
+          main: 'Menedżer plików to serce przechowywania w chmurze. Lewy panel pokazuje drzewo folderów — kliknij folder, aby otworzyć, użyj menu kontekstowego (prawy przycisk) lub przycisków paska, aby tworzyć foldery i przesyłać pliki przez przeciąganie. Podwójne kliknięcie otwiera plik w odpowiednim wbudowanym edytorze. Pliki można przenosić, zmieniać nazwy, kopiować, udostępniać linkiem i usuwać. Górny pasek pokazuje limit i umożliwia wyszukiwanie we wszystkich plikach.',
+          markdown: 'Edytor Markdown otwiera pliki .md. Lewa połowa to edytor tekstu z podświetlaniem składni, prawa — podgląd gotowego dokumentu na żywo. Pasek narzędzi wstawia nagłówki, listy, linki, tabele, bloki kodu i obrazy. Zmiany zapisują się automatycznie; przez Plik → Eksport można pobrać wynik jako HTML lub PDF.',
+          text: 'Edytor tekstu otwiera zwykłe pliki tekstowe i kod (js, py, css, json, ini i inne). To edytor Monaco z podświetlaniem składni, automatycznymi wcięciami, wyszukiwaniem i zamianą (Ctrl+F / Ctrl+H) oraz wieloma kartami. Wszystko zapisuje się z powrotem do przechowalni w chmurze.',
+          image: 'Edytor zdjęć otwiera fotografie i obrazy. Można przycinać, obracać i odbijać, regulować jasność, kontrast i nasycenie, stosować filtry, dodawać tekst i kształty, zmieniać rozmiar. Gotowy wynik zapisuje się jako PNG lub JPEG z powrotem do przechowalni.',
+          zip: 'Przeglądarka archiwów otwiera pliki .zip bez pobierania. Przeglądaj zawartość archiwum jako drzewo folderów, oglądaj pliki w środku i rozpakowuj pojedyncze pliki lub całe archiwum do dowolnego folderu. Można też utworzyć nowy .zip z wybranych plików i folderów.',
+          pdf: 'Przeglądarka PDF otwiera dokumenty .pdf z miniaturami stron, powiększeniem, wyszukiwaniem pełnotekstowym i nawigacją po zakładkach. Dostępne są także adnotacje i druk.'
+        },
+        steps: {
+          main: 'Panel pokazuje dzisiejsze kroki, dystans, kalorie i pierścień postępu do dziennego celu. Kalendarz poniżej wyświetla historię za cały miesiąc — dni są kolorowane według poziomu aktywności. Przycisk „+” dodaje kroki ręcznie, np. po spacerze bez telefonu.',
+          stats: 'Statystyki agregują aktywność: rozkład kroków według lat, mapę intensywności według miesięcy i trendy tygodniowe oraz miesięczne. Wykresy przełączają się między krokami, dystansem i kaloriami.',
+          info: 'Sekcja „Informacje” wyjaśnia, jak sparować aplikację na Androida: zeskanuj kod QR, aby połączyć telefon, po czym kroki synchronizują się automatycznie w tle. Tutaj można też skonfigurować powiadomienia i eksport danych.'
+        },
+        spends: {
+          main: 'Widok główny to panel wydatków: suma za bieżący miesiąc, porównanie z poprzednim, podział według sklepów i kategorii oraz wykres dynamiki. Dodaj wydatek przyciskiem „+”: wybierz sklep, kwotę, datę i opcjonalnie zdjęcie paragonu.',
+          table: 'Tabela wydatków to lista wszystkich zakupów w formie arkusza. Filtruj według miesiąca, sklepu lub kategorii, sortuj według dowolnej kolumny, edytuj komórki na miejscu i usuwaj błędne wpisy.',
+          settings: 'Ustawienia zarządzają sklepami (z logo i kategoriami), walutą i kursami, miesięcznymi limitami budżetu, OCR zdjęć paragonów oraz importem/eksportem CSV do kopii zapasowych lub migracji.',
+          analytics: 'Statystyki i wykresy pokazują wydatki za miesiąc, kwartał i rok, wykresy kołowe kategorii, trendy sklepów i średni paragon.'
+        },
+        lopaka: {
+          main: 'Lopaka to edytor graficzny i generator kodu dla wyświetlaczy wbudowanych. Wybierz bibliotekę platformy (TFT_eSPI, U8g2, LovyanGFX, Adafruit GFX, ESPHome, Flipper itd.) i rozdzielczość wyświetlacza, rysuj paskiem narzędzi: Zaznaczenie (V), Obraz (I), Pędzel (B), Tekst (T), Prostokąt (R), Elipsa (O), Linia (L), Trójkąt i Wielokąt. Każdy kształt staje się warstwą — przesuwaj, zmieniaj rozmiar i wyrównuj w inspectorze po prawej. Panel kodu na dole generuje gotowy kod firmware (C/C++, MicroPython, ESPHome YAML); naciśnij COPY, aby skopiować kod, lub SAVE, aby zapisać projekt. Skróty: Ctrl+Z cofnij, Del usuwa zaznaczoną warstwę, strzałki — przesuw o 1 px.'
+        },
+        portal: {
+          home: 'Strona główna to publiczny punkt wejścia platformy: opisuje dostępne aplikacje, pokazuje najnowsze wiadomości, pozwala wybrać język (6 języków) i motyw kolorystyczny. Stąd można się zalogować, zarejestrować lub otworzyć logowanie jednorazowym PIN-em.',
+          main: 'Panel aplikacji (Shell Application) to osobisty hub po zalogowaniu. Wszystkie zainstalowane aplikacje widoczne są jako kafelki — kliknij, aby otworzyć. Górny pasek daje powiadomienia, czat wsparcia i menu boczne; w menu szybka nawigacja i akcje profilu/sesji.',
+          login: 'Strona logowania obsługuje Google OAuth i klasyczne logowanie email/hasło. Po kilku nieudanych próbach może być wymagany jednorazowy PIN (OTP) z e-maila. Sesje są śledzone według urządzeń — można je przejrzeć i zakończyć w profilu.',
+          register: 'Rejestracja tworzy darmowe konto: wpisz e-mail, imię i hasło, potwierdź kodem z wiadomości — i masz dostęp do wszystkich wbudowanych aplikacji z osobistą izolacją danych.'
+        },
+        films: {
+          main: 'Kolekcja filmów pokazuje bibliotekę jako karty z plakatami, ocenami i kategoriami. Wyszukiwanie i filtry pomogą szybko znaleźć tytuł; otwórz kartę, aby zobaczyć szczegóły, komentarze i przycisk odtwarzania. Menu boczne zawiera nawigację: kolekcja, dodaj film, ustawienia.',
+          add: 'Okno „Dodaj nowy film” tworzy wpis: podaj tytuł, język oryginalny, rok, typ zawartości (link online lub plik lokalny), sam link, kategorię i ocenę gwiazdkową. Film od razu pojawia się w kolekcji i jest odtwarzany wbudowanym odtwarzaczem.',
+          settings: 'Ustawienia (dla administratora) zarządzają całą biblioteką: zakładka „Zarządzanie filmami” pokazuje wszystkie tytuły z przełącznikami widoczności i usuwania, „Zarządzanie komentarzami” moderuje komentarze, a zakładka „Ustawienia” przechowuje preferencje odtwarzacza i magazynu.'
+        },
+        kanboard: {
+          main: 'Pulpit to punkt wejścia Kanboard: pokazuje projekty z licznikami zadań według kolumn, listy „Moje zadania” i „Moje podzadania” oraz strumień aktywności. „Nowy projekt” tworzy tablicę.',
+          board: 'Tablica Kanban przedstawia projekt jako kolumny (Backlog, Todo, W toku, Gotowe…). Przeciągaj karty między kolumnami, aby zmieniać status, „+” w kolumnie dodaje zadanie, pasek wyszukiwania filtruje według statusu/wykonawcy/etykiety.',
+          task: 'Widok zadania zbiera wszystko o zadaniu: podsumowanie (status, priorytet, wykonawca, daty), opis, podzadania z postępem, linki wewnętrzne/zewnętrzne, załączniki i wątek komentarzy. Lewy panel oferuje akcje: edycja, powtarzalność, podzadania, linki, komentarze, duplikowanie, przeniesienie do innego projektu.'
+        },
+        recipes: {
+          main: 'Książka przepisów pokazuje przepisy jako karty ze zdjęciami i tagami. Utwórz przepis ze składnikami (powiązanymi z listą produktów), instrukcjami krok po kroku i zdjęciem. Przyciski paska otwierają zarządzanie produktami, wyszukiwanie przepisów i ustawienia; przepisami można udostępniać linkiem.',
+          products: 'Zarządzanie produktami prowadzi bazę Twojej spiżarni: dodawaj produkty z jednostkami i cenami, edytuj i usuwaj je, używaj jako składników w przepisach. Podczas gotowania użyte produkty mogą być automatycznie odliczane z zapasów.',
+          search: 'Wyszukiwanie przepisów znajduje dania według nazwy, tagów lub posiadanych składników. Łącz filtry, aby odpowiedzieć na pytanie „co ugotować z tego, co jest w lodówce”.'
+        },
+        smart_home: {
+          main: 'Panel urządzeń pokazuje wszystkie urządzenia smart home jako karty ze statusem na żywo: online/offline, pokój, aktualna wartość i szybki przełącznik. Urządzenia są grupowane według pokoi; ikony w nagłówku przełączają tryb siatka/tabela i otwierają ustawienia globalne (broker MQTT, integracje).',
+          device: 'Kliknięcie karty urządzenia otwiera panel sterowania: plakietka statusu, tagi pokoju i typu, sekcja „Sterowanie” z przełącznikami/suwakami (zasilanie, timer auto-wyłączenia, jasność), parametry na żywo (pobór mocy, temperatura) i przycisk „Edytuj”.'
+        }
+      },
+      apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', dawarich: 'Interaktywne mapy, trasy i ulubione', films: 'Menedżer filmów – kolekcja, komentarze', gitea: 'Repozytoria Git i współpraca nad kodem', immich: 'Kopia zapasowa zdjęć i wideo z albumami', kanboard: 'Tablice Kanban dla projektów i zadań', lopaka: 'Edytor graficzny dla wbudowanych wyświetlaczy', recipes: 'Menedżer przepisów', smart_home: 'Panel sterowania inteligentnym domem', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności' },
+      app_details: { portal: 'Główny hub ServerKherson: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', dawarich: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', gitea: 'Własnoręcznie hostowany serwis Git: repozytoria, zgłoszenia, pull requesty i przegląd kodu.', immich: 'Kopia zapasowa zdjęć i wideo z albumami, wyszukiwaniem i osią czasu.', kanboard: 'Zarządzanie projektami Kanban: tablice, zadania, tory i praca zespołowa.', lopaka: 'Edytor graficzny i generator kodu dla wbudowanych wyświetlaczy (TFT, U8g2, MicroPython).', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', smart_home: 'Sterowanie urządzeniami inteligentnego domu z jednego panelu: czujniki, przełączniki, MQTT i automatyzacje.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.' }
     },
     cs: {
       hero_title: 'Bezpečný přístup ke cloudovému shellu',
       hero_desc1: 'ServerKherson je webová aplikace umožňující bezpečný přístup ke vzdáleným serverům.',
-      hero_desc2: 'Pro ochranu účtů používáme Google OAuth. Jsou vyžadovány pouze základní informace z profilu. Platforma nabízí různé aplikace: cloudovou správu souborů, mediální galerie, interaktivní mapy, monitorování serveru, recepty, sledování výdajů, tracker aktivity a síťové nástroje — vše dostupné přes jeden účet.',
+      hero_desc2: 'Pro ochranu účtů používáme Google OAuth. Jsou vyžadovány pouze základní informace z profilu. Platforma nabízí různé aplikace: cloudovou správu souborů, interaktivní mapy, zálohu fotek, filmové sbírky, recepty, sledování výdajů, tracker aktivity a vývojářské nástroje — vše dostupné přes jeden účet.',
       loading_app: 'Otevírání aplikace...',
       signin: 'Přihlásit se', register: 'Registrace', otp_button: 'Jednorázový PIN',
       features_title: 'Přehled serverových aplikací', apps_heading: 'Nainstalované aplikace',
@@ -114,53 +419,162 @@ uk: {
       news_section_title: 'Novinky', news_layout_edit: 'Upravit rozložení', news_layout_done: 'Hotovo',
       waiting_btn: 'Čekání...', loading_btn: 'Načítání...', logging_out: 'Odhlášení...', news_toast_label: 'Nové', news_more_btn: 'Zobrazit více novinek', news_read_more: 'Rozbalit novinku',       news_empty: 'Zatím žádné novinky.',       cal_less: 'Méně', cal_more: 'Více', cal_title: 'Kalendář novinek',
       explore_title: 'Prozkoumejte další možnosti', explore_subtitle: 'Otevřete libovolnou aplikaci',
-      apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', films: 'Správce filmů – sbírka, komentáře', map: 'Prohlížeč map, KML, GPS', media_viewer: 'Mediální galerie s alby', performance: 'Monitor výkonu serveru', recipes: 'Správce receptů', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity', tft_generator: 'Generátor kódu obrazovky TFT', viewer: 'Prohlížeč síťových zařízení' },
-      app_details: { portal: 'Hlavní hub ServerKherson: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', map: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', media_viewer: 'Mediální galerie s automatickým vytvářením alb.', performance: 'Monitor serveru v reálném čase: CPU, paměť, Apache, grafy.', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.', tft_generator: 'Generování kódu pro TFT obrazovku z kreseb.', viewer: 'Zjišťování zařízení v místní síti.' }
+      instructions_btn: 'Zobrazit návod', instructions_close: 'Zavřít návod', instructions_title: 'Jak používat',
+      instructions_sections: {
+        cloud: { main: 'Správce souborů', markdown: 'Editor Markdown', text: 'Textový editor', image: 'Editor fotek', zip: 'Prohlížeč archivů', pdf: 'Prohlížeč PDF' },
+        steps: { main: 'Panel a kalendář', stats: 'Statistiky', info: 'Informace o aplikaci' },
+        spends: { main: 'Přehled výdajů', table: 'Tabulka výdajů', settings: 'Obchody a nastavení', analytics: 'Statistiky a grafy' },
+        lopaka: { main: 'Editor a generátor kódu' },
+        portal: { home: 'Hlavní stránka', main: 'Panel aplikací', login: 'Přihlášení', register: 'Registrace' },
+        films: { main: 'Kolekce filmů', add: 'Přidání filmu', settings: 'Nastavení a správa' },
+        kanboard: { main: 'Přehled', board: 'Kanban tabule', task: 'Zobrazení úkolu' },
+        recipes: { main: 'Kuchařka', products: 'Správa produktů', search: 'Hledání receptů' },
+        smart_home: { main: 'Panel zařízení', device: 'Ovládání zařízení' }
+      },
+      instructions_texts: {
+        cloud: {
+          main: 'Správce souborů je srdcem cloudového úložiště. Levý panel zobrazuje strom složek — klikněte na složku, kterou chcete otevřít, použijte kontextovou nabídku (pravé tlačítko) nebo tlačítka panelu pro vytváření složek a nahrávání souborů přetažením. Dvojité kliknutí otevře soubor v příslušném vestavěném editoru. Soubory lze přesouvat, přejmenovávat, kopírovat, sdílet odkazem a mazat. Horní panel ukazuje kvótu a umožňuje vyhledávání ve všech souborech.',
+          markdown: 'Editor Markdown otevírá soubory .md. Levá polovina je textový editor se zvýrazněním syntaxe, pravá živý náhled hotového dokumentu. Panel nástrojů vkládá nadpisy, seznamy, odkazy, tabulky, bloky kódu a obrázky. Změny se ukládají automaticky; přes Soubor → Export lze výsledek stáhnout jako HTML nebo PDF.',
+          text: 'Textový editor otevírá obyčejné textové soubory a kód (js, py, css, json, ini a další). Jde o editor Monaco se zvýrazněním syntaxe, automatickým odsazováním, hledáním a nahrazováním (Ctrl+F / Ctrl+H) a více kartami. Vše se ukládá zpět do cloudového úložiště.',
+          image: 'Editor fotek otevírá fotografie a obrázky. Lze oříznout, otočit a překlopit, upravit jas, kontrast a saturaci, použít filtry, přidat text a tvary, změnit velikost. Hotový výsledek se ukládá jako PNG nebo JPEG zpět do úložiště.',
+          zip: 'Prohlížeč archivů otevírá soubory .zip bez stahování. Procházejte obsah archivu jako strom složek, prohlížejte si soubory uvnitř a rozbalte jednotlivé soubory nebo celý archiv do libovolné složky. Lze také vytvořit nový .zip z vybraných souborů a složek.',
+          pdf: 'Prohlížeč PDF otevírá dokumenty .pdf s náhledy stránek, přibližováním, fulltextovým vyhledáváním a navigací přes záložky. K dispozici jsou také anotace a tisk.'
+        },
+        steps: {
+          main: 'Panel ukazuje dnešní kroky, vzdálenost, kalorie a kruh postupu k dennímu cíli. Kalendář níže zobrazuje historii za celý měsíc — dny jsou obarveny podle úrovně aktivity. Tlačítko „+” přidává kroky ručně, např. po procházce bez telefonu.',
+          stats: 'Statistiky agregují aktivitu: rozložení kroků podle let, mapu intenzity podle měsíců a trendy za týdny a měsíce. Grafy se přepínají mezi kroky, vzdáleností a kaloriemi.',
+          info: 'Sekce „Informace” vysvětluje, jak spárovat aplikaci pro Android: naskenujte QR kód, abyste propojili telefon, poté se kroky synchronizují automaticky na pozadí. Zde lze také nastavit upozornění a export dat.'
+        },
+        spends: {
+          main: 'Hlavní pohled je panel výdajů: suma za aktuální měsíc, porovnání s předchozím, rozpad podle obchodů a kategorií a graf dynamiky. Přidejte výdaj tlačítkem „+”: vyberte obchod, částku, datum a případně fotografii účtenky.',
+          table: 'Tabulka výdajů je seznam všech nákupů ve formě tabulky. Filtrujte podle měsíce, obchodu nebo kategorie, třiďte podle libovolného sloupce, upravujte buňky na místě a mažte chybné záznamy.',
+          settings: 'Nastavení spravují obchody (s logy a kategoriemi), měnu a kurzy, měsíční limity rozpočtu, OCR fotografií účtenek a import/export CSV pro zálohy nebo migraci.',
+          analytics: 'Statistiky a grafy ukazují výdaje za měsíc, čtvrtletí a rok, koláčové grafy kategorií, trendy obchodů a průměrný účet.'
+        },
+        lopaka: {
+          main: 'Lopaka je grafický editor a generátor kódu pro vestavěné displeje. Vyberte knihovnu platformy (TFT_eSPI, U8g2, LovyanGFX, Adafruit GFX, ESPHome, Flipper atd.) a rozlišení displeje, kreslete panelem nástrojů: Výběr (V), Obrázek (I), Štětec (B), Text (T), Obdélník (R), Elipsa (O), Linie (L), Trojúhelník a Polygon. Každý tvar se stane vrstvou — přesouvejte, měňte velikost a zarovnávejte v inspektoru vpravo. Panel kódu dole generuje hotový kód firmwaru (C/C++, MicroPython, ESPHome YAML); stiskněte COPY pro zkopírování kódu nebo SAVE pro uložení projektu. Zkratky: Ctrl+Z zpět, Del maže vybranou vrstvu, šipky — posun o 1 px.'
+        },
+        portal: {
+          home: 'Hlavní stránka je veřejný vstupní bod platformy: popisuje dostupné aplikace, ukazuje nejnovější zprávy, umožňuje vybrat jazyk (6 jazyků) a barevný motiv. Odsud se lze přihlásit, zaregistrovat nebo otevřít přihlášení jednorázovým PIN-em.',
+          main: 'Panel aplikací (Shell Application) je váš osobní hub po přihlášení. Všechny nainstalované aplikace jsou zobrazeny jako dlaždice — klikněte pro otevření. Horní panel nabízí oznámení, chat podpory a postranní menu; v menu rychlá navigace a akce profilu/sdílení.',
+          login: 'Stránka přihlášení podporuje Google OAuth a klasické přihlášení e-mail/heslo. Po několika neúspěšných pokusech může být vyžadován jednorázový PIN (OTP) z e-mailu. Relace se sledují podle zařízení — lze je zobrazit a ukončit v profilu.',
+          register: 'Registrace vytvoří bezplatný účet: zadejte e-mail, jméno a heslo, potvrďte kódem ze zprávy — a máte přístup ke všem vestavěným aplikacím s osobní izolací dat.'
+        },
+        films: {
+          main: 'Kolekce filmů zobrazuje knihovnu jako karty s plakáty, hodnoceními a kategoriemi. Vyhledávání a filtry pomohou rychle najít titul; otevřete kartu pro detaily, komentáře a tlačítko přehrání. Postranní menu obsahuje navigaci: kolekce, přidat film, nastavení.',
+          add: 'Dialog „Přidat nový film” vytvoří záznam: zadejte název, původní jazyk, rok, typ obsahu (online odkaz nebo lokální soubor), samotný odkaz, kategorii a hvězdičkové hodnocení. Film se okamžitě objeví v kolekci a přehraje se vestavěným přehrávačem.',
+          settings: 'Nastavení (pro správce) spravují celou knihovnu: záložka „Správa filmů” ukazuje všechny tituly s přepínači viditelnosti a mazáním, „Správa komentářů” moderuje komentáře uživatelů a záložka „Nastavení” uchovává předvolby přehrávače a úložiště.'
+        },
+        kanboard: {
+          main: 'Přehled je vstupní bod Kanboardu: ukazuje projekty s počítadly úkolů podle sloupců, seznamy „Moje úkoly” a „Moje podúkoly” a proud aktivity. „Nový projekt” vytvoří tabuli.',
+          board: 'Kanban tabule znázorňuje projekt jako sloupce (Backlog, Todo, V řešení, Hotovo…). Přetahujte karty mezi sloupci pro změnu stavu, „+” ve sloupci přidá úkol, vyhledávací řádek filtruje podle stavu/řešitele/štítku.',
+          task: 'Zobrazení úkolu shromažďuje vše o úkolu: přehled (stav, priorita, řešitel, data), popis, podúkoly s postupem, interní/externí odkazy, přílohy a vlákno komentářů. Levý panel nabízí akce: úprava, opakování, podúkoly, odkazy, komentáře, duplikování, přesun do jiného projektu.'
+        },
+        recipes: {
+          main: 'Kuchařka zobrazuje recepty jako karty s fotkami a tagy. Vytvořte recept se surovinami (propojenými se seznamem produktů), podrobnými instrukcemi a fotkou. Tlačítka panelu otevírají správu produktů, hledání receptů a nastavení; recepty lze sdílet odkazem.',
+          products: 'Správa produktů vede databázi vaší spíže: přidávejte produkty s jednotkami a cenami, upravujte a mazejte je, používejte jako suroviny v receptech. Při vaření lze použité produkty automaticky odepsat ze zásob.',
+          search: 'Hledání receptů najde pokrmy podle názvu, tagů nebo dostupných surovin. Kombinujte filtry, abyste odpověděli na otázku „co uvařit z toho, co je v lednici”.'
+        },
+        smart_home: {
+          main: 'Panel zařízení ukazuje všechna zařízení chytré domácnosti jako karty se stavem v reálném čase: online/offline, pokoj, aktuální hodnota a rychlý přepínač. Zařízení se seskupují podle pokojů; ikony v záhlaví přepínají režim mřížka/tabulka a otevírají globální nastavení (MQTT broker, integrace).',
+          device: 'Kliknutí na kartu zařízení otevře panel ovládání: odznak stavu, tagy pokoje a typu, sekce „Ovládání” s přepínači/posuvníky (napájení, časovač auto-vypnutí, jas), živé parametry (odběr, teplota) a tlačítko „Upravit”.'
+        }
+      },
+      apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', dawarich: 'Interaktivní mapy, trasy a oblíbené', films: 'Správce filmů – sbírka, komentáře', gitea: 'Repozitáře Git a spolupráce na kódu', immich: 'Záloha fotek a videí s alby', kanboard: 'Kanban tabule pro projekty a úkoly', lopaka: 'Grafický editor pro vestavěné displeje', recipes: 'Správce receptů', smart_home: 'Panel chytré domácnosti', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity' },
+      app_details: { portal: 'Hlavní hub ServerKherson: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', dawarich: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', gitea: 'Vlastní Git služba: repozitáře, issues, pull requesty a recenze kódu.', immich: 'Záloha fotek a videí s alby, vyhledáváním a časovou osou.', kanboard: 'Kanban řízení projektů: tabule, úkoly, dráhy a týmová práce.', lopaka: 'Grafický editor a generátor kódu pro vestavěné displeje (TFT, U8g2, MicroPython).', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', smart_home: 'Ovládání zařízení chytré domácnosti z jednoho panelu: senzory, spínače, MQTT a automatizace.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.' }
     }
   };
 
   const APPS = [
-    { id: 'cloud', name: 'Cloud' },
-    { id: 'films', name: 'Films' },
-    { id: 'map', name: 'Map' },
-    { id: 'media_viewer', name: 'Media Viewer' },
-    { id: 'performance', name: 'Performance' },
+    { id: 'cloud', name: 'Cloud Storage' },
+    { id: 'dawarich', name: 'Maps' },
+    { id: 'films', name: 'Movie Manager' },
+    { id: 'gitea', name: 'Gitea' },
+    { id: 'immich', name: 'Immich' },
+    { id: 'kanboard', name: 'Kanboard' },
+    { id: 'lopaka', name: 'Lopaka' },
     { id: 'recipes', name: 'Recipes' },
-    { id: 'spends', name: 'Spends' },
-    { id: 'steps', name: 'Steps' },
-    { id: 'tft_generator', name: 'TFT Generator' },
-    { id: 'viewer', name: 'Network Viewer' }
+    { id: 'smart_home', name: 'Smart Home' },
+    { id: 'spends', name: 'Spending Tracker' },
+    { id: 'steps', name: 'Steps Counter' }
   ];
 
+  // Real app icons from each app directory; portal keeps the inline grid icon.
+  const APP_ICON_URL = id => 'apps/' + id + '/icon.svg';
+  const iconHtml = id => `<img class="app-real-icon" src="${APP_ICON_URL(id)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'▪'}))">`;
+
   const ICONS = {
-    cloud: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" x2="6.01" y1="6" y2="6"/><line x1="6" x2="6.01" y1="18" y2="18"/></svg>`,
-    films: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12.296 3.464 3.02 3.956"/><path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3z"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m6.18 5.276 3.1 3.899"/></svg>`,
-    map: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z"/><path d="M9 4v13M15 7v13"/></svg>`,
-    media_viewer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.033 9.44a.647.647 0 0 1 0 1.12l-4.065 2.352a.645.645 0 0 1-.968-.56V7.648a.645.645 0 0 1 .967-.56z"/><path d="M7 21h10"/><rect width="20" height="14" x="2" y="3" rx="2"/></svg>`,
-    performance: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"/><path d="M12 14v-4"/><path d="M4 13a8 8 0 0 1 8-7 8 8 0 1 1-5.3 14L4 17.6"/><path d="M9 17H4v5"/></svg>`,
-    recipes: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/></svg>`,
-    spends: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 18V6"/></svg>`,
-    steps: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16v-2.38C4 11.5 2.97 10.5 3 8c.03-2.72 1.49-6 4.5-6C9.37 2 10 3.8 10 5.5c0 3.11-2 5.66-2 8.68V16a2 2 0 1 1-4 0Z"/><path d="M20 20v-2.38c0-2.12 1.03-3.12 1-5.62-.03-2.72-1.49-6-4.5-6C14.63 6 14 7.8 14 9.5c0 3.11 2 5.66 2 8.68V20a2 2 0 1 0 4 0Z"/><path d="M16 17h4"/><path d="M4 13h4"/></svg>`,
-    tft_generator: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>`,
-    portal: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="1.5"/><rect width="8" height="8" x="13" y="3" rx="1.5"/><rect width="8" height="8" x="3" y="13" rx="1.5"/><rect width="8" height="8" x="13" y="13" rx="1.5"/></svg>`,
-    viewer: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>`
+    portal: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="8" x="3" y="3" rx="1.5"/><rect width="8" height="8" x="13" y="3" rx="1.5"/><rect width="8" height="8" x="3" y="13" rx="1.5"/><rect width="8" height="8" x="13" y="13" rx="1.5"/></svg>`
   };
 
   const PREV_ORIG = 'preview/';
-  const PREV_WEB = 'preview/web/';
   const PREVIEWS = {
-    portal: ['site_home.jpg', 'site_login.jpg', 'site_register.jpg'],
-    cloud: ['cloud_code.jpg', 'cloud_exel.jpg', 'cloud_latex.jpg', 'cloud_markdown.jpg', 'cloud_presentation.jpg', 'cloud_word.jpg'],
-    films: ['films_comments.jpg', 'films_main.jpg', 'films_picture-in-picture.jpg', 'films_player.jpg', 'films_settings_bar.jpg'],
-    map: ['maps_add_route.jpg', 'maps_api_docs.jpg', 'maps__main_layout.jpg', 'maps_main_table.jpg', 'maps_settings_bar.jpg'],
-    media_viewer: ['gallery_download_app.jpg', 'gallery_home.jpg'],
-    performance: ['performance_charts.jpg', 'performance_graph.jpg', 'performance_main.jpg'],
-    recipes: ['recipe_product_card.jpg', 'recipes_main.jpg'],
-    spends: [], steps: [], viewer: [],
-    tft_generator: ['tft_code_generator.jpg']
+    portal: ['site_home_light.jpg', 'site_home_dark.jpg', 'site_main_light.jpg', 'site_main_dark.jpg', 'site_login_light.jpg', 'site_login_dark.jpg', 'site_register_light.jpg', 'site_register_dark.jpg'],
+    cloud: ['cloud_main_light.jpg', 'cloud_main_dark.jpg', 'cloud_markdown_light.jpg', 'cloud_markdown_dark.jpg', 'cloud_text_light.jpg', 'cloud_text_dark.jpg', 'cloud_image_light.jpg', 'cloud_image_dark.jpg', 'cloud_zip_light.jpg', 'cloud_zip_dark.jpg', 'cloud_pdf_light.jpg', 'cloud_pdf_dark.jpg'],
+    films: ['films_main_light.jpg', 'films_main_dark.jpg', 'films_add_light.jpg', 'films_add_dark.jpg', 'films_settings_light.jpg', 'films_settings_dark.jpg'],
+    dawarich: [],
+    gitea: [], immich: [],    lopaka: ['lopaka_main_light.jpg', 'lopaka_main_dark.jpg'],
+    kanboard: ['kanboard_main_light.jpg', 'kanboard_main_dark.jpg', 'kanboard_board_light.jpg', 'kanboard_board_dark.jpg', 'kanboard_task_light.jpg', 'kanboard_task_dark.jpg'],
+    recipes: ['recipes_main_light.jpg', 'recipes_main_dark.jpg', 'recipes_products_light.jpg', 'recipes_products_dark.jpg', 'recipes_search_light.jpg', 'recipes_search_dark.jpg'],
+    smart_home: ['smart_home_main_light.jpg', 'smart_home_main_dark.jpg', 'smart_home_device_light.jpg', 'smart_home_device_dark.jpg'],
+    spends: ['spends_main_light.jpg', 'spends_main_dark.jpg'],
+    steps: ['steps_main_light.jpg', 'steps_main_dark.jpg', 'steps_stats_light.jpg', 'steps_stats_dark.jpg', 'steps_info_light.jpg', 'steps_info_dark.jpg'],
+    spends: ['spends_main_light.jpg', 'spends_main_dark.jpg', 'spends_table_light.jpg', 'spends_table_dark.jpg', 'spends_settings_light.jpg', 'spends_settings_dark.jpg', 'spends_analytics_light.jpg', 'spends_analytics_dark.jpg']
   };
 
-  function webSrc(f) { return PREV_WEB + f.replace(/\.(jpe?g|png)$/i, '.webp'); }
+  function webSrc(f) { return PREV_ORIG + f.replace(/\.(jpe?g|png)$/i, '.webp'); }
+
+  // Per-app instruction sections; images named *_<theme>.jpg are filtered by current theme.
+  // Per-app instructions: sections render title, optional text and a themed screenshot.
+  const INSTRUCTIONS = {
+    cloud: [
+      { key: 'main', img: 'cloud_main' },
+      { key: 'markdown', img: 'cloud_markdown' },
+      { key: 'text', img: 'cloud_text' },
+      { key: 'image', img: 'cloud_image' },
+      { key: 'zip', img: 'cloud_zip' },
+      { key: 'pdf', img: 'cloud_pdf' }
+    ],
+    steps: [
+      { key: 'main', img: 'steps_main' },
+      { key: 'stats', img: 'steps_stats' },
+      { key: 'info', img: 'steps_info' }
+    ],
+    spends: [
+      { key: 'main', img: 'spends_main' },
+      { key: 'table', img: 'spends_table' },
+      { key: 'settings', img: 'spends_settings' },
+      { key: 'analytics', img: 'spends_analytics' }
+    ],
+    lopaka: [
+      { key: 'main', img: 'lopaka_main' }
+    ],
+    portal: [
+      { key: 'home', img: 'site_home' },
+      { key: 'main', img: 'site_main' },
+      { key: 'login', img: 'site_login' },
+      { key: 'register', img: 'site_register' }
+    ],
+    films: [
+      { key: 'main', img: 'films_main' },
+      { key: 'add', img: 'films_add' },
+      { key: 'settings', img: 'films_settings' }
+    ],
+    kanboard: [
+      { key: 'main', img: 'kanboard_main' },
+      { key: 'board', img: 'kanboard_board' },
+      { key: 'task', img: 'kanboard_task' }
+    ],
+    recipes: [
+      { key: 'main', img: 'recipes_main' },
+      { key: 'products', img: 'recipes_products' },
+      { key: 'search', img: 'recipes_search' }
+    ],
+    smart_home: [
+      { key: 'main', img: 'smart_home_main' },
+      { key: 'device', img: 'smart_home_device' }
+    ]
+  };
 
   let lang = 'en', theme = 'dark';
   let currentImages = [], currentIndex = 0;
@@ -185,6 +599,11 @@ uk: {
   const modalTitle = $('modalTitle');
   const modalDesc = $('modalDescription');
   const modalGallery = $('modalGallery');
+  const instructionsView = $('instructionsView');
+  const instructionsBody = $('instructionsBody');
+  const instructionsTitle = $('instructionsTitle');
+  let currentModalId = null, currentModalLang = 'en';
+  let instructionsOpen = false;
   const lightbox = $('lightbox');
   const lbImg = $('lightboxImg');
   const lbCounter = $('lightboxCounter');
@@ -740,7 +1159,7 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     APPS.forEach(app => {
       const card = document.createElement('div');
       card.className = 'feature-card';
-      card.innerHTML = `${ICONS[app.id] || ICONS.cloud}<h3>${app.name}</h3><p class="short-desc">${t.apps[app.id] || ''}</p>`;
+      card.innerHTML = `${iconHtml(app.id)}<h3>${app.name}</h3><p class="short-desc">${t.apps[app.id] || ''}</p>`;
       card.addEventListener('click', () => {
         const t2 = I18N[l] || I18N.en;
         const timer = setTimeout(() => loadingOverlay(t2.loading_app), 500);
@@ -858,12 +1277,21 @@ function handleAppMouseEnter(e, card, name, desc) {
   function showModal(id, l) {
     const ol = $('pageLoadingOverlay');
     if (ol) ol.remove();
+    currentModalId = id; currentModalLang = l;
+    renderModal();
+    modal.classList.add('active');
+  }
+
+  function renderModal() {
+    const id = currentModalId, l = currentModalLang;
+    if (!id) return;
     const t = I18N[l] || I18N.en;
     const name = id === 'portal' ? t.portal_title : (APPS.find(a => a.id === id)?.name || id);
     modalTitle.textContent = name;
     modalDesc.textContent = t.app_details[id] || '';
     modalGallery.innerHTML = '';
-    const files = (PREVIEWS[id] || []).slice();
+    const all = (PREVIEWS[id] || []).slice();
+    const files = all.filter(f => f.includes('_' + theme + '.'));
     currentImages = files.map(f => PREV_ORIG + f);
     if (!files.length) {
       const p = document.createElement('p');
@@ -882,7 +1310,61 @@ function handleAppMouseEnter(e, card, name, desc) {
         modalGallery.appendChild(img);
       });
     }
-    modal.classList.add('active');
+    // Instructions button
+    let btn = $('modalInstructionsBtn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.id = 'modalInstructionsBtn';
+      btn.className = 'instructions-btn';
+      btn.addEventListener('click', e => { e.stopPropagation(); openInstructions(); });
+      modalGallery.parentNode.insertBefore(btn, modalGallery.nextSibling);
+    }
+    btn.textContent = '📖 ' + (t.instructions_btn || 'View instructions');
+    btn.style.display = (INSTRUCTIONS[id]) ? '' : 'none';
+  }
+
+  function openInstructions() {
+    renderInstructions();
+    instructionsView.classList.add('active');
+    instructionsOpen = true;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeInstructions() {
+    instructionsView.classList.remove('active');
+    instructionsOpen = false;
+    document.body.style.overflow = '';
+  }
+
+  function renderInstructions() {
+    const t = I18N[currentModalLang] || I18N.en;
+    const name = currentModalId === 'portal' ? t.portal_title : (APPS.find(a => a.id === currentModalId)?.name || currentModalId);
+    instructionsTitle.textContent = (t.instructions_title || 'How to use') + ' — ' + name;
+    instructionsBody.innerHTML = '';
+    const sections = INSTRUCTIONS[currentModalId] || [];
+    const texts = (t.instructions_texts || {})[currentModalId] || {};
+    sections.forEach(sec => {
+      const item = document.createElement('div');
+      item.className = 'instructions-item';
+      const h = document.createElement('h4');
+      h.textContent = t.instructions_sections?.[currentModalId]?.[sec.key] || sec.key;
+      item.appendChild(h);
+      const txt = texts[sec.key];
+      if (txt) {
+        const p = document.createElement('p');
+        p.className = 'instructions-text';
+        p.textContent = txt;
+        item.appendChild(p);
+      }
+      const f = sec.img + '_' + theme + '.jpg';
+      const img = document.createElement('img');
+      img.src = webSrc(f);
+      img.onerror = function () { this.onerror = null; this.src = PREV_ORIG + f; };
+      img.alt = name + ' — ' + (t.instructions_sections?.[currentModalId]?.[sec.key] || sec.key);
+      img.className = 'instructions-img';
+      item.appendChild(img);
+      instructionsBody.appendChild(item);
+    });
   }
 
   function openLightbox(i) {
@@ -946,6 +1428,8 @@ function handleAppMouseEnter(e, card, name, desc) {
     theme = t;
     document.body.classList.toggle('light-theme', t === 'light');
     document.querySelectorAll('#themeToggle button').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
+    if (modal.classList.contains('active')) renderModal();
+    if (instructionsOpen) renderInstructions();
   }
 
   function loadingOverlay(t) {
@@ -994,6 +1478,11 @@ function bindAuthLink(el) {
     }, 5000);
   }
 
+  // Серверный флаг: true, если у пользователя есть активная сессия с аккаунтом.
+  function hasServerAccount() {
+    try { return window.__skUserLoggedIn === true; } catch (e) { return false; }
+  }
+
   function refreshToastI18n() {
     const t = I18N[lang] || I18N.en;
     const el = $('engagementToast');
@@ -1016,8 +1505,13 @@ function bindAuthLink(el) {
   function showEngagementPromo() {
     // Показывать промо только незарегистрированным: если пользователь уже
     // имеет аккаунт (cookie ставится при логине) — не показываем вовсе.
+    if (hasServerAccount()) return;
     try {
       if (('; ' + document.cookie + ';').indexOf('; sk_user_has_account=1;') !== -1) return;
+    } catch (e) {}
+    // Если пользователь уже закрывал промо — больше не показываем (перманентно).
+    try {
+      if (localStorage.getItem(PROMO_KEY) === '1' || sessionStorage.getItem(PROMO_KEY) === '1') return;
     } catch (e) {}
     if ($('engagementToast')) return;
     const t = I18N[lang] || I18N.en;
@@ -1036,7 +1530,7 @@ function bindAuthLink(el) {
       location.href = url.toString();
     });
     toast.querySelector('.engagement-toast-close').addEventListener('click', () => {
-      try { sessionStorage.setItem(PROMO_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(PROMO_KEY, '1'); } catch (e) {}
       toast.remove();
       setTimeout(updateToastPositions, 50);
     });
@@ -1062,9 +1556,18 @@ function bindAuthLink(el) {
 
   function showExploreWidget() {
     if ($('exploreWidget')) return;
+    // Показывать только новым пользователям без аккаунта.
+    if (hasServerAccount()) return;
+    try {
+      if (('; ' + document.cookie + ';').indexOf('; sk_user_has_account=1;') !== -1) return;
+    } catch (e) {}
+    // Если пользователь уже закрывал виджет — больше не показываем (перманентно).
+    try {
+      if (localStorage.getItem(EXPLORE_KEY) === '1' || sessionStorage.getItem(EXPLORE_KEY) === '1') return;
+    } catch (e) {}
     const t = I18N[lang] || I18N.en;
     const allApps = [{ id: 'portal', name: t.portal_title, desc: t.apps.portal, icon: ICONS.portal }].concat(
-      APPS.map(a => ({ id: a.id, name: a.name, desc: t.apps[a.id] || '', icon: ICONS[a.id] || '' }))
+      APPS.map(a => ({ id: a.id, name: a.name, desc: t.apps[a.id] || '', icon: iconHtml(a.id) }))
     );
     const widget = document.createElement('div');
     widget.id = 'exploreWidget';
@@ -1094,7 +1597,7 @@ function bindAuthLink(el) {
       list.appendChild(item);
     });
     widget.querySelector('.explore-widget-close').addEventListener('click', () => {
-      try { sessionStorage.setItem(EXPLORE_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(EXPLORE_KEY, '1'); } catch (e) {}
       widget.remove();
       setTimeout(updateToastPositions, 50);
     });
@@ -1144,6 +1647,9 @@ function bindAuthLink(el) {
   $('modalClose').addEventListener('click', () => modal.classList.remove('active'));
   window.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
 
+  $('instructionsClose').addEventListener('click', closeInstructions);
+  window.addEventListener('click', e => { if (e.target === instructionsView) closeInstructions(); });
+
   $('lightboxClose').addEventListener('click', () => lightbox.classList.remove('active'));
   $('lightboxPrev').addEventListener('click', () => moveLightbox(-1));
   $('lightboxNext').addEventListener('click', () => moveLightbox(1));
@@ -1151,6 +1657,7 @@ function bindAuthLink(el) {
     if (e.key === 'Escape') {
       closeLanguageMenu();
       if ($('navDrawer').classList.contains('open')) { closeNav(); return; }
+      if (instructionsOpen) { closeInstructions(); return; }
       if (lightbox.classList.contains('active')) { lightbox.classList.remove('active'); return; }
       if (modal.classList.contains('active')) { modal.classList.remove('active'); return; }
       if (newsModal && newsModal.classList.contains('active')) { newsModal.classList.remove('active'); return; }

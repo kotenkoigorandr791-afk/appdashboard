@@ -3311,6 +3311,58 @@ height: 48px;
 #stepmonitor-conflict-modal .smc-btn.ok.warning:hover { background: #fbbf24; }
 #stepmonitor-conflict-modal .smc-btn:disabled { opacity: 0.55; cursor: default; }
 
+#manual-pair-modal .manual-pair-content {
+    overflow: hidden;
+}
+#manual-pair-modal .manual-pair-content::after {
+    content: "";
+    display: block;
+    clear: both;
+}
+#manual-pair-modal .manual-pair-fields {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: min(48dvh, 420px);
+    padding-right: 4px;
+    margin-right: -4px;
+    scrollbar-gutter: stable;
+}
+#manual-pair-modal .manual-pair-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 42px;
+    align-items: end;
+}
+#manual-pair-modal .manual-pair-field {
+    min-width: 0;
+}
+#manual-pair-modal .ma-copy-btn {
+    align-self: end;
+}
+.mobile-app-content .ma-download,
+.mobile-app-content .ma-qr-generate,
+#manual-pair-modal .manual-pair-regen-btn {
+    background: var(--primary-color, #3D8BFF);
+    color: #fff;
+    border-color: color-mix(in srgb, var(--primary-color) 80%, #000);
+}
+@media (max-width: 520px) {
+    #manual-pair-modal .manual-pair-content {
+        max-height: calc(100dvh - 20px);
+        padding: 18px;
+        border-radius: 16px;
+    }
+    #manual-pair-modal .manual-pair-fields {
+        max-height: min(44dvh, 360px);
+    }
+    #manual-pair-modal .manual-pair-row {
+        grid-template-columns: minmax(0, 1fr) 40px;
+        gap: 8px;
+    }
+    #manual-pair-modal .ma-copy-btn {
+        width: 40px;
+        height: 40px;
+    }
+}
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>

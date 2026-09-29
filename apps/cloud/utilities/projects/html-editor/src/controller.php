@@ -5,7 +5,9 @@ while (ob_get_level()) {
 ob_start();
 
 require_once dirname(__DIR__, 4) . '/includes/session.php';
+require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
 cloud_session_start();
+cloud_require_session_auth();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $filePath = isset($_GET['path']) ? $_GET['path'] : '';
 $user = isset($_GET['user']) ? $_GET['user'] : 'default';

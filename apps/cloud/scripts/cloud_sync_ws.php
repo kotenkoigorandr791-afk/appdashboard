@@ -111,7 +111,7 @@ function csws_dispatch($client, string $clientId, array $msg, array &$sessions):
             return;
         }
         $user = email_to_cloud_username($email);
-        $root = (string)($msg['root'] ?? 'clientsync');
+        $root = (string)($msg['root'] ?? 'main');
         $basePath = (string)($msg['base_path'] ?? '');
         $scope = cloud_sync_resolve_scope($user, $root, $basePath);
         if (!$scope['ok']) {

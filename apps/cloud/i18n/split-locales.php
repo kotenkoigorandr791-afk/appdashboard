@@ -6,7 +6,7 @@ $rules = [
     'ai' => '/^(ai[A-Z]|think$|regenerateResponse|historyCleared|clearHistoryError|fixProblemsPrompt|calculateDataPrompt|noFileOpen|noUserMessageFound|errorPrefix|retrying$)/',
     'upload' => '/^(upload|insufficient|checkingSpace|calculatingTotal|quotaCheck|filesSelected|totalUpload|availableSpace|freeUp|uploadAnyway|pause$|resume$|downloadError)/',
     'search' => '/^(search|advancedSearch|executingSearch|noResults|itemsProcessed|allTypes|documents$|images$|audio$|video$|archives$|code$|models3d|size|date)/',
-    'sync' => '/^(sync|manageSync|clientsync)/i',
+    'sync' => '/^(sync|manageSync)/i',
     'settings' => '/^(settings|section|quota|session|apiKey|apiEndpoint|hideLanguage|theme|color|role|english|russian|ukrainian)/i',
 ];
 function chunk_for_key(string $key, array $rules): string

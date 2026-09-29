@@ -7,8 +7,6 @@
     "syncModeMtimeSizeHash": "Zmodyfikowany czas + rozmiar + skrót",
     "syncEnabledLabel": "Włącz okresową synchronizację",
     "syncProfileUpdated": "Profil synchronizacji zaktualizowany",
-    "clientsyncRoot": "Synchronizacja kliencka",
-    "clientsyncRootDesc": "Pliki zsynchronizowane z klientami stacjonarnymi",
     "syncLogOpenButton": "Dziennik synchronizacji",
     "syncLogTitle": "Dziennik synchronizacji",
     "syncLogTime": "Czas",

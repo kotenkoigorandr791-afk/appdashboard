@@ -11,6 +11,10 @@ $DOC_SERV_URL = rtrim((string)(getenv('DOCUMENT_PUBLIC_URL') ?: (function_exists
 if ($DOC_SERV_URL === '') { $DOC_SERV_URL = 'http://document.localhost'; } 
 $JWT_SECRET = 'uZbUAlqEAONtLYmVrZVNjuqOefiQZR';
 $VIEWER_USER = 'zip-viewer';
+require_once dirname(__DIR__, 4) . '/includes/session.php';
+require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
+cloud_session_start();
+cloud_require_session_auth();
 
 // ============================================
 // MULTILANGUAGE

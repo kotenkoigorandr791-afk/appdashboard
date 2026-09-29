@@ -7,8 +7,6 @@
     "syncModeMtimeSizeHash": "Čas změny + velikost + hash",
     "syncEnabledLabel": "Povolit periodickou synchronizaci",
     "syncProfileUpdated": "Synchronizační profil aktualizován",
-    "clientsyncRoot": "Klientská synchronizace",
-    "clientsyncRootDesc": "Soubory synchronizované s desktopovými klienty",
     "syncLogOpenButton": "Protokol synchronizace",
     "syncLogTitle": "Protokol synchronizace",
     "syncLogTime": "Čas",

@@ -704,7 +704,7 @@ function safe_path($path) {
 }
 function cloud_is_valid_root_key(string $root): bool
 {
-    if (in_array($root, ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash', 'clientsync'], true)) {
+    if (in_array($root, ['main', 'archive', 'temp', 'documents', 'photos', 'pdf', 'trash'], true)) {
         return true;
     }
     return cloud_parse_group_id($root) !== null;
@@ -722,39 +722,17 @@ function get_requested_root_key(): string {
     return cloud_is_valid_root_key($saved) ? $saved : 'main';
 }
 function get_root_folder_name(string $rootKey): string {
-    static $map = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash', 'clientsync' => '.clientsync'];
+    static $map = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash'];
     return $map[$rootKey] ?? '';
 }
 function ensure_special_roots(string $base): void {
-    foreach (['archive', 'temp', 'documents', 'photos', 'pdf', 'trash', 'clientsync'] as $rk) {
+    foreach (['archive', 'temp', 'documents', 'photos', 'pdf', 'trash'] as $rk) {
         $dir = $base . '/' . get_root_folder_name($rk);
         if (!is_dir($dir)) @mkdir($dir, 0775, true);
     }
 }
 function is_documents_root(?string $rootKey = null): bool {
     return ($rootKey ?? get_requested_root_key()) === 'documents';
-}
-function remap_clientsync_path(string &$rootKey, string &$path): void {
-    if ($rootKey !== 'main') return;
-    if ($path === 'clientsync') { $rootKey = 'clientsync'; $path = ''; return; }
-    if (str_starts_with($path, 'clientsync/')) { $rootKey = 'clientsync'; $path = substr($path, strlen('clientsync/')); }
-}
-function should_hide_clientsync_virtual_entry(string $name, bool $isDir): bool {
-    if (!$isDir && $name === '.directory') return true;
-    if ($isDir) {
-        $normalized = strtolower(str_replace(['.', '-', '_', ' '], '', $name));
-        if ($normalized === 'trash1000') return true;
-    }
-    return false;
-}
-function should_hide_clientsync_virtual_path(string $relPath, bool $isDir): bool {
-    $parts = explode('/', str_replace('\\', '/', trim($relPath, '/')));
-    foreach ($parts as $index => $part) {
-        if ($part === '') continue;
-        $isLast = $index === array_key_last($parts);
-        if (should_hide_clientsync_virtual_entry($part, $isLast ? $isDir : true)) return true;
-    }
-    return false;
 }
 function get_documents_secret(string $user): string {
     $salt = hash('sha256', __FILE__ . '::cloud-docs-v1');

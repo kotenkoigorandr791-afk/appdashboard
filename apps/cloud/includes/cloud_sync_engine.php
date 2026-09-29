@@ -3,9 +3,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/cloud_sync_protocol.php';
 require_once __DIR__ . '/cloud_sync_bus.php';
 function cloud_sync_resolve_scope(string $user, string $rootKey, string $basePath): array {
-    $rootKey = in_array($rootKey, CLOUD_SYNC_ALLOWED_ROOTS, true) ? $rootKey : 'clientsync';
+    $rootKey = in_array($rootKey, CLOUD_SYNC_ALLOWED_ROOTS, true) ? $rootKey : 'main';
     $path = safe_path($basePath);
-    if ($rootKey === 'main') remap_clientsync_path($rootKey, $path);
     $base = user_root($user, $rootKey);
     $full = $path !== '' ? $base . '/' . $path : $base;
     if (!is_dir($full) && !@mkdir($full, 0775, true)) {
@@ -58,7 +57,7 @@ function cloud_sync_manifest_build(string $user, string $rootKey, string $basePa
         $full = str_replace('\\', '/', $node->getPathname());
         $rel = ltrim(str_replace($rootPrefix, '', $full), '/');
         if ($rel === '') continue;
-        if ($scope['root'] === 'clientsync' && should_hide_clientsync_virtual_path($rel, $node->isDir())) continue;
+        if ($scope['root'] === 'main' && cloud_is_hidden_main_tree_path($rel)) continue;
         if ($node->isDir()) {
             $dirs[$rel] = ['path' => $rel, 'type' => 'dir'];
             continue;

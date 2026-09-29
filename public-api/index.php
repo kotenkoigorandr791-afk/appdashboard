@@ -51,7 +51,7 @@ if ($section === 'integrations') {
     exit;
 }
 $app = $section;
-$allowed = ['cloud','films','media_viewer','recipes','smart_home','spends','steps','viewer'];
+$allowed = ['cloud','films','recipes','smart_home','spends','steps'];
 if (!in_array($app, $allowed, true)) {
     public_api_json(['ok' => false, 'error' => 'unknown_app'], 404);
 }

@@ -37,7 +37,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import com.stepmonitor.app.screens.AboutScreen
@@ -175,7 +182,26 @@ class MainActivity : AppCompatActivity() {
                         selected = selected == screen,
                         onClick = { selected = screen },
                         icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
-                        label = { Text(stringResource(screen.titleResId)) }
+                        label = {
+                            Text(
+                                stringResource(screen.titleResId),
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Clip,
+                                modifier = Modifier
+                                    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                                    .drawWithContent {
+                                        drawContent()
+                                        drawRect(
+                                            brush = Brush.horizontalGradient(
+                                                0.82f to Color.White,
+                                                1f to Color.Transparent
+                                            ),
+                                            blendMode = BlendMode.DstIn
+                                        )
+                                    }
+                            )
+                        }
                     )
                 }
             }

@@ -99,12 +99,6 @@ ensure_link "$ROOT/apps/films/config.json" "$APPDATA_BASE/films/config.json" jso
 ensure_link "$ROOT/apps/films/comments" "$APPDATA_BASE/films/comments" dir
 ensure_link "$ROOT/apps/films/uploads" "$APPDATA_BASE/films/uploads" dir
 
-# media_viewer
-ensure_dir "$APPDATA_BASE/media_viewer"
-ensure_link "$ROOT/apps/media_viewer/data" "$APPDATA_BASE/media_viewer/data" dir
-ensure_link "$ROOT/apps/media_viewer/install" "$APPDATA_BASE/media_viewer/install" dir
-ensure_link "$ROOT/apps/media_viewer/previews" "$APPDATA_BASE/media_viewer/previews" dir
-
 # recipes
 ensure_dir "$APPDATA_BASE/recipes"
 ensure_link "$ROOT/apps/recipes/products" "$APPDATA_BASE/recipes/products" dir
@@ -119,16 +113,12 @@ ensure_link "$ROOT/apps/steps/upload_sessions" "$APPDATA_BASE/steps/upload_sessi
 ensure_dir "$APPDATA_BASE/smart_home"
 ensure_link "$ROOT/apps/smart_home/data" "$APPDATA_BASE/smart_home/data" dir
 
-# viewer
-ensure_dir "$APPDATA_BASE/viewer"
-ensure_link "$ROOT/apps/viewer/history.json" "$APPDATA_BASE/viewer/history.json" json
-
 # spends
 if [ -f "$ROOT/deploy/scripts/ensure-spends-appdata.sh" ]; then
   sh "$ROOT/deploy/scripts/ensure-spends-appdata.sh" "$ROOT/apps/spends" || true
 fi
 
-for app in cloud films media_viewer recipes spends steps smart_home viewer; do
+for app in cloud films recipes spends steps smart_home; do
   if [ -d "$ROOT/apps/$app" ]; then
     strip_junk "$ROOT/apps/$app"
   fi

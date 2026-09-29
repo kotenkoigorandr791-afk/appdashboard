@@ -45,7 +45,6 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
 
     val timeRangeOptions = listOf(
         context.getString(R.string.manual_sync_default_range) to null,
-        context.getString(R.string.manual_sync_previous_day) to -2,
         context.getString(R.string.manual_sync_past_1_day) to 1,
         context.getString(R.string.manual_sync_past_7_days) to 7,
         context.getString(R.string.manual_sync_past_30_days) to 30,
@@ -171,17 +170,7 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
                                     enabledWebhooks.filter { it.url == url }
                                 }
 
-                                 val result = if (timeRangeSelection == -2) {
-                                     // Previous day: yesterday 00:00 – today 00:00
-                                     val zone = ZoneId.systemDefault()
-                                     val yesterday = LocalDate.now().minusDays(1)
-                                     val startInstant = yesterday.atStartOfDay(zone).toInstant()
-                                     val endInstant = LocalDate.now().atStartOfDay(zone).toInstant()
-                                     syncMessage = context.getString(R.string.manual_sync_progress, yesterday.toString(), yesterday.toString())
-                                     syncManager.performSync(start = startInstant, end = endInstant, syncType = "manual", targetWebhooks = targetWebhooks)
-                                 } else if (timeRangeSelection == -1) {
-                                    // Custom range: inclusive local calendar days
-                                    // [startDate 00:00, endDate+1 00:00) in the device zone.
+                                val result = if (timeRangeSelection == -1) {
                                     val zone = ZoneId.systemDefault()
                                     val startInstant = startDate?.atStartOfDay(zone)?.toInstant()
                                     val endInstant = endDate?.plusDays(1)?.atStartOfDay(zone)?.toInstant()
@@ -197,10 +186,9 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
                                     }
 
                                     syncMessage = context.getString(R.string.manual_sync_progress, startDate.toString(), endDate.toString())
-                                    syncManager.performSync(start = startInstant, end = endInstant, syncType = "manual", targetWebhooks = targetWebhooks)
+                                    syncManager.performSync(start = startInstant, end = endInstant, syncType = "manual", targetWebhooks = targetWebhooks, autoResolveConflict = true)
                                 } else {
-                                    // sync the last N days, or from the last sync
-                                    syncManager.performSync(timeRangeSelection, syncType = "manual", targetWebhooks = targetWebhooks)
+                                    syncManager.performSync(timeRangeSelection, syncType = "manual", targetWebhooks = targetWebhooks, autoResolveConflict = timeRangeSelection != null)
                                 }
 
                                 when {

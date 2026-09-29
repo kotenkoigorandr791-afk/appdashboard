@@ -99,7 +99,7 @@ class SyncManager(private val context: Context) {
         }
     }
 
-    suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null): Result<SyncResult> = withContext(Dispatchers.IO) {
+    suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> = withContext(Dispatchers.IO) {
         /*
         Supports two modes:
         - timeRangeDays: the amount of days in the past to sync.
@@ -108,6 +108,7 @@ class SyncManager(private val context: Context) {
         */
 
         try {
+            preferencesManager.setLastSyncAttemptTime(Instant.now().toEpochMilli())
             val webhookConfigs = preferencesManager.getWebhookConfigs()
             val enabledWebhookConfigs = (targetWebhooks ?: webhookConfigs).filter { it.isEnabled }
 
@@ -260,7 +261,7 @@ class SyncManager(private val context: Context) {
                     } else {
                         val failure = result.exceptionOrNull()
                         val conflict = failure as? SyncConflictException
-                        if (conflict != null && resolveRememberedConflict(config, conflict.conflictJson)) {
+                        if (conflict != null && (autoResolveConflict || preferencesManager.isConflictRememberEnabled()) && resolveRememberedConflict(config, conflict.conflictJson)) {
                             atLeastOneSuccess = true
                             val msg = "✅ ${config.url}: conflict resolved"
                             notifConfigs.forEach { nc ->
@@ -360,8 +361,7 @@ class SyncManager(private val context: Context) {
     }
 
     private fun resolveRememberedConflict(config: WebhookConfig, conflictJson: String): Boolean {
-        if (!preferencesManager.isConflictRememberEnabled()) return false
-        val action = preferencesManager.getConflictDefaultAction() ?: return false
+        val action = preferencesManager.getConflictDefaultAction() ?: "replace"
         val timestamp = System.currentTimeMillis()
         var url = ""
         return runCatching {

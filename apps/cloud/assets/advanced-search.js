@@ -329,7 +329,6 @@ async function loadFoldersForAdvancedSearch() {
             { root: 'documents', labelKey: 'documentsRoot', svgPath: '<path d="M10 2v8l3-3 3 3V2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/>' },
             { root: 'photos', labelKey: 'photosRoot', svgPath: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>' },
             { root: 'pdf', labelKey: 'pdfRoot', svgPath: '<path d="M12 7v14"/><path d="M16 12h2"/><path d="M16 8h2"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/><path d="M6 12h2"/><path d="M6 8h2"/>' },
-            { root: 'clientsync', labelKey: 'clientsyncRoot', svgPath: '<path d="m17 18-1.535 1.605a5 5 0 0 1-8-1.5"/><path d="M17 22v-4h-4"/><path d="M20.996 15.251A4.5 4.5 0 0 0 17.495 8h-1.79a7 7 0 1 0-12.709 5.607"/><path d="M7 10v4h4"/><path d="m7 14 1.535-1.605a5 5 0 0 1 8 1.5"/>' },
             { root: 'trash', labelKey: 'trashRoot', svgPath: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6"/><path d="M14 11v6"/>' },
         ];
         const sep = document.createElement('div');
@@ -713,8 +712,7 @@ function normalizeAdvancedSearchTargets(targets) {
             { folder: '', root: 'temp' },
             { folder: '', root: 'documents' },
             { folder: '', root: 'photos' },
-            { folder: '', root: 'pdf' },
-            { folder: '', root: 'clientsync' }
+            { folder: '', root: 'pdf' }
         ];
     }
     return selected.map((target) => ({ folder: target.folder || '', root: target.root || '' }));
