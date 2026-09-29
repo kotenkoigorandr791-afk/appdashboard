@@ -4117,7 +4117,7 @@ function getFileIconMarkup(value, extraClass = '') {
     const safeFallbackSrc = escapeHtml(fallbackSrc);
     return `
         <span class="${className}" aria-hidden="true">
-            <img src="${safeSrc}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${safeFallbackSrc}';">
+            <img src="${safeSrc}" alt="" loading="lazy" draggable="false" onerror="this.onerror=null;this.src='${safeFallbackSrc}';">
         </span>
     `.trim();
 }
@@ -8329,9 +8329,10 @@ function showMoveDialogForMultiple(selectedPaths) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'flex';
-    window.moveDialogSourceRoot = getCurrentCloudRoot();
+    const sourceRoot = getCurrentCloudRoot();
+    window.moveDialogSourceRoot = sourceRoot;
     window.selectedMoveFolder = '';
-    window.selectedMoveRoot = 'main';
+    window.selectedMoveRoot = sourceRoot;
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
@@ -8354,7 +8355,7 @@ function showMoveDialogForMultiple(selectedPaths) {
                         border-radius: 8px;
                         border: 1px solid var(--border);
                     ">
-                        ${buildMoveRootToolbarHtml('main')}
+                        ${buildMoveRootToolbarHtml(sourceRoot)}
                     </div>
                     <div id="move-folder-tree" class="folder-tree" style="
                         border: 1px solid var(--border);
@@ -8377,7 +8378,7 @@ function showMoveDialogForMultiple(selectedPaths) {
         </div>
     `;
     document.body.appendChild(modal);
-    loadFolderTreeForMove();
+    loadFolderTreeForMove(sourceRoot);
     initMoveRootToolbar();
     document.getElementById('btn-cancel-move').addEventListener('click', () => modal.remove());
     document.getElementById('btn-confirm-move').addEventListener('click', () => confirmMultipleMove(selectedPaths, modal));

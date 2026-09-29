@@ -3972,11 +3972,12 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         dragArrow.style.top = `${y - 12}px`;
     }
 
-    function isValidMoveTarget(folderNode, sourcePath, sourceRoot, viewRoot) {
+    function isValidMoveTarget(folderNode, sourcePath, sourceRoot, viewRoot, sourceType = 'file') {
         if (!folderNode || !sourcePath) return false;
         const targetDir = folderNode.dataset.path || '';
         if (targetDir === sourcePath) return false;
-        if (targetDir && sourcePath.startsWith(targetDir + '/')) return false;
+        // Only folders can contain their own descendants; a file may always move up into an ancestor.
+        if (sourceType !== 'file' && targetDir && sourcePath.startsWith(targetDir + '/')) return false;
         const parentDir = sourcePath.includes('/') ? sourcePath.substring(0, sourcePath.lastIndexOf('/')) : '';
         if ((viewRoot || sourceRoot) === sourceRoot && targetDir === parentDir) return false;
         return true;
@@ -4082,7 +4083,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
                 clearDropTarget();
                 hideMoveIcon();
                 const target = folderDropTargetAt(fileDragState.lastX, fileDragState.lastY);
-                if (target && isValidMoveTarget(target, fileDragState.path, fileDragState.sourceRoot, fileDragState.viewRoot)) {
+                if (target && isValidMoveTarget(target, fileDragState.path, fileDragState.sourceRoot, fileDragState.viewRoot, fileDragState.sourceType)) {
                     dropTargetNode = target;
                     fileDragState.dropTargetDir = target.dataset.path || '';
                     fileDragState.dropTargetRoot = fileDragState.viewRoot;
@@ -4163,7 +4164,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         clearTreeRootDropHighlight();
         clearFolderExpandHoverTimer();
         hideMoveIcon();
-        if (target && isValidMoveTarget(target, fileDragState.path, fileDragState.sourceRoot, fileDragState.viewRoot)) {
+        if (target && isValidMoveTarget(target, fileDragState.path, fileDragState.sourceRoot, fileDragState.viewRoot, fileDragState.sourceType)) {
             dropTargetNode = target;
             fileDragState.dropTargetDir = target.dataset.path || '';
             fileDragState.dropTargetRoot = fileDragState.viewRoot || fileDragState.sourceRoot;
@@ -4195,7 +4196,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
 
     async function onFileDragEnd(e) {
         if (!fileDragState || fileDragState.pointerId !== e.pointerId) return;
-        const { active, path, node, sourceRoot, viewRoot, dropTargetDir, dropTargetRoot, hadValidDropTarget, dropOnRootToolbar } = fileDragState;
+        const { active, path, node, sourceRoot, sourceType, viewRoot, dropTargetDir, dropTargetRoot, hadValidDropTarget, dropOnRootToolbar } = fileDragState;
         if (active && isPointerOverAiAssistantPanel(e.clientX, e.clientY) && tryAttachTreeFileToAiAssistant(path, sourceRoot)) {
             fileDragState = null;
             document.body.style.userSelect = '';
@@ -4220,7 +4221,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         } else if (dropOnRootToolbar && hadValidDropTarget) {
             finalTargetDir = '';
             finalTargetRoot = dropTargetRoot || defaultRoot;
-        } else if (targetNode && isValidMoveTarget(targetNode, path, sourceRoot, finalTargetRoot)) {
+        } else if (targetNode && isValidMoveTarget(targetNode, path, sourceRoot, finalTargetRoot, sourceType)) {
             finalTargetDir = targetNode.dataset.path || '';
         } else if (hadValidDropTarget) {
             finalTargetDir = dropTargetDir ?? '';
@@ -4410,7 +4411,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
         document.addEventListener('mousedown', (e) => {
             if (e.button !== 0 || window.matchMedia(MOBILE_MQ).matches) return;
             if (!e.target.closest('#tree')) return;
-            if (e.target.closest('.selection-checkbox') || e.target.closest('.toggle') || e.target.closest('button') || e.target.closest('input')) return;
+            if (e.target.closest('.selection-checkbox') || e.target.closest('button') || e.target.closest('input')) return;
             const fileNode = e.target.closest('#tree .node[data-type="file"]');
             if (fileNode) e.stopPropagation();
         }, true);
@@ -4420,7 +4421,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
             if (typeof isTrashRoot === 'function' && isTrashRoot()) return;
             if (isAiModalOpen()) return;
             const fileNode = e.target.closest('#tree .node[data-type="file"]');
-            if (!fileNode || e.target.closest('.selection-checkbox') || e.target.closest('.toggle')) return;
+            if (!fileNode || e.target.closest('.selection-checkbox')) return;
             if (e.target.closest('.tree-rename-input')) return;
             if (typeof selectionState !== 'undefined' && selectionState.active) return;
             if (!e.altKey) e.preventDefault();
@@ -4432,6 +4433,7 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
                 path: fileNode.dataset.path || '',
                 label,
                 sourceRoot: currentRoot,
+                sourceType: fileNode.dataset.type || 'file',
                 viewRoot: currentRoot,
                 switchingRoot: false,
                 dropTargetDir: '',

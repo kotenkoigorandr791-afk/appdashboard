@@ -516,9 +516,10 @@ function showTransferDialog(sourcePath, sourceType, mode = 'move') {
     modal.style.display = 'flex';
     window.transferDialogMode = mode;
     window.transferDialogSourceType = sourceType;
-    window.moveDialogSourceRoot = getCurrentCloudRoot();
+    const sourceRoot = getCurrentCloudRoot();
+    window.moveDialogSourceRoot = sourceRoot;
     window.selectedMoveFolder = '';
-    window.selectedMoveRoot = 'main';
+    window.selectedMoveRoot = sourceRoot;
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
@@ -541,7 +542,7 @@ function showTransferDialog(sourcePath, sourceType, mode = 'move') {
                         border-radius: 8px;
                         border: 1px solid var(--border);
                     ">
-                        ${buildMoveRootToolbarHtml('main')}
+                        ${buildMoveRootToolbarHtml(sourceRoot)}
                     </div>
                     <div id="move-folder-tree" class="folder-tree" style="
                         border: 1px solid var(--border);
@@ -564,7 +565,7 @@ function showTransferDialog(sourcePath, sourceType, mode = 'move') {
         </div>
     `;
     document.body.appendChild(modal);
-    loadFolderTreeForMove();
+    loadFolderTreeForMove(sourceRoot);
     initMoveRootToolbar();
     document.getElementById('btn-cancel-move').addEventListener('click', () => modal.remove());
     document.getElementById('btn-confirm-move').addEventListener('click', () => confirmMove(sourcePath, modal));
@@ -844,6 +845,13 @@ function renderMoveFolderNodes(items, basePath = '', depth = 0, rootKey = 'main'
     });
     return container;
 }
+function getMoveTreeChildrenEl(node) {
+    if (!node) return null;
+    const nested = node.querySelector(':scope > .move-tree-children');
+    if (nested) return nested;
+    const sibling = node.nextElementSibling;
+    return sibling && sibling.classList.contains('move-tree-children') ? sibling : null;
+}
 function selectFolderForMove(folderPath) {
     document.querySelectorAll('.move-tree-label').forEach(label => {
         label.style.background = 'transparent';
@@ -859,7 +867,7 @@ function selectFolderForMove(folderPath) {
         selectedLabel = selectedNode ? selectedNode.querySelector('.move-tree-label') : null;
     } else {
         // First try to find by exact path
-        selectedNode = document.querySelector(`.move-tree-node[data-path="${folderPath}"]`);
+        selectedNode = document.querySelector(`.move-tree-node[data-path="${CSS.escape(folderPath)}"]`);
         selectedLabel = selectedNode ? selectedNode.querySelector('.move-tree-label') : null;
 
         // If not found and folderPath looks like a root prefix (e.g., .archive), select root node
@@ -881,7 +889,7 @@ function selectFolderForMove(folderPath) {
             const nodeContent = selectedNode.querySelector(':scope > div');
             if (nodeContent) {
                 const toggle = nodeContent.querySelector('.move-tree-toggle');
-                const children = selectedNode.querySelector(':scope > .move-tree-children');
+                const children = getMoveTreeChildrenEl(selectedNode);
                 if (toggle && children && children.dataset.loaded === 'false') {
                     // Trigger the toggle click to load children
                     toggle.click();

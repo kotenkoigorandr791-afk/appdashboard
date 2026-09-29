@@ -227,8 +227,8 @@ cloud_require_session_auth();
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=39"></script>
-<script defer src="assets/app/editors-and-tree.js?v=11"></script>
+<script defer src="assets/app.js?v=40"></script>
+<script defer src="assets/app/editors-and-tree.js?v=12"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/model-viewer-3d.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -247,7 +247,7 @@ cloud_require_session_auth();
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=40"></script>
-<script defer src="assets/monaco-editor.js?v=12"></script>
+<script defer src="assets/monaco-editor.js?v=13"></script>
 
 
 </head>
