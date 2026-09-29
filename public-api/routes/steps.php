@@ -222,8 +222,10 @@ if ($method === 'GET') {
             $sqliteSteps = (int)($sqliteRows[$ds]['steps'] ?? 0);
             if (isset($metricsIndex[$ds])) {
                 $entry = $metricsIndex[$ds];
-                // Prefer SQLite daily total for steps consistency with web chart
-                if ($sqliteSteps > 0 && empty($entry['metrics']['steps']['total'])) {
+                // The SQLite daily total is the single source of truth for steps, so it
+                // always wins over the day file: day files written before the phone
+                // reported its local day can hold a neighbouring day's total.
+                if ($sqliteSteps > 0) {
                     $entry['metrics']['steps'] = array_merge($entry['metrics']['steps'] ?? ['samples' => 0], ['total' => $sqliteSteps]);
                 }
                 $combined[] = $entry;
