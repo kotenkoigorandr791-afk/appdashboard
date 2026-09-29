@@ -3,6 +3,7 @@ function public_api_ensure_token_schema(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash TEXT PRIMARY KEY,
         email TEXT NOT NULL,
+        app_id TEXT NOT NULL DEFAULT '',
         device_id TEXT NOT NULL DEFAULT '',
         device_name TEXT NOT NULL DEFAULT '',
         platform TEXT NOT NULL DEFAULT '',
@@ -11,16 +12,20 @@ function public_api_ensure_token_schema(AppDatabase $db): void {
         expires_at INTEGER NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0
     )");
+    app_client_auth_tokens_ensure_app_column($db);
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 }
-function public_api_issue_token(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform, ?int $ttl = null): array {
+function public_api_issue_token(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform, ?int $ttl = null, string $appId = ''): array {
     public_api_ensure_token_schema($db);
+    $appId = appClientAuthTokenAppId($appId);
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
     if ($deviceId !== '') {
-        $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND device_id = :d');
+        $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND app_id = :a AND device_id = :d');
         $del->bindValue(':e', $email, PDO::PARAM_STR);
+        $del->bindValue(':a', $appId, PDO::PARAM_STR);
         $del->bindValue(':d', $deviceId, PDO::PARAM_STR);
         $del->execute();
     }
@@ -32,9 +37,10 @@ function public_api_issue_token(AppDatabase $db, string $email, string $deviceId
     }
     $ttl = max(60, min((int)$ttl, (int)(getenv('PUBLIC_API_TOKEN_TTL_MAX') ?: (365 * 24 * 3600))));
     $expiresAt = $now + $ttl;
-    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:d,:n,:p,:c,:u,:x,0)");
+    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,app_id,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:a,:d,:n,:p,:c,:u,:x,0)");
     $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
     $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
     $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
     $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
@@ -305,7 +311,7 @@ function public_api_oauth_consume_code(AppDatabase $db, string $code, string $cl
 }
 function public_api_oauth_issue_tokens(AppDatabase $db, array $client, string $email, string $deviceId, string $scope): array {
     $accessTtl = (int)(getenv('PUBLIC_API_OAUTH_ACCESS_TTL') ?: 3600);
-    $access = public_api_issue_token($db, $email, $deviceId, (string)($client['client_name'] ?? 'appdashboard'), 'oauth', $accessTtl);
+    $access = public_api_issue_token($db, $email, $deviceId, (string)($client['client_name'] ?? 'appdashboard'), 'oauth', $accessTtl, 'public_api');
     $refresh = bin2hex(random_bytes(32));
     $rTtl = (int)(getenv('PUBLIC_API_OAUTH_REFRESH_TTL') ?: (30 * 24 * 3600));
     $stmt = $db->prepare('INSERT INTO oauth_refresh_tokens(refresh_token_hash,client_id,email,device_id,scope,created_at,expires_at,revoked) VALUES(:h,:c,:e,:d,:s,:t,:x,0)');

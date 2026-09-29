@@ -606,7 +606,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 // other consumers of this endpoint (e.g. mobile app pairing) keep their own platform so
                 // they never show up in the MCP token list.
                 $mcpPlatform=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':$tokenName;
-                $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$mcpPlatform);
+                $tokenApp=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':appClientAuthTokenAppId($_POST['token_app']??'');
+                $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$mcpPlatform,$tokenApp);
                 $_SESSION['mcp_generated_token']=(string)$tokenData['token'];
                 $profileSuccess=$translations['mcp_setup_token_generated'];
                 if(isset($_POST['ajax'])){
@@ -634,7 +635,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);
-                $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND (device_id = 'mcp_external' OR platform = 'mcp')");
+                $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND app_id = 'mcp'");
                 $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
                 $stmt->bindValue(':e',$email,PDO::PARAM_STR);
                 $stmt->execute();

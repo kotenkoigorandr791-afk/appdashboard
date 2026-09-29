@@ -669,6 +669,7 @@ function initDB(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash   TEXT PRIMARY KEY,
         email        TEXT NOT NULL,
+        app_id       TEXT NOT NULL DEFAULT '',
         device_id    TEXT NOT NULL DEFAULT '',
         device_name  TEXT NOT NULL DEFAULT '',
         platform     TEXT NOT NULL DEFAULT '',
@@ -678,7 +679,9 @@ function initDB(AppDatabase $db): void {
         revoked      INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
+    app_client_auth_tokens_ensure_app_column($db);
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 
     $db->exec("CREATE TABLE IF NOT EXISTS trusted_devices (
         id               BIGSERIAL PRIMARY KEY,

@@ -198,6 +198,7 @@ function ensureClientAuthTokensSchema(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash TEXT PRIMARY KEY,
         email TEXT NOT NULL,
+        app_id TEXT NOT NULL DEFAULT '',
         device_id TEXT NOT NULL DEFAULT '',
         device_name TEXT NOT NULL DEFAULT '',
         platform TEXT NOT NULL DEFAULT '',
@@ -206,16 +207,20 @@ function ensureClientAuthTokensSchema(AppDatabase $db): void {
         expires_at INTEGER NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0
     )");
+    app_client_auth_tokens_ensure_app_column($db);
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 }
-function createClientAuthToken(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform): array {
+function createClientAuthToken(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform, string $appId = ''): array {
     ensureClientAuthTokensSchema($db);
+    $appId = appClientAuthTokenAppId($appId);
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
     if ($deviceId !== '' && $deviceId !== 'mcp_external') {
-        $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND device_id = :d');
+        $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND app_id = :a AND device_id = :d');
         $del->bindValue(':e', $email, PDO::PARAM_STR);
+        $del->bindValue(':a', $appId, PDO::PARAM_STR);
         $del->bindValue(':d', $deviceId, PDO::PARAM_STR);
         $del->execute();
     }
@@ -223,9 +228,10 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $tokenHash = hash('sha256', $rawToken);
     $now = time();
     $expiresAt = $now + (180 * 24 * 3600);
-    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:d,:n,:p,:c,:u,:x,0)");
+    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,app_id,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:a,:d,:n,:p,:c,:u,:x,0)");
     $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
     $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
     $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
     $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
@@ -573,7 +579,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         }
         if ($email !== 'root@root' && empty($users[$email]['verified'])) json_out(['ok' => false, 'error' => 'email_not_verified'], 403);
         if (!loginUserSession($email, $users)) json_out(['ok' => false, 'error' => 'login_failed'], 500);
-        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform);
+        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform, 'cloud');
         json_out(['ok' => true, 'redirect' => '/main', 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '']]);
     }
     if ($action === 'token_login') {
@@ -605,7 +611,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $deviceId = trim((string)($input['device_id'] ?? ''));
         $deviceName = trim((string)($input['device_name'] ?? ''));
         $platform = trim((string)($input['platform'] ?? ''));
-        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform);
+        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform, 'cloud');
         json_out(['ok' => true, 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'redirect' => '/main', 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '']]);
     }
     if ($action === 'create_browser_login') {
@@ -700,7 +706,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $email = (string)$_SESSION['user']['email'];
         $users = loadUsers();
         if (!isset($users[$email])) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
-        $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), (string)($row['platform'] ?? ''));
+        $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), (string)($row['platform'] ?? ''), 'cloud');
         $upd = $db->prepare("UPDATE client_auth_browser_requests SET status = 'approved', email = :e, issued_token = :t, approved_at = :a WHERE request_id = :r");
         $upd->bindValue(':e', $email, PDO::PARAM_STR);
         $upd->bindValue(':t', $tokenData['token'], PDO::PARAM_STR);

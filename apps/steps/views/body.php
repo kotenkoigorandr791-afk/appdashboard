@@ -1099,6 +1099,7 @@ $metricButtons = [
                     fd.append('generate_mcp_token','1');
                     fd.append('ajax','1');
                     fd.append('mcp_token_name','Health Connect');
+                    fd.append('token_app','steps');
                     const opts={method:'POST',body:fd,credentials:'same-origin'};
                     if(csrf){
                         fd.append('_csrf',csrf);

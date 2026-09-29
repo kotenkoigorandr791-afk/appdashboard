@@ -1,6 +1,23 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/db_config.php';
+function appClientAuthTokenAppId($appId): string {
+    $appId = strtolower(trim((string)$appId));
+    if ($appId === '' || !preg_match('/^[a-z0-9_]{1,32}$/', $appId)) return '';
+    return $appId;
+}
+function app_client_auth_tokens_ensure_app_column(AppDatabase $db): void {
+    try {
+        $hasAppId = (bool)$db->querySingle("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='client_auth_tokens' AND column_name='app_id' LIMIT 1");
+        if ($hasAppId) return;
+        $db->exec("ALTER TABLE client_auth_tokens ADD COLUMN IF NOT EXISTS app_id TEXT NOT NULL DEFAULT ''");
+        $db->exec("UPDATE client_auth_tokens SET app_id = 'mcp' WHERE app_id = '' AND device_id = 'mcp_external' AND platform = 'mcp'");
+        $db->exec("UPDATE client_auth_tokens SET app_id = 'steps' WHERE app_id = '' AND device_id = 'mcp_external'");
+        $db->exec("UPDATE client_auth_tokens SET app_id = 'public_api' WHERE app_id = '' AND (platform = 'oauth' OR device_id LIKE 'oauth%')");
+        $db->exec("UPDATE client_auth_tokens SET app_id = 'cloud' WHERE app_id = ''");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
+    } catch (Throwable $e) {}
+}
 function app_db_rate_limit_key(string $prefix, string $ip): string {
     return $prefix . ':' . preg_replace('/[^a-fA-F0-9:.]/', '', $ip);
 }
