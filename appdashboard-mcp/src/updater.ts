@@ -214,7 +214,10 @@ export async function checkForUpdateNow(): Promise<{ up_to_date: boolean; local_
   const info = await fetchJson(`${host}/mcp/info`);
   if (!info?.ok || !info?.sha256) return { up_to_date: false, error: "mcp_info_unavailable" };
   const local = readLocalFingerprint().sha256 || "";
-  if (!local) return { up_to_date: false, error: "no_local_fingerprint_run_setup" };
+  if (!local) {
+    writeLocalFingerprint(String(info.sha256), String(info.version || ""));
+    return { up_to_date: true, local_sha: String(info.sha256), remote_sha: String(info.sha256), version: String(info.version || "") };
+  }
   if (local === String(info.sha256)) {
     return { up_to_date: true, local_sha: local, remote_sha: String(info.sha256), version: String(info.version || "") };
   }
