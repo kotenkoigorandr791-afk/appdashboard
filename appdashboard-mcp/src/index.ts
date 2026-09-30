@@ -52,8 +52,8 @@ function createMcpServer(): Server {
     {
       capabilities: { tools: {} },
       instructions:
-        "AppDashboard MCP server. Tools are grouped: call tools_catalog first, then tools_load for ONLY the groups your current task needs (e.g. kanboard, gitea, cloud), and run them with tools_call. Use tools_search to find tools by keyword.\n\n" +
-        "IMPORTANT: Use these tools ONLY when the user's task explicitly requires interacting with AppDashboard or its apps " +
+        "AppDashboard MCP server. Tools are grouped; use tools_catalog, tools_search, tools_load, and tools_call only after deciding AppDashboard tools are relevant to the user's request.\n\n" +
+        "IMPORTANT: Do not prefer this MCP server by default. Use these tools ONLY when the user's task explicitly requires interacting with AppDashboard or its apps " +
         "(Spends, Cloud, Smart Home, Recipes, Steps, Immich, Gitea, Kanboard, News) or the server itself. " +
         "For regular coding/file/shell tasks on the local machine, do NOT call these MCP tools — work directly with the local environment instead.",
     },

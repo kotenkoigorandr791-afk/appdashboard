@@ -38,6 +38,14 @@ private fun JsonObjectBuilder.putRecordMetadata(meta: RecordMetadata) {
     }
 }
 
+/**
+ * Report the local calendar day the record belongs to. Timestamps are UTC, so a server
+ * deriving the day from them lands on the previous day for any device east of UTC.
+ */
+private fun JsonObjectBuilder.putLocalDate(instant: Instant) {
+    put("date", java.time.LocalDateTime.ofInstant(instant, java.time.ZoneId.systemDefault()).toLocalDate().toString())
+}
+
 class SyncManager(private val context: Context) {
 
     private val appVersionName: String by lazy {
@@ -657,8 +665,8 @@ class SyncManager(private val context: Context) {
                         add(buildJsonObject {
                             put("count", step.count)
                             put("start_time", step.startTime.toString())
-                    put("end_time", step.endTime.toString())
-                    put("date", java.time.LocalDateTime.ofInstant(step.startTime, java.time.ZoneId.systemDefault()).toLocalDate().toString())
+                            put("end_time", step.endTime.toString())
+                            putLocalDate(step.startTime)
                             step.metadata?.let { meta -> putRecordMetadata(meta) }
                         })
                     }
@@ -671,6 +679,7 @@ class SyncManager(private val context: Context) {
                         add(buildJsonObject {
                             put("session_end_time", sleep.sessionEndTime.toString())
                             put("duration_seconds", sleep.duration.seconds)
+                            putLocalDate(sleep.stages.minByOrNull { it.startTime }?.startTime ?: sleep.sessionEndTime)
                             putJsonArray("stages") {
                                 sleep.stages.forEach { stage ->
                                     add(buildJsonObject {
@@ -699,6 +708,7 @@ class SyncManager(private val context: Context) {
                             put("bpm", hr.bpm)
                             put("time", hr.time.toString())
                         }
+                        putLocalDate(hr.time)
                         hr.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -716,6 +726,7 @@ class SyncManager(private val context: Context) {
                             put("rmssd_millis", hrv.rmssdMillis)
                             put("time", hrv.time.toString())
                         }
+                        putLocalDate(hrv.time)
                         hrv.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -727,6 +738,7 @@ class SyncManager(private val context: Context) {
                         put("meters", it.meters)
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
+                        putLocalDate(it.startTime)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -738,6 +750,7 @@ class SyncManager(private val context: Context) {
                         put("calories", it.calories)
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
+                        putLocalDate(it.startTime)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -749,6 +762,7 @@ class SyncManager(private val context: Context) {
                         put("calories", it.calories)
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
+                        putLocalDate(it.startTime)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -759,6 +773,7 @@ class SyncManager(private val context: Context) {
                     healthData.weight.forEach { add(buildJsonObject {
                         put("kilograms", it.kilograms)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -769,6 +784,7 @@ class SyncManager(private val context: Context) {
                     healthData.height.forEach { add(buildJsonObject {
                         put("meters", it.meters)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -780,6 +796,7 @@ class SyncManager(private val context: Context) {
                         put("systolic", it.systolic)
                         put("diastolic", it.diastolic)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -790,6 +807,7 @@ class SyncManager(private val context: Context) {
                     healthData.bloodGlucose.forEach { add(buildJsonObject {
                         put("mmol_per_liter", it.mmolPerLiter)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -807,6 +825,7 @@ class SyncManager(private val context: Context) {
                             put("percentage", o2.percentage)
                             put("time", o2.time.toString())
                         }
+                        putLocalDate(o2.time)
                         o2.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -817,6 +836,7 @@ class SyncManager(private val context: Context) {
                     healthData.bodyTemperature.forEach { add(buildJsonObject {
                         put("celsius", it.celsius)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -835,6 +855,7 @@ class SyncManager(private val context: Context) {
                         }
                         skin.baselineCelsius?.let { baseline -> put("baseline_celsius", baseline) }
                         put("measurement_location", skin.measurementLocation)
+                        putLocalDate(skin.time)
                         skin.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -852,6 +873,7 @@ class SyncManager(private val context: Context) {
                             put("rate", resp.rate)
                             put("time", resp.time.toString())
                         }
+                        putLocalDate(resp.time)
                         resp.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -862,6 +884,7 @@ class SyncManager(private val context: Context) {
                     healthData.restingHeartRate.forEach { add(buildJsonObject {
                         put("bpm", it.bpm)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -875,6 +898,7 @@ class SyncManager(private val context: Context) {
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
                         put("duration_seconds", it.duration.seconds)
+                        putLocalDate(it.startTime)
                         it.distanceMeters?.let { distanceMeters ->
                             put("distance_meters", distanceMeters)
                         }
@@ -901,6 +925,7 @@ class SyncManager(private val context: Context) {
                         put("liters", it.liters)
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
+                        putLocalDate(it.startTime)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -919,6 +944,7 @@ class SyncManager(private val context: Context) {
                         it.name?.let { name -> put("name", name) }
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
+                        putLocalDate(it.startTime)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -929,6 +955,7 @@ class SyncManager(private val context: Context) {
                     healthData.basalMetabolicRate.forEach { add(buildJsonObject {
                         put("watts", it.watts)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -939,6 +966,7 @@ class SyncManager(private val context: Context) {
                     healthData.bodyFat.forEach { add(buildJsonObject {
                         put("percentage", it.percentage)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -949,6 +977,7 @@ class SyncManager(private val context: Context) {
                     healthData.leanBodyMass.forEach { add(buildJsonObject {
                         put("kilograms", it.kilograms)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -959,6 +988,7 @@ class SyncManager(private val context: Context) {
                     healthData.bodyWaterMass.forEach { add(buildJsonObject {
                         put("kilograms", it.kilograms)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -973,6 +1003,7 @@ class SyncManager(private val context: Context) {
                         add(buildJsonObject {
                             put("value", entry.value)
                             put("time", entry.time.toString())
+                            putLocalDate(entry.time)
                             put("weight_kg", entry.weightKg)
                             put("height_meters", entry.heightMeters)
                         })
@@ -985,6 +1016,7 @@ class SyncManager(private val context: Context) {
                     healthData.vo2Max.forEach { add(buildJsonObject {
                         put("ml_per_kg_per_min", it.mlPerKgPerMin)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -995,6 +1027,7 @@ class SyncManager(private val context: Context) {
                     healthData.boneMass.forEach { add(buildJsonObject {
                         put("kilograms", it.kilograms)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1005,6 +1038,7 @@ class SyncManager(private val context: Context) {
                     healthData.menstruationFlow.forEach { add(buildJsonObject {
                         put("flow", it.flow)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1015,6 +1049,7 @@ class SyncManager(private val context: Context) {
                     healthData.menstruationPeriod.forEach { add(buildJsonObject {
                         put("start_time", it.startTime.toString())
                         put("end_time", it.endTime.toString())
+                        putLocalDate(it.startTime)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1024,6 +1059,7 @@ class SyncManager(private val context: Context) {
                 putJsonArray("intermenstrual_bleeding") {
                     healthData.intermenstrualBleeding.forEach { add(buildJsonObject {
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1034,6 +1070,7 @@ class SyncManager(private val context: Context) {
                     healthData.ovulationTest.forEach { add(buildJsonObject {
                         put("result", it.result)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1044,6 +1081,7 @@ class SyncManager(private val context: Context) {
                     healthData.cervicalMucus.forEach { add(buildJsonObject {
                         put("appearance", it.appearance)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1054,6 +1092,7 @@ class SyncManager(private val context: Context) {
                     healthData.sexualActivity.forEach { add(buildJsonObject {
                         put("protection_used", it.protectionUsed)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }
@@ -1065,6 +1104,7 @@ class SyncManager(private val context: Context) {
                         put("celsius", it.celsius)
                         put("measurement_location", it.measurementLocation)
                         put("time", it.time.toString())
+                        putLocalDate(it.time)
                         it.metadata?.let { meta -> putRecordMetadata(meta) }
                     }) }
                 }

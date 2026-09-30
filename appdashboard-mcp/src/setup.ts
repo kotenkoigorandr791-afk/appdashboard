@@ -39,17 +39,31 @@ function agentConfigPath(agent: Agent): string {
     case "vscode":
       return join(process.cwd(), ".vscode", "mcp.json");
     case "opencode":
-      return join(process.cwd(), "opencode.json");
+      return opencodeConfigPath();
   }
+}
+
+function opencodeConfigPath(): string {
+  const dir = join(homedir(), ".config", "opencode");
+  const jsonc = join(dir, "opencode.jsonc");
+  if (existsSync(jsonc)) return jsonc;
+  return join(dir, "opencode.json");
 }
 
 function readJson(path: string): Record<string, any> {
   if (!existsSync(path)) return {};
   try {
-    return JSON.parse(readFileSync(path, "utf8")) as Record<string, any>;
+    return JSON.parse(stripJsonComments(readFileSync(path, "utf8"))) as Record<string, any>;
   } catch {
     return {};
   }
+}
+
+function stripJsonComments(input: string): string {
+  return input
+    .replace(/^\uFEFF/, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:])\/\/.*$/gm, "$1");
 }
 
 function writeJson(path: string, data: unknown): void {
@@ -75,6 +89,7 @@ function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: s
     else if (a.startsWith("--token=")) token = a.slice("--token=".length);
     else if (a.startsWith("--package=")) packageUrl = a.slice("--package=".length);
     else if (a.startsWith("--package-url=")) packageUrl = a.slice("--package-url=".length);
+    else if (["claude", "cursor", "vscode", "opencode"].includes(a)) agent = a as Agent;
   }
   if (!["claude", "cursor", "vscode", "opencode"].includes(agent)) {
     throw new Error(`Unknown agent: ${agent}. Use claude|cursor|vscode|opencode`);

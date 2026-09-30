@@ -1,3 +1,17 @@
+## v1.9.34 - 2026-09-29
+
+* 🕒 Corrigida a atribuição dos dados de saúde ao dia errado para utilizadores a leste de UTC — distância, calorias, sono e pulso passam a contar no dia em que ocorrem
+* 👤 O ecrã de definições mostra o ícone de perfil predefinido quando não há nenhuma conta ligada
+
+## v1.9.33 - 2026-09-29
+
+* 📊 Corrigidas contagens de passos diárias erradas — alguns dias mostravam o valor do dia vizinho
+
+## v1.9.32 - 2026-09-29
+
+* 📊 As estatísticas agora vêm sempre da sua conta do servidor quando há uma conta conectada — o app não mistura mais dados do celular não sincronizados
+* 📱 Os dados do celular só aparecem quando nenhuma conta está conectada
+
 ## v1.9.29 - 2026-09-23
 
 * As novidades agora são exibidas no seu idioma

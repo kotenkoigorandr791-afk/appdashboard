@@ -59,7 +59,7 @@ body[data-theme="dark"] .CodeMirror-hints::-webkit-scrollbar-thumb:hover{backgro
 .icon-btn:focus-visible,.btn:focus-visible{background:color-mix(in srgb,var(--accent) 10%,var(--bg));border-color:color-mix(in srgb,var(--accent) 45%,var(--border));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 .icon-btn:active,.btn:active,.icon-btn.is-pressed,.btn.is-pressed{transform:translateY(1px)}
 .icon-btn:focus-visible,.btn:focus-visible{outline:none}
-button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scroll-btn):not(.search-clear):not(.file-toolbar *):not(#desktop-root-toolbar-footer *):not(#btn-sort-filter):not(#btn-toggle-sidebar){border-radius:999px!important}
+button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scroll-btn):not(.search-clear):not(.file-toolbar *):not(#desktop-root-toolbar-footer *):not(#btn-sort-filter):not(#btn-toggle-sidebar):not(.token-item){border-radius:999px!important}
 .topbar .btn,.topbar .icon-btn,.file-toolbar .btn,.file-toolbar .icon-btn,#btn-sort-filter,#desktop-root-toolbar-footer button{border-radius:8px!important}
 .topbar #btn-advanced-search,.topbar .search-clear{border-radius:50%!important}
 .topbar #btn-toggle-sidebar{border-radius:0 10px 10px 0!important}
@@ -229,6 +229,11 @@ body.tabs-empty:not(.trash-mode) .tabs-container,body.tabs-empty:not(.trash-mode
 .trash-item-meta-row{display:block;min-width:0}
 .trash-item-path{display:block;font-family:monospace;font-size:11px;opacity:.9;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .image-viewer-container{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track)}
+#tokens-list-container{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track)}
+#tokens-list-container::-webkit-scrollbar{width:10px}
+#tokens-list-container::-webkit-scrollbar-track{background:var(--scrollbar-track);border-radius:3px 5px 5px 3px}
+#tokens-list-container::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:2px 4px 4px 2px;border:2px solid transparent;background-clip:padding-box}
+#tokens-list-container::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover);background-clip:padding-box;border-radius:2px 4px 4px 2px}
 .image-viewer-container img{user-drag:none;-webkit-user-drag:none}
 .statusbar{min-height:28px;height:28px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:nowrap;padding:4px 12px;border-top:1px solid color-mix(in srgb,var(--ui-border) 85%,transparent);color:var(--muted);font-size:12px;background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);position:relative;z-index:100;overflow:hidden}
 body[data-theme="light"] .statusbar{background:color-mix(in srgb,#c5ccd4 63%,transparent);color:#2a3139;border-top-color:color-mix(in srgb,#98a1ab 90%,transparent)}

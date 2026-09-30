@@ -1445,7 +1445,7 @@ adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? ch
         if (!chatListContainer) {
             return;
         }
-        var sections = isAdmin ? { support: chats || [], people: [] } : (Array.isArray(chats) ? { support: chats.filter(function(c) { return (c.chat_type || 'support') === 'support'; }), people: chats.filter(function(c) { return c.chat_type === 'peer'; }) } : (chats || { support: [], people: [] }));
+        var sections = Array.isArray(chats) ? { support: chats.filter(function(c) { return (c.chat_type || 'support') === 'support'; }), people: chats.filter(function(c) { return c.chat_type === 'peer'; }) } : (chats || { support: [], people: [] });
         var allChats = [].concat(sections.support || [], sections.people || []);
         lastAdminChatList = allChats;
         if (!allChats.length) {

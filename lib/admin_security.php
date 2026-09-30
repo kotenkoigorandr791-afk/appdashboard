@@ -245,6 +245,13 @@ function adminEstablishSession(string $email, array $user): void {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    try {
+        if (function_exists('bindCookieConsentToEmail')) {
+            bindCookieConsentToEmail(function_exists('getConsentDeviceId') ? getConsentDeviceId() : '', $email);
+        }
+    } catch (Throwable $e) {
+        error_log('[cookie_consent] bind failed: ' . $e->getMessage());
+    }
 }
 
 function adminPanelCookieName(): string {

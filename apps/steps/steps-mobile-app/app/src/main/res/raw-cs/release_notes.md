@@ -1,3 +1,17 @@
+## v1.9.34 - 2026-09-29
+
+* 🕒 Opraveno přiřazování zdravotních dat ke špatnému dni pro uživatele na východ od UTC — vzdálenost, kalorie, spánek a puls se nyní počítají ve dni, kdy skutečně nastaly
+* 👤 Obrazovka nastavení zobrazí výchozí ikonu profilu, když není připojen žádný účet
+
+## v1.9.33 - 2026-09-29
+
+* 📊 Opraveny chybné denní počty kroků — některé dny zobrazovaly hodnotu sousedního dne
+
+## v1.9.32 - 2026-09-29
+
+* 📊 Statistiky se nyní vždy načítají ze serveru, když je účet připojen — aplikace už nemíchá nesynchronizovaná data z telefonu
+* 📱 Data z telefonu se zobrazují pouze tehdy, když není připojen žádný účet
+
 ## v1.9.29 - 2026-09-23
 
 * Co je nového se nyní zobrazuje ve vašem jazyce

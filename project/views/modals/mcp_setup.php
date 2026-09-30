@@ -42,7 +42,7 @@ try{
     if($mcpUserEmail!==''){
         $tokenDb=getDB();
         ensureClientAuthTokensSchema($tokenDb);
-        $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 AND device_id = 'mcp_external' AND platform = 'mcp' ORDER BY created_at DESC");
+        $stmt=$tokenDb->prepare("SELECT * FROM client_auth_tokens WHERE email = :email AND revoked = 0 AND app_id = 'mcp' ORDER BY created_at DESC");
         $stmt->bindValue(':email',$mcpUserEmail,PDO::PARAM_STR);
         $result=$stmt->execute();
         while($row=$result->fetch(PDO::FETCH_ASSOC)){

@@ -172,6 +172,7 @@
             </div>
         </div>
         <div class="data-table-container">
+            <div class="data-table-scroll">
             <table class="data-table" id="data-table">
                 <thead>
                     <tr>
@@ -217,6 +218,7 @@
                     <?php endforeach; ?>
                 </tbody>
             </table>
+            </div>
         </div>
         <div id="pagination"></div>
         <div class="month-pagination" id="month-pagination"></div>
@@ -501,7 +503,7 @@
         <div class="csl-body">
             <div id="ccm-step-user" class="ccm-step">
                 <label class="ccm-label"><?= htmlspecialchars($translations['share_pick_user'] ?? 'Pick a recipient') ?></label>
-                <input type="email" id="ccm-user-search" class="ccm-input" autocomplete="off" placeholder="<?= htmlspecialchars($translations['support_chat_search_placeholder'] ?? 'Search by email…') ?>">
+                <input type="text" id="ccm-user-search" class="ccm-input" autocomplete="off" spellcheck="false" placeholder="<?= htmlspecialchars($translations['support_chat_search_placeholder'] ?? 'Search by email…') ?>">
                 <div id="ccm-user-results" class="ccm-results"></div>
             </div>
             <div id="ccm-step-compose" class="ccm-step" style="display:none;">

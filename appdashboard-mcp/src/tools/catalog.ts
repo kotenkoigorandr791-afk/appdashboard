@@ -18,7 +18,7 @@ export function buildCatalogTools(visible: () => Promise<ToolDef[]>, invoke?: To
     name: "tools_catalog",
     description:
       "List available AppDashboard tool groups with tool counts and short descriptions. " +
-      "Call this FIRST instead of loading a huge flat tool list, then load only the groups you need with tools_load.",
+      "Use only when the user's request needs AppDashboard or one of its apps; then load only the groups you need with tools_load.",
     minRole: 0,
     inputSchema: { type: "object", properties: {} },
     handler: async () => {
@@ -36,7 +36,7 @@ export function buildCatalogTools(visible: () => Promise<ToolDef[]>, invoke?: To
     name: "tools_load",
     description:
       "Load full tool definitions (name, description, schema) for one or more groups from tools_catalog. " +
-      'Example: {"groups":["kanboard"]}. Load only groups relevant to the current task to save context. ' +
+      'Example: {"groups":["kanboard"]}. Load only AppDashboard groups relevant to the current task. ' +
       "Run the loaded tools with tools_call.",
     minRole: 0,
     inputSchema: {
@@ -103,6 +103,13 @@ export function buildCatalogTools(visible: () => Promise<ToolDef[]>, invoke?: To
     },
   };
 
+  const find: CatalogTool = {
+    ...search,
+    name: "appdashboard_find_tools",
+    description:
+      "Find AppDashboard tools by keyword in name or description. Use this only for AppDashboard tasks, then execute the chosen tool with appdashboard_run_tool.",
+  };
+
   const checkUpdate = {
     name: "mcp_check_update",
     description:
@@ -134,7 +141,15 @@ export function buildCatalogTools(visible: () => Promise<ToolDef[]>, invoke?: To
     },
   };
 
-  return [catalog, load, search, call, checkUpdate];
+  const run: CatalogTool = {
+    ...call,
+    name: "appdashboard_run_tool",
+    description:
+      "Execute a specific AppDashboard tool by name after finding it with appdashboard_find_tools, tools_search, or tools_load. " +
+      'Example: {"name":"list_apps","arguments":{}}.',
+  };
+
+  return [catalog, load, search, find, call, run, checkUpdate];
 }
 
 function summarize(t: ToolDef) {
