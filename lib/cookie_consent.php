@@ -1,6 +1,22 @@
 <?php
 const APP_COOKIE_CONSENT_NAME = 'ap_cookie_consent';
 const APP_COOKIE_CONSENT_OPTIONAL = ['preferences', 'analytics'];
+const APP_COOKIE_CONSENT_STATUS_PENDING = 'pending';
+const APP_COOKIE_CONSENT_STATUS_ACCEPTED = 'accepted';
+const APP_COOKIE_CONSENT_STATUS_DECLINED = 'declined';
+const APP_COOKIE_CONSENT_STATUS_CUSTOM = 'custom';
+const APP_COOKIE_CONSENT_STATUSES = [
+    APP_COOKIE_CONSENT_STATUS_PENDING,
+    APP_COOKIE_CONSENT_STATUS_ACCEPTED,
+    APP_COOKIE_CONSENT_STATUS_DECLINED,
+    APP_COOKIE_CONSENT_STATUS_CUSTOM,
+];
+const APP_COOKIE_CONSENT_DECIDED_STATUSES = [
+    APP_COOKIE_CONSENT_STATUS_ACCEPTED,
+    APP_COOKIE_CONSENT_STATUS_DECLINED,
+    APP_COOKIE_CONSENT_STATUS_CUSTOM,
+];
+const APP_COOKIE_CONSENT_PENDING_TTL = 30 * 86400;
 const APP_COOKIE_CONSENT_PREFERENCE_COOKIES = ['sk_language', 'sk_theme', 'sk_color', 'sk_user_has_account', 'browser_theme', 'grid_columns', 'font_size', 'albums_per_page'];
 function app_cookie_request_secure(): bool
 {
@@ -22,6 +38,22 @@ function app_cookie_consent(): array
 function app_cookie_consent_allows(string $category): bool
 {
     return $category === 'necessary' || !empty(app_cookie_consent()[$category]);
+}
+function app_cookie_consent_resolve(string $overallStatus, array $categoryStatuses = []): array
+{
+    $decided = in_array($overallStatus, APP_COOKIE_CONSENT_DECIDED_STATUSES, true);
+    $choices = [];
+    foreach (APP_COOKIE_CONSENT_OPTIONAL as $category) {
+        $categoryStatus = (string)($categoryStatuses[$category] ?? '');
+        if ($categoryStatus === APP_COOKIE_CONSENT_STATUS_ACCEPTED) {
+            $choices[$category] = true;
+        } elseif ($categoryStatus === APP_COOKIE_CONSENT_STATUS_DECLINED) {
+            $choices[$category] = false;
+        } else {
+            $choices[$category] = $overallStatus === APP_COOKIE_CONSENT_STATUS_ACCEPTED;
+        }
+    }
+    return ['decided' => $decided, 'preferences' => $choices['preferences'], 'analytics' => $choices['analytics']];
 }
 function app_cookie_consent_write(bool $preferences, bool $analytics): void
 {

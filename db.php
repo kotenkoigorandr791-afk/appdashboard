@@ -628,7 +628,7 @@ function initDB(AppDatabase $db): void {
         consent_key  TEXT NOT NULL DEFAULT 'site_cookies',
         device_id    TEXT NOT NULL,
         email        TEXT NOT NULL DEFAULT '',
-        status       TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined')),
+        status       TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','accepted','declined','custom')),
         asked_at     INTEGER,
         responded_at INTEGER,
         created_at   INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
@@ -637,6 +637,11 @@ function initDB(AppDatabase $db): void {
     )");
     app_db_ensure_unique_index($db, 'site_cookie_consents', ['consent_key', 'device_id'], 'idx_site_cookie_consents_key_device_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_site_cookie_consents_email ON site_cookie_consents(email)");
+    $siteCookieConsentsCheck = (string)$db->query("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname = 'site_cookie_consents_status_check' LIMIT 1")->fetchColumn();
+    if ($siteCookieConsentsCheck !== '' && !str_contains($siteCookieConsentsCheck, 'custom')) {
+        $db->exec("ALTER TABLE site_cookie_consents DROP CONSTRAINT site_cookie_consents_status_check");
+        $db->exec("ALTER TABLE site_cookie_consents ADD CONSTRAINT site_cookie_consents_status_check CHECK(status IN ('pending','accepted','declined','custom'))");
+    }
 
     ensure_cloud_encryption_consents_schema($db);
     
@@ -3755,7 +3760,7 @@ function markCookieConsentPrompted(string $deviceId, string $email = '', string 
 
 function saveCookieConsentDecision(string $deviceId, string $status, string $email = '', string $consentKey = 'site_cookies'): void {
     if ($deviceId === '') return;
-    if (!in_array($status, ['accepted', 'declined'], true)) {
+    if (!in_array($status, ['accepted', 'declined', 'custom'], true)) {
         throw new InvalidArgumentException('Invalid cookie consent status');
     }
     $db = getDB();
@@ -3774,6 +3779,42 @@ function saveCookieConsentDecision(string $deviceId, string $status, string $ema
     $stmt->bindValue(':s', $status, PDO::PARAM_STR);
     $stmt->bindValue(':t', $now, PDO::PARAM_INT);
     $stmt->execute();
+}
+
+function getCookieConsentCategoryStatuses(string $deviceId): array {
+    $statuses = [];
+    if ($deviceId === '') return $statuses;
+    $db = getDB();
+    $stmt = $db->prepare("SELECT consent_key, status FROM site_cookie_consents WHERE device_id = :d");
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $result = $stmt->execute();
+    while ($result && ($row = $result->fetch(PDO::FETCH_ASSOC))) {
+        $key = (string)($row['consent_key'] ?? '');
+        if ($key !== '' && $key !== 'site_cookies') $statuses[$key] = (string)($row['status'] ?? '');
+    }
+    return $statuses;
+}
+
+function bindCookieConsentToEmail(string $deviceId, string $email): int {
+    $deviceId = normalizeTrustedDeviceId($deviceId);
+    $email = trim($email);
+    if ($deviceId === '' || $email === '') return 0;
+    $db = getDB();
+    $stmt = $db->prepare("UPDATE site_cookie_consents SET email = :e WHERE device_id = :d AND email = ''");
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
+    $stmt->execute();
+    return method_exists($db, 'changes') ? $db->changes() : 0;
+}
+
+function cleanupStaleCookieConsents(?int $pendingTtl = null): int {
+    $ttl = $pendingTtl ?? (defined('APP_COOKIE_CONSENT_PENDING_TTL') ? (int)APP_COOKIE_CONSENT_PENDING_TTL : 30 * 86400);
+    if ($ttl <= 0) return 0;
+    $db = getDB();
+    $stmt = $db->prepare("DELETE FROM site_cookie_consents WHERE status = 'pending' AND updated_at < :cutoff");
+    $stmt->bindValue(':cutoff', time() - $ttl, PDO::PARAM_INT);
+    $stmt->execute();
+    return method_exists($db, 'changes') ? $db->changes() : 0;
 }
 
 function getCloudEncryptionConsent(string $email): ?array {
