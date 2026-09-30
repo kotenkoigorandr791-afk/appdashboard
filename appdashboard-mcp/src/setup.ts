@@ -89,6 +89,7 @@ function parseArgs(argv: string[]): { agent: Agent; url?: string; packageUrl?: s
     else if (a.startsWith("--token=")) token = a.slice("--token=".length);
     else if (a.startsWith("--package=")) packageUrl = a.slice("--package=".length);
     else if (a.startsWith("--package-url=")) packageUrl = a.slice("--package-url=".length);
+    else if (["claude", "cursor", "vscode", "opencode"].includes(a)) agent = a as Agent;
   }
   if (!["claude", "cursor", "vscode", "opencode"].includes(agent)) {
     throw new Error(`Unknown agent: ${agent}. Use claude|cursor|vscode|opencode`);

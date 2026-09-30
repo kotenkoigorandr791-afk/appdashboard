@@ -9,11 +9,11 @@ One server key: **`appdashboard-mcp`**. Tools for the service shell and all apps
 Settings → MCP → copy command for your agent, e.g.:
 
 ```bash
-npx -y https://YOUR_HOST/mcp/appdashboard-mcp.tgz setup --agent cursor --url https://YOUR_HOST
+npx -y https://YOUR_HOST/mcp/download setup --agent cursor --url https://YOUR_HOST
 ```
 
 Requires Node.js 18+. Setup asks for an AppDashboard token, or pass `--token TOKEN` / `APPDASHBOARD_TOKEN`.
-Restart the agent after setup.
+Use `cursor`, `claude`, `vscode`, or `opencode`. Restart the agent after setup.
 
 ## Agent configs
 
