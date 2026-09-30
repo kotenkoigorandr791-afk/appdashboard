@@ -1403,7 +1403,42 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
                     'user_photo' => app_avatar_src($row['user_photo'] ?? null),
                 ];
             }
-            json_out(['ok' => true, 'chats' => $chats]);
+            // Admins also take part in peer chats, so include those the same way
+            // the non-admin branch does; otherwise shared media never shows up
+            // in the list for the admin.
+            $me = normalizeChatEmail($userEmail);
+            $peerStmt = $db->prepare("SELECT sc.user_email, sc.recipient_email, MAX(COALESCE(sc.edited_at, sc.created_at)) AS last_message_time, COUNT(*) AS message_count FROM support_chat sc WHERE sc.chat_type = 'peer' AND (sc.user_email = :me OR sc.recipient_email = :me2) AND COALESCE(sc.is_deleted,0)=0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :me3 AND h.chat_type = 'peer' AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = COALESCE(sc.recipient_email,'')) GROUP BY sc.user_email, sc.recipient_email ORDER BY last_message_time DESC");
+            $peerStmt->bindValue(':me', $me, PDO::PARAM_STR);
+            $peerStmt->bindValue(':me2', $me, PDO::PARAM_STR);
+            $peerStmt->bindValue(':me3', $me, PDO::PARAM_STR);
+            $peerChats = [];
+            $peerRes = $peerStmt->execute();
+            while ($row = $peerRes->fetch(PDO::FETCH_ASSOC)) {
+                $other = normalizeChatEmail($row['user_email']) === $me ? $row['recipient_email'] : $row['user_email'];
+                $other = normalizeChatEmail((string)$other);
+                if ($other === '') continue;
+                $uStmt = $db->prepare('SELECT email, name, role, photo FROM users WHERE lower(email) = :email LIMIT 1');
+                $uStmt->bindValue(':email', $other, PDO::PARAM_STR);
+                $u = $uStmt->execute()->fetch(PDO::FETCH_ASSOC) ?: [];
+                $blockedStmt = $db->prepare('SELECT 1 FROM chat_blocks WHERE blocker_email = :me AND blocked_email = :other LIMIT 1');
+                $blockedStmt->bindValue(':me', $me, PDO::PARAM_STR);
+                $blockedStmt->bindValue(':other', $other, PDO::PARAM_STR);
+                $peerChats[] = [
+                    'chat_type' => 'peer',
+                    'user_email' => (string)$row['user_email'],
+                    'recipient_email' => (string)$row['recipient_email'],
+                    'peer_email' => $other,
+                    'user_name' => (string)($u['name'] ?? $other),
+                    'last_message_time' => (int)($row['last_message_time'] ?? 0),
+                    'message_count' => (int)($row['message_count'] ?? 0),
+                    'user_role' => (int)($u['role'] ?? 0),
+                    'user_photo' => app_avatar_src($u['photo'] ?? null),
+                    'is_blocked_by_me' => (bool)$blockedStmt->execute()->fetch(PDO::FETCH_ASSOC),
+                ];
+            }
+            $chats = array_merge($chats, $peerChats);
+            usort($chats, static fn(array $a, array $b): int => ($b['last_message_time'] ?? 0) <=> ($a['last_message_time'] ?? 0));
+            json_out(['ok' => true, 'chats' => $chats, 'sections' => ['support' => array_values(array_filter($chats, static fn(array $c): bool => $c['chat_type'] === 'support')), 'people' => $peerChats]]);
         }
         $me = normalizeChatEmail($userEmail);
         $supportStmt = $db->prepare("SELECT MAX(COALESCE(edited_at, created_at)) AS last_message_time, COUNT(*) AS message_count FROM support_chat sc WHERE sc.chat_type = 'support' AND sc.user_email = :me AND COALESCE(sc.is_deleted,0)=0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :me2 AND h.chat_type = 'support' AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = '')");

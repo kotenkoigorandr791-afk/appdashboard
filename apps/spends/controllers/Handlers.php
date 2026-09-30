@@ -377,24 +377,70 @@ if (isset($_POST['share_chart_to_cloud'])) {
 }
 
 // ─── Chat: search users for the send-to-chat picker ─────────────────────────
+// Mirrors the shell messenger (project/core.php search_users): prefix match on
+// email and name so typing a fragment works, not just a full exact email.
 if (isset($_GET['chat_search_users'])) {
     $q = trim((string)($_GET['q'] ?? ''));
     $db = getDB();
     if (!$db) exit(json_encode(['status' => 'error', 'message' => 'db unavailable']));
-    $me = strtolower((string)($_SESSION['user']['email'] ?? ''));
+    $me = strtolower(trim((string)($_SESSION['user']['email'] ?? '')));
     if ($me === '') exit(json_encode(['status' => 'error', 'message' => 'not authenticated']));
-    $emailQ = strtolower($q);
-    if ($emailQ === '' || !filter_var($emailQ, FILTER_VALIDATE_EMAIL) || $emailQ === $me) {
-        exit(json_encode(['status' => 'success', 'users' => []]));
-    }
+    $isAdmin = (int)($_SESSION['user']['role'] ?? 0) >= 2;
+    // Rows with a blank email cannot receive a peer message. Only reject empty,
+    // not dotted addresses — internal logins like root@root are legitimate.
+    $usable = "email IS NOT NULL AND trim(email) <> ''";
     try {
-        $stmt = $db->prepare('SELECT email, name, photo FROM users WHERE lower(email) = :email LIMIT 1');
-        $stmt->bindValue(':email', $emailQ);
+        if (!$isAdmin) {
+            $emailQ = strtolower($q);
+            // Do not use FILTER_VALIDATE_EMAIL here: it rejects internal
+            // addresses such as root@root, which is a valid login here.
+            if ($emailQ === '' || !str_contains($emailQ, '@')) {
+                exit(json_encode(['status' => 'success', 'users' => []]));
+            }
+            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE $usable AND lower(email) = :email LIMIT 1");
+            $stmt->bindValue(':email', $emailQ, PDO::PARAM_STR);
+        } elseif ($q === '') {
+            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE $usable ORDER BY lower(email) LIMIT 40");
+        } else {
+            $esc = static fn(string $s): string => str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
+            $term = strtolower($q);
+            $prefix = $esc($term) . '%';
+            $stmt = $db->prepare(
+                "SELECT email, name, role, photo FROM users
+                 WHERE $usable
+                   AND (lower(email) = :term
+                     OR lower(email) LIKE :prefix ESCAPE '\\'
+                     OR lower(COALESCE(name, '')) LIKE :prefix ESCAPE '\\')
+                 ORDER BY CASE WHEN lower(email) = :term2 THEN 0 ELSE 1 END, lower(email)
+                 LIMIT 40"
+            );
+            $stmt->bindValue(':term', $term, PDO::PARAM_STR);
+            $stmt->bindValue(':term2', $term, PDO::PARAM_STR);
+            $stmt->bindValue(':prefix', $prefix, PDO::PARAM_STR);
+        }
         $res = $stmt->execute();
         $users = [];
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            if (strtolower((string)$row['email']) === $me) continue;
-            $users[] = ['email' => $row['email'], 'name' => $row['name'] ?: $row['email'], 'photo' => $row['photo'] ?: ''];
+            $email = trim((string)($row['email'] ?? ''));
+            if ($email === '' || strtolower($email) === $me) continue;
+            $photo = trim((string)($row['photo'] ?? ''));
+            if ($photo === '') $photo = 'default_avatar.png';
+            if (preg_match('#^https://lh3\.googleusercontent\.com/#i', $photo)) {
+                $photo = '/main?api=avatar_proxy&u=' . rawurlencode($photo);
+            } elseif (function_exists('dashboardPhotoWebPath')) {
+                // Same resolver the header avatar uses; root-absolute so it works
+                // from /apps/spends/ too. Empty when only the default remains.
+                $web = dashboardPhotoWebPath($photo);
+                $photo = $web !== '' ? $web : '/default_avatar.png';
+            } else {
+                $photo = '/' . ltrim($photo, '/');
+            }
+            $users[] = [
+                'email' => $email,
+                'name'  => (string)($row['name'] ?: $email),
+                'role'  => (int)($row['role'] ?? 0),
+                'photo' => $photo,
+            ];
         }
         exit(json_encode(['status' => 'success', 'users' => $users]));
     } catch (Exception $e) {
@@ -408,7 +454,9 @@ if (isset($_POST['chat_send_message'])) {
     $message = trim((string)($_POST['message'] ?? ''));
     $me = strtolower((string)($_SESSION['user']['email'] ?? ''));
     if ($me === '') exit(json_encode(['status' => 'error', 'message' => 'not authenticated']));
-    if ($recipient === '' || !filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+    // FILTER_VALIDATE_EMAIL rejects internal logins such as root@root, which
+    // are valid recipients here; only require an @ and a known user row.
+    if ($recipient === '' || !str_contains($recipient, '@')) {
         exit(json_encode(['status' => 'error', 'message' => 'invalid recipient']));
     }
     if ($message === '' && empty($_FILES['media'])) {
