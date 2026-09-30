@@ -245,8 +245,12 @@ server {
 
     location ^~ /embed/git/ {
         absolute_redirect off;
-        proxy_pass __GITEA_UPSTREAM__/;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $gitea_backend __GITEA_UPSTREAM__;
+        rewrite ^/embed/git(?<gitea_path>/.*)$ $gitea_path break;
+        proxy_pass $gitea_backend$uri$is_args$args;
         proxy_http_version 1.1;
+        proxy_ssl_server_name on;
         proxy_set_header Host $host;
         proxy_set_header Accept-Encoding "";
         proxy_set_header X-Real-IP $remote_addr;
@@ -284,8 +288,12 @@ server {
 
     location ^~ /embed/photo/ {
         absolute_redirect off;
-        proxy_pass __IMMICH_UPSTREAM__/;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $immich_backend __IMMICH_UPSTREAM__;
+        rewrite ^/embed/photo(?<immich_path>/.*)$ $immich_path break;
+        proxy_pass $immich_backend$uri$is_args$args;
         proxy_http_version 1.1;
+        proxy_ssl_server_name on;
         proxy_set_header Host $host;
         proxy_set_header Accept-Encoding "";
         proxy_set_header X-Real-IP $remote_addr;
