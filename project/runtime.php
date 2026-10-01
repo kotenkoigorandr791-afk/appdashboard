@@ -120,8 +120,6 @@ if(is_dir($appsFsDir)){
     $subdirs=array_filter(glob($appsFsDir.'*'),'is_dir');
     foreach($subdirs as $subdir){
         $nameFile=$subdir.'/name.json';
-        $iconFileSvg=$subdir.'/icon.svg';
-        $iconFilePng=$subdir.'/icon.png';
         $folder=basename($subdir);
         if(isset($_SESSION['user']['email'])&&!userMeetsAppMinRole($_shellUserRole,$folder)){continue;}
         if(file_exists($nameFile)){
@@ -130,16 +128,18 @@ if(is_dir($appsFsDir)){
             $name=$nameData[$language]??($nameData['en']??basename($subdir));
             $menuButton=$shellParseMenuButton($nameData,'menu_button',$defaultMenuButton);
             $menuButtonMobile=$shellParseMenuButton($nameData,'menu_button_mobile',$menuButton);
-            $styleIconFs=$subdir.'/icons/'.$iconStyle.'.svg';
-            if(is_file($styleIconFs)){
-                $icon=$appsDir.$folder.'/icons/'.$iconStyle.'.svg';
-                $iconMasked=($iconStyle==='monochrome');
-            }elseif(file_exists($iconFileSvg)){
-                $icon=$appsDir.$folder.'/icon.svg';
-                $iconMasked=true;
-            }elseif(file_exists($iconFilePng)){
-                $icon=$appsDir.$folder.'/icon.png';
-                $iconMasked=false;
+            // Icons always come from the app's icons/ folder; fall back to
+            // the multicolor icon when the selected style is missing.
+            $iconFs=$subdir.'/icons/'.$iconStyle.'.svg';
+            if(!is_file($iconFs)){
+                $iconFs=$subdir.'/icons/multicolor.svg';
+                $iconStyleForApp='multicolor';
+            }else{
+                $iconStyleForApp=$iconStyle;
+            }
+            if(is_file($iconFs)){
+                $icon=$appsDir.$folder.'/icons/'.basename($iconFs);
+                $iconMasked=($iconStyleForApp==='monochrome');
             }else{
                 $icon=defaultAppIconSrc();
                 $iconMasked=false;

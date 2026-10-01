@@ -1,9 +1,0 @@
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" fill="none" stroke="#10B981" stroke-width="3.6" stroke-linejoin="round" stroke-linecap="round">
-  <path d="M99.5,46.6h-4.8V24.5c0-5.3-4.3-9.6-9.6-9.6h-6.5L71.9,3c-1.1-1.1-7.6-3-14.6-3c-1,0-2,0.3-2.8,0.7l-25.5,14.2H10.1 c-5.3,0-9.6,4.3-9.6,9.6v65.9c0,5.3,4.3,9.6,9.6,9.6h75c5.3,0,9.6-4.3,9.6-9.6v-19.3h4.8V46.6z M85.1,18.8c3,0,5.4,2.2,5.7,5.1h-7.2l-2.8-5.1H85.1z M66,4.1c0.9-0.5,2.1-0.2,2.6,0.7l10.6,19.1H30.4L66,4.1z M90.8,90.4c0,3.2-2.6,5.8-5.8,5.8H10.1c-3.2,0-5.8-2.6-5.8-5.8V24.5 c0-3.2,2.6-5.8,5.8-5.8h21.6L22.5,23.9H11.3c-1.1,0-1.9,0.9-1.9,1.9s0.9,1.9,1.9,1.9h4.3 h70.1h5.1v18.9h-14c-6.5,0-11.8,5.3-11.8,11.8v0.8c0,6.5,5.3,11.8,11.8,11.8h14V90.4z M95.6,67.2h-1h-17.9c-4.4,0-8-3.6-8-8v-0.8c0-4.4,3.6-8,8-8h17.9h1V67.2z"/>
-  <g>
-    <animateTransform attributeName="transform" type="translate" values="0,0;0,-2.4;0,0" dur="1.5s" repeatCount="indefinite"/>
-    <circle cx="78.4" cy="59" r="4.2" stroke="#34D399">
-      <animate attributeName="stroke" values="#34D399;#6EE7B7;#34D399" dur="1.5s" repeatCount="indefinite"/>
-    </circle>
-  </g>
-</svg>

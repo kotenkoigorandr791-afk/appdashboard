@@ -735,32 +735,41 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     position: relative;
     max-width: 520px;
 }
-.ap-pwd-wrap input { padding-right: 52px; max-width: 100%; }
+.ap-pwd-wrap input,
+#ap-settings .ap-pwd-wrap input { padding-right: 44px; max-width: 100%; }
 .ap-pwd-eye {
     position: absolute;
-    right: 6px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 34px;
-    height: 28px;
-    background: var(--modal-bg);
-    border: 1px solid var(--border-color);
+    right: 4px;
+    top: 0;
+    bottom: 0;
+    margin: auto 0;
+    width: 30px;
+    height: 100%;
+    max-height: 30px;
+    background: transparent;
+    border: 0;
     border-radius: 6px;
+    box-shadow: none;
     cursor: pointer;
     color: var(--text-color) !important;
-    opacity: .88;
+    opacity: .6;
     padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 2;
-    box-shadow: 0 0 0 2px var(--bg-color);
+    line-height: 0;
 }
+.ap-pwd-eye svg { display: block; width: 16px; height: 16px; grid-area: 1 / 1; transition: opacity .2s ease, transform .2s ease; }
+.ap-pwd-eye { transition: opacity .2s ease, color .2s ease; display: grid; place-items: center; }
+.ap-pwd-eye .ap-eye-off { opacity: 0; transform: scale(.6); }
+.ap-pwd-eye.showing .ap-eye-open { opacity: 0; transform: scale(.6); }
+.ap-pwd-eye.showing .ap-eye-off { opacity: 1; transform: scale(1); }
 .ap-pwd-eye:hover {
     opacity: 1;
     color: var(--primary-color) !important;
-    border-color: var(--primary-color);
 }
+.ap-pwd-eye:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 1px; }
 
 /* Buttons */
 .ap-btn {
@@ -1514,8 +1523,8 @@ var apJsonSortAsc  = true;
 var monacoInjected = false;
 // Shared loader is defined in project/views/partials/monaco_loader.php
 
-var panelHash={'ap-users':'usermanagement','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
+var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
 function injectOmniRouteTheme(){
@@ -2892,7 +2901,10 @@ function wireEvents(){
     dynRoot.querySelectorAll('.ap-pwd-eye').forEach(function(b){b.addEventListener('click',function(){
         if(this.dataset.sshDecrypt==='1'){ return; }
         var i=document.getElementById(this.dataset.target);
-        if(i)i.type=i.type==='password'?'text':'password';
+        if(i){
+            i.type=i.type==='password'?'text':'password';
+            this.classList.toggle('showing', i.type==='text');
+        }
     });});
     /* settings tabs */
     (function(){
