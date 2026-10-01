@@ -180,7 +180,11 @@ server {
         rewrite ^ /privacy.html last;
     }
     location = /main {
-        rewrite ^ /index.php last;
+        if ($request_uri ~* "^/main(#.*)$") {
+            set $original_uri $1;
+            rewrite ^/main(.*)$ /index.php?_original_uri=$original_uri last;
+        }
+        rewrite ^/main(.*)$ /index.php?_original_uri=$request_uri last;
     }
     location = /login {
         limit_req zone=appdashboard_auth burst=20 nodelay;
@@ -625,7 +629,7 @@ server {
     # Internal PHP includes under /project/ must never be requested directly:
     # they rely on the bootstrap chain and would leak paths via fatal errors.
     # Legitimate public API endpoints under /project/ are allow-listed.
-    location ~ ^/project/(?!weather_settings\.php$).*\.php$ {
+    location ~ ^/project/(?!weather_settings\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$).*\.php$ {
         return 404;
     }
 

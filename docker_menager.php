@@ -1,9 +1,13 @@
 <?php
 // portainer_dashboard.php
-session_start();
+require_once __DIR__ . '/lib/app_session.php';
+app_session_start();
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/lib/admin_security.php';
 require_once __DIR__ . '/smart_log.php';
 smart_log_bootstrap('dashboard');
+adminPanelRequireGate();
+session_write_close();
 $dockerCfg = loadDockerConfig();
 $supportedLangs = ['en','ru','uk','be','pl','cs'];
 $lang = in_array($_GET['lang'] ?? '', $supportedLangs, true) ? $_GET['lang'] : 'en';

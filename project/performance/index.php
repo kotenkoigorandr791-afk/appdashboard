@@ -5,6 +5,7 @@ require_once __DIR__ . '/translations.php';
 require_once __DIR__ . '/core/db.php';
 require_once __DIR__ . '/core/session.php';
 require_once __DIR__ . '/core/helpers.php';
+require_once __DIR__ . '/../../lib/admin_security.php';
 
 $lang = isset($_GET['lang']) && isset($translations[$_GET['lang']]) ? $_GET['lang'] : 'en';
 $themeRaw = isset($_GET['theme']) ? strtolower($_GET['theme']) : 'light';
@@ -33,6 +34,8 @@ session_start();
 $currentUser = get_current_user_from_sessions();
 $userEmail = monitor_current_user_email();
 $userRole = monitor_current_user_role($userEmail);
+
+adminPanelRequireGate();
 
 if ($userRole >= 2) {
     $userRoleName = $t['role_admin'];
