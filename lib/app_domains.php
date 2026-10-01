@@ -54,6 +54,7 @@ if (!function_exists('app_public_url')) {
             'document' => 'DOCUMENT_PUBLIC_URL',
             'docker' => 'DOCKER_PUBLIC_URL',
             'dawarich' => 'DAWARICH_PUBLIC_URL',
+            'sentry' => 'SENTRY_PUBLIC_URL',
         ];
         $sub = strtolower(trim($sub));
         $envKey = $envKeys[$sub] ?? '';
@@ -80,6 +81,7 @@ if (!function_exists('app_service_hosts')) {
             'document' => app_subdomain_host('document'),
             'docker' => app_subdomain_host('docker'),
             'dawarich' => app_subdomain_host('dawarich'),
+            'sentry' => app_subdomain_host('sentry'),
         ];
     }
 }

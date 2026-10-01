@@ -177,7 +177,7 @@ function kanboard_db_resolve(): array
         if (is_string($dockerHost) && $dockerHost !== '') {
             $host = $dockerHost;
         } elseif ($inDocker) {
-            $host = 'appdashboard-db';
+            $host = 'host-gateway';
         } else {
             $host = '127.0.0.1';
         }

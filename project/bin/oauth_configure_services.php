@@ -124,7 +124,7 @@ function oauth_cfg_configure_gitea_db(string $secret, string $discovery): bool {
 }
 
 function oauth_cfg_configure_gitea(string $issuer, string $giteaUrl, string $secret): bool {
-    $discovery = oauth_internal_discovery_url();
+    $discovery = rtrim($issuer, '/') . '/.well-known/openid-configuration';
     $container = oauth_cfg_gitea_container();
     if ($container !== '') {
         $existingId = oauth_cfg_gitea_source_id($container);
@@ -225,10 +225,37 @@ function oauth_cfg_configure_immich(string $issuer, string $immichUrl, string $s
     }
 }
 
+function oauth_cfg_configure_glitchtip(string $issuer, string $secret): bool {
+    $discovery = rtrim($issuer, '/') . '/.well-known/openid-configuration';
+    $py = 'from allauth.socialaccount.models import SocialApp; '
+        . 'app, _ = SocialApp.objects.update_or_create(provider="openid_connect", provider_id="appdashboard", defaults={"name": "AppDashboard", "client_id": "sentry", "secret": '
+        . var_export($secret, true)
+        . ', "settings": {"server_url": '
+        . var_export($discovery, true)
+        . '}}); print("ok")';
+    $cmd = 'docker exec glitchtip_web ./manage.py shell -c ' . escapeshellarg($py);
+    $out = oauth_cfg_shell($cmd);
+    if (str_contains($out, 'ok')) {
+        oauth_cfg_echo('glitchtip: OpenID social app configured');
+        return true;
+    }
+    oauth_cfg_echo('glitchtip: configure skipped (' . $out . ')');
+    return false;
+}
+
 function oauth_configure_services(): int {
     $issuer = rtrim(oauth_issuer(), '/');
     $giteaUrl = rtrim(oauth_external_app_url('gitea'), '/');
     $immichUrl = rtrim(oauth_external_app_url('immich'), '/');
+    $issuerHost = (string)(parse_url($issuer, PHP_URL_HOST) ?: '');
+    if ($issuerHost !== '' && !str_contains($issuerHost, 'localhost') && !str_ends_with($issuerHost, '.local')) {
+        $scheme = (string)(parse_url($issuer, PHP_URL_SCHEME) ?: 'https');
+        $expectedSentry = $scheme . '://sentry.' . $issuerHost;
+        $currentSentry = rtrim(getConfig('sentry_url', ''), '/');
+        if ($currentSentry === '' || str_contains($currentSentry, 'localhost')) {
+            setConfig('sentry_url', $expectedSentry);
+        }
+    }
     $giteaIframeUrl = rtrim(oauth_iframe_app_url('gitea'), '/');
     $immichIframeUrl = rtrim(oauth_iframe_app_url('immich'), '/');
     oauth_cfg_echo('issuer=' . $issuer);
@@ -245,8 +272,15 @@ function oauth_configure_services(): int {
     $immichRedirects = array_map(static fn(string $base): string => $base . '/auth/login', oauth_cfg_app_oauth_bases('immich'));
     $giteaSecret = oauth_cfg_ensure_client('gitea', 'Gitea', array_values(array_unique($giteaRedirects)));
     $immichSecret = oauth_cfg_ensure_client('immich', 'Immich', array_values(array_unique($immichRedirects)));
+    $sentryUrl = rtrim(oauth_external_app_url('sentry'), '/');
+    oauth_cfg_echo('sentry_url=' . $sentryUrl);
+    $sentryRedirects = [
+        $sentryUrl . '/accounts/oidc/appdashboard/login/callback/',
+    ];
+    $sentrySecret = oauth_cfg_ensure_client('sentry', 'GlitchTip', array_values(array_unique($sentryRedirects)));
     oauth_cfg_configure_gitea($issuer, $giteaUrl, $giteaSecret);
     oauth_cfg_configure_immich($issuer, $immichUrl, $immichSecret);
+    oauth_cfg_configure_glitchtip($issuer, $sentrySecret);
     return 0;
 }
 

@@ -2044,9 +2044,9 @@ if($selectedApp){foreach($apps as $appData){if($appData['folder']===$selectedApp
 $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
-<?php $railTopApps=['immich','gitea','kanboard','dawarich','lopaka']; ?>
-<?php $edgeAppShellApps=['immich','gitea','kanboard','dawarich','x','X','lopaka']; ?>
-<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell<?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps))?' rail-top-on-mobile':''; ?>"<?php endif;?>>
+<?php $railTopApps=['immich','gitea','kanboard','dawarich','sentry','lopaka']; ?>
+<?php $edgeAppShellApps=['immich','gitea','kanboard','dawarich','sentry','x','X','lopaka']; ?>
+<div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($showAppFrame):?>
         <?php if($showAppRail):?>
         <div id="app-icon-rail">
