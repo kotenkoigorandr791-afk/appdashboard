@@ -2,6 +2,7 @@ name: appdashboard
 
 services:
   appdashboard-db:
+    profiles: ["container-db"]
     image: postgres:16
     container_name: appdashboard-db
     restart: unless-stopped
@@ -48,8 +49,6 @@ services:
     restart: unless-stopped
     privileged: true
     depends_on:
-      appdashboard-db:
-        condition: service_healthy
       appdashboard-redis:
         condition: service_healthy
     environment:
@@ -75,7 +74,7 @@ services:
       APP_DB_SKIP_SESSION_INIT: "1"
       APPDATA_BASE_DIR: /opt/ApplicationData
       UPLOADS_BASE_DIR: /opt/ApplicationData/dashboard/uploads
-      DB_HOST: appdashboard-db
+      DB_HOST: host-gateway
       DB_PORT: "5432"
       DB_NAME: appdashboard
       DB_USER: appdashboard

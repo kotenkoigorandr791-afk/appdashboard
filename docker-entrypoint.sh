@@ -89,7 +89,7 @@ if [ ! -f "$APPDATA_DATA_DIR/db.env" ]; then
   {
     printf 'DB_DRIVER=pgsql\n'
     printf 'DB_HOST=%s\n' "${DB_HOST:-127.0.0.1}"
-    printf 'DB_PORT=%s\n' "${DB_PORT:-15432}"
+    printf 'DB_PORT=%s\n' "${DB_PORT:-5432}"
     printf 'DB_NAME=%s\n' "${DB_NAME:-appdashboard}"
     printf 'DB_USER=%s\n' "${DB_USER:-appdashboard}"
     printf 'DB_PASSWORD=%s\n' "${DB_PASSWORD:-appdashboard_dev_password}"

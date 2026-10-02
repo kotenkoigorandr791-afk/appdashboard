@@ -200,6 +200,7 @@ function oauth_service_url(string $key, string $default): string {
         'gitea_url' => 'GITEA_PUBLIC_URL',
         'immich_url' => 'IMMICH_PUBLIC_URL',
         'dawarich_url' => 'DAWARICH_PUBLIC_URL',
+        'sentry_url' => 'SENTRY_PUBLIC_URL',
     ];
     $candidates = [];
     if (isset($envKeys[$key])) {
@@ -229,6 +230,7 @@ function oauth_external_app_url(string $app): string {
         'gitea' => oauth_service_url('gitea_url', app_public_url('git')),
         'immich' => oauth_service_url('immich_url', app_public_url('photo')),
         'dawarich' => oauth_service_url('dawarich_url', app_public_url('dawarich')),
+        'sentry' => oauth_service_url('sentry_url', app_public_url('sentry')),
         default => oauth_public_origin(),
     };
 }
@@ -774,7 +776,7 @@ function oauth_dawarich_db(): ?PDO {
     if ($password === '') return null;
     try {
         $pdo = new PDO(
-            sprintf('pgsql:host=%s;port=%d;dbname=%s', '127.0.0.1', 5435, (string)($vars['DATABASE_NAME'] ?? $vars['POSTGRES_DB'] ?? 'dawarich_development')),
+            sprintf('pgsql:host=%s;port=%d;dbname=%s', '127.0.0.1', 5432, (string)($vars['DATABASE_NAME'] ?? $vars['POSTGRES_DB'] ?? 'dawarich_development')),
             (string)($vars['DATABASE_USERNAME'] ?? $vars['POSTGRES_USER'] ?? 'postgres'),
             $password,
             [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 3]
@@ -808,8 +810,7 @@ function oauth_immich_db(): ?PDO {
         if (!in_array($extra, $hosts, true)) $hosts[] = $extra;
     }
     foreach ($hosts as $host) {
-        foreach ([5436, 5432] as $port) {
-            if ($host === '127.0.0.1' && $port === 5432) continue;
+        foreach ([5432, 5436] as $port) {
             if (!oauth_pgsql_reachable($host, $port)) continue;
             try {
                 $pdo = new PDO(
