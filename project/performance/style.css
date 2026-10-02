@@ -24,7 +24,7 @@ body::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
 .monitor-section.active { display: block; }
 
 /* ---------- BUTTONS ---------- */
-.btn-primary, .phpinfo-btn { background: linear-gradient(145deg, color-mix(in srgb, var(--primary-color) 88%, #3db3ff), color-mix(in srgb, var(--primary-color) 72%, #4b2bff)); color: #fff; border: 1px solid color-mix(in srgb, var(--primary-color) 65%, #fff); padding: 10px 16px; border-radius: 12px; cursor: pointer; font-size: .92rem; font-weight: 700; transition: all .2s ease; white-space: nowrap; box-shadow: 0 10px 24px rgba(0,0,0,.18); }
+.btn-primary { background: linear-gradient(145deg, color-mix(in srgb, var(--primary-color) 88%, #3db3ff), color-mix(in srgb, var(--primary-color) 72%, #4b2bff)); color: #fff; border: 1px solid color-mix(in srgb, var(--primary-color) 65%, #fff); padding: 10px 16px; border-radius: 12px; cursor: pointer; font-size: .92rem; font-weight: 700; transition: all .2s ease; white-space: nowrap; box-shadow: 0 10px 24px rgba(0,0,0,.18); }
 .btn-primary:hover { transform: translateY(-1px); filter: brightness(1.03); box-shadow: 0 14px 28px rgba(0,0,0,.22); }
 .btn-secondary { background: color-mix(in srgb, var(--card-bg) 90%, #111 10%); color: var(--text-color); border: 1px solid color-mix(in srgb, var(--border-color) 70%, var(--primary-color) 30%); padding: 10px 14px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 650; transition: all .2s ease; white-space: nowrap; }
 .btn-secondary:hover { background: var(--hover-color); border-color: var(--primary-color); color: var(--primary-color); transform: translateY(-1px); }
@@ -193,14 +193,15 @@ body::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
 .modal-close { position: fixed; top: 70px; right: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.8); color: #000; font-size: 40px; font-weight: 700; text-align: center; line-height: 50px; cursor: pointer; z-index: 91; }
 .modal-close:hover { color: var(--primary-color); }
 .graph-modal-content { display: flex; justify-content: center; align-items: center; min-height: 100%; padding: 20px; }
-.graph-container { width: min(980px, 100%); height: min(720px, calc(100vh - 40px)); display: flex; flex-direction: column; min-width: 0; position: relative; }
-.graph-container .modal-close { position: absolute; top: 8px; right: 8px; width: 40px; height: 40px; line-height: 40px; font-size: 30px; background: var(--card-bg); color: var(--text-color); border: 1px solid var(--border-color); box-shadow: 0 4px 14px rgba(0,0,0,.25); }
-.graph-cleanup-btn { position: absolute; top: 8px; right: 56px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-color); cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+.graph-container { width: min(980px, 100%); height: min(720px, calc(100dvh - 40px)); display: flex; flex-direction: column; min-width: 0; position: relative; }
+.graph-container .modal-close, .graph-cleanup-btn { position: absolute; top: 8px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--border-color); border-radius: 50%; background: var(--card-bg); color: var(--text-color); box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; }
+.graph-container .modal-close { right: 8px; font-size: 30px; line-height: 40px; }
+.graph-cleanup-btn { right: 56px; }
 .graph-cleanup-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .graph-cleanup-btn:hover { border-color: var(--error-color); color: var(--error-color); }
 .graph-canvas-container { flex: 1; min-height: 0; min-width: 0; position: relative; }
 .graph-modal-inner { width: 100%; max-width: 800px; background: var(--card-bg); border-radius: 8px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }
-.graph-title { text-align: center; margin-bottom: 20px; font-size: 1.5rem; color: var(--text-color); font-weight: 600; }
+.graph-title { text-align: center; margin-bottom: 20px; font-size: 1.5rem; color: var(--text-color); font-weight: 600; padding-right: 96px; overflow-wrap: anywhere; }
 .graph-hover-preview { position: fixed; z-index: 900; width: 280px; max-width: calc(100vw - 24px); padding: 10px; border-radius: 8px; background: var(--card-bg); border: 1px solid var(--border-color); box-shadow: 0 12px 32px rgba(0,0,0,.25); opacity: 0; pointer-events: none; transition: opacity .15s ease; }
 .graph-hover-preview.visible { opacity: 1; }
 .graph-hover-preview-title { font-weight: 700; margin-bottom: 8px; color: var(--text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -245,7 +246,7 @@ body::-webkit-scrollbar-thumb:hover { background: var(--primary-color); }
     .monitor-chart-wrap { height: 240px; }
     .drive-type-badge, .smart-badge { max-width: 100%; }
     .smart-hero, .drive-header { flex-direction: column; }
-    .graph-container { height: calc(100vh - 40px); }
+    .graph-container { height: min(calc(100dvh - 40px), 100%); }
     .graph-modal-inner { padding: 15px; margin: 10px; }
     .modal-close { top: 64px; right: 20px; width: 40px; height: 40px; font-size: 30px; line-height: 40px; }
     .scrollable-content { padding-top: 60px; }
@@ -359,6 +360,28 @@ body.admin-embed .container {
 body.admin-embed .scrollable-content {
     padding-top: 14px;
     margin-bottom: 0;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--primary-color) 55%, transparent) transparent;
+}
+body.admin-embed .scrollable-content::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+body.admin-embed .scrollable-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+body.admin-embed .scrollable-content::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--primary-color) 55%, transparent);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+}
+body.admin-embed .scrollable-content::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-color);
+    background-clip: content-box;
+}
+body.admin-embed .scrollable-content::-webkit-scrollbar-corner {
+    background: transparent;
 }
 body.admin-embed h2 {
     margin: 0 0 12px;
@@ -403,23 +426,19 @@ body.admin-embed .stat-card h3 {
 body.admin-embed .stat-val {
     font-size: 20px;
 }
-body.admin-embed .btn-primary,
-body.admin-embed .btn-secondary,
-body.admin-embed .phpinfo-btn {
+body.admin-embed .btn-secondary {
     min-height: 34px;
     padding: 7px 11px;
     border-radius: 6px;
     box-shadow: none;
     font-size: 12px;
     font-weight: 600;
+    background: transparent;
+    border-color: var(--border-color);
 }
 body.admin-embed .btn-primary {
     background: var(--primary-color);
     border-color: var(--primary-color);
-}
-body.admin-embed .btn-secondary {
-    background: transparent;
-    border-color: var(--border-color);
 }
 body.admin-embed .btn-primary:hover,
 body.admin-embed .btn-secondary:hover {
@@ -483,6 +502,15 @@ body.admin-embed .modal-close {
     font-size: 24px;
     line-height: 34px;
 }
+body.admin-embed .graph-container .modal-close {
+    top: 8px;
+    right: 8px;
+    width: 40px;
+    height: 40px;
+    background: var(--card-bg);
+    font-size: 30px;
+    line-height: 40px;
+}
 @media (max-width: 768px) {
     body.admin-embed .admin-monitor-topbar {
         height: auto;
@@ -496,12 +524,29 @@ body.admin-embed .modal-close {
     }
     body.admin-embed .admin-monitor-actions {
         width: 100%;
-        overflow-x: auto;
+        min-width: 0;
+        gap: 6px;
+        flex-wrap: wrap;
     }
     body.admin-embed .admin-monitor-tabs {
         width: 100%;
     }
     body.admin-embed .container {
         padding: 12px;
+    }
+}
+@media (max-width: 560px) {
+    body.admin-embed .admin-monitor-actions {
+        flex-wrap: nowrap;
+    }
+    body.admin-embed .admin-monitor-actions .icon-button,
+    body.admin-embed .auto-zoom-toggle {
+        min-width: 0;
+        padding: 7px 8px;
+    }
+    body.admin-embed .auto-zoom-toggle .toggle-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 }

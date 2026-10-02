@@ -30,7 +30,7 @@ if ($action === 'login' && $method === 'POST') {
     $db = getDB();
     if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
     public_api_reset_fails('login');
-    $tokenData = public_api_issue_token($db, $email, public_api_device_id(), $deviceName, $platform);
+    $tokenData = public_api_issue_token($db, $email, public_api_device_id(), $deviceName, $platform, null, 'public_api');
     $role = $email === 'root@root' ? 2 : (int)($users[$email]['role'] ?? 0);
     public_api_json(['ok' => true, 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'token_type' => 'Bearer', 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '', 'role' => $role]]);
 }
@@ -54,7 +54,7 @@ if ($action === 'refresh' && $method === 'POST') {
     $db = getDB();
     if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
     public_api_revoke_token($db, public_api_bearer_token());
-    $tokenData = public_api_issue_token($db, $auth['email'], public_api_device_id(), trim((string)($body['device_name'] ?? '')), trim((string)($body['platform'] ?? 'mcp')));
+    $tokenData = public_api_issue_token($db, $auth['email'], public_api_device_id(), trim((string)($body['device_name'] ?? '')), trim((string)($body['platform'] ?? 'mcp')), null, 'public_api');
     public_api_json(['ok' => true, 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'token_type' => 'Bearer']);
 }
 if ($action === 'client_auth') {

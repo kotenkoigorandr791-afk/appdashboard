@@ -126,7 +126,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .search-icon { position:absolute; left:8px; top:50%; transform:translateY(-50%); color:#666; pointer-events:none; }
         .add-date-btn { background:var(--primary-color); color:white; border:none; padding:5px 10px; cursor:pointer; border-radius:4px; transition:opacity 0.2s; }
         .add-date-btn:hover { opacity:0.9; }
-        .data-table-container { overflow-x:auto; margin:10px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 20px); overflow-y:auto; }
+        .data-table-container { overflow:hidden; margin:10px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 20px); }
         .data-table { width:100%; border-collapse:collapse; table-layout:auto; }
         .data-table th, .data-table td { border:1px solid var(--border-color); padding:5px; text-align:center; min-width:80px; box-sizing:border-box; }
         .data-table th.income-separator, .data-table td.income-separator { border-left:3px solid rgba(var(--primary-color-rgb),.45)!important; }
@@ -329,7 +329,8 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
         .table-toolbar .search-box { width:100%; height:40px; margin:0; padding:0 12px 0 38px; background:var(--surface-solid); border-radius:var(--radius-sm); line-height:40px; }
         .add-date-btn { padding:10px 16px; border-radius:var(--radius-sm); font-weight:800; }
-        .data-table-container { overflow-x:auto; overflow-y:auto; margin:12px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 40px); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
+        .data-table-container { overflow:hidden; margin:12px 0; max-width:100%; max-height:calc(100vh - var(--top-bar-height) - 40px); border:1px solid var(--border-color); border-radius:var(--radius-lg); background:var(--modal-bg); box-shadow:var(--shadow-soft); backdrop-filter:blur(var(--glass-blur)) saturate(1.08); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.08); }
+        .data-table-scroll { overflow:auto; height:100%; min-height:0; }
         .data-table { border-collapse:separate; border-spacing:0; }
         .data-table th, .data-table td { border:0; border-bottom:1px solid var(--border-color); border-left:1px solid var(--border-color); padding:8px 10px; min-width:92px; }
         .data-table th { background:color-mix(in srgb,var(--primary-color) 86%,#111); font-size:12px; font-weight:800; }
@@ -402,7 +403,8 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         }
         .table-modal .modal-content { width:min(1320px,96vw); max-width:96vw; max-height:min(90vh,900px); display:flex; flex-direction:column; overflow:hidden; }
         .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; flex-shrink:0; }
-        .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow-y:auto; }
+        .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow:hidden; display:flex; flex-direction:column; }
+        .table-modal .data-table-scroll { flex:1 1 0%; min-height:0; height:0; max-height:none; overflow:auto; }
         .table-modal .data-table th { position:sticky; top:0; z-index:10; }
         .notification { border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 18px 42px rgba(0,0,0,.2); }
         #pagination { margin:14px 0 0; }
@@ -415,6 +417,26 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .month-pagination-label { font-size:13px; font-weight:700; color:var(--text-color); padding:0 6px; white-space:nowrap; }
         .chart-year-framed { padding:8px 16px; border:1px solid var(--border-color); border-radius:var(--radius-md); font-weight:800; color:var(--text-color); margin-bottom:12px; background:var(--modal-bg); box-shadow:0 12px 30px rgba(0,0,0,.1); backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
         .rate-chart-container { border:1px solid var(--border-color); border-radius:var(--radius-md); }
+
+        /* ── Share-to-chat modal (chart-chat-modal) ───────────────────────────── */
+        .ccm-step { display:flex; flex-direction:column; gap:12px; min-height:0; }
+        .ccm-label { font-size:13px; font-weight:700; color:var(--text-color); }
+        .ccm-input { width:100%; box-sizing:border-box; padding:11px 14px; border:1px solid var(--border-color); border-radius:10px; background:var(--group-block-bg); color:var(--text-color); font-family:inherit; font-size:14px; resize:vertical; }
+        .ccm-input:focus { outline:2px solid color-mix(in srgb,var(--primary-color) 64%,#fff); }
+        /* Fixed height so the dialog cannot reflow on every keystroke. */
+        .ccm-results { display:flex; flex-direction:column; gap:6px; flex:0 0 auto; height:240px; max-height:240px; overflow-y:auto; overflow-x:hidden; }
+        .ccm-results > .ccm-empty { flex:1 1 auto; display:flex; align-items:center; justify-content:center; text-align:center; }
+        .ccm-user-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; border:1px solid var(--border-color); background:transparent; cursor:pointer; text-align:left; font-family:inherit; flex:0 0 auto; transition:background .18s,border-color .18s; }
+        .ccm-user-row:hover { background:rgba(var(--primary-color-rgb),0.08); border-color:rgba(var(--primary-color-rgb),0.4); }
+        .ccm-user-row img, .ccm-user-avatar { width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--group-block-bg); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--primary-color); font-size:13px; }
+        .ccm-user-info strong { display:block; font-size:14px; color:var(--text-color); }
+        .ccm-user-info span { font-size:12px; color:var(--muted-text); }
+        .ccm-empty { font-size:13px; color:var(--muted-text); text-align:center; padding:12px; }
+        .ccm-recipient { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:14px; background:var(--group-block-bg); border:1px solid var(--border-color); }
+        .ccm-change-user { margin-left:auto; padding:7px 14px; border-radius:10px; border:1px solid var(--border-color); background:transparent; color:var(--primary-color); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+        .ccm-change-user:hover { background:rgba(var(--primary-color-rgb),0.1); }
+        .ccm-preview { max-width:100%; max-height:180px; border-radius:12px; border:1px solid var(--border-color); align-self:center; }
+        @media (max-width:480px){ .share-actions { flex-direction:column; } .share-act-btn { width:100%; } .csl-actions { flex-direction:column; } .csl-actions .share-act-btn { width:100%; } }
 
 @media (max-width:768px) {
             :root { --top-bar-height: 64px; }
@@ -452,12 +474,10 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
             .controls-container { justify-content:center; flex-wrap:wrap; }
             .controls-container.open-table-mobile { width:100%; justify-content:stretch; }
             .controls-container.open-table-mobile .add-date-btn {
-                width:100vw;
-                max-width:100vw;
+                width:100%;
+                max-width:100%;
                 display:block;
                 box-sizing:border-box;
-                margin-left:50%;
-                transform:translateX(-50%);
             }
             .table-toolbar { justify-content:stretch; }
             .table-toolbar .search-container, .table-toolbar .search-box { width:100%; }
@@ -519,22 +539,6 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .csl-qr .csl-qr-wrap { padding:14px; border-radius:18px; background:#fff; }
         .csl-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
         .csl-note { margin:0; font-size:12px; color:var(--muted-text); text-align:center; }
-        .ccm-step { display:flex; flex-direction:column; gap:12px; }
-        .ccm-label { font-size:13px; font-weight:700; color:var(--text-color); }
-        .ccm-input { width:100%; box-sizing:border-box; padding:11px 14px; border:1px solid var(--border-color); border-radius:10px; background:var(--group-block-bg); color:var(--text-color); font-family:inherit; font-size:14px; resize:vertical; }
-        .ccm-input:focus { outline:2px solid color-mix(in srgb,var(--primary-color) 64%,#fff); }
-        .ccm-results { display:flex; flex-direction:column; gap:6px; max-height:240px; overflow-y:auto; }
-        .ccm-user-row { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; border:1px solid var(--border-color); background:transparent; cursor:pointer; text-align:left; font-family:inherit; transition:background .18s,border-color .18s; }
-        .ccm-user-row:hover { background:rgba(var(--primary-color-rgb),0.08); border-color:rgba(var(--primary-color-rgb),0.4); }
-        .ccm-user-row img, .ccm-user-avatar { width:32px; height:32px; border-radius:50%; object-fit:cover; background:var(--group-block-bg); display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--primary-color); font-size:13px; }
-        .ccm-user-info strong { display:block; font-size:14px; color:var(--text-color); }
-        .ccm-user-info span { font-size:12px; color:var(--muted-text); }
-        .ccm-empty { font-size:13px; color:var(--muted-text); text-align:center; padding:12px; }
-        .ccm-recipient { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:14px; background:var(--group-block-bg); border:1px solid var(--border-color); }
-        .ccm-change-user { margin-left:auto; padding:7px 14px; border-radius:10px; border:1px solid var(--border-color); background:transparent; color:var(--primary-color); font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; }
-        .ccm-change-user:hover { background:rgba(var(--primary-color-rgb),0.1); }
-        .ccm-preview { max-width:100%; max-height:180px; border-radius:12px; border:1px solid var(--border-color); align-self:center; }
-        @media (max-width:480px){ .share-actions { flex-direction:column; } .share-act-btn { width:100%; } .csl-actions { flex-direction:column; } .csl-actions .share-act-btn { width:100%; } }
             #share-modal .share-chart-container {
                 margin: 10px 0 !important;
                 padding: 10px !important;
@@ -621,6 +625,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         #crop-modal{z-index:30000!important;}
         #crop-modal .modal-content{z-index:30001!important;}
         @media (min-width:769px){.chart-controls-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important;}.chart-controls-row .currency-selector{grid-column:1!important;justify-self:start!important;display:flex!important;flex-wrap:nowrap!important;min-width:0!important;}.chart-controls-row .chart-controls-nav{grid-column:2!important;justify-self:center!important;display:flex!important;gap:8px!important;}.chart-controls-row .chart-controls-actions{grid-column:3!important;justify-self:end!important;display:flex!important;gap:10px!important;align-items:center!important;min-width:0!important;}.chart-controls-row .open-table-desktop,.chart-controls-row .chart-toggle-btn{white-space:nowrap!important;}.chart-controls-row .chart-year{display:none!important;}}
+        @media (orientation:portrait) and (min-width:769px) and (max-width:1024px){.chart-controls-row{grid-template-columns:auto minmax(0,1fr) auto!important;}.chart-controls-row .chart-controls-nav{justify-self:center!important;}}
         @media(max-width:768px){.analytics-summary-grid{grid-template-columns:1fr;}.financial-summary-bar{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;}.financial-summary-bar>div{padding:8px;}.financial-summary-bar span{font-size:10px;margin-bottom:2px;}.financial-summary-bar strong{font-size:14px;}}
     </style>
     <script>

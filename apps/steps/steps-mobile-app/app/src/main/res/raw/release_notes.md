@@ -1,3 +1,17 @@
+## v1.9.34 - 2026-09-29
+
+* 🕒 Fixed health data landing on the wrong day for users east of UTC — distances, calories, sleep and pulse are now counted on the day they happened
+* 👤 The Settings screen shows the default profile icon when no account is connected
+
+## v1.9.33 - 2026-09-29
+
+* 📊 Fixed wrong daily step counts — some days showed the value from the neighbouring day
+
+## v1.9.32 - 2026-09-29
+
+* 📊 Statistics now always comes from your server account when one is connected — the app no longer mixes in unsynced phone data
+* 📱 Phone data is shown only when no account is connected
+
 ## v1.9.30 - 2026-09-25
 
 * 📱 Statistics and Home screens now scroll properly on narrow screens — the update button is always reachable

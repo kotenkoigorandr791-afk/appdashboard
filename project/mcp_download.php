@@ -30,7 +30,7 @@ if ($mcpPath === '' || $mcpPath === 'info') {
     $commands = [];
     $removeCommands = [];
     foreach ($agents as $agent) {
-        $commands[$agent] = 'npx -y ' . $packageUrl . ' setup --agent ' . $agent . ' --url ' . $baseUrl . ' --package ' . $packageUrl;
+        $commands[$agent] = 'npx -y ' . $packageUrl . ' setup --agent ' . $agent . ' --url ' . $baseUrl;
         $removeCommands[$agent] = 'npx -y ' . $packageUrl . ' setup --agent ' . $agent . ' --remove';
     }
     echo json_encode([

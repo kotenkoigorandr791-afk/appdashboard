@@ -198,24 +198,43 @@ function ensureClientAuthTokensSchema(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash TEXT PRIMARY KEY,
         email TEXT NOT NULL,
+        app_id TEXT NOT NULL DEFAULT '',
         device_id TEXT NOT NULL DEFAULT '',
         device_name TEXT NOT NULL DEFAULT '',
         platform TEXT NOT NULL DEFAULT '',
+        token_plain TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         last_used_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at INTEGER NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0
     )");
+    app_client_auth_tokens_ensure_app_column($db);
+    app_client_auth_tokens_ensure_plain_column($db);
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 }
-function createClientAuthToken(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform): array {
+function createClientAuthToken(AppDatabase $db, string $email, string $deviceId, string $deviceName, string $platform, string $appId = ''): array {
     ensureClientAuthTokensSchema($db);
+    $appId = appClientAuthTokenAppId($appId);
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
+    if ($appId === 'steps') {
+        $existing = $db->prepare("SELECT token_plain, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC LIMIT 1");
+        $existing->bindValue(':e', $email, PDO::PARAM_STR);
+        $existing->bindValue(':a', $appId, PDO::PARAM_STR);
+        $existing->bindValue(':t', time(), PDO::PARAM_INT);
+        $row = $existing->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row && (string)($row['token_plain'] ?? '') !== '') return ['token' => (string)$row['token_plain'], 'expires_at' => (int)$row['expires_at']];
+        $revoke = $db->prepare('UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0');
+        $revoke->bindValue(':e', $email, PDO::PARAM_STR);
+        $revoke->bindValue(':a', $appId, PDO::PARAM_STR);
+        $revoke->execute();
+    }
     if ($deviceId !== '' && $deviceId !== 'mcp_external') {
-        $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND device_id = :d');
+        $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND app_id = :a AND device_id = :d');
         $del->bindValue(':e', $email, PDO::PARAM_STR);
+        $del->bindValue(':a', $appId, PDO::PARAM_STR);
         $del->bindValue(':d', $deviceId, PDO::PARAM_STR);
         $del->execute();
     }
@@ -223,12 +242,14 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $tokenHash = hash('sha256', $rawToken);
     $now = time();
     $expiresAt = $now + (180 * 24 * 3600);
-    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:d,:n,:p,:c,:u,:x,0)");
+    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,app_id,device_id,device_name,platform,token_plain,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:a,:d,:n,:p,:tp,:c,:u,:x,0)");
     $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
     $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
     $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
     $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
+    $stmt->bindValue(':tp', $appId === 'steps' ? $rawToken : '', PDO::PARAM_STR);
     $stmt->bindValue(':c', $now, PDO::PARAM_INT);
     $stmt->bindValue(':u', $now, PDO::PARAM_INT);
     $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);
@@ -332,6 +353,11 @@ function loginUserSession(string $email, array $users): bool {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    try {
+        bindCookieConsentToEmail(getConsentDeviceId(), $email);
+    } catch (Throwable $e) {
+        error_log('[cookie_consent] bind failed: ' . $e->getMessage());
+    }
     if (!headers_sent() && app_cookie_consent_allows('preferences')) {
         app_cookie_consent_set('sk_user_has_account', '1', time() + 365 * 86400);
         ap_write_pref_cookies($users[$email]);
@@ -394,7 +420,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
     $needsAuth=false;
     $showLogin=false;
 }else{
-    $authTimeout=appAuthTimeoutSeconds();
+    $authTimeout=isset($_SESSION['user']['email'])?activeSessionTtlSeconds((string)$_SESSION['user']['email']):appAuthTimeoutSeconds();
     $oauthRedirectUri=oauthLoginRedirectUri();
     $googleRedirectUri=$oauthRedirectUri;
     $needsAuth=false;
@@ -503,20 +529,20 @@ if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
         if ($deviceId === '') json_out(['ok' => false, 'error' => 'missing_device_id'], 400);
         $record = getCookieConsentRecord($deviceId);
         $status = (string)($record['status'] ?? '');
-        if (in_array($status, ['accepted', 'declined'], true)) {
-            $choices = [];
-            foreach (APP_COOKIE_CONSENT_OPTIONAL as $category) {
-                $categoryStatus = (string)(getCookieConsentRecord($deviceId, $category)['status'] ?? $status);
-                $choices[$category] = $categoryStatus === 'accepted';
-            }
-            app_cookie_consent_write($choices['preferences'], $choices['analytics']);
+        $categoryStatuses = getCookieConsentCategoryStatuses($deviceId);
+        if (in_array($status, APP_COOKIE_CONSENT_DECIDED_STATUSES, true)) {
+            $resolved = app_cookie_consent_resolve($status, $categoryStatuses);
+            app_cookie_consent_write($resolved['preferences'], $resolved['analytics']);
+            $consent = $resolved;
+        } else {
+            $consent = app_cookie_consent();
         }
-        $consent = app_cookie_consent();
         json_out([
             'ok' => true,
             'device_id' => $deviceId,
             'has_record' => $record !== null,
             'status' => $status,
+            'categories' => $categoryStatuses,
             'consent' => $consent,
             'should_prompt' => !$consent['decided'],
         ]);
@@ -529,15 +555,17 @@ if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
     if ($action === 'save_cookie_consent') {
         if ($deviceId === '') json_out(['ok' => false, 'error' => 'missing_device_id'], 400);
         $status = trim((string)($input['status'] ?? ''));
-        if (!in_array($status, ['accepted', 'declined', 'custom'], true)) {
+        if (!in_array($status, [APP_COOKIE_CONSENT_STATUS_ACCEPTED, APP_COOKIE_CONSENT_STATUS_DECLINED, APP_COOKIE_CONSENT_STATUS_CUSTOM], true)) {
             json_out(['ok' => false, 'error' => 'invalid_status'], 400);
         }
         $choices = [];
         foreach (APP_COOKIE_CONSENT_OPTIONAL as $category) {
-            $choices[$category] = array_key_exists($category, $input) ? !empty($input[$category]) : $status === 'accepted';
-            saveCookieConsentDecision($deviceId, $choices[$category] ? 'accepted' : 'declined', $email, $category);
+            $choices[$category] = array_key_exists($category, $input) ? !empty($input[$category]) : $status === APP_COOKIE_CONSENT_STATUS_ACCEPTED;
+            saveCookieConsentDecision($deviceId, $choices[$category] ? APP_COOKIE_CONSENT_STATUS_ACCEPTED : APP_COOKIE_CONSENT_STATUS_DECLINED, $email, $category);
         }
-        $status = in_array(false, $choices, true) ? 'declined' : 'accepted';
+        if ($status !== APP_COOKIE_CONSENT_STATUS_CUSTOM) {
+            $status = in_array(false, $choices, true) ? APP_COOKIE_CONSENT_STATUS_DECLINED : APP_COOKIE_CONSENT_STATUS_ACCEPTED;
+        }
         saveCookieConsentDecision($deviceId, $status, $email);
         app_cookie_consent_write($choices['preferences'], $choices['analytics']);
         json_out(['ok' => true, 'status' => $status, 'consent' => app_cookie_consent()]);
@@ -573,7 +601,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         }
         if ($email !== 'root@root' && empty($users[$email]['verified'])) json_out(['ok' => false, 'error' => 'email_not_verified'], 403);
         if (!loginUserSession($email, $users)) json_out(['ok' => false, 'error' => 'login_failed'], 500);
-        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform);
+        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform, 'cloud');
         json_out(['ok' => true, 'redirect' => '/main', 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '']]);
     }
     if ($action === 'token_login') {
@@ -605,7 +633,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $deviceId = trim((string)($input['device_id'] ?? ''));
         $deviceName = trim((string)($input['device_name'] ?? ''));
         $platform = trim((string)($input['platform'] ?? ''));
-        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform);
+        $tokenData = createClientAuthToken($db, $email, $deviceId, $deviceName, $platform, 'cloud');
         json_out(['ok' => true, 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'redirect' => '/main', 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '']]);
     }
     if ($action === 'create_browser_login') {
@@ -700,7 +728,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $email = (string)$_SESSION['user']['email'];
         $users = loadUsers();
         if (!isset($users[$email])) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
-        $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), (string)($row['platform'] ?? ''));
+        $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), (string)($row['platform'] ?? ''), 'cloud');
         $upd = $db->prepare("UPDATE client_auth_browser_requests SET status = 'approved', email = :e, issued_token = :t, approved_at = :a WHERE request_id = :r");
         $upd->bindValue(':e', $email, PDO::PARAM_STR);
         $upd->bindValue(':t', $tokenData['token'], PDO::PARAM_STR);
@@ -1397,7 +1425,42 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
                     'user_photo' => app_avatar_src($row['user_photo'] ?? null),
                 ];
             }
-            json_out(['ok' => true, 'chats' => $chats]);
+            // Admins also take part in peer chats, so include those the same way
+            // the non-admin branch does; otherwise shared media never shows up
+            // in the list for the admin.
+            $me = normalizeChatEmail($userEmail);
+            $peerStmt = $db->prepare("SELECT sc.user_email, sc.recipient_email, MAX(COALESCE(sc.edited_at, sc.created_at)) AS last_message_time, COUNT(*) AS message_count FROM support_chat sc WHERE sc.chat_type = 'peer' AND (sc.user_email = :me OR sc.recipient_email = :me2) AND COALESCE(sc.is_deleted,0)=0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :me3 AND h.chat_type = 'peer' AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = COALESCE(sc.recipient_email,'')) GROUP BY sc.user_email, sc.recipient_email ORDER BY last_message_time DESC");
+            $peerStmt->bindValue(':me', $me, PDO::PARAM_STR);
+            $peerStmt->bindValue(':me2', $me, PDO::PARAM_STR);
+            $peerStmt->bindValue(':me3', $me, PDO::PARAM_STR);
+            $peerChats = [];
+            $peerRes = $peerStmt->execute();
+            while ($row = $peerRes->fetch(PDO::FETCH_ASSOC)) {
+                $other = normalizeChatEmail($row['user_email']) === $me ? $row['recipient_email'] : $row['user_email'];
+                $other = normalizeChatEmail((string)$other);
+                if ($other === '') continue;
+                $uStmt = $db->prepare('SELECT email, name, role, photo FROM users WHERE lower(email) = :email LIMIT 1');
+                $uStmt->bindValue(':email', $other, PDO::PARAM_STR);
+                $u = $uStmt->execute()->fetch(PDO::FETCH_ASSOC) ?: [];
+                $blockedStmt = $db->prepare('SELECT 1 FROM chat_blocks WHERE blocker_email = :me AND blocked_email = :other LIMIT 1');
+                $blockedStmt->bindValue(':me', $me, PDO::PARAM_STR);
+                $blockedStmt->bindValue(':other', $other, PDO::PARAM_STR);
+                $peerChats[] = [
+                    'chat_type' => 'peer',
+                    'user_email' => (string)$row['user_email'],
+                    'recipient_email' => (string)$row['recipient_email'],
+                    'peer_email' => $other,
+                    'user_name' => (string)($u['name'] ?? $other),
+                    'last_message_time' => (int)($row['last_message_time'] ?? 0),
+                    'message_count' => (int)($row['message_count'] ?? 0),
+                    'user_role' => (int)($u['role'] ?? 0),
+                    'user_photo' => app_avatar_src($u['photo'] ?? null),
+                    'is_blocked_by_me' => (bool)$blockedStmt->execute()->fetch(PDO::FETCH_ASSOC),
+                ];
+            }
+            $chats = array_merge($chats, $peerChats);
+            usort($chats, static fn(array $a, array $b): int => ($b['last_message_time'] ?? 0) <=> ($a['last_message_time'] ?? 0));
+            json_out(['ok' => true, 'chats' => $chats, 'sections' => ['support' => array_values(array_filter($chats, static fn(array $c): bool => $c['chat_type'] === 'support')), 'people' => $peerChats]]);
         }
         $me = normalizeChatEmail($userEmail);
         $supportStmt = $db->prepare("SELECT MAX(COALESCE(edited_at, created_at)) AS last_message_time, COUNT(*) AS message_count FROM support_chat sc WHERE sc.chat_type = 'support' AND sc.user_email = :me AND COALESCE(sc.is_deleted,0)=0 AND NOT EXISTS (SELECT 1 FROM chat_hidden h WHERE h.email = :me2 AND h.chat_type = 'support' AND h.user_email = sc.user_email AND COALESCE(h.recipient_email,'') = '')");

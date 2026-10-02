@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 const ADMIN_CAPABILITIES = ['users', 'ssh', 'files', 'docker', 'secrets', 'integrations', 'database'];
-const ADMIN_SESSION_IDLE_SECONDS = 7200;
+const ADMIN_SESSION_IDLE_SECONDS = 3600;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 function adminSecurityEnsureSchema(): void {
@@ -245,6 +245,13 @@ function adminEstablishSession(string $email, array $user): void {
     setLastActiveUser($email);
     cleanupExpiredUserSessions($email);
     addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    try {
+        if (function_exists('bindCookieConsentToEmail')) {
+            bindCookieConsentToEmail(function_exists('getConsentDeviceId') ? getConsentDeviceId() : '', $email);
+        }
+    } catch (Throwable $e) {
+        error_log('[cookie_consent] bind failed: ' . $e->getMessage());
+    }
 }
 
 function adminPanelCookieName(): string {

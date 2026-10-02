@@ -180,7 +180,11 @@ server {
         rewrite ^ /privacy.html last;
     }
     location = /main {
-        rewrite ^ /index.php last;
+        if ($request_uri ~* "^/main(#.*)$") {
+            set $original_uri $1;
+            rewrite ^/main(.*)$ /index.php?_original_uri=$original_uri last;
+        }
+        rewrite ^/main(.*)$ /index.php?_original_uri=$request_uri last;
     }
     location = /login {
         limit_req zone=appdashboard_auth burst=20 nodelay;
@@ -245,8 +249,12 @@ server {
 
     location ^~ /embed/git/ {
         absolute_redirect off;
-        proxy_pass __GITEA_UPSTREAM__/;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $gitea_backend __GITEA_UPSTREAM__;
+        rewrite ^/embed/git(?<gitea_path>/.*)$ $gitea_path break;
+        proxy_pass $gitea_backend$uri$is_args$args;
         proxy_http_version 1.1;
+        proxy_ssl_server_name on;
         proxy_set_header Host $host;
         proxy_set_header Accept-Encoding "";
         proxy_set_header X-Real-IP $remote_addr;
@@ -284,8 +292,12 @@ server {
 
     location ^~ /embed/photo/ {
         absolute_redirect off;
-        proxy_pass __IMMICH_UPSTREAM__/;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $immich_backend __IMMICH_UPSTREAM__;
+        rewrite ^/embed/photo(?<immich_path>/.*)$ $immich_path break;
+        proxy_pass $immich_backend$uri$is_args$args;
         proxy_http_version 1.1;
+        proxy_ssl_server_name on;
         proxy_set_header Host $host;
         proxy_set_header Accept-Encoding "";
         proxy_set_header X-Real-IP $remote_addr;
@@ -612,6 +624,13 @@ server {
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
+    }
+
+    # Internal PHP includes under /project/ must never be requested directly:
+    # they rely on the bootstrap chain and would leak paths via fatal errors.
+    # Legitimate public API endpoints under /project/ are allow-listed.
+    location ~ ^/project/(?!weather_settings\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$).*\.php$ {
+        return 404;
     }
 
     location ^~ /preview/ {

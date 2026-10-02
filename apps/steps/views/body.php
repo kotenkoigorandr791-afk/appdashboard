@@ -328,6 +328,9 @@ $metricButtons = [
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
                                 <?php echo htmlspecialchars($translations['mobile_app_qr_generate'] ?? 'Generate'); ?>
                             </button>
+                            <button type="button" id="mobile-app-token-revoke" class="ma-qr-generate" style="display:none;">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                                <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
                             </button>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['mobile_app_scan_title'] ?? 'Scan to Pair'); ?></h3>
@@ -942,6 +945,7 @@ $metricButtons = [
             const qrFrame=document.getElementById('mobile-app-qr-code');
             const placeholder=modal ? modal.querySelector('.ma-qr-placeholder') : null;
             const genBtn=document.getElementById('mobile-app-qr-generate');
+            const revokeBtn=document.getElementById('mobile-app-token-revoke');
             const hintBtn=document.getElementById('mobile-app-manual-hint');
 
             const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint); ?>;
@@ -957,6 +961,7 @@ $metricButtons = [
             const hintToken=document.getElementById('manual-pair-token');
             const regenBtn=document.getElementById('manual-pair-regenerate');
             const regenLabel=regenBtn ? regenBtn.innerHTML : '';
+            const revokeLabel=revokeBtn ? revokeBtn.innerHTML : '';
             const noTokenMsg=<?php echo json_encode($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.'); ?>;
 
             function refreshHintFields(){
@@ -1099,6 +1104,7 @@ $metricButtons = [
                     fd.append('generate_mcp_token','1');
                     fd.append('ajax','1');
                     fd.append('mcp_token_name','Health Connect');
+                    fd.append('token_app','steps');
                     const opts={method:'POST',body:fd,credentials:'same-origin'};
                     if(csrf){
                         fd.append('_csrf',csrf);
@@ -1125,11 +1131,39 @@ $metricButtons = [
                     if(placeholder) placeholder.style.display='none';
                     if(qrFrame){ qrFrame.style.display='flex'; qrFrame.innerHTML=''; await renderPairingQr(qrFrame, pairing.link); }
                     if(genBtn) genBtn.style.display='none';
+                    if(revokeBtn) revokeBtn.style.display='';
                     refreshHintFields();
                 }catch(e){
                     console.error('Pairing QR error:',e);
                     showErr(String(e && e.message ? e.message : e));
                 }
+            }
+            async function revokeToken(){
+                async function fetchCsrf(){
+                    try{
+                        const r=await fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'});
+                        const d=await r.json().catch(()=>null);
+                        return d&&d.csrf?String(d.csrf):'';
+                    }catch(e){ return ''; }
+                }
+                const csrf=await fetchCsrf();
+                const fd=new FormData();
+                fd.append('action','revoke_mcp_token');
+                fd.append('revoke_mcp_token','1');
+                fd.append('ajax','1');
+                fd.append('token_app','steps');
+                if(csrf) fd.append('_csrf',csrf);
+                const opts={method:'POST',body:fd,credentials:'same-origin'};
+                if(csrf) opts.headers={'X-CSRF-TOKEN':csrf};
+                const res=await fetch('/main',opts);
+                const data=await res.json().catch(()=>null);
+                if(!data||!data.success) throw new Error((data&&data.error)||'Token revoke failed');
+                pairing={token:'',link:''};
+                if(qrFrame){ qrFrame.innerHTML=''; qrFrame.style.display='none'; }
+                if(placeholder) placeholder.style.display='';
+                if(genBtn) genBtn.style.display='';
+                if(revokeBtn) revokeBtn.style.display='none';
+                refreshHintFields();
             }
 
             genBtn?.addEventListener('click', async ()=>{
@@ -1138,6 +1172,18 @@ $metricButtons = [
                     await generateQr();
                 }finally{
                     if(genBtn) genBtn.disabled=false;
+                }
+            });
+            revokeBtn?.addEventListener('click', async ()=>{
+                if(!revokeBtn || revokeBtn.disabled) return;
+                revokeBtn.disabled=true;
+                try{
+                    await revokeToken();
+                }catch(e){
+                    console.error('Pairing token revoke error:',e);
+                }finally{
+                    revokeBtn.disabled=false;
+                    revokeBtn.innerHTML=revokeLabel;
                 }
             });
         })();

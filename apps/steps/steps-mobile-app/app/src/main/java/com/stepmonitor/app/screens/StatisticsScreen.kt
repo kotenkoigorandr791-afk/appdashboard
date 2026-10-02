@@ -85,17 +85,27 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     var androidStepsError by remember { mutableStateOf<String?>(null) }
     var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
+    val connected = config != null
     val selectedDate = LocalDate.now().plusDays(dayOffset.toLong())
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
     suspend fun load(force: Boolean = false) {
-        state = fetchYearStats(config, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force)
+        state = config?.let { fetchYearStats(it, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force) } ?: StatsState()
     }
     suspend fun loadLocalMonth() {
+        if (connected) {
+            localMonthSteps = emptyMap()
+            return
+        }
         val cached = cachedMonthSteps(chartMonth, prefs)
         val fresh = readAndroidMonthSteps(context, chartMonth)
         localMonthSteps = cached + fresh
     }
     suspend fun loadAndroidSteps(force: Boolean = false) {
+        if (connected) {
+            androidSteps = null
+            androidStepsError = null
+            return
+        }
         androidStepsError = null
         if (!force) {
             prefs.getAndroidStepsCache(selectedDate.toString(), ANDROID_CACHE_MAX_AGE_MS)?.let {
@@ -127,12 +137,15 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(chartMonth, currentConfigUrl) {
         loadLocalMonth()
     }
-    LaunchedEffect(selectedDate) {
+    LaunchedEffect(selectedDate, currentConfigUrl) {
         while (true) {
             loadAndroidSteps()
             delay(ANDROID_CACHE_MAX_AGE_MS)
         }
     }
+    val monthSteps = if (connected) state.steps else localMonthSteps
+    val daySteps = if (connected) state.steps[selectedDate] ?: 0L else androidSteps ?: 0L
+    val dayStepsError = if (connected) null else androidStepsError
     Column(
         modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -145,8 +158,8 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Text(selectedDate.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                     IconButton(onClick = { if (dayOffset < 0) dayOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
                 }
-                Text("${stringResource(R.string.stats_steps)}: ${androidSteps ?: 0}", style = MaterialTheme.typography.headlineSmall)
-                androidStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Text("${stringResource(R.string.stats_steps)}: ${NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps)}", style = MaterialTheme.typography.headlineSmall)
+                dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
@@ -156,17 +169,17 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
                 }
-                StepsChart(localMonthSteps + state.steps, chartMonth)
+                StepsChart(monthSteps, chartMonth)
             }
         }
-        if (currentConfigUrl == null && (localMonthSteps.isNotEmpty() || state.steps.isNotEmpty())) {
+        if (!connected && localMonthSteps.isNotEmpty()) {
             Text(stringResource(R.string.stats_local_data), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         Button(onClick = { scope.launch { load(true); loadAndroidSteps(true); loadLocalMonth() } }, modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.dashboard_refresh))
         }
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        state.byDay[selectedDate].orEmpty().forEach { metric ->
+        if (connected) state.byDay[selectedDate].orEmpty().forEach { metric ->
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -335,17 +348,10 @@ private suspend fun readAndroidMonthSteps(context: android.content.Context, mont
             .also { map -> map.forEach { (date, count) -> prefs.setAndroidStepsCache(date.toString(), count) } }
     }.getOrElse { cachedMonthSteps(month, prefs) }
 }
-private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDataType>, prefs: PreferencesManager, force: Boolean = false): StatsState = withContext(Dispatchers.IO) {
-    if (config == null) {
-        return@withContext prefs.getStatsCache(Long.MAX_VALUE)?.let { json ->
-            runCatching {
-                parseServerMetrics(JSONObject(json).optJSONArray("metrics") ?: JSONArray(), enabled, JSONObject(json).optJSONArray("steps") ?: JSONArray())
-            }.getOrNull() ?: StatsState()
-        } ?: StatsState()
-    }
+private suspend fun fetchYearStats(config: WebhookConfig, enabled: Set<HealthDataType>, prefs: PreferencesManager, force: Boolean = false): StatsState = withContext(Dispatchers.IO) {
     if (!force) {
         prefs.getStatsCache(STATS_CACHE_MAX_AGE_MS)?.let {
-            return@withContext runCatching { parseServerMetrics(JSONObject(it).optJSONArray("metrics") ?: JSONArray(), enabled, JSONObject(it).optJSONArray("steps") ?: JSONArray()) }.getOrNull() ?: StatsState()
+            return@withContext parseStatsCache(it, enabled) ?: StatsState()
         }
     }
     runCatching {
@@ -372,7 +378,20 @@ private suspend fun fetchYearStats(config: WebhookConfig?, enabled: Set<HealthDa
             .put("steps", JSONObject(stepsBody).optJSONArray("steps"))
         prefs.setStatsCache(combined.toString())
         parseServerMetrics(combined.optJSONArray("metrics") ?: JSONArray(), enabled, combined.optJSONArray("steps") ?: JSONArray())
-    }.getOrElse { StatsState(error = it.message) }
+    }.getOrElse { failure ->
+        parseStatsCache(prefs.getStatsCache(Long.MAX_VALUE), enabled)?.copy(error = failure.message)
+            ?: StatsState(error = failure.message)
+    }
+}
+private fun parseStatsCache(json: String?, enabled: Set<HealthDataType>): StatsState? {
+    val cached = json ?: return null
+    return runCatching {
+        parseServerMetrics(
+            JSONObject(cached).optJSONArray("metrics") ?: JSONArray(),
+            enabled,
+            JSONObject(cached).optJSONArray("steps") ?: JSONArray()
+        )
+    }.getOrNull()
 }
 private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, serverSteps: JSONArray = JSONArray()): StatsState {
     val byDay = mutableMapOf<LocalDate, List<StatMetric>>()
@@ -397,7 +416,7 @@ private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, s
             return if (meters.isNaN()) 0.0 else meters
         }
         val stepTotal = total("steps").toLong()
-        if (HealthDataType.STEPS in enabled && stepTotal > 0) {
+        if (HealthDataType.STEPS in enabled && stepTotal > 0 && date !in steps) {
             steps[date] = stepTotal
         }
         val candidates = listOf(

@@ -185,12 +185,7 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
     syncSelection();
     const selectedToken = getSelectedToken();
 
-    const tokenCount = tokens.length;
-    const isFirstToken = (index) => index === 0;
-    const isLastToken = (index) => index === tokenCount - 1;
-
-    console.log('Rendering tokens list, count:', tokens.length, 'selected:', selectedTokenHash);
-    tokensListContainer.innerHTML = tokens.map((token, index) => {
+    tokensListContainer.innerHTML = tokens.map((token) => {
       const isSelected = token.token_hash === selectedTokenHash;
       const deviceName = escapeHtml(token.device_name || tr('unknownDevice', 'Unknown Device'));
       const platform = escapeHtml(token.platform || tr('unknownPlatform', 'Unknown Platform'));
@@ -198,15 +193,10 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       const lastUsed = escapeHtml(formatDateTime(token.last_used_at));
       const expiresAt = escapeHtml(formatDate(token.expires_at));
 
-      let borderRadius = '0';
-      isFirstToken(index) && (borderRadius = '8px 8px 0 0');
-      isLastToken(index) && (borderRadius = '0 0 8px 8px');
-      console.log('Token', index, 'isFirst:', isFirstToken(index), 'isLast:', isLastToken(index), 'borderRadius:', borderRadius);
-
       return `<button type="button"
         class="token-item${isSelected ? ' selected' : ''}"
         data-token-hash="${escapeHtml(token.token_hash)}"
-        style="width:100%;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--border);background:${isSelected ? 'rgba(var(--accent-rgb), 0.16)' : 'transparent'};color:var(--fg);cursor:pointer;transition:background .15s ease, box-shadow .15s ease;color:var(--fg);box-shadow:${isSelected ? 'none' : 'none'};border-radius:${borderRadius};">
+        style="width:100%;text-align:left;padding:12px 14px;border:0;border-bottom:1px solid var(--border);background:${isSelected ? 'rgba(var(--accent-rgb), 0.16)' : 'transparent'};color:var(--fg);cursor:pointer;transition:background .15s ease, box-shadow .15s ease;color:var(--fg);box-shadow:none;border-radius:0;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">
             <strong style="font-size:13px;color:var(--fg);">${deviceName}</strong>
             <span style="font-size:11px;color:${isSelected ? 'var(--accent)' : 'var(--fg-secondary)'};">${platform}</span>

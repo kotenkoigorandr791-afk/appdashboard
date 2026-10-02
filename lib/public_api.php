@@ -139,10 +139,13 @@ function public_api_auth_user(bool $requireDevice = true): array {
     }
     public_api_reset_fails('login');
     $email = (string)($row['email'] ?? '');
+    $_SESSION['public_api_token_app_id'] = (string)($row['app_id'] ?? '');
     public_api_apply_user($email);
     return ['email' => $email, 'token_row' => $row];
 }
 function public_api_check_app(string $app): void {
+    $tokenApp = (string)($_SESSION['public_api_token_app_id'] ?? '');
+    if ($tokenApp !== '' && $tokenApp !== 'public_api' && $tokenApp !== $app) public_api_json(['ok' => false, 'error' => 'invalid_token_app'], 403);
     $role = (int)($_SESSION['user']['role'] ?? 0);
     if (!userMeetsAppMinRole($role, $app)) public_api_json(['ok' => false, 'error' => 'app_forbidden'], 403);
     if (appAccessRequestBlocked()) public_api_json(['ok' => false, 'error' => 'app_forbidden'], 403);

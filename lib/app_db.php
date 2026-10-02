@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/db_config.php';
 require_once __DIR__ . '/pgsql_compat.php';
+require_once __DIR__ . '/db_auth_security.php';
 function app_main_db(): AppDatabase {
     return app_open_main_db();
 }

@@ -16,10 +16,10 @@ function app_sentry_bootstrap(string $appId): void
             return;
         }
         \Sentry\init([
-            'dsn' => (string)(getenv('SENTRY_DSN') ?: 'https://d1dce542fdd62eb4e5cc6dae1a4cc7ac@o4512096935280640.ingest.de.sentry.io/4512096937902160'),
+            'dsn' => (string)(getenv('SENTRY_DSN') ?: 'https://ba5ecc6db1bf4b3491c6247dc6903e47@sentry.serverkherson.xyz/1'),
             'environment' => (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production')),
             'release' => (string)(getenv('SENTRY_RELEASE') ?: ''),
-            'traces_sample_rate' => (float)(getenv('SENTRY_TRACES_SAMPLE_RATE') ?: 0.1),
+            'traces_sample_rate' => (float)(getenv('SENTRY_TRACES_SAMPLE_RATE') ?: 0.01),
             'error_types' => E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED,
             'before_send' => static function ($event, $hint = null) {
                 $exception = is_object($hint) && property_exists($hint, 'exception') ? $hint->exception : null;
@@ -52,12 +52,12 @@ function app_sentry_capture_exception(Throwable $exception): void
 
 function app_sentry_browser_script(string $appId): void
 {
-    $dsn = (string)(getenv('SENTRY_BROWSER_DSN') ?: (getenv('SENTRY_DSN') ?: 'https://d1dce542fdd62eb4e5cc6dae1a4cc7ac@o4512096935280640.ingest.de.sentry.io/4512096937902160'));
+    $dsn = (string)(getenv('SENTRY_BROWSER_DSN') ?: (getenv('SENTRY_DSN') ?: 'https://ba5ecc6db1bf4b3491c6247dc6903e47@sentry.serverkherson.xyz/1'));
     if ($dsn === '' || !app_cookie_consent_allows('analytics')) {
         return;
     }
     $environment = (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production'));
     $release = (string)(getenv('SENTRY_RELEASE') ?: '');
     echo '<script src="https://browser.sentry-cdn.com/8.55.0/bundle.min.js" crossorigin="anonymous"></script>';
-    echo '<script>(function(){if(!window.Sentry)return;Sentry.init({dsn:' . json_encode($dsn) . ',environment:' . json_encode($environment) . ',release:' . json_encode($release) . ',tracesSampleRate:0.1,initialScope:{tags:{app:' . json_encode($appId) . '}}});var unloading=false;addEventListener("pagehide",function(){unloading=true});addEventListener("beforeunload",function(){unloading=true});var isNetworkAbort=function(e){return e&&(e.name==="AbortError"||(e.name==="TypeError"&&/fetch|load failed|network/i.test(e.message||"")))};var original=console.error;console.error=function(){var args=[].slice.call(arguments);try{var err=args.find(function(v){return v instanceof Error});if(!(err&&unloading&&isNetworkAbort(err))){var text=args.map(function(v){if(typeof v==="string")return v;if(v instanceof Error)return v.name+": "+v.message;try{return JSON.stringify(v)}catch(e){return String(v)}}).join(" ");if(err)Sentry.captureException(err,{extra:{console:text}});else Sentry.captureMessage(text,"error");}}catch(e){}return original.apply(console,args);};})();</script>';
+    echo '<script>(function(){if(!window.Sentry)return;Sentry.init({dsn:' . json_encode($dsn) . ',environment:' . json_encode($environment) . ',release:' . json_encode($release) . ',tracesSampleRate:0.01,initialScope:{tags:{app:' . json_encode($appId) . '}}});var unloading=false;addEventListener("pagehide",function(){unloading=true});addEventListener("beforeunload",function(){unloading=true});var isNetworkAbort=function(e){return e&&(e.name==="AbortError"||(e.name==="TypeError"&&/fetch|load failed|network/i.test(e.message||"")))};var original=console.error;console.error=function(){var args=[].slice.call(arguments);try{var err=args.find(function(v){return v instanceof Error});if(!(err&&unloading&&isNetworkAbort(err))){var text=args.map(function(v){if(typeof v==="string")return v;if(v instanceof Error)return v.name+": "+v.message;try{return JSON.stringify(v)}catch(e){return String(v)}}).join(" ");if(err)Sentry.captureException(err,{extra:{console:text}});else Sentry.captureMessage(text,"error");}}catch(e){}return original.apply(console,args);};})();</script>';
 }

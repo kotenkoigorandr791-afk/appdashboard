@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Download
@@ -223,12 +224,21 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    key(profilePhotoModel) {
-                        AsyncImage(
-                            model = profilePhotoModel,
+                    if (profilePhotoModel != null) {
+                        key(profilePhotoModel) {
+                            AsyncImage(
+                                model = profilePhotoModel,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.size(56.dp).clip(CircleShape)
+                            )
+                        }
+                    } else {
+                        Icon(
+                            Icons.Filled.AccountCircle,
                             contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.size(56.dp).clip(CircleShape)
+                            modifier = Modifier.size(56.dp).clip(CircleShape),
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     Column(Modifier.weight(1f)) {

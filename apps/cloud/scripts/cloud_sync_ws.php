@@ -80,7 +80,7 @@ function csws_auth_token(string $token): ?string {
     if (!$db) return null;
     try {
         ensure_client_auth_tokens_table();
-        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt = $db->prepare("SELECT email FROM client_auth_tokens WHERE token_hash = :h AND app_id = 'cloud' AND revoked = 0 AND expires_at > :now LIMIT 1");
         $stmt->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);

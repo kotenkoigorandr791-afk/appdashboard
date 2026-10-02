@@ -499,8 +499,8 @@ uk: {
     { id: 'steps', name: 'Steps Counter' }
   ];
 
-  // Real app icons from each app directory; portal keeps the inline grid icon.
-  const APP_ICON_URL = id => 'apps/' + id + '/icon.svg';
+  // Real app icons from each app's icons/ folder; portal keeps the inline grid icon.
+  const APP_ICON_URL = id => 'apps/' + id + '/icons/multicolor.svg';
   const iconHtml = id => `<img class="app-real-icon" src="${APP_ICON_URL(id)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{textContent:'▪'}))">`;
 
   const ICONS = {

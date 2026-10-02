@@ -40,6 +40,12 @@ function hc_safe_date_from_time_value(mixed $v): ?string {
 }
 
 function hc_extract_record_date(array $record): ?string {
+    // The phone reports the local calendar day it observed the record in. Timestamps
+    // are UTC, so deriving the day from them lands on the previous day for any device
+    // east of UTC and pollutes the neighbouring day file. Prefer the reported day.
+    if (is_string($record['date'] ?? null) && preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$record['date'])) {
+        return (string)$record['date'];
+    }
     // Sleep sessions in mobile payload don't provide a top-level start_time.
     // Use the earliest stage start day so the chart matches the day the user
     // actually started sleeping (not the day it ended).

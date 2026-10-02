@@ -5,8 +5,10 @@ header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Auth-Token');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit(0); }
-session_start();
+require_once __DIR__ . '/lib/app_session.php';
+app_session_start();
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/lib/admin_security.php';
 require_once __DIR__ . '/smart_log.php';
 smart_log_bootstrap('dashboard');
 // Get URL parameters for theme and accent color
@@ -45,14 +47,17 @@ if (!isset($_SESSION['user']) && isset($activeSession['user_data'])) {
     $_SESSION['auth_time'] = $activeSession['last_activity'];
 }
 
-$backupDashRole = $backupDashLoggedIn ? (int)($_SESSION['user']['role'] ?? $activeSession['user_data']['role'] ?? 0) : -1;
-if ($backupDashRole < 2 && !backupDashboardIsEmbeddedRequest()) {
+// Same gate as the Performance monitor: the admin panel password must have
+// been confirmed for this session before any backup data is exposed.
+if (!adminPanelGateValid()) {
+    adminAuditLog('admin_gate_required', 'backup_dashboard', 'denied');
     backupDashboardDeny(
         403,
-        'Opening this page in a separate window is allowed only for administrators. Use the Backup section inside the Admin Panel.',
-        'Forbidden: use embedded admin panel or log in as admin (role 2)'
+        'Opening this page requires an unlocked Admin Panel. Open Backup inside the Admin Panel.',
+        'Forbidden: admin panel gate required'
     );
 }
+session_write_close();
 function dupBackupCryptKeyBinary(): string {
     $env = getenv('BACKUP_DASHBOARD_CRYPT_KEY');
     if ($env !== false && $env !== '') {

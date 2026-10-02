@@ -1218,13 +1218,21 @@ function getShareChartData(){
     return cd;
 }
 function shareChartOptions(isMobile,titleSize){
-    return {responsive:false,maintainAspectRatio:false,animation:false,scales:{y:{beginAtZero:true,title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'#333'},ticks:{color:'#333'}},x:{title:{display:true,text:t('chart_month','Month'),color:'#333'},ticks:{color:'#333'}}},plugins:{legend:{labels:{color:'#333'}},title:{display:true,text:`${t('expense_tracker_title','Expense Tracker')} - ${currentChartYear}`,color:'#333',font:{size:titleSize||(isMobile?14:18),weight:'bold'}}}};
+    // Fixed light palette: the export is a standalone PNG shown in the
+    // messenger, where a transparent background makes axis labels unreadable.
+    // Chart.js clears the canvas on every redraw, so the opaque backdrop is
+    // repainted by the shareOpaqueBg plugin registered below.
+    const grid='rgba(0,0,0,.12)',tick='#4a4a4a',text='#1f1f1f';
+    return {responsive:false,maintainAspectRatio:false,animation:false,scales:{y:{beginAtZero:true,grid:{color:grid,drawBorder:true,borderColor:grid},title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:tick,font:{size:titleSize||(isMobile?13:16)}},ticks:{color:tick,font:{size:titleSize||(isMobile?11:14)}}},x:{grid:{color:grid,drawBorder:true,borderColor:grid},title:{display:true,text:t('chart_month','Month'),color:tick,font:{size:titleSize||(isMobile?13:16)}},ticks:{color:tick,font:{size:titleSize||(isMobile?11:14)}}}},plugins:{legend:{labels:{color:text,font:{size:titleSize||(isMobile?12:15)},usePointStyle:true,boxWidth:8}},shareOpaqueBg:{enabled:true},title:{display:true,text:`${t('expense_tracker_title','Expense Tracker')} - ${currentChartYear}`,color:text,font:{size:titleSize||(isMobile?14:18),weight:'bold'}}}};
+}
+if(window.Chart&&!Chart.__shareOpaqueBgRegistered){
+    Chart.__shareOpaqueBgRegistered=true;
+    Chart.register({id:'shareOpaqueBg',beforeDraw(c){if(!c.options?.plugins?.shareOpaqueBg?.enabled)return;const ctx=c.ctx,w=c.width,h=c.height;ctx.save();ctx.globalCompositeOperation='destination-over';ctx.fillStyle='#ffffff';ctx.fillRect(0,0,w,h);ctx.restore();}});
 }
 function renderShareChartCanvas(width,height,isMobile,titleSize){
     const canvas=document.createElement('canvas');
     canvas.width=width;canvas.height=height;
     const ctx=canvas.getContext('2d');
-    ctx.fillStyle='white';ctx.fillRect(0,0,width,height);
     const inst=new Chart(ctx,{type:'line',data:getShareChartData(),options:shareChartOptions(isMobile,titleSize)});
     inst.update('none');
     return {canvas,chart:inst};
@@ -1242,7 +1250,6 @@ function showShareModal(){
             if(shareChart)shareChart.destroy();
             sc.width=w;sc.height=h;
             const ctx=sc.getContext('2d');
-            ctx.fillStyle='white';ctx.fillRect(0,0,w,h);
             shareChart=new Chart(ctx,{type:'line',data:getShareChartData(),options:shareChartOptions(isMobile)});
             shareChart.update('none');
         }catch(e){showNotification(t('chart_render_failed','Failed to render chart'),'error');}
@@ -1336,29 +1343,48 @@ function ccmBackToUsers(){
     document.getElementById('ccm-step-compose').style.display='none';
     const inp=document.getElementById('ccm-user-search');
     inp.value='';
-    document.getElementById('ccm-user-results').innerHTML=`<div class="ccm-empty">${t('share_search_hint','Type the full email of a user')}</div>`;
+    document.getElementById('ccm-user-results').innerHTML=`<div class="ccm-empty">${t('share_search_hint','Type a name or email to search')}</div>`;
     setTimeout(()=>inp.focus(),100);
 }
+let ccmSearchSeq=0;
 async function ccmSearchUsers(){
     const q=document.getElementById('ccm-user-search').value.trim();
     const box=document.getElementById('ccm-user-results');
-    if(!q||!q.includes('@')){box.innerHTML=`<div class="ccm-empty">${t('share_search_hint','Type the full email of a user')}</div>`;return;}
+    const seq=++ccmSearchSeq;
+    if(!q){box.innerHTML=`<div class="ccm-empty">${t('share_search_hint','Type a name or email to search')}</div>`;return;}
     box.innerHTML='<div class="ccm-empty">…</div>';
     try{
         const res=await fetch(`?chat_search_users=1&q=${encodeURIComponent(q)}`);
         const data=await res.json();
+        if(seq!==ccmSearchSeq)return;
         const users=(data.users||[]);
-        if(!users.length){box.innerHTML=`<div class="ccm-empty">${t('no_users_found','No users found')}</div>`;return;}
+        if(!users.length){
+            box.innerHTML=`<div class="ccm-empty">${t('no_users_found','No users found')}</div>`;
+            return;
+        }
         box.innerHTML='';
         users.forEach(u=>{
             const b=document.createElement('button');b.type='button';b.className='ccm-user-row';
             const initials=(u.name||u.email||'?').slice(0,2).toUpperCase();
-            b.innerHTML=(u.photo?`<img src="/storage/${u.photo}" alt="" onerror="this.outerHTML='<span class=ccm-user-avatar>${initials}</span>'">`:`<span class="ccm-user-avatar">${initials}</span>`)+
-                `<span class="ccm-user-info"><strong>${u.name||u.email}</strong><span>${u.email}</span></span>`;
+            if(u.photo){
+                const img=document.createElement('img');
+                img.src=u.photo;img.alt='';
+                img.onerror=()=>{const s=document.createElement('span');s.className='ccm-user-avatar';s.textContent=initials;img.replaceWith(s);};
+                b.appendChild(img);
+            }else{
+                const s=document.createElement('span');s.className='ccm-user-avatar';s.textContent=initials;b.appendChild(s);
+            }
+            const info=document.createElement('span');info.className='ccm-user-info';
+            const strong=document.createElement('strong');strong.textContent=u.name||u.email;
+            const mail=document.createElement('span');mail.textContent=u.email;
+            info.append(strong,mail);b.appendChild(info);
             b.onclick=()=>ccmPickUser(u);
             box.appendChild(b);
         });
-    }catch(e){box.innerHTML=`<div class="ccm-empty">${t('network_error','Network error')}</div>`;}
+    }catch(e){
+        if(seq!==ccmSearchSeq)return;
+        box.innerHTML=`<div class="ccm-empty">${t('network_error','Network error')}</div>`;
+    }
 }
 function ccmPickUser(u){
     ccmRecipient=u;

@@ -68,7 +68,7 @@ cloud_require_session_auth();
   <title data-i18n="appTitle">File Space</title>
   <?php require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('cloud'); ?>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=33" />
+  <link rel="stylesheet" href="assets/styles.css?v=35" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -240,7 +240,7 @@ cloud_require_session_auth();
 <script defer src="assets/app/cloud-group-chat.js?v=9"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
-<script defer src="assets/settings/sync-modals.js?v=8"></script>
+<script defer src="assets/settings/sync-modals.js?v=9"></script>
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=4"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>
@@ -2035,7 +2035,7 @@ cloud_require_session_auth();
           <h4 style="font-size:14px;font-weight:600;margin:0;" data-i18n="activeDevices">Active WebDAV Tokens</h4>
           <div id="selected-token-hint" style="font-size:11px;color:var(--fg-secondary);">Select a device to manage its token.</div>
         </div>
-        <div id="tokens-list-container" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;background:var(--bg);"></div>
+        <div id="tokens-list-container" style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:0;background:var(--bg);"></div>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
           <button id="btn-regenerate-token" class="btn secondary small" style="display:inline-flex;align-items:center;gap:6px;">
             <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">

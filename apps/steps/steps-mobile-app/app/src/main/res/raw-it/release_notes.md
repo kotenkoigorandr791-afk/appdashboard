@@ -1,3 +1,17 @@
+## v1.9.34 - 2026-09-29
+
+* 🕒 Corretto l'attribuzione dei dati salute al giorno sbagliato per gli utenti a est di UTC: distanza, calorie, sonno e polso ora contano nel giorno in cui si verificano
+* 👤 La schermata delle impostazioni mostra l'icona del profilo predefinito quando nessun account è connesso
+
+## v1.9.33 - 2026-09-29
+
+* 📊 Corretti i conteggi dei passi giornalieri errati: alcuni giorni mostravano il valore del giorno precedente o successivo
+
+## v1.9.32 - 2026-09-29
+
+* 📊 Le statistiche provengono ora sempre dal tuo account server quando è connesso: l'app non mescola più i dati del telefono non sincronizzati
+* 📱 I dati del telefono vengono mostrati solo quando nessun account è connesso
+
 ## v1.9.29 - 2026-09-23
 
 * Le novità sono ora disponibili nella tua lingua
