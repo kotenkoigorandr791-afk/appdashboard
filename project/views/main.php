@@ -1300,9 +1300,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .app-tile-link.app-tile-key-selected .app-icon-wrap{box-shadow:0 0 0 3px color-mix(in srgb,var(--primary-color) 35%,transparent),0 14px 30px color-mix(in srgb,var(--primary-color) 22%,transparent);transform:scale(1.04);}
         .app-popular-badge{position:absolute;top:-2px;right:-2px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;z-index:2;padding:0;background:transparent;border:none;pointer-events:none;filter:drop-shadow(0 2px 8px rgba(211,47,47,0.55));}
         .app-popular-badge svg{width:30px;height:30px;display:block;}
-        .app-name{font-weight:bold;margin:0;text-align:center;color:var(--primary-color);font-size:14px;letter-spacing:.01em;line-height:1.25;max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;order:2;position:relative;z-index:1;}
-.app-name span{position:relative;z-index:1;display:inline-block;}
-.app-name::after{content:'';position:absolute;inset:0;pointer-events:none;background:var(--app-item-bg);border-radius:12px;backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);mask:linear-gradient(90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%),linear-gradient(-90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%);-webkit-mask:linear-gradient(90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%),linear-gradient(-90deg,transparent 0% 10%,var(--app-item-bg) 10% 90%,transparent 90% 100%);opacity:0.8;z-index:0;}
+        .app-name{font-weight:bold;margin:0;text-align:center;color:var(--primary-color);font-size:14px;letter-spacing:.01em;line-height:1.25;max-width:190px;box-sizing:border-box;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;order:2;position:relative;z-index:1;padding:4px 9px;border-radius:999px;}
+.app-name::after{content:'';position:absolute;inset:0;pointer-events:none;background:var(--app-item-bg);border-radius:999px;backdrop-filter:blur(40px) saturate(180%);-webkit-backdrop-filter:blur(40px) saturate(180%);opacity:0.8;z-index:0;}
         .app-tile iframe{width:100%;height:150px;border:none;border-radius:4px;pointer-events:none;}
         button,input[type="submit"]{background-color:var(--primary-color);color:#fff;border:none;padding:10px;cursor:pointer;border-radius:4px;}
         input.settings-save-btn{background-color:var(--primary-color);color:#fff;border:none;padding:12px 24px;cursor:pointer;border-radius:50px;font-weight:600;display:block;margin-left:auto;}
@@ -7073,6 +7072,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,authModal];
                 let isModalClick=false;
                 modals.forEach(modal=>{if(modal&&modal.contains(e.target)){isModalClick=true;}});
+                if(e.target.closest && e.target.closest('.notification, .temp-notification, #toast, #toast-container')){isModalClick=true;}
                 if(!isModalClick){closeSidebarMenu();}
             }
         });

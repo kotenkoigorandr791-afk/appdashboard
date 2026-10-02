@@ -71,14 +71,11 @@
         <button class="admin-monitor-tab" type="button" data-section-target="php"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
     </div>
     <div class="admin-monitor-actions">
-        <?php if ($showPhpInfoButton): ?>
-        <button class="btn-secondary icon-button" type="button" onclick="openPhpInfo()"><svg viewBox="0 0 24 24"><path d="M12 8v8"/><path d="M8 12h8"/><circle cx="12" cy="12" r="10"/></svg><?= htmlspecialchars($t['phpinfo_button']) ?></button>
         <div id="autoZoomToggle" class="auto-zoom-toggle" onclick="toggleAutoZoom()" title="<?= htmlspecialchars($t['auto_zoom']) ?>">
             <svg class="zoom-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
             <span class="toggle-label"><?= htmlspecialchars($t['auto_zoom']) ?></span>
             <div class="switch-track"><div class="switch-thumb"></div></div>
         </div>
-        <?php endif; ?>
         <button class="btn-secondary icon-button" type="button" onclick="refreshData()"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['refresh']) ?></button>
     </div>
 </div>
@@ -299,11 +296,6 @@
     </div>
 </div>
 <?php endif; ?>
-
-<div id="phpinfoModal" class="modal">
-    <span class="modal-close" onclick="closePhpInfo()">&times;</span>
-    <div id="phpinfoContent" class="modal-content"></div>
-</div>
 
 <div id="graphModal" class="modal">
     <div class="modal-content graph-modal-content">

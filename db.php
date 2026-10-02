@@ -1214,7 +1214,7 @@ function deletePendingUser(string $email): void {
 // ACTIVE SESSIONS
 // ─────────────────────────────────────────────────────────────────────────────
 function appAuthTimeoutSeconds(): int {
-    return 90 * 60;
+    return 12 * 3600;
 }
 
 function loadActiveSessions(): array {

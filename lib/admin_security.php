@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 const ADMIN_CAPABILITIES = ['users', 'ssh', 'files', 'docker', 'secrets', 'integrations', 'database'];
-const ADMIN_SESSION_IDLE_SECONDS = 7200;
+const ADMIN_SESSION_IDLE_SECONDS = 3600;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 function adminSecurityEnsureSchema(): void {

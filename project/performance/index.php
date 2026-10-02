@@ -28,7 +28,6 @@ $serverMonitorEndpoint = rtrim($scriptDir === '/' ? '' : $scriptDir, '/') . '/se
 $currentUser = 'Guest';
 $userRole = 0;
 $userRoleName = $t['role_guest'];
-$showPhpInfoButton = false;
 
 session_start();
 $currentUser = get_current_user_from_sessions();
@@ -39,7 +38,6 @@ adminPanelRequireGate();
 
 if ($userRole >= 2) {
     $userRoleName = $t['role_admin'];
-    $showPhpInfoButton = true;
 } elseif ($userRole == 1) {
     $userRoleName = $t['role_user'];
 } else {
@@ -49,7 +47,6 @@ if ($userRole >= 2) {
 session_write_close();
 
 require __DIR__ . '/controllers/MonitorController.php';
-require __DIR__ . '/controllers/PhpInfoController.php';
 ?>
 <?php include __DIR__ . '/views/head.php'; ?>
 <?php include __DIR__ . '/views/body.php'; ?>

@@ -405,7 +405,7 @@ if(in_array($app,$PUBLIC_APPS_WITHOUT_AUTH)){
     $needsAuth=false;
     $showLogin=false;
 }else{
-    $authTimeout=appAuthTimeoutSeconds();
+    $authTimeout=isset($_SESSION['user']['email'])?activeSessionTtlSeconds((string)$_SESSION['user']['email']):appAuthTimeoutSeconds();
     $oauthRedirectUri=oauthLoginRedirectUri();
     $googleRedirectUri=$oauthRedirectUri;
     $needsAuth=false;

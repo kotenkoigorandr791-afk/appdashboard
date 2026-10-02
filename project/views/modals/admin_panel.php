@@ -243,6 +243,20 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     text-transform: uppercase;
 }
 #ap-topbar .ap-brand svg { color: var(--primary-color); }
+#ap-topbar .ap-session-timer {
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    background: var(--group-block-bg, rgba(128,128,128,.12));
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2px 10px;
+    text-transform: none;
+    white-space: nowrap;
+}
+#ap-topbar .ap-session-timer.ap-session-timer-warn { color: var(--danger, #ef4444); border-color: var(--danger, #ef4444); }
 #ap-topbar .ap-user-info {
     display: flex;
     align-items: center;
@@ -1717,6 +1731,27 @@ function ensureMonaco(cb){
 }
 
 /* ── Panel switch ── */
+function apSessionStartTimer(expiresAt){
+    expiresAt=(parseInt(expiresAt,10)||0)*1000;
+    if(!expiresAt) return;
+    var el=function(){ return document.getElementById('ap-session-timer'); };
+    if(window._apSessionTimerId){ clearInterval(window._apSessionTimerId); window._apSessionTimerId=null; }
+    function fmt(sec){
+        if(sec<=0) return '0:00';
+        var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
+        return (h>0? h+':'+String(m).padStart(2,'0') : String(m))+':'+String(s).padStart(2,'0');
+    }
+    function tick(){
+        var left=Math.floor((expiresAt-Date.now())/1000);
+        var node=el();
+        if(!node){ clearInterval(window._apSessionTimerId); window._apSessionTimerId=null; return; }
+        if(left<=0){ node.textContent='0:00'; node.classList.add('ap-session-timer-warn'); clearInterval(window._apSessionTimerId); window._apSessionTimerId=null; return; }
+        node.textContent=fmt(left);
+        node.classList.toggle('ap-session-timer-warn', left<300);
+    }
+    tick();
+    window._apSessionTimerId=setInterval(tick,1000);
+}
 function openPanel(id){
     if(!dynRoot)return;
     overlay.classList.toggle('ap-edge-omniroute',id==='ap-omniroute');
@@ -1824,6 +1859,7 @@ function openAdminPanel(target){
     apRefreshCsrf().then(function(){ return apGateStatus(); }).then(function(d){
         if(d&&d.csrf) apRememberCsrf(d.csrf);
         if(d&&d.authenticated){
+            if(d.expires_at){ apSessionStartTimer(d.expires_at); }
             if(apLoaded){
                 if(skeleton) skeleton.style.display='none';
                 if(dynRoot) dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
@@ -1912,6 +1948,7 @@ function loadPanel(target, year){
             }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
+            if(d.session_expires_at){ apSessionStartTimer((int)d.session_expires_at); }
             if(d.available_years && Array.isArray(d.available_years)){
                 apAvailableYears = d.available_years;
             }

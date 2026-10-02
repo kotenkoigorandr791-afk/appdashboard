@@ -20,7 +20,7 @@
 .module-status-loaded { background-color: var(--primary-color); }
 .module-status-not-loaded { background-color: var(--error-color); }
 .graph-modal-content { display: flex; justify-content: center; align-items: center; min-height: 100%; padding: 90px 20px 40px; }
-.graph-container { width: 100%; max-width: 900px; height: 500px; background: var(--card-bg); border-radius: 12px; padding: 25px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); display: flex; flex-direction: column; }
+.graph-container { width: 100%; max-width: 900px; height: min(500px, calc(100dvh - 40px)); background: var(--card-bg); border-radius: 12px; padding: 25px; box-shadow: 0 8px 30px rgba(0,0,0,0.25); display: flex; flex-direction: column; }
 .graph-title { text-align: center; margin-bottom: 25px; font-size: 1.8rem; color: var(--text-color); font-weight: 600; }
 .graph-canvas-container { flex: 1; position: relative; width: 100%; height: 100%; }
 .graph-canvas-container canvas { width: 100% !important; height: 100% !important; }
@@ -29,8 +29,15 @@
 .monitor-section.active { display: block; }
 @keyframes monitorSectionFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 768px) { 
-    .graph-container { padding: 15px; height: 400px; }
+    .graph-container { padding: 15px; height: min(400px, calc(100dvh - 40px)); }
     .graph-modal-content { padding: 60px 10px 20px; }
+}
+@media (max-width: 560px) {
+    .graph-container { padding: 12px; height: min(360px, calc(100dvh - 40px)); }
+    .graph-title { font-size: 1rem; margin-bottom: 14px; padding-right: 88px; overflow-wrap: anywhere; }
+    body.admin-embed .graph-container .modal-close { top: 6px; right: 6px; width: 32px; height: 32px; font-size: 22px; line-height: 32px; }
+    .graph-cleanup-btn { top: 6px; right: 44px; width: 32px; height: 32px; }
+    .graph-cleanup-btn svg { width: 16px; height: 16px; }
 }
 .connection-status button {
     margin-left: 10px;

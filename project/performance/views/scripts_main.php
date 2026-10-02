@@ -10,7 +10,7 @@ const translations = {
     $jsUiKeys = [
         'loading_from_cache', 'refreshing', 'connection_error', 'connection_unstable',
         'max_retries_reached', 'retry', 'no_data_available', 'access_denied',
-        'error_loading_phpinfo', 'unknown_interface', 'download', 'upload',
+        'unknown_interface', 'download', 'upload',
         'total', 'speed', 'session_break', 'usage', 'network_speed',
         'time', 'loading_ellipsis', 'error_loading_data', 'unknown',
         'cleanup_device_confirm', 'cleanup_time_confirm', 'cleanup_success', 'cleanup_error',
@@ -1590,43 +1590,6 @@ function fillTable(id, list, nameKey, statusKey) {
     });
 }
 
-function openPhpInfo() {
-    if (userRole < 2) {
-        alert(translations.ui[lang].access_denied);
-        return;
-    }
-    
-    const m = document.getElementById('phpinfoModal'), c = document.getElementById('phpinfoContent');
-    m.style.display = 'block';
-    document.body.classList.add('modal-open');
-    c.innerHTML = '<p style="padding:40px;text-align:center">' + translations.ui[lang].loading_ellipsis + '</p>';
-    
-    fetch('?phpinfo=1&ajax=1').then(r => {
-        if (!r.ok) {
-            throw new Error(translations.ui[lang].access_denied);
-        }
-        return r.json();
-    }).then(d => {
-        c.innerHTML = d.phpinfo || '<p>' + translations.ui[lang].no_data_available + '</p>';
-    }).catch(e => {
-        c.innerHTML = '<p>' + translations.ui[lang].error_loading_phpinfo + ': ' + e.message + '</p>';
-        if (e.message === translations.ui[lang].access_denied) {
-            setTimeout(() => {
-                alert(translations.ui[lang].access_denied + '. ' + 'You do not have permission to view phpinfo.');
-                closePhpInfo();
-            }, 100);
-        }
-    });
-}
-
-function closePhpInfo() {
-    document.getElementById('phpinfoModal').style.display = 'none';
-    document.getElementById('phpinfoContent').innerHTML = '';
-    document.body.classList.remove('modal-open');
-    document.body.classList.remove('light', 'dark');
-    document.body.classList.add(themeClass);
-}
-
 function prepareChartData(data, type, label) {
     const filteredData = data.filter(item => !item.isBreak);
     const rawData = filteredData.map(item => item.y);
@@ -2432,10 +2395,6 @@ function handleBeforeUnload() {
     lastSessionEnd = Date.now();
     saveStoredData();
 }
-
-document.getElementById('phpinfoModal').addEventListener('click', e => {
-    if (e.target.id === 'phpinfoModal') closePhpInfo();
-});
 
 document.getElementById('graphModal').addEventListener('click', e => {
     if (e.target.id === 'graphModal') closeGraphModal();
