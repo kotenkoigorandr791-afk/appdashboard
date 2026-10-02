@@ -4,13 +4,16 @@ import { getToken } from "./auth.js";
 export type ImmichCredentials = { url: string; api_key: string };
 export type GiteaCredentials = { url: string; access_token: string };
 export type KanboardCredentials = { url: string; username: string; api_token: string };
+export type SentryCredentials = { url: string; token: string };
 
 const immichCache = new Map<string, ImmichCredentials>();
 const giteaCache = new Map<string, GiteaCredentials>();
 const kanboardCache = new Map<string, KanboardCredentials>();
+const sentryCache = new Map<string, SentryCredentials>();
 const immichPromises = new Map<string, Promise<ImmichCredentials>>();
 const giteaPromises = new Map<string, Promise<GiteaCredentials>>();
 const kanboardPromises = new Map<string, Promise<KanboardCredentials>>();
+const sentryPromises = new Map<string, Promise<SentryCredentials>>();
 
 function cacheKey(): string {
   return getToken() || "default";
@@ -31,13 +34,20 @@ function clearKanboardCache(key = cacheKey()): void {
   kanboardPromises.delete(key);
 }
 
+function clearSentryCache(key = cacheKey()): void {
+  sentryCache.delete(key);
+  sentryPromises.delete(key);
+}
+
 export function clearIntegrationCaches(): void {
   immichCache.clear();
   giteaCache.clear();
   kanboardCache.clear();
+  sentryCache.clear();
   immichPromises.clear();
   giteaPromises.clear();
   kanboardPromises.clear();
+  sentryPromises.clear();
 }
 
 function envImmichOverride(): ImmichCredentials | null {
@@ -137,6 +147,12 @@ function envKanboardOverride(): KanboardCredentials | null {
   return url && username && apiToken ? { url: url.replace(/\/$/, ""), username, api_token: apiToken } : null;
 }
 
+function envSentryOverride(): SentryCredentials | null {
+  const url = (process.env.SENTRY_URL || "").trim();
+  const token = (process.env.SENTRY_TOKEN || "").trim();
+  return url && token ? { url: url.replace(/\/$/, ""), token } : null;
+}
+
 export async function getKanboardCredentials(): Promise<KanboardCredentials> {
   const override = envKanboardOverride();
   if (override) return override;
@@ -178,6 +194,42 @@ async function refreshKanboardCredentials(): Promise<KanboardCredentials> {
     api_token: String(data.api_token),
   };
   kanboardCache.set(key, creds);
+  return creds;
+}
+
+export async function getSentryCredentials(): Promise<SentryCredentials> {
+  const override = envSentryOverride();
+  if (override) return override;
+  const key = cacheKey();
+  const cached = sentryCache.get(key);
+  if (cached) return cached;
+  let promise = sentryPromises.get(key);
+  if (!promise) {
+    promise = (async () => {
+      const data = await apiGet("/public-api/integrations/sentry");
+      if (!data?.ok || !data.token || !data.url) {
+        throw new ApiError(data?.error || data?.message || "sentry_credentials_failed", 502, data);
+      }
+      const creds = { url: String(data.url).replace(/\/$/, ""), token: String(data.token) };
+      sentryCache.set(key, creds);
+      return creds;
+    })().finally(() => {
+      sentryPromises.delete(key);
+    });
+    sentryPromises.set(key, promise);
+  }
+  return promise;
+}
+
+async function refreshSentryCredentials(): Promise<SentryCredentials> {
+  const key = cacheKey();
+  clearSentryCache(key);
+  const data = await apiGet("/public-api/integrations/sentry", { refresh: 1 });
+  if (!data?.ok || !data.token || !data.url) {
+    throw new ApiError(data?.error || data?.message || "sentry_credentials_failed", 502, data);
+  }
+  const creds = { url: String(data.url).replace(/\/$/, ""), token: String(data.token) };
+  sentryCache.set(key, creds);
   return creds;
 }
 
@@ -314,4 +366,41 @@ export async function kanboardRpc(
     throw new ApiError(String(data.error.message || data.error), 502, data);
   }
   return data?.result;
+}
+
+export async function sentryFetch(
+  method: string,
+  path: string,
+  opts: { query?: Record<string, unknown>; body?: unknown } = {},
+  retried = false,
+): Promise<any> {
+  const creds = await getSentryCredentials();
+  const url = new URL(path.startsWith("http") ? path : `${creds.url}${path.startsWith("/") ? "" : "/"}${path}`);
+  if (opts.query) {
+    for (const [k, v] of Object.entries(opts.query)) {
+      if (v === undefined || v === null || v === "") continue;
+      url.searchParams.set(k, String(v));
+    }
+  }
+  const headers: Record<string, string> = { Accept: "application/json", Authorization: `Bearer ${creds.token}` };
+  let body: string | undefined;
+  if (opts.body !== undefined) {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(url.toString(), { method, headers, body });
+  const data = await parseJson(res);
+  if (!res.ok && !retried && shouldRefreshExternal(res.status)) {
+    await refreshSentryCredentials();
+    return sentryFetch(method, path, opts, true);
+  }
+  if (!res.ok) {
+    const msg =
+      (typeof data?.detail === "string" && data.detail) ||
+      (typeof data?.message === "string" && data.message) ||
+      (typeof data?.error === "string" && data.error) ||
+      `sentry_http_${res.status}`;
+    throw new ApiError(msg, res.status, data);
+  }
+  return data;
 }

@@ -98,6 +98,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
     prefixes: ["kanboard_"],
   },
   {
+    id: "sentry",
+    description: "Sentry/GlitchTip projects and issues",
+    prefixes: ["sentry_"],
+  },
+  {
     id: "news",
     description: "News portal: list articles",
     prefixes: ["news_"],

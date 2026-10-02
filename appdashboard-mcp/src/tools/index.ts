@@ -16,6 +16,7 @@ import { immichTools } from "./immich.js";
 import { giteaTools } from "./gitea.js";
 import { kanboardTools } from "./kanboard.js";
 import { newsTools } from "./news.js";
+import { sentryTools } from "./sentry.js";
 import { groupForTool, parseGroupList } from "./groups.js";
 import { buildCatalogTools } from "./catalog.js";
 import type { ToolDef } from "./types.js";
@@ -38,6 +39,7 @@ export const ALL_TOOLS: ToolDef[] = [
   ...giteaTools,
   ...kanboardTools,
   ...newsTools,
+  ...sentryTools,
 ];
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));
 

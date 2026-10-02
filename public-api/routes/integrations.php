@@ -25,6 +25,10 @@ if ($service === 'kanboard') {
     $out = integrations_kanboard_credentials($email, $refresh);
     public_api_json($out, !empty($out['ok']) ? 200 : 503);
 }
+if ($service === 'sentry') {
+    $out = integrations_sentry_credentials($email, $refresh);
+    public_api_json($out, !empty($out['ok']) ? 200 : 503);
+}
 public_api_json(['ok' => false, 'error' => 'unknown_integration'], 404);
 
 function integrations_meta_get(string $key): string {
@@ -48,9 +52,81 @@ function integrations_meta_set(string $key, string $value): void {
     monitorRetentionSetMeta($db, $key, $value);
 }
 
+function integrations_public_service_url(string $url, string $sub): string {
+    if (!str_ends_with(parse_url($url, PHP_URL_HOST) ?: '', '.localhost')) return $url;
+    $originHost = function_exists('oauth_public_origin') ? (string)(parse_url(oauth_public_origin(), PHP_URL_HOST) ?: '') : '';
+    $host = strtolower((string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? ''));
+    $host = preg_replace('/:\d+$/', '', $host) ?? '';
+    if ($originHost !== '' && $originHost !== 'localhost' && !str_ends_with($originHost, '.localhost')) $host = $originHost;
+    if ($host === '' || $host === 'localhost' || str_ends_with($host, '.localhost')) $host = trim((string)(getenv('BASE_DOMAIN') ?: 'serverkherson.xyz'));
+    if ($host === '' || $host === 'localhost' || str_ends_with($host, '.localhost')) return $url;
+    $parts = explode('.', strtolower($host));
+    $base = count($parts) > 2 ? implode('.', array_slice($parts, -2)) : $host;
+    return 'https://' . $sub . '.' . $base;
+}
+
 function integrations_immich_url(): string {
-    $url = trim((string)(getenv('IMMICH_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('photo') : '')));
+    $url = trim((string)(getenv('IMMICH_MCP_URL') ?: getenv('IMMICH_INTERNAL_URL') ?: getenv('IMMICH_PUBLIC_URL') ?: ''));
+    if ($url === '' && function_exists('app_public_url')) $url = app_public_url('photo');
+    $url = integrations_public_service_url($url, 'photo');
     return rtrim($url, '/');
+}
+
+function integrations_sentry_url(): string {
+    $url = trim((string)(getenv('SENTRY_MCP_URL') ?: getenv('SENTRY_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('sentry') : '')));
+    $url = integrations_public_service_url($url, 'sentry');
+    return rtrim($url, '/');
+}
+
+function integrations_sentry_create_token(string $email): ?string {
+    $py = <<<'PY'
+from django.apps import apps
+from django.contrib.auth import get_user_model
+email = "__EMAIL__"
+User = get_user_model()
+user = User.objects.filter(email__iexact=email).first() or User.objects.filter(is_superuser=True).first() or User.objects.first()
+if not user:
+    raise SystemExit(2)
+Token = apps.get_model("api_tokens", "APIToken")
+Token.objects.filter(user=user, label="MCP").delete()
+token = Token.objects.create(user=user, label="MCP")
+token.add_permissions(["project:read", "event:read", "event:write"])
+print(token.token)
+PY;
+    $py = str_replace('__EMAIL__', str_replace(['\\', '"'], ['\\\\', '\\"'], $email), $py);
+    $cmd = 'docker exec glitchtip_web python manage.py shell -c ' . escapeshellarg($py) . ' 2>/dev/null';
+    $out = trim((string)shell_exec($cmd));
+    foreach (array_reverse(preg_split('/\R+/', $out) ?: []) as $line) {
+        $line = trim($line);
+        if ($line !== '' && preg_match('/^[A-Za-z0-9]{32,128}$/', $line)) return $line;
+    }
+    return null;
+}
+
+function integrations_sentry_http(string $url, string $token): int {
+    $ch = curl_init(rtrim($url, '/') . '/api/0/projects/');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 15,
+        CURLOPT_HTTPHEADER => ['Accept: application/json', 'Authorization: Bearer ' . $token],
+    ]);
+    curl_exec($ch);
+    return (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+}
+
+function integrations_sentry_credentials(string $email, bool $refresh = false): array {
+    $url = integrations_sentry_url();
+    if ($url === '') return ['ok' => false, 'error' => 'sentry_url_missing'];
+    $metaKey = 'mcp_sentry_api_token:' . strtolower($email);
+    $stored = trim(integrations_meta_get($metaKey));
+    if ($stored !== '' && !$refresh) {
+        $code = integrations_sentry_http($url, $stored);
+        if ($code >= 200 && $code < 300) return ['ok' => true, 'url' => $url, 'token' => $stored];
+    }
+    $token = integrations_sentry_create_token($email);
+    if (!$token) return ['ok' => false, 'error' => 'sentry_token_create_failed'];
+    integrations_meta_set($metaKey, $token);
+    return ['ok' => true, 'url' => $url, 'token' => $token];
 }
 
 function integrations_immich_full_permissions(): string {
@@ -110,6 +186,7 @@ function integrations_immich_credentials(string $email, bool $refresh = false): 
 
 function integrations_gitea_url(): string {
     $url = trim((string)(getenv('GITEA_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('git') : '')));
+    $url = integrations_public_service_url($url, 'git');
     return rtrim($url, '/');
 }
 
