@@ -631,16 +631,34 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         apSecRequireSameOrigin();
         $email=$_SESSION['user']['email']??'';
         $tokenHash=trim((string)($_POST['token_hash']??''));
-        if($email!==''&&$tokenHash!==''){
+        $tokenApp=appClientAuthTokenAppId($_POST['token_app']??'mcp');
+        if($email!==''&&($tokenHash!==''||$tokenApp==='steps')){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);
-                $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND app_id = 'mcp'");
-                $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
+                if($tokenHash===''){
+                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0");
+                }else{
+                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND app_id = :a");
+                    $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
+                }
                 $stmt->bindValue(':e',$email,PDO::PARAM_STR);
+                $stmt->bindValue(':a',$tokenApp,PDO::PARAM_STR);
                 $stmt->execute();
                 $profileSuccess=$translations['mcp_setup_token_revoked'];
+                if(isset($_POST['ajax'])){
+                    while(ob_get_level()>1)ob_end_clean();
+                    header('Content-Type: application/json');
+                    echo json_encode(['success'=>true]);
+                    exit;
+                }
             }catch(Throwable $e){
+                if(isset($_POST['ajax'])){
+                    while(ob_get_level()>1)ob_end_clean();
+                    header('Content-Type: application/json');
+                    echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
+                    exit;
+                }
                 $profileError=$translations['mcp_setup_token_error'].': '.$e->getMessage();
             }
         }

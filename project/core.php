@@ -202,12 +202,14 @@ function ensureClientAuthTokensSchema(AppDatabase $db): void {
         device_id TEXT NOT NULL DEFAULT '',
         device_name TEXT NOT NULL DEFAULT '',
         platform TEXT NOT NULL DEFAULT '',
+        token_plain TEXT NOT NULL DEFAULT '',
         created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         last_used_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         expires_at INTEGER NOT NULL,
         revoked INTEGER NOT NULL DEFAULT 0
     )");
     app_client_auth_tokens_ensure_app_column($db);
+    app_client_auth_tokens_ensure_plain_column($db);
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 }
@@ -217,6 +219,18 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
+    if ($appId === 'steps') {
+        $existing = $db->prepare("SELECT token_plain, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC LIMIT 1");
+        $existing->bindValue(':e', $email, PDO::PARAM_STR);
+        $existing->bindValue(':a', $appId, PDO::PARAM_STR);
+        $existing->bindValue(':t', time(), PDO::PARAM_INT);
+        $row = $existing->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row && (string)($row['token_plain'] ?? '') !== '') return ['token' => (string)$row['token_plain'], 'expires_at' => (int)$row['expires_at']];
+        $revoke = $db->prepare('UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0');
+        $revoke->bindValue(':e', $email, PDO::PARAM_STR);
+        $revoke->bindValue(':a', $appId, PDO::PARAM_STR);
+        $revoke->execute();
+    }
     if ($deviceId !== '' && $deviceId !== 'mcp_external') {
         $del = $db->prepare('DELETE FROM client_auth_tokens WHERE email = :e AND app_id = :a AND device_id = :d');
         $del->bindValue(':e', $email, PDO::PARAM_STR);
@@ -228,13 +242,14 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $tokenHash = hash('sha256', $rawToken);
     $now = time();
     $expiresAt = $now + (180 * 24 * 3600);
-    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,app_id,device_id,device_name,platform,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:a,:d,:n,:p,:c,:u,:x,0)");
+    $stmt = $db->prepare("INSERT INTO client_auth_tokens(token_hash,email,app_id,device_id,device_name,platform,token_plain,created_at,last_used_at,expires_at,revoked) VALUES(:h,:e,:a,:d,:n,:p,:tp,:c,:u,:x,0)");
     $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':a', $appId, PDO::PARAM_STR);
     $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
     $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
     $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
+    $stmt->bindValue(':tp', $appId === 'steps' ? $rawToken : '', PDO::PARAM_STR);
     $stmt->bindValue(':c', $now, PDO::PARAM_INT);
     $stmt->bindValue(':u', $now, PDO::PARAM_INT);
     $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);

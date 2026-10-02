@@ -247,6 +247,7 @@ function ensure_client_auth_tokens_table(): void {
             device_id TEXT NOT NULL DEFAULT '',
             device_name TEXT NOT NULL DEFAULT '',
             platform TEXT NOT NULL DEFAULT '',
+            token_plain TEXT NOT NULL DEFAULT '',
             created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             last_used_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
             expires_at INTEGER NOT NULL,
@@ -254,6 +255,7 @@ function ensure_client_auth_tokens_table(): void {
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
+        $db->exec("ALTER TABLE client_auth_tokens ADD COLUMN IF NOT EXISTS token_plain TEXT NOT NULL DEFAULT ''");
     } catch (Exception $e) {
         cloud_safe_error_log('ensure_client_auth_tokens_table: ' . $e->getMessage());
     }
@@ -275,7 +277,7 @@ function get_email_from_client_auth_header(): ?string {
     }
     try {
         ensure_client_auth_tokens_table();
-        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt = $db->prepare("SELECT email FROM client_auth_tokens WHERE token_hash = :h AND app_id = 'cloud' AND revoked = 0 AND expires_at > :now LIMIT 1");
         $stmt->bindValue(':h', hash('sha256', $raw), PDO::PARAM_STR);
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
@@ -301,7 +303,7 @@ function validate_client_token_for_email(string $email, string $token): bool {
     try {
         ensure_client_auth_tokens_table();
         $tokenHash = hash('sha256', $token);
-        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE email = :e AND token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt = $db->prepare("SELECT email FROM client_auth_tokens WHERE email = :e AND token_hash = :h AND app_id = 'cloud' AND revoked = 0 AND expires_at > :now LIMIT 1");
         $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
@@ -333,13 +335,14 @@ function generate_client_token(string $email, string $deviceId = '', string $dev
         $expiresAt = time() + ($expiresInDays * 86400);
         
         // Store token hash in database
-        $stmt = $db->prepare('INSERT INTO client_auth_tokens (token_hash, email, app_id, device_id, device_name, platform, expires_at) VALUES (:h, :e, :a, :d, :n, :p, :exp)');
+        $stmt = $db->prepare('INSERT INTO client_auth_tokens (token_hash, email, app_id, device_id, device_name, platform, token_plain, expires_at) VALUES (:h, :e, :a, :d, :n, :p, :tp, :exp)');
         $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
         $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $stmt->bindValue(':a', 'cloud', PDO::PARAM_STR);
         $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
         $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
         $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
+        $stmt->bindValue(':tp', '', PDO::PARAM_STR);
         $stmt->bindValue(':exp', $expiresAt, PDO::PARAM_INT);
         $stmt->execute();
         

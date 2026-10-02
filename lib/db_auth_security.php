@@ -18,6 +18,11 @@ function app_client_auth_tokens_ensure_app_column(AppDatabase $db): void {
         $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
     } catch (Throwable $e) {}
 }
+function app_client_auth_tokens_ensure_plain_column(AppDatabase $db): void {
+    try {
+        $db->exec("ALTER TABLE client_auth_tokens ADD COLUMN IF NOT EXISTS token_plain TEXT NOT NULL DEFAULT ''");
+    } catch (Throwable $e) {}
+}
 function app_db_rate_limit_key(string $prefix, string $ip): string {
     return $prefix . ':' . preg_replace('/[^a-fA-F0-9:.]/', '', $ip);
 }

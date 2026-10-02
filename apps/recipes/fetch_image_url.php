@@ -53,7 +53,7 @@ function recipes_bearer_email_from_auth(): ?string {
             public_api_ensure_token_schema($db);
         }
         $tokenHash = hash('sha256', $m[1]);
-        $stmt = $db->prepare('SELECT email FROM client_auth_tokens WHERE token_hash = :h AND revoked = 0 AND expires_at > :now LIMIT 1');
+        $stmt = $db->prepare("SELECT email FROM client_auth_tokens WHERE token_hash = :h AND app_id = 'recipes' AND revoked = 0 AND expires_at > :now LIMIT 1");
         $stmt->bindValue(':h', $tokenHash, PDO::PARAM_STR);
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
