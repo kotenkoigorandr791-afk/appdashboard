@@ -17,7 +17,14 @@ function storageUsagePassword(string $key): string {
     $specific = getenv('STORAGE_USAGE_' . strtoupper($key) . '_DB_PASSWORD');
     if (is_string($specific) && $specific !== '') return $specific;
     $shared = getenv(strtoupper($key) . '_DB_PASSWORD');
-    return is_string($shared) ? $shared : '';
+    if (is_string($shared) && $shared !== '') return $shared;
+    return match ($key) {
+        'gitea' => storageUsageEnvFilesValue(['/opt/docker/gitea/.env'], ['GITEA__database__PASSWD', 'GITEA_DB_PASSWORD', 'DB_PASSWORD'])
+            ?: storageUsageIniValue('/opt/docker/gitea/data/gitea/conf/app.ini', 'PASSWD'),
+        'immich' => storageUsageEnvFilesValue(['/opt/docker/immich/.env'], ['DB_PASSWORD', 'IMMICH_DB_PASSWORD']),
+        'dawarich' => storageUsageEnvFilesValue(['/opt/docker/dawarich/.env'], ['DATABASE_PASSWORD', 'POSTGRES_PASSWORD', 'DAWARICH_DB_PASSWORD']),
+        default => '',
+    };
 }
 
 function storageUsageEnv(string $name, string $default): string {
@@ -25,13 +32,51 @@ function storageUsageEnv(string $name, string $default): string {
     return (is_string($value) && $value !== '') ? $value : $default;
 }
 
+function storageUsageEnvFileValue(string $path, string $name): string {
+    if (!is_readable($path)) return '';
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!is_array($lines)) return '';
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) continue;
+        [$key, $value] = explode('=', $line, 2);
+        if (trim($key) !== $name) continue;
+        return trim(trim($value), "\"'");
+    }
+    return '';
+}
+
+function storageUsageEnvFilesValue(array $paths, array $names): string {
+    foreach ($paths as $path) {
+        foreach ($names as $name) {
+            $value = storageUsageEnvFileValue($path, $name);
+            if ($value !== '') return $value;
+        }
+    }
+    return '';
+}
+
+function storageUsageIniValue(string $path, string $name): string {
+    if (!is_readable($path)) return '';
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!is_array($lines)) return '';
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#' || $line[0] === ';' || !str_contains($line, '=')) continue;
+        [$key, $value] = explode('=', $line, 2);
+        if (trim($key) !== $name) continue;
+        return trim(trim($value), "\"'");
+    }
+    return '';
+}
+
 /**
  * Source definitions in collection order.
  * 'internal' sources read the dashboard database, 'external' ones their own Postgres.
  */
 function storageUsageSourceDefs(): array {
-    $host = storageUsageEnv('STORAGE_USAGE_DB_HOST', 'host.docker.internal');
-    $port = (int)storageUsageEnv('STORAGE_USAGE_DB_PORT', '5432');
+    $host = storageUsageEnv('STORAGE_USAGE_DB_HOST', storageUsageEnv('DB_HOST', 'host.docker.internal'));
+    $port = (int)storageUsageEnv('STORAGE_USAGE_DB_PORT', storageUsageEnv('DB_PORT', '5432'));
 
     $external = static function (string $key, string $label, string $db, string $user) use ($host, $port): array {
         return [
@@ -40,7 +85,7 @@ function storageUsageSourceDefs(): array {
             'host'     => storageUsageEnv('STORAGE_USAGE_' . strtoupper($key) . '_DB_HOST', $host),
             'port'     => (int)storageUsageEnv('STORAGE_USAGE_' . strtoupper($key) . '_DB_PORT', (string)$port),
             'db'       => storageUsageEnv('STORAGE_USAGE_' . strtoupper($key) . '_DB', $db),
-            'user'     => storageUsageEnv('STORAGE_USAGE_' . strtoupper($key) . '_DB_USER', $user),
+            'user'     => storageUsageEnv('STORAGE_USAGE_' . strtoupper($key) . '_DB_USER', $key === 'dawarich' ? storageUsageEnvFilesValue(['/opt/docker/dawarich/.env'], ['DATABASE_USERNAME']) ?: $user : $user),
             'password' => storageUsagePassword($key),
         ];
     };
