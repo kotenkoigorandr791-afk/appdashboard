@@ -11,6 +11,11 @@ python3 "$ROOT/deploy/scripts/render-nginx-conf.sh" "$ROOT/deploy/nginx/front-do
 if [ -f "$DISABLED" ]; then
   mv "$DISABLED" "$DISABLED.disabled-$(date +%Y%m%d%H%M%S)"
 fi
+for old_site in /etc/nginx/sites-enabled/appdashboard.conf /etc/nginx/sites-enabled/default; do
+  if [ -e "$old_site" ] || [ -L "$old_site" ]; then
+    mv "$old_site" "$old_site.disabled-$(date +%Y%m%d%H%M%S)"
+  fi
+done
 install -d -m 0755 /opt/docker/appdashboard/nginx /etc/nginx/sites-available /etc/nginx/sites-enabled
 if [ ! -f /opt/docker/appdashboard/nginx/cloudflare-realip.conf ]; then
   cat > /opt/docker/appdashboard/nginx/cloudflare-realip.conf <<'EOF'
