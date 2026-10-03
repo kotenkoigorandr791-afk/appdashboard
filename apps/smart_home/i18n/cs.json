@@ -110,6 +110,8 @@
     "props_delete": "Smazat",
     "props_none": "Vyberte objekt",
     "props_type": "Typ",
+    "props_selected": "Vybráno",
+    "props_mixed": "Různé",
     "props_x": "X",
     "props_y": "Y",
     "props_w": "Šířka",

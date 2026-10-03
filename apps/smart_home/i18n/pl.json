@@ -110,6 +110,8 @@
     "props_delete": "Usuń",
     "props_none": "Wybierz obiekt",
     "props_type": "Typ",
+    "props_selected": "Zaznaczono",
+    "props_mixed": "Różne",
     "props_x": "X",
     "props_y": "Y",
     "props_w": "Szerokość",

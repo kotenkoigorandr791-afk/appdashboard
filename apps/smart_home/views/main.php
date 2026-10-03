@@ -373,8 +373,13 @@
     <div class="modal-corner-slot" aria-hidden="true"></div>
     <div class="modal-topbar" id="modalTopBar" aria-hidden="true">
       <span class="modal-topbar-title" id="modalTopBarTitle"></span>
+      <button class="modal-close modal-close--topbar" id="modalCloseTop" aria-label="<?=sh_h($t['cancel'])?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     </div>
-    <button class="modal-close" id="modalClose"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    <div class="modal-dialog-bar">
+      <span class="modal-dialog-bar-title" id="modalDialogBarTitle"></span>
+      <button class="modal-close modal-close--dialog" id="modalClose" aria-label="<?=sh_h($t['cancel'])?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <button class="modal-close modal-close--apidocs" id="modalCloseApi" aria-label="<?=sh_h($t['cancel'])?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
     <div id="modalBody"></div>
   </div>
 </div>

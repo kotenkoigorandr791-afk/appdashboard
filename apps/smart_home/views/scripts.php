@@ -108,17 +108,19 @@ function openModal(html, opts = {}) {
   const overlay = document.getElementById('modalOverlay');
   const mc = document.getElementById('modalContent');
   const apiDocs = !!opts.apiDocs;
+  const isDialog = !apiDocs && html.includes('ui-dialog');
   if (mc) {
-    mc.classList.toggle('modal--dialog', !apiDocs && html.includes('ui-dialog'));
+    mc.classList.toggle('modal--dialog', isDialog);
     mc.classList.toggle('modal--api-docs', apiDocs);
   }
   overlay?.classList.toggle('modal-overlay--api-docs', apiDocs);
   const body = document.getElementById('modalBody');
   body.innerHTML = html;
+  const dialogBarTitle = document.getElementById('modalDialogBarTitle');
+  if (dialogBarTitle) dialogBarTitle.textContent = isDialog ? String(opts.title || '') : '';
   const topbar = document.getElementById('modalTopBar');
   const topbarTitle = document.getElementById('modalTopBarTitle');
   if (topbar && topbarTitle) {
-    const isDialog = html.includes('ui-dialog');
     const h = (apiDocs || isDialog) ? null : body.querySelector('h2, h3.modal-title, .modal-title');
     topbar.classList.toggle('has-title', !!h);
     topbarTitle.textContent = h ? h.textContent.trim() : '';
@@ -139,6 +141,8 @@ function closeModal() {
   topbar?.classList.remove('has-title');
   const topbarTitle = document.getElementById('modalTopBarTitle');
   if (topbarTitle) topbarTitle.textContent = '';
+  const dialogBarTitle = document.getElementById('modalDialogBarTitle');
+  if (dialogBarTitle) dialogBarTitle.textContent = '';
   if (!overlay?.classList.contains('open')) setPageScrollLocked(false);
   state.viewDeviceId = null;
 }
@@ -148,31 +152,36 @@ const UI_ICONS = {
   danger: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
   confirm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>',
 };
-function uiDialogHtml(kind, title, body, actions) {
+function uiDialogHtml(kind, body, actions) {
   document.getElementById('modalContent')?.classList.add('modal--dialog');
   return `<div class="ui-dialog">
     <div class="ui-dialog-icon ${kind}">${UI_ICONS[kind] || UI_ICONS.confirm}</div>
-    <h2 class="ui-dialog-title">${esc(title)}</h2>
     <p class="ui-dialog-body">${body}</p>
     <div class="ui-dialog-actions">${actions}</div>
   </div>`;
 }
 function uiAlert(msg, title) {
-  openModal(uiDialogHtml('alert', title || uiText.error_title, esc(msg),
-    `<button type="button" class="btn btn-primary" onclick="closeModal()">${esc(uiText.ok)}</button>`));
+  const t = title || uiText.error_title;
+  openModal(uiDialogHtml('alert', esc(msg),
+    `<button type="button" class="btn btn-primary" onclick="closeModal()">${esc(uiText.ok)}</button>`),
+    { title: t });
 }
 function uiConfirm(msg, onOk, title, opts = {}) {
   const danger = !!opts.danger;
-  openModal(uiDialogHtml(danger ? 'danger' : 'confirm', title || uiText.confirm_title, esc(msg),
+  const t = title || uiText.confirm_title;
+  openModal(uiDialogHtml(danger ? 'danger' : 'confirm', esc(msg),
     `<button type="button" class="btn btn-secondary" onclick="closeModal()">${esc(uiText.cancel)}</button>
-     <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="uiConfirmOk">${esc(opts.okLabel || uiText.ok)}</button>`));
+     <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="uiConfirmOk">${esc(opts.okLabel || uiText.ok)}</button>`),
+    { title: t });
   document.getElementById('uiConfirmOk')?.addEventListener('click', () => { closeModal(); onOk?.(); });
 }
 function uiPrompt(label, onOk, title, defVal = '') {
-  openModal(uiDialogHtml('confirm', title || uiText.confirm_title,
+  const t = title || uiText.confirm_title;
+  openModal(uiDialogHtml('confirm',
     `<div class="ui-dialog-prompt"><label>${esc(label)}</label><input type="text" id="uiPromptInput" value="${esc(defVal)}"></div>`,
     `<button type="button" class="btn btn-secondary" onclick="closeModal()">${esc(uiText.cancel)}</button>
-     <button type="button" class="btn btn-primary" id="uiPromptOk">${esc(uiText.ok)}</button>`));
+     <button type="button" class="btn btn-primary" id="uiPromptOk">${esc(uiText.ok)}</button>`),
+    { title: t });
   const inp = document.getElementById('uiPromptInput');
   inp?.focus();
   inp?.select();
@@ -410,8 +419,15 @@ function removeDeviceFromState(id) {
   state.myDevices = state.myDevices.filter(d => d.id !== id);
   if (FP.elements?.length) {
     const had = FP.elements.some(e => e.type === 'device' && e.deviceId === id);
-    FP.elements = FP.elements.filter(e => !(e.type === 'device' && e.deviceId === id));
-    if (FP.selected >= 0 && FP.elements[FP.selected]?.deviceId === id) { FP.selected = -1; FP.propsIdx = -1; }
+    const remap = new Map();
+    const kept = [];
+    FP.elements.forEach((e, i) => {
+      if (e.type === 'device' && e.deviceId === id) return;
+      remap.set(i, kept.length);
+      kept.push(e);
+    });
+    FP.elements = kept;
+    fpSetSelection(fpSelectionList().map(i => remap.get(i)).filter(i => i !== undefined));
     if (had) fpCloseDevicePopup();
   }
   patchDevicesFromState(prev, state.devices);
@@ -1507,6 +1523,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Modal
   document.getElementById('modalClose').addEventListener('click', closeModal);
+  document.getElementById('modalCloseTop')?.addEventListener('click', closeModal);
+  document.getElementById('modalCloseApi')?.addEventListener('click', closeModal);
   document.getElementById('modalOverlay').addEventListener('click', e => {
     if (e.target === e.currentTarget) closeModal();
   });
@@ -1754,6 +1772,8 @@ const FP = {
   boxSelect: null,
   polyVertexIdx: 0,
   clipboard: null,
+  selection: [],
+  anchorIdx: -1,
 };
 function fpGetDevice(deviceId) {
   return (state.devices || []).find(d => d.id === deviceId)
@@ -1761,6 +1781,93 @@ function fpGetDevice(deviceId) {
 }
 function deviceCanConfigure(d) {
   return !!d && (d.user_email || '') === CURRENT_USER_EMAIL;
+}
+function fpIsSelected(idx) {
+  return Array.isArray(FP.selection) && FP.selection.includes(idx);
+}
+function fpSelectionList() {
+  if (Array.isArray(FP.selection) && FP.selection.length) {
+    return FP.selection.filter(i => FP.elements[i]).sort((a, b) => a - b);
+  }
+  const idx = FP.propsIdx >= 0 ? FP.propsIdx : FP.selected;
+  return idx >= 0 && FP.elements[idx] ? [idx] : [];
+}
+function fpPrimaryIdx() {
+  const list = fpSelectionList();
+  return list.length ? list[list.length - 1] : -1;
+}
+function fpSetSelection(idxs) {
+  const seen = new Set();
+  FP.selection = (idxs || []).filter(i => {
+    if (!Number.isInteger(i) || !FP.elements[i] || seen.has(i)) return false;
+    seen.add(i);
+    return true;
+  });
+  const primary = FP.selection.length ? FP.selection[FP.selection.length - 1] : -1;
+  FP.selected = primary;
+  FP.propsIdx = primary;
+  FP.anchorIdx = FP.selection.length === 1 ? FP.selection[0] : (FP.anchorIdx >= 0 && FP.selection.includes(FP.anchorIdx) ? FP.anchorIdx : primary);
+  const el = FP.elements[primary];
+  if (el && fpElShape(el) === 'poly') FP.polyVertexIdx = 0;
+}
+function fpClearSelection() {
+  fpSetSelection([]);
+}
+function fpToggleSelection(idx) {
+  if (idx < 0 || !FP.elements[idx]) return;
+  const cur = fpSelectionList();
+  const next = cur.includes(idx) ? cur.filter(i => i !== idx) : [...cur, idx];
+  fpSetSelection(next);
+}
+function fpExtendSelection(idx) {
+  if (idx < 0 || !FP.elements[idx]) return;
+  const base = FP.anchorIdx >= 0 && FP.elements[FP.anchorIdx] ? FP.anchorIdx : fpPrimaryIdx();
+  if (base < 0) { fpSetSelection([idx]); return; }
+  const a = Math.min(base, idx), b = Math.max(base, idx);
+  const range = [];
+  for (let i = a; i <= b; i++) range.push(i);
+  fpSetSelection([...new Set([base, ...range])]);
+}
+function fpGroupDragSnapshot(sel) {
+  return sel.map(i => {
+    const el = FP.elements[i];
+    if (!el) return null;
+    const snap = { i, type: el.type };
+    if (el.type === 'wall') {
+      snap.x = el.x; snap.y = el.y; snap.x2 = el.x2; snap.y2 = el.y2;
+    } else if (fpElShape(el) === 'poly' && el.points) {
+      snap.points = el.points.map(pt => ({ x: pt.x, y: pt.y }));
+    } else {
+      snap.x = el.x; snap.y = el.y;
+    }
+    return snap;
+  }).filter(Boolean);
+}
+function fpStartGroupDrag(x, y) {
+  FP.dragging = true;
+  FP.dragEl = fpPrimaryIdx();
+  FP.dragOffX = x;
+  FP.dragOffY = y;
+  FP._groupSnap = fpGroupDragSnapshot(fpSelectionList());
+  fpRenderProps();
+  fpRender();
+}
+function fpApplyGroupDrag(x, y) {
+  const dx = x - FP.dragOffX, dy = y - FP.dragOffY;
+  FP._groupSnap.forEach(s => {
+    const el = FP.elements[s.i];
+    if (!el) return;
+    if (s.type === 'wall') {
+      el.x = fpSnap(s.x + dx); el.y = fpSnap(s.y + dy);
+      el.x2 = fpSnap(s.x2 + dx); el.y2 = fpSnap(s.y2 + dy);
+    } else if (s.points) {
+      el.points = s.points.map(pt => ({ x: fpSnap(pt.x + dx), y: fpSnap(pt.y + dy) }));
+    } else {
+      el.x = fpSnap(s.x + dx); el.y = fpSnap(s.y + dy);
+    }
+    fpNormalizeElement(el);
+  });
+  fpRender();
 }
 function fpStartPan(e) {
   FP.panning = true;
@@ -1816,16 +1923,21 @@ function fpFinishBoxSelect() {
   const x1 = Math.min(b.x1, b.x2), x2 = Math.max(b.x1, b.x2);
   const y1 = Math.min(b.y1, b.y2), y2 = Math.max(b.y1, b.y2);
   if (Math.hypot(x2 - x1, y2 - y1) < FP.snap / 2) {
-    FP.selected = -1; FP.propsIdx = -1;
+    fpClearSelection();
     fpRenderProps(); fpRender();
     return;
   }
-  let pick = -1;
+  const additive = !!(b.additive || b.shift);
+  const picks = [];
   for (let i = FP.elements.length - 1; i >= 0; i--) {
-    if (fpElIntersectsBox(FP.elements[i], x1, y1, x2, y2)) { pick = i; break; }
+    if (fpElIntersectsBox(FP.elements[i], x1, y1, x2, y2)) picks.push(i);
   }
-  if (pick >= 0) fpSelectEl(pick);
-  else { FP.selected = -1; FP.propsIdx = -1; fpRenderProps(); }
+  if (picks.length) {
+    fpSetSelection(additive ? [...new Set([...fpSelectionList(), ...picks])] : picks);
+  } else if (!additive) {
+    fpClearSelection();
+  }
+  fpRenderProps();
   fpRender();
 }
 const FP_FLOOR_OPTS = [
@@ -1839,6 +1951,7 @@ function fpLoad() {
   if (state.floorPlan && state.floorPlan.length) {
     FP.elements = state.floorPlan;
     fpNormalizeElements();
+    fpClearSelection();
     FP.history = [JSON.parse(JSON.stringify(FP.elements))];
     FP.histIdx = 0;
   }
@@ -2342,11 +2455,11 @@ function fpConfirmPlaceDevice() {
 }
 function fpDeleteSelected() {
   if (fpIsViewOnly()) return;
-  const idx = FP.propsIdx >= 0 ? FP.propsIdx : FP.selected;
-  if (idx < 0 || !FP.elements[idx]) return;
-  FP.elements.splice(idx, 1);
-  FP.selected = -1;
-  FP.propsIdx = -1;
+  const sel = fpSelectionList();
+  if (!sel.length) return;
+  const drop = new Set(sel);
+  FP.elements = FP.elements.filter((_, i) => !drop.has(i));
+  fpClearSelection();
   fpPushHistory();
   fpRender();
   fpMarkDirty();
@@ -2356,35 +2469,48 @@ function fpCancelAction() {
   FP.vertexDrag = -1;
   if (FP.polyPoints?.length) { FP.polyPoints = null; fpRender(); return; }
   if (FP.drawing) { FP.drawing = false; fpRender(); return; }
-  if (FP.dragging) { FP.dragging = false; FP.dragEl = -1; fpRender(); return; }
+  if (FP.dragging) { FP.dragging = false; FP.dragEl = -1; FP._groupSnap = null; fpRender(); return; }
   if (FP.panning) fpEndPan();
   FP.boxSelect = null;
-  FP.selected = -1;
-  FP.propsIdx = -1;
+  fpClearSelection();
   fpRenderProps();
   fpRender();
 }
 const FP_TOOL_KEYS = { v: 'select', 1: 'select', 2: 'wall', 3: 'window', 4: 'door', 5: 'furniture', 6: 'room', 7: 'floor', 8: 'room-label', 9: 'room-poly', 0: 'furniture-poly' };
 function fpCopySelected() {
-  const idx = FP.propsIdx >= 0 ? FP.propsIdx : FP.selected;
-  if (idx < 0 || !FP.elements[idx]) return;
-  FP.clipboard = JSON.parse(JSON.stringify(FP.elements[idx]));
+  const sel = fpSelectionList();
+  if (!sel.length) return;
+  FP.clipboard = sel.map(i => JSON.parse(JSON.stringify(FP.elements[i])));
 }
 function fpPaste() {
   if (!FP.clipboard) return;
-  const el = JSON.parse(JSON.stringify(FP.clipboard));
+  const items = Array.isArray(FP.clipboard) ? FP.clipboard : [FP.clipboard];
+  if (!items.length) return;
   const off = FP.snap * 2;
-  if (el.x !== undefined) { el.x += off; el.y += off; }
-  if (el.x2 !== undefined) { el.x2 += off; el.y2 += off; }
-  if (el.points) el.points = el.points.map(p => ({ x: p.x + off, y: p.y + off }));
-  FP.elements.push(el);
+  const newIdx = [];
+  items.forEach(src => {
+    const el = JSON.parse(JSON.stringify(src));
+    if (el.x !== undefined) { el.x += off; el.y += off; }
+    if (el.x2 !== undefined) { el.x2 += off; el.y2 += off; }
+    if (el.points) el.points = el.points.map(p => ({ x: p.x + off, y: p.y + off }));
+    newIdx.push(FP.elements.length);
+    FP.elements.push(el);
+  });
   fpPushHistory();
-  fpSelectEl(FP.elements.length - 1);
+  fpSetSelection(newIdx);
+  fpRenderProps();
   fpMarkDirty();
+  fpRender();
 }
 function fpCutSelected() {
   fpCopySelected();
   fpDeleteSelected();
+}
+function fpSelectAll() {
+  if (fpIsViewOnly() || !FP.elements.length) return;
+  fpSetSelection(FP.elements.map((_, i) => i));
+  fpRenderProps();
+  fpRender();
 }
 let fpKeyboardBound = false;
 function fpOnKeyDown(e) {
@@ -2410,6 +2536,7 @@ function fpOnKeyDown(e) {
   if (mod && key.toLowerCase() === 'c') { e.preventDefault(); fpCopySelected(); return; }
   if (mod && key.toLowerCase() === 'v') { e.preventDefault(); fpPaste(); return; }
   if (mod && key.toLowerCase() === 'x') { e.preventDefault(); fpCutSelected(); return; }
+  if (mod && key.toLowerCase() === 'a') { e.preventDefault(); fpSelectAll(); return; }
   if (key === 'Escape') { e.preventDefault(); fpCancelAction(); return; }
   if (key === 'Enter' && FP.polyPoints?.length >= 3) { e.preventDefault(); fpFinishPolygon(); return; }
   if (key === 'Delete' || key === 'Backspace') { e.preventDefault(); fpDeleteSelected(); return; }
@@ -2426,7 +2553,10 @@ function fpUpdateMapPanelTitle() {
   if (h) h.textContent = fpIsViewOnly() ? (uiText.map_device_states || uiText.params) : uiText.props_title;
 }
 function fpDeviceStatusColor(status) {
-  return status === 'online' ? '#6aaa6a' : status === 'offline' ? '#d4504a' : '#787775';
+  const isLight = document.body.classList.contains('light');
+  if (status === 'online') return isLight ? '#3d7a3d' : '#6aaa6a';
+  if (status === 'offline') return isLight ? '#c93a34' : '#d4504a';
+  return isLight ? '#6b6a68' : '#787775';
 }
 const FP_ICON_CACHE = {};
 function fpDeviceIconSvg(icon, color) {
@@ -2455,11 +2585,22 @@ function fpDrawDeviceMarker(ctx, el, sel) {
   const r = size / 2;
   const lbl = dev?.name || el.deviceId || '';
   const labelFont = Math.max(8, Math.round(9 * scale));
+  const isLight = document.body.classList.contains('light');
   ctx.shadowColor = status === 'online' ? 'rgba(106,170,106,0.35)' : 'transparent';
   ctx.shadowBlur = status === 'online' ? 12 : 0;
-  ctx.fillStyle = sel ? 'rgba(89,179,0,0.28)' : 'rgba(36,35,33,0.94)';
-  ctx.strokeStyle = sel ? '#59b300' : color;
-  ctx.lineWidth = sel ? 2 : 1.5;
+  if (sel) {
+    ctx.fillStyle = 'rgba(89,179,0,0.28)';
+    ctx.strokeStyle = '#59b300';
+    ctx.lineWidth = 2;
+  } else if (isLight) {
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+  } else {
+    ctx.fillStyle = 'rgba(36,35,33,0.94)';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+  }
   ctx.beginPath();
   ctx.arc(el.x, el.y, r, 0, Math.PI * 2);
   ctx.fill();
@@ -2470,7 +2611,7 @@ function fpDrawDeviceMarker(ctx, el, sel) {
     const s = Math.max(size * 0.72, size - 10);
     ctx.drawImage(ic.img, el.x - s / 2, el.y - s / 2, s, s);
   }
-  ctx.fillStyle = '#e4e3e1';
+  ctx.fillStyle = isLight ? '#1f1e1c' : '#e4e3e1';
   ctx.font = 'bold ' + labelFont + 'px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -2563,8 +2704,7 @@ function fpTryImportPayload(payload) {
   if (!Array.isArray(next)) throw new Error('Invalid payload: elements must be array');
   FP.elements = next;
   fpNormalizeElements();
-  FP.selected = -1;
-  FP.propsIdx = -1;
+  fpClearSelection();
   fpPushHistory();
   fpRenderProps();
   fpRender();
@@ -2687,8 +2827,7 @@ function fpDoImport(payload, mode) {
   }
   FP.elements = mode === 'side' ? (FP.elements || []).concat(next) : next;
   fpNormalizeElements();
-  FP.selected = -1;
-  FP.propsIdx = -1;
+  fpClearSelection();
   fpPushHistory();
   fpRenderProps();
   fpRender();
@@ -2763,10 +2902,16 @@ function fpPushHistory() {
   if (FP.history.length > 50) FP.history.shift();
 }
 function fpUndo() {
-  if (FP.histIdx > 0) { FP.histIdx--; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpRender(); fpMarkDirty(); }
+  if (FP.histIdx > 0) { FP.histIdx--; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpAfterHistorySwap(); }
 }
 function fpRedo() {
-  if (FP.histIdx < FP.history.length - 1) { FP.histIdx++; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpRender(); fpMarkDirty(); }
+  if (FP.histIdx < FP.history.length - 1) { FP.histIdx++; FP.elements = JSON.parse(JSON.stringify(FP.history[FP.histIdx])); fpAfterHistorySwap(); }
+}
+function fpAfterHistorySwap() {
+  fpSetSelection(fpSelectionList().filter(i => FP.elements[i]));
+  fpRenderProps();
+  fpRender();
+  fpMarkDirty();
 }
 
 function fpWhenLayoutReady(fn) {
@@ -2824,7 +2969,7 @@ function fpInit() {
         const c = fpCanvasCoords(p);
         const hitIdx = fpFindViewDevice(c.x, c.y);
         if (hitIdx >= 0) fpSelectEl(hitIdx);
-        else { FP.selected = -1; FP.propsIdx = -1; fpCloseDevicePopup(); fpRenderProps(); fpRender(); }
+        else { fpClearSelection(); fpCloseDevicePopup(); fpRenderProps(); fpRender(); }
       }
     }
     fpTouchTap = null;
@@ -2846,7 +2991,7 @@ function fpInit() {
   document.getElementById('mapZoomOutBtn')?.addEventListener('click', () => { FP.zoom = Math.max(FP.zoom / 1.2, 0.2); fpRender(); });
   document.getElementById('mapClearBtn')?.addEventListener('click', () => {
     if (FP.elements.length === 0) return;
-    uiConfirm(uiText.map_clear_confirm, () => { FP.elements = []; FP.selected = -1; FP.propsIdx = -1; fpPushHistory(); fpRenderProps(); fpRender(); fpMarkDirty(); }, null, { danger: true });
+    uiConfirm(uiText.map_clear_confirm, () => { FP.elements = []; fpClearSelection(); fpPushHistory(); fpRenderProps(); fpRender(); fpMarkDirty(); }, null, { danger: true });
   });
   document.getElementById('mapSaveBtn')?.addEventListener('click', () => {
     fpSave();
@@ -2886,12 +3031,8 @@ function fpInit() {
   if (stage) FP.resizeObs.observe(stage);
   fpEnsurePropsAutoSave();
   document.getElementById('mapPropsDelete')?.addEventListener('click', () => {
-    if (FP.propsIdx < 0) return;
-    uiConfirm(uiText.map_delete_el, () => {
-      FP.elements.splice(FP.propsIdx, 1);
-      FP.selected = -1; FP.propsIdx = -1;
-      fpPushHistory(); fpRender(); fpMarkDirty(); fpRenderProps();
-    }, null, { danger: true, okLabel: uiText.props_delete });
+    if (!fpSelectionList().length) return;
+    uiConfirm(uiText.map_delete_el, () => fpDeleteSelected(), null, { danger: true, okLabel: uiText.props_delete });
   });
   fpUpdateMapMode();
   fpRenderProps();
@@ -2911,6 +3052,97 @@ function fpScaleRow(el) {
   return `<tr><th>${esc(uiText.props_scale)}</th><td><input type="number" data-k="scale" step="0.1" min="${min}" max="${max}" value="${s}"></td></tr>`;
 }
 
+function fpMultiCommonKey(el) {
+  if (el.type === 'room') return fpElShape(el) === 'poly' ? 'scale' : 'floorType';
+  if (el.type === 'furniture') return fpElShape(el) === 'poly' ? 'scale' : 'label';
+  if (el.type === 'device') return 'scale';
+  return null;
+}
+function fpMultiCommonValues(sel, key) {
+  const vals = new Set();
+  sel.forEach(i => {
+    const el = FP.elements[i];
+    if (!el) return;
+    if (key === 'scale') vals.add(String(Number(el.scale ?? 1).toFixed(2)));
+    else vals.add(String(el[key] ?? ''));
+  });
+  return vals;
+}
+function fpResetDeleteLabel() {
+  const del = document.getElementById('mapPropsDelete');
+  if (del && del.dataset.baseLabel) del.textContent = del.dataset.baseLabel;
+}
+function fpRenderMultiProps(body, actions, sel) {
+  const counts = new Map();
+  sel.forEach(i => {
+    const el = FP.elements[i];
+    if (!el) return;
+    const label = fpTypeLabel(el.type);
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+  const summary = [...counts.entries()].map(([label, n]) => (n > 1 ? `${label} × ${n}` : label)).join(', ');
+  const typeVal = fpMultiCommonValues(sel, 'type');
+  let rows = `<tr><th>${esc(uiText.props_selected)}</th><td><strong>${sel.length}</strong></td></tr>`;
+  rows += `<tr><th>${esc(uiText.props_type)}</th><td>${typeVal.size === 1 ? esc([...typeVal][0]) : esc(uiText.props_mixed)}</td></tr>`;
+
+  const floorSel = sel.filter(i => fpMultiCommonKey(FP.elements[i]) === 'floorType');
+  if (floorSel.length) {
+    const vals = fpMultiCommonValues(floorSel, 'floorType');
+    const cur = vals.size === 1 ? [...vals][0] : '';
+    rows += `<tr><th>${esc(uiText.props_floor)}</th><td><select data-multi-k="floorType"><option value=""${cur ? '' : ' selected'}>${esc(uiText.props_mixed)}</option>${FP_FLOOR_OPTS.map(o => `<option value="${o.v}"${cur === o.v ? ' selected' : ''}>${esc(o.l())}</option>`).join('')}</select></td></tr>`;
+  }
+  const labelSel = sel.filter(i => fpMultiCommonKey(FP.elements[i]) === 'label');
+  if (labelSel.length) {
+    const vals = fpMultiCommonValues(labelSel, 'label');
+    const cur = vals.size === 1 ? [...vals][0] : '';
+    rows += `<tr><th>${esc(uiText.props_label)}</th><td><input type="text" data-multi-k="label" value="${esc(cur)}" placeholder="${esc(uiText.props_mixed)}"></td></tr>`;
+  }
+  const scaleSel = sel.filter(i => fpMultiCommonKey(FP.elements[i]) === 'scale');
+  if (scaleSel.length) {
+    const vals = fpMultiCommonValues(scaleSel, 'scale');
+    const cur = vals.size === 1 ? [...vals][0] : '';
+    rows += `<tr><th>${esc(uiText.props_scale)}</th><td><input type="number" data-multi-k="scale" step="0.1" min="0.1" max="10" value="${cur}"></td></tr>`;
+  }
+
+  body.className = '';
+  body.innerHTML = `<div class="fp-multi-summary">${esc(summary)}</div>
+    <table class="props-table"><thead><tr><th>${esc(uiText.props_name)}</th><th>${esc(uiText.props_value)}</th></tr></thead><tbody>${rows}</tbody></table>`;
+  if (actions) actions.style.display = 'flex';
+  const del = document.getElementById('mapPropsDelete');
+  if (del) {
+    if (!del.dataset.baseLabel) del.dataset.baseLabel = del.textContent;
+    del.textContent = `${uiText.props_delete} (${sel.length})`;
+  }
+}
+function fpApplyMultiProps(silent) {
+  if (fpIsViewOnly()) return;
+  const sel = fpSelectionList();
+  if (sel.length < 2) return;
+  document.querySelectorAll('#mapPropsBody [data-multi-k]').forEach(inp => {
+    const key = inp.dataset.multiK;
+    const raw = inp.value;
+    if (raw === '' || raw === null || raw === undefined) return;
+    if (key === 'scale') {
+      sel.forEach(i => {
+        const el = FP.elements[i];
+        if (!el || fpMultiCommonKey(el) !== 'scale') return;
+        const isDevice = el.type === 'device';
+        const ns = Math.max(isDevice ? 0.4 : 0.1, Math.min(isDevice ? 4 : 10, parseFloat(raw) || 1));
+        fpApplyElementScale(el, ns);
+      });
+      return;
+    }
+    sel.forEach(i => {
+      const el = FP.elements[i];
+      if (!el || fpMultiCommonKey(el) !== key) return;
+      el[key] = raw;
+    });
+  });
+  if (!silent) fpPushHistory();
+  fpRender();
+  fpMarkDirty();
+}
+
 let fpPropsAutoSaveBound = false;
 function fpEnsurePropsAutoSave() {
   if (fpPropsAutoSaveBound) return;
@@ -2919,12 +3151,25 @@ function fpEnsurePropsAutoSave() {
   fpPropsAutoSaveBound = true;
   let tm = null;
   body.addEventListener('input', e => {
-    if (fpIsViewOnly() || !e.target.matches('[data-k], [data-pvi]')) return;
+    if (fpIsViewOnly()) return;
+    if (e.target.matches('[data-multi-k]')) {
+      clearTimeout(tm);
+      tm = setTimeout(() => fpApplyMultiProps(true), 400);
+      return;
+    }
+    if (!e.target.matches('[data-k], [data-pvi]')) return;
     clearTimeout(tm);
     tm = setTimeout(() => fpApplyProps(true), 400);
   });
   body.addEventListener('change', e => {
-    if (fpIsViewOnly() || !e.target.matches('[data-k], [data-pvi]')) return;
+    if (fpIsViewOnly()) return;
+    if (e.target.matches('[data-multi-k]')) {
+      clearTimeout(tm);
+      fpApplyMultiProps(true);
+      fpRenderProps();
+      return;
+    }
+    if (!e.target.matches('[data-k], [data-pvi]')) return;
     fpApplyProps(true);
     if (e.target.dataset.k === 'rounded') fpRenderProps();
   });
@@ -2983,6 +3228,12 @@ function fpRenderProps() {
     fpHighlightHomeDeviceCard(idx);
     return;
   }
+  const sel = fpSelectionList();
+  if (sel.length > 1) {
+    fpRenderMultiProps(body, actions, sel);
+    return;
+  }
+  fpResetDeleteLabel();
   if (idx < 0 || !FP.elements[idx]) {
     body.className = 'map-props-empty';
     body.innerHTML = esc(uiText.props_none);
@@ -3033,6 +3284,7 @@ function fpRenderProps() {
 
 function fpApplyProps(silent) {
   if (fpIsViewOnly()) return;
+  if (fpSelectionList().length > 1) { fpApplyMultiProps(silent); return; }
   const idx = FP.propsIdx >= 0 ? FP.propsIdx : FP.selected;
   if (idx < 0 || !FP.elements[idx]) return;
   const el = FP.elements[idx];
@@ -3067,13 +3319,13 @@ function fpApplyProps(silent) {
 
 function fpHighlightHomeDeviceCard() {}
 
-function fpSelectEl(idx) {
-  FP.selected = idx;
-  FP.propsIdx = idx;
-  const el = FP.elements[idx];
-  if (el && fpElShape(el) === 'poly') FP.polyVertexIdx = 0;
+function fpSelectEl(idx, opts) {
+  const o = opts || {};
+  if (o.additive) fpToggleSelection(idx);
+  else if (o.range) fpExtendSelection(idx);
+  else fpSetSelection(idx < 0 || !FP.elements[idx] ? [] : [idx]);
   fpRenderProps();
-  fpHighlightHomeDeviceCard(idx);
+  fpHighlightHomeDeviceCard(FP.selected);
   fpRender();
 }
 
@@ -3125,10 +3377,12 @@ function fpMouseDown(e) {
   if (fpPointerButton(e) !== 0) return;
   const p = fpIsViewOnly() ? fpCanvasCoords(e) : fpEditCoords(e);
   const hitIdx = fpFindEl(p.x, p.y);
+  const additive = !!(e.ctrlKey || e.metaKey);
+  const range = !!e.shiftKey;
   if (fpIsViewOnly()) {
     if (hitIdx >= 0) fpSelectEl(hitIdx);
     else {
-      FP.selected = -1; FP.propsIdx = -1;
+      fpClearSelection();
       fpCloseDevicePopup();
       fpRenderProps(); fpRender();
     }
@@ -3153,12 +3407,26 @@ function fpMouseDown(e) {
   if (FP.tool === 'select') {
     const idx = hitIdx;
     if (idx < 0) {
-      FP.boxSelect = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, active: true };
-      FP.selected = -1; FP.propsIdx = -1; FP.vertexDrag = -1;
+      FP.boxSelect = { x1: p.x, y1: p.y, x2: p.x, y2: p.y, active: true, additive, shift: range };
+      if (!additive && !range) fpClearSelection();
+      FP.vertexDrag = -1;
       fpRenderProps(); fpRender();
       return;
     }
-    fpSelectEl(idx);
+    if (additive) fpToggleSelection(idx);
+    else if (range) fpExtendSelection(idx);
+    else if (!fpIsSelected(idx)) fpSetSelection([idx]);
+    FP.anchorIdx = idx;
+    fpRenderProps();
+    if (!fpIsSelected(idx)) {
+      fpRender();
+      return;
+    }
+    const sel = fpSelectionList();
+    if (sel.length > 1) {
+      fpStartGroupDrag(p.x, p.y);
+      return;
+    }
     FP.dragging = true;
     FP.dragEl = idx;
     const el = FP.elements[idx];
@@ -3238,6 +3506,11 @@ function fpMouseMove(e) {
     }
     return;
   }
+  if (FP.dragging && FP._groupSnap?.length) {
+    fpApplyGroupDrag(p.x, p.y);
+    fpRenderProps();
+    return;
+  }
   if (FP.dragging && FP.dragEl >= 0) {
     const el = FP.elements[FP.dragEl];
     if (el.type === 'wall') {
@@ -3271,17 +3544,25 @@ function fpMouseUp(e) {
   if (FP.boxSelect?.active) { fpFinishBoxSelect(); return; }
   if (fpIsViewOnly()) return;
   if (FP.vertexDrag >= 0 || FP.dragging) {
-    const el = FP.elements[FP.dragEl];
-    if (el) fpNormalizeElement(el);
-    if (FP.vertexDrag >= 0 && el?.points) {
-      el.points[FP.vertexDrag] = { x: fpSnap(el.points[FP.vertexDrag].x), y: fpSnap(el.points[FP.vertexDrag].y) };
-      if (el.points.length >= 3) {
-        if (FP.vertexDrag === 0) el.points[el.points.length - 1] = { x: el.points[0].x, y: el.points[0].y };
-        else if (FP.vertexDrag === el.points.length - 1) el.points[0] = { x: el.points[FP.vertexDrag].x, y: el.points[FP.vertexDrag].y };
+    if (FP._groupSnap?.length) {
+      FP._groupSnap.forEach(s => {
+        const el = FP.elements[s.i];
+        if (el) fpNormalizeElement(el);
+      });
+      fpRender();
+    } else {
+      const el = FP.elements[FP.dragEl];
+      if (el) fpNormalizeElement(el);
+      if (FP.vertexDrag >= 0 && el?.points) {
+        el.points[FP.vertexDrag] = { x: fpSnap(el.points[FP.vertexDrag].x), y: fpSnap(el.points[FP.vertexDrag].y) };
+        if (el.points.length >= 3) {
+          if (FP.vertexDrag === 0) el.points[el.points.length - 1] = { x: el.points[0].x, y: el.points[0].y };
+          else if (FP.vertexDrag === el.points.length - 1) el.points[0] = { x: el.points[FP.vertexDrag].x, y: el.points[FP.vertexDrag].y };
+        }
       }
     }
     FP.vertexDrag = -1;
-    FP.dragging = false; FP.dragEl = -1; FP._polyDragStart = null;
+    FP.dragging = false; FP.dragEl = -1; FP._polyDragStart = null; FP._groupSnap = null;
     fpPushHistory(); fpMarkDirty(); return;
   }
   if (!FP.drawing) return;
@@ -3464,7 +3745,7 @@ function fpRender() {
   const _sortedIdx = FP.elements.map((_, i) => i).sort((a, b) => (_renderOrder[FP.elements[a]?.type] ?? 9) - (_renderOrder[FP.elements[b]?.type] ?? 9));
   _sortedIdx.forEach(i => {
     const el = FP.elements[i];
-    const sel = i === FP.selected && (!fpIsViewOnly() || el.type === 'device');
+    const sel = fpIsSelected(i) && (!fpIsViewOnly() || el.type === 'device');
     ctx.save();
     switch (el.type) {
       case 'wall':

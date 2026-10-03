@@ -110,6 +110,8 @@
     "props_delete": "Удалить",
     "props_none": "Выберите объект",
     "props_type": "Тип",
+    "props_selected": "Выбрано",
+    "props_mixed": "Разные",
     "props_x": "X",
     "props_y": "Y",
     "props_w": "Ширина",
