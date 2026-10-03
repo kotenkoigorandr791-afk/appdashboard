@@ -248,9 +248,12 @@ if [ ! -f "$NGINX_TEMPLATE" ] && [ -f /etc/nginx/templates/appdashboard.conf.tem
   NGINX_TEMPLATE=/etc/nginx/templates/appdashboard.conf.template
 fi
 if [ -f "$NGINX_TEMPLATE" ] && [ -x /var/www/AppDashboard/deploy/scripts/render-nginx-conf.sh ]; then
-  /var/www/AppDashboard/deploy/scripts/render-nginx-conf.sh "$NGINX_TEMPLATE" /etc/nginx/sites-available/appdashboard.conf \
-    >/var/log/supervisor/nginx-render.log 2>&1 || true
-  ln -sfn /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled/default 2>/dev/null || true
+NGINX_RENDERED_SITE=/tmp/appdashboard-nginx.conf
+/var/www/AppDashboard/deploy/scripts/render-nginx-conf.sh "$NGINX_TEMPLATE" "$NGINX_RENDERED_SITE" \
+>/var/log/supervisor/nginx-render.log 2>&1 || true
+if [ -s "$NGINX_RENDERED_SITE" ]; then
+ln -sfn "$NGINX_RENDERED_SITE" /etc/nginx/sites-enabled/default 2>/dev/null || true
+fi
 fi
 # Ensure SSH WebSocket terminal is installable and will autostart under supervisord.
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-ssh-ws.sh ]; then
