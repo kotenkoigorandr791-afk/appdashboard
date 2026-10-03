@@ -251,6 +251,9 @@ function oauth_iframe_app_url(string $app): string {
         return $external;
     }
     $origin = oauth_public_origin();
+    if (!oauth_is_loopback_url($origin)) {
+        return rtrim($origin, '/') . $embedPath;
+    }
     $ext = parse_url($external) ?: [];
     $pub = parse_url($origin) ?: [];
     $extPort = (int)($ext['port'] ?? ((($ext['scheme'] ?? '') === 'https') ? 443 : 80));
