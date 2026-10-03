@@ -23,8 +23,7 @@ limit_req_status 429;
 
 
 server {
-    listen 80;
-    listen [::]:80;
+    listen 127.0.0.1:8080;
     server_name __AI_HOST__;
     include /opt/docker/appdashboard/nginx/cloudflare-realip.conf;
     client_max_body_size 64m;
