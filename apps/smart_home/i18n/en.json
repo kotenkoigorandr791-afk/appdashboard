@@ -110,6 +110,8 @@
     "props_delete": "Delete",
     "props_none": "Select an object",
     "props_type": "Type",
+    "props_selected": "Selected",
+    "props_mixed": "Mixed",
     "props_x": "X",
     "props_y": "Y",
     "props_w": "Width",
