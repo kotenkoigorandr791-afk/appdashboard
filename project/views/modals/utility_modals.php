@@ -33,13 +33,6 @@
     </div>
   </div>
 </div>
-<!-- Media viewer modal -->
-<div id="fm-media-modal" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.92);align-items:center;justify-content:center;flex-direction:column;">
-  <button id="fm-media-close" type="button" style="position:absolute;top:18px;right:24px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:2;line-height:1;">&times;</button>
-  <div id="fm-media-content" style="max-width:92vw;max-height:88vh;display:flex;align-items:center;justify-content:center;"></div>
-  <div id="fm-media-name" style="color:rgba(255,255,255,.55);font-size:12px;margin-top:12px;font-family:'Courier New',monospace;"></div>
-</div>
-
 <!-- ══ OTP Generator Modal ══════════════════════════════════════════════════ -->
 <div id="otp-gen-modal" style="display:none;position:fixed;inset:0;z-index:20000;background:rgba(6,10,16,0.28);align-items:center;justify-content:center;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);">
   <div id="otp-gen-content" style="background:var(--modal-bg);padding:30px;border-radius:12px;width:90%;max-width:400px;box-shadow:0 10px 30px rgba(0,0,0,.4);position:relative;text-align:center;max-height:90vh;overflow-y:auto;">

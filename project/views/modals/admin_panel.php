@@ -243,20 +243,6 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     text-transform: uppercase;
 }
 #ap-topbar .ap-brand svg { color: var(--primary-color); }
-#ap-topbar .ap-session-timer {
-    font-size: 11px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    background: var(--group-block-bg, rgba(128,128,128,.12));
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 2px 10px;
-    text-transform: none;
-    white-space: nowrap;
-}
-#ap-topbar .ap-session-timer.ap-session-timer-warn { color: var(--danger, #ef4444); border-color: var(--danger, #ef4444); }
 #ap-topbar .ap-user-info {
     display: flex;
     align-items: center;
@@ -316,6 +302,24 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     flex-shrink: 0;
     overflow: visible;
 }
+#ap-sidebar .ap-session-timer {
+    font-size: 10px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.3px;
+    color: var(--text-secondary);
+    background: var(--group-block-bg, rgba(128,128,128,.12));
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 2px 4px;
+    min-width: 44px;
+    text-align: center;
+    white-space: nowrap;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+    flex-shrink: 0;
+}
+#ap-sidebar .ap-session-timer.ap-session-timer-warn { color: var(--danger, #ef4444); border-color: var(--danger, #ef4444); }
 .ap-nav-btn {
     width: 44px;
     height: 44px;
@@ -973,77 +977,6 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 }
 .ap-remove-row-btn:hover { background: color-mix(in srgb,#f85149 15%,transparent); border-color: #f85149; }
 
-/* JSON Files Panel */
-.ap-json-table { width: 100%; border-collapse: collapse; font-size: 13px; font-family: sans-serif; }
-.ap-json-table th {
-    background: var(--group-block-bg);
-    color: var(--text-color);
-    text-align: left;
-    padding: 8px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    border-bottom: 1px solid var(--border-color);
-}
-.ap-json-table td {
-    padding: 9px 12px;
-    border-bottom: 1px solid var(--border-color);
-    color: var(--text-color);
-    vertical-align: middle;
-}
-.ap-json-table tr:hover td { background: var(--group-block-bg); cursor: pointer; }
-.ap-json-table tr.ap-json-active td { background: color-mix(in srgb,var(--primary-color) 12%,transparent); }
-.ap-json-fname { font-family: 'Courier New', monospace; font-size: 13px; color: var(--primary-color); }
-
-/* Monaco editor container */
-#ap-monaco-container {
-    display: none;
-    flex-direction: column;
-    gap: 0;
-    margin-top: 16px;
-}
-#ap-monaco-container.active { display: flex; }
-#ap-monaco-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--group-block-bg);
-    border: 1px solid var(--border-color);
-    border-bottom: none;
-    border-radius: 6px 6px 0 0;
-    padding: 8px 14px;
-    flex-wrap: wrap;
-    gap: 8px;
-}
-#ap-monaco-filename {
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    color: var(--primary-color);
-    font-weight: 700;
-}
-#ap-monaco-mode-btns { display: flex; gap: 6px; }
-.ap-mode-btn {
-    padding: 4px 12px;
-    border-radius: 4px;
-    border: 1px solid var(--border-color);
-    background: transparent;
-    color: var(--text-color);
-    font-size: 12px;
-    cursor: pointer;
-    font-family: sans-serif;
-    transition: all .2s;
-    opacity: .7;
-}
-.ap-mode-btn.active { background: var(--primary-color); color: #fff; border-color: var(--primary-color); opacity: 1; }
-.ap-mode-btn:hover { opacity: 1; }
-#ap-monaco-editor-wrap {
-    border: 1px solid var(--border-color);
-    border-radius: 0 0 6px 6px;
-    height: 420px;
-    overflow: hidden;
-}
-#ap-json-status { margin-top: 8px; }
 
 /* Stats in admin panel */
 #ap-stats-hot-wrap {
@@ -1529,16 +1462,9 @@ var apLoaded  = false;
 var apPanelInited = {};
 var apHotInst = null;
 var apStatsData = {};
-var apMonacoEditor = null;
-var apCurrentFile  = null;
-var apEditMode     = false;
-var apJsonAllFiles = [];
-var apJsonSortAsc  = true;
-var monacoInjected = false;
-// Shared loader is defined in project/views/partials/monaco_loader.php
 
-var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-jsonfiles':'jsonfiles','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','jsonfiles':'ap-jsonfiles','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
+var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
 function injectOmniRouteTheme(){
@@ -1585,42 +1511,9 @@ var T=<?php echo json_encode([
     'tg_test_ok'    =>$translations['tg_test_ok']??'Test sent OK',
     'tg_test_fail'  =>$translations['tg_test_fail']??'Test failed',
     'stats_saved'   =>$translations['save_changes']??'Stats saved',
-    'json_saved'    =>$translations['ap_json_saved']??'File saved',
-    'json_invalid'  =>$translations['ap_json_invalid']??'Invalid JSON structure',
-    'json_confirm'  =>$translations['ap_json_confirm']??'Save changes to this file?',
     'refresh_users' =>$translations['refresh_users']??'Users list refreshed',
     'folder_ph'     =>$translations['folder_config_app_placeholder']??'— Select app —',
     'error'         =>'Error',
-    'fm_new_folder' =>$translations['fm_new_folder']??'New Folder',
-    'fm_new_file'   =>$translations['fm_new_file']??'New File',
-    'fm_rename'     =>$translations['fm_rename']??'Rename',
-    'fm_delete'     =>$translations['fm_delete']??'Delete',
-    'fm_saving'     =>$translations['fm_saving']??'Saving…',
-    'fm_saved'      =>$translations['fm_saved']??'Saved',
-    'fm_loading'    =>$translations['fm_loading']??'Loading…',
-    'fm_empty'      =>$translations['fm_empty']??'Empty folder',
-    'fm_binary'     =>$translations['fm_binary']??'Binary file — cannot be edited as text.',
-    'fm_confirm_del'=>$translations['fm_delete_confirm']??'Are you sure you want to delete',
-    'fm_confirm_save'=>$translations['fm_confirm_save']??'Save changes to this file?',
-    'fm_folder_name'=>$translations['fm_folder_name']??'Folder name',
-    'fm_file_name'  =>$translations['fm_file_name']??'File name',
-    'fm_new_name'   =>$translations['fm_new_name']??'New name',
-    'fm_view'       =>$translations['fm_view']??'View',
-    'fm_edit'       =>$translations['fm_edit']??'Edit',
-    'fm_no_items'   =>$translations['fm_no_items']??'No items found',
-    'fm_root'       =>$translations['fm_root']??'Root directory',
-    'fm_upload'     =>$translations['fm_upload']??'Upload',
-    'fm_download'   =>$translations['fm_download']??'Download',
-    'fm_copy_clipboard'=>$translations['fm_copy_clipboard']??'Copy to clipboard',
-    'session_refreshed'  =>$translations['fm_session_refreshed']??'Sessions list updated',
-    'folder_created'     =>$translations['fm_folder_created']??'Folder created',
-    'file_created'       =>$translations['fm_file_created']??'File created',
-    'copied'             =>$translations['fm_copied']??'Copied to clipboard',
-    'renamed'            =>$translations['fm_renamed']??'Renamed',
-    'fm_deleted'         =>$translations['fm_deleted']??'Deleted',
-    'network_error'      =>$translations['fm_network_error']??'Network error',
-    'error_deleting'     =>$translations['fm_error_deleting']??'Error deleting files',
-    'error_del_user'     =>$translations['fm_error_deleting_user']??'Error deleting user',
     'password_reset_admin_success'=>$translations['password_reset_admin_success']??'Password reset successfully',
     'copy_password'      =>$translations['copy_password']??'Copy password',
     'password_copied'    =>$translations['password_copied']??'Password copied to clipboard',
@@ -1666,8 +1559,6 @@ var apFolderMap=<?php $fm=[];foreach($apps as $dn=>$dd){$fm[$dd['folder']]=$dn;}
 
 /* ── helpers ── */
 function esc(s){var d=document.createElement('div');d.appendChild(document.createTextNode(String(s||'')));return d.innerHTML;}
-function escA(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function getTheme(){var s=document.querySelector('select[name="theme"]');var v=s?s.value:'light';if(v==='auto')return window.matchMedia('(prefers-color-scheme: dark)').matches?'vs-dark':'vs';return v==='dark'?'vs-dark':'vs';}
 function setStatus(el,msg,type){if(!el)return;el.className='ap-status '+type;el.textContent=msg;el.style.display='block';if(el._t)clearTimeout(el._t);el._t=setTimeout(function(){el.className='ap-status';el.style.display='none';el.textContent='';},10000);}
 function setHash(id){history.replaceState(null,'','#adminpanel/'+(panelHash[id]||id));}
 function clearHash(){history.replaceState(null,'',location.pathname+location.search);}
@@ -1725,11 +1616,6 @@ function apEnsureStatsDeps(){
     return window._apStatsDepsPromise;
 }
 
-/* ── Monaco lazy loader ── */
-function ensureMonaco(cb){
-    window.apLoadMonaco().then(cb).catch(function(e){console.error('Failed to load Monaco:',e);});
-}
-
 /* ── Panel switch ── */
 function apSessionStartTimer(expiresAt){
     expiresAt=(parseInt(expiresAt,10)||0)*1000;
@@ -1762,7 +1648,6 @@ function openPanel(id){
     setHash(id);
     if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){apEnsureStatsDeps().then(function(){apPopulateYearSelector();initApStats();initApChartRangePicker();renderApStatsChart();}).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');console.error('apStats init error:',e);});});});}
     else if(id==='ap-stats'&&apHotInst){requestAnimationFrame(function(){requestAnimationFrame(function(){apHotInst.render();initApChartRangePicker();renderApStatsChart();});});}
-    if(id==='ap-jsonfiles'){ensureMonaco(function(){});if(!apPanelInited['ap-jsonfiles']){apPanelInited['ap-jsonfiles']=true;if(typeof window._apJsonLoadList==='function'){window._apJsonLoadList();}else{setTimeout(function(){if(typeof window._apJsonLoadList==='function')window._apJsonLoadList();},300);}}else{if(typeof window._apJsonLoadList==='function') window._apJsonLoadList();}}
     if(id==='ap-ssh'){
         requestAnimationFrame(function(){
             requestAnimationFrame(function(){
@@ -1948,7 +1833,7 @@ function loadPanel(target, year){
             }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
-            if(d.session_expires_at){ apSessionStartTimer((int)d.session_expires_at); }
+            if(d.session_expires_at){ apSessionStartTimer(d.session_expires_at); }
             if(d.available_years && Array.isArray(d.available_years)){
                 apAvailableYears = d.available_years;
             }
@@ -3258,8 +3143,6 @@ function wireEvents(){
     if(rcBtn&&!rcBtn._h){rcBtn._h=true;rcBtn.addEventListener('click',function(){initApChartRangePicker();renderApStatsChart();});}
     /* SSH panel */
     wireSshPanel();
-    /* JSON panel */
-    wireJsonPanel();
 }
 
 /* ── Users ── */
@@ -4051,7 +3934,7 @@ function apWireAnalysisButton(){
     }
 }
 
-/* ── File Manager panel ── */
+/* ── Dialog helpers ── */
 function fmAlert(msg){
     var md=document.getElementById('fm-alert-modal');
     var msgEl=document.getElementById('fm-alert-msg');
@@ -4086,427 +3969,7 @@ function fmAlert(msg){
     requestAnimationFrame(function(){try{ok.focus();}catch(er){}});
 }
 function fmConfirm(msg,onOk){ const md=document.getElementById('fm-confirm-modal'); if(!md){if(confirm(msg))onOk();return;} document.getElementById('fm-confirm-msg').textContent=msg; md.style.display='flex'; const ok=document.getElementById('fm-confirm-ok'),can=document.getElementById('fm-confirm-cancel'); function cleanup(){md.style.display='none';ok.onclick=null;can.onclick=null;} ok.onclick=function(){cleanup();onOk();}; can.onclick=cleanup; }
-function fmMediaOpen(url, name){ const md=document.getElementById('fm-media-modal'); const mc=document.getElementById('fm-media-content'); const mn=document.getElementById('fm-media-name'); if(!md||!mc) return; const ext=(name||url).split('.').pop().toLowerCase(); mc.innerHTML=''; if(['jpg','jpeg','png','gif','webp','bmp','svg','ico'].includes(ext)){ const img=document.createElement('img'); img.src=url; img.style.cssText='max-width:90vw;max-height:82vh;border-radius:6px;box-shadow:0 4px 24px rgba(0,0,0,.5);'; mc.appendChild(img); } else if(['mp4','webm','ogg','mov'].includes(ext)){ const vid=document.createElement('video'); vid.src=url; vid.controls=true; vid.autoplay=true; vid.style.cssText='max-width:90vw;max-height:82vh;border-radius:6px;'; mc.appendChild(vid); } else if(['mp3','wav','ogg','flac','aac'].includes(ext)){ const aud=document.createElement('audio'); aud.src=url; aud.controls=true; aud.autoplay=true; mc.appendChild(aud); } else { mc.innerHTML='<div style="color:#fff;font-size:14px;">Preview not available</div>'; } if(mn) mn.textContent=name||''; md.style.display='flex'; }
-document.addEventListener('DOMContentLoaded',function(){ const mc=document.getElementById('fm-media-close'); if(mc) mc.addEventListener('click',function(){ const md=document.getElementById('fm-media-modal'); if(md){md.style.display='none'; const v=md.querySelector('video,audio'); if(v)v.pause();} }); const mm=document.getElementById('fm-media-modal'); if(mm) mm.addEventListener('click',function(e){ if(e.target===mm){mm.style.display='none'; const v=mm.querySelector('video,audio'); if(v)v.pause();} }); });
 
-function wireJsonPanel(){
-    /* State */
-    var fmCurrentPath = '/';
-    var fmHistory = ['/'];
-    var fmHistoryIdx = 0;
-    var fmAllEntries = [];
-    var fmSortKey = 'name';
-    var fmSortAsc = true;
-    var fmCurrentFilePath = null;
-    var fmMonacoEditor = null;
-    var fmEditMode = false;
-    var fmDialogCallback = null;
-    var fmTouchModifiers = {ctrl:false, shift:false, alt:false};
-    var IMAGE_EXT  = ['jpg','jpeg','png','gif','webp','bmp','svg','ico'];
-    var VIDEO_EXT  = ['mp4','webm','ogg','mov','avi','mkv'];
-    var AUDIO_EXT  = ['mp3','wav','ogg','flac','aac','m4a'];
-    var BINARY_EXT = IMAGE_EXT.concat(VIDEO_EXT).concat(AUDIO_EXT).concat(['pdf','zip','gz','tar','exe','dll','bin']);
-    var DB_EXT     = ['db','sqlite','sqlite3','db3'];
-
-    /* DOM refs */
-    var listView   = dynRoot.querySelector('#fm-list-view');
-    var editorView = dynRoot.querySelector('#fm-editor-view');
-    var tbody      = dynRoot.querySelector('#fm-tbody');
-    var breadcrumb = dynRoot.querySelector('#fm-breadcrumb');
-    var statusBar  = dynRoot.querySelector('#fm-status-bar');
-    var btnBack    = dynRoot.querySelector('#fm-btn-back');
-    var btnHome    = dynRoot.querySelector('#fm-btn-home');
-    var btnRefresh = dynRoot.querySelector('#fm-btn-refresh');
-    var btnMkdir   = dynRoot.querySelector('#fm-btn-mkdir');
-    var btnMkfile  = dynRoot.querySelector('#fm-btn-mkfile');
-    var btnUpload  = dynRoot.querySelector('#fm-btn-upload');
-    var uploadInput= dynRoot.querySelector('#fm-upload-input');
-    var searchInput= dynRoot.querySelector('#fm-search');
-    var thEls      = dynRoot.querySelectorAll('#fm-table thead th[data-sort]');
-    var edBack     = dynRoot.querySelector('#fm-editor-back');
-    var edFilename = dynRoot.querySelector('#fm-editor-filename');
-    var edSave     = dynRoot.querySelector('#fm-editor-save');
-    var edCopy     = dynRoot.querySelector('#fm-editor-copy');
-    var edDownload = dynRoot.querySelector('#fm-editor-download');
-    var edModeV    = dynRoot.querySelector('#fm-mode-view');
-    var edModeE    = dynRoot.querySelector('#fm-mode-edit');
-    var edStatus   = dynRoot.querySelector('#fm-editor-status');
-    var touchBar   = dynRoot.querySelector('#fm-touch-bar');
-    var dlg        = dynRoot.querySelector('#fm-dialog');
-    var dlgTitle   = dynRoot.querySelector('#fm-dialog-title');
-    var dlgInput   = dynRoot.querySelector('#fm-dialog-input');
-    var dlgOk      = dynRoot.querySelector('#fm-dialog-ok');
-    var dlgCancel  = dynRoot.querySelector('#fm-dialog-cancel');
-    var dlgError   = dynRoot.querySelector('#fm-dialog-error');
-    /* ── Touch detection ── */
-    var isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-    if(isTouch && touchBar) touchBar.style.display='flex';
-
-    /* Touch modifier key simulation */
-    if(touchBar){
-        touchBar.querySelectorAll('.fm-touch-key').forEach(function(btn){
-            btn.addEventListener('click', function(){
-                var key = this.dataset.key;
-                if(key==='ctrl'||key==='shift'||key==='alt'){
-                    fmTouchModifiers[key] = !fmTouchModifiers[key];
-                    this.style.background = fmTouchModifiers[key] ? 'var(--primary-color)' : 'var(--bg-color)';
-                    this.style.color = fmTouchModifiers[key] ? '#fff' : 'var(--text-color)';
-                } else if(key==='esc'){
-                    if(fmMonacoEditor) fmMonacoEditor.trigger('keyboard','editor.action.cancelSelection',[]);
-                    closeFmDialog();
-                } else if(key==='tab' && fmMonacoEditor){
-                    fmMonacoEditor.trigger('keyboard','type',{text:'\t'});
-                } else if(key==='home' && fmMonacoEditor){
-                    fmMonacoEditor.trigger('keyboard','cursorHome',[]);
-                } else if(key==='end' && fmMonacoEditor){
-                    fmMonacoEditor.trigger('keyboard','cursorEnd',[]);
-                } else if(key==='selall' && fmMonacoEditor){
-                    fmMonacoEditor.trigger('keyboard','editor.action.selectAll',[]);
-                }
-            });
-        });
-    }
-
-    /* ── helpers ── */
-    function showList(){ if(listView)listView.style.display=''; if(editorView)editorView.style.display='none'; }
-    function showEditor(){ if(listView)listView.style.display='none'; if(editorView)editorView.style.display=''; }
-
-    function extToLang(ext){
-        var m={js:'javascript',ts:'typescript',json:'json',php:'php',html:'html',htm:'html',
-               css:'css',scss:'scss',less:'less',xml:'xml',yaml:'yaml',yml:'yaml',
-               md:'markdown',sh:'shell',bash:'shell',py:'python',rb:'ruby',java:'java',
-               c:'c',cpp:'cpp',cs:'csharp',go:'go',rs:'rust',sql:'sql',txt:'plaintext',
-               ini:'ini',env:'ini',toml:'ini',conf:'ini',log:'shell',htaccess:'apache'};
-        return m[ext]||'plaintext';
-    }
-
-    function extIcon(type, ext, isSymlink){
-        if(isSymlink) return '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="color:#4ecdc4;flex-shrink:0;margin-right:7px;vertical-align:middle;"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>';
-        if(type==='dir') return '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="color:#f0a500;flex-shrink:0;margin-right:7px;vertical-align:middle;"><path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/></svg>';
-        // SQLite db icon
-        if(DB_EXT.includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="#5bc0de" style="flex-shrink:0;margin-right:7px;vertical-align:middle;"><path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.59 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.47 6 2s-2.13 2-6 2-6-1.47-6-2 2.13-2 6-2zM6 9.7c1.47.82 3.57 1.3 6 1.3s4.53-.48 6-1.3V11c0 .53-2.13 2-6 2s-6-1.47-6-2V9.7zm0 4c1.47.82 3.57 1.3 6 1.3s4.53-.48 6-1.3V15c0 .53-2.13 2-6 2s-6-1.47-6-2v-1.3zm0 4c1.47.82 3.57 1.3 6 1.3s4.53-.48 6-1.3V19c0 .53-2.13 2-6 2s-6-1.47-6-2v-1.3z"/></svg>';
-        var colorMap={json:'#f0db4f',js:'#f7df1e',ts:'#3178c6',php:'#8892bf',html:'#e34c26',
-                      css:'#264de4',scss:'#cc6699',py:'#3572a5',sql:'#e38c00',
-                      md:'#083fa1',sh:'#4eaa25',xml:'#e34c26',txt:'#aaa',log:'#888',
-                      conf:'#aaa',ini:'#aaa',env:'#aaa',
-                      jpg:'#e67e22',jpeg:'#e67e22',png:'#2ecc71',gif:'#9b59b6',svg:'#2ecc71',
-                      mp4:'#e74c3c',mp3:'#1abc9c',pdf:'#c0392b',zip:'#95a5a6'};
-        var col = colorMap[ext]||'var(--primary-color)';
-        return '<svg width="14" height="14" viewBox="0 0 24 24" fill="'+col+'" style="flex-shrink:0;margin-right:7px;vertical-align:middle;"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm-1 7V3.5L18.5 9H13z"/></svg>';
-    }
-
-    /* ── sort & filter ── */
-    function sortedFiltered(){
-        var q=(searchInput?searchInput.value:'').toLowerCase().trim();
-        var list=fmAllEntries.slice();
-        if(q) list=list.filter(function(e){return e.name.toLowerCase().indexOf(q)!==-1;});
-        list.sort(function(a,b){
-            if(a.type!==b.type) return a.type==='dir'?-1:1;
-            var av=a[fmSortKey]||'',bv=b[fmSortKey]||'';
-            if(fmSortKey==='size'){av=+av||0;bv=+bv||0;return fmSortAsc?av-bv:bv-av;}
-            var r=String(av).localeCompare(String(bv),undefined,{sensitivity:'base'});
-            return fmSortAsc?r:-r;
-        });
-        return list;
-    }
-
-    /* ── render table ── */
-    function renderEntries(){
-        if(!tbody) return;
-        var list=sortedFiltered();
-        if(!list.length){tbody.innerHTML='<tr><td colspan="6" style="padding:30px;text-align:center;opacity:.4;font-size:13px;font-family:sans-serif;">'+(T.fm_no_items||'No items found')+'</td></tr>';if(statusBar)statusBar.textContent='';return;}
-        var tdBase='padding:7px 10px;border-bottom:1px solid var(--border-color);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-        var rows='';
-        list.forEach(function(e){
-            var isDir=e.type==='dir',isLink=e.is_symlink||false;
-            var isMedia=IMAGE_EXT.includes(e.ext)||VIDEO_EXT.includes(e.ext)||AUDIO_EXT.includes(e.ext);
-            var nameCell='<div style="display:flex;align-items:center;">'+extIcon(e.type,e.ext,isLink)
-                +'<span style="font-family:\'Courier New\',monospace;font-size:12px;color:'+(isDir?'var(--text-color)':'var(--primary-color)')+';">'+esc(e.name)+(isLink?' <span style="opacity:.5;font-size:10px;">[link]</span>':'')+'</span></div>';
-            var sizeCell=isDir?'<span class="fm-dir-size" data-path="'+escA(e.path)+'" style="opacity:.35;font-size:11px;cursor:pointer;" title="Click to calculate">\u2014</span>':esc(e.size_h||'0 B');
-            var renameBtn = '<button type="button" class="ap-btn ap-btn-secondary fm-act-rename" data-path="'+escA(e.path)+'" data-name="'+escA(e.name)+'" style="padding:2px 7px;font-size:11px;" title="Rename"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg></button>';
-            var dlBtn = isDir
-                ? '<span style="opacity:.35;font-size:11px;">\u2014</span>'
-                : '<button type="button" class="ap-btn ap-btn-secondary fm-act-dl" data-path="'+escA(e.path)+'" data-name="'+escA(e.name)+'" style="padding:2px 7px;font-size:11px;" title="Download"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18l-5 5h3v4h4v-4h3l-5-5z"/></svg></button>';
-            var deleteBtn = '<button type="button" class="ap-btn ap-btn-danger fm-act-delete" data-path="'+escA(e.path)+'" data-name="'+escA(e.name)+'" style="padding:2px 7px;font-size:11px;" title="Delete">\uD83D\uDDD1</button>';
-            rows+='<tr class="fm-row" data-path="'+escA(e.path)+'" data-type="'+e.type+'" data-ext="'+escA(e.ext)+'" data-name="'+escA(e.name)+'" data-media="'+isMedia+'" style="cursor:pointer;">'
-                +'<td style="'+tdBase+'padding-left:12px;">'+nameCell+'</td>'
-                +'<td style="'+tdBase+'font-size:12px;opacity:.55;">'+sizeCell+'</td>'
-                +'<td style="'+tdBase+'font-size:11px;opacity:.45;font-family:\'Courier New\',monospace;">'+esc(e.mtime||'')+'</td>'
-                +'<td style="'+tdBase+'padding:5px 6px;">'+renameBtn+'</td>'
-                +'<td style="'+tdBase+'padding:5px 6px;">'+dlBtn+'</td>'
-                +'<td style="'+tdBase+'padding:5px 6px;">'+deleteBtn+'</td>'
-                +'</tr>';
-        });
-        tbody.innerHTML=rows;
-
-        tbody.querySelectorAll('tr.fm-row').forEach(function(row){
-            row.addEventListener('mouseenter',function(){
-                this.querySelectorAll('td').forEach(function(td){td.style.background='color-mix(in srgb, var(--primary-color) 16%, transparent)';});
-            });
-            row.addEventListener('mouseleave',function(){
-                this.querySelectorAll('td').forEach(function(td){td.style.background='';});
-            });
-            row.addEventListener('click',function(e){
-                if(e.target.closest('button,.fm-dir-size')) return;
-                if(row.dataset.type==='dir'){ navigateTo(row.dataset.path); }
-                else if(row.dataset.media==='true'){ fmMediaOpen(buildFmServeUrl(row.dataset.path, false), row.dataset.name); }
-                else { openFileEditor(row.dataset.path, row.dataset.ext); } // 'file' and 'symlink' both open editor
-            });
-        });
-        tbody.querySelectorAll('.fm-dir-size').forEach(function(el){
-            el.addEventListener('click',function(e){
-                e.stopPropagation(); var p=this.dataset.path,self=this; self.textContent='\u2026';
-                var fd=new FormData(); fd.append('fm_dir_size','1'); fd.append('ajax','1'); fd.append('path',p);
-                fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){self.textContent=d.success?(d.size_h+' ('+d.files+'f)'):'?'; self.style.cursor='default';});
-            });
-        });
-        tbody.querySelectorAll('.fm-act-rename').forEach(function(btn){
-            btn.addEventListener('click',function(e){
-                e.stopPropagation();
-                var p=this.dataset.path,n=this.dataset.name;
-                showFmDialog(T.fm_rename||'Rename',n,T.fm_new_name||'New name',function(v){doRename(p,v);});
-            });
-        });
-        tbody.querySelectorAll('.fm-act-dl').forEach(function(btn){
-            btn.addEventListener('click',function(e){ e.stopPropagation(); doDownload(this.dataset.path, this.dataset.name); });
-        });
-        tbody.querySelectorAll('.fm-act-delete').forEach(function(btn){
-            btn.addEventListener('click',function(e){
-                e.stopPropagation(); var p=this.dataset.path,n=this.dataset.name;
-                fmConfirm((T.fm_confirm_del||'Are you sure you want to delete')+' "'+n+'"?',function(){doDelete(p);});
-            });
-        });
-        if(statusBar) statusBar.textContent=list.length+' item'+(list.length===1?'':'s');
-    }
-
-    /* ── breadcrumb ── */
-    function renderBreadcrumb(crumbs){
-        if(!breadcrumb) return;
-        if(!crumbs||!crumbs.length){breadcrumb.textContent='/';return;}
-        var html='';
-        crumbs.forEach(function(c,i){
-            if(i>0) html+=' <span style="opacity:.4;">/</span> ';
-            if(i<crumbs.length-1) html+='<a href="#" style="color:var(--primary-color);text-decoration:none;" data-path="'+escA(c.path)+'">'+esc(c.name)+'</a>';
-            else html+='<span>'+esc(c.name)+'</span>';
-        });
-        breadcrumb.innerHTML=html;
-        breadcrumb.querySelectorAll('a[data-path]').forEach(function(a){a.addEventListener('click',function(e){e.preventDefault();navigateTo(this.dataset.path);});});
-    }
-
-    /* ── navigation ── */
-    function navigateTo(path){
-        fmHistory=fmHistory.slice(0,fmHistoryIdx+1);
-        if(fmHistory[fmHistoryIdx]!==path){fmHistory.push(path);fmHistoryIdx=fmHistory.length-1;}
-        loadDir(path);
-    }
-    function loadDir(path){
-        fmCurrentPath=path||'/';
-        if(tbody) tbody.innerHTML='<tr><td colspan="6" style="padding:30px;text-align:center;opacity:.4;font-size:13px;font-family:sans-serif;">'+(T.fm_loading||'Loading\u2026')+'</td></tr>';
-        var fd=new FormData(); fd.append('fm_list_dir','1'); fd.append('ajax','1'); fd.append('path',fmCurrentPath);
-        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-            if(!d.success){if(tbody)tbody.innerHTML='<tr><td colspan="6" style="padding:20px;color:#f85149;font-family:sans-serif;">'+(d.error||'Error')+'</td></tr>';return;}
-            fmCurrentPath=d.path; fmAllEntries=d.entries||[];
-            renderBreadcrumb(d.breadcrumb||[]); renderEntries();
-            if(btnBack) btnBack.disabled=fmHistoryIdx<=0;
-        }).catch(function(){if(tbody)tbody.innerHTML='<tr><td colspan="6" style="padding:20px;color:#f85149;font-family:sans-serif;">Network error</td></tr>';});
-    }
-
-    /* ── file editor ── */
-    function openFileEditor(path, ext){
-        fmCurrentFilePath=path;
-        if(edFilename) edFilename.textContent=path;
-        if(edStatus){edStatus.className='ap-status';edStatus.style.display='none';}
-        showEditor();
-        setFmEditorMode('view','');
-        var fd=new FormData(); fd.append('fm_get_file','1'); fd.append('ajax','1'); fd.append('path',path);
-        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-            if(!d.success){setStatus(edStatus,'x '+(d.error||'Error'),'error');return;}
-            if(d.is_binary){setStatus(edStatus,(T.fm_binary||'Binary file.'),'error');setFmEditorMode('view','/* Binary / non-text file */');return;}
-            setFmEditorMode('view',d.content,d.ext||ext||'txt');
-        }).catch(function(){setStatus(edStatus,'x Network error','error');});
-    }
-
-    function setFmEditorMode(mode,content,ext){
-        fmEditMode=(mode==='edit');
-        if(edModeV) edModeV.classList.toggle('active',!fmEditMode);
-        if(edModeE) edModeE.classList.toggle('active',fmEditMode);
-        if(edSave) edSave.style.display=fmEditMode?'inline-flex':'none';
-        var edEl=dynRoot.querySelector('#fm-monaco-editor');
-        var theme=getTheme();
-        var lang=ext?extToLang(ext):(fmCurrentFilePath?extToLang(fmCurrentFilePath.split('.').pop().toLowerCase()):'plaintext');
-        function build(ic){
-            if(!edEl) return;
-            if(fmMonacoEditor){
-                if(ic!==undefined) fmMonacoEditor.setValue(ic);
-                fmMonacoEditor.updateOptions({readOnly:!fmEditMode});
-                monaco.editor.setTheme(theme);
-                try{monaco.editor.setModelLanguage(fmMonacoEditor.getModel(),lang);}catch(e){}
-            } else {
-                fmMonacoEditor = monaco.editor.create(edEl, {
-                    value: ic || '',
-                    language: lang,
-                    theme: theme,
-                    readOnly: !fmEditMode,
-                    minimap: {
-                        enabled: true,
-                        showSlider: 'always', // Always show the thumb on the minimap
-                        size: 'fit' // Minimap size
-                    },
-                    scrollbar: {
-                        vertical: 'hidden', // Hide the vertical scrollbar
-                        horizontal: 'auto', // Horizontal can be kept or also hidden
-                        verticalScrollbarSize: 0, // Set size 0 for full hiding
-                        handleMouseWheel: true // Allow mouse wheel scrolling
-                    },
-                    fontSize: 13,
-                    lineNumbers: 'on',
-                    scrollBeyondLastLine: true, // Allow scrolling past the last line
-                    scrollBeyondLastColumn: 3, // Extra horizontal scrolling (optional)
-                    automaticLayout: true,
-                    wordWrap: 'off',
-                    tabSize: 2,
-                    formatOnPaste: true,
-                    // Better touch support
-                    multiCursorModifier: 'ctrlCmd',
-                    selectionClipboard: false
-                });
-                // Touch: make text selectable like a normal textarea
-                if(isTouch){
-                    var edContainer=edEl.querySelector('.monaco-editor');
-                    if(edContainer){edContainer.style.webkitUserSelect='text';edContainer.style.userSelect='text';}
-                }
-            }
-        }
-        if(typeof monaco!=='undefined') build(content);
-        else ensureMonaco(function(){build(content);});
-    }
-
-    new MutationObserver(function(){if(fmMonacoEditor&&typeof monaco!=='undefined')monaco.editor.setTheme(getTheme());}).observe(document.documentElement,{attributes:true,attributeFilter:['style']});
-
-    /* ── Copy to clipboard ── */
-    if(edCopy) edCopy.addEventListener('click',function(){
-        var raw=fmMonacoEditor?fmMonacoEditor.getValue():'';
-        if(navigator.clipboard && navigator.clipboard.writeText){
-            navigator.clipboard.writeText(raw).then(function(){
-                if(typeof showTempNotification!=='undefined') showTempNotification(T.copied,'success');
-            }).catch(function(){fmAlert('Copy failed');});
-        } else {
-            var ta=document.createElement('textarea'); ta.value=raw; ta.style.position='fixed'; ta.style.opacity='0';
-            document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
-            if(typeof showTempNotification!=='undefined') showTempNotification(T.copied,'success');
-        }
-    });
-
-    /* ── Download (streaming via hidden anchor) ── */
-    function buildFmServeUrl(path, asDownload){
-        var base = '/index.php?fm_serve=1&path='+encodeURIComponent(path||'');
-        if(asDownload) base += '&download=1';
-        return base;
-    }
-    function doDownload(path, name){
-        var url=buildFmServeUrl(path, true);
-        window.location.assign(url);
-    }
-    if(edDownload) edDownload.addEventListener('click',function(){
-        if(fmCurrentFilePath) doDownload(fmCurrentFilePath, fmCurrentFilePath.split('/').pop());
-    });
-
-    /* ── Upload (chunked) ── */
-    var CHUNK_SIZE = 512 * 1024; // 512 KB chunks
-    function uploadFile(file){
-        var totalChunks=Math.max(1,Math.ceil(file.size/CHUNK_SIZE));
-        var prog=dynRoot.querySelector('#fm-upload-progress');
-        var bar=dynRoot.querySelector('#fm-upload-bar');
-        var lbl=dynRoot.querySelector('#fm-upload-label');
-        if(prog) prog.style.display='';
-        function sendChunk(i){
-            if(lbl) lbl.textContent='Uploading '+file.name+' ('+(i+1)+'/'+totalChunks+')…';
-            if(bar) bar.style.width=Math.round((i/totalChunks)*100)+'%';
-            var start=i*CHUNK_SIZE, end=Math.min(start+CHUNK_SIZE,file.size);
-            var chunk=file.slice(start,end);
-            var fd=new FormData();
-            fd.append('fm_upload','1'); fd.append('ajax','1');
-            fd.append('path',fmCurrentPath); fd.append('filename',file.name);
-            fd.append('chunk_index',i); fd.append('total_chunks',totalChunks);
-            fd.append('chunk',chunk,'chunk');
-            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-                if(!d.success){if(prog)prog.style.display='none'; fmAlert(d.error||'Upload error'); return;}
-                if(d.done){
-                    if(bar) bar.style.width='100%';
-                    setTimeout(function(){if(prog)prog.style.display='none';if(bar)bar.style.width='0%';},800);
-                    loadDir(fmCurrentPath);
-                    if(typeof showTempNotification!=='undefined') showTempNotification(file.name+' — '+T.fm_saved,'success');
-                } else { sendChunk(i+1); }
-            }).catch(function(){if(prog)prog.style.display='none'; fmAlert('Upload network error');});
-        }
-        sendChunk(0);
-    }
-    if(btnUpload) btnUpload.addEventListener('click',function(){if(uploadInput)uploadInput.click();});
-    if(uploadInput) uploadInput.addEventListener('change',function(){
-        var files=this.files; if(!files||!files.length) return;
-        Array.from(files).forEach(function(f){ uploadFile(f); });
-        uploadInput.value='';
-    });
-    // Drag & drop upload
-    if(listView){
-        listView.addEventListener('dragover',function(e){e.preventDefault();listView.style.outline='2px dashed var(--primary-color)';});
-        listView.addEventListener('dragleave',function(){listView.style.outline='';});
-        listView.addEventListener('drop',function(e){e.preventDefault();listView.style.outline='';var files=e.dataTransfer.files;if(files)Array.from(files).forEach(uploadFile);});
-    }
-
-    /* ── dialog ── */
-    function showFmDialog(title,value,placeholder,callback){
-        fmDialogCallback=callback;
-        if(dlgTitle) dlgTitle.textContent=title;
-        if(dlgInput){dlgInput.value=value||'';dlgInput.placeholder=placeholder||'';}
-        if(dlgError){dlgError.textContent='';dlgError.style.display='none';}
-        if(dlg){dlg.style.display='flex';setTimeout(function(){if(dlgInput){dlgInput.focus();dlgInput.select();}},50);}
-    }
-    function closeFmDialog(){if(dlg)dlg.style.display='none';fmDialogCallback=null;}
-    if(dlgCancel) dlgCancel.addEventListener('click',closeFmDialog);
-    if(dlgOk) dlgOk.addEventListener('click',function(){
-        var v=(dlgInput?dlgInput.value:'').trim();
-        if(!v){if(dlgError){dlgError.textContent='Name is required';dlgError.style.display='block';}return;}
-        if(fmDialogCallback) fmDialogCallback(v);
-        closeFmDialog();
-    });
-    if(dlgInput) dlgInput.addEventListener('keydown',function(e){if(e.key==='Enter')dlgOk&&dlgOk.click();if(e.key==='Escape')closeFmDialog();});
-    if(dlg) dlg.addEventListener('click',function(e){if(e.target===dlg)closeFmDialog();});
-
-    /* ── CRUD ── */
-    function doMkdir(name){var fd=new FormData();fd.append('fm_mkdir','1');fd.append('ajax','1');fd.append('path',fmCurrentPath);fd.append('name',name);fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(d.success){loadDir(fmCurrentPath);if(typeof showTempNotification!=='undefined')showTempNotification(T.folder_created,'success');}else{fmAlert(d.error||'Error');}});}
-    function doMkfile(name){var fd=new FormData();fd.append('fm_mkfile','1');fd.append('ajax','1');fd.append('path',fmCurrentPath);fd.append('name',name);fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(d.success){loadDir(fmCurrentPath);if(typeof showTempNotification!=='undefined')showTempNotification(T.file_created,'success');}else{fmAlert(d.error||'Error');}});}
-    function doDelete(path){var fd=new FormData();fd.append('fm_delete','1');fd.append('ajax','1');fd.append('path',path);fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(d.success){loadDir(fmCurrentPath);if(typeof showTempNotification!=='undefined')showTempNotification(T.fm_deleted||'Deleted','success');}else{fmAlert(d.error||T.error_deleting||'Cannot delete');}}).catch(function(){fmAlert(T.network_error||'Network error');});}
-    function doRename(path,newName){var fd=new FormData();fd.append('fm_rename','1');fd.append('ajax','1');fd.append('path',path);fd.append('new_name',newName);fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(d.success){loadDir(fmCurrentPath);if(typeof showTempNotification!=='undefined')showTempNotification(T.renamed,'success');}else{fmAlert(d.error||'Cannot rename');}});}
-    function doSaveFile(){
-        if(!fmCurrentFilePath){setStatus(edStatus,'No file selected','error');return;}
-        var raw=fmMonacoEditor?fmMonacoEditor.getValue():'';
-        fmConfirm((T.fm_confirm_save||'Save changes?')+'\n\n'+fmCurrentFilePath,function(){
-            setStatus(edStatus,T.fm_saving||'Saving\u2026','info');
-            var fd=new FormData();fd.append('fm_save_file','1');fd.append('ajax','1');fd.append('path',fmCurrentFilePath);fd.append('content',raw);
-            fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-                setStatus(edStatus,d.success?('+ '+(T.fm_saved||'Saved')):('x '+(d.error||T.error)),d.success?'success':'error');
-                if(d.success){setFmEditorMode('view');if(typeof showTempNotification!=='undefined')showTempNotification(T.fm_saved||'Saved','success');}
-            }).catch(function(){setStatus(edStatus,'x Network error','error');});
-        });
-    }
-
-    /* ── toolbar ── */
-    if(btnBack) btnBack.addEventListener('click',function(){if(fmHistoryIdx>0){fmHistoryIdx--;loadDir(fmHistory[fmHistoryIdx]);}});
-    if(btnHome) btnHome.addEventListener('click',function(){navigateTo('/');});
-    if(btnRefresh) btnRefresh.addEventListener('click',function(){loadDir(fmCurrentPath);});
-    if(btnMkdir) btnMkdir.addEventListener('click',function(){showFmDialog(T.fm_new_folder||'New Folder','',T.fm_folder_name||'Folder name',doMkdir);});
-    if(btnMkfile) btnMkfile.addEventListener('click',function(){showFmDialog(T.fm_new_file||'New File','',T.fm_file_name||'File name',doMkfile);});
-    if(searchInput) searchInput.addEventListener('input',function(){renderEntries();});
-    if(thEls) thEls.forEach(function(th){th.addEventListener('click',function(){var sk=this.dataset.sort;if(fmSortKey===sk){fmSortAsc=!fmSortAsc;}else{fmSortKey=sk;fmSortAsc=true;}renderEntries();});});
-    if(edBack) edBack.addEventListener('click',function(){showList();fmCurrentFilePath=null;if(edStatus){edStatus.className='ap-status';edStatus.style.display='none';}});
-    if(edModeV) edModeV.addEventListener('click',function(){setFmEditorMode('view');});
-    if(edModeE) edModeE.addEventListener('click',function(){setFmEditorMode('edit');});
-    if(edSave)  edSave.addEventListener('click',doSaveFile);
-
-    window._apJsonLoadList=function(){loadDir(fmCurrentPath);};
-    if(dynRoot&&dynRoot.querySelector('#ap-jsonfiles.active')){loadDir('/');}
-}
 /* ── Boot ── */
 if(openBtn) openBtn.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();openAdminPanel('ap-users');});
 var initH=location.hash.match(/^#adminpanel\/(.+)$/);

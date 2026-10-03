@@ -465,37 +465,6 @@ if($path==='/verify'){
     exit;
 }
 
-if(isset($_GET['fm_serve']) && isset($_SESSION['user'])){
-    // Serve a file for preview (images/video/audio) — admin only
-    $sessionIsAdminServe = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
-    if(!$sessionIsAdminServe || !adminHasCapability('files') || !adminIpAllowed()){ http_response_code(403); exit; }
-    $requestedPath = $_GET['path'] ?? '';
-    $baseDir = realpath(APP_ROOT);
-    $cleanPath = ltrim(str_replace(['../', '..\\', '..'], '', $requestedPath), '/\\');
-    $candidate = $baseDir . DIRECTORY_SEPARATOR . $cleanPath;
-    $parentDir = realpath(dirname($candidate));
-    $targetFile = $parentDir ? ($parentDir . DIRECTORY_SEPARATOR . basename($candidate)) : false;
-    if(!$targetFile || !$parentDir || strpos($parentDir, $baseDir) !== 0 || !is_file($targetFile)){
-        http_response_code(404); exit;
-    }
-    $ext = strtolower(pathinfo($targetFile, PATHINFO_EXTENSION));
-    $mimeMap = [
-        'jpg'=>'image/jpeg','jpeg'=>'image/jpeg','png'=>'image/png','gif'=>'image/gif',
-        'webp'=>'image/webp','bmp'=>'image/bmp','svg'=>'image/svg+xml','ico'=>'image/x-icon',
-        'mp4'=>'video/mp4','webm'=>'video/webm','ogg'=>'video/ogg','mov'=>'video/quicktime',
-        'mp3'=>'audio/mpeg','wav'=>'audio/wav','flac'=>'audio/flac','aac'=>'audio/aac','m4a'=>'audio/mp4',
-    ];
-    $mime = $mimeMap[$ext] ?? 'application/octet-stream';
-    while(ob_get_level()>0)ob_end_clean();
-    header('Content-Type: '.$mime);
-    header('Content-Length: '.filesize($targetFile));
-    if(isset($_GET['download'])){ header('Content-Disposition: attachment; filename="'.basename($targetFile).'"'); }
-    else { header('Content-Disposition: inline'); }
-    header('Cache-Control: no-store');
-    readfile($targetFile);
-    exit;
-}
-
 if(isset($_GET['sharedFile'])){
     $themeParam = $_GET['theme'] ?? $config['theme'];
     $langParam = $_GET['lang'] ?? $config['language'];

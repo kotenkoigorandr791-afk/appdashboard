@@ -57,7 +57,7 @@ function adminAuditLog(string $action, string $target = '', string $result = 'ok
         $stmt->bindValue(':m', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}');
         $stmt->bindValue(':c', time(), PDO::PARAM_INT);
         $stmt->execute();
-        $critical = ['role_change', 'user_delete', 'password_reset', 'ssh_init', 'fm_write', 'secrets_save'];
+        $critical = ['role_change', 'user_delete', 'password_reset', 'ssh_init', 'secrets_save'];
         if (in_array($action, $critical, true) && function_exists('notifyTelegramFailedAuth')) {
             notifyTelegramFailedAuth('admin_action', [
                 'action' => $action,
@@ -398,7 +398,6 @@ function adminPanelIsAdminRequest(): bool {
         return true;
     }
     $keys = [
-        'fm_list_dir','fm_get_file','fm_save_file','fm_mkdir','fm_mkfile','fm_delete','fm_rename','fm_upload','fm_dir_size',
         'reset_user_password','delete_user','delete_user_with_files','save_user_roles','save_email_settings',
         'ssh_terminal_init','ssh_terminal_exec','ssh_terminal_get_profile','ssh_terminal_ws_token',
         'quick_command_action','save_app_access_levels','save_app_access_security','save_stats_data','get_users_table','scan_user_files',
