@@ -332,6 +332,40 @@ server {
         return 302 /admin-omniroute/;
     }
 
+    location = /embed/dawarich {
+        return 302 /embed/dawarich/;
+    }
+
+    location ^~ /embed/dawarich/ {
+        absolute_redirect off;
+        resolver 127.0.0.11 valid=10s ipv6=off;
+        set $dawarich_backend __DAWARICH_UPSTREAM__;
+        rewrite ^/embed/dawarich(?<dawarich_path>/.*)$ $dawarich_path break;
+        proxy_pass $dawarich_backend$uri$is_args$args;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __DAWARICH_PROXY_HOST__;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_redirect ~^https?://[^/]+(/.*)$ /embed/dawarich$1;
+        proxy_cookie_path / /embed/dawarich/;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self'" always;
+        sub_filter_once off;
+        sub_filter_types text/css application/javascript application/json text/javascript;
+        sub_filter 'href="/' 'href="/embed/dawarich/';
+        sub_filter 'src="/' 'src="/embed/dawarich/';
+        sub_filter 'action="/' 'action="/embed/dawarich/';
+        sub_filter '"/assets/' '"/embed/dawarich/assets/';
+    }
+
     location ^~ /admin-omniroute/ {
         absolute_redirect off;
         proxy_pass __OMNIROUTE_UPSTREAM__/;

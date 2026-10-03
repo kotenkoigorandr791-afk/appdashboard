@@ -18,7 +18,7 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
         dawarich_sync_user_theme($email, $theme);
         dawarich_sync_all_user_themes($theme);
     }
-    oauth_redirect_iframe(oauth_external_app_url('dawarich') . '/users/sign_in');
+    oauth_redirect_iframe(oauth_iframe_app_url('dawarich') . '/users/sign_in');
 }
 oauth_redirect_html(oauth_app_bridge_url('dawarich', $theme));
 

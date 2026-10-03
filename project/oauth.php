@@ -239,6 +239,7 @@ function oauth_embed_app_path(string $app): string {
     return match ($app) {
         'gitea' => '/embed/git',
         'immich' => '/embed/photo',
+        'dawarich' => '/embed/dawarich',
         default => '',
     };
 }
