@@ -118,6 +118,13 @@ Optional profiles: `portainer`, `duplicati`, `gitea`, `immich`, `dawarich`.
 docker compose --profile gitea --profile immich up -d
 ```
 
+## Storage usage
+
+`storage-usage-collector` fills `storage_usage_cache` with per-user disk usage for Cloud,
+Immich, Gitea and Dawarich; the chart reads only that cache. External database credentials
+come from `STORAGE_USAGE_*` variables in `.env` (unset credentials mark the source
+unavailable). See [docs/30_storage_usage_collector.md](docs/30_storage_usage_collector.md).
+
 ## Changing the domain
 
 1. Update `BASE_DOMAIN` (and `APP_PUBLIC_SCHEME` if needed) in `.env`

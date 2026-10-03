@@ -29,7 +29,9 @@ function adminSecurityEnsureSchema(): void {
 function adminMetaGet(string $key, string $default = ''): string {
     try {
         $db = getDB();
-        $row = $db->querySingle("SELECT value FROM app_meta WHERE key=" . $db->quote($key));
+        $stmt = $db->prepare('SELECT value FROM app_meta WHERE key = :k');
+        $stmt->bindValue(':k', $key, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetchColumn();
         return is_string($row) ? $row : $default;
     } catch (Throwable $e) {
         return $default;
@@ -400,7 +402,7 @@ function adminPanelIsAdminRequest(): bool {
     $keys = [
         'reset_user_password','delete_user','delete_user_with_files','save_user_roles','save_email_settings',
         'ssh_terminal_init','ssh_terminal_exec','ssh_terminal_get_profile','ssh_terminal_ws_token',
-        'quick_command_action','save_app_access_levels','save_app_access_security','save_stats_data','get_users_table','scan_user_files',
+        'quick_command_action','save_app_access_levels','save_app_access_security','refresh_storage_usage','get_users_table','scan_user_files',
     ];
     foreach ($keys as $k) {
         if (isset($_POST[$k])) return true;

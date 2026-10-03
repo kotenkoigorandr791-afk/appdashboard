@@ -456,6 +456,21 @@ function initDB(AppDatabase $db): void {
     app_db_ensure_unique_index($db, 'visit_stats', ['app_id', 'stat_date'], 'idx_visit_stats_app_date_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_stats_date ON visit_stats(stat_date)");
 
+    // ── Storage usage cache (per app, per user) ────────────────────────────────
+    // Filled by project/bin/storage_usage_collector.php (background loop).
+    // The admin panel only reads this table — never scans the filesystem.
+    $db->exec("CREATE TABLE IF NOT EXISTS storage_usage_cache (
+        app_key     TEXT NOT NULL,
+        email       TEXT NOT NULL DEFAULT '',
+        name        TEXT NOT NULL DEFAULT '',
+        bytes       BIGINT NOT NULL DEFAULT 0,
+        items       BIGINT NOT NULL DEFAULT 0,
+        measured_at INTEGER NOT NULL DEFAULT 0,
+        updated_at  INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (app_key, email)
+    )");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_storage_usage_updated ON storage_usage_cache(updated_at)");
+
     // ── Shared files ─────────────────────────────────────────────────────────
     // Added FOREIGN KEY with cascading delete
     $db->exec("CREATE TABLE IF NOT EXISTS shared_files (
@@ -1813,21 +1828,6 @@ function loadVisitStats(): array {
     return loadVisitStatsRange();
 }
 
-function saveVisitStats(array $stats): void {
-    $db = getDB();
-    $db->exec("DELETE FROM visit_stats");
-    $stmt = $db->prepare("INSERT INTO visit_stats(app_id,stat_date,visits) VALUES(:a,:d,:v)");
-    foreach ($stats as $appId => $dates) {
-        if (!is_array($dates)) continue;
-        foreach ($dates as $date => $visits) {
-            $stmt->bindValue(':a', $appId);
-            $stmt->bindValue(':d', (string)$date);
-            $stmt->bindValue(':v', (int)$visits, PDO::PARAM_INT);
-            $stmt->execute();
-        }
-    }
-}
-
 /** Get total visits per app (for sidebar sorting) — single aggregation query */
 function getTotalVisitsPerApp(): array {
     $db  = getDB();
@@ -1837,6 +1837,141 @@ function getTotalVisitsPerApp(): array {
         $out[$row['app_id']] = (int)$row['total'];
     }
     return $out;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STORAGE USAGE  — cache written by project/bin/storage_usage_collector.php
+// ─────────────────────────────────────────────────────────────────────────────
+const STORAGE_USAGE_STATUS_KEY    = 'storage_usage_sources';
+const STORAGE_USAGE_REFRESH_KEY   = 'storage_usage_refresh_requested';
+
+function storageUsageMeta(string $key, string $default = ''): string {
+    try {
+        $stmt = getDB()->prepare('SELECT value FROM app_meta WHERE key = :k');
+        $stmt->bindValue(':k', $key, PDO::PARAM_STR);
+        $value = $stmt->execute()->fetchColumn();
+        return is_string($value) ? $value : $default;
+    } catch (Throwable $e) {
+        return $default;
+    }
+}
+
+function storageUsageSetMeta(string $key, string $value): void {
+    monitorRetentionSetMeta(getDB(), $key, $value);
+}
+
+/** Per-source collection status (written by the collector) */
+function storageUsageSourceStatuses(): array {
+    $raw = storageUsageMeta(STORAGE_USAGE_STATUS_KEY, '');
+    if ($raw === '') return [];
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : [];
+}
+
+function storageUsageSetSourceStatus(string $appKey, string $status, string $message, int $measuredAt): void {
+    $all = storageUsageSourceStatuses();
+    $all[$appKey] = [
+        'status'      => $status,
+        'message'     => mb_substr($message, 0, 500),
+        'measured_at' => $measuredAt,
+    ];
+    storageUsageSetMeta(STORAGE_USAGE_STATUS_KEY, json_encode($all, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}');
+}
+
+/** Replace all cached rows of one source (collector only) */
+function storageUsageReplaceSource(string $appKey, array $rows, int $measuredAt): int {
+    $db = getDB();
+    $pdo = $db->getPdo();
+    $now = time();
+    $pdo->beginTransaction();
+    try {
+        $del = $pdo->prepare("DELETE FROM storage_usage_cache WHERE app_key = :k");
+        $del->bindValue(':k', $appKey, PDO::PARAM_STR);
+        $del->execute();
+
+        $ins = $pdo->prepare("INSERT INTO storage_usage_cache(app_key,email,name,bytes,items,measured_at,updated_at)
+            VALUES(:k,:e,:n,:b,:i,:m,:u)
+            ON CONFLICT(app_key,email) DO UPDATE SET
+                name = EXCLUDED.name, bytes = EXCLUDED.bytes, items = EXCLUDED.items,
+                measured_at = EXCLUDED.measured_at, updated_at = EXCLUDED.updated_at");
+        $count = 0;
+        foreach ($rows as $row) {
+            $email = trim((string)($row['email'] ?? ''));
+            if ($email === '') continue;
+            $ins->bindValue(':k', $appKey, PDO::PARAM_STR);
+            $ins->bindValue(':e', mb_strtolower($email), PDO::PARAM_STR);
+            $ins->bindValue(':n', mb_substr((string)($row['name'] ?? ''), 0, 120), PDO::PARAM_STR);
+            $ins->bindValue(':b', max(0, (int)($row['bytes'] ?? 0)), PDO::PARAM_INT);
+            $ins->bindValue(':i', max(0, (int)($row['items'] ?? 0)), PDO::PARAM_INT);
+            $ins->bindValue(':m', (int)($row['measured_at'] ?? $measuredAt), PDO::PARAM_INT);
+            $ins->bindValue(':u', $now, PDO::PARAM_INT);
+            $ins->execute();
+            $count++;
+        }
+        $pdo->commit();
+        return $count;
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+}
+
+/**
+ * Snapshot for the admin panel: one flat table, no scanning, no joins per app.
+ * Returns ['sources'=>[key=>status…], 'users'=>[email=>name],
+ *          'rows'=>[appKey=>[email=>['name','bytes','items','measured_at']]]].
+ */
+function loadStorageUsageSnapshot(): array {
+    $sources = storageUsageSourceStatuses();
+    $users   = [];
+    $rows    = [];
+
+    try {
+        $db = getDB();
+        $res = $db->query("SELECT email, name FROM users ORDER BY lower(email)");
+        while ($u = $res->fetch(PDO::FETCH_ASSOC)) {
+            $users[mb_strtolower((string)$u['email'])] = (string)($u['name'] ?? '');
+        }
+    } catch (Throwable $e) {
+        // users table unavailable — chart still renders external accounts
+    }
+
+    try {
+        $res = getDB()->query("SELECT app_key, email, name, bytes, items, measured_at FROM storage_usage_cache ORDER BY app_key, lower(email)");
+        while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
+            $key   = (string)$r['app_key'];
+            $mail  = mb_strtolower((string)$r['email']);
+            $bytes = max(0, (int)$r['bytes']);
+            $items = max(0, (int)$r['items']);
+            if ($bytes <= 0 && $items <= 0) continue;
+            $rows[$key][$mail] = [
+                'name'        => (string)$r['name'],
+                'bytes'       => $bytes,
+                'items'       => $items,
+                'measured_at' => (int)$r['measured_at'],
+            ];
+            if (!isset($users[$mail]) || $users[$mail] === '') {
+                $users[$mail] = (string)$r['name'];
+            }
+        }
+    } catch (Throwable $e) {
+        $sources['_error'] = ['status' => 'error', 'message' => $e->getMessage(), 'measured_at' => 0];
+    }
+
+    return ['sources' => $sources, 'users' => $users, 'rows' => $rows];
+}
+
+/** Flag the collector to refresh on its next cycle (never runs inline) */
+function storageUsageRequestRefresh(): void {
+    storageUsageSetMeta(STORAGE_USAGE_REFRESH_KEY, (string)time());
+}
+
+/** Read + clear the pending refresh flag */
+function storageUsageConsumeRefreshRequest(): bool {
+    $raw = storageUsageMeta(STORAGE_USAGE_REFRESH_KEY, '');
+    if ($raw === '') return false;
+    storageUsageSetMeta(STORAGE_USAGE_REFRESH_KEY, '');
+    return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

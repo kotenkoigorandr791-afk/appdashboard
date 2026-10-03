@@ -960,32 +960,8 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     text-overflow: ellipsis;
 }
 .ap-folder-entry input:focus, .ap-folder-entry select:focus { outline: none; border-color: var(--primary-color); }
-.ap-remove-row-btn {
-    background: none;
-    border: 1px solid var(--border-color);
-    color: #f85149;
-    border-radius: 4px;
-    width: 28px;
-    height: 28px;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-    flex-shrink: 0;
-    align-self: center;
-    transition: all .2s;
-    padding: 0;
-}
-.ap-remove-row-btn:hover { background: color-mix(in srgb,#f85149 15%,transparent); border-color: #f85149; }
-
 
 /* Stats in admin panel */
-#ap-stats-hot-wrap {
-    width: 100%;
-    overflow-x: auto;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-}
-#ap-stats-hot-table { height: calc(100vh - 320px); min-height: 400px; width: 100%; }
 #ap-stats-analysis,
 #ap-stats-analysis * {
     box-sizing: border-box;
@@ -1017,70 +993,6 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     }
 }
 
-/* Handsontable light theme (default) */
-#ap-stats-hot-table .handsontable th,
-#ap-stats-hot-table .handsontable td,
-#ap-stats-hot-table .handsontable [role="rowgroup"] {
-    background-color: var(--bg-color) !important;
-    color: var(--text-color) !important;
-    border-color: var(--border-color) !important;
-}
-#ap-stats-hot-table .handsontable th {
-    background-color: var(--sidebar-bg) !important;
-    font-weight: 600;
-}
-#ap-stats-hot-table .handsontable tr:hover td {
-    background-color: var(--group-block-bg) !important;
-}
-#ap-stats-hot-table .handsontable .htCore thead,
-#ap-stats-hot-table .handsontable .htCore thead tr,
-#ap-stats-hot-table .handsontable .htCore thead tr:first-child th,
-#ap-stats-hot-table .handsontable.ht_clone_top,
-#ap-stats-hot-table .handsontable.ht_clone_top .wtHolder,
-#ap-stats-hot-table .handsontable.ht_clone_top .wtHider,
-#ap-stats-hot-table .handsontable.ht_clone_top .wtSpreader,
-#ap-stats-hot-table .handsontable.ht_clone_top_left_corner,
-#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .wtHolder,
-#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .wtHider,
-#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .wtSpreader,
-#ap-stats-hot-table .handsontable .ht_clone_top,
-#ap-stats-hot-table .handsontable .ht_clone_top .wtHolder,
-#ap-stats-hot-table .handsontable .ht_clone_top .wtHider,
-#ap-stats-hot-table .handsontable .ht_clone_top .wtSpreader,
-#ap-stats-hot-table .handsontable .ht_clone_top_left_corner,
-#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .wtHolder,
-#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .wtHider,
-#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .wtSpreader,
-#ap-stats-hot-table .handsontable [role="rowgroup"],
-#ap-stats-hot-table .handsontable [role="rowgroup"] tr,
-#ap-stats-hot-table .handsontable [role="rowgroup"] th {
-    background-color: var(--table-header-bg) !important;
-    color: var(--text-color) !important;
-}
-#ap-stats-hot-table .handsontable.ht_clone_top .htCore,
-#ap-stats-hot-table .handsontable.ht_clone_top_left_corner .htCore,
-#ap-stats-hot-table .handsontable .ht_clone_top .htCore,
-#ap-stats-hot-table .handsontable .ht_clone_top_left_corner .htCore {
-    background-color: var(--table-header-bg) !important;
-}
-/* Custom selection color — uses CSS variable set by JS */
-#ap-stats-hot-table .handsontable td.area,
-#ap-stats-hot-table .handsontable td.current {
-    background-color: var(--hot-selection-bg, rgba(0,123,255,0.15)) !important;
-}
-#ap-stats-hot-table .handsontable .wtBorder.current,
-#ap-stats-hot-table .handsontable .wtBorder.area {
-    background-color: var(--primary-color) !important;
-}
-/* Context menu theme */
-#ap-stats-hot-table .htContextMenu .htCore td {
-    background-color: var(--modal-bg) !important;
-    color: var(--text-color) !important;
-    border-color: var(--border-color) !important;
-}
-#ap-stats-hot-table .htContextMenu .htCore td:hover {
-    background-color: var(--group-block-bg) !important;
-}
 /* Range preset button active state */
 .ap-chart-range-btn.active {
     background: var(--primary-color) !important;
@@ -1460,8 +1372,8 @@ var dynRoot   = document.getElementById('ap-dynamic-root');
 var skeleton  = document.getElementById('ap-loading-skeleton');
 var apLoaded  = false;
 var apPanelInited = {};
-var apHotInst = null;
 var apStatsData = {};
+var apStorageUsage = null;
 
 var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
@@ -1495,6 +1407,11 @@ function loadOmniRouteIframe(){
 
 var T=<?php echo json_encode([
     'saving'        =>$translations['ap_saving']??'Saving...',
+    'storage_usage_title'  =>$translations['ap_storage_usage_title']??'Disk Usage by User',
+    'storage_usage_updated'=>$translations['ap_storage_usage_updated']??'Updated',
+    'storage_usage_queued' =>$translations['ap_storage_usage_queued']??'Refresh queued',
+    'storage_usage_empty'  =>$translations['ap_storage_usage_empty']??'No storage usage data collected yet.',
+    'storage_usage_total'  =>$translations['ap_storage_usage_total']??'Total',
     'role_changed'  =>$translations['role_changed']??'Roles saved',
     'email_saved'   =>$translations['email_settings_saved']??'Email settings saved',
     'folder_saved'  =>$translations['folder_config_saved']??'Paths saved',
@@ -1510,7 +1427,6 @@ var T=<?php echo json_encode([
     'backup_deleted'=>$translations['backup_deleted']??'Backup credentials deleted',
     'tg_test_ok'    =>$translations['tg_test_ok']??'Test sent OK',
     'tg_test_fail'  =>$translations['tg_test_fail']??'Test failed',
-    'stats_saved'   =>$translations['save_changes']??'Stats saved',
     'refresh_users' =>$translations['refresh_users']??'Users list refreshed',
     'folder_ph'     =>$translations['folder_config_app_placeholder']??'— Select app —',
     'error'         =>'Error',
@@ -1562,13 +1478,6 @@ function esc(s){var d=document.createElement('div');d.appendChild(document.creat
 function setStatus(el,msg,type){if(!el)return;el.className='ap-status '+type;el.textContent=msg;el.style.display='block';if(el._t)clearTimeout(el._t);el._t=setTimeout(function(){el.className='ap-status';el.style.display='none';el.textContent='';},10000);}
 function setHash(id){history.replaceState(null,'','#adminpanel/'+(panelHash[id]||id));}
 function clearHash(){history.replaceState(null,'',location.pathname+location.search);}
-function apLoadStyleOnce(href){
-    if(document.querySelector('link[href="'+href+'"]')) return;
-    var l=document.createElement('link');
-    l.rel='stylesheet';
-    l.href=href;
-    document.head.appendChild(l);
-}
 function apLoadScriptOnce(src,test){
     if(test&&test()) return Promise.resolve();
     if(window._apScriptPromises&&window._apScriptPromises[src]) return window._apScriptPromises[src];
@@ -1587,32 +1496,27 @@ function apLoadScriptOnce(src,test){
     return window._apScriptPromises[src];
 }
 function apEnsureStatsDeps(){
-    if(window.Handsontable&&window.Chart) return Promise.resolve();
+    if(window.Chart) return Promise.resolve();
     if(window._apStatsDepsPromise) return window._apStatsDepsPromise;
-    apLoadStyleOnce('https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.css');
     if(typeof require==='function'){
         window._apStatsDepsPromise=new Promise(function(resolve,reject){
             try{
                 require.config({paths:{
-                    Handsontable:'https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min',
                     chartjs:'https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min'
                 }});
-                require(['Handsontable','chartjs'],function(hot,chart){
-                    window.Handsontable=window.Handsontable||(hot&&hot.default?hot.default:hot);
+                require(['chartjs'],function(chart){
                     window.Chart=window.Chart||(chart&&chart.Chart?chart.Chart:(chart&&chart.default?chart.default:chart));
-                    if(!window.Handsontable||!window.Chart) reject(new Error('Statistics libraries unavailable after load'));
+                    if(!window.Chart) reject(new Error('Statistics libraries unavailable after load'));
                     else resolve();
                 },reject);
             }catch(e){reject(e);}
         });
         return window._apStatsDepsPromise;
     }
-    window._apStatsDepsPromise=Promise.all([
-        apLoadScriptOnce('https://cdn.jsdelivr.net/npm/handsontable@14.1.0/dist/handsontable.full.min.js'),
-        apLoadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js')
-    ]).then(function(){
-        if(!window.Handsontable||!window.Chart) throw new Error('Statistics libraries unavailable after load');
-    });
+    window._apStatsDepsPromise=apLoadScriptOnce('https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js')
+        .then(function(){
+            if(!window.Chart) throw new Error('Statistics libraries unavailable after load');
+        });
     return window._apStatsDepsPromise;
 }
 
@@ -1646,8 +1550,8 @@ function openPanel(id){
     var p=dynRoot.querySelector('#'+id); if(p) p.classList.add('active');
     var nb=dynRoot.querySelector('[data-panel="'+id+'"]'); if(nb) nb.classList.add('active');
     setHash(id);
-    if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){apEnsureStatsDeps().then(function(){apPopulateYearSelector();initApStats();initApChartRangePicker();renderApStatsChart();}).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');console.error('apStats init error:',e);});});});}
-    else if(id==='ap-stats'&&apHotInst){requestAnimationFrame(function(){requestAnimationFrame(function(){apHotInst.render();initApChartRangePicker();renderApStatsChart();});});}
+    if(id==='ap-stats'&&!apPanelInited['ap-stats']){apPanelInited['ap-stats']=true;requestAnimationFrame(function(){requestAnimationFrame(function(){apEnsureStatsDeps().then(function(){apPopulateYearSelector();initApChartRangePicker();renderApStatsChart();renderApStorageUsage();}).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-storage-usage-status');setStatus(st,e.message||T.error,'error');console.error('apStats init error:',e);});});});}
+    else if(id==='ap-stats'){requestAnimationFrame(function(){requestAnimationFrame(function(){initApChartRangePicker();renderApStatsChart();renderApStorageUsage();});});}
     if(id==='ap-ssh'){
         requestAnimationFrame(function(){
             requestAnimationFrame(function(){
@@ -1833,6 +1737,7 @@ function loadPanel(target, year){
             }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
+            try{apStorageUsage=JSON.parse(d.storage_usage||'null');}catch(e){apStorageUsage=null;}
             if(d.session_expires_at){ apSessionStartTimer(d.session_expires_at); }
             if(d.available_years && Array.isArray(d.available_years)){
                 apAvailableYears = d.available_years;
@@ -1869,6 +1774,7 @@ function reloadAdminStats(year){
         .then(function(d){
             if(!d||!d.success) return;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
+            try{apStorageUsage=JSON.parse(d.storage_usage||'null');}catch(e){apStorageUsage=null;}
             // Update available years if provided
             if(d.available_years && Array.isArray(d.available_years)){
                 apAvailableYears = d.available_years;
@@ -1884,7 +1790,6 @@ function reloadAdminStats(year){
             }
             apFilterByYear();
             apEnsureStatsDeps().then(function(){
-                initApStats();
                 renderApStatsChart();
                 if(apAnalysisVisible) renderApAnalysis();
             }).catch(function(e){console.error('[AdminPanel]',e);});
@@ -3136,9 +3041,9 @@ function wireEvents(){
     function renderWorldMap(){if(!worldMap)return;var countries={},hostCountry=(worldMap.dataset.hostCountry||'').toUpperCase();try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}blockedCountries=blockedCountries.filter(function(c){return c!==hostCountry;});worldMap.innerHTML='';apLoadAmChartsMaps().then(function(){if(!window.am5||!window.am5map||!window.am5geodata_worldLow)return;if(worldMap._apMapRoot)worldMap._apMapRoot.dispose();var root=am5.Root.new(worldMap);worldMap._apMapRoot=root;root.setThemes([am5themes_Animated.new(root)]);var chart=root.container.children.push(am5map.MapChart.new(root,{panX:'translateX',panY:'translateY',wheelX:'zoom',wheelY:'zoom',pinchZoom:true,maxZoomLevel:32,maxPanOut:.15,projection:am5map.geoMercator()}));var series=chart.series.push(am5map.MapPolygonSeries.new(root,{geoJSON:am5geodata_worldLow,exclude:['AQ']}));var normal=am5.color(0x64748b),active=am5.color(0xef4444),host=am5.color(0x94a3b8),hover=am5.color(0x3b82f6),stroke=am5.color(0xffffff);function apCountryCode(target){return target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;}function apply(target){var code=apCountryCode(target);target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:normal));target.set('fillOpacity',code===hostCountry ? .45 : 1);}series.mapPolygons.template.setAll({tooltipText:'{name}',interactive:true,fill:normal,stroke:stroke,strokeWidth:.5});series.mapPolygons.template.adapters.add('tooltipText',function(text,target){var code=apCountryCode(target),label=countries[code]||text;return code===hostCountry?label+' (hosting)':label;});series.mapPolygons.template.events.on('click',function(ev){var target=ev.target,code=apCountryCode(target);if(!code||code===hostCountry)return;var i=blockedCountries.indexOf(code);if(i===-1)blockedCountries.push(code);else blockedCountries.splice(i,1);apply(target);});series.mapPolygons.template.events.on('pointerover',function(ev){var code=apCountryCode(ev.target);ev.target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:hover));});series.mapPolygons.template.events.on('pointerout',function(ev){apply(ev.target);});series.events.on('datavalidated',function(){series.mapPolygons.each(apply);chart.goHome(0);});chart.set('zoomControl',am5map.ZoomControl.new(root,{}));}).catch(function(){worldMap.textContent='Map library failed to load';});}
     renderWorldMap();
     if(accSav) accSav.addEventListener('click',function(){setStatus(accSt,T.saving,'info');var lv={};if(accGrid) accGrid.querySelectorAll('.ap-app-access-level').forEach(function(s){lv[s.getAttribute('data-folder')]=parseInt(s.value,10);});var fd=new FormData();fd.append('save_app_access_levels','1');fd.append('ajax','1');fd.append('levels_json',JSON.stringify(lv));fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(!d.success)throw new Error(d.error||T.error);var fd2=new FormData();fd2.append('save_app_access_security','1');fd2.append('ajax','1');fd2.append('countries_json',JSON.stringify(blockedCountries));fd2.append('block_vpn',vpnBlock&&vpnBlock.checked?'1':'0');return fetch('/main',{method:'POST',body:fd2}).then(function(r){return r.json();});}).then(function(d){setStatus(accSt,d.success?('+ '+T.app_access_saved):('x '+(d.error||T.error)),d.success?'success':'error');if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.app_access_saved,'success');}).catch(function(e){setStatus(accSt,'x '+(e&&e.message?e.message:T.error),'error');});});
-    /* stats save button */
-    var ssBtn=dynRoot.querySelector('#ap-save-stats'), sSt=dynRoot.querySelector('#ap-stats-status');
-    if(ssBtn&&!ssBtn._h){ssBtn._h=true;ssBtn.addEventListener('click',function(){setStatus(sSt,T.saving,'info');var fd=new FormData();fd.append('save_stats_data','1');fd.append('stats_data',JSON.stringify(apStatsData));fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){setStatus(sSt,d.success?('\u2713 '+T.stats_saved):('\u2717 '+(d.error||T.error)),d.success?'success':'error');if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.stats_saved,'success');}).catch(function(){setStatus(sSt,T.error,'error');});});}
+    /* storage usage refresh */
+    var suBtn=dynRoot.querySelector('#ap-storage-usage-refresh'), suSt=dynRoot.querySelector('#ap-storage-usage-status');
+    if(suBtn&&!suBtn._h){suBtn._h=true;suBtn.addEventListener('click',function(){suBtn.disabled=true;var fd=new FormData();fd.append('refresh_storage_usage','1');fd.append('ajax','1');fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(!d.success)throw new Error(d.error||T.error);setStatus(suSt,'\u2713 '+(d.message||T.storage_usage_queued),'success');}).catch(function(e){setStatus(suSt,'\u2717 '+(e&&e.message?e.message:T.error),'error');}).then(function(){setTimeout(function(){suBtn.disabled=false;},4000);});});}
     var rcBtn=dynRoot.querySelector('#ap-refresh-chart');
     if(rcBtn&&!rcBtn._h){rcBtn._h=true;rcBtn.addEventListener('click',function(){initApChartRangePicker();renderApStatsChart();});}
     /* SSH panel */
@@ -3390,70 +3295,6 @@ window.apOpenResetPassword=function(email,name){
     });
 })();
 
-/* ── Handsontable stats ── */
-function initApStats(){
-    var container=dynRoot&&dynRoot.querySelector('#ap-stats-hot-table');
-    if(!container)return;
-    if(typeof window.Handsontable==='undefined'){
-        apEnsureStatsDeps().then(initApStats).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');});
-        return;
-    }
-    if(apHotInst){apHotInst.destroy();apHotInst=null;}
-    var allD=new Set();Object.keys(apStatsData).forEach(function(id){Object.keys(apStatsData[id]||{}).forEach(function(d){allD.add(d);});});
-    var sdates=Array.from(allD).sort(),appIds=Object.keys(apStatsData).filter(function(id){return id!==null&&id!==''&&id!==undefined;});
-    var data=sdates.map(function(date){var row=[date];appIds.forEach(function(id){row.push((apStatsData[id]&&apStatsData[id][date])?apStatsData[id][date]:0);});return row;});
-    if(!data.length)data.push([''].concat(appIds.map(function(){return 0;})));
-    var lastRow=-1,lastCol=-1;
-    // Apply primary color as CSS variable for selection highlight
-    var apPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#007bff';
-    var apSelBg = apPrimaryColor + '25'; // ~15% opacity
-    container.style.setProperty('--hot-selection-bg', apSelBg);
-
-    // Theme: set table wrapper bg so rows inherit correctly
-    var apIsDark = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim() === '#0f1419';
-
-    apHotInst=new window.Handsontable(container,{
-        data:data,colHeaders:['Date'].concat(appIds.map(function(id){return id||'';})),rowHeaders:true,height:'100%',width:'100%',
-        licenseKey:'non-commercial-and-evaluation',contextMenu:true,stretchH:'all',
-        themeName: apIsDark ? 'ht-theme-main-dark-auto' : 'ht-theme-main',
-        afterSelectionEnd:function(r1,c1,r2,c2){lastRow=Math.min(r1,r2);lastCol=Math.min(c1,c2);},
-        afterChange:function(changes,source){
-            if(source!=='edit'||!changes)return;
-            changes.forEach(function(ch){
-                var row=ch[0],col=ch[1],ov=ch[2],nv=ch[3];
-                if(col===0){if(ov&&nv&&ov!==nv){appIds.forEach(function(id){if(apStatsData[id]&&apStatsData[id][ov]!==undefined){apStatsData[id][nv]=apStatsData[id][ov];delete apStatsData[id][ov];}});if(data[row])data[row][0]=nv;}return;}
-                var date=data[row]?data[row][0]:null,appId=appIds[col-1];if(!appId||!date)return;
-                if(!apStatsData[appId])apStatsData[appId]={};
-                if(nv===0||nv===''||nv===null){delete apStatsData[appId][date];if(!Object.keys(apStatsData[appId]).length)delete apStatsData[appId];}
-                else apStatsData[appId][date]=parseInt(nv)||0;
-            });
-        }
-    });
-    var drBtn=dynRoot&&dynRoot.querySelector('#ap-del-stats-row'),dcBtn=dynRoot&&dynRoot.querySelector('#ap-del-stats-col');
-    if(drBtn&&!drBtn._h){drBtn._h=true;drBtn.addEventListener('click',function(){if(!apHotInst)return;var sel=apHotInst.getSelected(),ri=(sel&&sel.length)?sel[0][0]:lastRow;if(ri<0)return;var dv=apHotInst.getDataAtCell(ri,0);if(dv)Object.keys(apStatsData).forEach(function(id){if(apStatsData[id]&&apStatsData[id][dv]!==undefined)delete apStatsData[id][dv];});apHotInst.alter('remove_row',ri);renderApStatsChart();});}
-    if(dcBtn&&!dcBtn._h){dcBtn._h=true;dcBtn.addEventListener('click',function(){if(!apHotInst)return;var sel=apHotInst.getSelected(),ci=(sel&&sel.length&&sel[0][1]>=1)?sel[0][1]:lastCol;if(ci<1)return;var ai=appIds[ci-1];if(ai)delete apStatsData[ai];apHotInst.alter('remove_col',ci);renderApStatsChart();});}
-    // Inject dynamic style for HOT selection color (uses current primary color)
-    (function(){
-        var pc = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || '#007bff';
-        var styleId = 'ap-hot-sel-style';
-        var existing = document.getElementById(styleId);
-        if(existing) existing.remove();
-        var st = document.createElement('style');
-        st.id = styleId;
-        // Selection highlight
-        st.textContent = [
-            '#ap-stats-hot-table .handsontable td.area{background-color:'+pc+'22!important;}',
-            '#ap-stats-hot-table .handsontable td.current{background-color:'+pc+'33!important;}',
-            '#ap-stats-hot-table .handsontable .wtBorder.current{background-color:'+pc+'!important;}',
-            '#ap-stats-hot-table .handsontable .wtBorder.area{background-color:'+pc+'!important;}',
-            '#ap-stats-hot-table .handsontable .htFillingHandle{background-color:'+pc+'!important;}',
-        ].join('');
-        document.head.appendChild(st);
-    })();
-    // Initial chart render
-    setTimeout(renderApStatsChart, 100);
-}
-
 /* ── Admin Stats Chart ── */
 var apStatsChart = null;
 var apChartRange = 'year'; // current quick-range preset (default to year-based)
@@ -3552,7 +3393,7 @@ function renderApStatsChart(){
     var canvas = dynRoot&&dynRoot.querySelector('#ap-stats-canvas');
     if(!canvas) return;
     if(typeof window.Chart === 'undefined'){
-        apEnsureStatsDeps().then(renderApStatsChart).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-stats-status');setStatus(st,e.message||T.error,'error');});
+        apEnsureStatsDeps().then(renderApStatsChart).catch(function(e){var st=dynRoot&&dynRoot.querySelector('#ap-storage-usage-status');setStatus(st,e.message||T.error,'error');});
         return;
     }
     // Use filtered data if year is selected
@@ -3593,12 +3434,109 @@ function renderApStatsChart(){
     if(apStatsChart){ apStatsChart.destroy(); apStatsChart=null; }
     apStatsChart = new window.Chart(canvas, chartCfg);
     // Hook table edits to re-render
-    if(apHotInst && !apHotInst._chartHooked){
-        apHotInst._chartHooked = true;
-        apHotInst.addHook('afterChange', function(changes,source){ if(source==='edit') setTimeout(renderApStatsChart,200); });
-    }
     // Init range picker controls (idempotent)
     initApChartRangePicker();
+}
+
+/* ── Per-user storage usage (reads the collector cache only) ── */
+var apStorageUsageChart = null;
+var AP_STORAGE_LABELS = {cloud:<?php echo json_encode($translations['ap_storage_usage_app_cloud']??'Cloud'); ?>, immich:<?php echo json_encode($translations['ap_storage_usage_app_immich']??'Immich'); ?>, gitea:<?php echo json_encode($translations['ap_storage_usage_app_gitea']??'Gitea'); ?>, dawarich:<?php echo json_encode($translations['ap_storage_usage_app_dawarich']??'Dawarich'); ?>};
+function apFormatBytes(bytes){
+    bytes = Number(bytes)||0;
+    if(bytes<=0) return '0 B';
+    var u=['B','KB','MB','GB','TB','PB'], e=Math.min(Math.floor(Math.log(bytes)/Math.log(1024)),u.length-1);
+    return (bytes/Math.pow(1024,e)).toFixed(e>1?2:0)+' '+u[e];
+}
+function apFormatAgo(ts){
+    ts = Number(ts)||0;
+    if(!ts) return '';
+    var s=Math.max(1,Math.floor((Date.now()/1000-ts)/60));
+    if(s<60) return s+' min';
+    if(s<1440) return Math.floor(s/60)+' h';
+    return Math.floor(s/1440)+' d';
+}
+function renderApStorageUsage(){
+    var canvas = dynRoot&&dynRoot.querySelector('#ap-storage-usage-canvas');
+    var empty  = dynRoot&&dynRoot.querySelector('#ap-storage-usage-empty');
+    var meta   = dynRoot&&dynRoot.querySelector('#ap-storage-usage-meta');
+    var srcBox = dynRoot&&dynRoot.querySelector('#ap-storage-usage-sources');
+    if(!canvas) return;
+    var snap = apStorageUsage || {sources:{},users:{},rows:{}};
+    var users = snap.users||{}, rows = snap.rows||{}, sources = snap.sources||{};
+    var appKeys = Object.keys(rows).sort();
+    var totals = {};
+    Object.keys(users).forEach(function(mail){ totals[mail]=0; });
+    appKeys.forEach(function(k){ Object.keys(rows[k]).forEach(function(mail){ totals[mail]=(totals[mail]||0)+rows[k][mail].bytes; }); });
+    var ordered = Object.keys(totals).filter(function(m){ return totals[m]>0; }).sort(function(a,b){ return totals[b]-totals[a]; });
+    var hasData = ordered.length>0;
+    if(apStorageUsageChart){ apStorageUsageChart.destroy(); apStorageUsageChart=null; }
+    if(empty) empty.style.display = hasData ? 'none' : 'block';
+    if(canvas.parentNode) canvas.parentNode.style.display = hasData ? '' : 'none';
+    if(meta){
+        var newest = Object.keys(sources).reduce(function(acc,k){ var m=Number(sources[k]&&sources[k].measured_at)||0; return m>acc?m:acc; },0);
+        meta.textContent = newest ? (T.storage_usage_updated+' '+apFormatAgo(newest)) : '';
+    }
+    if(srcBox){
+        srcBox.innerHTML = '';
+        var known = {cloud:1,immich:1,gitea:1,dawarich:1};
+        Object.keys(known).forEach(function(k){
+            var st = sources[k] || {};
+            var color = st.status==='ok' ? '#2ECC71' : (st.status==='unavailable' ? '#F39C12' : '#E74C3C');
+            var span = document.createElement('span');
+            span.style.display='inline-flex';
+            span.style.alignItems='center';
+            span.style.gap='5px';
+            span.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:'+color+';display:inline-block;"></span>';
+            var txt = document.createElement('span');
+            txt.textContent = (AP_STORAGE_LABELS[k]||k) + ' — ' + (st.status==='ok' ? apFormatAgo(st.measured_at) : (st.status||'pending'));
+            if(st.message){ txt.title = String(st.message).substring(0,300); }
+            span.appendChild(txt);
+            srcBox.appendChild(span);
+        });
+    }
+    if(!hasData) return;
+    if(typeof window.Chart === 'undefined') return;
+    var colors = ['#36A2EB','#FFCE56','#9966FF','#4BC0C0','#FF9F40','#2ECC71','#E74C3C','#1ABC9C'];
+    var datasets = appKeys.map(function(k,i){
+        return {
+            label: AP_STORAGE_LABELS[k]||k,
+            data: ordered.map(function(m){ return (rows[k][m]?rows[k][m].bytes:0); }),
+            backgroundColor: colors[i%colors.length]+'cc',
+            borderColor: colors[i%colors.length],
+            borderWidth: 1,
+            borderRadius: 3,
+            maxBarThickness: 46
+        };
+    });
+    var tc = getApThemeColors();
+    apStorageUsageChart = new window.Chart(canvas, {
+        type: 'bar',
+        data: { labels: ordered.map(function(m){ var n = users[m]||''; return n ? n : m; }), datasets: datasets },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            animation: { duration: 250 },
+            plugins: {
+                legend: { display: true, position: 'top', labels: { color: tc.text, boxWidth: 10, font: { size: 10 } } },
+                tooltip: {
+                    callbacks: {
+                        title: function(items){ var m = ordered[items[0].dataIndex]; return (users[m]||m); },
+                        label: function(ctx){ return ctx.dataset.label+': '+apFormatBytes(ctx.parsed.y); },
+                        footer: function(items){
+                            var sum = items.reduce(function(acc,it){ return acc+(it.parsed.y||0); },0);
+                            return T.storage_usage_total+': '+apFormatBytes(sum);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: { stacked: true, ticks: { color: tc.text, font: { size: 9 }, maxRotation: 45, maxTicksLimit: 20 }, grid: { color: tc.grid } },
+                y: { stacked: true, beginAtZero: true, ticks: { color: tc.text, font: { size: 9 }, maxTicksLimit: 6, callback: function(v){ return apFormatBytes(v); } }, grid: { color: tc.grid } }
+            }
+        }
+    });
+    if(canvas.setAttribute) canvas.setAttribute('title', ordered.map(function(m){
+        return (users[m]||m)+' ('+apFormatBytes(totals[m])+')';
+    }).join('\n'));
 }
 
 /* ── Analysis Mode & Year Selector ── */

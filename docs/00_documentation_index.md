@@ -34,3 +34,4 @@
 | **[27_public_api.md](27_public_api.md)** | Public API |
 | **[28_share_file_utils.md](28_share_file_utils.md)** | Share file utilities |
 | **[29_waf.md](29_waf.md)** | WAF |
+| **[30_storage_usage_collector.md](30_storage_usage_collector.md)** | Per-user disk usage collector and chart |

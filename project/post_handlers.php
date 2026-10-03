@@ -1412,7 +1412,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <div class="ap-panel" id="ap-stats">
             <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['stats_graph']??'Statistics'); ?></span></div>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['stats_graph']??'Visit Statistics'); ?></div>
-            <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_stats_subtitle']??'Edit statistics data. The chart updates live after changes.'); ?></div>
+            <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_stats_subtitle']??'Visit statistics and disk usage per user.'); ?></div>
             <!-- Live chart preview -->
             <div class="ap-card" style="padding:14px 20px 16px 20px;">
                 <div class="ap-card-title" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -1471,15 +1471,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <div id="ap-peak-days" style="max-height:200px;overflow-y:auto;"></div>
                 </div>
             </div>
-            <!-- Edit table -->
-            <div class="ap-card"><div class="ap-card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg><?php echo my_htmlspecialchars($translations['edit_stats']??'Edit Stats Data'); ?></div>
-                <div class="ap-btn-row" style="margin-top:0;margin-bottom:14px;">
-                    <button type="button" id="ap-save-stats" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['ap_stats_save']??$translations['save_changes']??'Save Changes'); ?></button>
-                    <button type="button" id="ap-del-stats-row" class="ap-btn ap-btn-danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg><?php echo my_htmlspecialchars($translations['ap_stats_del_row']??$translations['delete_row']??'Delete Row'); ?></button>
-                    <button type="button" id="ap-del-stats-col" class="ap-btn ap-btn-danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg><?php echo my_htmlspecialchars($translations['ap_stats_del_col']??$translations['delete_column']??'Delete Column'); ?></button>
-                    <div class="ap-status" id="ap-stats-status" style="margin:0;padding:6px 12px;"></div>
+            <!-- Per-user storage usage -->
+            <div class="ap-card" id="ap-storage-usage-card">
+                <div class="ap-card-title" style="flex-wrap:wrap;gap:8px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-2h2v7h-2v-7zm4 4h2v3h-2v-3z"/></svg>
+                    <span id="ap-storage-usage-title"><?php echo my_htmlspecialchars($translations['ap_storage_usage_title']??'Disk Usage by User'); ?></span>
+                    <span id="ap-storage-usage-meta" style="margin-left:auto;font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;opacity:.6;"></span>
+                    <button type="button" id="ap-storage-usage-refresh" class="ap-btn ap-btn-secondary" style="padding:3px 9px;font-size:11px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 3v6h-6"></path></svg>
+                        <span id="ap-storage-usage-refresh-label"><?php echo my_htmlspecialchars($translations['ap_storage_usage_refresh']??'Refresh'); ?></span>
+                    </button>
                 </div>
-                <div id="ap-stats-hot-table" style="height:calc(55vh - 100px);min-height:260px;width:100%;border:1px solid var(--border-color);border-radius:6px;overflow:hidden;"></div>
+                <div style="position:relative;height:280px;width:100%;"><canvas id="ap-storage-usage-canvas"></canvas></div>
+                <div id="ap-storage-usage-empty" style="display:none;font-size:12px;opacity:.65;padding:18px 0;text-align:center;"><?php echo my_htmlspecialchars($translations['ap_storage_usage_empty']??'No storage usage data collected yet.'); ?></div>
+                <div id="ap-storage-usage-sources" style="margin-top:12px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;opacity:.7;"></div>
+                <div class="ap-status" id="ap-storage-usage-status" style="margin:10px 0 0;"></div>
             </div>
         </div>
         <!-- SSH Terminal Panel -->
@@ -1666,7 +1672,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         while(ob_get_level() > 0) ob_end_clean();
         while(ob_get_level() > 1) ob_end_clean();
         header('Content-Type: application/json');
-        echo json_encode(['success'=>true,'html'=>$html,'stats'=>$_apVStats,'available_years'=>$_apAvailableYears,'session_expires_at'=>(int)($_SESSION['admin_panel_gate_until'] ?? 0),'csrf'=>apSecCsrfToken()]);
+        echo json_encode(['success'=>true,'html'=>$html,'stats'=>$_apVStats,'available_years'=>$_apAvailableYears,'storage_usage'=>json_encode(loadStorageUsageSnapshot()),'session_expires_at'=>(int)($_SESSION['admin_panel_gate_until'] ?? 0),'csrf'=>apSecCsrfToken()]);
+        exit;
+    }
+
+    // Queue a storage usage refresh (admin only, AJAX) — the collector picks it up,
+    // so this request never waits for the external databases.
+    if(isset($_POST['refresh_storage_usage']) && isset($_POST['ajax']) && $sessionIsAdmin){
+        storageUsageRequestRefresh();
+        while(ob_get_level() > 1) ob_end_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success'=>true,'message'=>$translations['ap_storage_usage_queued']??'Refresh queued']);
         exit;
     }
 
@@ -2074,19 +2090,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         header('Content-Type: application/json');
         echo json_encode(['success'=>true,'message'=>$translations['app_access_saved']??'Saved']);
         exit;
-    }
-    if(isset($_POST['save_stats_data']) && isset($_POST['stats_data']) && ($_SESSION['user']['role'] == 2 || $_SESSION['user']['email'] === 'root@root')){
-        $statsData = json_decode($_POST['stats_data'], true);
-        if($statsData){
-            saveVisitStats($statsData);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => true]);
-            exit;
-        } else {
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'error' => 'Invalid data']);
-            exit;
-        }
     }
     if(isset($_POST['logout'])){
         if(isset($_SESSION['user']['email'])){
