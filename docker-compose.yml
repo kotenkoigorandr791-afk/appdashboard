@@ -74,7 +74,7 @@ services:
       APP_DB_SKIP_SESSION_INIT: "1"
       APPDATA_BASE_DIR: /opt/ApplicationData
       UPLOADS_BASE_DIR: /opt/ApplicationData/dashboard/uploads
-      DB_HOST: host-gateway
+      DB_HOST: "${DB_HOST:-appdashboard-db}"
       DB_PORT: "5432"
       DB_NAME: appdashboard
       DB_USER: appdashboard
@@ -95,6 +95,22 @@ services:
       SSH_DEFAULT_PORT: "${SSH_DEFAULT_PORT:-22}"
       SMART_HOME_WS_PORT: "8766"
       SMART_HOME_WS_BIND: 127.0.0.1
+      # Per-user storage usage collector (Admin Panel → Statistics chart).
+      # External app databases usually live in the host PostgreSQL (host.docker.internal:5432).
+      STORAGE_USAGE_ENABLED: "${STORAGE_USAGE_ENABLED:-1}"
+      STORAGE_USAGE_INTERVAL: "${STORAGE_USAGE_INTERVAL:-900}"
+      STORAGE_USAGE_DB_HOST: "${STORAGE_USAGE_DB_HOST:-host.docker.internal}"
+      STORAGE_USAGE_DB_PORT: "${STORAGE_USAGE_DB_PORT:-5432}"
+      STORAGE_USAGE_TIMEOUT_MS: "${STORAGE_USAGE_TIMEOUT_MS:-20000}"
+      STORAGE_USAGE_IMMICH_DB: "${STORAGE_USAGE_IMMICH_DB:-immich}"
+      STORAGE_USAGE_IMMICH_DB_USER: "${STORAGE_USAGE_IMMICH_DB_USER:-postgres}"
+      STORAGE_USAGE_IMMICH_DB_PASSWORD: "${STORAGE_USAGE_IMMICH_DB_PASSWORD:-${IMMICH_DB_PASSWORD:-}}"
+      STORAGE_USAGE_GITEA_DB: "${STORAGE_USAGE_GITEA_DB:-gitea}"
+      STORAGE_USAGE_GITEA_DB_USER: "${STORAGE_USAGE_GITEA_DB_USER:-gitea}"
+      STORAGE_USAGE_GITEA_DB_PASSWORD: "${STORAGE_USAGE_GITEA_DB_PASSWORD:-${GITEA_DB_PASSWORD:-}}"
+      STORAGE_USAGE_DAWARICH_DB: "${STORAGE_USAGE_DAWARICH_DB:-dawarich_development}"
+      STORAGE_USAGE_DAWARICH_DB_USER: "${STORAGE_USAGE_DAWARICH_DB_USER:-postgres}"
+      STORAGE_USAGE_DAWARICH_DB_PASSWORD: "${STORAGE_USAGE_DAWARICH_DB_PASSWORD:-${DAWARICH_DB_PASSWORD:-}}"
     ports:
       - "80:80"
       - "127.0.0.1:8808:8808"
@@ -109,6 +125,7 @@ services:
       - appdashboard-waf-logs:/var/log/modsecurity
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "host-gateway:host-gateway"
 
   portainer:
     image: portainer/portainer-ce:latest
