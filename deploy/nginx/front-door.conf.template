@@ -7,6 +7,151 @@ upstream appdashboard_backend {
     keepalive 32;
 }
 server {
+    listen 80;
+    listen [::]:80;
+    server_name git.__BASE_DOMAIN__;
+    include /opt/docker/appdashboard/nginx/cloudflare-realip.conf;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass __GITEA_UPSTREAM__;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __GITEA_PROXY_HOST__;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
+    }
+}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name photo.__BASE_DOMAIN__;
+    include /opt/docker/appdashboard/nginx/cloudflare-realip.conf;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass __IMMICH_UPSTREAM__;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __IMMICH_PROXY_HOST__;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
+    }
+}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name dawarich.__BASE_DOMAIN__;
+    include /opt/docker/appdashboard/nginx/cloudflare-realip.conf;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass __DAWARICH_UPSTREAM__;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host __DAWARICH_PROXY_HOST__;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
+        sub_filter_once on;
+        sub_filter '</body>' '<script>(function(){function go(){var f=document.querySelector("form[action*=openid_connect]");if(f&&!f.dataset.appdashAuto){f.dataset.appdashAuto="1";f.submit();}}if(location.pathname.indexOf("/users/sign_in")===0){setTimeout(go,250);setTimeout(go,1000);}})();</script></body>';
+    }
+}
+server {
+    listen 3030;
+    listen [::]:3030;
+    server_name dawarich.__BASE_DOMAIN__;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass __DAWARICH_UPSTREAM__;
+        proxy_http_version 1.1;
+        proxy_set_header Host __DAWARICH_PROXY_HOST__;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
+        sub_filter_once on;
+        sub_filter '</body>' '<script>(function(){function go(){var f=document.querySelector("form[action*=openid_connect]");if(f&&!f.dataset.appdashAuto){f.dataset.appdashAuto="1";f.submit();}}if(location.pathname.indexOf("/users/sign_in")===0){setTimeout(go,250);setTimeout(go,1000);}})();</script></body>';
+    }
+}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name sentry.__BASE_DOMAIN__;
+    include /opt/docker/appdashboard/nginx/cloudflare-realip.conf;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass __SENTRY_UPSTREAM__;
+        proxy_http_version 1.1;
+        proxy_set_header Host __SENTRY_PROXY_HOST__;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
+        sub_filter_once on;
+        sub_filter '</body>' '<script>(function(){function go(){var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}}if(location.pathname==="/"||location.pathname.indexOf("/login")===0){setTimeout(go,600);setTimeout(go,1600);setTimeout(go,3200);}})();</script></body>';
+    }
+}
+server {
+    listen 9090;
+    listen [::]:9090;
+    server_name sentry.__BASE_DOMAIN__;
+    client_max_body_size 1024m;
+    location / {
+        proxy_pass __SENTRY_UPSTREAM__;
+        proxy_http_version 1.1;
+        proxy_set_header Host __SENTRY_PROXY_HOST__;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400s;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
+        sub_filter_once on;
+        sub_filter '</body>' '<script>(function(){function go(){var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}}if(location.pathname==="/"||location.pathname.indexOf("/login")===0){setTimeout(go,600);setTimeout(go,1600);setTimeout(go,3200);}})();</script></body>';
+    }
+}
+server {
     listen 80 default_server;
     listen [::]:80 default_server;
     server_name _;
