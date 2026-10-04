@@ -373,10 +373,6 @@ server {
         return 302 /admin-omniroute/;
     }
 
-    location = /admin-omniroute {
-        return 302 /admin-omniroute/;
-    }
-
     location ^~ /admin-omniroute/ {
         absolute_redirect off;
         proxy_pass __OMNIROUTE_UPSTREAM__/;
