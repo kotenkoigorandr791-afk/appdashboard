@@ -511,8 +511,9 @@ function apNotificationVisibleTo(array $row, string $userEmail, int $userRole, a
 if (isset($_GET['api']) && $_GET['api'] === 'cloud_ai_config') {
     require_once APP_ROOT . '/apps/cloud/includes/ai_config_store.php';
     $config = cloud_ai_load_config();
-    echo json_encode(['ok' => true, 'config' => $config]);
-    exit;
+    // The endpoint is reachable without a session, so never expose the secret.
+    $config['api_key'] = '';
+    json_out(['ok' => true, 'config' => $config]);
 }
 
 if (isset($_GET['api']) && $_GET['api'] === 'privacy') {
@@ -1565,17 +1566,22 @@ if (isset($_GET['api']) && $_GET['api'] === 'support_chat') { try {
             $stmt->bindValue(':email', $emailQ, PDO::PARAM_STR);
             $result = $stmt->execute();
         } elseif ($q === '') {
-            $result = $db->query("SELECT email, name, role, photo FROM users ORDER BY lower(email) LIMIT 40");
+            // Never offer the admin their own row: a self peer chat is rejected
+            // downstream by assertPeerVisible() as invalid_peer.
+            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE lower(email) <> :self ORDER BY lower(email) LIMIT 40");
+            $stmt->bindValue(':self', strtolower(normalizeChatEmail($userEmail)), PDO::PARAM_STR);
+            $result = $stmt->execute();
         } else {
             $esc = static function (string $s): string {
                 return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $s);
             };
             $term = normalizeChatEmail($q);
             $prefix = $esc(strtolower($q)) . '%';
-            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE lower(email) = :term OR lower(email) LIKE :prefix ESCAPE '\\' OR lower(COALESCE(name, '')) LIKE :prefix ESCAPE '\\' ORDER BY CASE WHEN lower(email) = :term2 THEN 0 ELSE 1 END, lower(email) LIMIT 40");
+            $stmt = $db->prepare("SELECT email, name, role, photo FROM users WHERE (lower(email) = :term OR lower(email) LIKE :prefix ESCAPE '\\' OR lower(COALESCE(name, '')) LIKE :prefix ESCAPE '\\') AND lower(email) <> :self ORDER BY CASE WHEN lower(email) = :term2 THEN 0 ELSE 1 END, lower(email) LIMIT 40");
             $stmt->bindValue(':term', $term, PDO::PARAM_STR);
             $stmt->bindValue(':term2', $term, PDO::PARAM_STR);
             $stmt->bindValue(':prefix', $prefix, PDO::PARAM_STR);
+            $stmt->bindValue(':self', strtolower(normalizeChatEmail($userEmail)), PDO::PARAM_STR);
             $result = $stmt->execute();
         }
         if (!$result) {

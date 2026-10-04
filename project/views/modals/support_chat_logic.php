@@ -41,7 +41,7 @@
     let currentChatTitle = '';
     let currentPeerBlocked = false;
     let isAdmin = <?php echo json_encode(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2); ?>;
-    let currentUserEmail = <?php echo json_encode($_SESSION['user']['email'] ?? ''); ?>;
+    let currentUserEmail = <?php echo json_encode($_SESSION['user']['email'] ?? '', JSON_HEX_TAG); ?>;
     let chatPollInterval = null;
     let lastMessagesHash = '';
     let editingMessageId = null;
@@ -1691,6 +1691,16 @@ adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? ch
         }
         var nextType = chat.chat_type || 'support';
         var nextPeer = nextType === 'peer' ? (chat.peer_email || chat.recipient_email || '') : '';
+        if (nextType === 'peer') {
+            var peerNorm = String(nextPeer || '').toLowerCase().trim();
+            var selfNorm = String(currentUserEmail || '').toLowerCase().trim();
+            // A peer chat needs a peer; self or empty would be rejected as
+            // invalid_peer by the API.
+            if (!peerNorm || peerNorm === selfNorm) {
+                nextType = 'support';
+                nextPeer = '';
+            }
+        }
         var nextUser = nextType === 'support' ? (chat.user_email || currentUserEmail) : (chat.user_email || currentUserEmail);
         if (isAdmin && currentChatUser && currentChatUser !== nextUser && editingMessageId) {
             adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? chatInput.value : '' };
@@ -1802,8 +1812,14 @@ adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? ch
             });
     }
 
+    function currentChatIsPeerWithoutEmail() {
+        return currentChatType === 'peer' && !currentPeerEmail;
+    }
     function loadMessages(silent, opts) {
         if (!currentChatUser) {
+            return;
+        }
+        if (currentChatIsPeerWithoutEmail()) {
             return;
         }
         if (currentChatType === 'peer' && currentPeerBlocked) {
@@ -1833,6 +1849,10 @@ adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? ch
                     if (data.error === 'peer_blocked') {
                         currentPeerBlocked = true;
                         setHeaderActions();
+                        stopPolling();
+                        return;
+                    }
+                    if (data.error === 'invalid_peer') {
                         stopPolling();
                         return;
                     }
@@ -2718,6 +2738,12 @@ delete adminDraftEdits[currentChatKey()];
                 if (data.ok) {
                     closeSupportChatDeleteModal();
                     currentChatUser = null;
+                    currentPeerEmail = '';
+                    currentChatType = 'support';
+                    currentPeerBlocked = false;
+                    chatMaxId = 0;
+                    chatOldestId = null;
+                    lastMessagesHash = '';
                     if (chatMessagesArea) {
                         chatMessagesArea.style.display = 'none';
                     }

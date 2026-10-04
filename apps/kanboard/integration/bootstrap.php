@@ -177,10 +177,13 @@ function kanboard_db_resolve(): array
         if (is_string($dockerHost) && $dockerHost !== '') {
             $host = $dockerHost;
         } elseif ($inDocker) {
-            $host = 'host-gateway';
+            $host = getenv('APPDASHBOARD_DB_HOST') ?: 'appdashboard-db';
         } else {
             $host = '127.0.0.1';
         }
+    }
+    if ($host === 'host-gateway') {
+        $host = getenv('APPDASHBOARD_DB_HOST') ?: 'appdashboard-db';
     }
     $schema = getenv('KANBOARD_DB_SCHEMA');
     if (!is_string($schema) || trim($schema) === '') {

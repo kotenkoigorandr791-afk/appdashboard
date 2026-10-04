@@ -1,9 +1,14 @@
 // Fetch AI models from server config
 export async function fetchModels() {
     try {
-        const response = await fetch('/main?api=cloud_ai_config');
+        const response = await fetch('/main?api=cloud_ai_config', {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) return [];
         const data = await response.json();
-        return data.config?.models || [];
+        const models = data?.config?.models;
+        return Array.isArray(models) ? models : [];
     } catch {
         return [];
     }

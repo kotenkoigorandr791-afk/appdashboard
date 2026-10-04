@@ -101,6 +101,12 @@ if [ ! -f "$APPDATA_DATA_DIR/db.env" ]; then
   } > "$APPDATA_DATA_DIR/db.env"
 fi
 if [ -f "$APPDATA_DATA_DIR/db.env" ]; then
+  # Self-heal: host-gateway is the Docker host alias, never the Postgres
+  # service. Older images baked it into db.env, which makes every PDO connect
+  # fail with SQLSTATE[08006] "could not translate host name".
+  if grep -q '^DB_HOST=host-gateway$' "$APPDATA_DATA_DIR/db.env" 2>/dev/null; then
+    sed -i "s/^DB_HOST=host-gateway$/DB_HOST=${DB_HOST:-appdashboard-db}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
+  fi
   [ -n "${DB_HOST:-}" ] && sed -i "s/^DB_HOST=.*/DB_HOST=${DB_HOST}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   [ -n "${DB_PORT:-}" ] && sed -i "s/^DB_PORT=.*/DB_PORT=${DB_PORT}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true
   [ -n "${DB_NAME:-}" ] && sed -i "s/^DB_NAME=.*/DB_NAME=${DB_NAME}/" "$APPDATA_DATA_DIR/db.env" 2>/dev/null || true

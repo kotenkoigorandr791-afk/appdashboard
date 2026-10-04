@@ -1,22 +1,23 @@
 <script>
 // ─── State ─────────────────────────────────────────────────────────────────
-const CURRENT_USER_EMAIL = <?=json_encode($userEmail, JSON_UNESCAPED_UNICODE)?>;
+// JSON_HEX_TAG keeps user-editable values from closing this <script> block.
+const CURRENT_USER_EMAIL = <?=json_encode($userEmail, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)?>;
 const state = {
   devices: [],
   myDevices: [],
   groups: [],
-  settings: <?=json_encode($settings, JSON_UNESCAPED_UNICODE)?>,
+  settings: <?=json_encode($settings, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)?>,
   floorPlan: [],
   apiDocs: '',
   selectedDevice: null,
   viewDeviceId: null,
   drawerOpen: false,
   currentPage: 'home',
-  homeView: <?=json_encode(($settings['home_view'] ?? 'tiles') === 'map' ? 'map' : 'tiles')?>,
-  canEditEndpoints: <?=json_encode($canEditEndpoints)?>,
+  homeView: <?=json_encode(($settings['home_view'] ?? 'tiles') === 'map' ? 'map' : 'tiles', JSON_HEX_TAG)?>,
+  canEditEndpoints: <?=json_encode($canEditEndpoints, JSON_HEX_TAG)?>,
   canEditMap: true,
-  homeScope: <?=json_encode($settings['home_scope'] ?? 'own')?>,
-  homeGroupId: <?=json_encode($settings['home_group_id'] ?? '')?>,
+  homeScope: <?=json_encode($settings['home_scope'] ?? 'own', JSON_HEX_TAG)?>,
+  homeGroupId: <?=json_encode($settings['home_group_id'] ?? '', JSON_HEX_TAG)?>,
 };
 let rtPollTimer = null;
 const HIDDEN_PARAM_IDS = ['firmware','ap_domain','mqtt_transport','server_domain'];
@@ -72,10 +73,10 @@ function renderControlsHtml(d, controls, editable) {
   });
   return html;
 }
-const uiText = <?=json_encode($t, JSON_UNESCAPED_UNICODE)?>;
-const availableIcons = <?=json_encode($availableIcons)?>;
-const availableTypes = <?=json_encode($availableTypes)?>;
-const typeNames = <?=json_encode($typeNames)?>;
+const uiText = <?=json_encode($t, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)?>;
+const availableIcons = <?=json_encode($availableIcons, JSON_HEX_TAG)?>;
+const availableTypes = <?=json_encode($availableTypes, JSON_HEX_TAG)?>;
+const typeNames = <?=json_encode($typeNames, JSON_HEX_TAG)?>;
 
 // ─── Utils ─────────────────────────────────────────────────────────────────
 function esc(v) { return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }

@@ -24,17 +24,41 @@ if ($__APP_DEBUG) {
     smart_log_bootstrap('dashboard');
 }
 if (!function_exists('apSecExpectedHosts')) {
+    // HTTP_HOST carries a port ("localhost:8080") while parse_url() on the
+    // origin/referer only yields a host, so normalise both sides to
+    // "host[:port]" with the scheme default port made explicit.
+    function apSecAuthority(string $value, string $defaultPort = ''): string {
+        $value = strtolower(trim($value));
+        if ($value === '') return '';
+        $host = $value;
+        $port = '';
+        if (str_starts_with($value, '[')) {
+            $close = strpos($value, ']');
+            if ($close === false) return $value;
+            $host = substr($value, 0, $close + 1);
+            $rest = substr($value, $close + 1);
+            if (str_starts_with($rest, ':')) $port = substr($rest, 1);
+        } else {
+            $colon = strrpos($value, ':');
+            if ($colon !== false) {
+                $host = substr($value, 0, $colon);
+                $port = substr($value, $colon + 1);
+            }
+        }
+        if ($port === '' || $port === $defaultPort) $port = '';
+        return $host . ($port === '' ? '' : ':' . $port);
+    }
     function apSecExpectedHosts(): array {
         $hosts = [];
-        $h = (string)($_SERVER['HTTP_HOST'] ?? '');
-        if ($h !== '') $hosts[] = strtolower($h);
-        $sn = (string)($_SERVER['SERVER_NAME'] ?? '');
-        if ($sn !== '') $hosts[] = strtolower($sn);
-        $extra = (string)getenv('APP_TRUSTED_HOSTS');
-        if ($extra !== '') {
-            foreach (explode(',', $extra) as $e) {
-                $e = strtolower(trim($e));
-                if ($e !== '') $hosts[] = $e;
+        $isHttps = (($_SERVER['HTTPS'] ?? '') !== '' && ($_SERVER['HTTPS'] ?? '') !== 'off')
+            || (string)($_SERVER['SERVER_PORT'] ?? '') === '443';
+        $defaultPort = $isHttps ? '443' : '80';
+        foreach ([(string)($_SERVER['HTTP_HOST'] ?? ''), (string)($_SERVER['SERVER_NAME'] ?? ''), (string)getenv('APP_TRUSTED_HOSTS')] as $source) {
+            foreach (explode(',', $source) as $candidate) {
+                // Strict "host[:port]" comparison: a candidate on a different
+                // port than the request host is a different origin.
+                $authority = apSecAuthority($candidate, $defaultPort);
+                if ($authority !== '') $hosts[] = $authority;
             }
         }
         return array_values(array_unique($hosts));
@@ -50,7 +74,13 @@ if (!function_exists('apSecSameOrigin')) {
         if ($candidate === '') return false;
         $parts = parse_url($candidate);
         if (!is_array($parts) || empty($parts['host'])) return false;
-        return in_array(strtolower($parts['host']), $expected, true);
+        $scheme = strtolower((string)($parts['scheme'] ?? ''));
+        $defaultPort = ($scheme === 'https') ? '443' : '80';
+        $candidatePort = isset($parts['port']) ? (string)$parts['port'] : $defaultPort;
+        $authority = apSecAuthority((string)$parts['host'], $defaultPort);
+        if ($authority === '') return false;
+        $withPort = $authority . ($candidatePort === $defaultPort ? '' : ':' . $candidatePort);
+        return in_array($authority, $expected, true) || in_array($withPort, $expected, true);
     }
 }
 if (!function_exists('apSecRequireSameOrigin')) {

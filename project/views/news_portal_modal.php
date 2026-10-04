@@ -27,9 +27,14 @@ async function loadAiModels() {
     if (!modelSelects.length) return;
     
     try {
-        const response = await fetch('/main?api=cloud_ai_config');
+        const response = await fetch('/main?api=cloud_ai_config', {
+            credentials: 'same-origin',
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) return;
         const data = await response.json();
-        const models = data.config?.models || [];
+        const models = data?.config?.models || [];
+        if (!Array.isArray(models) || !models.length) return;
         const savedModel = localStorage.getItem('ai_model_news_ai');
         
         modelSelects.forEach(modelSelect => {
@@ -43,7 +48,9 @@ async function loadAiModels() {
             });
         });
     } catch (error) {
-        if (error && error.name === 'AbortError') return;
+        // Network-level failures (offline, aborted, gateway) are not actionable
+        // here and must not be reported as application errors.
+        if (error && (error.name === 'AbortError' || error.name === 'TypeError')) return;
         console.error('Failed to load AI models:', error);
     }
 }
