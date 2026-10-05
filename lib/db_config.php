@@ -64,10 +64,29 @@ function app_db_load_config(): array {
             $cfg[$key] = $value;
         }
     }
+    $cfg['host'] = app_db_normalize_host((string)$cfg['host']);
+    if ($cfg['host'] === '') {
+        $cfg['host'] = 'appdashboard-db';
+    }
     return $cfg;
 }
 function app_db_is_pgsql(): bool {
     return true;
+}
+function app_db_normalize_host(string $host): string {
+    $host = trim($host);
+    if ($host === '') return '';
+    // host-gateway is the Docker *host* alias from extra_hosts, never the
+    // Postgres service. Using it as a DB host yields
+    // SQLSTATE[08006] "could not translate host name".
+    if (strcasecmp($host, 'host-gateway') === 0) {
+        $fallback = getenv('APPDASHBOARD_DB_HOST');
+        if (is_string($fallback) && trim($fallback) !== '' && strcasecmp(trim($fallback), 'host-gateway') !== 0) {
+            return trim($fallback);
+        }
+        return 'appdashboard-db';
+    }
+    return $host;
 }
 function app_db_skip_session_init(): bool {
     return getenv('APP_DB_SKIP_SESSION_INIT') === '1';
@@ -84,7 +103,11 @@ function app_db_is_transient_connection_error(Throwable $e): bool {
 }
 function app_pdo_open(array $c): PDO {
     $timeout = max(1, (int)$c['connect_timeout']);
-    $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s;sslmode=%s;connect_timeout=%d', $c['host'], $c['port'], $c['name'], $c['sslmode'], $timeout);
+    $host = app_db_normalize_host((string)$c['host']);
+    if ($host === '') {
+        throw new PDOException('Database host is not configured');
+    }
+    $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s;sslmode=%s;connect_timeout=%d', $host, $c['port'], $c['name'], $c['sslmode'], $timeout);
     $pdo = new PDO($dsn, $c['user'], $c['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,

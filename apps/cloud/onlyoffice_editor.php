@@ -499,7 +499,7 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
 
         // Editor initialization
         function initEditor() {
-            const config = <?php echo json_encode($docConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;
+            const config = <?php echo json_encode($docConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;
             try {
                 const editor = new DocsAPI.DocEditor('editor', config);
                 window.onlyofficeEditor = editor;

@@ -79,6 +79,40 @@ function readLocalFingerprint(): { sha256?: string; version?: string } {
   }
 }
 
+export type BuildInfo = { name?: string; version?: string; source_stamp?: string };
+
+/**
+ * Identity of the code that is actually running right now.
+ *
+ * The fingerprint file is global and can describe a *different* copy (e.g. an
+ * already-updated cache copy), so it must not decide whether this process is
+ * stale. dist/build-info.json is written at build time and ships inside the
+ * tarball, so it always describes the running copy.
+ */
+export function readBuildInfo(): BuildInfo {
+  try {
+    return JSON.parse(readFileSync(join(currentPackageRoot(), "dist", "build-info.json"), "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * True when the running copy is behind the published build.
+ *
+ * Prefers the per-copy source stamp. Falls back to comparing the local
+ * fingerprint with the published sha256 only when the running copy predates
+ * build stamping.
+ */
+function runningCopyIsStale(remote: { sha256?: string; source_stamp?: string | null }): boolean {
+  const local = readBuildInfo();
+  if (local.source_stamp && remote.source_stamp) {
+    return local.source_stamp !== remote.source_stamp;
+  }
+  const fp = readLocalFingerprint().sha256 || "";
+  return !fp || fp !== String(remote.sha256 || "");
+}
+
 export function writeLocalFingerprint(sha256: string, version: string): void {
   try {
     mkdirSync(dirname(fingerprintPath()), { recursive: true });
@@ -190,10 +224,12 @@ export function startAutoUpdater(): void {
       const info = await fetchJson(`${host}/mcp/info`);
       if (!info?.ok || !info?.sha256) return;
       if (info.ready === false) return;
-      // Fingerprint of the installed package (sha256 of its tgz), recorded by setup/updater.
-      const local = readLocalFingerprint().sha256 || "";
-      if (!local || local === String(info.sha256)) return;
-      log(`new version available (remote ${String(info.sha256).slice(0, 12)}, local ${local.slice(0, 12)})`);
+      if (!runningCopyIsStale(info)) return;
+      const build = readBuildInfo();
+      log(
+        `new build available (remote ${String(info.source_stamp || info.sha256).slice(0, 12)}, ` +
+          `running ${String(build.source_stamp || "unstamped").slice(0, 12)})`,
+      );
       await performUpdate(host, String(info.sha256), String(info.cache_key || ""));
     } catch (err) {
       log(`check failed: ${err instanceof Error ? err.message : err}`);
@@ -208,24 +244,42 @@ export function startAutoUpdater(): void {
 }
 
 /** Public helper used by the mcp_check_update tool. */
-export async function checkForUpdateNow(): Promise<{ up_to_date: boolean; local_sha?: string; remote_sha?: string; version?: string; updated?: boolean; error?: string }> {
+export async function checkForUpdateNow(): Promise<{
+  up_to_date: boolean;
+  local_sha?: string;
+  remote_sha?: string;
+  version?: string;
+  running_version?: string;
+  running_source_stamp?: string;
+  remote_source_stamp?: string | null;
+  updated?: boolean;
+  error?: string;
+}> {
   const host = (process.env.APPDASHBOARD_URL || "").trim().replace(/\/+$/, "");
   if (!host) return { up_to_date: false, error: "APPDASHBOARD_URL not set" };
   const info = await fetchJson(`${host}/mcp/info`);
   if (!info?.ok || !info?.sha256) return { up_to_date: false, error: "mcp_info_unavailable" };
+  const remoteSha = String(info.sha256);
+  const remoteStamp = info.source_stamp ? String(info.source_stamp) : null;
+  const build = readBuildInfo();
   const local = readLocalFingerprint().sha256 || "";
-  if (!local) {
-    writeLocalFingerprint(String(info.sha256), String(info.version || ""));
-    return { up_to_date: true, local_sha: String(info.sha256), remote_sha: String(info.sha256), version: String(info.version || "") };
-  }
-  if (local === String(info.sha256)) {
-    return { up_to_date: true, local_sha: local, remote_sha: String(info.sha256), version: String(info.version || "") };
+  const base = {
+    local_sha: local || undefined,
+    remote_sha: remoteSha,
+    version: String(info.version || ""),
+    running_version: build.version,
+    running_source_stamp: build.source_stamp,
+    remote_source_stamp: remoteStamp,
+  };
+  if (!runningCopyIsStale(info)) {
+    if (!local) writeLocalFingerprint(remoteSha, String(info.version || ""));
+    return { up_to_date: true, ...base };
   }
   if (process.env.APPDASHBOARD_MCP_UPDATED === "1") {
-    return { up_to_date: false, local_sha: local, remote_sha: String(info.sha256), version: String(info.version || ""), error: "updated_copy_running_please_restart_agent" };
+    return { up_to_date: false, ...base, error: "updated_copy_running_please_restart_agent" };
   }
-  await performUpdate(host, String(info.sha256), String(info.cache_key || ""));
-  return { up_to_date: false, updated: true, local_sha: local, remote_sha: String(info.sha256), version: String(info.version || "") };
+  await performUpdate(host, remoteSha, String(info.cache_key || remoteSha.slice(0, 12)));
+  return { up_to_date: false, updated: true, ...base };
 }
 
 export const checkUpdateToolSchema = {

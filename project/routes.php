@@ -156,11 +156,11 @@ if ($path === '/oauth/approve') {
         <script>
         (function () {
             const params = {
-                client_id: <?php echo json_encode($clientId, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
-                redirect_uri: <?php echo json_encode($redirectUri, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
-                code_challenge: <?php echo json_encode($codeChallenge, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
-                code_challenge_method: <?php echo json_encode($codeChallengeMethod, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
-                state: <?php echo json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+                client_id: <?php echo json_encode($clientId, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                redirect_uri: <?php echo json_encode($redirectUri, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                code_challenge: <?php echo json_encode($codeChallenge, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                code_challenge_method: <?php echo json_encode($codeChallengeMethod, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                state: <?php echo json_encode($state, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>
             };
             const statusEl = document.getElementById('status');
             const approveBtn = document.getElementById('approveBtn');
@@ -339,8 +339,8 @@ if ($path === '/client-auth') {
                             method: 'POST',
                             headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({
-                                request_id: <?php echo json_encode($requestId, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>,
-                                browser_token: <?php echo json_encode($browserToken, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE); ?>
+                                request_id: <?php echo json_encode($requestId, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                                browser_token: <?php echo json_encode($browserToken, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>
                             })
                         });
                         const data = await res.json();

@@ -72,7 +72,7 @@ $metricButtons = [
 ];
 ?>
     <div id="bg-layer" aria-hidden="true"></div>
-    <script>(function(){var s=<?php echo json_encode($bgFull); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
+    <script>(function(){var s=<?php echo json_encode($bgFull, JSON_HEX_TAG); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
     <div class="app-steps">
         <div class="app-topbar">
             <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
@@ -905,7 +905,7 @@ $metricButtons = [
             function show(conflict){
                 current=conflict;
                 const days=Array.isArray(conflict.days)?conflict.days:[];
-                msg.textContent=<?php echo json_encode($translations['sync_conflict_message'] ?? 'Different step values were found for {count} day(s). Choose which data to keep.'); ?>.replace('{count}', String(days.length));
+                msg.textContent=<?php echo json_encode($translations['sync_conflict_message'] ?? 'Different step values were found for {count} day(s). Choose which data to keep.', JSON_HEX_TAG); ?>.replace('{count}', String(days.length));
                 modal.style.display='flex';
             }
             async function poll(){
@@ -948,7 +948,7 @@ $metricButtons = [
             const revokeBtn=document.getElementById('mobile-app-token-revoke');
             const hintBtn=document.getElementById('mobile-app-manual-hint');
 
-            const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint); ?>;
+            const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint, JSON_HEX_TAG); ?>;
             const currentHost=window.location.hostname;
             const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
 
@@ -962,7 +962,7 @@ $metricButtons = [
             const regenBtn=document.getElementById('manual-pair-regenerate');
             const regenLabel=regenBtn ? regenBtn.innerHTML : '';
             const revokeLabel=revokeBtn ? revokeBtn.innerHTML : '';
-            const noTokenMsg=<?php echo json_encode($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.'); ?>;
+            const noTokenMsg=<?php echo json_encode($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.', JSON_HEX_TAG); ?>;
 
             function refreshHintFields(){
                 if(hintEndpoint) hintEndpoint.textContent=endpoint;

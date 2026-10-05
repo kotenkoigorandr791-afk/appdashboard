@@ -52,9 +52,9 @@ if (empty($yearlyDistribution)) {
 <script>
     // Pass data for charts
     const statsData = {
-        yearlyDistribution: <?php echo json_encode($yearlyDistribution); ?>,
-        monthlyIntensity: <?php echo json_encode($monthlyIntensity); ?>,
-        translations: <?php echo json_encode($translations); ?>
+        yearlyDistribution: <?php echo json_encode($yearlyDistribution, JSON_HEX_TAG); ?>,
+        monthlyIntensity: <?php echo json_encode($monthlyIntensity, JSON_HEX_TAG); ?>,
+        translations: <?php echo json_encode($translations, JSON_HEX_TAG); ?>
     };
 </script>
     </div>

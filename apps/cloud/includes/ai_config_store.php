@@ -142,9 +142,6 @@ function cloud_ai_migrate_legacy_config(AppDatabase $db): void
             $del->bindValue(':k', $legacyKey, PDO::PARAM_STR);
             $del->execute();
         }
-        if (cloud_ai_table_exists($db, CLOUD_AI_CONFIG_TABLE)) {
-            $db->exec('DROP TABLE ' . CLOUD_AI_CONFIG_TABLE);
-        }
     } catch (Throwable $e) {
         cloud_safe_error_log('cloud_ai_migrate_legacy_config: ' . $e->getMessage());
     }
@@ -246,7 +243,11 @@ function cloud_ai_seed_defaults(): void
 
 function cloud_ai_load_config(): array
 {
-    cloud_ai_seed_defaults();
+    // Only seed when nothing is configured, so a read never writes on the
+    // common path (this endpoint is fetched during page load).
+    if (trim(cloud_ai_get_config(CLOUD_AI_CFG_ENDPOINT, '')) === '') {
+        cloud_ai_seed_defaults();
+    }
     $models = cloud_ai_parse_models_list(cloud_ai_get_config(CLOUD_AI_CFG_MODELS, ''));
     if ($models === []) {
         $models = CLOUD_AI_DEFAULT_MODELS;

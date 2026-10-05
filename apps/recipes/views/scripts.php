@@ -1,18 +1,18 @@
     <script>
-        const products = <?php echo json_encode($products, JSON_UNESCAPED_UNICODE); ?>;
+        const products = <?php echo json_encode($products, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
         const productImagePaths = <?php
             $productImagePaths = [];
             foreach ($products as $productPathItem) {
                 $productImagePaths[$productPathItem['id']] = recipes_product_thumb_public_path($productPathItem, $products_dir);
             }
-            echo json_encode($productImagePaths, JSON_UNESCAPED_UNICODE);
+            echo json_encode($productImagePaths, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
         ?>;
         const recipeImagePaths = <?php
             $recipeImagePaths = [];
             foreach ($recipes as $recipePathItem) {
                 $recipeImagePaths[$recipePathItem['id']] = isset($recipePathItem['image']) && is_file(__DIR__ . '/../' . $recipes_dir . '/' . $recipePathItem['id'] . '/' . $recipePathItem['image']) ? $recipes_dir . '/' . $recipePathItem['id'] . '/' . $recipePathItem['image'] : 'default_recipe.jpg';
             }
-            echo json_encode($recipeImagePaths, JSON_UNESCAPED_UNICODE);
+            echo json_encode($recipeImagePaths, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
         ?>;
         const PRODUCT_IMG_WIDE_MIN = 900;
         function recipeImg(recipe) {
@@ -58,8 +58,8 @@
             im.src = window.innerWidth >= PRODUCT_IMG_WIDE_MIN ? productImgFull(p) : productImgTile(p);
             openModal('productViewModal');
         }
-        const recipes = <?php echo json_encode($recipes, JSON_UNESCAPED_UNICODE); ?>;
-        const translations = <?php echo json_encode($translations[$lang] ?? $translations['en'] ?? [], JSON_UNESCAPED_UNICODE); ?>;
+        const recipes = <?php echo json_encode($recipes, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        const translations = <?php echo json_encode($translations[$lang] ?? $translations['en'] ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
         const currentLang = '<?php echo $lang; ?>';
         window.RecipeColorTone?.apply({ color: '<?php echo $color; ?>', theme: '<?php echo $theme; ?>' });
         const itemsPerPage = <?php echo $config['items_per_page']; ?>;
@@ -68,7 +68,7 @@
         const recipeSearchCache = new Map();
         let steps = [];
         let selectedSearchProducts = [];
-        const recipeState = <?php echo json_encode($recipe_state, JSON_UNESCAPED_UNICODE); ?>;
+        const recipeState = <?php echo json_encode($recipe_state, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
         let currentStepIndex = null;
         let currentEditingRecipeSnapshot = null;
         let isTranslating = false;

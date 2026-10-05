@@ -1,9 +1,9 @@
     <script>
-        let stepsData = <?php echo json_encode($stepsData); ?>,
-            healthData = <?php echo json_encode($healthMetrics ?? []); ?>,
-            userSettings = <?php echo json_encode($userSettings); ?>,
+        let stepsData = <?php echo json_encode($stepsData, JSON_HEX_TAG); ?>,
+            healthData = <?php echo json_encode($healthMetrics ?? [], JSON_HEX_TAG); ?>,
+            userSettings = <?php echo json_encode($userSettings, JSON_HEX_TAG); ?>,
             currentUser = '<?php echo htmlspecialchars($currentUser); ?>',
-            translations = <?php echo json_encode($translations); ?>;
+            translations = <?php echo json_encode($translations, JSON_HEX_TAG); ?>;
 
         const localeMap = { 'en': 'en-EN', 'ru': 'ru-RU', 'uk': 'uk-UA', 'be': 'be-BY' },
               currentLocale = localeMap['<?php echo $language; ?>'] || 'en-EN';
@@ -2036,10 +2036,10 @@
         let workerWidgetTimer = null;
         const workerProgressState = { zeep: null, takeout: null };
         const ZL_API = <?php echo is_file(__DIR__ . '/../utils/zeep_life/zeep_api.php')
-            ? json_encode('utils/zeep_life/zeep_api.php')
+            ? json_encode('utils/zeep_life/zeep_api.php', JSON_HEX_TAG)
             : 'null'; ?>;
         const FTO_API = <?php echo is_file(__DIR__ . '/../utils/google_fit_takeout/takeout_api.php')
-            ? json_encode('utils/google_fit_takeout/takeout_api.php')
+            ? json_encode('utils/google_fit_takeout/takeout_api.php', JSON_HEX_TAG)
             : 'null'; ?>;
         function closeGlobalImageViewer() {
             const wrap = document.getElementById('global-image-viewer');
@@ -3447,9 +3447,9 @@
             function openGuideExpand(which) {
                 const frame = document.getElementById('guide-expand-frame');
                 const title = document.getElementById('guide-expand-title-text');
-                const lang = <?php echo json_encode($language); ?>;
-                const theme = <?php echo json_encode($theme); ?>;
-                const color = <?php echo json_encode($color); ?>;
+                const lang = <?php echo json_encode($language, JSON_HEX_TAG); ?>;
+                const theme = <?php echo json_encode($theme, JSON_HEX_TAG); ?>;
+                const color = <?php echo json_encode($color, JSON_HEX_TAG); ?>;
                 const guidePath = which === 'zeep'
                     ? `instruction/zeep_life_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`
                     : `instruction/takeout_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;

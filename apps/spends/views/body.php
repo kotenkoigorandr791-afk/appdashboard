@@ -1,6 +1,6 @@
 <body>
 <div id="bg-layer" aria-hidden="true"></div>
-<script>(function(){var s=<?= json_encode($bgFull) ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
+<script>(function(){var s=<?= json_encode($bgFull, JSON_HEX_TAG) ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
 
 <!-- Import Modal -->
 <div id="import-modal" class="modal">

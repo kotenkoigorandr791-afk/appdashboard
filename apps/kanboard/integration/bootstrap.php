@@ -177,10 +177,13 @@ function kanboard_db_resolve(): array
         if (is_string($dockerHost) && $dockerHost !== '') {
             $host = $dockerHost;
         } elseif ($inDocker) {
-            $host = 'host-gateway';
+            $host = getenv('APPDASHBOARD_DB_HOST') ?: 'appdashboard-db';
         } else {
             $host = '127.0.0.1';
         }
+    }
+    if ($host === 'host-gateway') {
+        $host = getenv('APPDASHBOARD_DB_HOST') ?: 'appdashboard-db';
     }
     $schema = getenv('KANBOARD_DB_SCHEMA');
     if (!is_string($schema) || trim($schema) === '') {
@@ -388,7 +391,7 @@ function kanboard_require_login_or_redirect(): array
         if (!headers_sent()) {
             header('Content-Type: text/html; charset=utf-8');
         }
-        echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($u) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
+        echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($u, JSON_HEX_TAG) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
         exit;
     }
     $GLOBALS['APPDASHBOARD_KB_USER'] = $user;

@@ -38,6 +38,17 @@ for (const root of roots) {
 process.stdout.write(hash.digest('hex'));
 EOF
 )"
+# Stamp the build identity into dist/ so every shipped copy can report what it is.
+node -e '
+const fs = require("fs");
+const pkg = require("./package.json");
+fs.writeFileSync("dist/build-info.json", JSON.stringify({
+  name: pkg.name,
+  version: pkg.version,
+  source_stamp: process.argv[1],
+}, null, 2) + "\n");
+' "$SOURCE_STAMP"
+
 EXPECTED="appdashboard-mcp-${VERSION}.tgz"
 rm -f "$OUT_DIR/$EXPECTED" "$OUT_DIR/appdashboard-mcp.tgz"
 # Quiet pack to destination; filename is deterministic from package.json

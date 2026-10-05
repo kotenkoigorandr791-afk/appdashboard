@@ -12,7 +12,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <link rel="icon" href="/project/views/icon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES); ?>;(function(){function tok(){var m=document.querySelector('meta[name="csrf-token"]');var v=(m&&m.getAttribute('content'))||window.__AP_CSRF__||'';return String(v||'');}function remember(t){if(!t)return;window.__AP_CSRF__=String(t);var m=document.querySelector('meta[name="csrf-token"]');if(m)m.setAttribute('content',String(t));}window.__AP_REMEMBER_CSRF__=remember;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){var t=tok();if(t){n.headers=new Headers(n.headers||{});n.headers.set('X-CSRF-TOKEN',t);if(typeof FormData!=='undefined'&&n.body instanceof FormData){if(n.body.has('_csrf'))n.body.set('_csrf',t);else n.body.append('_csrf',t);}}}return f.call(this,i,n).then(function(r){try{var ct=r.headers.get('content-type')||'';if(ct.indexOf('application/json')!==-1){r.clone().json().then(function(d){if(d&&d.csrf)remember(d.csrf);}).catch(function(){});}}catch(e){}return r;});};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;var t=tok();if(!t)return;var existing=form.querySelector('input[name="_csrf"]');if(existing){existing.value=t;return;}var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
+    <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;(function(){function tok(){var m=document.querySelector('meta[name="csrf-token"]');var v=(m&&m.getAttribute('content'))||window.__AP_CSRF__||'';return String(v||'');}function remember(t){if(!t)return;window.__AP_CSRF__=String(t);var m=document.querySelector('meta[name="csrf-token"]');if(m)m.setAttribute('content',String(t));}window.__AP_REMEMBER_CSRF__=remember;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){var t=tok();if(t){n.headers=new Headers(n.headers||{});n.headers.set('X-CSRF-TOKEN',t);if(typeof FormData!=='undefined'&&n.body instanceof FormData){if(n.body.has('_csrf'))n.body.set('_csrf',t);else n.body.append('_csrf',t);}}}return f.call(this,i,n).then(function(r){try{var ct=r.headers.get('content-type')||'';if(ct.indexOf('application/json')!==-1){r.clone().json().then(function(d){if(d&&d.csrf)remember(d.csrf);}).catch(function(){});}}catch(e){}return r;});};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;var t=tok();if(!t)return;var existing=form.querySelector('input[name="_csrf"]');if(existing){existing.value=t;return;}var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
     <?php app_cookie_consent_browser_script(); ?>
     <?php require_once APP_ROOT . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('dashboard'); ?>
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
@@ -3002,14 +3002,14 @@ $otpRemainingLock=getIpLockoutSeconds($clientIpOtp,'otp');
     });
     document.getElementById('otp-boxes').addEventListener('click',function(){input.focus();});
     function doSubmit(){
-        if(digits.length!==6){errEl.textContent=<?php echo json_encode($translations['otp_enter_6_digits']??'Please enter all 6 digits'); ?>;return;}
+        if(digits.length!==6){errEl.textContent=<?php echo json_encode($translations['otp_enter_6_digits']??'Please enter all 6 digits', JSON_HEX_TAG); ?>;return;}
         pinVal.value=digits.join('');form.submit();
     }
     form.addEventListener('submit',function(e){
-        if(digits.length!==6){e.preventDefault();errEl.textContent=<?php echo json_encode($translations['otp_enter_6_digits']??'Please enter all 6 digits'); ?>;return;}
+        if(digits.length!==6){e.preventDefault();errEl.textContent=<?php echo json_encode($translations['otp_enter_6_digits']??'Please enter all 6 digits', JSON_HEX_TAG); ?>;return;}
         pinVal.value=digits.join('');
     });
-    var lockMessageTemplate=<?php echo json_encode($translations['otp_ip_locked']??'IP blocked. Try in %d sec.'); ?>;
+    var lockMessageTemplate=<?php echo json_encode($translations['otp_ip_locked']??'IP blocked. Try in %d sec.', JSON_HEX_TAG); ?>;
     function formatLockMessage(sec){
         return lockMessageTemplate.replace('%d', String(Math.max(0, sec)));
     }
@@ -3024,7 +3024,7 @@ $otpRemainingLock=getIpLockoutSeconds($clientIpOtp,'otp');
     }
     renderBoxes();
     input.focus();
-    if(window.applyAuthTheme){window.applyAuthTheme(<?php echo json_encode($config['theme']); ?>);}
+    if(window.applyAuthTheme){window.applyAuthTheme(<?php echo json_encode($config['theme'], JSON_HEX_TAG); ?>);}
 })();
 </script>
 <?php
@@ -4436,8 +4436,8 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 }
 </style>
 
-<?php if(isset($domainSaved)&&$domainSaved):?><script>document.addEventListener('DOMContentLoaded',function(){if(typeof showTempNotification==='function'){showTempNotification(<?php echo json_encode($translations['domain_saved']); ?>,'success');}});</script><?php endif;?>
-<?php if(isset($domainError)&&$domainError):?><script>document.addEventListener('DOMContentLoaded',function(){if(typeof showTempNotification==='function'){showTempNotification(<?php echo json_encode($translations['domain_save_error']); ?>,'error');}});</script><?php endif;?>
+<?php if(isset($domainSaved)&&$domainSaved):?><script>document.addEventListener('DOMContentLoaded',function(){if(typeof showTempNotification==='function'){showTempNotification(<?php echo json_encode($translations['domain_saved'], JSON_HEX_TAG); ?>,'success');}});</script><?php endif;?>
+<?php if(isset($domainError)&&$domainError):?><script>document.addEventListener('DOMContentLoaded',function(){if(typeof showTempNotification==='function'){showTempNotification(<?php echo json_encode($translations['domain_save_error'], JSON_HEX_TAG); ?>,'error');}});</script><?php endif;?>
 <script>
 var T=<?php echo json_encode([
     'loading_btn'=>$translations['loading_btn']??'Loading...',
@@ -4564,7 +4564,7 @@ var T=<?php echo json_encode([
     'weather_wind_chart_btn'=>$translations['weather_wind_chart_btn']??'Show wind chart',
     'weather_wind_chart_back'=>$translations['weather_wind_chart_back']??'Back to forecast',
     'weather_wind_speed_unit'=>$translations['weather_wind_speed_unit']??'km/h',
-]); ?>;
+], JSON_HEX_TAG | JSON_UNESCAPED_UNICODE); ?>;
     function currentAppliedTheme(){
         if(document.body.classList.contains('dark-theme')) return 'dark';
         if(document.body.classList.contains('light-theme')) return 'light';
@@ -4608,7 +4608,7 @@ var T=<?php echo json_encode([
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const browserTheme = prefersDark ? 'dark' : 'light';
     window.apSetPreferenceCookie('browser_theme', browserTheme, 86400);
-        applyThemeRuntime(<?php echo $showLogin ? ($themeFromUrl ? json_encode($config['theme']) : 'browserTheme') : 'getSelectedThemeValue()'; ?>);
+        applyThemeRuntime(<?php echo $showLogin ? ($themeFromUrl ? json_encode($config['theme'], JSON_HEX_TAG) : 'browserTheme') : 'getSelectedThemeValue()'; ?>);
 
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',applyAutoTheme);
         showNotification();
@@ -4826,7 +4826,7 @@ var T=<?php echo json_encode([
         const sharedFilesTable=document.getElementById('shared-files-table');
         const deleteFilteredBtn = document.getElementById('delete-filtered-files');
 
-        let currentStatsData = <?php echo json_encode($visitStats); ?>;
+        let currentStatsData = <?php echo json_encode($visitStats, JSON_HEX_TAG); ?>;
         let currentFilteredFileIds = [];
         const isHomeDashboard = <?php echo $isHomeDashboard ? 'true' : 'false'; ?>;
         const isAdminUser = <?php echo $isAdmin ? 'true' : 'false'; ?>;
@@ -5492,8 +5492,8 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
             ['3m', $translations['share_expiration_3m'] ?? '3 months'],
             ['6m', $translations['share_expiration_6m'] ?? 'Half a year'],
             ['1y', $translations['share_expiration_1y'] ?? '1 year'],
-        ], JSON_UNESCAPED_UNICODE); ?>;
-        const SHARE_EXPIRY_NEVER_TEXT = <?php echo json_encode($translations['share_expiration_never'] ?? 'Never', JSON_UNESCAPED_UNICODE); ?>;
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        const SHARE_EXPIRY_NEVER_TEXT = <?php echo json_encode($translations['share_expiration_never'] ?? 'Never', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
         function getShareExpiryOptions(){
             return SHARE_EXPIRY_OPTIONS;
         }
@@ -5550,7 +5550,7 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
         if(sharedFilesSort) sharedFilesSort.addEventListener('change', function(){ loadSharedFilesList(); });
         if(sharedFilesGroup) sharedFilesGroup.addEventListener('change', function(){ loadSharedFilesList(); });
 
-        const SHARED_FILE_DELETE_TEXT = <?php echo json_encode($translations['delete_file'] ?? 'Delete'); ?>;
+        const SHARED_FILE_DELETE_TEXT = <?php echo json_encode($translations['delete_file'] ?? 'Delete', JSON_HEX_TAG); ?>;
         function sharedFileText(value){
             return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
@@ -5563,7 +5563,7 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
                 container.innerHTML = '<p style="text-align:center;opacity:.5;padding:20px 0;"><?php echo addslashes(my_htmlspecialchars($translations['no_shared_files'])); ?></p>';
                 return;
             }
-            const isRoot = <?php echo json_encode($isRootUser); ?>;
+            const isRoot = <?php echo json_encode($isRootUser, JSON_HEX_TAG); ?>;
             let rows = '';
             const entries = Object.keys(files).map(function(key){ return [key, files[key]]; }).sort(function(a,b){
                 const af = a[1] || {};
@@ -5807,16 +5807,16 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 if(tgStatus) tgStatus.textContent = '...';
                 tgBotRequest('save_tg_bot_config').then(d=>{
                     if(tgStatus) tgStatus.style.color = d.success ? '#00C851' : '#ff4444';
-                    if(tgStatus) tgStatus.textContent = d.success ? <?php echo json_encode($translations['tg_saved'] ?? 'Saved successfully', JSON_UNESCAPED_UNICODE); ?> : ('Error: '+(d.error||'unknown'));
+                    if(tgStatus) tgStatus.textContent = d.success ? <?php echo json_encode($translations['tg_saved'] ?? 'Saved successfully', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?> : ('Error: '+(d.error||'unknown'));
                 });
             });
         }
         if(testTgBot){
             testTgBot.addEventListener('click',()=>{
-                if(tgStatus) tgStatus.textContent = <?php echo json_encode($translations['tg_testing'] ?? 'Sending test message...', JSON_UNESCAPED_UNICODE); ?>;
+                if(tgStatus) tgStatus.textContent = <?php echo json_encode($translations['tg_testing'] ?? 'Sending test message...', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
                 tgBotRequest('test_tg_bot').then(d=>{
                     if(tgStatus) tgStatus.style.color = d.success ? '#00C851' : '#ff4444';
-                    if(tgStatus) tgStatus.textContent = d.success ? <?php echo json_encode($translations['tg_test_ok'] ?? 'Test message sent successfully', JSON_UNESCAPED_UNICODE); ?> : <?php echo json_encode($translations['tg_test_fail'] ?? 'Failed — check token and chat ID', JSON_UNESCAPED_UNICODE); ?>;
+                    if(tgStatus) tgStatus.textContent = d.success ? <?php echo json_encode($translations['tg_test_ok'] ?? 'Test message sent successfully', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?> : <?php echo json_encode($translations['tg_test_fail'] ?? 'Failed — check token and chat ID', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
                 });
             });
         }
@@ -7106,7 +7106,7 @@ $openProfileOnLoad = isset($_GET['profile']) || isset($_POST['reset_photo']) || 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
     if(typeof showTempNotification !== 'function') return;
-    var flashes = <?php echo json_encode($flashMessages); ?>;
+    var flashes = <?php echo json_encode($flashMessages, JSON_HEX_TAG); ?>;
     flashes.forEach(function(f, i){
         setTimeout(function(){ showTempNotification(f.msg, f.type); }, i * 500);
     });
@@ -7167,7 +7167,7 @@ if ($_guideEnabled):
 ?>
 <link rel="stylesheet" href="/project/onboarding/guide.css?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide.css'); ?>">
 <link rel="stylesheet" href="/project/assets/weather.css">
-<script>window.__guideData = <?php echo json_encode($_guideStrings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES); ?>;window.__guideForce = <?php echo empty($_guideCfg['dev_force_start']) ? 'false' : 'true'; ?>;window.__guideAuto = <?php echo $_guideAuto ? 'true' : 'false'; ?>;</script>
+<script>window.__guideData = <?php echo json_encode($_guideStrings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;window.__guideForce = <?php echo empty($_guideCfg['dev_force_start']) ? 'false' : 'true'; ?>;window.__guideAuto = <?php echo $_guideAuto ? 'true' : 'false'; ?>;</script>
 <script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script><!--
     if (weatherCountriesLoading) return;
     weatherCountriesLoading = true;
