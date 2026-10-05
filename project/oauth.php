@@ -270,7 +270,7 @@ function oauth_redirect_iframe(string $url): void {
 
 function oauth_redirect_html(string $url): void {
     header('Content-Type: text/html; charset=utf-8');
-    echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($url) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
+    echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($url, JSON_HEX_TAG) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
     exit;
 }
 

@@ -3,9 +3,9 @@ const themeClass = '<?= $theme ?>';
 const primaryColor = '<?= $color ?>';
 const userRole = <?= $userRole ?>;
 const translations = {
-    days: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['days']??['day','days'];}echo json_encode($d,JSON_UNESCAPED_UNICODE); ?>,
-    hours: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['hours']??['hour','hours'];}echo json_encode($d,JSON_UNESCAPED_UNICODE); ?>,
-    minutes: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['minutes']??['minute','minutes'];}echo json_encode($d,JSON_UNESCAPED_UNICODE); ?>,
+    days: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['days']??['day','days'];}echo json_encode($d,JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+    hours: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['hours']??['hour','hours'];}echo json_encode($d,JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+    minutes: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['minutes']??['minute','minutes'];}echo json_encode($d,JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
     ui: <?php
     $jsUiKeys = [
         'loading_from_cache', 'refreshing', 'connection_error', 'connection_unstable',
@@ -23,7 +23,7 @@ const translations = {
             $jsUi[$langCode][$key] = $langData[$key] ?? '';
         }
     }
-    echo json_encode($jsUi, JSON_UNESCAPED_UNICODE);
+    echo json_encode($jsUi, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     ?>
 };
 const monitorChartsLabels = <?= json_encode([
@@ -37,7 +37,7 @@ const monitorChartsLabels = <?= json_encode([
     'confirm_delete' => $t['cleanup_device_confirm'] ?? 'Delete all monitoring data for this device?',
     'deleted' => $t['cleanup_success'] ?? 'Data deleted successfully',
     'error' => $t['cleanup_error'] ?? 'Error deleting data',
-], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
 
 const STORAGE_KEY = 'server_monitor_chart_data_v3';
 const DATA_MAX_AGE = 3 * 60 * 60 * 1000;
@@ -59,8 +59,8 @@ function t(key, params = {}) {
     return str;
 }
 
-const serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES) ?>, window.location.origin);
-const serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES) ?>, window.location.origin);
+const serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
+const serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 
 let cpuData = [];
 let memoryData = [];

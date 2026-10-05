@@ -1378,7 +1378,7 @@ var apStorageUsage = null;
 var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
-function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink); ?>;}
+function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink, JSON_HEX_TAG); ?>;}
 function injectOmniRouteTheme(){
     var frame=document.getElementById('ap-omniroute-frame');
     if(!frame) return;
@@ -1469,9 +1469,9 @@ var T=<?php echo json_encode([
     'support_chat_msg_empty'=>$translations['support_chat_msg_empty']??'Message cannot be empty',
     'support_chat_file_too_large'=>$translations['support_chat_file_too_large']??'File size must not exceed 20MB',
     'network_error'=>$translations['network_error']??$translations['fm_network_error']??'Network error',
-]); ?>;
+], JSON_HEX_TAG); ?>;
 
-var apFolderMap=<?php $fm=[];foreach($apps as $dn=>$dd){$fm[$dd['folder']]=$dn;}echo json_encode($fm); ?>;
+var apFolderMap=<?php $fm=[];foreach($apps as $dn=>$dd){$fm[$dd['folder']]=$dn;}echo json_encode($fm, JSON_HEX_TAG); ?>;
 
 /* ── helpers ── */
 function esc(s){var d=document.createElement('div');d.appendChild(document.createTextNode(String(s||'')));return d.innerHTML;}
@@ -1629,7 +1629,7 @@ function apGateShow(msg){
 function apGateHide(){
     var gate=document.getElementById('ap-gate-login'); if(gate) gate.style.display='none';
     var spin=document.getElementById('ap-loading-spinner'); if(spin) spin.style.display='';
-    var msgEl=document.getElementById('ap-loading-msg'); if(msgEl){ msgEl.style.display=''; msgEl.textContent=<?php echo json_encode($translations['admin_panel_loading']??'Loading Admin Panel...'); ?>; }
+    var msgEl=document.getElementById('ap-loading-msg'); if(msgEl){ msgEl.style.display=''; msgEl.textContent=<?php echo json_encode($translations['admin_panel_loading']??'Loading Admin Panel...', JSON_HEX_TAG); ?>; }
 }
 function apGateStatus(){
     return apAdminFetch({admin_panel_status:'1',ajax:'1'});
@@ -1660,7 +1660,7 @@ function openAdminPanel(target){
         apLoaded=false;
         if(d&&d.is_admin===false){ apShowUnauthorizedMsg(); return; }
         if(d&&d.error==='csrf_forbidden'){
-            apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>);
+            apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>);
             return;
         }
         apGateShow('');
@@ -1710,7 +1710,7 @@ function loadPanel(target, year){
     var fields={get_admin_panel:'1',ajax:'1'};
     if(year) fields.stats_year=year;
     var msgEl=document.getElementById('ap-loading-msg');
-    if(msgEl){ msgEl.style.display=''; msgEl.textContent=<?php echo json_encode($translations['admin_panel_loading']??'Loading Admin Panel...'); ?>; }
+    if(msgEl){ msgEl.style.display=''; msgEl.textContent=<?php echo json_encode($translations['admin_panel_loading']??'Loading Admin Panel...', JSON_HEX_TAG); ?>; }
     var t=apCsrfToken();
     var headers={}; if(t) headers['X-CSRF-TOKEN']=t;
     fetch('/main',{method:'POST',body:apAdminFd(fields),credentials:'same-origin',headers:headers})
@@ -1731,7 +1731,7 @@ function loadPanel(target, year){
             if(d&&d.csrf) apRememberCsrf(d.csrf);
             if(!d||!d.success){
                 if(d&&(d.admin_auth_required||d.error==='admin_auth_required')) {apGateShow('');return;}
-                if(d&&d.error==='csrf_forbidden'){ apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>); return; }
+                if(d&&d.error==='csrf_forbidden'){ apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>); return; }
                 if(d&&!d.success&&/(not authorized|unauthorized|not authenticated|не авториз)/i.test(d.error||'')) {apShowUnauthorizedMsg();return;}
                 if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;
             }
@@ -1751,7 +1751,7 @@ function loadPanel(target, year){
         })
         .catch(function(err){
             if(err&&err.message===AP_GATE){apGateShow('');}
-            else if(err&&err.message==='csrf_forbidden'){apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>);}
+            else if(err&&err.message==='csrf_forbidden'){apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>);}
             else if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();}
             else if(msgEl){msgEl.style.display=''; msgEl.textContent='Error: '+(err.message||'Unknown error');}
             console.error('[AdminPanel]',err);
@@ -2848,7 +2848,7 @@ function wireEvents(){
                         if(tbody) tbody.innerHTML=d.rows;
                         apUpdateUserAnalytics();
                         if(typeof showTempNotification!=='undefined')
-                            showTempNotification(<?php echo json_encode($translations['refresh_users']??'Users list updated'); ?>,'info');
+                            showTempNotification(<?php echo json_encode($translations['refresh_users']??'Users list updated', JSON_HEX_TAG); ?>,'info');
                     }
                     // else: no change, do nothing silently
                 }).catch(function(){/* silent fail */});
@@ -2913,9 +2913,9 @@ function wireEvents(){
             if(d.success&&dkFrame){
                 var u=new URL(dkFrame.src,window.location.origin);
                 u.searchParams.set('docker_domain','localhost');
-                u.searchParams.set('lang',<?php echo json_encode($language); ?>);
-                u.searchParams.set('theme',<?php echo json_encode($themeForAppLink); ?>);
-                u.searchParams.set('color',<?php echo json_encode($config['color'] ?? '#007bff'); ?>);
+                u.searchParams.set('lang',<?php echo json_encode($language, JSON_HEX_TAG); ?>);
+                u.searchParams.set('theme',<?php echo json_encode($themeForAppLink, JSON_HEX_TAG); ?>);
+                u.searchParams.set('color',<?php echo json_encode($config['color'] ?? '#007bff', JSON_HEX_TAG); ?>);
                 dkFrame.src=u.toString();
             }
         }).catch(function(){setStatus(dkSt,'x '+T.error,'error');});
@@ -3223,7 +3223,7 @@ window.apOpenResetPassword=function(email,name){
     var successSection=document.getElementById('reset-password-success');
     var slider=document.getElementById('reset-pwd-confirm-slider');
     var submitBtn=document.getElementById('do-reset-user-password-btn');
-    if(title) title.textContent=(<?php echo json_encode($translations['reset_user_password'] ?? 'Reset password'); ?>)+': '+name;
+    if(title) title.textContent=(<?php echo json_encode($translations['reset_user_password'] ?? 'Reset password', JSON_HEX_TAG); ?>)+': '+name;
     if(emailDisplay) emailDisplay.textContent=email;
     if(target) target.value=email;
     if(formSection) formSection.style.display='block';
@@ -3440,7 +3440,7 @@ function renderApStatsChart(){
 
 /* ── Per-user storage usage (reads the collector cache only) ── */
 var apStorageUsageChart = null;
-var AP_STORAGE_LABELS = {cloud:<?php echo json_encode($translations['ap_storage_usage_app_cloud']??'Cloud'); ?>, immich:<?php echo json_encode($translations['ap_storage_usage_app_immich']??'Immich'); ?>, gitea:<?php echo json_encode($translations['ap_storage_usage_app_gitea']??'Gitea'); ?>, dawarich:<?php echo json_encode($translations['ap_storage_usage_app_dawarich']??'Dawarich'); ?>};
+var AP_STORAGE_LABELS = {cloud:<?php echo json_encode($translations['ap_storage_usage_app_cloud']??'Cloud', JSON_HEX_TAG); ?>, immich:<?php echo json_encode($translations['ap_storage_usage_app_immich']??'Immich', JSON_HEX_TAG); ?>, gitea:<?php echo json_encode($translations['ap_storage_usage_app_gitea']??'Gitea', JSON_HEX_TAG); ?>, dawarich:<?php echo json_encode($translations['ap_storage_usage_app_dawarich']??'Dawarich', JSON_HEX_TAG); ?>};
 function apFormatBytes(bytes){
     bytes = Number(bytes)||0;
     if(bytes<=0) return '0 B';
@@ -3919,16 +3919,16 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
     var toggle=document.getElementById('ap-gate-password-toggle');
     function doGateLogin(){
         var pass=pwd?pwd.value:'';
-        if(!pass){ apGateShow(<?php echo json_encode($translations['password_required'] ?? 'Password required'); ?>); return; }
+        if(!pass){ apGateShow(<?php echo json_encode($translations['password_required'] ?? 'Password required', JSON_HEX_TAG); ?>); return; }
         submit.disabled=true;
         apRefreshCsrf().then(function(){ return apGateLogin(pass); }).then(function(d){
             submit.disabled=false;
             if(d&&d.csrf) apRememberCsrf(d.csrf);
             if(d&&d.success){ apGateHide(); loadPanel(window._apPendingPanel||'ap-users'); return; }
             var msg;
-            if(d&&d.error==='invalid_credentials') msg=<?php echo json_encode($translations['invalid_credentials'] ?? 'Invalid credentials'); ?>;
-            else if(d&&d.error==='csrf_forbidden') msg=<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.'); ?>;
-            else if(d&&d.error==='admin_ip_forbidden') msg=<?php echo json_encode($translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.'); ?>;
+            if(d&&d.error==='invalid_credentials') msg=<?php echo json_encode($translations['invalid_credentials'] ?? 'Invalid credentials', JSON_HEX_TAG); ?>;
+            else if(d&&d.error==='csrf_forbidden') msg=<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>;
+            else if(d&&d.error==='admin_ip_forbidden') msg=<?php echo json_encode($translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.', JSON_HEX_TAG); ?>;
             else msg=(d&&d.error)?d.error:'Login failed';
             apGateShow(msg);
         }).catch(function(){ submit.disabled=false; apGateShow('Network error'); });

@@ -75,7 +75,13 @@ function storageUsageIniValue(string $path, string $name): string {
  * 'internal' sources read the dashboard database, 'external' ones their own Postgres.
  */
 function storageUsageSourceDefs(): array {
-    $host = storageUsageEnv('STORAGE_USAGE_DB_HOST', storageUsageEnv('DB_HOST', 'host.docker.internal'));
+    // DB_HOST may carry the Docker host alias host-gateway, which never resolves
+    // inside the container and fails with SQLSTATE[08006].
+    $dbHost = storageUsageEnv('DB_HOST', 'host.docker.internal');
+    if (function_exists('app_db_normalize_host')) {
+        $dbHost = app_db_normalize_host($dbHost);
+    }
+    $host = storageUsageEnv('STORAGE_USAGE_DB_HOST', $dbHost);
     $port = (int)storageUsageEnv('STORAGE_USAGE_DB_PORT', storageUsageEnv('DB_PORT', '5432'));
 
     $external = static function (string $key, string $label, string $db, string $user) use ($host, $port): array {

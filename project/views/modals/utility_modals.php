@@ -129,16 +129,16 @@ function doGenerateOtp(){
                 document.getElementById('otp-gen-pin-right').textContent=right;
                 var mins=Math.round(data.expires_in/60);
                 document.getElementById('otp-gen-expiry').textContent=
-                    <?php echo json_encode($translations['otp_expires_in']??'Expires in'); ?> + ' ' + mins + ' ' + <?php echo json_encode($translations['otp_minutes']??'min'); ?>;
+                    <?php echo json_encode($translations['otp_expires_in']??'Expires in', JSON_HEX_TAG); ?> + ' ' + mins + ' ' + <?php echo json_encode($translations['otp_minutes']??'min', JSON_HEX_TAG); ?>;
                 var link=location.origin+'/one-time-pin';
                 document.getElementById('otp-gen-link-box').textContent=link;
             }else{
-                errEl.textContent=data.error||<?php echo json_encode($translations['fm_network_error']??'Error'); ?>;
+                errEl.textContent=data.error||<?php echo json_encode($translations['fm_network_error']??'Error', JSON_HEX_TAG); ?>;
             }
         })
         .catch(function(){
             btn.disabled=false;btn.style.opacity='1';
-            errEl.textContent=<?php echo json_encode($translations['fm_network_error']??'Network error'); ?>;
+            errEl.textContent=<?php echo json_encode($translations['fm_network_error']??'Network error', JSON_HEX_TAG); ?>;
         });
 }
 function copyOtpLink(){
@@ -146,7 +146,7 @@ function copyOtpLink(){
     if(!link)return;
     navigator.clipboard.writeText(link).then(function(){
         if(typeof showTempNotification==='function')
-            showTempNotification(<?php echo json_encode($translations['fm_copied']??'Copied!'); ?>,'success');
+            showTempNotification(<?php echo json_encode($translations['fm_copied']??'Copied!', JSON_HEX_TAG); ?>,'success');
     }).catch(function(){
         // Fallback for older browsers
         var ta=document.createElement('textarea');
@@ -155,7 +155,7 @@ function copyOtpLink(){
         try{document.execCommand('copy');}catch(e){}
         document.body.removeChild(ta);
         if(typeof showTempNotification==='function')
-            showTempNotification(<?php echo json_encode($translations['fm_copied']??'Copied!'); ?>,'success');
+            showTempNotification(<?php echo json_encode($translations['fm_copied']??'Copied!', JSON_HEX_TAG); ?>,'success');
     });
 }
 

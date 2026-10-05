@@ -224,18 +224,18 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
     const endpointValue=document.getElementById('mcp-http-endpoint');
     const tabs=modal?modal.querySelectorAll('.mcp-setup-tab'):[];
     const panes=modal?modal.querySelectorAll('.mcp-setup-pane'):[];
-    const copyLabel=<?php echo json_encode($mcpT['copy'], JSON_UNESCAPED_UNICODE); ?>;
-    const copiedLabel=<?php echo json_encode($mcpT['copied'], JSON_UNESCAPED_UNICODE); ?>;
-    const notReady=<?php echo json_encode($mcpT['not_ready'], JSON_UNESCAPED_UNICODE); ?>;
-    const notBuilt=<?php echo json_encode($mcpT['not_built'], JSON_UNESCAPED_UNICODE); ?>;
-    const loadFailed=<?php echo json_encode($mcpT['info_failed'], JSON_UNESCAPED_UNICODE); ?>;
-    const tokenDefaultName=<?php echo json_encode($mcpT['token_default_name'], JSON_UNESCAPED_UNICODE); ?>;
-    const tokenFailed=<?php echo json_encode($mcpT['token_failed'], JSON_UNESCAPED_UNICODE); ?>;
+    const copyLabel=<?php echo json_encode($mcpT['copy'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const copiedLabel=<?php echo json_encode($mcpT['copied'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const notReady=<?php echo json_encode($mcpT['not_ready'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const notBuilt=<?php echo json_encode($mcpT['not_built'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const loadFailed=<?php echo json_encode($mcpT['info_failed'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const tokenDefaultName=<?php echo json_encode($mcpT['token_default_name'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const tokenFailed=<?php echo json_encode($mcpT['token_failed'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
     const agentLabels={
-        cursor:<?php echo json_encode($mcpT['agent_cursor'], JSON_UNESCAPED_UNICODE); ?>,
-        claude:<?php echo json_encode($mcpT['agent_claude'], JSON_UNESCAPED_UNICODE); ?>,
-        vscode:<?php echo json_encode($mcpT['agent_vscode'], JSON_UNESCAPED_UNICODE); ?>,
-        opencode:<?php echo json_encode($mcpT['agent_opencode'], JSON_UNESCAPED_UNICODE); ?>
+        cursor:<?php echo json_encode($mcpT['agent_cursor'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+        claude:<?php echo json_encode($mcpT['agent_claude'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+        vscode:<?php echo json_encode($mcpT['agent_vscode'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+        opencode:<?php echo json_encode($mcpT['agent_opencode'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>
     };
     let mcpCommands={};
     let mcpRemoveCommands={};
@@ -310,7 +310,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
         if(installerOut)installerOut.style.display='none';
         if(removeOut)removeOut.style.display='none';
         if(agentCurrentIcon)agentCurrentIcon.innerHTML=mcpAgentIcon('');
-        if(agentCurrentLabel)agentCurrentLabel.textContent=<?php echo json_encode($mcpT['select_agent'], JSON_UNESCAPED_UNICODE); ?>;
+        if(agentCurrentLabel)agentCurrentLabel.textContent=<?php echo json_encode($mcpT['select_agent'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
         try{
             const res=await fetch('/mcp/info',{credentials:'same-origin'});
             const data=await res.json();

@@ -5,7 +5,7 @@ const currentLang = '<?php echo $lang; ?>';
 const currentTheme = '<?php echo $theme; ?>';
 const currentColor = '<?php echo $color; ?>';
 const userAccessLevel = <?php echo $user_access_level; ?>;
-const i18n = <?php echo json_encode($t, JSON_UNESCAPED_UNICODE); ?>;
+const i18n = <?php echo json_encode($t, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
 function getTranslation(key, params = {}) {
     let v = i18n[key];
     if (v === undefined) {

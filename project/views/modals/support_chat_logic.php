@@ -40,7 +40,7 @@
     let chatPendingPlanCount = 0;
     let currentChatTitle = '';
     let currentPeerBlocked = false;
-    let isAdmin = <?php echo json_encode(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2); ?>;
+    let isAdmin = <?php echo json_encode(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 2, JSON_HEX_TAG); ?>;
     let currentUserEmail = <?php echo json_encode($_SESSION['user']['email'] ?? '', JSON_HEX_TAG); ?>;
     let chatPollInterval = null;
     let lastMessagesHash = '';
