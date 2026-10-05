@@ -42,6 +42,8 @@ if ($mcpPath === '' || $mcpPath === 'info') {
         'package_url' => $packageUrl,
         'size' => $ready ? filesize($tgzFile) : 0,
         'sha256' => $meta['sha256'] ?? null,
+        'source_stamp' => $meta['source_stamp'] ?? null,
+        'cache_key' => $cacheKey,
         'built_at' => $meta['built_at'] ?? null,
         'requirement' => 'Node.js 18+',
         'commands' => $commands,

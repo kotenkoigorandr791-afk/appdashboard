@@ -103,11 +103,18 @@ Environment variables:
 
 ## Auto-update
 
-On start (and every 6 hours) the server compares the installed package fingerprint
-(`~/.config/appdashboard-mcp/package.json`, written by `setup`) with `GET APPDASHBOARD_URL/mcp/info`.
-If a new version is published, the server downloads the tgz, verifies its sha256,
+On start (and every 6 hours) the server compares the build identity of the code it is
+actually running (`dist/build-info.json`, stamped into the tarball by
+`deploy/scripts/build-appdashboard-mcp.sh`) with `GET APPDASHBOARD_URL/mcp/info`. Copies
+predating that stamp fall back to the global fingerprint
+(`~/.config/appdashboard-mcp/package.json`, written by `setup`).
+
+If a new build is published, the server downloads the tgz, verifies its sha256,
 extracts it into `~/.cache/appdashboard-mcp/`, links `node_modules` and re-execs itself from the
 updated copy. The user's agent session stays functional; no manual reinstall needed.
+
+`setup` writes a cache-busted npx URL (`/mcp/download?v=<build key>`) into the agent config,
+so npx refetches the package after a deploy instead of reusing its install dir for the bare URL.
 
 `mcp_check_update` triggers the same flow on demand.
 

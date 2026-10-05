@@ -193,16 +193,23 @@ export async function runSetup(argv: string[] = process.argv.slice(2)): Promise<
     if (!token) throw new Error("Token is required (--token or APPDASHBOARD_TOKEN)");
     const role = await validateToken(url, token);
     saveTokenCredentials(url, token, role);
-    // Record package fingerprint so background auto-update can detect new versions.
+    // Record package fingerprint and resolve the current build cache key.
+    let buildCacheKey = "";
     try {
       const info = await fetch(`${url}/mcp/info`, { signal: AbortSignal.timeout(10_000) });
       const meta = info.ok ? await info.json() : null;
       if (meta?.ok && meta?.sha256) writeLocalFingerprint(String(meta.sha256), String(meta.version || ""));
+      buildCacheKey = String(meta?.cache_key || "");
     } catch {
       /* non-fatal */
     }
     let packageUrl = (pkgArg || process.env.APPDASHBOARD_MCP_PACKAGE_URL || "").trim();
-    if (!packageUrl) packageUrl = `${url}/mcp/download`;
+    if (!packageUrl) {
+      // Cache-bust with the published build key so npx refetches after a deploy
+      // instead of reusing its install dir for the bare /mcp/download URL.
+      packageUrl = `${url}/mcp/download?v=${encodeURIComponent(buildCacheKey || "")}`;
+      if (!buildCacheKey) packageUrl = `${url}/mcp/download`;
+    }
     const merged = mergeServerEntry(agent, existing, url, token, packageUrl);
     writeJson(path, merged);
     console.log(`Updated ${path}`);
