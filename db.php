@@ -547,6 +547,8 @@ function initDB(AppDatabase $db): void {
         'docker_token'         => '',
         'docker_username'      => '',
         'docker_password'      => '',
+        'turnstile_site_key'   => '',
+        'turnstile_secret_key' => '',
     ];
     $stmt = $db->prepare("INSERT INTO config(key,value) VALUES(:k,:v) ON CONFLICT (key) DO NOTHING");
     foreach ($defaults as $k => $v) {
@@ -2230,6 +2232,34 @@ function findLatestVerificationTokenForEmail(string $email): ?array {
     return $row ?: null;
 }
 
+/**
+ * Seconds left before another email may be sent to $email (0 = no cooldown).
+ *
+ * Derived from the creation time already encoded in the existing rows
+ * (verification_tokens.expires = created + 86400, reset_codes.expires = created + 900),
+ * so no schema change is needed.
+ */
+function emailSendCooldownRemaining(string $email, int $windowSec = 60): int {
+    $email = normalizeAuthEmail($email);
+    if ($email === '') return 0;
+    $db  = getDB();
+    $now = time();
+    $lastSent = 0;
+
+    $stmt = $db->prepare('SELECT MAX(expires) AS latest FROM verification_tokens WHERE email = :e');
+    $stmt->bindValue(':e', $email);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!empty($row['latest'])) $lastSent = max($lastSent, (int)$row['latest'] - 86400);
+
+    $stmt = $db->prepare('SELECT MAX(expires) AS latest FROM reset_codes WHERE email = :e');
+    $stmt->bindValue(':e', $email);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!empty($row['latest'])) $lastSent = max($lastSent, (int)$row['latest'] - 900);
+
+    if ($lastSent <= 0) return 0;
+    return max(0, $windowSec - max(0, $now - $lastSent));
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG (auth, SMTP, Telegram, etc.)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -2250,7 +2280,7 @@ function setConfig(string $key, string $value): void {
 }
 
 function loadAuthConfig(): array {
-    $keys = ['google_client_id','google_client_secret','github_client_id','github_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'];
+    $keys = ['google_client_id','google_client_secret','github_client_id','github_client_secret','smtp_host','smtp_port','smtp_username','smtp_password','turnstile_site_key','turnstile_secret_key'];
     $out  = array_fill_keys($keys, '');
     $db = getDB();
     $quoted = implode(',', array_map(static fn($k) => "'" . AppDatabase::escapeString($k) . "'", $keys));
@@ -2263,7 +2293,7 @@ function loadAuthConfig(): array {
 }
 
 function saveAuthConfig(array $cfg): void {
-    foreach (['google_client_id','google_client_secret','github_client_id','github_client_secret','smtp_host','smtp_port','smtp_username','smtp_password'] as $k) {
+    foreach (['google_client_id','google_client_secret','github_client_id','github_client_secret','smtp_host','smtp_port','smtp_username','smtp_password','turnstile_site_key','turnstile_secret_key'] as $k) {
         if (isset($cfg[$k])) setConfig($k, (string)$cfg[$k]);
     }
 }
@@ -2962,7 +2992,7 @@ function verifyAndConsumeOTP(string $pin): ?string {
 
 /**
  * Returns lockout record for IP + type.
- * lock_type: 'otp' | 'login'
+ * lock_type: 'otp' | 'login' | 'register' | 'reset_email' | 'admin_gate'
  */
 function getLockout(string $ip, string $lockType): array {
     $db   = getDB();
@@ -2983,8 +3013,10 @@ function getLockout(string $ip, string $lockType): array {
  * Records a failed login attempt.
  *
  * Limits:
- *   otp   — 3 attempts → lockout 180 sec (3 min)
- *   login — 10 attempts → lockout 600 sec (10 min)
+ *   otp        — 3 attempts  → lockout 180 sec (3 min)
+ *   login      — 10 attempts → lockout 600 sec (10 min)
+ *   register   — 5 attempts  → lockout 900 sec (15 min)  register_complete + resend_verification
+ *   reset_email— 5 attempts  → lockout 900 sec (15 min)  send_reset_code
  */
 function recordFailedAttempt(string $ip, string $lockType): void {
     $db      = getDB();
@@ -3002,6 +3034,9 @@ function recordFailedAttempt(string $ip, string $lockType): void {
     if ($lockType === 'otp') {
         $maxAttempts = 3;
         $lockSec     = 180;
+    } elseif ($lockType === 'register' || $lockType === 'reset_email') {
+        $maxAttempts = 5;
+        $lockSec     = 900;
     } else {
         $maxAttempts = 10;
         $lockSec     = 600;

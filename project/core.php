@@ -1754,6 +1754,14 @@ $defaultTranslations=['search_placeholder'=>'Search apps...','settings_title'=>'
     'otp_minutes'=>'min',
     'otp_link_hint'=>'Send the recipient this link:',
     'login_ip_locked'=>'Too many failed login attempts. Try again in %d seconds.',
+    'captcha_required'=>'Please complete the security check.',
+    'captcha_failed'=>'Security check failed. Please try again.',
+    'captcha_too_fast'=>'Form submitted too quickly. Please try again.',
+    'captcha_rate_limited'=>'Too many requests. Try again in %d seconds.',
+    'captcha_email_cooldown'=>'Please wait %d seconds before requesting another email.',
+    'turnstile_site_key'=>'Turnstile Site Key',
+    'turnstile_secret_key'=>'Turnstile Secret Key',
+    'turnstile_enabled_hint'=>'Get keys at dash.cloudflare.com → Turnstile. Leave empty to disable.',
     'backup'=>'Backup',
     'database'=>'Database',
     'ssh_terminal'=>'SSH Terminal',
@@ -2670,9 +2678,11 @@ function collectServerSecurityMeta(): array {
  */
 function notifyTelegramFailedAuth(string $event, array $payload): void {
     $labels = [
-        'login_password' => '🔐 Failed password login',
-        'otp_pin'        => '🔢 Failed one-time PIN',
-        'google_oauth'   => '🔴 Google OAuth failed',
+        'login_password'   => '🔐 Failed password login',
+        'otp_pin'          => '🔢 Failed one-time PIN',
+        'google_oauth'     => '🔴 Google OAuth failed',
+        'register_abuse'   => '🚫 Blocked registration email',
+        'reset_email_abuse'=> '🚫 Blocked password reset email',
     ];
     $title = $labels[$event] ?? '⚠️ Auth failure';
     $dt    = date('Y-m-d H:i:s T');
@@ -2741,7 +2751,13 @@ function notifyTelegramFailedAuth(string $event, array $payload): void {
  */
 function failedAuthNotifyPayload(string $clientIp, string $lockType): array {
     $lockout = getLockout($clientIp, $lockType);
-    $maxAttempts = $lockType === 'otp' ? 3 : 10;
+    if ($lockType === 'otp') {
+        $maxAttempts = 3;
+    } elseif ($lockType === 'register' || $lockType === 'reset_email') {
+        $maxAttempts = 5;
+    } else {
+        $maxAttempts = 10;
+    }
     return [
         'client_ip'      => $clientIp,
         'forwarded_for'  => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '',

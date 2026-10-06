@@ -2878,6 +2878,8 @@ function wireEvents(){
         fd.set('smtp_username',       (dynRoot.querySelector('#ap-smtp-user')||{value:''}).value);
         fd.set('smtp_password',       (dynRoot.querySelector('#ap-smtp-pass')||{value:''}).value);
         fd.set('smtp_test_to',        (dynRoot.querySelector('#ap-smtp-test-to')||{value:''}).value);
+        fd.set('turnstile_site_key',  (dynRoot.querySelector('#ap-turnstile-site')||{value:''}).value);
+        fd.set('turnstile_secret_key',(dynRoot.querySelector('#ap-turnstile-secret')||{value:''}).value);
         if(extra){Object.keys(extra).forEach(function(k){fd.set(k,extra[k]);});}
         fd.append('ajax','1');
         return fd;

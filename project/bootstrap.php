@@ -14,6 +14,7 @@ require_once APP_ROOT . '/storage_helper.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/lib/admin_security.php';
+require_once APP_ROOT . '/lib/turnstile.php';
 adminSecurityEnsureSchema();
 require_once APP_ROOT . '/bot/tg_mini_auth.php';
 if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
