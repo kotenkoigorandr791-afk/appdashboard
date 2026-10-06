@@ -494,6 +494,7 @@
                 if (modalId === 'add-steps-modal') {
                     if (opts.addTab) switchAddTab(opts.addTab);
                     else resetAddModalTabs();
+                    updateAdjacentDates(document.getElementById('selected-date-input').value, currentLocale);
                 }
                 if (modalId === 'video-confirm-modal' && !document.hidden) {
                     const vn = document.getElementById('video-recognition-notification');
@@ -1029,11 +1030,11 @@
         }
 
         // Functions for add steps modal
-        function applyManualDate(date, lang = currentLocale, direction = 'none') {
+        function applyManualDate(date, lang = currentLocale) {
             document.getElementById('selected-date-input').value = date;
             setStepsInputValue((stepsData.find(entry => entry.date === date) || { steps: 0 }).steps);
             manualSaveSignature = getManualSaveSignature();
-            updateAdjacentDates(date, lang, direction);
+            updateAdjacentDates(date, lang);
         }
         let manualSaveSignature = '';
         function getManualSaveSignature() {
@@ -1047,9 +1048,9 @@
             const direction = e.deltaY > 0 ? 'next' : 'prev';
             cur.setDate(cur.getDate() + (direction === 'next' ? 1 : -1));
             const newDateStr = formatLocalYMD(cur);
-            applyManualDate(newDateStr, currentLocale, direction);
+            applyManualDate(newDateStr, currentLocale);
         }
-        function updateAdjacentDates(date, lang = currentLocale, direction = 'none') {
+        function updateAdjacentDates(date, lang = currentLocale) {
             const dateObj = localDateFromYMD(date),
                   prevDates = [],
                   nextDates = [];
@@ -1059,8 +1060,10 @@
             const currentDateEl = addPanel ? addPanel.querySelector('.current-date') : null;
             const currentDateHeight = currentDateEl ? currentDateEl.getBoundingClientRect().height : 60;
             // Make adjacent dates fill most of the modal height (without relying on scroll)
+            const probe = document.querySelector('#prev-dates .adjacent-date, #next-dates .adjacent-date');
+            const rowHeight = probe ? probe.getBoundingClientRect().height + 10 : 42;
             const usable = Math.max(0, panelHeight - currentDateHeight - 20);
-            const count = Math.max(7, Math.min(18, Math.floor(usable / 36)));
+            const count = Math.max(3, Math.min(18, Math.floor(usable / (2 * rowHeight))));
 
             for (let i = 1; i <= count; i++) {
                 const prevDate = new Date(dateObj);
@@ -1096,10 +1099,7 @@
 
             document.querySelectorAll('.adjacent-date').forEach(el => {
                 el.addEventListener('click', () => {
-                    const newDate = el.getAttribute('data-date');
-                    const curDate = document.getElementById('selected-date-input').value;
-                    const direction = newDate > curDate ? 'next' : 'prev';
-                    applyManualDate(newDate, lang, direction);
+                    applyManualDate(el.getAttribute('data-date'), lang);
                 });
             });
         }
@@ -3038,11 +3038,18 @@
             startStepsDataRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) { workerRefreshStates(); refreshStepsDataIfChanged(); } });
             let chartLabelsHideState = window.matchMedia('(max-width: 768px)').matches;
+            let adjacentResizeTimer = null;
             window.addEventListener('resize', function() {
                 const state = window.matchMedia('(max-width: 768px)').matches;
                 if (state !== chartLabelsHideState) {
                     chartLabelsHideState = state;
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                }
+                if (document.getElementById('add-steps-modal')?.style.display !== 'none') {
+                    clearTimeout(adjacentResizeTimer);
+                    adjacentResizeTimer = setTimeout(() => {
+                        updateAdjacentDates(document.getElementById('selected-date-input').value, currentLocale);
+                    }, 120);
                 }
             });
 
@@ -3592,11 +3599,6 @@
 
             // Date scroll
             document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);
-
-            // Prevent scrolling in adjacent dates
-            document.querySelectorAll('.adjacent-dates').forEach(container => {
-                container.addEventListener('wheel', e => e.preventDefault());
-            });
 
             // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {

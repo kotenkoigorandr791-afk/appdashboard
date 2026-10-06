@@ -953,7 +953,7 @@
         }
         .add-tab-panel.active { display: block !important; }
         #add-panel-manual.add-tab-panel.active { display: flex !important; }
-        #add-panel-manual { text-align: center; align-items: center; justify-content: center; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: hidden; overflow-x: hidden; }
+        #add-panel-manual { text-align: center; align-items: center; justify-content: center; flex-direction: column; flex: 1 1 0; min-height: 0; overflow-y: auto; overflow-x: hidden; }
         #add-panel-takeout .video-analysis-content {
             padding: 2px;
             max-width: min(1100px, calc(100vw - 32px));
