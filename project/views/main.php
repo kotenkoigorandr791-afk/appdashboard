@@ -2338,7 +2338,9 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             align-items: center;
             gap: 18px;
             text-align: center;
-            padding: 42px 24px;
+            /* Reserve room for the absolutely positioned close/settings/wind
+               buttons hanging at top:24px (36px tall → bottom edge at 60px). */
+            padding: 72px 24px 24px;
             opacity: 0.86;
         }
         .weather-loading {

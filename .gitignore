@@ -152,6 +152,9 @@ desktop.ini
 
 # Archives and temp dumps
 core
+# ...but keep the Playwright core test directory
+!tests/e2e/core/
+!tests/e2e/core/**
 *.core
 npm-debug.log*
 yarn-error.log*

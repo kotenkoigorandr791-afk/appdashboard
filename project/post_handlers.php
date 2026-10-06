@@ -161,6 +161,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             echo json_encode(['success'=>false,'error'=>'Not authenticated']);
             exit;
         }
+        if(($_SESSION['user']['email']??'')==='root@root'){
+            while(ob_get_level()>1)ob_end_clean();
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>'otp_forbidden']);
+            exit;
+        }
         $ttl=(int)($_POST['ttl_seconds']??300);
         if(!in_array($ttl,[60,180,300,600]))$ttl=300;
         $pin=createOTP($_SESSION['user']['email'],$ttl);
@@ -185,7 +191,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if($otpEmail){
                 $users=loadUsers();
                 if(isset($users[$otpEmail])&&!empty($users[$otpEmail]['verified'])){
-                    if (adminIsAdminUser($users[$otpEmail])) {
+                    if ($otpEmail === 'root@root') {
                         recordFailedAttempt($clientIp,'otp');
                         $otpError=$translations['admin_otp_forbidden'] ?? 'One-time PIN login is disabled for administrators.';
                     } else {

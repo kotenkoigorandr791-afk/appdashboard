@@ -153,6 +153,23 @@ var modalOverlay = document.getElementById('weatherModalOverlay');
 var modalContent = document.getElementById('weatherModalContent');
 var weatherGeoNoticeShown = false;
 
+function getGeoPermissionState() {
+    return new Promise(function(resolve) {
+        if (!navigator.permissions || typeof navigator.permissions.query !== 'function') {
+            resolve('unsupported');
+            return;
+        }
+        try {
+            navigator.permissions.query({ name: 'geolocation' }).then(function(status) {
+                resolve(status && status.state ? status.state : 'unsupported');
+            }).catch(function() { resolve('unsupported'); });
+        } catch (e) {
+            resolve('unsupported');
+        }
+    });
+}
+window.apWeatherGetGeoPermissionState = getGeoPermissionState;
+
 window.openWeatherSettings = openWeatherSettings;
 window.closeWeatherSettingsModal = closeWeatherSettingsModal;
 window.setWeatherLocationType = setWeatherLocationType;
@@ -733,7 +750,19 @@ function showWeatherModal() {
         modalOverlay.style.display = 'flex';
         modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
-        renderWeatherGeoPrompt(navigator.geolocation ? wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather') : wt('weather_no_geo', 'Geolocation not supported'));
+        if (!navigator.geolocation) {
+            renderWeatherGeoPrompt(wt('weather_no_geo', 'Geolocation not supported'));
+            return;
+        }
+        // Missing coordinates alone do not mean access was denied — ask the
+        // browser for the real permission state first.
+        getGeoPermissionState().then(function(state) {
+            if (state === 'denied') {
+                renderWeatherGeoPrompt(wt('weather_denied_msg', 'Please allow location access in your browser settings to see local weather'));
+            } else {
+                renderWeatherGeoPrompt(wt('weather_perm_denied', 'Please allow location access'));
+            }
+        });
         return;
     }
     modalContent.innerHTML = '<div style="text-align:center;padding:40px 0;opacity:0.7">' + escHtml(wt('weather_loading_forecast', 'Loading forecast...')) + '</div>';
@@ -1293,10 +1322,12 @@ window.toggleWindChart = toggleWindChart;
                         if (data.city) applyToWidgets(null, null, data.city, null);
                         return;
                     }
-                    showPermError(failMessage || wt('weather_timeout', 'Location request timed out'));
+                    // Network/IP-lookup failure is not a permission denial: show a
+                    // neutral notice instead of the widget "denied" state.
+                    notifyWeatherGeoUnavailable(failMessage || wt('weather_timeout', 'Location request timed out'));
                 })
                 .catch(function() {
-                    showPermError(failMessage || wt('weather_timeout', 'Location request timed out'));
+                    notifyWeatherGeoUnavailable(failMessage || wt('weather_timeout', 'Location request timed out'));
                 });
         }
         function error(err) {
@@ -1361,11 +1392,24 @@ window.toggleWindChart = toggleWindChart;
                     return;
                 }
                 if (weatherStore.lat != null && weatherStore.lon != null) return;
-                requestGeo();
+                getGeoPermissionState().then(function(state) {
+                    if (state === 'denied') {
+                        showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+                        return;
+                    }
+                    // 'prompt' still triggers the browser permission dialog.
+                    requestGeo();
+                });
             })
             .catch(function() {
                 if (weatherStore.lat != null && weatherStore.lon != null) return;
-                requestGeo();
+                getGeoPermissionState().then(function(state) {
+                    if (state === 'denied') {
+                        showPermError(wt('weather_denied', 'Location access denied. Enable it to see local weather.'));
+                        return;
+                    }
+                    requestGeo();
+                });
             });
     }
 
