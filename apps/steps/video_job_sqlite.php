@@ -40,24 +40,6 @@ function video_job_load(AppDatabase $db): array {
 function video_job_reset(AppDatabase $db): void {
     video_job_save($db, '', ['status' => 'idle', 'progress' => 0.0, 'message' => '', 'processed' => 0, 'total' => 0, 'results' => null, 'job_id' => '']);
 }
-function video_jobs_rmtree(string $dir): void {
-    if (!is_dir($dir)) {
-        return;
-    }
-    $rp = realpath($dir);
-    if ($rp === false) {
-        return;
-    }
-    foreach (array_diff(scandir($rp), ['.', '..']) as $item) {
-        $p = $rp . DIRECTORY_SEPARATOR . $item;
-        if (is_dir($p)) {
-            video_jobs_rmtree($p);
-        } else {
-            @unlink($p);
-        }
-    }
-    @rmdir($rp);
-}
 function video_jobs_disk_cleanup(string $userDir): void {
     @unlink($userDir . DIRECTORY_SEPARATOR . 'pending_video_confirm.json');
 }

@@ -15,7 +15,6 @@ require_once __DIR__ . '/core/settings.php';
 require_once __DIR__ . '/models/StepsModel.php';
 require_once __DIR__ . '/core/user_helpers.php';
 require __DIR__ . '/core/init.php';
-require __DIR__ . '/controllers/VideoBootstrap.php';
 require __DIR__ . '/controllers/PostHandlers.php';
 
 include __DIR__ . '/views/preview.php';

@@ -26,9 +26,18 @@ jobs:
             echo "Working tree has uncommitted tracked changes; commit or stash server changes before deploy."
             exit 1
           fi
-          sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-maintenance-stub.sh /opt/docker/appdashboard/code
-          sudo env START_FRONT_DOOR=0 sh /opt/docker/appdashboard/code/deploy/scripts/install-front-door.sh /opt/docker/appdashboard/code
-          sudo sh /opt/docker/appdashboard/code/deploy/scripts/maintenance-flag.sh on
+          # Load host env before rendering any nginx config: the front door runs on
+          # the host and needs BASE_DOMAIN/APP_PUBLIC_SCHEME plus published ports.
+          set -a
+          [ -f /opt/docker/appdashboard/.env ] && . /opt/docker/appdashboard/.env
+          set +a
+          export BASE_DOMAIN="${BASE_DOMAIN:-serverkherson.xyz}"
+          export APP_PUBLIC_SCHEME="${APP_PUBLIC_SCHEME:-https}"
+          export GITEA_PROXY_HOST="${GITEA_PROXY_HOST:-git.${BASE_DOMAIN}}"
+          export IMMICH_PROXY_HOST="${IMMICH_PROXY_HOST:-photo.${BASE_DOMAIN}}"
+          sudo -E sh /opt/docker/appdashboard/code/deploy/scripts/install-maintenance-stub.sh /opt/docker/appdashboard/code
+          sudo -E env START_FRONT_DOOR=0 sh /opt/docker/appdashboard/code/deploy/scripts/install-front-door.sh /opt/docker/appdashboard/code
+          sudo -E sh /opt/docker/appdashboard/code/deploy/scripts/maintenance-flag.sh on
           trap 'sudo sh /opt/docker/appdashboard/code/deploy/scripts/maintenance-flag.sh off || true' EXIT
           # Rebuild Lopaka locally when its sources changed between deploys.
           # Sources are vendored in apps/lopaka/src; no GitHub fetch involved.
@@ -36,7 +45,7 @@ jobs:
             sh deploy/scripts/lopaka-needs-build.sh && sh deploy/scripts/build-lopaka.sh . || true
           fi
           docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
-          sudo sh /opt/docker/appdashboard/code/deploy/scripts/install-front-door.sh /opt/docker/appdashboard/code
+          sudo -E sh /opt/docker/appdashboard/code/deploy/scripts/install-front-door.sh /opt/docker/appdashboard/code
           docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
           # Ensure public OAuth issuer uses https://$BASE_DOMAIN (never http://localhost).
           if [ -f /opt/docker/appdashboard/.env ]; then
@@ -71,15 +80,10 @@ jobs:
           test -f /opt/docker/appdashboard/code/downloads/appdashboard-mcp.tgz
           test -f /opt/docker/appdashboard/code/downloads/stepmonitor.apk
           docker exec appdashboard sh -c 'cd /var/www/AppDashboard && test "$(node -p "require(\"./appdashboard-mcp/package.json\").version")" = "$(node -p "require(\"./downloads/appdashboard-mcp.json\").version")"'
-          set -a
-          [ -f /opt/docker/appdashboard/.env ] && . /opt/docker/appdashboard/.env
-          set +a
-          export BASE_DOMAIN="${BASE_DOMAIN:-serverkherson.xyz}"
-          export APP_PUBLIC_SCHEME="${APP_PUBLIC_SCHEME:-https}"
-          export GITEA_INTERNAL_URL="${GITEA_INTERNAL_URL:-https://git.${BASE_DOMAIN}}"
-          export IMMICH_INTERNAL_URL="${IMMICH_INTERNAL_URL:-https://photo.${BASE_DOMAIN}}"
-          export GITEA_PROXY_HOST="${GITEA_PROXY_HOST:-git.${BASE_DOMAIN}}"
-          export IMMICH_PROXY_HOST="${IMMICH_PROXY_HOST:-photo.${BASE_DOMAIN}}"
+          # In-container nginx resolves docker service names, so point the appdashboard
+          # config at the compose network rather than host loopback.
+          export GITEA_INTERNAL_URL="${GITEA_INTERNAL_URL:-http://gitea:3000}"
+          export IMMICH_INTERNAL_URL="${IMMICH_INTERNAL_URL:-http://immich-server:2283}"
           python3 /opt/docker/appdashboard/code/deploy/scripts/render-nginx-conf.sh \
             /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf \
             /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf.rendered

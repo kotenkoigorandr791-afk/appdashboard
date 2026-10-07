@@ -751,21 +751,6 @@ function cloud_ai_search_in_paths(array $paths, string $query, string $rootKey, 
     return ['ok' => true, 'query' => $query, 'match_count' => count($matches), 'matches' => $matches];
 }
 
-function cloud_ai_decode_search_url(string $url): string
-{
-    if ($url === '') {
-        return '';
-    }
-    $parts = @parse_url(html_entity_decode($url, ENT_QUOTES | ENT_HTML5));
-    if (!$parts || empty($parts['query'])) {
-        return $url;
-    }
-    parse_str($parts['query'], $query);
-    if (!empty($query['uddg'])) {
-        return (string)$query['uddg'];
-    }
-    return $url;
-}
 
 function cloud_ai_searxng_base_url(): string
 {

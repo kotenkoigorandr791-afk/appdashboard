@@ -1,10 +1,10 @@
 {
     "en": "Gitea",
-    "ru": "Gitea",
-    "uk": "Gitea",
-    "be": "Gitea",
-    "pl": "Gitea",
-    "cs": "Gitea",
+    "ru": "Гит-репозиторий",
+    "uk": "Гіт-репозиторій",
+    "be": "Гіт-рэпазіторый",
+    "pl": "Repozytorium Gita",
+    "cs": "Git repozitář",
     "menu_button": {
         "left": 7,
         "top": 12,

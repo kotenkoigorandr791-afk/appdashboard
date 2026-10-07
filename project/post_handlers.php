@@ -1,5 +1,48 @@
 <?php
 
+/**
+ * Adaptive captcha guard for every outgoing auth email.
+ * Returns null when the request may send the email, otherwise the guard result.
+ */
+function apMailGuard(string $action, string $email): ?array {
+    $guard = turnstile_guard($action, $email);
+    return $guard['pass'] ? null : $guard;
+}
+
+function apMailGuardMessage(array $guard): string {
+    global $translations;
+    $retryAfter = (int)($guard['retry_after'] ?? 0);
+    switch ((string)($guard['reason'] ?? '')) {
+        case 'too_fast':
+            return $translations['captcha_too_fast'] ?? 'Form submitted too quickly. Please try again.';
+        case 'rate_limited':
+            return sprintf($translations['captcha_rate_limited'] ?? 'Too many requests. Try again in %d seconds.', $retryAfter);
+        case 'email_cooldown':
+            return sprintf($translations['captcha_email_cooldown'] ?? 'Please wait %d seconds before requesting another email.', $retryAfter);
+        case 'captcha_required':
+            return $translations['captcha_required'] ?? 'Please complete the security check.';
+        default:
+            return $translations['captcha_failed'] ?? 'Security check failed. Please try again.';
+    }
+}
+
+function apMailGuardReport(array $guard, string $email): void {
+    $ip       = getClientIp();
+    $lockType = turnstile_lock_type((string)($guard['action'] ?? 'register'));
+    $locked   = getIpLockoutSeconds($ip, $lockType) > 0;
+    if (!$locked) {
+        recordFailedAttempt($ip, $lockType);
+    }
+    notifyTelegramFailedAuth(
+        $lockType === 'reset_email' ? 'reset_email_abuse' : 'register_abuse',
+        array_merge(failedAuthNotifyPayload($ip, $lockType), [
+            'already_locked' => $locked,
+            'attempted_email' => $email,
+            'guard_reason'    => (string)($guard['reason'] ?? ''),
+        ])
+    );
+}
+
 if($_SERVER['REQUEST_METHOD']==='POST'){
     $sessionIsAdmin = isset($_SESSION['user']['role']) && (int)$_SESSION['user']['role'] === 2;
     apSecRequireCsrf();
@@ -87,6 +130,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $needsVerification=(isset($users[$email])&&empty($users[$email]['verified'])&&$email!=='root@root')
             ||(isset($pendingUsers[$email])&&$email!=='root@root');
         if($needsVerification){
+            $mailGuard=apMailGuard('register',$email);
+            if($mailGuard!==null){
+                $authError=apMailGuardMessage($mailGuard);
+                $showReVerifyForm=true;
+                $reVerifyEmail=$email;
+                apMailGuardReport($mailGuard,$email);
+            }else{
             $verificationToken=generateVerificationToken();
             saveVerificationTokenForEmail($email, $verificationToken, time() + 86400);
             if(sendVerificationEmail($email,$verificationToken)){
@@ -98,6 +148,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $showReVerifyForm=true;
                 $reVerifyEmail=$email;
             }
+            }
         }else{
             $authError=$translations['invalid_credentials'];
         }
@@ -108,6 +159,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             while(ob_get_level()>1)ob_end_clean();
             header('Content-Type: application/json');
             echo json_encode(['success'=>false,'error'=>'Not authenticated']);
+            exit;
+        }
+        if(($_SESSION['user']['email']??'')==='root@root'){
+            while(ob_get_level()>1)ob_end_clean();
+            header('Content-Type: application/json');
+            echo json_encode(['success'=>false,'error'=>'otp_forbidden']);
             exit;
         }
         $ttl=(int)($_POST['ttl_seconds']??300);
@@ -134,7 +191,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if($otpEmail){
                 $users=loadUsers();
                 if(isset($users[$otpEmail])&&!empty($users[$otpEmail]['verified'])){
-                    if (adminIsAdminUser($users[$otpEmail])) {
+                    if ($otpEmail === 'root@root') {
                         recordFailedAttempt($clientIp,'otp');
                         $otpError=$translations['admin_otp_forbidden'] ?? 'One-time PIN login is disabled for administrators.';
                     } else {
@@ -192,7 +249,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $authError=$translations['admin_ip_forbidden'] ?? 'Administrator access is not allowed from this IP.';
                     } else {
                     adminEstablishSession($email, $users[$email]);
-                    if (isset($_POST['remember_me'])) rememberCurrentTrustedDevice($email, $clientIp);
+                    if (isset($_POST['remember_me']) && $_POST['remember_me'] !== '' && $email !== 'root@root') rememberCurrentTrustedDevice($email, $clientIp);
                     $config=['language'=>$users[$email]['language']??'en','theme'=>$users[$email]['theme']??'light','color'=>$users[$email]['color']??'#007bff'];
                     $language=$config['language'];
                     $translations = ap_merge_i18n($defaultTranslations, $language);
@@ -258,6 +315,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }elseif(($passwordErrorKey = validatePasswordPolicy($password)) !== null){
             $authError=$translations[$passwordErrorKey];
         }else{
+            $mailGuard=apMailGuard('register',$email);
+            if($mailGuard!==null){
+                $authError=apMailGuardMessage($mailGuard);
+                $showCaptchaRetry=true;
+                apMailGuardReport($mailGuard,$email);
+            }else{
             $users=loadUsers();
             if(isset($users[$email])&&(userNeedsPasswordSet($users[$email])||!empty($users[$email]['must_change_password']))&&!empty($users[$email]['verified'])){
                 if (adminIsAdminUser($users[$email]) && ($adminPwdErr = validateAdminPasswordPolicy($password)) !== null) {
@@ -323,6 +386,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 }else{
                     $authError = 'Failed to send verification email. Check SMTP configuration.';
                 }
+            }
             }
         }
     }
@@ -501,6 +565,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $email=$_POST['email']??'';
         $users=loadUsers();
         if(isset($users[$email])){
+            $mailGuard=apMailGuard('reset',$email);
+            if($mailGuard!==null){
+                $authError=apMailGuardMessage($mailGuard);
+                $showResetForgot=true;
+                apMailGuardReport($mailGuard,$email);
+            }else{
             $resetCode=generateResetCode();
             $codes=loadResetCodes();
             $codes[$email]=['code'=>$resetCode,'expires'=>time()+900];
@@ -510,6 +580,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $showResetForm=true;
                 $resetEmail=$email;
             }else{$authError='Failed to send email. Check SMTP configuration.';}
+            }
         }else{$authError=$translations['invalid_credentials'];}
     }
     if(isset($_POST['reset_password'])){
@@ -1285,6 +1356,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_password']??'SMTP Password'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-smtp-pass" value="<?php echo my_htmlspecialchars($_apAuthCfg['smtp_password']??''); ?>" placeholder="xxxx xxxx xxxx xxxx"><button type="button" class="ap-pwd-eye" data-target="ap-smtp-pass"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
                     <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['smtp_test_to']??'Test recipient'); ?></label><input type="email" id="ap-smtp-test-to" value="<?php echo my_htmlspecialchars($_SESSION['user']['email']??''); ?>" placeholder="user@example.com"></div>
                 </div>
+                <div style="margin-bottom:20px;">
+                    <h4 style="font-size:13px;font-weight:600;margin:0 0 10px 0;opacity:.8;">Cloudflare Turnstile</h4>
+                    <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['turnstile_site_key']??'Turnstile Site Key'); ?></label><input type="text" id="ap-turnstile-site" value="<?php echo my_htmlspecialchars($_apAuthCfg['turnstile_site_key']??''); ?>" placeholder="0x4AAAAAAA..." autocomplete="off"></div>
+                    <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['turnstile_secret_key']??'Turnstile Secret Key'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-turnstile-secret" value="<?php echo my_htmlspecialchars($_apAuthCfg['turnstile_secret_key']??''); ?>" placeholder="0x4AAAAAAA..." autocomplete="off"><button type="button" class="ap-pwd-eye" data-target="ap-turnstile-secret"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['turnstile_enabled_hint']??'Get keys at dash.cloudflare.com → Turnstile. Leave empty to disable.'); ?></div></div>
+                </div>
                 <div class="ap-btn-row"><button type="button" id="ap-save-email" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button><button type="button" id="ap-test-email" class="ap-btn ap-btn-success"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg><?php echo my_htmlspecialchars($translations['smtp_test']??'Test email'); ?></button></div>
                 <div class="ap-status" id="ap-email-status"></div>
             </div>
@@ -1754,7 +1830,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             // status cell
             if($isRoot) $sC='<span class="ap-verified-yes" style="font-size:16px;">&#x2713;</span>';
             elseif($isPend) $sC='<span style="color:#ff9800;font-weight:bold;font-size:12px;">&#x23F3; Pending</span>';
-            else { $val=$isVer?'1':'0'; $cls=$isVer?'ap-verified-yes':'ap-verified-no'; $sym=$isVer?'&#x2713;':'&#x2717;'; $sC='<button type="button" class="ap-verified-toggle ap-user-field" data-email="'.$eH.'" data-field="verified" data-value="'.$val.'" style="background:none;border:none;cursor:pointer;padding:2px;font-size:16px;"><span class="'.$cls.'" style="font-size:16px;">'.$sym.'</span></button>'; }
+            else { $val=$isVer?'1':'0'; $cls=$isVer?'ap-verified-yes':'ap-verified-no'; $sym=$isVer?'&#x2713;':'&#x2717;'; $selfDis=$isSelf?' disabled title="You cannot change your own status" style="background:none;border:none;cursor:not-allowed;opacity:.45;padding:2px;font-size:16px;"':' style="background:none;border:none;cursor:pointer;padding:2px;font-size:16px;"'; $sC='<button type="button" class="ap-verified-toggle ap-user-field" data-email="'.$eH.'" data-field="verified" data-value="'.$val.'"'.$selfDis.'><span class="'.$cls.'" style="font-size:16px;">'.$sym.'</span></button>'; }
             $aC=renderApUserActionsCell($email, $ud['name']??'', $isRoot, $isSelf, $isPend, $translations);
             $rows.='<tr data-email="'.$eH.'" data-name="'.$nH.'">'
                 .'<td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><img src="'.$ph.'" style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-color);object-fit:cover;flex-shrink:0;" alt="">'.$nH.'</div></td>'
@@ -1934,6 +2010,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $authConfig['smtp_username']=trim((string)($_POST['smtp_username']??''));
         $newSmtpPassword=(string)($_POST['smtp_password']??'');
         $authConfig['smtp_password']=$newSmtpPassword!==''?$newSmtpPassword:(string)($existingCfg['smtp_password']??'');
+        $authConfig['turnstile_site_key']=trim((string)($_POST['turnstile_site_key']??''));
+        $authConfig['turnstile_secret_key']=trim((string)($_POST['turnstile_secret_key']??''));
         saveAuthConfig($authConfig);
         $saved = true;
         if($isAjaxEmail){
@@ -2019,6 +2097,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $users[$email]['verified']=(bool)intval($v);
                         $anyUpdated=true;
                     }
+                }
+            }
+            if($anyUpdated){
+                saveUsers($users);
+                if($isAjaxRoles){
+                    header('Content-Type: application/json');
+                    echo json_encode(['success'=>true,'message'=>$translations['role_changed']]);
+                    exit;
+                }
+                $userManagementSuccess=$translations['role_changed'];
+            } elseif($isAjaxRoles){
+                header('Content-Type: application/json');
+                echo json_encode(['success'=>true,'message'=>'No changes']);
+                exit;
+            }
+        } elseif($sessionIsAdmin && isset($_POST['user_verified']) && is_array($_POST['user_verified'])){
+            // Non-root admins may only change the verified (status) flag of
+            // OTHER users — never their own and never root@root.
+            $users=loadUsers();
+            $anyUpdated=false;
+            foreach($_POST['user_verified'] as $email=>$v){
+                if($email==='root@root') continue;
+                if($email===$currentUserEmail) continue;
+                if(isset($users[$email])){
+                    $users[$email]['verified']=(bool)intval($v);
+                    $anyUpdated=true;
+                    adminAuditLog('user_status_change', $email, (bool)intval($v)?'verified':'unverified');
                 }
             }
             if($anyUpdated){

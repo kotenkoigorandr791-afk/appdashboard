@@ -230,7 +230,6 @@ cloud_require_session_auth();
 <script defer src="assets/app.js?v=40"></script>
 <script defer src="assets/app/editors-and-tree.js?v=12"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
-<script defer src="assets/app/model-viewer-3d.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
 <script defer src="assets/app/file-viewers.js?v=2"></script>
 <script defer src="assets/app/file-actions.js?v=10"></script>
@@ -1521,24 +1520,9 @@ cloud_require_session_auth();
                     <rect x="2" y="2" width="20" height="20" rx="2" ry="2" fill="none" />
                     <path d="M8 2v20M16 2v20M2 8h20M2 16h20" fill="none" />
                 </svg>
-                <select id="ai-model-select">
-                  <option value="meta-llama/Llama-3.3-70B-Instruct">Meta: Llama 3.3 70B Instruct</option>
-                  <option value="deepseek-ai/DeepSeek-R1-0528">DeepSeek: R1 0528</option>
-                  <option value="Intel/Qwen3-Coder-480B-A35B-Instruct-int4-mixed-ar">Intel: Qwen3 Coder 480B</option>
-                  <option value="meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8" selected>Meta: Llama 4 Maverick</option>
-                  <option value="moonshotai/Kimi-K2-Thinking">MoonshotAI: Kimi K2 Thinking</option>
-                  <option value="zai-org/GLM-5">Z.ai: GLM 5</option>
-                  <option value="Qwen/Qwen3-Next-80B-A3B-Instruct">Qwen: Qwen3 Next 80B</option>
-                  <option value="mistralai/Mistral-Large-Instruct-2411">Mistral: Mistral Large</option>
-                  <option value="google/gemma-2-27b-it">Google: Gemma 2 27B</option>
-                  <option value="anthropic/claude-3.5-sonnet-20241022">Anthropic: Claude 3.5 Sonnet</option>
-                  <option value="openai/gpt-4o-2024-11-20">OpenAI: GPT-4o</option>
-                  <option value="cohere/command-r-plus-08-2024">Cohere: Command R+</option>
-                  <option value="inflection/inflection-3-pi">Inflection: Pi 3</option>
-                  <option value="nvidia/llama-3.1-nemotron-70b-instruct">NVIDIA: Nemotron 70B</option>
-                  <option value="microsoft/wizardlm-2-8x22b">Microsoft: WizardLM 2</option>
-                  <option value="databricks/dbrx-instruct">Databricks: DBRX Instruct</option>
-              </select>
+                <!-- Model list is loaded from the runtime config (ai_runtime_config);
+                     a hardcoded fallback here used to mask stale admin config. -->
+                <select id="ai-model-select"></select>
             </div>
             <div class="select-wrapper">
                 <svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">

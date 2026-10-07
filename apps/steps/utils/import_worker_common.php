@@ -79,9 +79,6 @@ function steps_worker_json_read(string $path): array {
     $obj = is_string($raw) ? json_decode($raw, true) : null;
     return is_array($obj) ? $obj : [];
 }
-function steps_worker_json_write(string $path, array $obj): void {
-    @file_put_contents($path, json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-}
 function steps_worker_cancelled(string $jobDir): bool {
     return is_file($jobDir . DIRECTORY_SEPARATOR . 'cancel.flag');
 }

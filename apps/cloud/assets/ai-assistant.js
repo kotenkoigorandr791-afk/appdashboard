@@ -12,7 +12,8 @@
         defaultRole: 'general',
         configuredModels: null,
         directApi: {
-            configured: false
+            configured: false,
+            loadedAt: 0
         }
     };
     const LOCAL_HISTORY_KEY = 'cloud_ai_chat_history_v2';
@@ -462,8 +463,13 @@
         url.searchParams.set('action', action);
         return url.toString();
     }
-    async function ensureDirectApiKeyLoaded() {
-        if (AI_CONFIG.directApi.configured) return;
+    // Model list must not go stale after the admin changes the AI config.
+    // The runtime config is revalidated at most once per 30 seconds.
+    const AI_RUNTIME_CONFIG_TTL_MS = 30000;
+    async function ensureDirectApiKeyLoaded(force) {
+        const fresh = AI_CONFIG.directApi.configured
+            && (Date.now() - (AI_CONFIG.directApi.loadedAt || 0)) < AI_RUNTIME_CONFIG_TTL_MS;
+        if (!force && fresh) return;
         const configResponse = await fetch(getAiProxyUrl('ai_runtime_config'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
@@ -478,6 +484,7 @@
         if (!config.success) throw new Error(config.error || 'AI is not configured');
         if (!config.configured) throw new Error('AI API key is not configured');
         AI_CONFIG.directApi.configured = true;
+        AI_CONFIG.directApi.loadedAt = Date.now();
     }
     const AI_RETRYABLE_HTTP_STATUSES = new Set([408, 500, 502, 503, 504, 520, 521, 522, 523, 524]);
     const AI_COMPLETIONS_MAX_ATTEMPTS = 3;
@@ -671,9 +678,9 @@
         renderModelDropdownOptions();
         updateModelDropdownLabel();
     }
-    async function loadModelsFromApi() {
+    async function loadModelsFromApi(force) {
         if (!elements.modelSelect) return;
-        await ensureDirectApiKeyLoaded();
+        await ensureDirectApiKeyLoaded(force === true);
         let ids = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels.filter(Boolean) : [];
         if (ids.length === 0) {
             const response = await fetch(getAiProxyUrl('ai_models'), { method: 'GET', credentials: 'same-origin' });
@@ -2536,7 +2543,9 @@
         initCustomModelDropdown();
         initChatScrollbar();
         try {
-            await loadModelsFromApi();
+            // Force a fresh model list on every page load so admin-side config
+            // changes are picked up immediately.
+            await loadModelsFromApi(true);
         } catch (e) {
             console.warn('Failed to load models from API:', e);
             renderModelDropdownOptions();

@@ -494,6 +494,7 @@
                 if (modalId === 'add-steps-modal') {
                     if (opts.addTab) switchAddTab(opts.addTab);
                     else resetAddModalTabs();
+                    updateAdjacentDates(document.getElementById('selected-date-input').value, currentLocale);
                 }
                 if (modalId === 'video-confirm-modal' && !document.hidden) {
                     const vn = document.getElementById('video-recognition-notification');
@@ -1029,11 +1030,11 @@
         }
 
         // Functions for add steps modal
-        function applyManualDate(date, lang = currentLocale, direction = 'none') {
+        function applyManualDate(date, lang = currentLocale) {
             document.getElementById('selected-date-input').value = date;
             setStepsInputValue((stepsData.find(entry => entry.date === date) || { steps: 0 }).steps);
             manualSaveSignature = getManualSaveSignature();
-            updateAdjacentDates(date, lang, direction);
+            updateAdjacentDates(date, lang);
         }
         let manualSaveSignature = '';
         function getManualSaveSignature() {
@@ -1047,9 +1048,9 @@
             const direction = e.deltaY > 0 ? 'next' : 'prev';
             cur.setDate(cur.getDate() + (direction === 'next' ? 1 : -1));
             const newDateStr = formatLocalYMD(cur);
-            applyManualDate(newDateStr, currentLocale, direction);
+            applyManualDate(newDateStr, currentLocale);
         }
-        function updateAdjacentDates(date, lang = currentLocale, direction = 'none') {
+        function updateAdjacentDates(date, lang = currentLocale) {
             const dateObj = localDateFromYMD(date),
                   prevDates = [],
                   nextDates = [];
@@ -1059,8 +1060,10 @@
             const currentDateEl = addPanel ? addPanel.querySelector('.current-date') : null;
             const currentDateHeight = currentDateEl ? currentDateEl.getBoundingClientRect().height : 60;
             // Make adjacent dates fill most of the modal height (without relying on scroll)
+            const probe = document.querySelector('#prev-dates .adjacent-date, #next-dates .adjacent-date');
+            const rowHeight = probe ? probe.getBoundingClientRect().height + 10 : 42;
             const usable = Math.max(0, panelHeight - currentDateHeight - 20);
-            const count = Math.max(7, Math.min(18, Math.floor(usable / 36)));
+            const count = Math.max(3, Math.min(18, Math.floor(usable / (2 * rowHeight))));
 
             for (let i = 1; i <= count; i++) {
                 const prevDate = new Date(dateObj);
@@ -1096,10 +1099,7 @@
 
             document.querySelectorAll('.adjacent-date').forEach(el => {
                 el.addEventListener('click', () => {
-                    const newDate = el.getAttribute('data-date');
-                    const curDate = document.getElementById('selected-date-input').value;
-                    const direction = newDate > curDate ? 'next' : 'prev';
-                    applyManualDate(newDate, lang, direction);
+                    applyManualDate(el.getAttribute('data-date'), lang);
                 });
             });
         }
@@ -2941,45 +2941,6 @@
                 return '<div style="margin-bottom:12px;border-bottom:1px solid var(--border-color);padding-bottom:8px;"><div style="opacity:0.85;font-size:11px;margin-bottom:3px;"><b>' + videoEscapeHtml(tm) + '</b> · ' + videoEscapeHtml(dt) + ' · ' + videoEscapeHtml(translations.steps || 'Steps') + ': ' + videoEscapeHtml(st) + '</div><div>' + videoEscapeHtml(raw).replace(/\n/g, '<br>') + '</div></div>';
             }).join('');
         }
-        async function showVideoResultsConfirm(payload) {
-            pendingZeepJobId = null;
-            pendingVideoCleanup = { jobId: payload.jobId || '', outputBasename: payload.outputBasename || '' };
-            const raw = payload.results && payload.results.length ? payload.results : [];
-            pendingVideoOcrPreview = Array.isArray(payload.ocrPreview) ? payload.ocrPreview : (Array.isArray(payload.ocr_preview) ? payload.ocr_preview : []);
-            pendingVideoRows = [];
-            raw.forEach((r) => {
-                const d = videoResultRowResolvedDmy(r);
-                if (!d) return;
-                const s = parseInt(String(r.steps), 10);
-                if (isNaN(s) || s < 0) return;
-                pendingVideoRows.push({ date: d, steps: s, t: (r.t_display != null && r.t_display !== '') ? String(r.t_display) : '' });
-            });
-            const subEl = document.getElementById('video-confirm-sub');
-            const emptyHint = document.getElementById('video-confirm-empty-hint');
-            const otitle = document.getElementById('video-confirm-ocr-title');
-            const titleEl = document.getElementById('video-confirm-title');
-            const phoneGuide = document.getElementById('video-confirm-phone-guide-segment');
-            if (phoneGuide) phoneGuide.style.display = '';
-            if (titleEl) titleEl.innerHTML = '<i class="fas fa-clipboard-list"></i> ' + videoEscapeHtml(translations.video_confirm_title || 'Recognized steps');
-            if (subEl) subEl.textContent = translations.video_confirm_sub || '';
-            if (emptyHint) {
-                emptyHint.style.display = !pendingVideoRows.length ? '' : 'none';
-                emptyHint.textContent = translations.video_none_recognized || translations.video_no_data || '';
-            }
-            if (otitle) otitle.textContent = translations.video_ocr_preview_heading || 'OCR samples';
-            renderVideoConfirmOcrBlock();
-            const imb = document.getElementById('video-confirm-import');
-            if (imb) {
-                imb.textContent = translations.video_add_to_app || 'Add to app';
-                imb.disabled = !pendingVideoRows.length;
-                imb.style.opacity = pendingVideoRows.length ? '1' : '0.55';
-            }
-            renderVideoConfirmTableBody();
-            closeModal('add-steps-modal');
-            openModal('video-confirm-modal');
-            requestAnimationFrame(function() { renderVideoConfirmChart(pendingVideoRows); });
-        }
-
         function videoNotifUserKey() {
             return 'stepsVNotifZ_' + String(currentUser || 'u').replace(/[^a-z0-9_\-]/gi, '_');
         }
@@ -3038,11 +2999,18 @@
             startStepsDataRefreshLoop();
             document.addEventListener('visibilitychange', function() { if (!document.hidden) { workerRefreshStates(); refreshStepsDataIfChanged(); } });
             let chartLabelsHideState = window.matchMedia('(max-width: 768px)').matches;
+            let adjacentResizeTimer = null;
             window.addEventListener('resize', function() {
                 const state = window.matchMedia('(max-width: 768px)').matches;
                 if (state !== chartLabelsHideState) {
                     chartLabelsHideState = state;
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                }
+                if (document.getElementById('add-steps-modal')?.style.display !== 'none') {
+                    clearTimeout(adjacentResizeTimer);
+                    adjacentResizeTimer = setTimeout(() => {
+                        updateAdjacentDates(document.getElementById('selected-date-input').value, currentLocale);
+                    }, 120);
                 }
             });
 
@@ -3592,11 +3560,6 @@
 
             // Date scroll
             document.getElementById('selected-date-input').addEventListener('wheel', handleDateWheelScroll);
-
-            // Prevent scrolling in adjacent dates
-            document.querySelectorAll('.adjacent-dates').forEach(container => {
-                container.addEventListener('wheel', e => e.preventDefault());
-            });
 
             // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {

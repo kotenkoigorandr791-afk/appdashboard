@@ -138,7 +138,7 @@ if ($action === 'get_state') {
 }
 
 if ($action === 'get_properties') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $base = user_root($user, get_requested_root_key());
   $path = safe_path((string)($_GET['path'] ?? ''));
   $fullPath = $base . '/' . $path;
@@ -765,7 +765,7 @@ if ($action === 'sync_manifest_client') {
 }
 
 if ($action === 'rename') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
   cloud_group_require_write($rootKey);
   $old_path = safe_path((string)($_POST['old_path'] ?? ''));
@@ -849,7 +849,7 @@ function cloud_create_initial_file(string $full, string $ext): bool {
 }
 
 if ($action === 'create_file') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
   cloud_group_require_write($rootKey);
   $base = user_root($user, $rootKey);
@@ -1383,7 +1383,7 @@ if ($action === 'video_generation_worker' && PHP_SAPI === 'cli') {
 }
 
 if ($action === 'view_word') {
-    $user = get_current_user_from_sessions();;
+    $user = get_current_user_from_sessions();
     $rootKey = get_requested_root_key();
     $base = user_root($user, $rootKey);
     $path = safe_path((string)($_GET['path'] ?? ''));
@@ -1450,7 +1450,7 @@ if ($action === 'view_word') {
 }
 
 if ($action === 'view_excel') {
-    $user = get_current_user_from_sessions();;
+    $user = get_current_user_from_sessions();
     $rootKey = get_requested_root_key();
     $base = user_root($user, $rootKey);
     $path = safe_path((string)($_GET['path'] ?? ''));
@@ -1513,7 +1513,7 @@ if ($action === 'view_excel') {
 }
 
 if ($action === 'view_presentation') {
-    $user = get_current_user_from_sessions();;
+    $user = get_current_user_from_sessions();
     $rootKey = get_requested_root_key();
     $base = user_root($user, $rootKey);
     $path = safe_path((string)($_GET['path'] ?? ''));
@@ -1608,7 +1608,7 @@ if ($action === 'get_user_role') {
 }
 
 if ($action === 'save_file') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $path = safe_path((string)($_POST['path'] ?? ''));
   $content = (string)($_POST['content'] ?? '');
   $baseRevision = trim((string)($_POST['base_revision'] ?? ''));
@@ -1718,7 +1718,7 @@ if ($action === 'office_download') {
 }
 
 if ($action === 'list') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
   if ($rootKey === 'trash') {
     $trashBase = user_root($user, 'trash');
@@ -2014,7 +2014,7 @@ if ($action === 'upload') {
 }
 
 if ($action === 'delete') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
   cloud_group_require_write($rootKey);
   $path = safe_path((string)($_POST['path'] ?? ''));
@@ -2203,7 +2203,7 @@ if ($action === 'download_stream') {
 }
 
 if ($action === 'open') {
-  $user = get_current_user_from_sessions();;
+  $user = get_current_user_from_sessions();
   $rootKey = get_requested_root_key();
   $base = user_root($user, $rootKey);
   $path = safe_path((string)($_GET['path'] ?? ''));
@@ -2514,18 +2514,6 @@ function cloud_archive_cancelled_job(string $jobId, ?string $path = null): void 
         if (is_file($tmp)) @unlink($tmp);
     }
     cloud_archive_write_job($jobId, ['status' => 'cancelled', 'progress' => 100, 'payload' => [], 'worker_token' => '']);
-}
-function cloud_archive_safe_extract_path(string $base, string $name): ?string {
-    $name = str_replace('\\', '/', $name);
-    $name = ltrim($name, '/');
-    if ($name === '' || preg_match('#(^|/)\.\.(/|$)#', $name)) return null;
-    $target = $base . '/' . $name;
-    $dir = dirname($target);
-    if (!is_dir($dir)) @mkdir($dir, 0775, true);
-    $realBase = realpath($base);
-    $realDir = realpath($dir);
-    if (!$realBase || !$realDir || strpos($realDir, $realBase) !== 0) return null;
-    return $target;
 }
 function cloud_archive_command_path(string $command): string {
     $fallbacks = [
@@ -2972,122 +2960,6 @@ if ($action === 'create_archive') {
         'size' => filesize($archive_path),
         'errors' => null
     ]);
-    
-    // Sanitize the archive name
-    $archive_name = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $archive_name);
-    if (!str_ends_with(strtolower($archive_name), '.zip')) {
-        $archive_name .= '.zip';
-    }
-    
-    // Path to save the archive (in the user root)
-    $archive_path = $base . '/' . $archive_name;
-    
-    // Check if an archive with this name already exists
-    if (file_exists($archive_path)) {
-        // Add a timestamp to the name
-        $path_info = pathinfo($archive_name);
-        $archive_name = $path_info['filename'] . '_' . time() . '.' . $path_info['extension'];
-        $archive_path = $base . '/' . $archive_name;
-    }
-    
-    // Check if the ZipArchive class is available
-    if (!class_exists('ZipArchive')) {
-        json_out(['error' => 'Zip extension not available'], 500);
-    }
-    
-    // Create the ZIP archive
-    $zip = new ZipArchive();
-    if ($zip->open($archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
-        json_out(['error' => 'Failed to create archive'], 500);
-    }
-    
-    $added_count = 0;
-    $errors = [];
-    
-    foreach ($items as $item) {
-        $item = safe_path($item);
-        if (empty($item)) continue;
-        
-        $full_path = $base . '/' . $item;
-        
-        if (!file_exists($full_path)) {
-            $errors[] = "File not found: $item";
-            continue;
-        }
-        
-        if (is_dir($full_path)) {
-            // Add the folder recursively
-            try {
-                $directory = new RecursiveDirectoryIterator(
-                    $full_path,
-                    RecursiveDirectoryIterator::SKIP_DOTS
-                );
-                
-                $iterator = new RecursiveIteratorIterator(
-                    $directory,
-                    RecursiveIteratorIterator::SELF_FIRST
-                );
-                
-                foreach ($iterator as $file) {
-                    /** @var SplFileInfo $file */
-                    $file_path = $file->getPathname();
-                    
-                    // Get the relative path from the root of the archived folder
-                    $relative_path = $item . '/' . substr($file_path, strlen($full_path) + 1);
-                    $relative_path = str_replace('\\', '/', $relative_path);
-                    
-                    if ($file->isDir()) {
-                        // Create an empty directory in the archive
-                        if (!empty($relative_path)) {
-                            $zip->addEmptyDir($relative_path);
-                        }
-                    } else {
-                        // Add the file
-                        if ($zip->addFile($file_path, $relative_path)) {
-                            $added_count++;
-                        }
-                    }
-                }
-            } catch (Exception $e) {
-                $errors[] = "Error adding folder $item: " . $e->getMessage();
-            }
-        } else {
-            // Add the file
-            if ($zip->addFile($full_path, $item)) {
-                $added_count++;
-            } else {
-                $errors[] = "Failed to add file: $item";
-            }
-        }
-    }
-    
-    // Close the archive
-    $zip->close();
-    
-    // Check the result
-    if (file_exists($archive_path) && filesize($archive_path) > 0) {
-        $emailArch = get_session_email();
-        // Only invalidate cache for main root, not for hidden roots
-        if ($emailArch && $rootKey === 'main') invalidate_file_tree($emailArch);
-        if ($emailArch) append_sync_log($emailArch, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
-        json_out([
-            'success' => true,
-            'archive_path' => $archive_name,
-            'message' => 'Archive created successfully',
-            'items_count' => $added_count,
-            'size' => filesize($archive_path),
-            'errors' => empty($errors) ? null : $errors
-        ]);
-    } else {
-        // Delete the empty archive if it was created
-        if (file_exists($archive_path) && filesize($archive_path) == 0) {
-            @unlink($archive_path);
-        }
-        json_out([
-            'error' => 'Failed to create archive',
-            'details' => empty($errors) ? 'Unknown error' : implode("\n", $errors)
-        ], 500);
-    }
 }
 
 if ($action === 'pdf_stream') {
@@ -3444,76 +3316,6 @@ if ($action === 'extract_archive') {
         'extracted_to' => $extract_to === '' ? dirname($archive_path) : $extract_to,
         'extracted_files_count' => $extracted_count
     ]);
-    
-    // Check that this is a ZIP file
-    $extension = strtolower(pathinfo($full_archive_path, PATHINFO_EXTENSION));
-    if ($extension !== 'zip') {
-        json_out(['error' => 'Not a ZIP file'], 400);
-    }
-    
-    // Check if the ZipArchive class is available
-    if (!class_exists('ZipArchive')) {
-        json_out(['error' => 'Zip extension not available'], 500);
-    }
-    
-    // Determine the extraction path
-    if ($extract_to === '') {
-        // Extract to the same folder where the archive is located
-        $extract_full_path = dirname($full_archive_path);
-    } else {
-        $extract_full_path = $base . '/' . $extract_to;
-        
-        // Create the extraction folder if it does not exist
-        if (!is_dir($extract_full_path)) {
-            @mkdir($extract_full_path, 0775, true);
-        }
-    }
-    
-    // Check that the extraction folder exists and is writable
-    if (!is_dir($extract_full_path) || !is_writable($extract_full_path)) {
-        json_out(['error' => 'Extraction directory not writable'], 500);
-    }
-    
-    // Create a ZipArchive object
-    $zip = new ZipArchive();
-    $result = $zip->open($full_archive_path);
-    
-    if ($result === TRUE) {
-        // Extract the archive
-        if ($zip->extractTo($extract_full_path)) {
-            $zip->close();
-            
-            // Get the list of extracted files for info
-            $extracted_files = [];
-            $archive = new ZipArchive();
-            if ($archive->open($full_archive_path) === TRUE) {
-                for ($i = 0; $i < $archive->numFiles; $i++) {
-                    $filename = $archive->getNameIndex($i);
-                    if ($filename && !str_ends_with($filename, '/')) { // Exclude folders
-                        $extracted_files[] = $filename;
-                    }
-                }
-                $archive->close();
-            }
-
-            $emailEx = get_session_email();
-            // Only invalidate cache for main root, not for hidden roots
-            if ($emailEx && $rootKey === 'main') invalidate_file_tree($emailEx);
-            if ($emailEx) append_sync_log($emailEx, $rootKey, 'extract_archive', $archive_path, 'INFO', 'Archive extracted');
-            json_out([
-                'success' => true,
-                'message' => 'Archive extracted successfully',
-                'extracted_to' => $extract_to === '' ? dirname($archive_path) : $extract_to,
-                'extracted_files_count' => count($extracted_files),
-                'extracted_files' => $extracted_files
-            ]);
-        } else {
-            $zip->close();
-            json_out(['error' => 'Extraction failed'], 500);
-        }
-    } else {
-        json_out(['error' => 'Cannot open archive file'], 500);
-    }
 }
 
 if ($action === 'archive_folder') {
@@ -3564,97 +3366,15 @@ if ($action === 'archive_folder') {
         'files_count' => $added_count,
         'size' => filesize($archive_path)
     ]);
-    
-    // Check if the ZipArchive class is available
-    if (!class_exists('ZipArchive')) {
-        json_out(['error' => 'Zip extension not available'], 500);
-    }
-    
-    // Create the archive name
-    $folder_name = basename($folder_path);
-    $archive_name = $folder_name . '_' . date('Y-m-d_H-i-s') . '.zip';
-    $archive_path = dirname($full_path) . '/' . $archive_name;
-    
-    // Check if an archive with this name already exists
-    if (file_exists($archive_path)) {
-        json_out(['error' => 'Archive already exists'], 409);
-    }
-    
-    // Create the ZIP archive
-    $zip = new ZipArchive();
-    if ($zip->open($archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE) === TRUE) {
-        
-        // Create a recursive iterator to traverse all files and folders
-        $directory = new RecursiveDirectoryIterator(
-            $full_path,
-            RecursiveDirectoryIterator::SKIP_DOTS
-        );
-        
-        $iterator = new RecursiveIteratorIterator(
-            $directory,
-            RecursiveIteratorIterator::SELF_FIRST // Important: folders first, then files
-        );
-        
-        $added_count = 0;
-        
-        foreach ($iterator as $item) {
-            /** @var SplFileInfo $item */
-            $item_path = $item->getPathname();
-            
-            // Get the relative path from the root of the archived folder
-            // Fixed: use getPathname() instead of getRealPath() and compute the relative path correctly
-            $relative_path = substr($item_path, strlen($full_path) + 1);
-            
-            // Normalize path separators for ZIP (always use /)
-            $relative_path = str_replace('\\', '/', $relative_path);
-            
-            if ($item->isDir()) {
-                // Create an empty directory in the archive
-                if (!empty($relative_path)) { // Do not create an empty string for the root
-                    $zip->addEmptyDir($relative_path);
-                }
-            } else {
-                // Add the file with its relative path
-                if ($zip->addFile($item_path, $relative_path)) {
-                    $added_count++;
-                }
-            }
-        }
-        
-        // Close the archive
-        $zip->close();
-        
-        // Check the result
-        if (file_exists($archive_path) && filesize($archive_path) > 0) {
-            $emailArch2 = get_session_email();
-            // Only invalidate cache for main root, not for hidden roots
-            if ($emailArch2 && $rootKey === 'main') invalidate_file_tree($emailArch2);
-            if ($emailArch2) append_sync_log($emailArch2, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
-            json_out([
-                'success' => true,
-                'archive_path' => dirname($folder_path) . '/' . $archive_name,
-                'archive_name' => $archive_name,
-                'message' => 'Archive created successfully',
-                'size' => filesize($archive_path),
-                'files_count' => $added_count
-            ]);
-        } else {
-            json_out(['error' => 'Failed to create archive file'], 500);
-        }
-    } else {
-        json_out(['error' => 'Failed to create archive'], 500);
-    }
 }
 
 if ($action === 'convert_file') {
-    $user = get_current_user_from_sessions();;
+    $user = get_current_user_from_sessions();
     $rootKey = get_requested_root_key();
     $base = user_root($user, $rootKey);
     $source_path = safe_path((string)($_POST['source_path'] ?? ''));
     $target_format = (string)($_POST['target_format'] ?? '');
     $output_path = safe_path((string)($_POST['output_path'] ?? ''));
-    $delete_original = (bool)($_POST['delete_original'] ?? false);
-    
     $delete_original = filter_var($_POST['delete_original'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
     if ($source_path === '' || $target_format === '') {

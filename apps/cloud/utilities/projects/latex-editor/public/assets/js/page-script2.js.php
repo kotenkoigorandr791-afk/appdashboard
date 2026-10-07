@@ -2125,13 +2125,6 @@
       }
     }
     
-    function showMobileHint(message, duration = 3000) {
-      if (!isMobile || isTablet) return;
-      const hint = document.getElementById('mobile-hint');
-      hint.textContent = message;
-      document.body.classList.add('mobile-hint-visible');
-      setTimeout(() => { document.body.classList.remove('mobile-hint-visible'); }, duration);
-    }
     
     function initDropdowns() {
     const templateBtn = document.getElementById('template-btn');

@@ -75,15 +75,6 @@ function shmw_normalize_param_value(array $param, mixed $value): mixed {
     if (is_array($value)) return json_encode($value, JSON_UNESCAPED_UNICODE);
     return (string)$value;
 }
-function shmw_controls_map(array $controls): array {
-    $out = [];
-    foreach ($controls as $control) {
-        if (!is_array($control)) continue;
-        $id = (string)($control['id'] ?? '');
-        if ($id !== '') $out[$id] = $control['value'] ?? null;
-    }
-    return $out;
-}
 function shmw_pending_control_ids(AppDatabase $db, string $deviceId): array {
     $ids = [];
     $stmt = $db->prepare('SELECT control_id FROM smarthome_control_queue WHERE device_id = :id AND expires_at > :now');

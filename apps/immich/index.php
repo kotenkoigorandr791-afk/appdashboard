@@ -9,6 +9,10 @@ require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
 if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
+    // Embedded documents must never get a silent login: show an explicit action.
+    if (app_is_embedded_request()) {
+        app_embedded_login_notice_html(oauth_login_url());
+    }
     oauth_redirect_html(oauth_login_url());
 }
 if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {

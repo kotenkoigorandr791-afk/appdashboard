@@ -529,24 +529,6 @@ function sh_mqtt_publish_command(AppDatabase $db, string $deviceId, string $cont
     }
 }
 
-function sh_wait_for_control_result(string $requestId, float $timeoutSeconds = 7.0): ?array {
-    $db = sh_db();
-    $deadline = microtime(true) + $timeoutSeconds;
-    while (microtime(true) < $deadline) {
-        $stmt = $db->prepare('SELECT result_json FROM smarthome_control_results WHERE id = :id');
-        $stmt->bindValue(':id', $requestId, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($row) {
-            $del = $db->prepare('DELETE FROM smarthome_control_results WHERE id = :id');
-            $del->bindValue(':id', $requestId, PDO::PARAM_STR);
-            $del->execute();
-            return json_decode($row['result_json'] ?: '{}', true) ?: [];
-        }
-        usleep(100000);
-    }
-    return null;
-}
-
 function sh_json_field(mixed $v, array $default = []): array {
     if (is_array($v)) return $v;
     if (!is_string($v) || $v === '') return $default;
@@ -654,10 +636,6 @@ function sh_controls_to_map(array $controls): array {
         if ($id !== '') $map[$id] = $c['value'] ?? null;
     }
     return $map;
-}
-
-function sh_should_apply_definition(array $device): bool {
-    return ((string)($device['type'] ?? '')) === 'pending';
 }
 
 function sh_apply_device_definition(array $device, array $definition): array {
@@ -848,10 +826,6 @@ function sh_push_local_control(array $device, string $controlId, mixed $value): 
         usleep(150000);
     }
     return false;
-}
-
-function sh_push_local_gp(array $device, string $controlId, mixed $value): bool {
-    return sh_push_local_control($device, $controlId, $value);
 }
 
 function sh_deliver_control(AppDatabase $db, string $userEmail, string $deviceId, string $controlId, mixed $value, array $device): array {
@@ -1288,34 +1262,6 @@ function sh_ws_encode_frame(string $payload, int $opcode = 0x1): string {
         $masked .= $payload[$i] ^ $mask[$i % 4];
     }
     return $header . $mask . $masked;
-}
-
-function sh_ws_decode_frame($socket, float $timeoutSeconds = 2.0): ?array {
-    if (!sh_ws_wait_for_data($socket, $timeoutSeconds)) {
-        return null;
-    }
-    $header = sh_ws_read_exact($socket, 2);
-    $first = ord($header[0]);
-    $second = ord($header[1]);
-    $opcode = $first & 0x0F;
-    $masked = ($second & 0x80) !== 0;
-    $length = $second & 0x7F;
-    if ($length === 126) {
-        $length = unpack('n', sh_ws_read_exact($socket, 2))[1];
-    } elseif ($length === 127) {
-        $parts = unpack('Nhigh/Nlow', sh_ws_read_exact($socket, 8));
-        $length = ((int)$parts['high'] << 32) | (int)$parts['low'];
-    }
-    $mask = $masked ? sh_ws_read_exact($socket, 4) : '';
-    $payload = $length > 0 ? sh_ws_read_exact($socket, $length) : '';
-    if ($masked) {
-        $decoded = '';
-        for ($i = 0; $i < $length; $i++) {
-            $decoded .= $payload[$i] ^ $mask[$i % 4];
-        }
-        $payload = $decoded;
-    }
-    return ['opcode' => $opcode, 'payload' => $payload];
 }
 
 function sh_ws_send_json($socket, array $payload): void {
@@ -2576,7 +2522,6 @@ if (!is_file($migrationFlag) && !is_file($legacyMigrationFlag)) {
 $t = ap_load_i18n_from_dir(SH_APP_DIR, $lang);
 $GLOBALS['_t_i18n'] = $t;
 $availableIcons = ['smart-device','light-bulb','torch','lamp','smart-plug','sensor','climate','fan','kettle','security'];
-$availableTypes = ['pending','generic_sensor','smart_torch','smart_lamp','smart_socket','sonoff_relay'];
 $typeNames = [
     'generic_sensor'=>$t['type_generic_sensor'],
     'smart_torch'=>$t['type_smart_torch'],

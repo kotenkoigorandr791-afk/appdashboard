@@ -114,15 +114,6 @@ function handleIframeResize() {
         }, 150);
     }
 }
-function updateTabPathAfterSave(tabId, newRelativePath) {
-    const tab = tabsState.tabs.find(t => t.id === tabId);
-    if (tab) {
-        tab.path = newRelativePath;
-        tab.title = newRelativePath.split('/').pop();
-        renderTabs();
-        saveTabsState();
-    }
-}
 function updateToolbarForPhotoEditor() {
     const saveBtn = document.getElementById('btn-save');
     const codeActionsBtn = document.getElementById('btn-code-actions');
@@ -910,24 +901,6 @@ function selectFolderForMove(folderPath) {
         pathDisplay.textContent = folderPath || (isCloudGroupRoot(rootKey) ? (getCloudRootDisplayName(rootKey) + '/') : '/');
     }
     window.selectedMoveFolder = folderPath;
-}
-async function loadFoldersForMove() {
-    try {
-        const allFolders = await getAllFoldersRecursive('');
-        const select = document.getElementById('target-folder-select');
-        while (select.children.length > 1) {
-            select.removeChild(select.lastChild);
-        }
-        allFolders.forEach(folder => {
-            const option = document.createElement('option');
-            option.value = folder.path;
-            option.textContent = folder.path || '/';
-            select.appendChild(option);
-        });
-    } catch (err) {
-        console.error('Failed to load folders:', err);
-        flashStatus(t(i18n, 'folderListError'));
-    }
 }
 let expandedFolders = new Set();
 let treeBrowsePath = '';
@@ -1898,11 +1871,6 @@ async function getAllFoldersRecursive(path) {
         folders = folders.concat(await getAllFoldersRecursive(folder.path));
     }
     return folders;
-}
-function updateCurrentFolderPath() {
-    const select = document.getElementById('target-folder-select');
-    const pathDisplay = document.getElementById('current-folder-path');
-    pathDisplay.textContent = select.value || '/';
 }
 async function confirmMove(sourcePath, modal) {
     const isCopy = window.transferDialogMode === 'copy';

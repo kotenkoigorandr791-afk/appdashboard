@@ -66,10 +66,8 @@ if (!isset($_SESSION['user']['role']) || (int)$_SESSION['user']['role'] < 2) {
 }
 
 // ── Embed mode support ───────────────────────────────────────────────────────
-function dbAdminIsEmbeddedRequest(): bool {
-    if (isset($_GET['embed']) && $_GET['embed'] === '1') { return true; }
-    return isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] === 'iframe';
-}
+require_once __DIR__ . '/lib/embed_context.php';
+function dbAdminIsEmbeddedRequest(): bool { return app_is_embedded_request(); }
 $embedMode = dbAdminIsEmbeddedRequest();
 
 $userRole = (int)($_SESSION['user']['role'] ?? 0);

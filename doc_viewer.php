@@ -8,10 +8,8 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/smart_log.php';
 smart_log_bootstrap('dashboard');
 // Check if embedded request
-function docViewerIsEmbeddedRequest(): bool {
-    if (isset($_GET['embed']) && $_GET['embed'] === '1') { return true; }
-    return isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] === 'iframe';
-}
+require_once __DIR__ . '/lib/embed_context.php';
+function docViewerIsEmbeddedRequest(): bool { return app_is_embedded_request(); }
 
 // Deny access helper
 function docViewerDeny(int $httpCode, string $htmlMsg, string $jsonMsg = ''): void {

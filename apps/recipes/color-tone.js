@@ -21,5 +21,5 @@ window.RecipeColorTone = (() => {
         root.style.setProperty('--btn-border-color', shade(primary, 0.58));
         root.style.setProperty('--btn-gradient-end', shade(primary, 0.8));
     };
-    return { apply, mix, shade };
+    return { apply };
 })();

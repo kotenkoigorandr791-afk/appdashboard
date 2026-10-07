@@ -5,10 +5,6 @@ function cloud_group_chat_media_folder(): string
 {
     return '.chat_media';
 }
-function cloud_group_chat_media_rel(string $groupId): string
-{
-    return cloud_group_storage_rel($groupId) . '/' . cloud_group_chat_media_folder();
-}
 function cloud_is_hidden_group_tree_path(string $path): bool
 {
     $normalized = ltrim(str_replace('\\', '/', trim($path)), '/');

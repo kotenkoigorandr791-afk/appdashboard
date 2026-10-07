@@ -71,50 +71,7 @@ if (!is_dir(STORAGE_DIR)) {
 }
 
 // Helper functions for tracking file changes
-function getDirectorySnapshot($dir) {
-    $snapshot = [];
-    if (!is_dir($dir)) return $snapshot;
-    
-    $files = glob($dir . '/*');
-    foreach ($files as $file) {
-        if (is_file($file)) {
-            $snapshot[basename($file)] = [
-                'mtime' => filemtime($file),
-                'size' => filesize($file)
-            ];
-        }
-    }
-    return $snapshot;
-}
 
-function detectFileChanges($before, $after, $dir) {
-    $changes = [];
-    $relativeBase = str_replace(STORAGE_DIR . '/', '', $dir . '/');
-    
-    // New files
-    foreach ($after as $file => $info) {
-        if (!isset($before[$file])) {
-            $changes[] = [
-                'action' => 'created',
-                'file' => $file,
-                'path' => str_replace('\\', '/', $relativeBase . $file)
-            ];
-        }
-    }
-    
-    // Deleted files
-    foreach ($before as $file => $info) {
-        if (!isset($after[$file])) {
-            $changes[] = [
-                'action' => 'deleted',
-                'file' => $file,
-                'path' => str_replace('\\', '/', $relativeBase . $file)
-            ];
-        }
-    }
-    
-    return $changes;
-}
 
 function executeCommand($command, $workingDir, $input = null, $timeout = MAX_EXECUTION_TIME, $mergeStderr = true) {
     try {

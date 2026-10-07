@@ -148,23 +148,6 @@ def extract_json_object(text):
         return data if isinstance(data,dict) else None
     except Exception:
         return None
-def extract_json_payload(text):
-    text=str(text or "").strip()
-    if not text:
-        return None
-    if text.startswith("```"):
-        text=re.sub(r"^```(?:json)?\s*|\s*```$","",text,flags=re.I|re.S).strip()
-    try:
-        return json.loads(text)
-    except Exception:
-        pass
-    candidates=re.findall(r"(\[[\s\S]*\]|\{[\s\S]*\})",text)
-    for candidate in candidates:
-        try:
-            return json.loads(candidate)
-        except Exception:
-            continue
-    return None
 
 def ocr_wallet_record_texts(path):
     try:
@@ -436,9 +419,6 @@ def is_valid_merchant_line(line):
     if letters<2:
         return False
     return True
-def find_merchant_back(lines,idx):
-    merchant,_=find_merchant_back_with_date(lines,idx,datetime.utcnow().strftime("%Y-%m-%d"))
-    return merchant
 def find_merchant_back_with_date(lines,idx,default_date):
     for j in range(idx-1,-1,-1):
         t=lines[j]
@@ -598,33 +578,6 @@ def extract_wallet_transactions(lines,default_date):
                 last_date=date_hint
         i+=1
     return txs
-def parse_date(text,default_date):
-    m_iso=re.search(r"\b(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})\b",text)
-    if m_iso:
-        y,m,d=int(m_iso.group(1)),int(m_iso.group(2)),int(m_iso.group(3))
-        try:
-            return datetime(y,m,d).strftime("%Y-%m-%d")
-        except ValueError:
-            pass
-    m_eu=re.search(r"\b(\d{1,2})[-/.](\d{1,2})[-/.](20\d{2})\b",text)
-    if m_eu:
-        d,m,y=int(m_eu.group(1)),int(m_eu.group(2)),int(m_eu.group(3))
-        try:
-            return datetime(y,m,d).strftime("%Y-%m-%d")
-        except ValueError:
-            pass
-    m_word=re.search(r"\b(\d{1,2})\s+([A-Za-zА-Яа-яІіЇїЄє]{3,12})\b",text)
-    if m_word:
-        d=int(m_word.group(1))
-        mon=strip_diacritics(m_word.group(2).lower())[:3]
-        month=MONTHS.get(mon)
-        if month:
-            y=datetime.utcnow().year
-            try:
-                return datetime(y,month,d).strftime("%Y-%m-%d")
-            except ValueError:
-                pass
-    return default_date
 def ocr_signature(date,store,amount,raw):
     payload=f"{date}|{normalize_space(store).lower()}|{amount:.2f}|{normalize_space(raw).lower()}"
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
@@ -667,40 +620,6 @@ def best_store_match(merchant,existing,min_score=0.72):
 
 def best_store_label_match(label,existing,min_score=0.84):
     return best_store_match(label,existing,min_score)
-def resolve_store_match(merchant,existing,ocr_text=""):
-    matched,score=best_store_label_match(merchant,existing)
-    if matched:
-        return {"matched":matched,"confidence":score}
-    classifier_result=get_merchant_classifier().classify(merchant)
-    suggested=""
-    alias=""
-    if classifier_result.merchant!="OTHER":
-        suggested=display_catalog_merchant(classifier_result.merchant)
-        alias=classifier_result.alias
-        matched,score=best_store_label_match(suggested,existing)
-        if matched:
-            return {"matched":matched,"confidence":max(score,classifier_result.score),"suggested_store":suggested,"matched_alias":alias}
-    matched,score=best_store_match(merchant,existing)
-    if matched:
-        payload={"matched":matched,"confidence":score}
-        if suggested:
-            payload["suggested_store"]=suggested
-        if alias:
-            payload["matched_alias"]=alias
-        return payload
-    ai_match=ai_resolve_store_match(merchant,existing,ocr_text)
-    if ai_match:
-        if suggested and not ai_match.get("suggested_store"):
-            ai_match["suggested_store"]=suggested
-        if alias:
-            ai_match["matched_alias"]=alias
-        return ai_match
-    payload={"matched":None,"confidence":max(score,classifier_result.score if suggested else 0.0)}
-    if suggested:
-        payload["suggested_store"]=suggested
-    if alias:
-        payload["matched_alias"]=alias
-    return payload
 def fetch_rates(base):
     with urlopen(f"https://api.exchangerate-api.com/v4/latest/{base}",timeout=10) as resp:
         payload=json.loads(resp.read().decode("utf-8"))
@@ -711,15 +630,6 @@ def convert_to_base(amount,src,base,rates):
     if src not in rates or not rates[src]:
         raise ValueError(f"no_rate_{src}_to_{base}")
     return amount/float(rates[src])
-def ensure_store(conn,name):
-    cur=conn.execute("SELECT id FROM stores WHERE name=?",(name,))
-    row=cur.fetchone()
-    if row:
-        return
-    max_ord=conn.execute("SELECT COALESCE(MAX(sort_order),0)+1 FROM stores").fetchone()[0]
-    conn.execute("INSERT OR IGNORE INTO stores(id,name,visible,sort_order) VALUES(?,?,1,?)",(str(int(time.time()*1000)),name,int(max_ord)))
-def upsert_expense(conn,date,store,amount):
-    conn.execute("INSERT INTO expenses(date,store,amount) VALUES(?,?,?) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2)",(date,store,amount))
 def db_row_value(row,key,index=0):
     if isinstance(row,dict):
         return row.get(key)

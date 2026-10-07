@@ -721,6 +721,18 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             opacity:.86;
             font-size:13px;
             margin:8px 0 6px;
+            overflow:hidden;
+            max-height:40px;
+            transition:opacity .3s ease, max-height .3s ease, margin .3s ease, visibility .3s ease;
+        }
+        /* Smoothly collapsed state (e.g. root@root typed on the login form) */
+        .checkbox-label.remember-hidden{
+            opacity:0;
+            max-height:0;
+            margin-top:0;
+            margin-bottom:0;
+            visibility:hidden;
+            pointer-events:none;
         }
         .checkbox-label input{display:none;}
         .checkmark{
@@ -1815,6 +1827,27 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
     .checkbox:active ~ .checkbox-box {
       transform: scale(0.9);
     }
+
+    /* ── Cloudflare Turnstile (adaptive captcha) ── */
+    .ap-turnstile-slot {
+      display: flex;
+      justify-content: center;
+      margin: 0 0 12px;
+    }
+    .ap-turnstile-slot:empty {
+      display: none;
+    }
+    .ap-turnstile-hp {
+      position: absolute;
+      left: -9999px;
+      top: auto;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+    .ap-turnstile-hp label {
+      display: block;
+    }
  </style>
 
 <style>
@@ -2317,7 +2350,9 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             align-items: center;
             gap: 18px;
             text-align: center;
-            padding: 42px 24px;
+            /* Reserve room for the absolutely positioned close/settings/wind
+               buttons hanging at top:24px (36px tall → bottom edge at 60px). */
+            padding: 72px 24px 24px;
             opacity: 0.86;
         }
         .weather-loading {
@@ -3049,6 +3084,7 @@ endif; // showOtpPage
                 <p style="font-size:14px;opacity:.7;margin:0 0 20px 0;line-height:1.5;"><?php echo my_htmlspecialchars($translations['email_not_verified_desc']); ?></p>
                 <form method="post" action="/register">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($reVerifyEmail??$pendingGoogleData['email']); ?>">
+                    <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
                 </form>
                 <div style="margin-top:15px;"><a href="/login" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['back_to_login']); ?></a></div>
@@ -3101,6 +3137,7 @@ endif; // showOtpPage
                         </button>
                     </div>
                     <div id="register-password-match-msg" style="font-size:13px;margin:-6px 0 8px 0;min-height:18px;text-align:left;"></div>
+                    <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="register_complete" class="auth-button" disabled><?php echo my_htmlspecialchars(!empty($_SESSION['pending_set_password_only']) ? $translations['save'] : $translations['register']); ?></button>
                 </form>
                 <div style="text-align:center;margin-top:15px;">
@@ -3119,6 +3156,7 @@ endif; // showOtpPage
                 <p style="text-align:center;margin:20px 0;"><?php echo my_htmlspecialchars($verificationEmail); ?></p>
                 <form method="post" action="/register" style="text-align:center;margin-bottom:16px;">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($verificationEmail ?? ''); ?>">
+                    <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
                 </form>
                 <div style="text-align:center;margin-top:15px;">
@@ -3134,6 +3172,7 @@ endif; // showOtpPage
                 <p style="font-size:14px;opacity:.7;margin:0 0 20px 0;line-height:1.5;"><?php echo my_htmlspecialchars($translations['email_not_verified_desc']); ?></p>
                 <form method="post" action="/login">
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($reVerifyEmail??''); ?>">
+                    <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
                 </form>
                 <div style="margin-top:15px;"><span class="auth-link" onclick="location.href='/login'"><?php echo my_htmlspecialchars($translations['back_to_login']); ?></span></div>
@@ -3231,7 +3270,8 @@ endif; // showOtpPage
             <div id="forgot-content" class="auth-content">
                 <?php if(!isset($showResetForm)||!$showResetForm):?>
                     <form method="post" action="/login">
-                        <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" required>
+                        <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo my_htmlspecialchars(is_string($_POST['email']??'')?$_POST['email']:''); ?>" required>
+                        <?php turnstile_form_started('reset'); echo turnstile_render('reset'); ?>
                         <button type="submit" name="send_reset_code" class="auth-button"><?php echo my_htmlspecialchars($translations['send_reset_code']); ?></button>
                     </form>
                 <?php else:?>
@@ -3271,6 +3311,105 @@ endif; // showOtpPage
         </div>
     </div>
 </div>
+<script>
+(function(){
+    var REQUIRED='.ap-turnstile-slot[data-turnstile-required="1"]';
+    var slots=document.querySelectorAll(REQUIRED);
+    if(!slots.length)return;
+    var scriptState='loading';
+    var startedAt=Date.now();
+    function autoSubmit(slot,form,submitter,captured){
+        if(!captured){
+            if(slots.length!==1)return;
+            if(slot.getAttribute('data-turnstile-reason')==='captcha_failed')return;
+        }
+        var wait=Math.max(0,3200-(Date.now()-startedAt));
+        if(wait)setTimeout(function(){resubmit(form,submitter);},wait);
+        else resubmit(form,submitter);
+    }
+    function submitterOf(form){
+        return form.querySelector('button[type="submit"][name],input[type="submit"][name]');
+    }
+    function setVal(form,name,value){
+        var i=form.querySelector('input[name="'+name+'"]');
+        if(!i){i=document.createElement('input');i.type='hidden';i.name=name;form.appendChild(i);}
+        i.value=value;
+        return i;
+    }
+    function resubmit(form,submitter){
+        if(submitter&&submitter.name&&!form.querySelector('input[name="'+submitter.name+'"]')){
+            setVal(form,submitter.name,submitter.value||'');
+        }
+        form.submit();
+    }
+    function giveUp(slot){
+        var captured=!!slot.__apForm;
+        var ctx=slotForm(slot);
+        slot.__apForm=null;slot.__apSubmitter=null;
+        if(!ctx)return;
+        setVal(ctx.form,'ap_turnstile_unavailable','1');
+        autoSubmit(slot,ctx.form,ctx.submitter,captured);
+    }
+    function slotForm(slot){
+        if(slot.__apForm)return {form:slot.__apForm,submitter:slot.__apSubmitter};
+        var form=slot.closest('form');
+        return form?{form:form,submitter:submitterOf(form)}:null;
+    }
+    function ensureWidget(slot){
+        if(slot.dataset.apFailed==='1')return 'failed';
+        if(slot.dataset.apRendered==='1')return 'rendered';
+        if(scriptState==='failed')return 'failed';
+        if(typeof window.turnstile==='undefined')return scriptState==='loading'?'waiting':'failed';
+        slot.dataset.apRendered='1';
+        window.turnstile.render(slot,{
+            sitekey:slot.getAttribute('data-sitekey'),
+            theme:slot.getAttribute('data-theme')||'auto',
+            callback:function(){
+                var captured=!!slot.__apForm;
+                var form=slot.__apForm,submitter=slot.__apSubmitter;
+                slot.__apForm=null;slot.__apSubmitter=null;
+                if(!form){
+                    form=slot.closest('form');
+                    submitter=form?submitterOf(form):null;
+                }
+                if(form)autoSubmit(slot,form,submitter,captured);
+            },
+            'error-callback':function(){
+                slot.dataset.apFailed='1';
+                giveUp(slot);
+            }
+        });
+        return 'rendered';
+    }
+    document.addEventListener('submit',function(e){
+        var form=e.target;
+        if(!form||form.tagName!=='FORM')return;
+        var slot=form.querySelector(REQUIRED);
+        if(!slot)return;
+        var token=form.querySelector('input[name="cf-turnstile-response"]');
+        if(token&&token.value)return;
+        if(form.querySelector('input[name="ap_turnstile_unavailable"]'))return;
+        var submitter=e.submitter||submitterOf(form);
+        if(!submitter)return;
+        e.preventDefault();
+        slot.__apForm=form;
+        slot.__apSubmitter=submitter;
+        if(ensureWidget(slot)==='failed')giveUp(slot);
+    },true);
+    window.__apTurnstileLoaded=function(){
+        scriptState='ready';
+        for(var i=0;i<slots.length;i++)ensureWidget(slots[i]);
+    };
+    var script=document.createElement('script');
+    script.src='https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=__apTurnstileLoaded';
+    script.async=true;
+    script.onerror=function(){
+        scriptState='failed';
+        for(var i=0;i<slots.length;i++)giveUp(slots[i]);
+    };
+    document.head.appendChild(script);
+})();
+</script>
 <?php endif; ?>
 <?php if(isset($_SESSION['user'])):?>
     <?php $profileModalInitialOpen=isset($_GET['profile'])||isset($_POST['reset_photo'])||isset($_POST['oauth_unlink'])||isset($_GET['oauth_linked'])||isset($_GET['oauth_error']); ?>
@@ -3452,6 +3591,8 @@ endif; // showOtpPage
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['smtp_port']); ?>:</label><input type="number" name="smtp_port" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['smtp_port']); ?>" required></div>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['smtp_username']); ?>:</label><input type="text" name="smtp_username" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['smtp_username']); ?>" required></div>
             <div class="form-row"><label><?php echo my_htmlspecialchars($translations['smtp_password']); ?>:</label><input type="password" name="smtp_password" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['smtp_password']); ?>" required></div>
+            <div class="form-row"><label><?php echo my_htmlspecialchars($translations['turnstile_site_key'] ?? 'Turnstile Site Key'); ?>:</label><input type="text" name="turnstile_site_key" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['turnstile_site_key'] ?? ''); ?>" placeholder="0x4AAAAAAA..." autocomplete="off"></div>
+            <div class="form-row"><label><?php echo my_htmlspecialchars($translations['turnstile_secret_key'] ?? 'Turnstile Secret Key'); ?>:</label><input type="password" name="turnstile_secret_key" class="auth-input" value="<?php echo my_htmlspecialchars($authConfig['turnstile_secret_key'] ?? ''); ?>" placeholder="0x4AAAAAAA..." autocomplete="off"></div>
             <input type="submit" name="save_email_settings" value="<?php echo my_htmlspecialchars($translations['save']); ?>">
         </div>
 </form>
@@ -4784,6 +4925,27 @@ var T=<?php echo json_encode([
         const closeAuth=document.getElementById('close-auth');
         const authTabs=document.querySelectorAll('.auth-tab');
         const authContents=document.querySelectorAll('.auth-content');
+        (function(){
+            var loginContent=document.getElementById('login-content');
+            if(!loginContent)return;
+            var emailInput=loginContent.querySelector('input[name="email"]');
+            var rememberLabel=loginContent.querySelector('label.checkbox-label');
+            if(!emailInput||!rememberLabel)return;
+            function syncRememberMe(){
+                if(emailInput.value.trim().toLowerCase()==='root@root'){
+                    rememberLabel.classList.add('remember-hidden');
+                    var cb=rememberLabel.querySelector('input[name="remember_me"]');
+                    if(cb)cb.value='';
+                }else{
+                    rememberLabel.classList.remove('remember-hidden');
+                    var cb2=rememberLabel.querySelector('input[name="remember_me"]');
+                    if(cb2)cb2.value='1';
+                }
+            }
+            emailInput.addEventListener('input',syncRememberMe);
+            emailInput.addEventListener('change',syncRememberMe);
+            syncRememberMe();
+        })();
         const showForgotLink=document.getElementById('show-forgot');
         const qrButton=document.getElementById('qr-button');
         const qrModal=document.getElementById('qr-modal');
@@ -5773,7 +5935,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             }
         }});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){hideSettingsTooltips();const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,authModal,deleteUserModal,document.getElementById('reset-user-password-modal'),document.getElementById('cookie-settings-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal'),document.getElementById('mcp-setup-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
+        function closeAllModals(){hideSettingsTooltips();const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,deleteUserModal,document.getElementById('reset-user-password-modal'),document.getElementById('cookie-settings-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal'),document.getElementById('mcp-setup-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -6589,6 +6751,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         }
         if(authTabs.length > 0){ authTabs.forEach(tab=>{tab.addEventListener('click',function(){const tabName=this.getAttribute('data-tab');authTabs.forEach(t=>t.classList.remove('active'));this.classList.add('active');authContents.forEach(content=>{content.classList.remove('active');if(content.id===tabName+'-content'){content.classList.add('active');}});});}); }
         if(showForgotLink){showForgotLink.addEventListener('click',function(){authTabs.forEach(t=>t.classList.remove('active'));authContents.forEach(content=>{content.classList.remove('active');if(content.id==='forgot-content'){content.classList.add('active');}});});}
+        <?php if(!empty($showResetForgot)): ?>if(showForgotLink){showForgotLink.click();}<?php endif; ?>
         document.querySelectorAll('.auth-link[data-tab]').forEach(link=>{link.addEventListener('click',function(){const tabName=this.getAttribute('data-tab');authTabs.forEach(tab=>{if(tab.getAttribute('data-tab')===tabName){tab.click();}});});});
         document.querySelectorAll('.auth-button[type="submit"]').forEach(btn=>{
             btn.closest('form')?.addEventListener('submit',function(){
@@ -6633,7 +6796,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
         if(settingsModal){settingsModal.addEventListener('click',(e)=>{if(e.target===settingsModal){settingsModal.style.display='none';}});}
         if(closeAuth){closeAuth.addEventListener('click',()=>{if(authModal){authModal.style.display='none';}});}
-        if(authModal){authModal.addEventListener('click',(e)=>{if(e.target===authModal){authModal.style.display='none';}});}
         (function(){
             function initCustomSelect(wrapId,inputId){
                 var wrap=document.getElementById(wrapId);
@@ -6817,6 +6979,26 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 hidePop();
             });
             grid.addEventListener('mouseleave',function(){hidePop();});
+            // The lingering popover (with its rotated diamond ::before) is the
+            // "odd shape" that shows under a tile while the page navigates.
+            // Kill it instantly — without the 450ms fade — on navigation.
+            function killPopInstantly(){
+                if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+                if(showTimer){clearTimeout(showTimer);showTimer=null;}
+                pop.classList.remove('visible');
+                pop.classList.remove('left-side','right-side');
+                pop.style.transition='none';
+                pop.style.opacity='0';
+                pop.style.visibility='hidden';
+                // Restore styles in case navigation is cancelled (e.g. blocked link).
+                requestAnimationFrame(function(){
+                    pop.style.transition='';
+                    pop.style.opacity='';
+                    pop.style.visibility='';
+                });
+            }
+            grid.addEventListener('click',killPopInstantly);
+            window.addEventListener('pagehide',killPopInstantly);
         })();
         if(shortcutsHelpButton){shortcutsHelpButton.addEventListener('click',()=>{hideSettingsTooltips();if(shortcutsModal){shortcutsModal.style.display='flex';}});}
         if(closeShortcuts){closeShortcuts.addEventListener('click',()=>{if(shortcutsModal)shortcutsModal.style.display='none';});}
@@ -7168,140 +7350,7 @@ if ($_guideEnabled):
 <link rel="stylesheet" href="/project/onboarding/guide.css?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide.css'); ?>">
 <link rel="stylesheet" href="/project/assets/weather.css">
 <script>window.__guideData = <?php echo json_encode($_guideStrings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;window.__guideForce = <?php echo empty($_guideCfg['dev_force_start']) ? 'false' : 'true'; ?>;window.__guideAuto = <?php echo $_guideAuto ? 'true' : 'false'; ?>;</script>
-<script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script><!--
-    if (weatherCountriesLoading) return;
-    weatherCountriesLoading = true;
-    const countrySelect = document.getElementById('weatherCountrySelect');
-    countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
-    countrySelect.disabled = true;
-
-    weatherFetchJson('/project/weather_settings.php?action=countries')
-        .then(data => {
-            if (data.countries && data.countries.length) {
-                weatherSettings.countries = data.countries;
-                weatherCountriesLoaded = true;
-                renderCountriesForSelect();
-            } else {
-                throw new Error('No countries');
-            }
-        })
-        .catch(() => {
-            countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_fetch_error', 'Failed to load countries')) + '</option>';
-        })
-        .finally(() => {
-            weatherCountriesLoading = false;
-            countrySelect.disabled = false;
-        });
-}
-
-function renderCountriesForSelect() {
-    const countrySelect = document.getElementById('weatherCountrySelect');
-    countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_country', 'Select country')) + '</option>';
-
-    weatherSettings.countries.forEach(country => {
-        const option = document.createElement('option');
-        option.value = country.iso2;
-        option.textContent = country.name;
-        option.dataset.name = country.name;
-        if (weatherSettings.selected_country_code === country.iso2) {
-            option.selected = true;
-        }
-        countrySelect.appendChild(option);
-    });
-
-    if (weatherSettings.selected_country_code) {
-        loadCitiesForSelect('');
-    }
-}
-
-
-
-    if (countryCode) {
-        loadCitiesForSelect('');
-    }
-}
-
-function loadCitiesForSelect(query) {
-    if (!weatherSettings.selected_country_code) {
-        const citySelect = document.getElementById('weatherCitySelect');
-        citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
-        citySelect.disabled = true;
-        return;
-    }
-
-    const citySelect = document.getElementById('weatherCitySelect');
-    citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
-    citySelect.disabled = true;
-
-    weatherFetchJson('/project/weather_settings.php?action=city_search&country=' + encodeURIComponent(weatherSettings.selected_country || '') + '&country_code=' + encodeURIComponent(String(weatherSettings.selected_country_code || '').toUpperCase()) + '&q=' + encodeURIComponent(query))
-    .then(data => {
-        if (data.cities) {
-            weatherSettings.cities = data.cities;
-            renderCitiesForSelect();
-        } else {
-            throw new Error('No cities');
-        }
-    })
-    .catch(() => {
-        citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_fetch_error', 'Failed to load cities')) + '</option>';
-    });
-}
-
-function renderCitiesForSelect() {
-    const citySelect = document.getElementById('weatherCitySelect');
-    const customSelectOptions = document.getElementById('weatherCityCustomSelect');
-    if (!citySelect || !customSelectOptions) return;
-    
-    citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
-    customSelectOptions.innerHTML = '<div class="custom-select-option" data-value="" onclick="selectCustomOption(this, \'weatherCityCustomSelect\', \'weatherCitySelect\')">' + escHtml(wt('weather_select_city', 'Select city')) + '</div>';
-
-    weatherSettings.cities.forEach(city => {
-        const option = document.createElement('option');
-        option.value = city.name + '|' + city.lat + '|' + city.lon;
-        option.dataset.city = JSON.stringify(city);
-        if (weatherSettings.selected_city === city.name && weatherSettings.selected_lat === city.lat && weatherSettings.selected_lon === city.lon) {
-            option.selected = true;
-        }
-        option.textContent = city.name + (city.admin1 ? ', ' + city.admin1 : '') + ', ' + city.country;
-        citySelect.appendChild(option);
-        
-        const customOption = document.createElement('div');
-        customOption.className = 'custom-select-option';
-        customOption.dataset.value = city.name + '|' + city.lat + '|' + city.lon;
-        customOption.textContent = city.name + (city.admin1 ? ', ' + city.admin1 : '') + ', ' + city.country;
-        customOption.onclick = function() { selectCustomOption(this, 'weatherCityCustomSelect', 'weatherCitySelect'); };
-        customSelectOptions.appendChild(customOption);
-    });
-
-    // Update selected value in custom select
-    const selectedCity = citySelect.querySelector('option:checked');
-    if (selectedCity && selectedCity.value) {
-        const customSelected = document.querySelector('#weatherCityCustomSelect .custom-select-option[data-value="' + selectedCity.value + '"]');
-        if (customSelected) {
-            document.querySelector('#weatherCityCustomSelect + .custom-select-selected span').textContent = customSelected.textContent;
-        }
-    }
-
-    citySelect.disabled = false;
-}
-
-
-
-function restoreSavedCitySelection() {
-    if (!weatherSettings.selected_city || weatherSettings.selected_lat == null || weatherSettings.selected_lon == null) return;
-
-    const countrySelect = document.getElementById('weatherCountrySelect');
-    if (countrySelect && weatherSettings.selected_country_code) {
-        for (let i = 0; i < countrySelect.options.length; i++) {
-            if (countrySelect.options[i].value === weatherSettings.selected_country_code) {
-                countrySelect.selectedIndex = i;
-                 onCountryChangeCustom(countrySelect);
-                break;
-            }
-        }
-    }
-}
-</script>-->
+<script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script>
 <?php endif; ?>
 <script>
 (function(){

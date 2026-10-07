@@ -2,6 +2,7 @@
 
 require_once APP_ROOT . '/vendor/autoload.php';
 require_once APP_ROOT . '/lib/app_domains.php';
+require_once APP_ROOT . '/lib/embed_context.php';
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
@@ -264,11 +265,23 @@ function oauth_iframe_app_url(string $app): string {
 }
 
 function oauth_redirect_iframe(string $url): void {
+    // Security: no silent navigation of an embedded document without a
+    // session. If the caller reaches this in an iframe with no authenticated
+    // session, show an explicit sign-in notice instead of an auto-redirect.
+    if (app_is_embedded_request() && (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession())) {
+        app_embedded_login_notice_html(oauth_login_url());
+    }
     header('Location: ' . $url);
     exit;
 }
 
 function oauth_redirect_html(string $url): void {
+    // Security: never hijack the TOP frame from an embedded document without a
+    // session — that silently throws the whole admin panel onto /login. The
+    // user must click the explicit sign-in action instead.
+    if (app_is_embedded_request() && (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession())) {
+        app_embedded_login_notice_html(oauth_login_url());
+    }
     header('Content-Type: text/html; charset=utf-8');
     echo '<!DOCTYPE html><html><head><script>var u=' . json_encode($url, JSON_HEX_TAG) . ';if(window!==window.top)window.top.location.href=u;else window.location.href=u;</script></head><body></body></html>';
     exit;
@@ -615,6 +628,11 @@ function oauth_route_authorize(): void {
         oauth_redirect_with_error($redirectUri, $state, 'unsupported_response_type');
     }
     if (!clientAuthSessionOk()) {
+        // Security: no silent auth-code issuance or top-frame redirect out of
+        // an embedded document without a session — show an explicit action.
+        if (app_is_embedded_request()) {
+            app_embedded_login_notice_html(oauth_login_url());
+        }
         setPostLoginRedirect((string)($_SERVER['REQUEST_URI'] ?? '/authorize'));
         header('Location: /login');
         exit;
@@ -1226,26 +1244,6 @@ function oauth_provision_user_services(string $email, array $user = []): void {
 }
 
 
-function oauth_provision_all_dashboard_users(): void {
-    if (!function_exists('getDB')) return;
-    try {
-        $db = getDB();
-        $res = $db->query('SELECT email, name, role, theme, photo, verified FROM users');
-        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            if (empty($row['verified']) && ($row['email'] ?? '') !== 'root@root') continue;
-            oauth_provision_user_services((string)$row['email'], $row);
-        }
-    } catch (\Exception $e) {
-    }
-}
-
-function oauth_uuid(): string {
-    $data = random_bytes(16);
-    $data[6] = chr((ord($data[6]) & 0x0f) | 0x40);
-    $data[8] = chr((ord($data[8]) & 0x3f) | 0x80);
-    return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
-}
-
 function oauth_route_gitea_emails(): void {
     header('Content-Type: application/json; charset=utf-8');
     $user = oauth_gitea_auth_user();
@@ -1372,6 +1370,11 @@ function omniroute_issue_auth_token(): ?string {
 
 function oauth_route_omniroute_bridge(): void {
     if (!clientAuthSessionOk()) {
+        // Security: inside an iframe, no silent redirect to /login — require
+        // an explicit user action instead.
+        if (app_is_embedded_request()) {
+            app_embedded_login_notice_html(oauth_login_url());
+        }
         setPostLoginRedirect((string)($_SERVER['REQUEST_URI'] ?? '/omniroute-bridge'));
         header('Location: /login');
         exit;

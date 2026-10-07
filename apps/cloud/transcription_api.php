@@ -75,13 +75,6 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
     }
     return null;
 }
-function to_public_relative_path($path) {
-    $normalized = str_replace('\\', '/', (string)$path);
-    if (preg_match('#/storage/[^/]+/(.+)$#', $normalized, $m)) return ltrim($m[1], '/');
-    if (preg_match('#/transcription_uploads/(.+)$#', $normalized, $m)) return ltrim($m[1], '/');
-    if (preg_match('#/tts_output/(.+)$#', $normalized, $m)) return ltrim($m[1], '/');
-    return basename($normalized);
-}
 
 function transcription_safe_message(string $message): string {
     $message = preg_replace('/\b[A-Za-z]:[\\\\\\/][^\s"\'<>)]*/', '[hidden-path]', $message);

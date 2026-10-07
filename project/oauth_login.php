@@ -476,6 +476,3 @@ function oauthProviderConfigured(string $provider): bool {
     return $clientId !== '' && $clientSecret !== '' && oauthGitHubClientIdValid($clientId);
 }
 
-function oauthProviderLabel(string $provider): string {
-    return $provider === 'github' ? 'GitHub' : 'Google';
-}
