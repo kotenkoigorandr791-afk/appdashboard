@@ -75,7 +75,7 @@ server {
         proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
         sub_filter_once on;
-        sub_filter '</body>' '<script>(function(){function go(){var f=document.querySelector("form[action*=openid_connect]");if(f&&!f.dataset.appdashAuto){f.dataset.appdashAuto="1";f.submit();}}if(location.pathname.indexOf("/users/sign_in")===0){setTimeout(go,250);setTimeout(go,1000);}})();</script></body>';
+        sub_filter '</body>' '<script>(function(){if(location.pathname.indexOf("/users/sign_in")!==0)return;if(window.top!==window.self){/* embedded: silent SSO login is disabled by security policy */return;}var f=document.querySelector("form[action*=openid_connect]");if(f&&!f.dataset.appdashAuto){f.dataset.appdashAuto="1";f.submit();}})();</script></body>';
     }
 }
 server {
@@ -99,7 +99,7 @@ server {
         proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
         sub_filter_once on;
-        sub_filter '</body>' '<script>(function(){function go(){var f=document.querySelector("form[action*=openid_connect]");if(f&&!f.dataset.appdashAuto){f.dataset.appdashAuto="1";f.submit();}}if(location.pathname.indexOf("/users/sign_in")===0){setTimeout(go,250);setTimeout(go,1000);}})();</script></body>';
+        sub_filter '</body>' '<script>(function(){if(location.pathname.indexOf("/users/sign_in")!==0)return;if(window.top!==window.self){/* embedded: silent SSO login is disabled by security policy */return;}var f=document.querySelector("form[action*=openid_connect]");if(f&&!f.dataset.appdashAuto){f.dataset.appdashAuto="1";f.submit();}})();</script></body>';
     }
 }
 server {
@@ -124,7 +124,7 @@ server {
         proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
         sub_filter_once on;
-        sub_filter '</body>' '<script>(function(){function go(){var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}}if(location.pathname==="/"||location.pathname.indexOf("/login")===0){setTimeout(go,600);setTimeout(go,1600);setTimeout(go,3200);}})();</script></body>';
+        sub_filter '</body>' '<script>(function(){if(location.pathname!=="/"&&location.pathname.indexOf("/login")!==0)return;if(window.top!==window.self){/* embedded: silent SSO login is disabled by security policy */return;}var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}})();</script></body>';
     }
 }
 server {
@@ -148,7 +148,7 @@ server {
         proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
         sub_filter_once on;
-        sub_filter '</body>' '<script>(function(){function go(){var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}}if(location.pathname==="/"||location.pathname.indexOf("/login")===0){setTimeout(go,600);setTimeout(go,1600);setTimeout(go,3200);}})();</script></body>';
+        sub_filter '</body>' '<script>(function(){if(location.pathname!=="/"&&location.pathname.indexOf("/login")!==0)return;if(window.top!==window.self){/* embedded: silent SSO login is disabled by security policy */return;}var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}})();</script></body>';
     }
 }
 server {
