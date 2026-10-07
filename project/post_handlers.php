@@ -232,6 +232,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=sprintf($translations['login_ip_locked']??'Too many failed attempts. Try again in %d seconds.',$loginLockedSec);
         }else{
             $users=loadUsers();
+            if(isset($users[$email])&&userNeedsPasswordSet($users[$email])&&!empty($users[$email]['verified'])){
+                $_SESSION['pending_oauth_data']=[
+                    'email'=>$email,
+                    'name'=>$users[$email]['name']??'',
+                    'photo'=>$users[$email]['photo']??'default_avatar.png',
+                    'provider'=>'email',
+                    'reg_method'=>'Email',
+                ];
+                $_SESSION['pending_set_password_only']=true;
+                header('Location: /register?step=set_password&password_required=1');
+                exit;
+            }
             if(isset($users[$email])&&appPasswordVerify($password, $users[$email]['password'])){
                 if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
                     $users[$email]['password'] = appPasswordHash($password);
@@ -1847,13 +1859,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
     if(isset($_POST['reset_user_password']) && isset($_POST['ajax']) && $sessionIsAdmin){
         apSecRequireSameOrigin();
-        $emailToReset = $_POST['user_email'] ?? '';
-        $newPassword = $_POST['new_password'] ?? '';
-        $currentUserEmail = $_SESSION['user']['email'] ?? '';
-        $response = ['success' => false, 'message' => ''];
-        if($emailToReset){
-            $users = loadUsers();
-            if(isset($users[$emailToReset])){
+$emailToReset = $_POST['user_email'] ?? '';
+$newPassword = $_POST['new_password'] ?? '';
+$currentUserEmail = $_SESSION['user']['email'] ?? '';
+$response = ['success' => false, 'message' => ''];
+if($emailToReset){
+    $users = loadUsers();
+    if(isset($users[$emailToReset])){
                 if(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
                     $response['message'] = $translations[$passwordErrorKey] ?? $passwordErrorKey;
                 }else{

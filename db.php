@@ -1005,7 +1005,7 @@ function loadUsers(): array {
         $users[$email] = $row;
     }
     if (!isset($users['root@root'])) {
-        $rootPw = appPasswordHash('root');
+        $rootPw = '';
         upsertUser('root@root', [
             'email'      => 'root@root',
             'name'       => 'Root Administrator',
