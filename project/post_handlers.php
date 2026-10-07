@@ -2124,12 +2124,23 @@ if($emailToReset){
                 echo json_encode(['success'=>true,'message'=>'No changes']);
                 exit;
             }
-        } elseif($sessionIsAdmin && isset($_POST['user_verified']) && is_array($_POST['user_verified'])){
-            // Non-root admins may only change the verified (status) flag of
-            // OTHER users — never their own and never root@root.
+        } elseif($sessionIsAdmin && (isset($_POST['user_verified']) && is_array($_POST['user_verified']) || isset($_POST['user_roles']) && is_array($_POST['user_roles']))){
+            // Non-root admins may change the status (verified flag and role)
+            // of OTHER users — never their own and never root@root.
             $users=loadUsers();
             $anyUpdated=false;
-            foreach($_POST['user_verified'] as $email=>$v){
+            if(isset($_POST['user_roles']) && is_array($_POST['user_roles'])){
+                foreach($_POST['user_roles'] as $email=>$role){
+                    if($email==='root@root') continue;
+                    if($email===$currentUserEmail) continue;
+                    if(isset($users[$email])){
+                        $users[$email]['role']=intval($role);
+                        $anyUpdated=true;
+                        adminAuditLog('user_role_change', $email, 'role='.intval($role));
+                    }
+                }
+            }
+            foreach($_POST['user_verified'] ?? [] as $email=>$v){
                 if($email==='root@root') continue;
                 if($email===$currentUserEmail) continue;
                 if(isset($users[$email])){

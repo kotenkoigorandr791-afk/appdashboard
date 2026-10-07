@@ -623,8 +623,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     justify-content: center;
     gap: 7px;
     flex: 1 1 0;
-    min-width: 72px;
-    max-width: 168px;
+    min-width: 0;
     padding: 9px 12px;
     border: 0;
     border-right: 1px solid var(--border-color);
@@ -644,6 +643,9 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     min-width: 0;
 }
 .ap-settings-tab:last-child { border-right: 0; }
+@media (max-width: 900px) {
+    .ap-settings-tab { min-width: 72px; }
+}
 .ap-settings-tab:hover {
     background: color-mix(in srgb, var(--primary-color) 9%, transparent);
     opacity: 1;
