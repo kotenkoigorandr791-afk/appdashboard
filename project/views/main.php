@@ -6979,6 +6979,26 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 hidePop();
             });
             grid.addEventListener('mouseleave',function(){hidePop();});
+            // The lingering popover (with its rotated diamond ::before) is the
+            // "odd shape" that shows under a tile while the page navigates.
+            // Kill it instantly — without the 450ms fade — on navigation.
+            function killPopInstantly(){
+                if(hideTimer){clearTimeout(hideTimer);hideTimer=null;}
+                if(showTimer){clearTimeout(showTimer);showTimer=null;}
+                pop.classList.remove('visible');
+                pop.classList.remove('left-side','right-side');
+                pop.style.transition='none';
+                pop.style.opacity='0';
+                pop.style.visibility='hidden';
+                // Restore styles in case navigation is cancelled (e.g. blocked link).
+                requestAnimationFrame(function(){
+                    pop.style.transition='';
+                    pop.style.opacity='';
+                    pop.style.visibility='';
+                });
+            }
+            grid.addEventListener('click',killPopInstantly);
+            window.addEventListener('pagehide',killPopInstantly);
         })();
         if(shortcutsHelpButton){shortcutsHelpButton.addEventListener('click',()=>{hideSettingsTooltips();if(shortcutsModal){shortcutsModal.style.display='flex';}});}
         if(closeShortcuts){closeShortcuts.addEventListener('click',()=>{if(shortcutsModal)shortcutsModal.style.display='none';});}
