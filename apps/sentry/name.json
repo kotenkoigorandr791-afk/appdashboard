@@ -1,10 +1,10 @@
 {
     "en": "Sentry",
-    "ru": "Sentry",
-    "uk": "Sentry",
-    "be": "Sentry",
-    "pl": "Sentry",
-    "cs": "Sentry",
+    "ru": "Мониторинг ошибок",
+    "uk": "Моніторинг помилок",
+    "be": "Маніторынг памылак",
+    "pl": "Monitoring błędów",
+    "cs": "Monitorování chyb",
     "menu_button": {
         "left": 7,
         "top": 12,

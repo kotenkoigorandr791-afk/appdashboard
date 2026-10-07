@@ -78,7 +78,7 @@ en: {
           device: 'Clicking a device card opens its control panel: status badge (online/offline), room and type tags, the Controls section with switches/sliders (power, auto-off timer, brightness…), live parameters (power draw, temperature) and the Edit button to change the device configuration.'
         }
       },
-      apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', dawarich: 'Interactive maps, routes, and favorites', films: 'Movie manager – collection, comments', gitea: 'Git repositories and code collaboration', immich: 'Photo & video backup with albums', kanboard: 'Kanban boards for projects and tasks', lopaka: 'Graphics editor for embedded displays', recipes: 'Custom recipes manager', smart_home: 'Smart home device dashboard', spends: 'Expense tracker with charts', steps: 'Health & activity tracker' },
+      apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', dawarich: 'Interactive maps, routes, and favorites', films: 'Movie manager – collection, comments', gitea: 'Git repositories and code collaboration', immich: 'Photo & video backup with albums', kanboard: 'Kanban boards for projects and tasks', lopaka: 'Graphics editor for embedded displays', recipes: 'Custom recipes manager', smart_home: 'Smart home device dashboard', spends: 'Expense tracker with charts', steps: 'Health & activity tracker' }, app_names: { cloud: 'Cloud Storage', dawarich: 'Maps', films: 'Movie Manager', gitea: 'Gitea', immich: 'Immich', kanboard: 'Kanboard', lopaka: 'Lopaka', recipes: 'Recipes', smart_home: 'Smart Home', spends: 'Spending Tracker', steps: 'Steps Counter' },
       app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', dawarich: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', gitea: 'Self-hosted Git service for repositories, issues, and pull requests with code review and collaboration.', immich: 'Self-hosted photo and video backup with albums, search, and timeline browsing.', kanboard: 'Kanban project management: boards, tasks, swimlanes, and team workflows.', lopaka: 'Graphics editor and code generator for embedded displays (TFT, U8g2, MicroPython).', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', smart_home: 'Control and monitor smart home devices from a single dashboard: sensors, switches, MQTT, and automations.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.' }
     },
 uk: {
@@ -159,7 +159,7 @@ uk: {
           device: 'Клік по картці пристрою відкриває панель керування: бейдж статусу (онлайн/офлайн), теги кімнати й типу, секція «Керування» з перемикачами/слайдерами (живлення, таймер автовимкнення, яскравість…), живі параметри (споживання, температура) та кнопка «Редагувати» для зміни конфігурації пристрою.'
         }
       },
-      apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', dawarich: 'Інтерактивні мапи, маршрути та обране', films: 'Менеджер фільмів – колекція, коментарі', gitea: 'Git-репозиторії та спільна розробка', immich: 'Бекап фото й відео з альбомами', kanboard: 'Kanban-дошки для проєктів і задач', lopaka: 'Графічний редактор для вбудованих дисплеїв', recipes: 'Менеджер рецептів', smart_home: 'Панель керування розумним домом', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності' },
+      apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', dawarich: 'Інтерактивні мапи, маршрути та обране', films: 'Менеджер фільмів – колекція, коментарі', gitea: 'Git-репозиторії та спільна розробка', immich: 'Бекап фото й відео з альбомами', kanboard: 'Kanban-дошки для проєктів і задач', lopaka: 'Графічний редактор для вбудованих дисплеїв', recipes: 'Менеджер рецептів', smart_home: 'Панель керування розумним домом', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності' }, app_names: { cloud: 'Хмарне сховище', dawarich: 'Карта', films: 'Менеджер фільмів', gitea: 'Гіт-репозиторій', immich: 'Фотографії', kanboard: 'Менеджер задач', lopaka: 'Генератор графіки', recipes: 'Рецепти', smart_home: 'Розумний дім', spends: 'Трекер витрат', steps: 'Лічильник кроків' },
       app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', dawarich: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', gitea: 'Власний Git-сервіс: репозиторії, задачі, pull request та огляд коду.', immich: 'Самостійний бекап фото й відео з альбомами, пошуком і стрічкою часу.', kanboard: 'Kanban-керування проєктами: дошки, задачі, доріжки та командна робота.', lopaka: 'Графічний редактор і генератор коду для вбудованих дисплеїв (TFT, U8g2, MicroPython).', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', smart_home: 'Керування пристроями розумного дому з однієї панелі: сенсори, перемикачі, MQTT та автоматизації.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.' }
     },
     ru: {
@@ -240,7 +240,7 @@ uk: {
           device: 'Клик по карточке устройства открывает панель управления: бейдж статуса (онлайн/офлайн), теги комнаты и типа, секция «Управление» с переключателями/слайдерами (питание, таймер автоотключения, яркость…), живые параметры (потребление, температура) и кнопка «Редактировать» для изменения конфигурации устройства.'
         }
       },
-      apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', dawarich: 'Интерактивные карты, маршруты и избранное', films: 'Менеджер фильмов – коллекция, комментарии', gitea: 'Git-репозитории и совместная разработка', immich: 'Бекап фото и видео с альбомами', kanboard: 'Kanban-доски для проектов и задач', lopaka: 'Графический редактор для встраиваемых дисплеев', recipes: 'Менеджер рецептов', smart_home: 'Панель управления умным домом', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности' },
+      apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', dawarich: 'Интерактивные карты, маршруты и избранное', films: 'Менеджер фильмов – коллекция, комментарии', gitea: 'Git-репозитории и совместная разработка', immich: 'Бекап фото и видео с альбомами', kanboard: 'Kanban-доски для проектов и задач', lopaka: 'Графический редактор для встраиваемых дисплеев', recipes: 'Менеджер рецептов', smart_home: 'Панель управления умным домом', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности' }, app_names: { cloud: 'Облачное хранилище', dawarich: 'Карта', films: 'Менеджер фильмов', gitea: 'Гит-репозиторий', immich: 'Фотографии', kanboard: 'Менеджер задач', lopaka: 'Генератор графики', recipes: 'Рецепты', smart_home: 'Умный дом', spends: 'Трекер расходов', steps: 'Счетчик шагов' },
       app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', dawarich: 'Интерактивные карты с поддержкой KML, GPS. Избранное, маршруты.', films: 'База фильмов с комментариями, списком просмотра, категориями.', gitea: 'Собственный Git-сервис: репозитории, задачи, pull request и обзор кода.', immich: 'Резервное копирование фото и видео с альбомами, поиском и лентой времени.', kanboard: 'Kanban-управление проектами: доски, задачи, дорожки и командная работа.', lopaka: 'Графический редактор и генератор кода для встраиваемых дисплеев (TFT, U8g2, MicroPython).', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', smart_home: 'Управление устройствами умного дома из одной панели: датчики, реле, MQTT и автоматизации.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.' }
     },
     be: {
@@ -320,7 +320,7 @@ uk: {
           device: 'Клік па картцы прылады адкрывае панэль кіравання: бэйдж статуса, тэгі пакоя і тыпу, секцыя «Кіраванне» з пераключальнікамі/слайдэрамі (сілкаванне, таймер аўтаадключэння, яркасць), жывыя параметры (спажыванне, тэмпература) і кнопка «Рэдагаваць».'
         }
       },
-      apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', dawarich: 'Інтэрактыўныя мапы, маршруты і абранае', films: 'Менеджар фільмаў – калекцыя, каментары', gitea: 'Git-рэпазітарыі і сумесная распрацоўка', immich: 'Бэкап фота і відэа з альбомамі', kanboard: 'Kanban-дошкі для праектаў і задач', lopaka: 'Графічны рэдактар для ўбудаваных дысплеяў', recipes: 'Менеджар рэцэптаў', smart_home: 'Панэль кіравання разумным домам', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці' },
+      apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', dawarich: 'Інтэрактыўныя мапы, маршруты і абранае', films: 'Менеджар фільмаў – калекцыя, каментары', gitea: 'Git-рэпазітарыі і сумесная распрацоўка', immich: 'Бэкап фота і відэа з альбомамі', kanboard: 'Kanban-дошкі для праектаў і задач', lopaka: 'Графічны рэдактар для ўбудаваных дысплеяў', recipes: 'Менеджар рэцэптаў', smart_home: 'Панэль кіравання разумным домам', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці' }, app_names: { cloud: 'Воблачнае сховішча', dawarich: 'Карта', films: 'Менеджар фільмаў', gitea: 'Гіт-рэпазіторый', immich: 'Фотаздымкі', kanboard: 'Менэджэр задач', lopaka: 'Генератар графікі', recipes: 'Рэцэпты', smart_home: 'Разумны дом', spends: 'Трэкер выдаткаў', steps: 'Лічыльнік крокаў' },
       app_details: { portal: 'Галоўны сайт ServerKherson: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', dawarich: 'Інтэрактыўныя мапы з падтрымкай KML, GPS. Абранае, маршруты.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', gitea: 'Уласны Git-сэрвіс: рэпазітарыі, задачы, pull request і агляд кода.', immich: 'Рэзервовае капіраванне фота і відэа з альбомамі, пошукам і стужкай часу.', kanboard: 'Kanban-кіраванне праектамі: дошкі, задачы, дарожкі і камандная праца.', lopaka: 'Графічны рэдактар і генератар кода для ўбудаваных дысплеяў (TFT, U8g2, MicroPython).', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', smart_home: 'Кіраванне прыладамі разумнага дому з адной панэлі: датчыкі, рэле, MQTT і аўтаматызацыі.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.' }
     },
     pl: {
@@ -400,7 +400,7 @@ uk: {
           device: 'Kliknięcie karty urządzenia otwiera panel sterowania: plakietka statusu, tagi pokoju i typu, sekcja „Sterowanie” z przełącznikami/suwakami (zasilanie, timer auto-wyłączenia, jasność), parametry na żywo (pobór mocy, temperatura) i przycisk „Edytuj”.'
         }
       },
-      apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', dawarich: 'Interaktywne mapy, trasy i ulubione', films: 'Menedżer filmów – kolekcja, komentarze', gitea: 'Repozytoria Git i współpraca nad kodem', immich: 'Kopia zapasowa zdjęć i wideo z albumami', kanboard: 'Tablice Kanban dla projektów i zadań', lopaka: 'Edytor graficzny dla wbudowanych wyświetlaczy', recipes: 'Menedżer przepisów', smart_home: 'Panel sterowania inteligentnym domem', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności' },
+      apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', dawarich: 'Interaktywne mapy, trasy i ulubione', films: 'Menedżer filmów – kolekcja, komentarze', gitea: 'Repozytoria Git i współpraca nad kodem', immich: 'Kopia zapasowa zdjęć i wideo z albumami', kanboard: 'Tablice Kanban dla projektów i zadań', lopaka: 'Edytor graficzny dla wbudowanych wyświetlaczy', recipes: 'Menedżer przepisów', smart_home: 'Panel sterowania inteligentnym domem', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności' }, app_names: { cloud: 'Chmura', dawarich: 'Mapy', films: 'Menedżer filmów', gitea: 'Repozytorium Gita', immich: 'Zdjęcia', kanboard: 'Menedżer zadań', lopaka: 'Generator grafiki', recipes: 'Przepisy', smart_home: 'Inteligentny dom', spends: 'Wydatki', steps: 'Licznik kroków' },
       app_details: { portal: 'Główny hub ServerKherson: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', dawarich: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', gitea: 'Własnoręcznie hostowany serwis Git: repozytoria, zgłoszenia, pull requesty i przegląd kodu.', immich: 'Kopia zapasowa zdjęć i wideo z albumami, wyszukiwaniem i osią czasu.', kanboard: 'Zarządzanie projektami Kanban: tablice, zadania, tory i praca zespołowa.', lopaka: 'Edytor graficzny i generator kodu dla wbudowanych wyświetlaczy (TFT, U8g2, MicroPython).', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', smart_home: 'Sterowanie urządzeniami inteligentnego domu z jednego panelu: czujniki, przełączniki, MQTT i automatyzacje.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.' }
     },
     cs: {
@@ -480,10 +480,14 @@ uk: {
           device: 'Kliknutí na kartu zařízení otevře panel ovládání: odznak stavu, tagy pokoje a typu, sekce „Ovládání” s přepínači/posuvníky (napájení, časovač auto-vypnutí, jas), živé parametry (odběr, teplota) a tlačítko „Upravit”.'
         }
       },
-      apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', dawarich: 'Interaktivní mapy, trasy a oblíbené', films: 'Správce filmů – sbírka, komentáře', gitea: 'Repozitáře Git a spolupráce na kódu', immich: 'Záloha fotek a videí s alby', kanboard: 'Kanban tabule pro projekty a úkoly', lopaka: 'Grafický editor pro vestavěné displeje', recipes: 'Správce receptů', smart_home: 'Panel chytré domácnosti', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity' },
+      apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', dawarich: 'Interaktivní mapy, trasy a oblíbené', films: 'Správce filmů – sbírka, komentáře', gitea: 'Repozitáře Git a spolupráce na kódu', immich: 'Záloha fotek a videí s alby', kanboard: 'Kanban tabule pro projekty a úkoly', lopaka: 'Grafický editor pro vestavěné displeje', recipes: 'Správce receptů', smart_home: 'Panel chytré domácnosti', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity' }, app_names: { cloud: 'Cloudové úložiště', dawarich: 'Mapy', films: 'Správce filmů', gitea: 'Git repozitář', immich: 'Fotografie', kanboard: 'Správce úkolů', lopaka: 'Generátor grafiky', recipes: 'Recepty', smart_home: 'Chytrá domácnost', spends: 'Sledování výdajů', steps: 'Počítadlo kroků' },
       app_details: { portal: 'Hlavní hub ServerKherson: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', dawarich: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', gitea: 'Vlastní Git služba: repozitáře, issues, pull requesty a recenze kódu.', immich: 'Záloha fotek a videí s alby, vyhledáváním a časovou osou.', kanboard: 'Kanban řízení projektů: tabule, úkoly, dráhy a týmová práce.', lopaka: 'Grafický editor a generátor kódu pro vestavěné displeje (TFT, U8g2, MicroPython).', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', smart_home: 'Ovládání zařízení chytré domácnosti z jednoho panelu: senzory, spínače, MQTT a automatizace.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.' }
     }
   };
+
+  function appDisplayName(appId, t, fallback) {
+    return (t && t.app_names && t.app_names[appId]) || fallback || appId;
+  }
 
   const APPS = [
     { id: 'cloud', name: 'Cloud Storage' },
@@ -1159,15 +1163,15 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
     APPS.forEach(app => {
       const card = document.createElement('div');
       card.className = 'feature-card';
-      card.innerHTML = `${iconHtml(app.id)}<h3>${app.name}</h3><p class="short-desc">${t.apps[app.id] || ''}</p>`;
+      card.innerHTML = `${iconHtml(app.id)}<h3>${appDisplayName(app.id, t, app.name)}</h3><p class="short-desc">${t.apps[app.id] || ''}</p>`;
       card.addEventListener('click', () => {
         const t2 = I18N[l] || I18N.en;
         const timer = setTimeout(() => loadingOverlay(t2.loading_app), 500);
         showModal(app.id, l);
         clearTimeout(timer);
       });
-      card.addEventListener('pointerenter', (e) => handleAppMouseEnter(e, card, app.name, t.apps[app.id] || ''));
-      card.addEventListener('focusin', (e) => handleAppMouseEnter(e, card, app.name, t.apps[app.id] || ''));
+      card.addEventListener('pointerenter', (e) => handleAppMouseEnter(e, card, appDisplayName(app.id, t, app.name), t.apps[app.id] || ''));
+      card.addEventListener('focusin', (e) => handleAppMouseEnter(e, card, appDisplayName(app.id, t, app.name), t.apps[app.id] || ''));
       card.addEventListener('pointerleave', hideAppTooltip);
       card.addEventListener('focusout', hideAppTooltip);
       card.addEventListener('mousemove', (e) => updateTooltipPosition(e, card));
@@ -1286,7 +1290,7 @@ function handleAppMouseEnter(e, card, name, desc) {
     const id = currentModalId, l = currentModalLang;
     if (!id) return;
     const t = I18N[l] || I18N.en;
-    const name = id === 'portal' ? t.portal_title : (APPS.find(a => a.id === id)?.name || id);
+    const name = id === 'portal' ? t.portal_title : (APPS.find(a => a.id === id) ? appDisplayName(id, t, APPS.find(a => a.id === id).name) : id);
     modalTitle.textContent = name;
     modalDesc.textContent = t.app_details[id] || '';
     modalGallery.innerHTML = '';
@@ -1338,7 +1342,7 @@ function handleAppMouseEnter(e, card, name, desc) {
 
   function renderInstructions() {
     const t = I18N[currentModalLang] || I18N.en;
-    const name = currentModalId === 'portal' ? t.portal_title : (APPS.find(a => a.id === currentModalId)?.name || currentModalId);
+    const name = currentModalId === 'portal' ? t.portal_title : (APPS.find(a => a.id === currentModalId) ? appDisplayName(currentModalId, t, APPS.find(a => a.id === currentModalId).name) : currentModalId);
     instructionsTitle.textContent = (t.instructions_title || 'How to use') + ' — ' + name;
     instructionsBody.innerHTML = '';
     const sections = INSTRUCTIONS[currentModalId] || [];
@@ -1567,7 +1571,7 @@ function bindAuthLink(el) {
     } catch (e) {}
     const t = I18N[lang] || I18N.en;
     const allApps = [{ id: 'portal', name: t.portal_title, desc: t.apps.portal, icon: ICONS.portal }].concat(
-      APPS.map(a => ({ id: a.id, name: a.name, desc: t.apps[a.id] || '', icon: iconHtml(a.id) }))
+      APPS.map(a => ({ id: a.id, name: appDisplayName(a.id, t, a.name), desc: t.apps[a.id] || '', icon: iconHtml(a.id) }))
     );
     const widget = document.createElement('div');
     widget.id = 'exploreWidget';

@@ -11,6 +11,7 @@
     "admin_panel_title": "Admin Panel",
     "admins": "Admins",
     "ai_default_model_label": "Model",
+    "ai_models_label": "Models (one per line)",
     "all_apps_allowed": "All applications are allowed",
     "all_docs": "All Documents",
     "all_files_deleted": "All shared files deleted successfully",
