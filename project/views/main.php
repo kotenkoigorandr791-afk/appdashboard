@@ -721,6 +721,18 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             opacity:.86;
             font-size:13px;
             margin:8px 0 6px;
+            overflow:hidden;
+            max-height:40px;
+            transition:opacity .3s ease, max-height .3s ease, margin .3s ease, visibility .3s ease;
+        }
+        /* Smoothly collapsed state (e.g. root@root typed on the login form) */
+        .checkbox-label.remember-hidden{
+            opacity:0;
+            max-height:0;
+            margin-top:0;
+            margin-bottom:0;
+            visibility:hidden;
+            pointer-events:none;
         }
         .checkbox-label input{display:none;}
         .checkmark{
@@ -4913,6 +4925,27 @@ var T=<?php echo json_encode([
         const closeAuth=document.getElementById('close-auth');
         const authTabs=document.querySelectorAll('.auth-tab');
         const authContents=document.querySelectorAll('.auth-content');
+        (function(){
+            var loginContent=document.getElementById('login-content');
+            if(!loginContent)return;
+            var emailInput=loginContent.querySelector('input[name="email"]');
+            var rememberLabel=loginContent.querySelector('label.checkbox-label');
+            if(!emailInput||!rememberLabel)return;
+            function syncRememberMe(){
+                if(emailInput.value.trim().toLowerCase()==='root@root'){
+                    rememberLabel.classList.add('remember-hidden');
+                    var cb=rememberLabel.querySelector('input[name="remember_me"]');
+                    if(cb)cb.value='';
+                }else{
+                    rememberLabel.classList.remove('remember-hidden');
+                    var cb2=rememberLabel.querySelector('input[name="remember_me"]');
+                    if(cb2)cb2.value='1';
+                }
+            }
+            emailInput.addEventListener('input',syncRememberMe);
+            emailInput.addEventListener('change',syncRememberMe);
+            syncRememberMe();
+        })();
         const showForgotLink=document.getElementById('show-forgot');
         const qrButton=document.getElementById('qr-button');
         const qrModal=document.getElementById('qr-modal');
