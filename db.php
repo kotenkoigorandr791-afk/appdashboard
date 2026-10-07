@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/db_auth_security.php';
 require_once __DIR__ . '/lib/security/request.php';
 require_once __DIR__ . '/lib/redis.php';
 require_once __DIR__ . '/lib/app_domains.php';
+require_once __DIR__ . '/lib/embed_context.php';
 define('DB_PATH', '/opt/AppDashboard/data/db.env');
 function appPasswordHash(string $password): string {
     return password_hash($password, PASSWORD_ARGON2ID, [
@@ -1744,6 +1745,14 @@ function ensureAuthenticatedSession(): bool {
         if ($restore === null || (string)($restore['email'] ?? '') !== (string)$_SESSION['user']['email']) return false;
         applyTrustedDeviceSessionRestore($restore);
         return getUserFromActiveSessions(session_id()) !== null;
+    }
+    // Security: never silently restore a session from the shared trusted-device
+    // cookie inside an iframe. An embedded document must only get a session
+    // that already exists in this browser context, never an auto-login of its
+    // own. Apps render an explicit "Sign in" notice instead (see
+    // app_embedded_login_notice_html() in lib/embed_context.php).
+    if (app_is_embedded_request()) {
+        return false;
     }
     $restore = restoreSessionViaTrustedDevice(null);
     if ($restore === null) return false;

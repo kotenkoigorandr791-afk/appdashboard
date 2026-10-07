@@ -12,6 +12,10 @@ $cookieTheme = (string)($_COOKIE['browser_theme'] ?? '');
 $theme = in_array($themeParam, ['light', 'dark', 'auto'], true) ? $themeParam : (in_array($cookieTheme, ['light', 'dark'], true) ? $cookieTheme : 'light');
 $giteaTheme = $theme === 'auto' ? 'gitea-auto' : ($theme === 'dark' ? 'gitea-dark' : 'gitea-light');
 if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
+    // Embedded documents must never get a silent login: show an explicit action.
+    if (app_is_embedded_request()) {
+        app_embedded_login_notice_html(oauth_login_url());
+    }
     oauth_redirect_html(oauth_login_url());
 }
 if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {

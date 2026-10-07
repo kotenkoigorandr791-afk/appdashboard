@@ -14,10 +14,8 @@ smart_log_bootstrap('dashboard');
 // Get URL parameters for theme and accent color
 $bdTheme = isset($_GET['theme']) && preg_match('/^(dark|light)$/', (string)$_GET['theme']) ? $_GET['theme'] : 'dark';
 $bdColor = isset($_GET['color']) && preg_match('/^#[0-9a-fA-F]{6}$/', (string)$_GET['color']) ? $_GET['color'] : '#007bff';
-function backupDashboardIsEmbeddedRequest(): bool {
-    if (isset($_GET['embed']) && $_GET['embed'] === '1') { return true; }
-    return isset($_SERVER['HTTP_SEC_FETCH_DEST']) && $_SERVER['HTTP_SEC_FETCH_DEST'] === 'iframe';
-}
+require_once __DIR__ . '/lib/embed_context.php';
+function backupDashboardIsEmbeddedRequest(): bool { return app_is_embedded_request(); }
 function backupDashboardDeny(int $httpCode, string $htmlMsg, string $jsonMsg = ''): void {
     $j = $jsonMsg !== '' ? $jsonMsg : $htmlMsg;
     if (isset($_GET['config']) || isset($_GET['proxy']) || isset($_GET['path_rw_test']) || isset($_GET['host_fs'])) {

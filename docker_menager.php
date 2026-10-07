@@ -4,6 +4,7 @@ require_once __DIR__ . '/lib/app_session.php';
 app_session_start();
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/lib/admin_security.php';
+require_once __DIR__ . '/lib/embed_context.php';
 require_once __DIR__ . '/smart_log.php';
 smart_log_bootstrap('dashboard');
 adminPanelRequireGate();
@@ -13,7 +14,7 @@ $supportedLangs = ['en','ru','uk','be','pl','cs'];
 $lang = in_array($_GET['lang'] ?? '', $supportedLangs, true) ? $_GET['lang'] : 'en';
 $theme = ($_GET['theme'] ?? 'dark') === 'light' ? 'light' : 'dark';
 $accent = preg_match('/^#[0-9a-fA-F]{6}$/', $_GET['color'] ?? '') ? $_GET['color'] : '#007bff';
-$embed = isset($_GET['embed']) && $_GET['embed'] === '1';
+$embed = app_is_embedded_request();
 $configuredDomain = trim((string)($dockerCfg['domain'] ?? 'localhost'));
 function dockerHostCandidates(array $dockerCfg): array {
     $candidates = [];
