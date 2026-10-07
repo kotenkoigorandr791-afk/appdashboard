@@ -1830,7 +1830,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             // status cell
             if($isRoot) $sC='<span class="ap-verified-yes" style="font-size:16px;">&#x2713;</span>';
             elseif($isPend) $sC='<span style="color:#ff9800;font-weight:bold;font-size:12px;">&#x23F3; Pending</span>';
-            else { $val=$isVer?'1':'0'; $cls=$isVer?'ap-verified-yes':'ap-verified-no'; $sym=$isVer?'&#x2713;':'&#x2717;'; $sC='<button type="button" class="ap-verified-toggle ap-user-field" data-email="'.$eH.'" data-field="verified" data-value="'.$val.'" style="background:none;border:none;cursor:pointer;padding:2px;font-size:16px;"><span class="'.$cls.'" style="font-size:16px;">'.$sym.'</span></button>'; }
+            else { $val=$isVer?'1':'0'; $cls=$isVer?'ap-verified-yes':'ap-verified-no'; $sym=$isVer?'&#x2713;':'&#x2717;'; $selfDis=$isSelf?' disabled title="You cannot change your own status" style="background:none;border:none;cursor:not-allowed;opacity:.45;padding:2px;font-size:16px;"':' style="background:none;border:none;cursor:pointer;padding:2px;font-size:16px;"'; $sC='<button type="button" class="ap-verified-toggle ap-user-field" data-email="'.$eH.'" data-field="verified" data-value="'.$val.'"'.$selfDis.'><span class="'.$cls.'" style="font-size:16px;">'.$sym.'</span></button>'; }
             $aC=renderApUserActionsCell($email, $ud['name']??'', $isRoot, $isSelf, $isPend, $translations);
             $rows.='<tr data-email="'.$eH.'" data-name="'.$nH.'">'
                 .'<td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><img src="'.$ph.'" style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-color);object-fit:cover;flex-shrink:0;" alt="">'.$nH.'</div></td>'
@@ -2097,6 +2097,33 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $users[$email]['verified']=(bool)intval($v);
                         $anyUpdated=true;
                     }
+                }
+            }
+            if($anyUpdated){
+                saveUsers($users);
+                if($isAjaxRoles){
+                    header('Content-Type: application/json');
+                    echo json_encode(['success'=>true,'message'=>$translations['role_changed']]);
+                    exit;
+                }
+                $userManagementSuccess=$translations['role_changed'];
+            } elseif($isAjaxRoles){
+                header('Content-Type: application/json');
+                echo json_encode(['success'=>true,'message'=>'No changes']);
+                exit;
+            }
+        } elseif($sessionIsAdmin && isset($_POST['user_verified']) && is_array($_POST['user_verified'])){
+            // Non-root admins may only change the verified (status) flag of
+            // OTHER users — never their own and never root@root.
+            $users=loadUsers();
+            $anyUpdated=false;
+            foreach($_POST['user_verified'] as $email=>$v){
+                if($email==='root@root') continue;
+                if($email===$currentUserEmail) continue;
+                if(isset($users[$email])){
+                    $users[$email]['verified']=(bool)intval($v);
+                    $anyUpdated=true;
+                    adminAuditLog('user_status_change', $email, (bool)intval($v)?'verified':'unverified');
                 }
             }
             if($anyUpdated){
