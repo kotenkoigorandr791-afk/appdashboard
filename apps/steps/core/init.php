@@ -54,7 +54,6 @@ $userSettings = loadUserSettings($userDb, $defaultSettings);
 
 // Initialize steps: only last 12 months for initial render
 $today        = (new DateTime())->format('Y-m-d');
-$yearAgo      = (new DateTime())->modify('-12 months')->format('Y-m-d');
 
 // If DB is empty — fill with a month of zeros
 $totalCount = (int)$userDb->querySingle('SELECT COUNT(*) FROM steps');
@@ -74,7 +73,6 @@ $userDb->exec("INSERT INTO steps (date, steps) VALUES ('$today', 0) ON CONFLICT 
 
 // Determine earliest date
 [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
-$earliestDate = $earliestInDB ?? $today;
 
 // Load entire available date range for JS
 $jsRangeFrom = $earliestInDB ?? $today;

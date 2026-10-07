@@ -613,14 +613,6 @@ function updateUserRoleIcon(role) {
     label.setAttribute('data-i18n', roleKey);
 }
 
-function getSessionId() {
-        // Try to get session_id from different sources
-    if (typeof session_id !== 'undefined') {
-        return session_id;
-    }
-    return getCookie('PHPSESSID');
-}
-
 function getCookie(name) {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);

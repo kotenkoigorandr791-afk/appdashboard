@@ -87,21 +87,6 @@ function getDB() {
 }
 }
 
-function normalize_cloud_device_id(string $value): string {
-    $value = trim($value);
-    if ($value === '') return '';
-    if (!preg_match('/^[a-f0-9]{32,128}$/i', $value)) return '';
-    return strtolower($value);
-}
-
-function get_cloud_device_id(): string {
-    $header = normalize_cloud_device_id((string)($_SERVER['HTTP_X_DEVICE_ID'] ?? ''));
-    if ($header !== '') return $header;
-    $cookie = normalize_cloud_device_id((string)($_COOKIE['ap_device_id'] ?? ''));
-    if ($cookie !== '') return $cookie;
-    return '';
-}
-
 function ensure_cloud_encryption_consents_schema_sqlite(AppDatabase $db): void {
     $db->exec("SELECT 1");
     $hasTable = (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='cloud_encryption_consents' LIMIT 1");
@@ -732,12 +717,6 @@ function get_requested_root_key(): string {
 function get_root_folder_name(string $rootKey): string {
     static $map = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash'];
     return $map[$rootKey] ?? '';
-}
-function ensure_special_roots(string $base): void {
-    foreach (['archive', 'temp', 'documents', 'photos', 'pdf', 'trash'] as $rk) {
-        $dir = $base . '/' . get_root_folder_name($rk);
-        if (!is_dir($dir)) @mkdir($dir, 0775, true);
-    }
 }
 function is_documents_root(?string $rootKey = null): bool {
     return ($rootKey ?? get_requested_root_key()) === 'documents';

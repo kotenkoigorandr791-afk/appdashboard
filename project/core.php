@@ -2233,30 +2233,20 @@ if (!function_exists('detectDeviceAndBrowser')) {
     }
 }
 
-// loadActiveSessions() provided by db.php
 
 
-// saveActiveSessions() provided by db.php
 
 
-// addUserToActiveSessions() provided by db.php
 
 
-// updateUserActivity() provided by db.php
 
 
-// removeUserFromActiveSessions() provided by db.php
 
 
-// getUserActiveSessions() provided by db.php
 
 
-// getUserFromActiveSessions() provided by db.php
 
 
-function getDeviceTheme(){return 'light';}
-
-$actualTheme = getActualDisplayTheme($config['theme']);
 $themeForAppLink = getThemeForLinks($config['theme']);
 
 // loadAppAccessLevels(), getAppMinRole(), userMeetsAppMinRole(), saveAppAccessLevelsFromMap() in db.php
@@ -2381,34 +2371,21 @@ function completeEmailVerification(string $email): bool {
     return true;
 }
 
-// loadUsers() provided by db.php
 
 
-// saveUsers() provided by db.php
 
 
-// loadPendingUsers() provided by db.php
 
 
-// savePendingUsers() provided by db.php
 
 
-// loadUserFoldersConfig() provided by db.php
 
 
-// saveUserFoldersConfig() provided by db.php
 
 
-// loadTgBotConfig() provided by db.php
 
 
-// saveTgBotConfig() provided by db.php
 
-
-function removeBOM($text){
-    if(substr($text, 0, 3) === "\xEF\xBB\xBF") return substr($text, 3);
-    return $text;
-}
 
 function loadAuthorizedChats(){
     try {
@@ -2871,53 +2848,6 @@ function countUserFiles($email, $name, $appPaths){
 /**
  * Scan user files progressively with progress updates
  */
-function scanUserFilesProgressive($email, $name, $appPaths, $progressCallback = null){
-    $result = [];
-    $totalFolders = 0;
-    $totalFilesCount = 0;
-    $targets = collectUserStorageTargets($email, $name, $appPaths);
-
-    // First, count total files and folders for progress calculation
-    foreach($targets as $target){
-        $totalFolders++;
-        $items = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($target['folder'], RecursiveDirectoryIterator::SKIP_DOTS));
-        foreach($items as $item){
-            if($item->isFile()){
-                $totalFilesCount++;
-            }
-        }
-    }
-
-    $scannedFiles = 0;
-    foreach($targets as $target){
-        $files = scanFilesRecursive($target['folder']);
-        foreach($files as $file){
-            $size = @filesize($file);
-            $result[] = [
-                'app' => $target['app'],
-                'folder' => $target['folder'],
-                'path' => $file,
-                'size' => $size !== false ? (int)$size : 0,
-                'name' => basename($file)
-            ];
-            $scannedFiles++;
-        }
-
-        // Report progress if callback provided
-        if($progressCallback && $totalFilesCount > 0){
-            $progressPercent = ($scannedFiles / $totalFilesCount) * 100;
-            $totalSize = array_sum(array_column($result, 'size'));
-            $progressCallback($progressPercent, $result, $totalSize);
-        }
-    }
-    return [
-        'files' => $result,
-        'total_files' => count($result),
-        'total_folders' => $totalFolders,
-        'total_size' => array_sum(array_column($result, 'size'))
-    ];
-}
-
 function formatBytes($bytes){
     if($bytes === 0) return '0 B';
     $units = ['B','KB','MB','GB','TB'];
@@ -2956,13 +2886,9 @@ function deleteDirectory($dir){
     rmdir($dir);
 }
 
-// loadResetCodes() provided by db.php
 
-// saveResetCodes() provided by db.php
 
-// loadVerificationTokens() provided by db.php
 
-// saveVerificationTokens() provided by db.php
 
 // ── News Portal API ───────────────────────────────────────────────────────────
 if (isset($_GET['api']) && $_GET['api'] === 'news') {
@@ -2977,11 +2903,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     $userEmail = (string)($_SESSION['user']['email'] ?? '');
     $canEdit = isset($_SESSION['user']) && $userRole >= 1;
 
-    function newsLoadAll($f) {
-        if (!is_file($f)) return [];
-        $d = json_decode(file_get_contents($f), true);
-        return is_array($d) ? $d : [];
-    }
     function newsSave($f, $items) {
         file_put_contents($f, json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
     }

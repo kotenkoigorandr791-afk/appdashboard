@@ -66,34 +66,6 @@
         }
         
                 // Function to resize the canvas based on the image
-        function resizeCanvasToFitImage(imgWidth, imgHeight, keepZoomAndPan = false) {
-            const container = document.getElementById('canvas-container');
-            const maxW = container.clientWidth * 0.9;
-            const maxH = container.clientHeight * 0.9;
-            
-            if (!keepZoomAndPan) {
-                // Reset zoom and pan only if not keeping them
-                zoomLevel = 1;
-                canvasOffset = { x: 0, y: 0 };
-                updateZoomDisplay();
-            }
-            
-            let w = imgWidth, h = imgHeight;
-            
-                        // Scale so the image fits the container
-            const scale = Math.min(maxW / w, maxH / h, 1);
-            w *= scale;
-            h *= scale;
-            
-            canvas.setWidth(w); 
-            canvas.setHeight(h);
-            
-                        // Apply scale and pan
-            applyZoomAndPan();
-            
-            return scale;
-        }
-
         function applyImageToCanvas(img) {
             canvas.clear();
             undoStack.length = 0;

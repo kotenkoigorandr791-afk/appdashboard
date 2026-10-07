@@ -75,7 +75,6 @@ function renderControlsHtml(d, controls, editable) {
 }
 const uiText = <?=json_encode($t, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG)?>;
 const availableIcons = <?=json_encode($availableIcons, JSON_HEX_TAG)?>;
-const availableTypes = <?=json_encode($availableTypes, JSON_HEX_TAG)?>;
 const typeNames = <?=json_encode($typeNames, JSON_HEX_TAG)?>;
 
 // ─── Utils ─────────────────────────────────────────────────────────────────
@@ -175,20 +174,6 @@ function uiConfirm(msg, onOk, title, opts = {}) {
      <button type="button" class="btn ${danger ? 'btn-danger' : 'btn-primary'}" id="uiConfirmOk">${esc(opts.okLabel || uiText.ok)}</button>`),
     { title: t });
   document.getElementById('uiConfirmOk')?.addEventListener('click', () => { closeModal(); onOk?.(); });
-}
-function uiPrompt(label, onOk, title, defVal = '') {
-  const t = title || uiText.confirm_title;
-  openModal(uiDialogHtml('confirm',
-    `<div class="ui-dialog-prompt"><label>${esc(label)}</label><input type="text" id="uiPromptInput" value="${esc(defVal)}"></div>`,
-    `<button type="button" class="btn btn-secondary" onclick="closeModal()">${esc(uiText.cancel)}</button>
-     <button type="button" class="btn btn-primary" id="uiPromptOk">${esc(uiText.ok)}</button>`),
-    { title: t });
-  const inp = document.getElementById('uiPromptInput');
-  inp?.focus();
-  inp?.select();
-  const submit = () => { const v = inp?.value?.trim() ?? ''; closeModal(); onOk?.(v); };
-  document.getElementById('uiPromptOk')?.addEventListener('click', submit);
-  inp?.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
 }
 function uiToast(msg) {
   let t = document.getElementById('uiToast');
@@ -394,13 +379,6 @@ function updateDeviceCard(d, prev) {
   return true;
 }
 
-function removeDeviceCard(id) {
-  deviceCardEl(id)?.remove();
-  const container = document.getElementById('roomsContainer');
-  if (container && !container.querySelector('.device-card')) {
-    document.getElementById('homeEmptyState').style.display = 'block';
-  }
-}
 function applyDevicesFromApi(data) {
   const prev = JSON.parse(JSON.stringify(state.devices));
   if (data.devices) state.devices = data.devices;
@@ -795,20 +773,6 @@ function showDeviceSettings(deviceId) {
     <button class="btn btn-danger" onclick="deleteDeviceFromDetail('${esc(d.id)}')">${esc(uiText.delete_device)}</button>
   </div>`;
   openModal(html);
-}
-
-function updateDisplayedParams(deviceId) {
-  const d = state.devices.find(x => x.id === deviceId);
-  if (!d) return;
-  const checks = document.querySelectorAll('.param-selector input[type=checkbox]');
-  const selectedParams = [];
-  checks.forEach(c => {
-    if (c.checked) {
-      const param = (d.params||[]).find(p => p.id === c.value);
-      if (param) selectedParams.push(param);
-    }
-  });
-  api('update_displayed_params', { device_id: deviceId, displayed_params: selectedParams });
 }
 
 function saveDeviceFromDetail(id) {

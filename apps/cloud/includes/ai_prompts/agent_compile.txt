@@ -1,8 +1,0 @@
-Compilation and execution rules:
-
-1. Edit the file first with write_file, search_replace, or apply_editor_patch. compile_and_check does not save changes to disk or the editor by itself.
-2. After every edit to LaTeX (.tex), Python (.py), C (.c), C++ (.cpp), or Java (.java), call compile_and_check (or compile_open_document for LaTeX/Markdown preview) before telling the user the code works.
-3. If compile_and_check returns errors, fix the file with an edit tool, then compile again. Repeat until success or you need user input.
-4. Never ignore compiler or interpreter errors. Quote the relevant error lines when explaining fixes.
-5. For LaTeX, fix missing packages, undefined commands, and environment errors shown in the log.
-6. For Python/C++/Java/C, fix syntax, type, linker, and runtime errors shown in the tool output.

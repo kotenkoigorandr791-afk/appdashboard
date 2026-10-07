@@ -1567,71 +1567,6 @@
                 });
         }
 
-        function loadModalContent(modalId, pageParam, page, gridId) {
-            const urlParams = new URLSearchParams(window.location.search);
-            urlParams.set(pageParam, page);
-            
-            const grid = document.getElementById(gridId);
-            const oldContent = grid.innerHTML;
-            grid.innerHTML = '<div class="loading">Загрузка...</div>';
-            
-            fetch(`${window.location.pathname}?${urlParams}`)
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    const newGrid = doc.getElementById(gridId);
-                    const newPagination = doc.querySelector(`.modal#${modalId} .pagination`);
-                    
-                    if (newGrid && newPagination) {
-                        grid.innerHTML = newGrid.innerHTML;
-                        
-                        // RESTORE SELECTION FOR SELECTED PRODUCTS
-                        if (modalId === 'searchRecipeModal') {
-                            const productCards = document.querySelectorAll('#searchProductGrid .product-card');
-                            productCards.forEach(card => {
-                                const productId = card.getAttribute('data-id');
-                                if (selectedSearchProducts.includes(productId)) {
-                                    card.classList.add('selected');
-                                }
-                                
-                                // Override click handler
-                                card.onclick = () => toggleProductSelection(card);
-                            });
-                        }
-                        
-                        const paginationContainer = document.querySelector(`.modal#${modalId} .pagination`);
-                        if (paginationContainer) {
-                            paginationContainer.innerHTML = newPagination.innerHTML;
-                        }
-                        
-                        if (modalId === 'searchRecipeModal') {
-                            bindSearchModalEvents();
-                        } else if (modalId === 'productModal') {
-                            bindProductModalEvents();
-                        } else if (modalId === 'productSelectionModal') {
-                            bindSelectionModalEvents();
-                            const newSearchInput = doc.getElementById('productSelectionSearch');
-                            if (newSearchInput) {
-                                const currentSearchInput = document.getElementById('productSelectionSearch');
-                                if (currentSearchInput) {
-                                    currentSearchInput.value = newSearchInput.value || '';
-                                }
-                            }
-                        }
-                    } else {
-                        grid.innerHTML = oldContent;
-                        showNotification('Ошибка загрузки данных', 'error');
-                    }
-                })
-                .catch(error => {
-                    grid.innerHTML = oldContent;
-                    showNotification('Ошибка загрузки данных', 'error');
-                    console.error('Error loading modal content:', error);
-                });
-        }
-
         function bindSearchModalEvents() {
             const productCards = document.querySelectorAll('#searchProductGrid .product-card');
             productCards.forEach(card => {
@@ -2062,13 +1997,6 @@
                 const urlInput = document.getElementById('recipeImageUrlInput');
                 if (urlInput) urlInput.value = '';
             }
-        }
-
-        function triggerImagePicker(prefix) {
-            const useUrl = !!document.getElementById(prefix + 'ImageUseUrl')?.checked;
-            if (useUrl) return;
-            const input = document.getElementById(prefix + 'ImageInput');
-            if (input) input.click();
         }
 
         function syncImageSourceMode(prefix) {
@@ -3707,10 +3635,6 @@
             aiRecipeDraft.steps.splice(at, 0, step);
             rerenderAllAiSteps(at);
             if (type === 'product') openAiProductSelection(at);
-        }
-
-        function appendAiPreviewStep(step, i, animate, scrollTo) {
-            upsertAiPreviewStep(step, i, animate, scrollTo);
         }
 
         function renderPendingProducts(pending) {

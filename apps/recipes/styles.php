@@ -1334,24 +1334,6 @@ form button:hover {
     color: var(--text-color);
 }
 
-.add-product-section {
-    background-color: var(--grouping-bg);
-    backdrop-filter: blur(10px);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    margin-bottom: 20px;
-    box-shadow: var(--shadow);
-}
-
-.add-product-section h3 {
-    margin-top: 0;
-    color: var(--text-color);
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 10px;
-}
-
-
-
 #addProductModal.modal {
     align-items: flex-start;
     justify-content: center;
@@ -1872,93 +1854,7 @@ input[type="file"]:required {
 .share-recipe-preview.dark {
     background-color: #333333;
     color: #ffffff;
-}
-
-.share-header {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.share-header h2 {
-    color: var(--primary-color);
-    margin: 0 0 10px 0;
-}
-
-.share-main-image {
-    max-width: 200px;
-    max-height: 200px;
-    object-fit: cover;
-    border-radius: var(--border-radius);
-    border: 2px solid var(--primary-color);
-}
-
-.share-section {
-    margin-bottom: 20px;
-}
-
-.share-section h3 {
-    color: var(--primary-color);
-    border-bottom: 2px solid var(--primary-color);
-    padding-bottom: 5px;
-    margin-bottom: 15px;
-}
-
-.share-ingredients {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
-}
-
-.share-ingredient {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px;
-    background-color: var(--grouping-bg);
-    border-radius: var(--border-radius);
-}
-
-.share-ingredient-image {
-    width: 40px;
-    height: 40px;
-    object-fit: cover;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--primary-color);
-}
-
-.share-steps {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.share-step {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 10px;
-    background-color: var(--grouping-bg);
-    border-radius: var(--border-radius);
-    border-left: 4px solid var(--primary-color);
-}
-
-.share-step-number {
-    font-weight: bold;
-    color: var(--primary-color);
-    min-width: 25px;
-}
-
-.share-timer {
-    margin-left: auto;
-    font-weight: bold;
-    color: var(--primary-color);
-    background-color: var(--grouping-bg);
-    padding: 2px 8px;
-    border-radius: var(--border-radius);
-    font-size: 12px;
-}
-
-.share-actions {
+}ions {
     display: flex;
     gap: 10px;
     justify-content: center;
@@ -2642,10 +2538,6 @@ input[type="file"]:required {
         grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     }
     
-    .share-step {
-        flex-wrap: wrap;
-    }
-    
     .share-actions {
         flex-direction: row;
         justify-content: center;
@@ -3263,20 +3155,7 @@ input[type="file"]:required {
     border: 1px dashed var(--border-color);
     flex-shrink: 0;
     background: rgba(128,128,128,0.1);
-}
-.ai-pending-candidate-opt {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-.ai-pending-candidate-img {
-    width: 28px;
-    height: 28px;
-    object-fit: cover;
-    border-radius: 4px;
-    flex-shrink: 0;
-}
-.ai-step-remove-btn {
+}ai-step-remove-btn {
     margin-left: auto;
     padding: 4px 8px;
     font-size: 12px;
@@ -3683,19 +3562,7 @@ input[type="file"]:required {
     min-height: 20px;
     color: var(--primary-color);
     flex-shrink: 0;
-}
-.ai-workspace-log {
-    font-size: 12px;
-    opacity: 0.85;
-    max-height: 100px;
-    overflow-y: auto;
-    padding: 12px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--border-radius);
-    background: var(--bg-color);
-    margin-top: 4px;
-}
-.ai-preview-empty {
+}.ai-preview-empty {
     opacity: 0.6;
     padding: 32px 16px;
     text-align: center;
@@ -3976,7 +3843,6 @@ body {
     --text-color: <?php echo $theme === 'light' ? '#18201c' : '#f3f5ef'; ?>;
     --surface-color: <?php echo $theme === 'light' ? 'rgba(255,255,251,0.86)' : 'rgba(28,32,31,0.86)'; ?>;
     --surface-strong: <?php echo $theme === 'light' ? '#ffffff' : '#202625'; ?>;
-    --muted-color: <?php echo $theme === 'light' ? '#69736d' : '#a9b3ad'; ?>;
     --line-color: <?php echo $theme === 'light' ? 'rgba(24,32,28,0.12)' : 'rgba(243,245,239,0.12)'; ?>;
     --heat-color: #de6048;
     --herb-color: #11827b;
@@ -4331,24 +4197,10 @@ form button:hover,
 
 .recipe-view {
     max-width: min(940px, calc(100vw - 32px));
-}
-
-.recipe-view .recipe-image,
-.ingredient-image,
-.share-main-image,
-.share-ingredient-image,
-.image-preview,
-.ai-preview-image,
-.product-view-detail-img {
+}.recipe-view .recipe-image,.ingredient-image,.image-preview,.ai-preview-image,.product-view-detail-img{
     border-color: var(--line-color);
     border-radius: 8px;
-}
-
-.recipe-view h3,
-.share-section h3,
-#addProductModal .add-product-modal-heading,
-#addProductModal .add-product-panel-title,
-.ai-zone-title {
+}.recipe-view h3,#addProductModal .add-product-modal-heading,#addProductModal .add-product-panel-title,.ai-zone-title{
     color: var(--herb-color);
     border-bottom-color: color-mix(in srgb, var(--herb-color) 38%, var(--line-color));
 }

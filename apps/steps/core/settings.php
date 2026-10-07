@@ -21,7 +21,8 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
     $settings['goal_steps']    = (int)($settings['goal_steps']    ?? $defaults['goal_steps']);
     $settings['height']        = (int)($settings['height']        ?? $defaults['height']);
     $settings['weight']        = (int)($settings['weight']        ?? $defaults['weight']);
-    $settings['stride_length'] = (int)($settings['stride_length'] ?? $defaults['stride_length']);    $settings['birth_date'] = $settings['birth_date'] ?? $defaults['birth_date'];
+    $settings['stride_length'] = (int)($settings['stride_length'] ?? $defaults['stride_length']);
+    $settings['birth_date']     = $settings['birth_date'] ?? $defaults['birth_date'];
     try {
         $bd = new DateTime($settings['birth_date']);
         $settings['age'] = (new DateTime())->diff($bd)->y;

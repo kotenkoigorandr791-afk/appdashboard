@@ -51,28 +51,6 @@ function fit_chunk_move_to_path(string $uploadId, string $targetPath): bool {
     }
     return false;
 }
-function fit_delete_tree(string $dir): void {
-    if (!is_dir($dir)) {
-        return;
-    }
-    $items = scandir($dir);
-    if (!is_array($items)) {
-        @rmdir($dir);
-        return;
-    }
-    foreach ($items as $it) {
-        if ($it === '.' || $it === '..') {
-            continue;
-        }
-        $p = $dir . DIRECTORY_SEPARATOR . $it;
-        if (is_dir($p) && !is_link($p)) {
-            fit_delete_tree($p);
-        } else {
-            @unlink($p);
-        }
-    }
-    @rmdir($dir);
-}
 function fit_php_cli(): string {
     $candidates = [];
     $phpBindir = defined('PHP_BINDIR') ? PHP_BINDIR : '';

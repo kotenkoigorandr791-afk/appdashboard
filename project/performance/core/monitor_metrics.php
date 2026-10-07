@@ -592,10 +592,6 @@ function monitorStoreSmartSnapshots(array $smartDevices): void {
     }
 }
 
-function runPowerShell($command) {
-    return '';
-}
-
 /**
  * Get CPU load percentage using wmic command
  */

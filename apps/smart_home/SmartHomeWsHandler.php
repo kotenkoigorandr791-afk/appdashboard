@@ -205,11 +205,6 @@ class SmartHomeWsHandler implements MessageComponentInterface
         return $templates[$type] ?? null;
     }
 
-    private function shouldApplyDefinition(array $device): bool
-    {
-        return ((string)($device['type'] ?? '')) === 'pending';
-    }
-
     private function monitorPurge(AppDatabase $db): void
     {
         try {

@@ -406,25 +406,6 @@ function getCurrentUserEmailFromMainAPI() {
     return '';
 }
 
-function aiIsRootUser(): bool
-{
-    $email = getCurrentUserEmailFromMainAPI();
-    if ($email === '') {
-        return false;
-    }
-    require_once __DIR__ . '/../../lib/app_db.php';
-    try {
-        $db = app_main_db();
-        
-        $stmt = aiPrepare($db, 'SELECT role FROM users WHERE email = :email LIMIT 1');
-        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if (method_exists($db, 'close')) $db->close();
-        return $row && (int)($row['role'] ?? 0) === 2;
-    } catch (Exception $e) {
-        return false;
-    }
-}
 
 function aiCurrentEmailForChat(): string {
     $email = getCurrentUserEmailFromMainAPI();
@@ -1194,64 +1175,8 @@ function aiCreateChatSession($db, string $email, string $title): string {
     return $id;
 }
 
-function aiEnsureChatSession($db, string $email, string $chatId, string $question = ''): string {
-    ensureAiChatSessionTable($db);
-    $chatId = trim($chatId);
-    if ($chatId !== '') {
-        $stmt = aiPrepare($db, "SELECT id FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :id LIMIT 1");
-        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-        $stmt->bindValue(':id', $chatId, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($row) return $chatId;
-    }
-    $stmt = aiPrepare($db, "SELECT id FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT 1");
-    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    if ($row && $chatId === '') return (string)$row['id'];
-    $id = aiCreateChatSession($db, $email, $question !== '' ? aiChatTitleFromQuestion($question) : 'New chat');
-    $upd = aiPrepare($db, "UPDATE " . AI_CHAT_TABLE . " SET chat_id = :id WHERE email = :email AND (chat_id = '' OR chat_id IS NULL)");
-    $upd->bindValue(':id', $id, PDO::PARAM_STR);
-    $upd->bindValue(':email', $email, PDO::PARAM_STR);
-    $upd->execute();
-    return $id;
-}
 
-function aiPruneChatSessions($db, string $email): void {
-    $stmt = aiPrepare($db, "SELECT id FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email ORDER BY updated_at DESC, created_at DESC LIMIT -1 OFFSET 50");
-    $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-    $res = $stmt->execute();
-    while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
-        $id = (string)$row['id'];
-        $delMsg = aiPrepare($db, "DELETE FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id = :id");
-        $delMsg->bindValue(':email', $email, PDO::PARAM_STR);
-        $delMsg->bindValue(':id', $id, PDO::PARAM_STR);
-        $delMsg->execute();
-        $del = aiPrepare($db, "DELETE FROM " . AI_CHAT_SESSION_TABLE . " WHERE email = :email AND id = :id");
-        $del->bindValue(':email', $email, PDO::PARAM_STR);
-        $del->bindValue(':id', $id, PDO::PARAM_STR);
-        $del->execute();
-    }
-}
 
-function aiPruneEmptyChatSessions($db, string $email): void {
-    try {
-        $sql = "DELETE FROM " . AI_CHAT_SESSION_TABLE . " s
-            WHERE s.email = :email
-              AND s.title = 'New chat'
-              AND NOT EXISTS (SELECT 1 FROM " . AI_CHAT_TABLE . " c WHERE c.email = s.email AND c.chat_id = s.id)
-              AND s.id NOT IN (
-                  SELECT id FROM " . AI_CHAT_SESSION_TABLE . "
-                  WHERE email = :email_keep AND title = 'New chat'
-                  ORDER BY updated_at DESC, created_at DESC
-                  LIMIT 1
-              )";
-        $stmt = aiPrepare($db, $sql);
-        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
-        $stmt->bindValue(':email_keep', $email, PDO::PARAM_STR);
-        $stmt->execute();
-    } catch (Exception $e) {
-    }
-}
 
 function ensureAiAssistantUserSettingsTable($db) {
     if (!$db) return;

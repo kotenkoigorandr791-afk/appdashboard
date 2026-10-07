@@ -1009,10 +1009,6 @@ function monacoIsSpellcheckDisabled(languageId) {
     return languageId === 'off';
 }
 
-function monacoGetAutoSpellcheckLanguageIds() {
-    return Object.keys(monacoSpellcheckLanguages).filter(id => id !== 'auto');
-}
-
 function monacoHexToRgb(hex) {
     const normalized = (hex || '').replace('#', '').trim();
     if (!/^[0-9a-f]{6}$/i.test(normalized)) return null;
@@ -1671,43 +1667,6 @@ function monacoCreateStatusBar(editor, container, filePath, tabId, readOnly) {
 }
 
 // Register all programming languages
-function monacoRegisterAllLanguages() {
-    if (!monaco.languages) return;
-    
-    const languages = [
-        { id: 'abap' }, { id: 'apex' }, { id: 'azcli' }, { id: 'bat' },
-        { id: 'bicep' }, { id: 'c' }, { id: 'cameligo' }, { id: 'clojure' },
-        { id: 'coffeescript' }, { id: 'cpp' }, { id: 'csharp' }, { id: 'csp' },
-        { id: 'css' }, { id: 'dart' }, { id: 'dockerfile' }, { id: 'ecl' },
-        { id: 'elixir' }, { id: 'erlang' }, { id: 'flow' }, { id: 'fsharp' },
-        { id: 'go' }, { id: 'graphql' }, { id: 'groovy' }, { id: 'handlebars' },
-        { id: 'hcl' }, { id: 'html' }, { id: 'ini' }, { id: 'java' },
-        { id: 'javascript' }, { id: 'json' }, { id: 'julia' }, { id: 'kotlin' },
-        { id: 'less' }, { id: 'lex' }, { id: 'lua' }, { id: 'markdown' },
-        { id: 'mips' }, { id: 'msdax' }, { id: 'mysql' }, { id: 'objective-c' },
-        { id: 'pascal' }, { id: 'pascaligo' }, { id: 'perl' }, { id: 'pgsql' },
-        { id: 'php' }, { id: 'plaintext' }, { id: 'postiats' }, { id: 'powerquery' },
-        { id: 'powershell' }, { id: 'protobuf' }, { id: 'pug' }, { id: 'python' },
-        { id: 'qsharp' }, { id: 'r' }, { id: 'razor' }, { id: 'redis' },
-        { id: 'redshift' }, { id: 'restructuredtext' }, { id: 'ruby' },
-        { id: 'rust' }, { id: 'sb' }, { id: 'scala' }, { id: 'scheme' },
-        { id: 'scss' }, { id: 'shell' }, { id: 'smalltalk' }, { id: 'solidity' },
-        { id: 'sparql' }, { id: 'sql' }, { id: 'st' }, { id: 'swift' },
-        { id: 'systemverilog' }, { id: 'tcl' }, { id: 'twig' }, { id: 'typescript' },
-        { id: 'vb' }, { id: 'verilog' }, { id: 'vhdl' }, { id: 'vue' },
-        { id: 'xml' }, { id: 'yaml' }, { id: 'matlab' }, { id: 'fortran' },
-        { id: 'cobol' }, { id: 'ada' }, { id: 'lisp' }, { id: 'prolog' },
-        { id: 'haskell' }, { id: 'ocaml' }, { id: 'd' }, { id: 'nim' },
-        { id: 'crystal' }, { id: 'zig' }, { id: 'v' }, { id: 'gleam' },
-        { id: 'elisp' }, { id: 'racket' }, { id: 'eiffel' }, { id: 'delphi' }
-    ];
-    
-    languages.forEach(lang => {
-        try { monaco.languages.register({ id: lang.id }); } catch (e) {}
-    });
-    
-}
-
 // Get language ID from file extension
 function monacoGetLanguage(ext) {
     const languageMap = {
@@ -1736,29 +1695,6 @@ function monacoGetLanguage(ext) {
 }
 
 // Handle editor hotkeys
-function monacoHandleHotkeys(e, editor, fileExt) {
-    const mac = navigator.platform.toUpperCase().includes('MAC');
-    const mod = mac ? e.metaKey : e.ctrlKey;
-    
-    if (mod && e.key === 'd' && !e.shiftKey) {
-        e.preventDefault();
-        monacoDeleteLine(editor);
-        return;
-    }
-    
-    if (mod && e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        e.preventDefault();
-        monacoMoveLine(editor, e.key === 'ArrowUp');
-        return;
-    }
-    
-    if (mod && e.shiftKey && e.key === '/') {
-        e.preventDefault();
-        monacoToggleBlockComment(editor);
-        return;
-    }
-}
-
 // Delete current line
 function monacoDeleteLine(editor) {
     const position = editor.getPosition();

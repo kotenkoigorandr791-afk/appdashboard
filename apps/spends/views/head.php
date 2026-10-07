@@ -200,8 +200,6 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .notification.warning { border-left:4px solid #ffa502; }
         .notification-close { background:none; border:none; font-size:18px; cursor:pointer; color:var(--text-color); }
         .backup-item { display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--border-color); }
-        .action-btn { background:none; border:none; cursor:pointer; color:var(--primary-color); padding:5px; border-radius:4px; transition:background 0.2s; }
-        .action-btn:hover { background:rgba(var(--primary-color-rgb),.1); }
         .download-btn,.view-btn,.restore-btn { background:none; border:none; cursor:pointer; color:var(--primary-color); padding:5px; border-radius:4px; margin:2px; }
         .delete-btn { background:none; border:none; cursor:pointer; color:var(--danger-color); padding:5px; border-radius:4px; margin:2px; }
         .number-input { display:flex; align-items:center; gap:5px; }
@@ -244,12 +242,6 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         /* Exchange Rates Modal */
         .rates-spinner { width:36px; height:36px; border:4px solid var(--border-color); border-top-color:var(--primary-color); border-radius:50%; animation:rates-spin .8s linear infinite; margin:0 auto; }
         @keyframes rates-spin { to { transform:rotate(360deg); } }
-        .rates-table { width:100%; border-collapse:collapse; margin-top:15px; }
-        .rates-table th, .rates-table td { padding:12px; text-align:left; border-bottom:1px solid var(--border-color); }
-        .rates-table th { background:var(--primary-color); color:white; font-weight:500; }
-        .rates-table tr:hover { background:rgba(var(--primary-color-rgb),0.05); }
-        .rate-positive { color:#2ed573; }
-        .rate-negative { color:#ff4757; }
         /* Exchange rates modal (redesigned) */
         .xr-pill { display:inline-flex; align-items:center; gap:6px; padding:4px 12px; border-radius:20px; background:rgba(var(--primary-color-rgb),0.12); color:var(--primary-color); font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
         .xr-dot { width:6px; height:6px; border-radius:50%; background:var(--primary-color); animation:xr-blink 1.6s infinite; }
@@ -552,12 +544,6 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
                 flex-wrap: wrap !important;
                 gap: 10px !important;
                 margin-top: 15px !important;
-            }
-            #share-modal .action-btn {
-                padding: 8px 15px !important;
-                font-size: 14px !important;
-                flex: 1 1 auto !important;
-                min-width: 120px !important;
             }
             #ocr-analytics-modal .modal-content { padding:64px 10px 10px!important; width:100vw!important; height:100vh!important; max-width:none!important; border-radius:0!important; margin:0!important; }
             #ocr-analytics-modal h3 { font-size:18px; margin:0!important; }

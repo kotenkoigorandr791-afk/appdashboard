@@ -25,7 +25,6 @@ let searchTerm    = '';
 let pendingDelete = { type:'', id:'', name:'' };
 let totalRowsDB   = <?= (int)$totalRows ?>;
 let shareChart    = null;
-let rateChart     = null;
 let currentRates  = {};
 
 const storeColors = ['#FF6384','#36A2EB','#FFCE56','#4BC0C0','#9966FF','#FF9F40','rgba(6,127,0,1)','#C9CBCF','#4BC0C0','#FFCD56','#C9CBCF','#FF6384'];
@@ -730,51 +729,6 @@ document.addEventListener('click',e=>{
     if(tab)xrSetBase(tab.dataset.base);
 });
 
-function updateRateChart() {
-    // Rate chart was removed with the modal redesign; sparklines show history inline.
-    if (rateChart) { rateChart.destroy(); rateChart = null; }
-}
-function buildOCRAnalyticsChart(payload,selectedStore){
-    const canvas=document.getElementById('ocr-analytics-chart');
-    if(!canvas)return;
-    const ctx=canvas.getContext('2d');
-    if(ocrAnalyticsChart)ocrAnalyticsChart.destroy();
-    const monthly=payload.monthly||[];
-    const daily=payload.daily||[];
-    if(selectedStore==='__all__'){
-        const labels=[...new Set(monthly.map(r=>r.ym))].sort();
-        const stores=[...new Set(monthly.map(r=>r.store))];
-        const datasets=stores.map((store,i)=>({type:'bar',label:store,data:labels.map(ym=>{const row=monthly.find(r=>r.ym===ym&&r.store===store);return row?Number(row.amount_sum):0;}),backgroundColor:storeColors[i%storeColors.length]+'55',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
-        const intensity=labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((s,r)=>s+Number(r.intensity||0),0));
-        datasets.push({type:'line',label:t('chart_intensity','Intensity'),data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.3,pointRadius:3});
-        ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:t('chart_amount','Amount'),color:chartTextColor()},ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:chartTextColor()},title:{display:true,text:t('chart_intensity','Intensity'),color:chartTextColor()}},x:{ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
-        return;
-    }
-    const labels=[...new Set(daily.map(r=>r.date))].sort();
-    const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
-    const monthIntensity={};
-    monthly.forEach(r=>{monthIntensity[r.ym]=Number(r.intensity||0);});
-    const intensity=labels.map(d=>monthIntensity[d.slice(0,7)]||0);
-    ocrAnalyticsChart=new Chart(ctx,{data:{labels,datasets:[{type:'bar',label:`${selectedStore} amount`,data:amounts,backgroundColor:'rgba(54,162,235,.38)',borderColor:'rgba(54,162,235,1)',borderWidth:1},{type:'line',label:'Intensity',data:intensity,yAxisID:'y1',borderColor:'rgb(255,0,0)',backgroundColor:'rgb(255,0,0)',tension:.25,pointRadius:2}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,title:{display:true,text:'Amount',color:chartTextColor()},ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.35)':'rgba(0,0,0,.1)' ?>'}},y1:{beginAtZero:true,position:'right',grid:{drawOnChartArea:false,color:'<?= $theme==='dark'?'rgba(148,163,184,.25)':'rgba(0,0,0,.06)' ?>'},ticks:{color:chartTextColor()},title:{display:true,text:'Intensity',color:chartTextColor()}},x:{ticks:{color:chartTextColor()},grid:{color:'<?= $theme==='dark'?'rgba(148,163,184,.2)':'rgba(0,0,0,.06)' ?>'}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
-}
-function loadOCRAnalytics(){
-    const select=document.getElementById('ocr-analytics-store');
-    const store=select?select.value:'__all__';
-    fetch(`?get_ocr_stats=1&store=${encodeURIComponent(store)}&year=${encodeURIComponent(analyticsYear)}`).then(r=>r.json()).then(d=>{
-        if(d.status!=='success'){showNotification(t('failed_load_analytics','Failed to load analytics'),'error');return;}
-        if(select&&select.options.length<=1){
-            (d.stores||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;select.appendChild(o);});
-        }
-        buildOCRAnalyticsChart(d,store);
-        updateYearButtons();
-    }).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
-}
-function changeAnalyticsYear(delta){
-    const target=analyticsYear+delta;
-    if(!yearHasData(target))return;
-    analyticsYear=target;
-    loadOCRAnalytics();
-}
 function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
 
 function highlightCurrentDate() {

@@ -1499,47 +1499,6 @@ function showArchiveResultDialog(result, originalFolderPath) {
   });
   refreshTreeAfterOperation();
 }
-async function getArchiveSize(archivePath) {
-  try {
-    const properties = await api('get_properties', { path: archivePath }, 'GET');
-    const sizeElement = document.getElementById('archive-size');
-    if (sizeElement) {
-      sizeElement.textContent = formatFileSize(properties.size);
-    }
-  } catch (err) {
-    const sizeElement = document.getElementById('archive-size');
-    if (sizeElement) {
-      sizeElement.textContent = t(i18n, 'unknown');
-    }
-  }
-}
-function showLoadingModal(message) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'flex';
-    modal.style.zIndex = '10000';
-    modal.innerHTML = `
-        <div class="modal-content" style="max-width: 300px; text-align: center;">
-            <div class="modal-body">
-                <div class="spinner" style="
-                    width: 40px;
-                    height: 40px;
-                    margin: 0 auto 15px;
-                    animation: spin 1s linear infinite;
-                ">
-                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <circle cx="20" cy="20" r="18" stroke="var(--border)" stroke-width="4" opacity="0.3"/>
-                        <path d="M20 2a18 18 0 0 1 18 18" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
-                    </svg>
-                </div>
-                <div style="color: var(--muted);">${message}</div>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    return modal;
-}
-
 function cloudActionText(key, fallback) {
     const value = t(window.i18n, key);
     return value && value !== key ? value : fallback;
@@ -1737,142 +1696,12 @@ function getFileIconForPreview(item) {
 }
 
 // Also add a function to get the icon color by extension (optional)
-function getFileIconColor(ext) {
-    const colorMap = {
-                // Images
-        'jpg': '#e67e22',
-        'jpeg': '#e67e22',
-        'png': '#e67e22',
-        'gif': '#9b59b6',
-        'svg': '#f1c40f',
-        
-                // Documents
-        'pdf': '#e74c3c',
-        'doc': '#2980b9',
-        'docx': '#2980b9',
-        'txt': '#7f8c8d',
-        'md': '#2ecc71',
-        
-                // Spreadsheets
-        'xls': '#27ae60',
-        'xlsx': '#27ae60',
-        'csv': '#2ecc71',
-        
-                // Presentations
-        'ppt': '#e67e22',
-        'pptx': '#e67e22',
-        
-                // Archives
-        'zip': '#95a5a6',
-        'rar': '#95a5a6',
-        
-                // Audio
-        'mp3': '#3498db',
-        'wav': '#3498db',
-        
-                // Video
-        'mp4': '#9b59b6',
-        'avi': '#9b59b6',
-        
-                // Code
-        'js': '#f1c40f',
-        'html': '#e34c26',
-        'css': '#264de4',
-        'php': '#8892bf',
-        'py': '#3572A5',
-        'java': '#b07219',
-        'json': '#f1c40f'
-    };
-    
-    return colorMap[ext] || 'var(--muted)';
-}
-
-
-
-
-
 function getDetailsTabTitle(properties) {
     if (properties.type && properties.type.includes('image')) return 'Image';
     if (properties.type && properties.type.includes('audio')) return 'Audio';
     if (properties.type && properties.type.includes('video')) return 'Video';
     if (properties.type && properties.type.includes('document')) return 'Document';
     return 'Details';
-}
-function showPropertiesModal(properties, filePath) {
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.style.display = 'flex';
-    const fileName = filePath.split('/').pop();
-    const fileExt = fileName.split('.').pop().toLowerCase();
-    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'tiff'].includes(fileExt);
-    modal.innerHTML = `
-        <div class="modal-content properties-modal">
-            <div class="modal-header">
-                <h3>
-                    <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                    ${t(i18n, 'properties')}: ${fileName}
-                </h3>
-                <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                </button>
-            </div>
-            <div class="modal-body properties-body">
-                <div class="properties-block">
-                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent);">
-                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                            <line x1="16" y1="13" x2="8" y2="13"></line>
-                            <line x1="16" y1="17" x2="8" y2="17"></line>
-                            <polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
-                        ${t(i18n, 'generalProperties')}
-                    </h4>
-                    ${renderGeneralProperties(properties, filePath)}
-                </div>
-                ${isImage && properties.details ? `
-                <div class="properties-block">
-                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent);">
-                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
-                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                            <polyline points="21 15 16 10 5 21"></polyline>
-                        </svg>
-                        ${getDetailsTabTitle(properties)}
-                    </h4>
-                    ${renderDetailsProperties(properties)}
-                </div>
-                ` : ''}
-                ${properties.security ? `
-                <div class="properties-block">
-                    <h4 style="margin-top: 0; margin-bottom: 15px; color: var(--accent);">
-                        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-right: 8px;">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        ${t(i18n, 'security')}
-                    </h4>
-                    ${renderSecurityProperties(properties)}
-                </div>
-                ` : ''}
-            </div>
-            <div class="modal-footer">
-                <button class="btn primary" id="btn-close-properties">${t(i18n, 'close')}</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
-    modal.querySelector('.close-btn').addEventListener('click', () => modal.remove());
-    modal.querySelector('#btn-close-properties').addEventListener('click', () => modal.remove());
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
-    });
 }
 function renderGeneralProperties(properties, filePath) {
     return `
