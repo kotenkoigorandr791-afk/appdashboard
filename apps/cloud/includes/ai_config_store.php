@@ -174,7 +174,9 @@ function cloud_ai_set_config(string $key, string $value): bool
     }
     try {
         $table = APP_AI_CONFIG_TABLE;
-        $stmt = $db->prepare("INSERT INTO $table(key, value) VALUES(:k, :v)");
+        // Upsert: the key usually already exists, and a plain INSERT would
+        // violate the primary key — the old value would silently stay.
+        $stmt = $db->prepare("INSERT INTO $table(key, value) VALUES(:k, :v) ON CONFLICT (key) DO UPDATE SET value = excluded.value");
         $stmt->bindValue(':k', $key, PDO::PARAM_STR);
         $stmt->bindValue(':v', $value, PDO::PARAM_STR);
         $stmt->execute();

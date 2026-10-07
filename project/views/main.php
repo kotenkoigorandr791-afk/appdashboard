@@ -7255,7 +7255,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,authModal];
                 let isModalClick=false;
                 modals.forEach(modal=>{if(modal&&modal.contains(e.target)){isModalClick=true;}});
-                if(e.target.closest && e.target.closest('.notification, .temp-notification, #toast, #toast-container')){isModalClick=true;}
+                if(e.target.closest && e.target.closest('.notification, .temp-notification, #toast, #toast-container, #otp-gen-modal')){isModalClick=true;}
                 if(!isModalClick){closeSidebarMenu();}
             }
         });

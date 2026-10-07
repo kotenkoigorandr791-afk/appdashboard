@@ -265,6 +265,9 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     padding: 2px 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+    text-align: center;
+    width: fit-content;
+    align-self: center;
 }
 /* Close button — matches .std-topbar-close */
 .ap-close-btn-style,
