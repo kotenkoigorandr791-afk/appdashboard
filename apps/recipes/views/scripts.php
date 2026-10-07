@@ -3121,7 +3121,9 @@
         }
 
         async function loadAiRecipeConfig() {
-            if (aiRecipeConfig) return aiRecipeConfig;
+            // Revalidate at most once per 30s so admin-side model changes are
+            // picked up without a page reload going stale.
+            if (aiRecipeConfig && aiRecipeConfigLoadedAt && Date.now() - aiRecipeConfigLoadedAt < 30000) return aiRecipeConfig;
             const r = await fetch('recipes_ai.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3131,6 +3133,7 @@
             const j = await parseJsonResponse(r);
             if (!j.success || !j.config) throw new Error('config');
             aiRecipeConfig = j.config;
+            aiRecipeConfigLoadedAt = Date.now();
             const sel = document.getElementById('aiRecipeModel');
             if (sel) {
                 sel.innerHTML = '';
@@ -3208,6 +3211,7 @@
 
         let aiRecipeDraft = null;
         let aiRecipeConfig = null;
+        let aiRecipeConfigLoadedAt = 0;
         let aiRecipeBusy = false;
         let aiHasDraft = false;
         let aiPendingProducts = [];

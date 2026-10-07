@@ -3121,6 +3121,9 @@ async function monacoGetAiRuntimeConfig() {
             if (!response.ok || !data?.success) {
                 throw new Error(data?.error || 'AI runtime config is unavailable');
             }
+            // Do not memoize forever: drop the cached promise so a later call
+            // re-fetches fresh config (admin may have changed the model list).
+            setTimeout(() => { monacoAiRuntimeConfigPromise = null; }, 30000);
             return data;
         }).catch((error) => {
             monacoAiRuntimeConfigPromise = null;
