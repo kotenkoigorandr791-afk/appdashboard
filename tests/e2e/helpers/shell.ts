@@ -20,11 +20,20 @@ export async function gotoShell(page: Page, path = '/main') {
 
 export async function login(page: Page) {
   await gotoShell(page, '/login');
+  // The consent overlay is injected asynchronously and blocks the submit button
+  // until dismissed, so wait for it before typing/clicking.
+  await autoAcceptCookies(page);
   await page.locator('#login-content input[name="email"]').fill(authUser.email);
   await page.locator('#login-password').fill(authUser.password);
   await Promise.all([
     page.waitForURL(url => !url.pathname.includes('/login'), { timeout: 30000 }),
-    page.locator('#login-content button[name="login"]').click()
+    (async () => {
+      await page.locator('#cookie-consent-overlay').waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+      if (await page.locator('#cookie-consent-accept').isVisible().catch(() => false)) {
+        await page.locator('#cookie-consent-accept').click({ timeout: 5000 }).catch(() => {});
+      }
+      await page.locator('#login-content button[name="login"]').click();
+    })()
   ]);
 }
 
