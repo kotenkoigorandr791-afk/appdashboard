@@ -1024,6 +1024,8 @@
   "monacoSpellcheckUnavailable": "Перевірка орфографії недоступна",
   "monacoSpellLanguage": "Мова перевірки:",
   "monacoSpellAuto": "Авто",
+  "monacoSpellOff": "Вимкнено",
+  "monacoSpellSelectTitle": "Виберіть мову перевірки орфографії",
   "createArchive": "Створити архів",
   "archiveType": "Тип архіву",
   "encryptArchive": "Зашифрувати архів",

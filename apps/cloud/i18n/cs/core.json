@@ -1033,6 +1033,8 @@
   "monacoSpellcheckUnavailable": "Kontrola pravopisu není k dispozici",
   "monacoSpellLanguage": "Jazyk pravopisu:",
   "monacoSpellAuto": "Auto",
+  "monacoSpellOff": "Vypnuto",
+  "monacoSpellSelectTitle": "Vyberte jazyk kontroly pravopisu",
   "createArchive": "Vytvořit archiv",
   "archiveType": "Typ archivu",
   "encryptArchive": "Zašifrovat archiv",

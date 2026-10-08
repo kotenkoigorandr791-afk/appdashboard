@@ -1030,6 +1030,8 @@
   "monacoSpellcheckUnavailable": "Spellcheck unavailable",
   "monacoSpellLanguage": "Spell language:",
   "monacoSpellAuto": "Auto",
+  "monacoSpellOff": "Off",
+  "monacoSpellSelectTitle": "Select spellcheck language",
   "czech": "CZE",
   "createArchive": "Create archive",
   "archiveType": "Archive type",

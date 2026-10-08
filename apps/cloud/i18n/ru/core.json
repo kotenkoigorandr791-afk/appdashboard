@@ -1030,6 +1030,8 @@
   "monacoSpellcheckUnavailable": "Проверка орфографии недоступна",
   "monacoSpellLanguage": "Язык проверки:",
   "monacoSpellAuto": "Авто",
+  "monacoSpellOff": "Отключено",
+  "monacoSpellSelectTitle": "Выберите язык проверки орфографии",
   "createArchive": "Создать архив",
   "archiveType": "Тип архива",
   "encryptArchive": "Зашифровать архив",

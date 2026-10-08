@@ -246,7 +246,8 @@ cloud_require_session_auth();
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=40"></script>
-<script defer src="assets/monaco-editor.js?v=16"></script>
+<script defer src="assets/monaco-shared.js?v=1"></script>
+<script defer src="assets/monaco-editor.js?v=18"></script>
 
 
 </head>

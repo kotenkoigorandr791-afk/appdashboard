@@ -1024,6 +1024,8 @@
   "monacoSpellcheckUnavailable": "Праверка правапісу недаступная",
   "monacoSpellLanguage": "Мова праверкі:",
   "monacoSpellAuto": "Аўта",
+  "monacoSpellOff": "Адключана",
+  "monacoSpellSelectTitle": "Выберыце мову праверкі правапісу",
   "createArchive": "Стварыць архіў",
   "archiveType": "Тып архіва",
   "encryptArchive": "Зашыфраваць архіў",

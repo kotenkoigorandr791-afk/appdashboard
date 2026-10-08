@@ -1033,6 +1033,8 @@
   "monacoSpellcheckUnavailable": "Sprawdzanie pisowni jest niedostępne",
   "monacoSpellLanguage": "Język pisowni:",
   "monacoSpellAuto": "Automat",
+  "monacoSpellOff": "Wyłączone",
+  "monacoSpellSelectTitle": "Wybierz język sprawdzania pisowni",
   "createArchive": "Utwórz archiwum",
   "archiveType": "Typ archiwum",
   "encryptArchive": "Zaszyfruj archiwum",
