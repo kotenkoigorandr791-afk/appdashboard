@@ -874,9 +874,9 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 #advanced-search-modal #search-folder-tree-container{border-radius:12px!important;overflow-y:auto}
 #advanced-search-modal .folder-checkmark{border-radius:50%!important}
 .search-extension-autocomplete{position:relative}
-.search-extension-suggestions{position:absolute;left:0;top:calc(100% + 6px);width:100%;max-height:220px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:999px;box-shadow:0 10px 24px rgba(0,0,0,0.2);z-index:1000001;padding:4px;display:none}
+.search-extension-suggestions{position:absolute;left:0;top:calc(100% + 6px);width:100%;max-height:220px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:2px;box-shadow:0 10px 24px rgba(0,0,0,0.2);z-index:1000001;padding:4px;display:none}
 .search-extension-suggestions.visible{display:block}
-.search-extension-suggestion{display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:8px 10px;border-radius:999px;cursor:pointer;color:var(--fg);transition:background .15s ease,color .15s ease}
+.search-extension-suggestion{display:flex;align-items:center;justify-content:flex-start;gap:10px;padding:8px 10px;border-radius:3px;cursor:pointer;color:var(--fg);transition:background .15s ease,color .15s ease}
 .search-extension-suggestion .app-file-icon{width:20px;height:20px;flex:0 0 20px}
 .search-extension-suggestion:hover,.search-extension-suggestion.active{background:rgba(var(--accent-rgb),0.14)}
 .search-extension-dot{color:var(--accent);font-weight:600}
@@ -1234,7 +1234,7 @@ body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!importa
 }
 
 .storage-usage-go-btn {
-    margin: 10px;
+    margin-left: 0;
     align-self: flex-start;
     flex-shrink: 0;
 }
